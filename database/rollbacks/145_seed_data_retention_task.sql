@@ -4,4 +4,6 @@
 -- Reverses migration 145.
 -- =============================================================================
 
-DELETE FROM scheduled_tasks WHERE task_name = 'data_retention';
+DELETE FROM scheduled_tasks
+WHERE task_name = 'data_retention'
+  AND organization_id IS NULL;
