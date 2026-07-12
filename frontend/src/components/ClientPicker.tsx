@@ -45,11 +45,15 @@ export interface ClientPickerProps {
 // Search
 // ---------------------------------------------------------------------------
 
-async function searchClients(term: string): Promise<ClientOption[]> {
+async function searchClients(term: string, limit = 20): Promise<ClientOption[]> {
   // The clients list endpoint is typed loosely in the generated schema, so the
   // query is cast through `never` and the response is read via an unknown cast.
+  // An empty term (the "browse" state, before the user types anything) omits
+  // the search filter entirely — GET /clients already defaults to newest-first
+  // (order_by=created_at, order=DESC) in that case, so this doubles as the
+  // "fetch newest N as the initial list" behaviour below.
   const res = await api.GET('/clients', {
-    params: { query: { search: term, limit: 20 } as never },
+    params: { query: { search: term, limit } as never },
   });
   if (res.error) return [];
   return (res.data as unknown as ClientsSearchResponse).data ?? [];
@@ -68,6 +72,10 @@ export function ClientPicker({ value, onChange, initialName, required = true }: 
   const [results, setResults] = useState<ClientOption[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  // The "browse newest" fetch only fires once the input actually has focus —
+  // not on mount — so pages that render a picker but the user never opens it
+  // don't pay for an unsolicited GET /clients.
+  const [focused, setFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Keep the displayed name in sync if the parent seeds a different initialName
@@ -78,26 +86,24 @@ export function ClientPicker({ value, onChange, initialName, required = true }: 
 
   const isSelected = value !== '' && selectedName !== '';
 
-  // Debounced search (~250ms) whenever the term changes and nothing is selected.
+  // Debounced search (~250ms) whenever the term changes and nothing is
+  // selected. An empty term (once the field has focus) fetches the newest
+  // 100 clients instead of showing nothing, so the picker is browsable
+  // without typing — no debounce needed for that fetch since there's no
+  // keystroke to wait out.
   useEffect(() => {
-    if (isSelected) return;
+    if (isSelected || !focused) return;
     const q = term.trim();
-    if (!q) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
-    setOpen(true); // open immediately so the "Searching…" hint is visible
     let cancelled = false;
     const handle = setTimeout(async () => {
-      const rows = await searchClients(q);
+      const rows = await searchClients(q, q ? 20 : 100);
       if (cancelled) return; // a newer term superseded this run — drop stale results
       setResults(rows);
       setLoading(false);
-    }, 250);
+    }, q ? 250 : 0);
     return () => { cancelled = true; clearTimeout(handle); };
-  }, [term, isSelected]);
+  }, [term, isSelected, focused]);
 
   // Close the dropdown when clicking outside the picker.
   useEffect(() => {
@@ -146,9 +152,9 @@ export function ClientPicker({ value, onChange, initialName, required = true }: 
             placeholder={t('clientPicker.placeholder')}
             autoComplete="off"
             onChange={e => setTerm(e.target.value)}
-            onFocus={() => { if (results.length) setOpen(true); }}
+            onFocus={() => { setFocused(true); setOpen(true); }}
           />
-          {open && (term.trim() || loading) && (
+          {open && (term.trim() || loading || results.length > 0) && (
             <ul style={dropdown} role="listbox">
               {loading && <li style={hintItem}>{t('clientPicker.searching')}</li>}
               {!loading && results.length === 0 && (
