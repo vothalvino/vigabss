@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NOC Dashboard (§12)
+// VigaBSS 5.0 — NOC Dashboard (§12)
 // =============================================================================
 // Operational view with 6 panels: Network Health, Active Alarms, Ongoing
 // Outages, Ticket Queue, Recent Events, and SLA Compliance.

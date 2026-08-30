@@ -4,7 +4,7 @@
 -- Adds three tables to support SAML 2.0 and OIDC single-sign-on per tenant:
 --
 --   organization_sso_configs       — one row per (org, provider_type)
---   organization_sso_group_mappings — maps IdP group names to FireISP roles
+--   organization_sso_group_mappings — maps IdP group names to VigaBSS roles
 --   sso_auth_states                — short-lived OIDC state/nonce store
 -- =============================================================================
 
@@ -32,9 +32,9 @@ CREATE TABLE IF NOT EXISTS organization_sso_configs (
     oidc_scopes           VARCHAR(500) NULL DEFAULT 'openid profile email' COMMENT 'Space-separated OIDC scopes to request',
 
     -- Common settings
-    attribute_mapping     JSON         NULL                            COMMENT 'Maps IdP attributes to FireISP user fields, e.g. {"email":"http://schemas.../emailaddress","firstName":"givenname"}',
+    attribute_mapping     JSON         NULL                            COMMENT 'Maps IdP attributes to VigaBSS user fields, e.g. {"email":"http://schemas.../emailaddress","firstName":"givenname"}',
     idp_group_attribute   VARCHAR(255) NULL DEFAULT 'groups'           COMMENT 'IdP attribute name that carries group memberships',
-    auto_provision        TINYINT(1) NOT NULL DEFAULT 1                COMMENT '1 = auto-create FireISP users on first SSO login',
+    auto_provision        TINYINT(1) NOT NULL DEFAULT 1                COMMENT '1 = auto-create VigaBSS users on first SSO login',
     default_role          ENUM('admin','manager','technician','billing','readonly') NOT NULL DEFAULT 'readonly' COMMENT 'Role assigned to auto-provisioned users without a group mapping',
 
     created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -50,13 +50,13 @@ CREATE TABLE IF NOT EXISTS organization_sso_configs (
 
 -- ---------------------------------------------------------------------------
 -- Table: organization_sso_group_mappings
--- Maps IdP group names to FireISP roles for automatic role assignment.
+-- Maps IdP group names to VigaBSS roles for automatic role assignment.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS organization_sso_group_mappings (
     id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     sso_config_id         BIGINT UNSIGNED NOT NULL                     COMMENT 'Parent SSO config record',
     idp_group             VARCHAR(255) NOT NULL                        COMMENT 'Exact group name as reported by the IdP',
-    fireisp_role          ENUM('admin','manager','technician','billing','readonly') NOT NULL COMMENT 'FireISP role to assign when the user belongs to this group',
+    fireisp_role          ENUM('admin','manager','technician','billing','readonly') NOT NULL COMMENT 'VigaBSS role to assign when the user belongs to this group',
     created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS organization_sso_group_mappings (
     CONSTRAINT fk_group_mapping_config FOREIGN KEY (sso_config_id)
         REFERENCES organization_sso_configs (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Maps IdP group names to FireISP roles for SSO-authenticated users';
+  COMMENT='Maps IdP group names to VigaBSS roles for SSO-authenticated users';
 
 -- ---------------------------------------------------------------------------
 -- Table: sso_auth_states

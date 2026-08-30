@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Support Context Service (§21.7)
+// VigaBSS 5.0 — Support Context Service (§21.7)
 // =============================================================================
 // Assembles CRM + billing + RADIUS + NMS + CPE context for a client.
 // Never includes raw credentials (strips SNMP community, RADIUS secret,

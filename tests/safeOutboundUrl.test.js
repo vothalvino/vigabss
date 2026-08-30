@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SSRF guard for tenant-configurable outbound URLs
+// VigaBSS 5.0 — SSRF guard for tenant-configurable outbound URLs
 // =============================================================================
 const { assertSafeOutboundUrl, isBlockedIp } = require('../src/utils/safeOutboundUrl');
 

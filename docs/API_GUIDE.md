@@ -1,6 +1,6 @@
-# FireISP 5.0 — API Guide
+# VigaBSS 5.0 — API Guide
 
-This guide covers everything a developer needs to integrate with the FireISP REST API.
+This guide covers everything a developer needs to integrate with the VigaBSS REST API.
 
 ---
 
@@ -37,7 +37,7 @@ All API endpoints are prefixed with `/api/`. The health check endpoint (`/health
 
 ## Authentication
 
-FireISP uses JWT (JSON Web Tokens) for authentication. Tokens are issued on login and must be included in every authenticated request.
+VigaBSS uses JWT (JSON Web Tokens) for authentication. Tokens are issued on login and must be included in every authenticated request.
 
 ### Register
 
@@ -299,7 +299,7 @@ Requests are rate-limited per IP address. Rate limit headers are included in eve
 
 ## Organization Scoping
 
-FireISP is multi-tenant. Every authenticated request is scoped to the user's current organization (set in the JWT at login). All CRUD operations automatically filter by `organization_id`.
+VigaBSS is multi-tenant. Every authenticated request is scoped to the user's current organization (set in the JWT at login). All CRUD operations automatically filter by `organization_id`.
 
 The organization context is derived from the JWT payload's `orgId` field. If a user belongs to multiple organizations, the primary organization is set at login. Users cannot access data from organizations they don't belong to.
 
@@ -307,7 +307,7 @@ The organization context is derived from the JWT payload's `orgId` field. If a u
 
 ## RBAC Permissions
 
-FireISP uses Role-Based Access Control. Each user has a role within each organization, and each role has a set of permissions.
+VigaBSS uses Role-Based Access Control. Each user has a role within each organization, and each role has a set of permissions.
 
 ### Permission Format
 
@@ -328,7 +328,7 @@ Users with `role: 'admin'` in the legacy `users.role` field bypass all RBAC chec
 
 ## Real-Time Events (SSE)
 
-FireISP uses Server-Sent Events (SSE) for real-time push notifications. SSE works through HTTP/2 proxies and load balancers without extra configuration.
+VigaBSS uses Server-Sent Events (SSE) for real-time push notifications. SSE works through HTTP/2 proxies and load balancers without extra configuration.
 
 ### Connecting
 
@@ -376,7 +376,7 @@ location /api/events/ {
 
 ## Webhook Events
 
-FireISP can deliver events to external URLs via webhooks. Webhooks are configured per-organization.
+VigaBSS can deliver events to external URLs via webhooks. Webhooks are configured per-organization.
 
 ### Supported Events
 
@@ -419,8 +419,8 @@ FireISP can deliver events to external URLs via webhooks. Webhooks are configure
 | Header | Description |
 |--------|-------------|
 | `Content-Type` | `application/json` |
-| `X-FireISP-Event` | Event name (e.g., `invoice.created`) |
-| `X-FireISP-Signature` | `sha256={hmac_hex}` — HMAC-SHA256 of the request body |
+| `X-VigaBSS-Event` | Event name (e.g., `invoice.created`) |
+| `X-VigaBSS-Signature` | `sha256={hmac_hex}` — HMAC-SHA256 of the request body |
 
 ### Verifying Signatures
 
@@ -590,7 +590,7 @@ POST /api/quotes/42/convert-to-invoice
 
 ## CFDI 4.0 Workflow (Mexico)
 
-FireISP supports Mexican fiscal compliance with CFDI 4.0 electronic invoicing.
+VigaBSS supports Mexican fiscal compliance with CFDI 4.0 electronic invoicing.
 
 ### Prerequisites
 

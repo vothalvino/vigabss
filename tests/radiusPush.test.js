@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS direct-provisioning push route tests
+// VigaBSS 5.0 — RADIUS direct-provisioning push route tests
 // =============================================================================
 // Covers POST /api/radius/:id/push:
 //   • success 200 (returns push result from routerProvisioningService)
@@ -108,7 +108,7 @@ describe('POST /api/radius/:id/push', () => {
       username: 'pppoe-user',
       password: 'secret-pass',
       profile: '50M-plan',
-      comment: 'FireISP radius#7 client#12 contract#30',
+      comment: 'VigaBSS radius#7 client#12 contract#30',
     });
   });
 

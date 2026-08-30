@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — File Upload Middleware (Multer)
+// VigaBSS 5.0 — File Upload Middleware (Multer)
 // =============================================================================
 // Configures multer for disk storage with entity-based subdirectories.
 // =============================================================================

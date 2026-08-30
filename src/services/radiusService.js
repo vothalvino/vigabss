@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Service
+// VigaBSS 5.0 — RADIUS Service
 // =============================================================================
 // Provides RADIUS account synchronization, session management, and
 // FreeRADIUS SQL integration helpers.
@@ -321,7 +321,7 @@ function expandAttributeRows(attrMap) {
 
 /**
  * Synchronize the FreeRADIUS SQL tables (radcheck, radreply, radusergroup,
- * radgroupcheck, radgroupreply) from FireISP state for a given organization.
+ * radgroupcheck, radgroupreply) from VigaBSS state for a given organization.
  *
  * Strategy: delete-then-reinsert per username (idempotent).
  *   • Per active subscriber → radcheck row with credential (auth-method-aware)

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CpeFirmwareCampaign Model (§8.1)
+// VigaBSS 5.0 — CpeFirmwareCampaign Model (§8.1)
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

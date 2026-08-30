@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SecureDeletionLog Model
+// VigaBSS 5.0 — SecureDeletionLog Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

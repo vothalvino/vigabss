@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Invoice → CFDI 4.0 conversion ("stamp later")
+// VigaBSS 5.0 — Invoice → CFDI 4.0 conversion ("stamp later")
 // =============================================================================
 // In an MX-locale org, every invoice starts life as a normal internal invoice
 // (identical to a global-locale org). Stamping is the deliberate second step

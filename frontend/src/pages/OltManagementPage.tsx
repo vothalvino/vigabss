@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — OLT Management (§7.1)
+// VigaBSS 5.0 — OLT Management (§7.1)
 // =============================================================================
 // Tabbed page covering:
 //   1. OLT Ports   — list/create/edit OLT PON and uplink ports

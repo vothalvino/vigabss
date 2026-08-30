@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ProvisioningPipeline Model (§18.1)
+// VigaBSS 5.0 — ProvisioningPipeline Model (§18.1)
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

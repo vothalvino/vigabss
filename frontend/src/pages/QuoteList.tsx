@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Quote Management
+// VigaBSS 5.0 — Quote Management
 // =============================================================================
 // Standalone page at /quotes. Lists sales quotes with:
 //   • Status filter

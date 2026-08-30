@@ -1,6 +1,6 @@
 # Backup & Disaster Recovery Guide
 
-FireISP 5.0 includes a built-in backup script (`npm run backup`) that performs MySQL dumps with gzip compression and automatic rotation. This document covers the backup process, restore procedures, and disaster recovery planning.
+VigaBSS 5.0 includes a built-in backup script (`npm run backup`) that performs MySQL dumps with gzip compression and automatic rotation. This document covers the backup process, restore procedures, and disaster recovery planning.
 
 > **Updating or recreating containers?** First confirm your data is on a
 > persistent volume (not the container's ephemeral layer) with the
@@ -201,7 +201,7 @@ tar xzf storage-20260401.tar.gz -C /path/to/fireisp5.0/
 
 ### Remote (Off-Site) Backups
 
-FireISP uploads every backup to an S3-compatible destination automatically —
+VigaBSS uploads every backup to an S3-compatible destination automatically —
 no extra tooling on the app server. Configure it either way:
 
 * **UI (recommended)** — **Admin → Backups** (`/backups`, permission
@@ -260,7 +260,7 @@ systemctl daemon-reload && systemctl enable --now minio
 ```
 
 Then open the MinIO console (`http://backup-server:9001`), create a bucket
-(e.g. `fireisp-backups`) plus a dedicated access key, and in FireISP's
+(e.g. `fireisp-backups`) plus a dedicated access key, and in VigaBSS's
 **Admin → Backups** choose provider **MinIO / self-hosted**, endpoint
 `http://backup-server:9000`, region `us-east-1` (MinIO accepts any), and the
 bucket + keys you created. Click **Test connection**. Prefer HTTPS (put
@@ -306,4 +306,4 @@ storage/
 └── tickets/         # Ticket attachments
 ```
 
-All paths are relative to the FireISP installation directory. The `files` database table stores metadata and references to each stored file.
+All paths are relative to the VigaBSS installation directory. The `files` database table stores metadata and references to each stored file.

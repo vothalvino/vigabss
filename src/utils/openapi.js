@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — OpenAPI Spec Generator
+// VigaBSS 5.0 — OpenAPI Spec Generator
 // =============================================================================
 // Auto-generates an OpenAPI 3.1 spec from the registered routes and schemas.
 // Serves Swagger UI at /api/docs and raw spec at /api/docs/openapi.json.
@@ -31,13 +31,13 @@ function generateSpec() {
   return {
     openapi: '3.1.0',
     info: {
-      title: 'FireISP 5.0 API',
+      title: 'VigaBSS 5.0 API',
       version: '5.0.0',
       description: 'Open source ISP management — customers, plans, billing, network monitoring, and Mexican fiscal compliance (CFDI 4.0).',
       license: { name: 'MIT', url: 'https://opensource.org/licenses/MIT' },
     },
     servers: [
-      { url: '/api/v1', description: 'FireISP API (v1)' },
+      { url: '/api/v1', description: 'VigaBSS API (v1)' },
     ],
     tags: [
       { name: 'Auth', description: 'Authentication and user management' },
@@ -614,7 +614,7 @@ function generateSpec() {
       '/nas/{id}/health': { get: { tags: ['NAS'], summary: 'Get health status for a NAS device', operationId: 'getNasHealth', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('NAS health status') } },
       '/nas/{id}/health-check': { post: { tags: ['NAS'], summary: 'Trigger manual health check probe for org NAS devices', operationId: 'triggerNasHealthCheck', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Health check results') } },
       '/nas/{id}/test-connection': { post: { tags: ['NAS'], summary: 'Test the direct RouterOS API connection to a NAS (uses its configured api_port/credentials)', operationId: 'testNasConnection', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Connection result (version, board, identity)') } },
-      '/nas/{id}/seed': { post: { tags: ['NAS'], summary: 'Seed a MikroTik NAS: configure FireISP RADIUS client, PPP AAA, CoA incoming, and optionally fq-codel queue types, a queue-tree skeleton, Business/Residential priority simple queues, a PPPoE server + base profile, a suspended-subscriber walled garden, and real-time/VoIP traffic prioritisation (idempotent, non-destructive)', operationId: 'seedNasDevice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('nas_seedNas'), responses: r200('Seed result — per-step report') } },
+      '/nas/{id}/seed': { post: { tags: ['NAS'], summary: 'Seed a MikroTik NAS: configure VigaBSS RADIUS client, PPP AAA, CoA incoming, and optionally fq-codel queue types, a queue-tree skeleton, Business/Residential priority simple queues, a PPPoE server + base profile, a suspended-subscriber walled garden, and real-time/VoIP traffic prioritisation (idempotent, non-destructive)', operationId: 'seedNasDevice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('nas_seedNas'), responses: r200('Seed result — per-step report') } },
       '/nas/{id}/voip/refresh': { post: { tags: ['NAS'], summary: 'Reconcile the fireisp-voip RTC/VoIP address-list on this NAS from the configured provider ranges (voipRangesService). Idempotent; skips NAS without real-time priority seeded', operationId: 'refreshNasVoipRanges', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Reconcile result — added/removed/kept + sources') } },
 
       // ---- NAS WireGuard ----
@@ -3015,7 +3015,7 @@ function crudPaths(basePath, tag, modelName) {
 }
 
 /**
- * Convert a FireISP validation schema to OpenAPI schema format.
+ * Convert a VigaBSS validation schema to OpenAPI schema format.
  */
 function convertSchemaToOpenApi(schema) {
   const properties = {};
@@ -3060,7 +3060,7 @@ function mountApiDocs(app) {
 
   app.get('/api/docs', (_req, res) => {
     res.send(`<!DOCTYPE html>
-<html><head><title>FireISP 5.0 API Docs</title>
+<html><head><title>VigaBSS 5.0 API Docs</title>
 <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
 </head><body>
 <div id="swagger-ui"></div>

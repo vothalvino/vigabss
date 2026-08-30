@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Automated Billing Cycle Tests (Milestone 1.6)
+// VigaBSS 5.0 — Automated Billing Cycle Tests (Milestone 1.6)
 // =============================================================================
 // Tests the full automated billing engine:
 //   runAutoInvoice  — generate invoices + email clients

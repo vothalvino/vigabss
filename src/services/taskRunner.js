@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Task Runner Service
+// VigaBSS 5.0 — Task Runner Service
 // =============================================================================
 // Polls scheduled_tasks and dispatches them based on cron expressions.
 // Provides run/list/enable/disable for the scheduled_tasks admin API.

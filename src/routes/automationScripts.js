@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Automation Scripts Routes (§18.2)
+// VigaBSS 5.0 — Automation Scripts Routes (§18.2)
 // =============================================================================
 // SECURITY: Script execution is STUBBED. No child_process calls anywhere here.
 // The execute endpoint creates a 'queued' record — a sandboxed executor is out of scope.

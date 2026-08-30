@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Network Health Validation Schemas
+// VigaBSS 5.0 — Network Health Validation Schemas
 // =============================================================================
 
 const listNetworkHealth = {

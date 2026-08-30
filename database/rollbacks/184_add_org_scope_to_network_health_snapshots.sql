@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 184: Remove org scope from network_health_snapshots
+-- VigaBSS 5.0 — Rollback 184: Remove org scope from network_health_snapshots
 -- =============================================================================
 -- Reverses migration 184 by dropping the organization_id foreign key, index,
 -- and column from network_health_snapshots.  Uses guarded INFORMATION_SCHEMA

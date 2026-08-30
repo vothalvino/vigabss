@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ContractTemplateMx Model
+// VigaBSS 5.0 — ContractTemplateMx Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

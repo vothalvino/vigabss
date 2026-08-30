@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — TLS certificate expiry monitor
+// VigaBSS 5.0 — TLS certificate expiry monitor
 // =============================================================================
 // The product already watches two kinds of certificate and neither is the one
 // customers actually hit:

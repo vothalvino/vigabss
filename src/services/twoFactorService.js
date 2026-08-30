@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Two-Factor Authentication (2FA/MFA) Service
+// VigaBSS 5.0 — Two-Factor Authentication (2FA/MFA) Service
 // =============================================================================
 // TOTP-based two-factor authentication using RFC 6238.
 // Supports Google Authenticator, Authy, and similar TOTP apps.
@@ -34,7 +34,7 @@ async function generateSecret(userId) {
     [secret, userId],
   );
 
-  const issuer = 'FireISP';
+  const issuer = 'VigaBSS';
   const account = users[0].email;
   const uri = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account)}?secret=${base32Secret}&issuer=${encodeURIComponent(issuer)}&digits=${TOTP_DIGITS}&period=${TOTP_PERIOD}`;
 

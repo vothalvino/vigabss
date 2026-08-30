@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PROFECO Complaint Export Service (P3.12)
+// VigaBSS 5.0 — PROFECO Complaint Export Service (P3.12)
 // =============================================================================
 // Generates structured PROFECO complaint reports for quarterly regulatory
 // submissions to Mexico's Procuraduría Federal del Consumidor.

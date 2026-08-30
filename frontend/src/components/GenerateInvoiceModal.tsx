@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Generate Invoice Modal (shared)
+// VigaBSS 5.0 — Generate Invoice Modal (shared)
 // =============================================================================
 // Flexible multi-item invoice builder used by both the global Invoice List page
 // and the Client detail page.

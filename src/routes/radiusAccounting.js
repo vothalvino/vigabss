@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Accounting Ingest Route (machine-to-machine)
+// VigaBSS 5.0 — RADIUS Accounting Ingest Route (machine-to-machine)
 // =============================================================================
 // FreeRADIUS rest module POST endpoint. No JWT authentication — uses a shared
 // secret in the Authorization: Bearer <secret> or X-Radius-Secret header.

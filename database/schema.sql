@@ -1,7 +1,7 @@
 -- =============================================================================
--- FireISP 5.0 - Combined Database Schema
+-- VigaBSS 5.0 - Combined Database Schema
 -- =============================================================================
--- Description : Full schema for FireISP 5.0 ISP management software.
+-- Description : Full schema for VigaBSS 5.0 ISP management software.
 --               Apply this file once to create all tables in order, or run
 --               each numbered file in database/migrations/ individually.
 -- Database    : MySQL 8.0+ / MariaDB 10.6+
@@ -532,7 +532,7 @@ CREATE TABLE IF NOT EXISTS nas (
     api_username VARCHAR(128)   NULL COMMENT 'RouterOS API login user for direct provisioning (migration 360)',
     api_password_encrypted TEXT NULL COMMENT 'AES-256-GCM encrypted RouterOS API password (migration 360)',
     api_use_tls BOOLEAN         NOT NULL DEFAULT FALSE COMMENT 'Use api-ssl (TLS) for the RouterOS API connection (migration 360)',
-    access_mode ENUM('direct','nated') NOT NULL DEFAULT 'direct' COMMENT 'How FireISP connects to this NAS: direct (routable IP) or nated (ip_address = WG tunnel address) (migration 371)',
+    access_mode ENUM('direct','nated') NOT NULL DEFAULT 'direct' COMMENT 'How VigaBSS connects to this NAS: direct (routable IP) or nated (ip_address = WG tunnel address) (migration 371)',
     created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME        DEFAULT NULL,
@@ -556,7 +556,7 @@ CREATE TABLE IF NOT EXISTS nas (
 -- ---------------------------------------------------------------------------
 -- Table: nas_wg_tunnels
 -- Purpose: Per-NAS WireGuard tunnel configuration and state (migration 364).
---          One active row per NAS; the FireISP host is the hub (wg-fireisp).
+--          One active row per NAS; the VigaBSS host is the hub (wg-fireisp).
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS nas_wg_tunnels (
     id                       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -6390,7 +6390,7 @@ CREATE TABLE IF NOT EXISTS pac_providers (
     environment           ENUM('sandbox','production')
                                            NOT NULL DEFAULT 'sandbox'   COMMENT 'PAC environment',
     seal_mode             ENUM('pac','local')
-                                           NOT NULL DEFAULT 'pac'       COMMENT 'pac = provider seals with vaulted CSD (Emisión); local = FireISP seals with the org''s active CSD and sends sealed XML to the stamp-only tier (migration 410)',
+                                           NOT NULL DEFAULT 'pac'       COMMENT 'pac = provider seals with vaulted CSD (Emisión); local = VigaBSS seals with the org''s active CSD and sends sealed XML to the stamp-only tier (migration 410)',
     api_url               VARCHAR(500)     NOT NULL                     COMMENT 'Base URL for the PAC API endpoint',
     username_encrypted    VARCHAR(500)     NULL                         COMMENT 'Encrypted PAC account username (if applicable)',
     password_encrypted    VARCHAR(500)     NULL                         COMMENT 'Encrypted PAC account password (if applicable)',
@@ -8998,7 +8998,7 @@ CREATE TABLE IF NOT EXISTS radgroupreply (
 -- ---------------------------------------------------------------------------
 -- Table: subscriber_certificates
 -- Purpose: EAP-TLS subscriber certificate metadata registry (§3.1)
--- NOTE: FireISP is a metadata registry only — it does NOT generate or sign
+-- NOTE: VigaBSS is a metadata registry only — it does NOT generate or sign
 --       certificates. Use an external CA (easy-rsa, step-ca, Vault PKI, etc.)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS subscriber_certificates (
@@ -9211,7 +9211,7 @@ CREATE TABLE IF NOT EXISTS pppoe_service_profiles (
 -- ---------------------------------------------------------------------------
 -- Table: radpostauth (migration 238 — §4 PPPoE Phase B)
 -- Purpose: FreeRADIUS post-authentication log. Written directly by FreeRADIUS
---          via rlm_sql; read by FireISP for auth-failure diagnostics.
+--          via rlm_sql; read by VigaBSS for auth-failure diagnostics.
 --          NO foreign keys — loose coupling for FreeRADIUS direct write access.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS radpostauth (
@@ -9231,7 +9231,7 @@ CREATE TABLE IF NOT EXISTS radpostauth (
 -- ---------------------------------------------------------------------------
 -- Table: pppoe_event_logs (migration 239 — §4 PPPoE Phase B)
 -- Purpose: PPPoE stage event log. Written by a syslog shipper; read by
---          FireISP for MTU diagnostics and LCP failure detection.
+--          VigaBSS for MTU diagnostics and LCP failure detection.
 --          NO FK on organization_id or nas_id — loose coupling intentional.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS pppoe_event_logs (
@@ -10685,7 +10685,7 @@ CREATE TABLE IF NOT EXISTS cpe_devices (
     device_id           BIGINT UNSIGNED NULL COMMENT 'FK to devices table (indoor_cpe/outdoor_cpe types)',
     contract_id         BIGINT UNSIGNED NULL,
     inventory_item_id   BIGINT UNSIGNED NULL COMMENT 'Which inventory_items catalog product this serial IS — set when the unit is created from a PO receive or manual registration (migration 391)',
-    ownership           ENUM('rented','sold') NULL COMMENT 'Set at install time: rented = stays FireISP property (returned on pickup), sold = client property (never appears in a pickup checklist) — migration 391',
+    ownership           ENUM('rented','sold') NULL COMMENT 'Set at install time: rented = stays VigaBSS property (returned on pickup), sold = client property (never appears in a pickup checklist) — migration 391',
     sale_invoice_id     BIGINT UNSIGNED NULL COMMENT 'The one-off invoice raised at install time when ownership=sold; NULL for rented units and for sold units installed before this column existed — migration 392',
     cpe_profile_id      BIGINT UNSIGNED NULL COMMENT 'FK to cpe_profiles, added in migration 276',
     status              ENUM('new','provisioning','active','error','offline') NOT NULL DEFAULT 'new',

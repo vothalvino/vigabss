@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Error Tracking (Sentry)
+// VigaBSS 5.0 — Error Tracking (Sentry)
 // =============================================================================
 // Wraps @sentry/node so that error tracking is opt-in: set SENTRY_DSN to enable.
 // When SENTRY_DSN is not set all exported functions are no-ops (zero overhead).

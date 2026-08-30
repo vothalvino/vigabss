@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — UserNetworkAssignment Model
+// VigaBSS 5.0 — UserNetworkAssignment Model
 // =============================================================================
 // Admin-granted VPN network scope (site or NAS grain) per user.
 // Durable — NOT derived from work orders — to prevent privilege escalation via

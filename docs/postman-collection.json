@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "FireISP 5.0 API",
+    "name": "VigaBSS 5.0 API",
     "description": "Open source ISP management — customers, plans, billing, network monitoring, and Mexican fiscal compliance (CFDI 4.0).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": "5.0.0"

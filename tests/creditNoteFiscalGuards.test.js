@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — credit notes get the fiscal guards invoices already had
+// VigaBSS 5.0 — credit notes get the fiscal guards invoices already had
 // =============================================================================
 // Two holes, both the tipo-E twin of one already closed for invoices:
 //

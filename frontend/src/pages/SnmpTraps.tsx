@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — SNMP Trap Log Page
+// VigaBSS 5.0 — SNMP Trap Log Page
 // =============================================================================
 // Page at /snmp-traps (technician+). Shows unsolicited SNMP trap messages
 // received from network devices.

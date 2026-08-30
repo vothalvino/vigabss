@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Typed API client
+// VigaBSS 5.0 — Typed API client
 // =============================================================================
 // Built on openapi-fetch, which uses the generated schema.d.ts to give full
 // end-to-end TypeScript coverage from the OpenAPI spec.

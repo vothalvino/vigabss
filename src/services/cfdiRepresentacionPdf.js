@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CFDI 4.0 "representación impresa" (the legal PDF of a CFDI)
+// VigaBSS 5.0 — CFDI 4.0 "representación impresa" (the legal PDF of a CFDI)
 // =============================================================================
 // A stamped CFDI's PDF is a legally defined document (CFF 29-A / RMF 2.7.1.7 /
 // Anexo 20), not a courtesy invoice: it must carry the UUID, both timestamps

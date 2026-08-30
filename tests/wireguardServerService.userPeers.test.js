@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WireGuard Server Service Tests — Part 2: user peer management
+// VigaBSS 5.0 — WireGuard Server Service Tests — Part 2: user peer management
 // =============================================================================
 // Covers: allocateUserTunnelIp, syncUserPeer, readPeerHandshakes,
 //         ensureBaseFirewall, setUserForwardScope, removeUserPeer

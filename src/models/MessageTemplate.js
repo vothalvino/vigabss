@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — MessageTemplate Model
+// VigaBSS 5.0 — MessageTemplate Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

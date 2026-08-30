@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Campaign Service — §1.4
+// VigaBSS 5.0 — Campaign Service — §1.4
 // =============================================================================
 // Orchestrates bulk communication campaign dispatch: builds recipient lists,
 // queues per-recipient messages, processes the send queue, and handles delivery

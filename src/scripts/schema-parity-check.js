@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Offline schema.sql parity check (no database required)
+// VigaBSS 5.0 — Offline schema.sql parity check (no database required)
 // =============================================================================
 // Simulates migration-smoke-test.js column parity locally: expected columns =
 // union of CREATE TABLE bodies + ADD COLUMN ALTERs across all migrations

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Data Security Route Error Tests (§17)
+// VigaBSS 5.0 — Data Security Route Error Tests (§17)
 // Tests the error catch blocks that can't be triggered from section17.test.js
 // because securityService is not mocked there.
 // =============================================================================

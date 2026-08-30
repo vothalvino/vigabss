@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DrDrillBanner component tests
+// VigaBSS 5.0 — DrDrillBanner component tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Request ID Middleware Tests
+// VigaBSS 5.0 — Request ID Middleware Tests
 // =============================================================================
 
 const { requestId } = require('../src/middleware/requestId');

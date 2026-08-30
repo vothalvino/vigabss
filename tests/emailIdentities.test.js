@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Per-function email identity routes (migration 407)
+// VigaBSS 5.0 — Per-function email identity routes (migration 407)
 // =============================================================================
 // GET  /organizations/:id/email-settings          — list all 4 identities
 // PUT  /organizations/:id/email-settings/:function — upsert one identity

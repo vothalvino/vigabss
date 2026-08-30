@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 189: Rename radius.password back to password_hash
+-- VigaBSS 5.0 — Rollback 189: Rename radius.password back to password_hash
 -- =============================================================================
 -- Reverses migration 189.  Mirrors the forward migration's guard: the rename
 -- only runs when `password` currently exists and `password_hash` does not,

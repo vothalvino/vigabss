@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAS Routes
+// VigaBSS 5.0 — NAS Routes
 // =============================================================================
 
 const { Router } = require('express');
@@ -292,7 +292,7 @@ router.get('/:id/wg', requirePermission('devices.view'), async (req, res, next) 
     );
     const tunnel = rows[0] || null;
     // Surface the hub's own tunnel IP + public endpoint so the UI can default the
-    // Seed RADIUS address to the tunnel (10.255.0.x) — every NAS should reach FireISP
+    // Seed RADIUS address to the tunnel (10.255.0.x) — every NAS should reach VigaBSS
     // over WireGuard, so only 80/443 + the WG port need to be public on the server.
     res.json({
       data: {

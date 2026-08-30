@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Email Templates Tests
+// VigaBSS 5.0 — Email Templates Tests
 // =============================================================================
 
 const templates = require('../src/views/emailTemplates');
@@ -10,7 +10,7 @@ describe('Email Templates', () => {
       const html = templates.baseLayout('<p>Hello</p>');
       expect(html).toContain('<!DOCTYPE html>');
       expect(html).toContain('<p>Hello</p>');
-      expect(html).toContain('Powered by FireISP 5.0');
+      expect(html).toContain('Powered by VigaBSS 5.0');
     });
 
     it('accepts custom footer text', () => {
@@ -34,7 +34,7 @@ describe('Email Templates', () => {
 
     it('uses defaults when no vars provided', () => {
       const result = templates.welcomeEmail({});
-      expect(result.subject).toContain('Welcome to FireISP');
+      expect(result.subject).toContain('Welcome to VigaBSS');
       expect(result.html).toContain('Valued Customer');
     });
 

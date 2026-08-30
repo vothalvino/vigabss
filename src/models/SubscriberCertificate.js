@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SubscriberCertificate Model
+// VigaBSS 5.0 — SubscriberCertificate Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

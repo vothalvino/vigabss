@@ -3,7 +3,7 @@
 -- =============================================================================
 -- Creates the pppoe_event_logs table for PPPoE stage event logging.
 -- A syslog shipper (e.g. rsyslog + a small connector) writes to this table;
--- FireISP reads it for MTU diagnostics and LCP failure detection.
+-- VigaBSS reads it for MTU diagnostics and LCP failure detection.
 --
 -- NOTE: No foreign keys on organization_id or nas_id — loose coupling is
 --       intentional; the syslog ingest path must not be blocked by FK violations

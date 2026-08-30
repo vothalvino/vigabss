@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Config Backup Schedule Management — §6.6
+// VigaBSS 5.0 — Config Backup Schedule Management — §6.6
 // =============================================================================
 
 import { useState } from 'react';

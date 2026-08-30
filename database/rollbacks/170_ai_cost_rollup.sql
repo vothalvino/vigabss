@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 170: Remove AI cost-rollup columns from
+-- VigaBSS 5.0 — Rollback 170: Remove AI cost-rollup columns from
 --                             organization_quotas
 -- =============================================================================
 -- Reverses migration 170.  Drops ai_cost_rollup_month and ai_cost_month_usd.

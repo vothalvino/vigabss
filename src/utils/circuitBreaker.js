@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Circuit Breaker Utility
+// VigaBSS 5.0 — Circuit Breaker Utility
 // =============================================================================
 // Reusable circuit breaker pattern for external service calls.
 // Tracks consecutive failures and opens the circuit when a threshold is reached.

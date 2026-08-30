@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SMS Transport Service Tests
+// VigaBSS 5.0 — SMS Transport Service Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

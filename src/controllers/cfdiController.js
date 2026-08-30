@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CFDI Controller
+// VigaBSS 5.0 — CFDI Controller
 // =============================================================================
 // Domain-specific endpoints for Mexican fiscal compliance (CFDI 4.0):
 //   generate XML → stamp via PAC → cancel → download XML/PDF.

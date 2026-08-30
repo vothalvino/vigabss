@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Authentication Middleware
+// VigaBSS 5.0 — Authentication Middleware
 // =============================================================================
 // Validates JWT tokens and API tokens, attaching the authenticated user to
 // req.user. Supports both Bearer JWT tokens and API key tokens.

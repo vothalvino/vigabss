@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Alert Escalation Chain Management
+// VigaBSS 5.0 — Alert Escalation Chain Management
 // =============================================================================
 
 import { useState } from 'react';

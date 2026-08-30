@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GET /inventory/items — quantity_on_hand (Inventory follow-up)
+// VigaBSS 5.0 — GET /inventory/items — quantity_on_hand (Inventory follow-up)
 // =============================================================================
 // Covers the hand-rolled list handler (src/routes/inventory.js) that replaced
 // crudController.list so the response could be enriched with

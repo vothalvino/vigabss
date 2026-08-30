@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — attachments are written where deployments actually mount
+// VigaBSS 5.0 — attachments are written where deployments actually mount
 // =============================================================================
 // Ticket attachments and work-order photos used to be written to
 // `<repo>/uploads/...`, a directory NO deployment mounts. Everything else in

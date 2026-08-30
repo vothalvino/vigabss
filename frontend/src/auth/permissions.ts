@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Frontend permission helper
+// VigaBSS 5.0 — Frontend permission helper
 // =============================================================================
 // /auth/me and /auth/login resolve the ACTIVE org's real permission set
 // server-side (migration 378 — user groups) and return it as `permissions`

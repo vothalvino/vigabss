@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # =============================================================================
-# FireISP 5.0 — Certbot deploy hook
+# VigaBSS 5.0 — Certbot deploy hook
 #
 # Automatically called by `certbot renew` when a certificate is successfully
 # renewed.  Copies the renewed certificate and private key into the

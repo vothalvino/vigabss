@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — a failed TYPE check must stop the range checks
+// VigaBSS 5.0 — a failed TYPE check must stop the range checks
 // =============================================================================
 // The min/max branches in validate() key off the RUNTIME type of the value, not
 // the DECLARED type in the schema. So a string sent for a {type:'number',max:1}

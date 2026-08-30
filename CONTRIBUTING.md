@@ -1,6 +1,6 @@
-# Contributing to FireISP 5.0
+# Contributing to VigaBSS 5.0
 
-Thank you for your interest in contributing to FireISP! This guide will help you get started.
+Thank you for your interest in contributing to VigaBSS! This guide will help you get started.
 
 ## Development Setup
 

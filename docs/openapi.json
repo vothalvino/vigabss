@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "FireISP 5.0 API",
+    "title": "VigaBSS 5.0 API",
     "version": "5.0.0",
     "description": "Open source ISP management — customers, plans, billing, network monitoring, and Mexican fiscal compliance (CFDI 4.0).",
     "license": {
@@ -12,7 +12,7 @@
   "servers": [
     {
       "url": "/api/v1",
-      "description": "FireISP API (v1)"
+      "description": "VigaBSS API (v1)"
     }
   ],
   "tags": [
@@ -10131,7 +10131,7 @@
         "tags": [
           "NAS"
         ],
-        "summary": "Seed a MikroTik NAS: configure FireISP RADIUS client, PPP AAA, CoA incoming, and optionally fq-codel queue types, a queue-tree skeleton, Business/Residential priority simple queues, a PPPoE server + base profile, a suspended-subscriber walled garden, and real-time/VoIP traffic prioritisation (idempotent, non-destructive)",
+        "summary": "Seed a MikroTik NAS: configure VigaBSS RADIUS client, PPP AAA, CoA incoming, and optionally fq-codel queue types, a queue-tree skeleton, Business/Residential priority simple queues, a PPPoE server + base profile, a suspended-subscriber walled garden, and real-time/VoIP traffic prioritisation (idempotent, non-destructive)",
         "operationId": "seedNasDevice",
         "security": [
           {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Server Entry Point
+// VigaBSS 5.0 — Server Entry Point
 // =============================================================================
 
 require('dotenv').config();
@@ -103,7 +103,7 @@ async function start() {
   }
 
   const server = app.listen(config.port, () => {
-    logger.info({ port: config.port, env: config.env }, 'FireISP 5.0 listening');
+    logger.info({ port: config.port, env: config.env }, 'VigaBSS 5.0 listening');
   });
 
   // Attach the FireRelay WebSocket tunnel to the HTTP server

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Auth Service Extended Tests
+// VigaBSS 5.0 — Auth Service Extended Tests
 // =============================================================================
 // Tests for password reset, change password, and email verification flows.
 // =============================================================================

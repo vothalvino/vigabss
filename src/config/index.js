@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Application Configuration
+// VigaBSS 5.0 — Application Configuration
 // =============================================================================
 
 const parseIntEnv = (key, fallback) => {
@@ -93,7 +93,7 @@ const config = {
   // Request timeout in milliseconds (0 = disabled)
   requestTimeoutMs: parseIntEnv('REQUEST_TIMEOUT_MS', 30000),
 
-  // Embedded RADIUS server (auth + accounting). Opt-in: enable to make FireISP
+  // Embedded RADIUS server (auth + accounting). Opt-in: enable to make VigaBSS
   // itself the RADIUS server for NAS devices (no external FreeRADIUS needed).
   radiusServer: {
     enabled: parseBoolEnv('RADIUS_SERVER_ENABLED', false),
@@ -107,7 +107,7 @@ const config = {
   // WireGuard VPN hub — two surfaces: per-NAS tunnels (wg-fireisp) + user access tunnels (wg-clients).
   // Set WG_SERVER_ENABLED=true only on a Linux host with CAP_NET_ADMIN and wireguard-tools installed.
   // When disabled (default), config/QR files are still issued but the operator wires peers manually.
-  // HARD CONSTRAINT: FireISP NEVER writes /ip/service or /ip/firewall on the router.
+  // HARD CONSTRAINT: VigaBSS NEVER writes /ip/service or /ip/firewall on the router.
   wireguard: {
     serverEnabled:    parseBoolEnv('WG_SERVER_ENABLED', false),
     serverInterface:  process.env.WG_SERVER_INTERFACE  || 'wg-fireisp',

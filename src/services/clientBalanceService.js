@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Balance Service
+// VigaBSS 5.0 — Client Balance Service
 // =============================================================================
 // Computes a client's CURRENT account balance from source-of-truth billing
 // data (invoices + payments) — NOT from client_balance_ledger.

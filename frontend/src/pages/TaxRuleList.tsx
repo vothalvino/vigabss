@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Tax Rule Management
+// VigaBSS 5.0 — Tax Rule Management
 // =============================================================================
 // Standalone page at /tax-rules. Lists regional tax rules with a status filter,
 // paginated table, and "New Tax Rule" create modal plus per-row Edit and Delete

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Trap Forwarding Rule Management
+// VigaBSS 5.0 — Trap Forwarding Rule Management
 // =============================================================================
 // Standalone page at /trap-forwarding-rules. Lists SNMP trap forwarding rules
 // with a paginated table, "New Trap Forwarding Rule" create modal, and per-row

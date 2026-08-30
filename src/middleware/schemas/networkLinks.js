@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Network Link Validation Schemas
+// VigaBSS 5.0 — Network Link Validation Schemas
 // =============================================================================
 
 const createNetworkLink = {

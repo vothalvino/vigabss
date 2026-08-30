@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PON Port Management (§7.3)
+// VigaBSS 5.0 — PON Port Management (§7.3)
 // =============================================================================
 // Tabbed page covering:
 //   1. Port Utilization    — per-port ONU counts, optical power spread

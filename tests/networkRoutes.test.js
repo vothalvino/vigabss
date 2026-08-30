@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Network Route Integration Tests
+// VigaBSS 5.0 — Network Route Integration Tests
 // =============================================================================
 // Comprehensive tests for 5 network management route groups:
 //   IP Pools, IP Assignments, VLANs, NAS, SNMP Profiles

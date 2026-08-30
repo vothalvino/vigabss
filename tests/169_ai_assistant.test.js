@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Migration 169 Smoke Test
+// VigaBSS 5.0 — Migration 169 Smoke Test
 // =============================================================================
 // Asserts column existence and default values for every table/column added by
 // 169_ai_assistant.sql without running an actual database connection.

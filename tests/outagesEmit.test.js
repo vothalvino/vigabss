@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Outage route event-emit wiring tests
+// VigaBSS 5.0 — Outage route event-emit wiring tests
 // =============================================================================
 // Covers src/routes/outages.js's crudController hooks:
 //   afterCreate → emits 'outage.reported'

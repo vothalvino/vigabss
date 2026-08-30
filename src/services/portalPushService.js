@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Push Notification Service (§11.5)
+// VigaBSS 5.0 — Portal Push Notification Service (§11.5)
 // =============================================================================
 // Sends Web Push notifications to a client's active portal subscriptions.
 //
@@ -85,7 +85,7 @@ async function dispatch({ clientId, eventType, payload }) {
   if (!rows.length) return { sent: 0, failed: 0 };
 
   const pushPayload = JSON.stringify({
-    title: payload.title || 'FireISP',
+    title: payload.title || 'VigaBSS',
     body: payload.body || '',
     url: payload.url || '/',
   });

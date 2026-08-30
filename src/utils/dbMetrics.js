@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DB Query Metrics Recorder
+// VigaBSS 5.0 — DB Query Metrics Recorder
 // =============================================================================
 // Standalone module that accumulates db_query_duration_seconds histogram
 // samples. Imported by both src/config/database.js (to record) and

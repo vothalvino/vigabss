@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Checkout Validation Schemas
+// VigaBSS 5.0 — Checkout Validation Schemas
 // =============================================================================
 
 const createSession = {

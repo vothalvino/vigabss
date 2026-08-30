@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CpeParameterMapping Model (§8.2)
+// VigaBSS 5.0 — CpeParameterMapping Model (§8.2)
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

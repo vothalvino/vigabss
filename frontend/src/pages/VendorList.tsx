@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Vendor Management (§14.2 — Inventory Phase 1)
+// VigaBSS 5.0 — Vendor Management (§14.2 — Inventory Phase 1)
 // =============================================================================
 // Page at /vendors. Full CRUD for suppliers so a Purchase Order can record
 // "who this was bought from" — mirrors WarehouseList.tsx/InventoryList.tsx's

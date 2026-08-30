@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Webhook Route Tests (src/routes/webhooks.js)
+// VigaBSS 5.0 — Webhook Route Tests (src/routes/webhooks.js)
 // =============================================================================
 // Regression coverage for the secret-redaction fix (same vulnerability class
 // as src/routes/paymentGateways.js): secret_encrypted holds the webhook's

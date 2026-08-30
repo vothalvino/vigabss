@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Poller Performance Dashboard (§6.4)
+// VigaBSS 5.0 — Poller Performance Dashboard (§6.4)
 // =============================================================================
 // Read-only dashboard at /poller-performance. Shows aggregated stats and
 // a table of recent performance snapshots across all poller nodes.

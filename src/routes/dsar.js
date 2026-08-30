@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DSAR (Data Subject Access Request) Route (P1.7)
+// VigaBSS 5.0 — DSAR (Data Subject Access Request) Route (P1.7)
 // =============================================================================
 // Exports all personal data held for a specific client as a single JSON
 // document.  Intended for use by operators processing LFPDPPP (MX) or GDPR

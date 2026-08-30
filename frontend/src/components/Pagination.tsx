@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Shared Pagination Component
+// VigaBSS 5.0 — Shared Pagination Component
 // =============================================================================
 // Renders a "Rows per page" selector (default 25/50/100), optional total-row
 // count, and — when totalPages > 1 — a Prev/Next bar with "Page X of Y".

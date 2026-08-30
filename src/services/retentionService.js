@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Data Retention Service
+// VigaBSS 5.0 — Data Retention Service
 // =============================================================================
 // Configurable TTL-based purge for high-volume tables that grow unbounded.
 // Registered as a scheduled task to run periodically.

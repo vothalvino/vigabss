@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Data Management Routes (§10.3)
+// VigaBSS 5.0 — Data Management Routes (§10.3)
 // =============================================================================
 // Covers: data packs catalog, subscriber pack purchases, rollover balances,
 //         and FUP usage notification management.

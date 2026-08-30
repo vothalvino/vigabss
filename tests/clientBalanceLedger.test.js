@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ClientBalanceLedger.signedAmountSql sign-convention guard
+// VigaBSS 5.0 — ClientBalanceLedger.signedAmountSql sign-convention guard
 // =============================================================================
 // Locks the balance sign convention and the single-source-of-truth invariant:
 // the signed expression that powers Client.balance and the ledger running_balance

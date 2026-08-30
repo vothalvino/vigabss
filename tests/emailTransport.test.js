@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Email Transport Service Unit Tests
+// VigaBSS 5.0 — Email Transport Service Unit Tests
 // =============================================================================
 // NOTE: emailTransport.js keeps a module-level singleton `transporter` for
 // the global relay, lazily created by init() and NEVER recreated afterwards.

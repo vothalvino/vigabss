@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Recurring Payment Profile Validation Schemas
+// VigaBSS 5.0 — Recurring Payment Profile Validation Schemas
 // =============================================================================
 
 const createRecurringPaymentProfile = {

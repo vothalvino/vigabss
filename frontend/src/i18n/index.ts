@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — i18n (internationalisation) configuration
+// VigaBSS 5.0 — i18n (internationalisation) configuration
 // =============================================================================
 // Supported locales: en (default), es (Spanish MX), pt-BR (Portuguese BR).
 // Language detection order: cookie → localStorage → browser language header.

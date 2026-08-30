@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — User Tunnel Service Unit Tests (§6b / plan §9)
+// VigaBSS 5.0 — User Tunnel Service Unit Tests (§6b / plan §9)
 // =============================================================================
 // Covers src/services/userTunnelService.js:
 //   buildConfig   — emits correct [Interface]/[Peer] sections; scoped AllowedIPs

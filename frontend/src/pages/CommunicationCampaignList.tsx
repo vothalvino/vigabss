@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Communication Campaigns — §1.4 Communication
+// VigaBSS 5.0 — Communication Campaigns — §1.4 Communication
 // =============================================================================
 // Bulk email / SMS / WhatsApp campaign management. Each campaign targets a
 // filtered set of clients and sends a message template to all recipients.

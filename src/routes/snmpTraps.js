@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Trap Routes
+// VigaBSS 5.0 — SNMP Trap Routes
 // =============================================================================
 // REST endpoints for browsing, acknowledging, and clearing SNMP trap records
 // stored by the snmpTrapReceiver service.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Section 17 Route Tests (Security & Access Control)
+// VigaBSS 5.0 — Section 17 Route Tests (Security & Access Control)
 // Covers: /security-admin, /network-security, /data-security, /webhook-security
 // =============================================================================
 

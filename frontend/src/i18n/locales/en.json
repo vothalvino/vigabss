@@ -43,7 +43,7 @@
     "change": "Change"
   },
   "login": {
-    "title": "🔥 FireISP 5.0",
+    "title": "🔥 VigaBSS 5.0",
     "subtitle": "Sign in to continue",
     "emailLabel": "Email",
     "passwordLabel": "Password",
@@ -323,18 +323,18 @@
     "technicianMap": "Technician map"
   },
   "layout": {
-    "brandName": "🔥 FireISP",
+    "brandName": "🔥 VigaBSS",
     "openNav": "Open navigation",
     "closeNav": "Close navigation",
     "orgSwitcherLabel": "Active organization",
     "switchOrgFailed": "Failed to switch organization"
   },
   "portalLayout": {
-    "brandName": "🔥 FireISP — My Account",
+    "brandName": "🔥 VigaBSS — My Account",
     "navHome": "🏠 Home",
     "navInvoices": "🧾 Invoices",
     "navSupport": "🎫 Support",
-    "footer": "© {{year}} FireISP",
+    "footer": "© {{year}} VigaBSS",
     "privacyBanner": "Please review our privacy notice.",
     "privacyBannerLink": "Review and accept",
     "privacyLink": "Privacy notice"
@@ -4240,7 +4240,7 @@
   },
   "wgTunnels": {
     "fullTunnelLabel": "Full tunnel (route all traffic through VPN)",
-    "fullTunnelHint": "When enabled, all device internet traffic is routed through FireISP. Disable for split-tunnel access to device LANs only.",
+    "fullTunnelHint": "When enabled, all device internet traffic is routed through VigaBSS. Disable for split-tunnel access to device LANs only.",
     "title": "My VPN Tunnels",
     "subtitle": "WireGuard access tunnels for your devices.",
     "addPeer": "Add Device",
@@ -4369,12 +4369,12 @@
       "label": "Access Mode",
       "direct": "Direct",
       "nated": "Behind NAT",
-      "hint": "How FireISP connects to this device: Direct = routable IP; Behind NAT = reachable only over its WireGuard tunnel.",
+      "hint": "How VigaBSS connects to this device: Direct = routable IP; Behind NAT = reachable only over its WireGuard tunnel.",
       "immutable": "Access mode can't be changed after registration — delete and re-create to switch."
     },
     "ipAddressLabel": "IP Address (IPv4)",
     "ipAddressPlaceholder": "e.g. 10.0.0.1",
-    "natedHint": "FireISP will assign a WireGuard tunnel address as the device IP. After saving, open the WG tab, copy the bootstrap config, paste it into the router, then run Seed / Test."
+    "natedHint": "VigaBSS will assign a WireGuard tunnel address as the device IP. After saving, open the WG tab, copy the bootstrap config, paste it into the router, then run Seed / Test."
   },
   "serviceOrders": {
     "title": "Service Orders",

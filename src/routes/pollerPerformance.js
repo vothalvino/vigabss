@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Poller Performance Routes (§6.4)
+// VigaBSS 5.0 — Poller Performance Routes (§6.4)
 // =============================================================================
 //
 // GET    /poller-performance              — list snapshots (paginated)

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Invoice Detail
+// VigaBSS 5.0 — Portal Invoice Detail
 // =============================================================================
 // Shows a single invoice for the client with line items and a Pay button.
 // At /portal/invoices/:id

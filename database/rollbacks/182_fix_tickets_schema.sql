@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 182: Revert tickets schema fixes
+-- VigaBSS 5.0 — Rollback 182: Revert tickets schema fixes
 -- =============================================================================
 -- Reverses migration 182 by restoring the status ENUM (removing 'waiting'),
 -- dropping the notes column, and renaming subject back to title.

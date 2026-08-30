@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory Management
+// VigaBSS 5.0 — Inventory Management
 // =============================================================================
 // Page at /inventory. Shows all inventory items for the org with:
 //   • Filtering by category and status

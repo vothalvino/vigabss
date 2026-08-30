@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IFT Statistical Report Validation Schemas
+// VigaBSS 5.0 — IFT Statistical Report Validation Schemas
 // =============================================================================
 //
 // Field names mirror the columns in `ift_statistical_reports` (migrations 079

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Regulatory Filing Viewer
+// VigaBSS 5.0 — Regulatory Filing Viewer
 // =============================================================================
 // Read-only page at /regulatory-filings. Lists the IFT/CRT regulatory filings
 // (annual reports, statistics, tariff registrations, coverage/QoS reports,

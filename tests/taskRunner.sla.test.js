@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — taskRunner sla_breach_check unit tests
+// VigaBSS 5.0 — taskRunner sla_breach_check unit tests
 // =============================================================================
 
 const mockQuery = jest.fn();

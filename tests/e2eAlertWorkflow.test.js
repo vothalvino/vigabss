@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — E2E Workflow: Alert → Outage → Notification
+// VigaBSS 5.0 — E2E Workflow: Alert → Outage → Notification
 // =============================================================================
 // Tests the full monitoring pipeline: device goes offline → alert rule triggers →
 // outage auto-created → notification dispatched via event bus.

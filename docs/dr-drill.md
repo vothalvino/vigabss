@@ -1,4 +1,4 @@
-# FireISP 5.0 — Disaster-Recovery Drill
+# VigaBSS 5.0 — Disaster-Recovery Drill
 
 > **Frequency:** Run this drill **quarterly**.  Record each run in the
 > [Quarterly Drill Log](#quarterly-drill-log) at the bottom of this file
@@ -41,7 +41,7 @@
 | `mysqldump` and `mysql` CLI in `PATH` | `mysqldump --version` |
 | MySQL/MariaDB root or admin credentials | `.env` → `DB_ROOT_PASSWORD` or `DB_PASSWORD` |
 | Enough disk space for the dump (≥ current DB size × 1.5) | `df -h` |
-| FireISP application **stopped** or in maintenance mode during restore | `npm run stop` / `docker compose stop app` |
+| VigaBSS application **stopped** or in maintenance mode during restore | `npm run stop` / `docker compose stop app` |
 | Storage files backed up (optional but recommended) | `tar czf storage-$(date +%Y%m%d).tar.gz storage/` |
 
 Set shell variables before starting to avoid typos across commands:
@@ -202,7 +202,7 @@ SELECT 'schema_migrations',   COUNT(*) FROM schema_migrations;
 
 All `rows` values must be **≥ the pre-drill count** (or ≥ 1 for a
 freshly-seeded drill environment).  The `schema_migrations` count must be
-**164** (as of FireISP 5.0.x).
+**164** (as of VigaBSS 5.0.x).
 
 ### 4b. Referential integrity — orphaned child rows
 

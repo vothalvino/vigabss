@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Interaction Tracking Service
+// VigaBSS 5.0 — Interaction Tracking Service
 // =============================================================================
 // Implements isp-platform-features.md §1.3 "Interaction Tracking":
 //   • activityTimeline      — unified per-client history across interactions,

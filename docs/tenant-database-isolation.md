@@ -1,6 +1,6 @@
 # Per-tenant database isolation
 
-FireISP defaults to a shared database with strict `organization_id` scoping. For high-value tenants that require physical data separation, enable isolated mode per organization.
+VigaBSS defaults to a shared database with strict `organization_id` scoping. For high-value tenants that require physical data separation, enable isolated mode per organization.
 
 ## Enable isolated mode
 
@@ -26,7 +26,7 @@ FireISP defaults to a shared database with strict `organization_id` scoping. For
    ```http
    POST /api/v1/organizations/{organizationId}/database-isolation/test
    ```
-5. Apply the FireISP schema to all enabled isolated tenant databases:
+5. Apply the VigaBSS schema to all enabled isolated tenant databases:
    ```bash
    MIGRATE_ISOLATED_TENANTS=true npm run migrate
    ```

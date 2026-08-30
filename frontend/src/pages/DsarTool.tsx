@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DSAR (Data Subject Access Request) Tool
+// VigaBSS 5.0 — DSAR (Data Subject Access Request) Tool
 // =============================================================================
 // Admin page at /dsar. Operators enter a client ID to assemble every piece of
 // personal data held for that client (LFPDPPP / GDPR data-subject access

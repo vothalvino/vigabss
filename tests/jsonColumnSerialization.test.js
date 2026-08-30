@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — JSON-column serialization on models with normalizeInput
+// VigaBSS 5.0 — JSON-column serialization on models with normalizeInput
 // =============================================================================
 // concession_titles.services_authorized is JSON NOT NULL and payment_gateways
 // .config_json is JSON. The validators accept plain strings, so the models must

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RateLimitTemplate Validation Schemas
+// VigaBSS 5.0 — RateLimitTemplate Validation Schemas
 // =============================================================================
 
 const createRateLimitTemplate = {

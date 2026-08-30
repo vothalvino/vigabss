@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory Phase 3: Serialized Equipment Service (§14.2 cont'd)
+// VigaBSS 5.0 — Inventory Phase 3: Serialized Equipment Service (§14.2 cont'd)
 // =============================================================================
 // Serialized equipment tracking end to end (migration 391, user-confirmed
 // design — see that migration's header comment for the full rationale):

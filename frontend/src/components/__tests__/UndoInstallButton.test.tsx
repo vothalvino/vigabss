@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — UndoInstallButton tests (Inventory follow-up, migration 392)
+// VigaBSS 5.0 — UndoInstallButton tests (Inventory follow-up, migration 392)
 // =============================================================================
 // Shared confirm-with-notes action for reversing a mistaken install, used by
 // ServiceOrderList.tsx's Equipment modal and ClientDetail.tsx's Assigned

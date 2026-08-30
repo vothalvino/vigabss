@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AuthContext tests
+// VigaBSS 5.0 — AuthContext tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';

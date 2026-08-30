@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Ticket Detail
+// VigaBSS 5.0 — Ticket Detail
 // =============================================================================
 // Shows a single ticket at /tickets/:id with:
 //   • Ticket metadata (subject, description, status, priority, category,

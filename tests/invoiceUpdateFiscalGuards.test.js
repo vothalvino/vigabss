@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Fiscal guards on the invoice UPDATE path (PUT/PATCH)
+// VigaBSS 5.0 — Fiscal guards on the invoice UPDATE path (PUT/PATCH)
 // =============================================================================
 // The update path was the one live route that could violate "an already-stamped
 // invoice is immutable". `assertInvoiceNotTerminal` blocks only the void and

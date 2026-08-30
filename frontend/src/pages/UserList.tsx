@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — User Management
+// VigaBSS 5.0 — User Management
 // =============================================================================
 // Admin-only page at /users. Provides:
 //   • Paginated user table with group and status filters

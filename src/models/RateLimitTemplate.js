@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RateLimitTemplate Model
+// VigaBSS 5.0 — RateLimitTemplate Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

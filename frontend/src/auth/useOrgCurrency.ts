@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — useOrgCurrency hook
+// VigaBSS 5.0 — useOrgCurrency hook
 // =============================================================================
 // Returns the ISO 4217 currency code for the currently active organization.
 // Falls back to 'MXN' when the active org is not found in the auth context

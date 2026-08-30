@@ -2,13 +2,13 @@
 
 **Date:** 2026-04-30  
 **Status:** Accepted  
-**Deciders:** FireISP core team
+**Deciders:** VigaBSS core team
 
 ---
 
 ## Context
 
-FireISP 5.0 ships an AI Reply Assistant that drafts (and optionally auto-sends)
+VigaBSS 5.0 ships an AI Reply Assistant that drafts (and optionally auto-sends)
 professional answers to inbound support tickets. The assistant needs to call a
 Large Language Model (LLM) for every reply it generates.
 
@@ -27,7 +27,7 @@ Several operational requirements shaped the design:
    and estimated USD cost per reply so operators can budget and set quotas.
 5. **On-premises option.** Some ISPs operate in bandwidth-constrained regions or have
    strict data-residency requirements. They must be able to run an Ollama instance
-   locally and point FireISP at it.
+   locally and point VigaBSS at it.
 6. **Testability.** Unit tests must not call real LLM APIs. The abstraction must
    support deterministic mock implementations.
 

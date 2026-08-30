@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Request Logger Middleware Tests
+// VigaBSS 5.0 — Request Logger Middleware Tests
 // =============================================================================
 
 jest.mock('../src/utils/logger', () => ({

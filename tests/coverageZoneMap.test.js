@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Coverage Zone Map Editor Tests (M5.8)
+// VigaBSS 5.0 — Coverage Zone Map Editor Tests (M5.8)
 // =============================================================================
 // Tests for coverageZoneService.js — GeoJSON ↔ MySQL POLYGON conversion,
 // CRUD operations, and validation of the GeoJSON Polygon format.

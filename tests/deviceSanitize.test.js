@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device row sanitizer unit tests
+// VigaBSS 5.0 — Device row sanitizer unit tests
 // =============================================================================
 // Both src/routes/devices.js (crudController's `serialize` option) and
 // src/routes/discoveryScans.js (the onboard-from-discovery endpoint, which

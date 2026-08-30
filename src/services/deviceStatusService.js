@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Online/Offline State Machine
+// VigaBSS 5.0 — Device Online/Offline State Machine
 // =============================================================================
 // Detects device up/down transitions from SNMP poll results and emits
 // device.offline/device.online for the notification pipeline

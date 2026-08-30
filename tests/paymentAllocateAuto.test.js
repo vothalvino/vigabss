@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — POST /payments/:id/allocate-auto (FIFO waterfall)
+// VigaBSS 5.0 — POST /payments/:id/allocate-auto (FIFO waterfall)
 // =============================================================================
 // Atomic, multi-invoice, oldest→newest payment allocation. Drives the real
 // route + src/services/paymentAllocationService.js through a mocked

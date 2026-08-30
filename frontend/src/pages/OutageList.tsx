@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Outage Viewer
+// VigaBSS 5.0 — Outage Viewer
 // =============================================================================
 // Read-only page at /outages. Lists logged network outages (planned and
 // unplanned) with their severity, lifecycle status, affected scope and

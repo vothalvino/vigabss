@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Promotion Validation Schemas
+// VigaBSS 5.0 — Promotion Validation Schemas
 // =============================================================================
 
 const DISCOUNT_TYPES = ['percentage', 'fixed_amount'];

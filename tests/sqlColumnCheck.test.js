@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Static SQL column/ENUM drift check
+// VigaBSS 5.0 — Static SQL column/ENUM drift check
 // =============================================================================
 // Runs src/scripts/sql-column-check.js as part of the normal suite so the gate
 // fires locally (and in the coverage job), not only in the dedicated CI step.

@@ -2,7 +2,7 @@
 
 This document is the build plan for adding an AI assistant that drafts (and
 optionally auto-sends) professional answers to inbound client reports in
-FireISP 5.0. The assistant is fully **topology-aware** (it knows where each
+VigaBSS 5.0. The assistant is fully **topology-aware** (it knows where each
 contract gets its service, including fiber and wireless backhauls) and is
 constrained to a curated **phrase library** so its replies stay on-brand.
 

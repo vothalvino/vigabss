@@ -1,5 +1,5 @@
 /**
- * FireISP 5.0 — End-to-End Smoke Test
+ * VigaBSS 5.0 — End-to-End Smoke Test
  *
  * Scenario: log in → create client (API) → assign plan (UI) →
  *           generate invoice (UI) → record payment (UI) → credit note (UI) →
@@ -134,7 +134,7 @@ test('full operator workflow smoke test', async ({ page, request }) => {
   // Step 1 — Log in via the browser UI
   // -------------------------------------------------------------------------
   await page.goto('/login');
-  await expect(page).toHaveTitle(/FireISP/i);
+  await expect(page).toHaveTitle(/VigaBSS/i);
 
   await page.fill('input[type="email"]', ADMIN_EMAIL);
   await page.fill('input[type="password"]', ADMIN_PASSWORD);
@@ -342,7 +342,7 @@ test('full operator workflow smoke test', async ({ page, request }) => {
   // -------------------------------------------------------------------------
   await page.getByRole('button', { name: /sign out/i }).click();
   await expect(page).toHaveURL(/\/login/);
-  await expect(page.getByText(/FireISP/i).first()).toBeVisible();
+  await expect(page.getByText(/VigaBSS/i).first()).toBeVisible();
 
   // Confirm protected routes are inaccessible after logout
   await page.goto('/clients');

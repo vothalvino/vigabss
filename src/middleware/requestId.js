@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Request ID Middleware
+// VigaBSS 5.0 — Request ID Middleware
 // =============================================================================
 // Generates a unique request ID for every incoming request and attaches it
 // to the request object, response headers, and Pino logger context.

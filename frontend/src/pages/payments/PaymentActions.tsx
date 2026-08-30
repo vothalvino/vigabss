@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Shared payment action component
+// VigaBSS 5.0 — Shared payment action component
 // =============================================================================
 // Extracts the Edit / Allocate / Reallocate / Reassign / Un-apply / Send
 // Receipt / Download Receipt / Delete actions from PaymentList into a

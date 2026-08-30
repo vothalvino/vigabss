@@ -1,12 +1,12 @@
 # =============================================================================
-# FireISP 5.0 — Production docker-compose
+# VigaBSS 5.0 — Production docker-compose
 # =============================================================================
 #
 # Services:
 #   • db-primary  — MySQL 8.4 write node (with binary log + GTID)
 #   • db-replica  — MySQL 8.4 read replica (async streaming replication)
 #   • redis       — Redis 7 (AOF persistence, password-protected)
-#   • app         — FireISP Node.js API + React SPA (can be scaled with
+#   • app         — VigaBSS Node.js API + React SPA (can be scaled with
 #                   `docker compose -f docker-compose.prod.yml up --scale app=3`)
 #   • nginx       — Nginx reverse proxy (HTTP→HTTPS redirect, TLS, gzip,
 #                   rate limiting, WebSocket pass-through for FireRelay)
@@ -160,7 +160,7 @@ services:
           memory: 64M
     logging: *default-logging
 
-  # ── FireISP application ───────────────────────────────────────────────────
+  # ── VigaBSS application ───────────────────────────────────────────────────
   app:
     # PULLED, not built. Compiling here is what used to wedge the box: the
     # in-image frontend build (gen:api + a whole-program `tsc --noEmit` over 376
@@ -208,7 +208,7 @@ services:
       DB_HOST:    db-primary
       DB_PORT:    3306
       REDIS_URL:  redis://:${REDIS_PASSWORD}@redis:6379
-      # Embedded RADIUS server (FireISP is the RADIUS server — docs/radius-server.md).
+      # Embedded RADIUS server (VigaBSS is the RADIUS server — docs/radius-server.md).
       # Defaults ON in production; set RADIUS_SERVER_ENABLED=false in .env.prod to disable.
       RADIUS_SERVER_ENABLED: ${RADIUS_SERVER_ENABLED:-true}
       RADIUS_AUTH_PORT:      ${RADIUS_AUTH_PORT:-1812}

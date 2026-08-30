@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ChurnAnalytics page tests (§1.2)
+// VigaBSS 5.0 — ChurnAnalytics page tests (§1.2)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';

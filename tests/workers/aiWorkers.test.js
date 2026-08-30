@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — §4 AI Background Workers Tests
+// VigaBSS 5.0 — §4 AI Background Workers Tests
 // =============================================================================
 // Covers all three AI BullMQ workers registered in src/workers/index.js:
 //   • ai-triage              (aiTriageWorker)

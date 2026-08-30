@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Migration 158
+-- VigaBSS 5.0 — Migration 158
 -- =============================================================================
 -- 1. Adds firerelay_node_id to devices so each device can be associated with
 --    the FireRelay agent that can reach it over the RouterOS API.

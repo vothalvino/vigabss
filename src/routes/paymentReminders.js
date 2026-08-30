@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Reminder Settings Routes
+// VigaBSS 5.0 — Payment Reminder Settings Routes
 // =============================================================================
 // GET /payment-reminder-settings — get settings
 // PUT /payment-reminder-settings — upsert settings

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Network Fabric tab (§13.1)
+// VigaBSS 5.0 — Network Fabric tab (§13.1)
 // =============================================================================
 // A schematic, tier-laid-out view of the network fabric (core → distribution →
 // access) with live status colouring, animated healthy-link traffic flow, an

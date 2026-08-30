@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RecordPaymentModal tests
+// VigaBSS 5.0 — RecordPaymentModal tests
 // =============================================================================
 // Covers the payment waterfall UX (PR brief "payment waterfall"):
 //   - a locked client's open invoices load into a checklist, all checked,

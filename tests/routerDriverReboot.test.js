@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — routerDriverService MikroTik reboot dispatch tests
+// VigaBSS 5.0 — routerDriverService MikroTik reboot dispatch tests
 // =============================================================================
 // Covers the new 'reboot' command mapping and the silent-no-op fix: an
 // unmapped MikroTik command now records status 'failure', not 'success'.

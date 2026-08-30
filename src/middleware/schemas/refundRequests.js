@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Refund Request Validation Schemas
+// VigaBSS 5.0 — Refund Request Validation Schemas
 // =============================================================================
 
 const REFUND_REASONS = ['overcharge', 'duplicate', 'cancellation', 'service_issue', 'other'];

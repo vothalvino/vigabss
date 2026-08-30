@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Map tile configuration
+// VigaBSS 5.0 — Map tile configuration
 // =============================================================================
 // Every map in the product hardcoded OpenStreetMap's public tile server. That
 // is the right DEFAULT — it needs no account, no API key and no signup, so a

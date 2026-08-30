@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Invoice Detail
+// VigaBSS 5.0 — Invoice Detail
 // =============================================================================
 // Shows a single invoice at /invoices/:id with:
 //   • Invoice metadata (number, dates, status, amounts)

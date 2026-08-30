@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 190: Remove subscriber profile enrichment from clients
+-- VigaBSS 5.0 — Rollback 190: Remove subscriber profile enrichment from clients
 -- =============================================================================
 -- Reverses migration 190. Drops the GPS/credit/risk columns and reverts the
 -- client_type enum to its prior value set (without 'corporate'). Any rows still

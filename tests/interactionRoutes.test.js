@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Interaction Tracking Route Tests (§1.3)
+// VigaBSS 5.0 — Interaction Tracking Route Tests (§1.3)
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

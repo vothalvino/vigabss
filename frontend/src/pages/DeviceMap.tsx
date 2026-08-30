@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device / Network Map
+// VigaBSS 5.0 — Device / Network Map
 // =============================================================================
 // Shows the ISP's physical/logical network topology:
 //   • Sites section — site cards with devices grouped under each site

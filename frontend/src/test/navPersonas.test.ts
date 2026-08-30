@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Per-persona nav resolution ("Faro" nav)
+// VigaBSS 5.0 — Per-persona nav resolution ("Faro" nav)
 // =============================================================================
 // Locks the resolved sidebar for each role to the permission audit performed
 // for the redesign (role_permissions seeds in migrations 119/194/197/199/365/

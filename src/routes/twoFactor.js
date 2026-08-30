@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Two-Factor Authentication Routes
+// VigaBSS 5.0 — Two-Factor Authentication Routes
 // =============================================================================
 
 const { Router } = require('express');

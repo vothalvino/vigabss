@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Interaction Model
+// VigaBSS 5.0 — Client Interaction Model
 // =============================================================================
 // Manual interaction log — calls, visits, chats (§1.3 Interaction Tracking).
 // See migration 196.

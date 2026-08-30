@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory Phase 3 route-wiring tests (migration 391)
+// VigaBSS 5.0 — Inventory Phase 3 route-wiring tests (migration 391)
 // =============================================================================
 // Route-level coverage for the two new cpe-management endpoints (manual
 // serial registration, install) and the two new work-orders pickup-checklist

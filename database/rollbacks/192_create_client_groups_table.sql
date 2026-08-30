@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 192: Drop client_groups + clients.client_group_id
+-- VigaBSS 5.0 — Rollback 192: Drop client_groups + clients.client_group_id
 -- =============================================================================
 -- Reverses migration 192. The FK/column on clients must be removed before the
 -- referenced client_groups table can be dropped.

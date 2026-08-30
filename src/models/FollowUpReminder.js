@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Follow-up Reminder Model
+// VigaBSS 5.0 — Follow-up Reminder Model
 // =============================================================================
 // Scheduled follow-ups per client (§1.3 Interaction Tracking). Due reminders
 // are notified by the `follow_up_reminders` scheduled task. See migration 196.

@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 177: Remove organization_id from payments and tickets
+-- VigaBSS 5.0 — Rollback 177: Remove organization_id from payments and tickets
 -- =============================================================================
 -- Reverses migration 177 by dropping the organization_id foreign keys, indexes,
 -- and columns from the payments and tickets tables.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — useGraphQLSubscription hook tests (P3.9)
+// VigaBSS 5.0 — useGraphQLSubscription hook tests (P3.9)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';

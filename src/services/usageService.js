@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Data Usage / Bandwidth Metering Service
+// VigaBSS 5.0 — Data Usage / Bandwidth Metering Service
 // =============================================================================
 // Aggregates connection_logs data into per-client / per-contract usage
 // summaries. Supports data caps, usage alerts, and metered billing.

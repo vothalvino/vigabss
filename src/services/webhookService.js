@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Webhook Delivery Service
+// VigaBSS 5.0 — Webhook Delivery Service
 // =============================================================================
 // Delivers outbound webhooks with HMAC-SHA256 signing.
 // Failed deliveries are scheduled for background retry with exponential backoff
@@ -155,8 +155,8 @@ async function deliverOnce(webhook, event, payload, attemptNumber, deliveryRowId
   try {
     const response = await httpPost(webhook.url, body, {
       'Content-Type': 'application/json',
-      'X-FireISP-Event': event,
-      ...(signature && { 'X-FireISP-Signature': `sha256=${signature}` }),
+      'X-VigaBSS-Event': event,
+      ...(signature && { 'X-VigaBSS-Signature': `sha256=${signature}` }),
     }, timeout);
 
     responseTimeMs = Date.now() - startTime;
@@ -283,8 +283,8 @@ async function deliverForWorker(job) {
   try {
     const response = await httpPost(webhook.url, body, {
       'Content-Type': 'application/json',
-      'X-FireISP-Event': event,
-      ...(signature && { 'X-FireISP-Signature': `sha256=${signature}` }),
+      'X-VigaBSS-Event': event,
+      ...(signature && { 'X-VigaBSS-Signature': `sha256=${signature}` }),
     }, timeout);
 
     responseTimeMs = Date.now() - startTime;

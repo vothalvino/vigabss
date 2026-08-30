@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 141: Drop composite indexes for query performance
+-- VigaBSS 5.0 — Rollback 141: Drop composite indexes for query performance
 -- =============================================================================
 -- Reverses migration 141.  The forward migration creates each index only when
 -- the involved columns exist, so any individual index may be absent.  Each

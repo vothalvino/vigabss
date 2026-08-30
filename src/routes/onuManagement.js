@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — ONU Management Routes (§7.2)
+// VigaBSS 5.0 — ONU Management Routes (§7.2)
 // =============================================================================
 // Mounted at /api/onu-management and /api/v1/onu-management.
 //

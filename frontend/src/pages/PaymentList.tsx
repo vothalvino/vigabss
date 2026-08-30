@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment List
+// VigaBSS 5.0 — Payment List
 // =============================================================================
 // Standalone page at /payments. Shows all payments across all clients with:
 //   • Filtering by status

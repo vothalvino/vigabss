@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP fleet-glance formatting helpers
+// VigaBSS 5.0 — SNMP fleet-glance formatting helpers
 // =============================================================================
 // Shared between the SnmpMetrics fleet-glance/history page and DeviceDetail's
 // SNMP tab ("reuse the fleet-card metric formatting"), so the same reading

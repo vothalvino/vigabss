@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SLA Definition Validation Schemas
+// VigaBSS 5.0 — SLA Definition Validation Schemas
 // =============================================================================
 
 const createSlaDefinition = {

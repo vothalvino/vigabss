@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Attribute Service
+// VigaBSS 5.0 — RADIUS Attribute Service
 // =============================================================================
 // Generates vendor-formatted RADIUS attribute sets for a plan's speed policy.
 // Supports MikroTik, Cisco, and Juniper vendor-specific attributes,

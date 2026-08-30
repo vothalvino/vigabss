@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AiPolicy Model Tests (P1 §9)
+// VigaBSS 5.0 — AiPolicy Model Tests (P1 §9)
 // =============================================================================
 // Covers:
 //   • findByOrgId — returns existing row or safe defaults when none exists

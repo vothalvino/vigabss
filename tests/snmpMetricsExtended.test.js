@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Metrics Extended Route Tests (§6.2/6.3)
+// VigaBSS 5.0 — SNMP Metrics Extended Route Tests (§6.2/6.3)
 // Tests new endpoints: top-talkers, interfaces/:deviceId, errors
 // =============================================================================
 

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Refund Request Routes Integration Tests
+// VigaBSS 5.0 — Refund Request Routes Integration Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

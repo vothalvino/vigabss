@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ContractTopologyPath Model
+// VigaBSS 5.0 — ContractTopologyPath Model
 // =============================================================================
 // Cache table for the computed network topology path from a contract's CPE up
 // to the edge/core device. Built and invalidated by topologyContextService.js.

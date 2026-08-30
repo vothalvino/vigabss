@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Base Model
+// VigaBSS 5.0 — Base Model
 // =============================================================================
 // Provides common CRUD operations for all models. Each concrete model extends
 // this class and overrides `tableName`, `fillable`, etc.

@@ -1,14 +1,14 @@
 // =============================================================================
-// FireISP 5.0 — WireGuard Hub Service (§2)
+// VigaBSS 5.0 — WireGuard Hub Service (§2)
 // =============================================================================
 // The ONLY module that shells out to wg/ip/nft. All child processes use
 // execFile with array argv — never string concatenation or shell:true.
 //
 // Two surfaces, one module, interface-parameterized:
-//   wg-fireisp  — per-NAS tunnels (Part 1). Peers dial in; FireISP routes to
+//   wg-fireisp  — per-NAS tunnels (Part 1). Peers dial in; VigaBSS routes to
 //                 device subnets. Subnet: WG_SERVER_SUBNET (10.255.0.0/16).
 //   wg-clients  — user access tunnels (Part 2). Roaming clients (laptop/phone)
-//                 dial in; FireISP forwards through wg-fireisp to device subnets
+//                 dial in; VigaBSS forwards through wg-fireisp to device subnets
 //                 under per-user nftables FORWARD ACL + MASQUERADE.
 //                 Subnet: WG_CLIENT_SUBNET (10.99.0.0/16).
 //
@@ -141,7 +141,7 @@ function subnetToRange(cidr) {
 }
 
 /**
- * The FireISP hub's own wg-fireisp tunnel IP (first host in the server subnet,
+ * The VigaBSS hub's own wg-fireisp tunnel IP (first host in the server subnet,
  * network+1 — e.g. 10.255.0.1 for 10.255.0.0/16). This is the address every
  * managed NAS should point RADIUS/API/CoA at so that traffic rides the encrypted
  * tunnel and no management port needs to face the public internet.

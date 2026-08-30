@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Adjustment Service
+// VigaBSS 5.0 — Billing Adjustment Service
 // =============================================================================
 // Records billing adjustments and mirrors them into the audit log.
 // =============================================================================

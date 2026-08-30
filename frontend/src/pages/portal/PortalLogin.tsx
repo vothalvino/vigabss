@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Login
+// VigaBSS 5.0 — Portal Login
 // =============================================================================
 
 import { type FormEvent, useState } from 'react';
@@ -40,7 +40,7 @@ export function PortalLogin() {
         <LanguageSwitcher variant="bar" />
       </div>
       <form style={styles.card} onSubmit={handleSubmit}>
-        <h1 style={styles.title}>🔥 FireISP</h1>
+        <h1 style={styles.title}>🔥 VigaBSS</h1>
         <p style={styles.subtitle}>{t('portalLogin.subtitle')}</p>
 
         {error && <div style={styles.error}>{error}</div>}

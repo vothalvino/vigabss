@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — EncryptionKeyMetadata Model
+// VigaBSS 5.0 — EncryptionKeyMetadata Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

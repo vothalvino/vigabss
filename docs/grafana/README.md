@@ -1,6 +1,6 @@
-# FireISP 5.0 — Grafana Dashboards
+# VigaBSS 5.0 — Grafana Dashboards
 
-This directory contains Grafana dashboard JSON templates for monitoring FireISP 5.0. All dashboards use Prometheus as the data source.
+This directory contains Grafana dashboard JSON templates for monitoring VigaBSS 5.0. All dashboards use Prometheus as the data source.
 
 ## Dashboards
 
@@ -14,7 +14,7 @@ This directory contains Grafana dashboard JSON templates for monitoring FireISP 
 
 ## Metrics Reference
 
-The FireISP metrics endpoint (`GET /metrics`) exposes Prometheus-format metrics at runtime:
+The VigaBSS metrics endpoint (`GET /metrics`) exposes Prometheus-format metrics at runtime:
 
 | Metric | Type | Description |
 |---|---|---|

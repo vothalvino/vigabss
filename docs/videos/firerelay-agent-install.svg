@@ -60,7 +60,7 @@
 
   <g id="s3" class="scene">
     <text x="64" y="196" class="title">Install the worker</text>
-    <text x="64" y="260" class="body">Use the same FireISP codebase on Node 2.</text>
+    <text x="64" y="260" class="body">Use the same VigaBSS codebase on Node 2.</text>
     <rect x="150" y="334" width="980" height="168" class="panel"/>
     <text x="200" y="390" class="code">pnpm install --frozen-lockfile</text>
     <text x="200" y="434" class="code">pnpm run migrate</text>

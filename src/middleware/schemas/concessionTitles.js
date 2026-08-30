@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Concession Title Validation Schemas
+// VigaBSS 5.0 — Concession Title Validation Schemas
 // =============================================================================
 
 const createConcessionTitle = {

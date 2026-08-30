@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Geofence Evaluation Service — §13.2
+// VigaBSS 5.0 — Geofence Evaluation Service — §13.2
 // =============================================================================
 // Evaluates all active geofences for an organization, checking whether CPE
 // devices / client endpoints are within their designated zones.

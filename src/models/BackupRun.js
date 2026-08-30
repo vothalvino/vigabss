@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Backup Run History Model
+// VigaBSS 5.0 — Backup Run History Model
 // =============================================================================
 // One row per database-backup execution (nightly scheduled task, manual
 // Run-now, DR-drill Phase 1). Written by src/scripts/backup.js; read by the

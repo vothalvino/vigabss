@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE Inventory Service (§8.4)
+// VigaBSS 5.0 — CPE Inventory Service (§8.4)
 // =============================================================================
 // Handles:
 //   - CPE ↔ subscriber auto-linking (on Inform, match serial_number vs contracts)

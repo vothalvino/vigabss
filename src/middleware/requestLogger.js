@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — HTTP Request Logging Middleware
+// VigaBSS 5.0 — HTTP Request Logging Middleware
 // =============================================================================
 // Logs every request/response with method, url, status, and response time.
 // =============================================================================

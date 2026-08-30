@@ -1,13 +1,13 @@
 -- =============================================================================
 -- Migration 364 — WireGuard per-NAS tunnels: nas_wg_tunnels table
 -- =============================================================================
--- One row per NAS WireGuard tunnel (1:1 with nas). The FireISP host acts as the
+-- One row per NAS WireGuard tunnel (1:1 with nas). The VigaBSS host acts as the
 -- WireGuard hub (wg-fireisp); each MikroTik NAS dials out as a peer. This table
 -- stores the server-generated keypair (private key AES-256-GCM encrypted), the
 -- allocated tunnel IP from WG_SERVER_SUBNET, the confirmed routed CIDRs, and the
 -- provisioning state machine.
 --
--- HARD CONSTRAINT: FireISP NEVER writes /ip/service or /ip/firewall on the router.
+-- HARD CONSTRAINT: VigaBSS NEVER writes /ip/service or /ip/firewall on the router.
 -- RouterOS writes are limited to: /interface/wireguard, /ip/address,
 -- /interface/wireguard/peers, and routes only.
 -- =============================================================================

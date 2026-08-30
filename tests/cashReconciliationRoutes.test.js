@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Cash Reconciliation Route Integration Tests
+// VigaBSS 5.0 — Cash Reconciliation Route Integration Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Group List (family / account grouping) — §1.1
+// VigaBSS 5.0 — Client Group List (family / account grouping) — §1.1
 // =============================================================================
 // CRUD for account groups used for shared billing / family plans.
 // =============================================================================

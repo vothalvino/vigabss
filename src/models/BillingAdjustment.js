@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — BillingAdjustment Model
+// VigaBSS 5.0 — BillingAdjustment Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

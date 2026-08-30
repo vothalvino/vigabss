@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Quota Check Middleware
+// VigaBSS 5.0 — Quota Check Middleware
 // =============================================================================
 // Usage:
 //   const { quotaCheck } = require('../middleware/checkQuota');

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAS Health Service Tests
+// VigaBSS 5.0 — NAS Health Service Tests
 // =============================================================================
 // Tests RADIUS Status-Server probing (RFC 5997) and batch health check logic.
 // Mocks dgram to avoid real UDP traffic.

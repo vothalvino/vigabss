@@ -1,4 +1,4 @@
-# FireISP 5.0 — Entity-Relationship Diagram
+# VigaBSS 5.0 — Entity-Relationship Diagram
 
 > Auto-generated from `database/schema.sql` (101 tables, MySQL 8.4+ / MariaDB 10.6+).
 >

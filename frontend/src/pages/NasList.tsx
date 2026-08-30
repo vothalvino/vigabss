@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAS Management
+// VigaBSS 5.0 — NAS Management
 // =============================================================================
 // Standalone page at /nas. Lists RADIUS NAS / network access servers with a
 // status filter, paginated table, and "New NAS" create modal plus per-row Edit
@@ -617,7 +617,7 @@ interface SeedModalProps {
   nas: Nas;
   onClose: () => void;
   /**
-   * Pre-fills the RADIUS server address. Every NAS reaches FireISP over the
+   * Pre-fills the RADIUS server address. Every NAS reaches VigaBSS over the
    * WireGuard tunnel, so this should be the hub tunnel IP (e.g. 10.255.0.1) —
    * that way RADIUS rides the tunnel and no management port faces the internet.
    */
@@ -640,7 +640,7 @@ function isIpAddress(v: string): boolean {
 
 export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps) {
   const [form, setForm] = useState({
-    // Prefill the FireISP hub's WireGuard tunnel IP (an IP literal, which RouterOS's
+    // Prefill the VigaBSS hub's WireGuard tunnel IP (an IP literal, which RouterOS's
     // /radius `address` requires — a hostname trips a cryptic device error). Routing
     // RADIUS over the tunnel means only 80/443 + the WG port need be public on the
     // server. Falls back to blank when the hub IP isn't known yet.
@@ -657,7 +657,7 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
     seedPriorityQueues: false,
     seedPppoeServer: false,
     pppoeInterface: '',
-    pppoeServiceName: 'FireISP-Internet',
+    pppoeServiceName: 'VigaBSS-Internet',
     pppoeProfileName: 'fireisp-pppoe',
     pppoeLocalAddress: '',
     pppoeParentQueue: '',
@@ -736,11 +736,11 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.radiusAddress.trim()) {
-      setError('FireISP RADIUS address is required.');
+      setError('VigaBSS RADIUS address is required.');
       return;
     }
     if (!isIpAddress(form.radiusAddress)) {
-      setError('FireISP RADIUS address must be an IP address, not a hostname — RouterOS only accepts an IP here.');
+      setError('VigaBSS RADIUS address must be an IP address, not a hostname — RouterOS only accepts an IP here.');
       return;
     }
     setError('');
@@ -797,14 +797,14 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
         ) : (
           <form onSubmit={handleSubmit} style={modalStyles.form}>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              Pushes the FireISP RADIUS client, PPP AAA and CoA listener to this MikroTik over its
+              Pushes the VigaBSS RADIUS client, PPP AAA and CoA listener to this MikroTik over its
               RouterOS API, plus optional fq-codel queue types, priority queues, a PPPoE server, a
               walled garden and real-time/VoIP prioritisation. Idempotent — safe to re-run. The NAS
               shared secret is used automatically.
             </p>
 
             <label style={modalStyles.label}>
-              FireISP RADIUS Address <RequiredMark />
+              VigaBSS RADIUS Address <RequiredMark />
               <input
                 style={modalStyles.input}
                 type="text"
@@ -815,7 +815,7 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
                 required
               />
               <span style={{ fontWeight: 400, fontSize: 12, color: '#6b7280' }}>
-                The IP the router uses to reach FireISP's RADIUS. Must be an IP address —
+                The IP the router uses to reach VigaBSS's RADIUS. Must be an IP address —
                 RouterOS's /radius does not accept a hostname.
               </span>
             </label>
@@ -908,7 +908,7 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
                     Service Name
                     <input style={modalStyles.input} type="text" maxLength={64}
                       value={form.pppoeServiceName} onChange={e => setField('pppoeServiceName', e.target.value)}
-                      placeholder="FireISP-Internet" aria-label="PPPoE service name" />
+                      placeholder="VigaBSS-Internet" aria-label="PPPoE service name" />
                   </label>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>

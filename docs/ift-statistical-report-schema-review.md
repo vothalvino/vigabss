@@ -9,7 +9,7 @@
 
 ## 1. Why this review exists
 
-The issue (`Validate FireISP IFT statistical report schema against official IFT requirements`) requested a formal, field-by-field validation **before** any UI or export work begins. Shipping UI on top of a schema that misses required IFT fields would force a re-issue of every previously stored snapshot and is a compliance risk under LFTR Art. 175.
+The issue (`Validate VigaBSS IFT statistical report schema against official IFT requirements`) requested a formal, field-by-field validation **before** any UI or export work begins. Shipping UI on top of a schema that misses required IFT fields would force a re-issue of every previously stored snapshot and is a compliance risk under LFTR Art. 175.
 
 This document is the deliverable. It does three things:
 

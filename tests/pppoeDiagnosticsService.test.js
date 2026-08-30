@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE Diagnostics Service Tests
+// VigaBSS 5.0 — PPPoE Diagnostics Service Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

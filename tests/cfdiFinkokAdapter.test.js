@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Finkok SOAP adapter (Phase 4)
+// VigaBSS 5.0 — Finkok SOAP adapter (Phase 4)
 // =============================================================================
 // Contract taken verbatim from the demo Finkok WSDLs (stamp.wsdl / cancel.wsdl).
 // Finkok stamps PRE-SEALED XML and signs cancellations with the CSD cer/key

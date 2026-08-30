@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Attribute Service Tests
+// VigaBSS 5.0 — RADIUS Attribute Service Tests
 // =============================================================================
 
 const { generateAttributes } = require('../src/services/radiusAttributeService');

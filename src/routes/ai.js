@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AI Reply Assistant REST Routes (§5.1)
+// VigaBSS 5.0 — AI Reply Assistant REST Routes (§5.1)
 // =============================================================================
 // Mounted at /api/v1/ai by src/app.js.
 //

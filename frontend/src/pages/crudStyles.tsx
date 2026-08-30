@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Shared CRUD page styles
+// VigaBSS 5.0 — Shared CRUD page styles
 // =============================================================================
 // Common page + modal style objects reused by the billing/sales list pages
 // (Plans, Quotes, Credit Notes, Expenses) to keep look-and-feel and

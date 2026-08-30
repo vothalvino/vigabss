@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — useGraphQLSubscription hook (P3.9)
+// VigaBSS 5.0 — useGraphQLSubscription hook (P3.9)
 // =============================================================================
 // Connects to the graphql-yoga SSE subscription endpoint via EventSource.
 // Sends the subscription query as GET params, parses data events, and cleans

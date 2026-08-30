@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Transaction Validation Schemas
+// VigaBSS 5.0 — Payment Transaction Validation Schemas
 // =============================================================================
 // Payment transactions are primarily read-only in the API (created by the
 // payment gateway service), but query-parameter validation is still useful

@@ -1,6 +1,6 @@
-# FireISP 5.0 — Database Test Suite
+# VigaBSS 5.0 — Database Test Suite
 
-Comprehensive SQL-based tests for the FireISP 5.0 database schema, covering schema integrity, constraints, triggers, seed data, and referential integrity.
+Comprehensive SQL-based tests for the VigaBSS 5.0 database schema, covering schema integrity, constraints, triggers, seed data, and referential integrity.
 
 ## Prerequisites
 

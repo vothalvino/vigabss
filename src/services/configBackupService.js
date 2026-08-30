@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Config Backup Service
+// VigaBSS 5.0 — Config Backup Service
 // =============================================================================
 // Provides functions to pull RouterOS configuration backups from remote
 // MikroTik devices via the FireRelay WebSocket tunnel and persist them to

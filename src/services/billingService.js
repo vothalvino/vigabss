@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Service
+// VigaBSS 5.0 — Billing Service
 // =============================================================================
 // Handles billing period generation, invoice creation, tax calculation,
 // and client balance ledger updates.
@@ -40,7 +40,7 @@ function normalizePostalCode(raw) {
     return five[0];
   }
 
-  // Strategy 2 — every other postal shape in the world. FireISP is not a
+  // Strategy 2 — every other postal shape in the world. VigaBSS is not a
   // Mexican product with a global mode; a 5-digit-only matcher meant a Panama
   // operator (0801), a Canadian (K1A 0B1), an Australian (3000) or a UK
   // operator (SW1A 1AA) could never match a rule to their own addresses.

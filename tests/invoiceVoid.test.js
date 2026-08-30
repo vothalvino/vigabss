@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Invoice void: balance-ledger reversal + paid-invoice handling
+// VigaBSS 5.0 — Invoice void: balance-ledger reversal + paid-invoice handling
 // NOTE: Paid invoices CAN now be voided (Capability 1). Voiding a paid invoice
 // soft-deletes its payment_allocations (releasing them as client credits) then
 // zeroes the invoice's ledger entries. Payment 'credit' rows are NOT removed.

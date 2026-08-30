@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Work-entity wiring tests
+// VigaBSS 5.0 — Work-entity wiring tests
 // Covers:
 //   A. GET /work-orders?ticket_id= and ?service_order_id= filters
 //   B. POST /work-orders stores ticket_id

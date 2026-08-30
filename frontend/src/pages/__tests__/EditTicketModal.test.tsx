@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — EditTicketModal tests
+// VigaBSS 5.0 — EditTicketModal tests
 // =============================================================================
 // Ticket editing from the detail page: PATCHes only the dirty fields
 // (subject / description / category / priority / notes) and gates Save on a

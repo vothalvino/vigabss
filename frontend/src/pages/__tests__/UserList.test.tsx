@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — UserList page tests
+// VigaBSS 5.0 — UserList page tests
 // =============================================================================
 // Covers the staff Users admin page, in particular the user-groups + org
 // access rework (migration 378):

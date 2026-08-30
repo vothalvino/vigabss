@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Dashboard Validation Schemas
+// VigaBSS 5.0 — Dashboard Validation Schemas
 // =============================================================================
 // Dashboard endpoints are all GET-only. These schemas document the query
 // parameters accepted by each endpoint for the OpenAPI spec.

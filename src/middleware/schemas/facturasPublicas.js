@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Factura Pública Validation Schemas
+// VigaBSS 5.0 — Factura Pública Validation Schemas
 // =============================================================================
 
 const createFacturaPublica = {

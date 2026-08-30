@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory Sale Drawdown Service (Inventory Phase 2, §14.2)
+// VigaBSS 5.0 — Inventory Sale Drawdown Service (Inventory Phase 2, §14.2)
 // =============================================================================
 // Decrements stock for a sale (an invoice line item linked to an
 // inventory_items row) and writes a matching `sell_to_client` ledger row.

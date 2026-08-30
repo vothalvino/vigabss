@@ -1,5 +1,5 @@
 # =============================================================================
-# FireISP 5.0 — Integration Testing with MySQL
+# VigaBSS 5.0 — Integration Testing with MySQL
 # =============================================================================
 # Spins up a MySQL 8.4 instance, applies migrations, seeds test data,
 # and runs integration tests against a real database.

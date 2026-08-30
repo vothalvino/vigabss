@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — OpenAPI Spec Generation Tests
+// VigaBSS 5.0 — OpenAPI Spec Generation Tests
 // =============================================================================
 
 const { generateSpec, convertSchemaToOpenApi } = require('../src/utils/openapi');
@@ -9,7 +9,7 @@ describe('OpenAPI spec generation', () => {
     const spec = generateSpec();
 
     expect(spec.openapi).toBe('3.1.0');
-    expect(spec.info.title).toBe('FireISP 5.0 API');
+    expect(spec.info.title).toBe('VigaBSS 5.0 API');
     expect(spec.info.version).toBe('5.0.0');
     expect(spec.paths).toBeDefined();
     expect(Object.keys(spec.paths).length).toBeGreaterThan(20);
@@ -82,7 +82,7 @@ describe('OpenAPI spec generation', () => {
     expect(Object.keys(spec.components.schemas).length).toBeGreaterThan(0);
   });
 
-  test('convertSchemaToOpenApi converts FireISP schema to OpenAPI', () => {
+  test('convertSchemaToOpenApi converts VigaBSS schema to OpenAPI', () => {
     const schema = {
       name: { type: 'string', required: true, min: 1, max: 100 },
       email: { type: 'email', required: true },

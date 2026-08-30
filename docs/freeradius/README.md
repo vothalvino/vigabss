@@ -1,7 +1,7 @@
 # FreeRADIUS Integration Guide
 
-FireISP is the **management plane** for an external FreeRADIUS 3.x server.
-FireISP stores subscriber credentials and plan attributes in its own MySQL database
+VigaBSS is the **management plane** for an external FreeRADIUS 3.x server.
+VigaBSS stores subscriber credentials and plan attributes in its own MySQL database
 and synchronizes them into the standard FreeRADIUS SQL tables
 (`radcheck`, `radreply`, `radusergroup`, `radgroupcheck`, `radgroupreply`).
 FreeRADIUS reads these tables directly — no custom RADIUS proxy is required.
@@ -17,7 +17,7 @@ FreeRADIUS reads these tables directly — no custom RADIUS proxy is required.
                   └────────────┼─────────────┘
                                │  reads
                   ┌────────────▼─────────────┐
-                  │  FireISP MySQL database   │
+                  │  VigaBSS MySQL database   │
                   │  radcheck / radreply      │
                   │  radusergroup             │
                   │  radgroupcheck            │
@@ -25,7 +25,7 @@ FreeRADIUS reads these tables directly — no custom RADIUS proxy is required.
                   └───────────────────────────┘
                                ▲  synced by
                   ┌────────────┴─────────────┐
-                  │  FireISP management plane │
+                  │  VigaBSS management plane │
                   │  (radius_sync task)       │
                   └───────────────────────────┘
 ```
@@ -67,7 +67,7 @@ cp docs/freeradius/sql.conf /etc/freeradius/3.0/mods-available/sql
 ln -s /etc/freeradius/3.0/mods-available/sql /etc/freeradius/3.0/mods-enabled/sql
 ```
 
-Edit `/etc/freeradius/3.0/mods-available/sql` and fill in your FireISP database credentials
+Edit `/etc/freeradius/3.0/mods-available/sql` and fill in your VigaBSS database credentials
 (the variables shown with `YOUR_*` placeholders).
 
 The key settings are:
@@ -75,11 +75,11 @@ The key settings are:
 | Setting | Value |
 |---------|-------|
 | `dialect` | `mysql` |
-| `server` | FireISP DB host |
+| `server` | VigaBSS DB host |
 | `port` | 3306 |
 | `login` | DB user (read-only is sufficient for auth) |
 | `password` | DB password |
-| `radius_db` | FireISP database name |
+| `radius_db` | VigaBSS database name |
 
 ---
 
@@ -117,7 +117,7 @@ accounting {
 
 ## Step 4: Configure NAS clients
 
-NAS secrets are stored in the FireISP `nas` table. Generate `clients.conf` from that table:
+NAS secrets are stored in the VigaBSS `nas` table. Generate `clients.conf` from that table:
 
 ```sql
 SELECT CONCAT(
@@ -183,7 +183,7 @@ radtest subscriber_username cleartext_password 127.0.0.1 0 testing123
 - `radcheck` rows:
   - `Cleartext-Password := <password>` (fallback / inner-auth, optional)
   - `TLS-Cert-Serial == <serial_number>` — enforces certificate binding
-- Client certificates are registered in the `subscriber_certificates` table (FireISP is a
+- Client certificates are registered in the `subscriber_certificates` table (VigaBSS is a
   **metadata registry only** — it does NOT generate or sign certificates).
   Use an external CA (easy-rsa, step-ca, HashiCorp Vault PKI, or a commercial CA)
   to issue and revoke certificates.
@@ -243,7 +243,7 @@ FreeRADIUS enforces this via the `radutmp` or `sql-session-log` module. Enable `
 `authorize {}` and `session {}` sections of your `sites-available/default`.
 
 The `kick_duplicate_sessions` scheduled task (every 5 minutes) also enforces limits at the
-FireISP layer by sending Disconnect-Request for the oldest excess sessions.
+VigaBSS layer by sending Disconnect-Request for the oldest excess sessions.
 
 ---
 
@@ -282,7 +282,7 @@ subscriber interface template.
 
 ## Walled garden for unpaid subscribers
 
-FireISP supports placing unpaid subscribers into a walled garden (captive portal) as an alternative
+VigaBSS supports placing unpaid subscribers into a walled garden (captive portal) as an alternative
 to full suspension.
 
 ### How it works
@@ -334,7 +334,7 @@ preferred over the MikroTik address-list approach.
 
 ## RADIUS Accounting ingest (rlm_rest)
 
-FireISP exposes a machine-to-machine endpoint that FreeRADIUS can POST accounting records to:
+VigaBSS exposes a machine-to-machine endpoint that FreeRADIUS can POST accounting records to:
 
 ```
 POST /api/v1/radius/accounting
@@ -355,7 +355,7 @@ Install `rlm_rest` (bundled in FreeRADIUS ≥ 3.0). Create or edit
 
 ```apacheconf
 rest {
-    # Base URL of your FireISP backend
+    # Base URL of your VigaBSS backend
     connect_uri = "https://isp.example.com"
 
     accounting {
@@ -401,7 +401,7 @@ accounting {
 
 ### JSON payload format
 
-FreeRADIUS sends attributes using their standard hyphenated names. FireISP accepts both
+FreeRADIUS sends attributes using their standard hyphenated names. VigaBSS accepts both
 hyphenated (`Acct-Status-Type`) and camelCase (`AcctStatusType`) forms. The minimum required
 fields for each status type are:
 
@@ -418,7 +418,7 @@ Gigawords wraparound is handled automatically:
 ### MAC move detection
 
 When a `Start` record arrives for a username that already has an open session on a
-different `Calling-Station-Id` (MAC address) or NAS, FireISP:
+different `Calling-Station-Id` (MAC address) or NAS, VigaBSS:
 
 1. Synthesizes a `Stop` record for the old session.
 2. Logs the event to the `mac_move_events` table.

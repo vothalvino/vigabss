@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — POST /bulk/invoices/void tests
+// VigaBSS 5.0 — POST /bulk/invoices/void tests
 // =============================================================================
 // Verifies the bulk void endpoint:
 //   - Voids a mix of issued and paid invoices (success count, allocation release,

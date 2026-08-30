@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Technician Dashboard
+// VigaBSS 5.0 — Technician Dashboard
 // =============================================================================
 // A field/NOC dashboard for the technician role. Every widget is backed by an
 // endpoint the technician permission set can actually load (verified against

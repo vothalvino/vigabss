@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Invoice Settings Service
+// VigaBSS 5.0 — Invoice Settings Service
 // =============================================================================
 // Manages per-organization invoice branding settings stored in the
 // organization_invoice_settings table (migration 204).

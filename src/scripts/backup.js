@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Database Backup Script
+// VigaBSS 5.0 — Database Backup Script
 // =============================================================================
 // Creates a gzipped mysqldump backup in storage/backups/ with rotation.
 // Keeps the last N backups (default 7) and removes older ones.
@@ -277,7 +277,7 @@ function rotate() {
 
 // Run when invoked directly
 if (require.main === module) {
-  logger.info('FireISP 5.0 — Creating database backup...');
+  logger.info('VigaBSS 5.0 — Creating database backup...');
   backup().then(() => {
     logger.info('Done.');
     process.exit(0);

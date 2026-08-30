@@ -1,6 +1,6 @@
 # Data Migration Runbook
 
-This runbook covers migrating an existing ISP's data into FireISP 5.0. It applies when you are replacing a legacy billing system, spreadsheet-based operation, or another ISP management platform.
+This runbook covers migrating an existing ISP's data into VigaBSS 5.0. It applies when you are replacing a legacy billing system, spreadsheet-based operation, or another ISP management platform.
 
 ---
 
@@ -24,7 +24,7 @@ This runbook covers migrating an existing ISP's data into FireISP 5.0. It applie
 
 ## Overview
 
-FireISP 5.0 exposes bulk-import API endpoints that accept **CSV** files. Each endpoint inserts rows independently — errors in individual rows do not abort the entire import; instead they are collected and returned in the response.
+VigaBSS 5.0 exposes bulk-import API endpoints that accept **CSV** files. Each endpoint inserts rows independently — errors in individual rows do not abort the entire import; instead they are collected and returned in the response.
 
 ### Import endpoints summary
 
@@ -44,7 +44,7 @@ All endpoints require authentication and the `X-Org-Id` header. File uploads use
 
 Before importing any data, complete every item on this checklist:
 
-- [ ] FireISP 5.0 is installed and all database migrations have been applied (`npm run migrate`)
+- [ ] VigaBSS 5.0 is installed and all database migrations have been applied (`npm run migrate`)
 - [ ] At least one Organization exists in the system
 - [ ] At least one admin user exists and can obtain a JWT token
 - [ ] All required **Plans** exist (`POST /api/plans`) — contracts reference `plan_id`
@@ -142,7 +142,7 @@ Review every error before proceeding. Fix the source file and re-run only the fa
 
 ### Retrieve imported IDs
 
-After importing clients, retrieve their FireISP IDs to map them to contracts and invoices:
+After importing clients, retrieve their VigaBSS IDs to map them to contracts and invoices:
 
 ```bash
 curl "http://localhost:3000/api/clients?limit=100" \
@@ -482,7 +482,7 @@ The row is missing a `client_id` or `plan_id`. Ensure clients and plans were imp
 ### Row-level error: `connection_type must be one of: pppoe, pppoe_dual, static, dual` (contracts)
 
 The `connection_type` column contains a value not in the allowed set (e.g. a legacy label like
-`fiber` or `cable`). Map your source system's connection types to one of the four FireISP values
+`fiber` or `cable`). Map your source system's connection types to one of the four VigaBSS values
 before importing.
 
 ### Row-level error: `status must be one of: ...`
@@ -512,7 +512,7 @@ df.to_csv("clients_fixed.csv", index=False)
 
 ### Character encoding issues
 
-FireISP expects **UTF-8**. If your source file uses Windows-1252 or Latin-1, convert it first:
+VigaBSS expects **UTF-8**. If your source file uses Windows-1252 or Latin-1, convert it first:
 
 ```bash
 iconv -f WINDOWS-1252 -t UTF-8 clients_legacy.csv > clients.csv
