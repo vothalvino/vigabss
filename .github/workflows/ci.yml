@@ -573,7 +573,7 @@ jobs:
           DB_USER: root
           DB_PASSWORD: e2epassword
           DB_NAME: fireisp_e2e
-          JWT_SECRET: e2e-test-jwt-secret-for-github-actions-only-not-for-production
+          JWT_SECRET: e2e-test-jwt-secret-for-github-actions-only-not-for-production00
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
           # The seed generates a RANDOM admin password when this is unset
           # (seed.js:42). The smoke suite logs in as this user, so the same
@@ -595,7 +595,7 @@ jobs:
           DB_USER: root
           DB_PASSWORD: e2epassword
           DB_NAME: fireisp_e2e
-          JWT_SECRET: e2e-test-jwt-secret-for-github-actions-only-not-for-production
+          JWT_SECRET: e2e-test-jwt-secret-for-github-actions-only-not-for-production00
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
           LOG_LEVEL: warn
         run: node src/server.js &
