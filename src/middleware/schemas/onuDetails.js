@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ONU Detail Validation Schemas (§7.2)
+// VigaBSS 5.0 — ONU Detail Validation Schemas (§7.2)
 // =============================================================================
 
 const createOnuDetail = {

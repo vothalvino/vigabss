@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Server Codec Tests
+// VigaBSS 5.0 — RADIUS Server Codec Tests
 // =============================================================================
 // Pure unit tests for src/services/radiusServerCodec.js — packet/attribute
 // decoding plus the PAP / CHAP / Message-Authenticator / Response-Authenticator

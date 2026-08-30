@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client-Group Shared Billing Service
+// VigaBSS 5.0 — Client-Group Shared Billing Service
 // =============================================================================
 // A client_group with billing_mode='shared' has a designated primary member.
 // This service lets that primary VIEW the group's combined balance and PAY it

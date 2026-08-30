@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Automation Service (§18.1)
+// VigaBSS 5.0 — Automation Service (§18.1)
 // =============================================================================
 // Handles workflow automation rules, batch subscriber operations, provisioning
 // pipelines, and auto-remediation rules.

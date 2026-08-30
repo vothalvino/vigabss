@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — OpenRouter live model catalog
+// VigaBSS 5.0 — OpenRouter live model catalog
 // =============================================================================
 // The point of this service is that the model list is NEVER hardcoded: a static
 // list is stale within weeks and quietly denies operators the model they are
@@ -9,7 +9,7 @@
 //
 //   • it must never throw — a provider form that 500s because openrouter.ai is
 //     down is worse than one that degrades to a free-text field
-//   • it must never call out on a schedule or at startup. FireISP is
+//   • it must never call out on a schedule or at startup. VigaBSS is
 //     self-hosted; an unrequested outbound call from a billing system fails a
 //     security review, and an air-gapped install would log a failure forever
 //   • "unknown price" and "free" must stay distinguishable. Collapsing them is

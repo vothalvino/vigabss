@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RouterOS PPPoE event collector
+// VigaBSS 5.0 — RouterOS PPPoE event collector
 // =============================================================================
 // Polls the in-memory RouterOS log using the read-only `/log/print` API command.
 // RouterOS does not support regex query words in its binary API, so topic/message

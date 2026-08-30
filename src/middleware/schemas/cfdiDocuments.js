@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CFDI Document Validation Schemas
+// VigaBSS 5.0 — CFDI Document Validation Schemas
 // =============================================================================
 
 // Aligned to the REAL cfdi_documents columns (the old shape accepted

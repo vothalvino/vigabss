@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Database Connection Pool
+// VigaBSS 5.0 — Database Connection Pool
 // =============================================================================
 // Creates and exports a mysql2/promise connection pool configured from
 // environment variables. All application code should import `db` from here.

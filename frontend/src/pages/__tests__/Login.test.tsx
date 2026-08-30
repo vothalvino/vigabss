@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Login page tests
+// VigaBSS 5.0 — Login page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -53,7 +53,7 @@ describe('Login page', () => {
   it('renders the login form', () => {
     mockLogin(vi.fn());
     renderLogin();
-    expect(screen.getByText('🔥 FireISP 5.0')).toBeInTheDocument();
+    expect(screen.getByText('🔥 VigaBSS 5.0')).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();

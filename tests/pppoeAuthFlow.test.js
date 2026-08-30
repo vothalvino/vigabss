@@ -1,14 +1,14 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE Auth Flow End-to-End Tests (Roadmap 3.3)
+// VigaBSS 5.0 — PPPoE Auth Flow End-to-End Tests (Roadmap 3.3)
 // =============================================================================
 // Validates the full PPPoE authentication flow:
-//   MikroTik (RouterOS API) → FreeRADIUS → FireISP DB
+//   MikroTik (RouterOS API) → FreeRADIUS → VigaBSS DB
 //
 // Live MikroTik tests run only when MIKROTIK_HAP_HOST is set:
 //   MIKROTIK_HAP_HOST=<ip> MIKROTIK_HAP_USER=<user> MIKROTIK_HAP_PASS=<pass> \
 //     npx jest tests/pppoeAuthFlow.test.js
 //
-// Unit tests (FireISP RADIUS service logic) run in every CI execution.
+// Unit tests (VigaBSS RADIUS service logic) run in every CI execution.
 // =============================================================================
 
 jest.mock('../src/utils/logger', () => ({
@@ -174,13 +174,13 @@ describeLive('PPPoE Auth Flow — Subscriber lifecycle (live device)', () => {
 
   const secretName = `${SUFFIX}_sub`;
 
-  test('creates a PPPoE secret (subscriber) matching FireISP RADIUS schema', async () => {
-    // FireISP radius table fields: username, password, service=pppoe
+  test('creates a PPPoE secret (subscriber) matching VigaBSS RADIUS schema', async () => {
+    // VigaBSS radius table fields: username, password, service=pppoe
     const result = await pppoeCreate(CONN, {
       name: secretName,
       secretPassword: 'TestAuth!99',
       service: 'pppoe',
-      comment: 'FireISP E2E test 3.3 — auto-cleanup',
+      comment: 'VigaBSS E2E test 3.3 — auto-cleanup',
     });
     expect(result).toHaveProperty('id');
     expect(typeof result.id).toBe('string');
@@ -232,10 +232,10 @@ describeLive('PPPoE Auth Flow — Subscriber lifecycle (live device)', () => {
 });
 
 // =============================================================================
-// Part 3: FireISP RADIUS Service Auth/Accounting Logic (unit, always runs)
+// Part 3: VigaBSS RADIUS Service Auth/Accounting Logic (unit, always runs)
 // =============================================================================
 
-describe('PPPoE Auth Flow — FireISP RADIUS service (unit)', () => {
+describe('PPPoE Auth Flow — VigaBSS RADIUS service (unit)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   // ─── Auth: syncAccount reflects subscriber status ──────────────────────────

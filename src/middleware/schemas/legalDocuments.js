@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Validation Schemas: legal document templates + signing (447)
+// VigaBSS 5.0 — Validation Schemas: legal document templates + signing (447)
 // =============================================================================
 
 const TEMPLATE_TYPES = ['installation_authorization', 'activation_contract', 'equipment_comodato', 'custom'];

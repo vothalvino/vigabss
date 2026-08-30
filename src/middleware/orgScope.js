@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Organization Scoping Middleware
+// VigaBSS 5.0 — Organization Scoping Middleware
 // =============================================================================
 // Ensures every request is scoped to the user's current organization.
 // Attaches req.orgId for use in controllers/services.

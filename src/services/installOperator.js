@@ -1,9 +1,9 @@
 // =============================================================================
-// FireISP 5.0 — who is the INSTALL OPERATOR? (j56)
+// VigaBSS 5.0 — who is the INSTALL OPERATOR? (j56)
 // =============================================================================
 // Some things belong to the deployment, not to a tenant: where the install's
 // infrastructure alerts go (ops_alert_email), which tile server every map
-// loads, and whether the box redeploys itself. FireISP had no way to say who
+// loads, and whether the box redeploys itself. VigaBSS had no way to say who
 // is allowed to touch them.
 //
 // THE TRAP THIS MODULE EXISTS TO AVOID: `users.role === 'admin'` looks like an

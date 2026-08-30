@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Email Settings RBAC enforcement (real auth + rbac, no mocks)
+// VigaBSS 5.0 — Email Settings RBAC enforcement (real auth + rbac, no mocks)
 // =============================================================================
 // Verifies the migration 386 permission grant matrix end-to-end through the
 // REAL authenticate/orgScope/rbac middleware chain (not the bypassed mock

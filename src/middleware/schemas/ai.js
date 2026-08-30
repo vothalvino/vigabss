@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AI Reply Assistant Validation Schemas (§5.1)
+// VigaBSS 5.0 — AI Reply Assistant Validation Schemas (§5.1)
 // =============================================================================
 
 // Order matches the ai_providers.kind ENUM (migration 442 appended 'openrouter').

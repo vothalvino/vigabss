@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Bulk Email Rate Limiting Tests
+// VigaBSS 5.0 — Bulk Email Rate Limiting Tests
 // =============================================================================
 // Covers the two independent rate-limit layers added to POST /bulk/email:
 //   1. bulkEmailLimiter — per-IP request-count budget (express-rate-limit).

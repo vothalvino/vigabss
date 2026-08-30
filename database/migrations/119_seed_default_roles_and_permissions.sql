@@ -1,7 +1,7 @@
 -- Migration: 119_seed_default_roles_and_permissions
 -- Description: Seeds the RBAC tables (roles, permissions, role_permissions)
 --              with the default system roles and granular permission slugs
---              required for a functioning FireISP installation.
+--              required for a functioning VigaBSS installation.
 --
 --              Without this seed data the application has no RBAC state on a
 --              fresh install — every access-control check would fail or fall

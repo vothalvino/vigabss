@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Error Tracking (Sentry)
+// VigaBSS 5.0 — Error Tracking (Sentry)
 // =============================================================================
 // Wraps @sentry/node so that error tracking is opt-in: set SENTRY_DSN to enable.
 // When SENTRY_DSN is not set all exported functions are no-ops (zero overhead).
@@ -51,7 +51,7 @@ function sanitizeEventValue(value, seen = new WeakSet(), depth = 0) {
 }
 
 /**
- * Sentry events leave the FireISP trust boundary. Keep diagnostics useful but
+ * Sentry events leave the VigaBSS trust boundary. Keep diagnostics useful but
  * never export authenticated request material or secret-bearing endpoints.
  */
 function sanitizeEvent(event) {

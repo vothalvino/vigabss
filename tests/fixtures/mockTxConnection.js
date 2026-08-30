@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — mock transaction connection
+// VigaBSS 5.0 — mock transaction connection
 // =============================================================================
 // crudController's transactionalWrites path takes a real connection out of the
 // pool (db.getConnection) and runs the fetch, the guard and the UPDATE on it.

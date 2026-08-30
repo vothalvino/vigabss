@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Per-Organization Email (SMTP) Settings Routes
+// VigaBSS 5.0 — Per-Organization Email (SMTP) Settings Routes
 // =============================================================================
 // GET  /email-settings       — get outbound email config for the current org
 //                               (password NEVER included — see toPublic())

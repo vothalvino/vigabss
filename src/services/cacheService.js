@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Cache Service
+// VigaBSS 5.0 — Cache Service
 // =============================================================================
 // Provides a caching interface that works with or without Redis.
 // When REDIS_URL is set, uses Redis. Otherwise falls back to an in-memory

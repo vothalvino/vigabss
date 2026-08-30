@@ -1,6 +1,6 @@
 # TLS Setup Guide
 
-FireISP 5.0 ships with a production-ready Nginx reverse proxy that enforces
+VigaBSS 5.0 ships with a production-ready Nginx reverse proxy that enforces
 HTTPS.  This guide covers four ways to provision TLS certificates:
 
 | Method | Use case |
@@ -146,7 +146,7 @@ nginx: [emerg] bind() to 0.0.0.0:80 failed (98: Address already in use)
 
 Instead of running nginx inside Docker, the **system-level nginx** (installed
 as an OS service) acts as the TLS front-door.  It handles port 80/443 and
-proxies traffic to the FireISP app container exposed on `127.0.0.1:8080`:
+proxies traffic to the VigaBSS app container exposed on `127.0.0.1:8080`:
 
 ```
 Internet → Host Nginx :80/:443 → 127.0.0.1:8080 (Docker app container)
@@ -203,7 +203,7 @@ DOMAIN=isp.example.com EMAIL=admin@example.com \
   ./nginx/init-letsencrypt.sh --host-nginx
 ```
 
-**5. Start the FireISP stack**
+**5. Start the VigaBSS stack**
 
 ```bash
 docker compose \

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SSRF guard for tenant-configurable outbound URLs
+// VigaBSS 5.0 — SSRF guard for tenant-configurable outbound URLs
 // =============================================================================
 // Write-time validation alone is not enough: a hostname can resolve publicly
 // when it is saved and privately when it is used (DNS rebinding). Callers that

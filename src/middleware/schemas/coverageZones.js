@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Coverage Zone Validation Schemas
+// VigaBSS 5.0 — Coverage Zone Validation Schemas
 // =============================================================================
 
 const createCoverageZone = {

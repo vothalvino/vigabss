@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Migration Rollback Runner
+// VigaBSS 5.0 — Migration Rollback Runner
 // =============================================================================
 // Rolls back one or more migrations by executing the matching SQL file from
 // database/rollbacks/ in reverse order and removing the entry from
@@ -350,7 +350,7 @@ async function runRollback(inputArgs, options = {}) {
 // ---------------------------------------------------------------------------
 if (require.main === module) {
   const args = parseArgs(process.argv.slice(2));
-  logger.info({ step: args.step, to: args.to, dryRun: args.dryRun }, 'FireISP 5.0 — Rolling back migrations');
+  logger.info({ step: args.step, to: args.to, dryRun: args.dryRun }, 'VigaBSS 5.0 — Rolling back migrations');
   runRollback(args)
     .then(() => {
       logger.info('Done.');

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Generate carries inventory link (last inventory-drawdown gap)
+// VigaBSS 5.0 — Generate carries inventory link (last inventory-drawdown gap)
 // =============================================================================
 // POST /invoices/generate and POST /quotes/generate now accept an optional
 // inventory_item_id on `type: 'product'` line items:

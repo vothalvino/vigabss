@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Circuit Breaker Utility Tests
+// VigaBSS 5.0 — Circuit Breaker Utility Tests
 // =============================================================================
 
 const { createCircuitBreaker } = require('../src/utils/circuitBreaker');

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PATCH Partial-Update Route Integration Tests
+// VigaBSS 5.0 — PATCH Partial-Update Route Integration Tests
 // =============================================================================
 // Tests PATCH /:id endpoints for all 10 top-used resources:
 //   clients, contracts, invoices, devices, payments,

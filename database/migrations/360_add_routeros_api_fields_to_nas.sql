@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Migration 360 — Add RouterOS API connection fields to nas
 -- =============================================================================
--- Lets FireISP push provisioning (e.g. PPPoE secrets) DIRECTLY to a MikroTik
+-- Lets VigaBSS push provisioning (e.g. PPPoE secrets) DIRECTLY to a MikroTik
 -- RouterOS device over its API, without a FireRelay/proxy agent. Each NAS stores
 -- its API port (configurable — operators may run the API on a non-default port),
 -- API login user, an AES-GCM encrypted API password, and a TLS (api-ssl) flag.

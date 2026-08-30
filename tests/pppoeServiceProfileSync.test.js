@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE Service Profile Sync Tests (Phase B §4)
+// VigaBSS 5.0 — PPPoE Service Profile Sync Tests (Phase B §4)
 // =============================================================================
 // Tests the extensions to syncFreeradiusTables that inject PPPoE service
 // profile attributes (Framed-MTU, MS-Primary-DNS-Server, Session-Timeout,

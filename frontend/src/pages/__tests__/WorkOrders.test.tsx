@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WorkOrders page tests (§12 / Inventory Phase 3, migration 391)
+// VigaBSS 5.0 — WorkOrders page tests (§12 / Inventory Phase 3, migration 391)
 // =============================================================================
 // Focused on the pickup-checklist disposition UI: a work_type='pickup' order
 // shows the outstanding rented-equipment checklist instead of the materials
@@ -279,7 +279,7 @@ describe('WorkOrders — legal documents panel', () => {
     expect(within(dialog).queryByText('Optional marketing communications')).not.toBeInTheDocument();
   });
 
-  it('marks a sandbox MX document as a FireISP simulation with no legal effect', async () => {
+  it('marks a sandbox MX document as a VigaBSS simulation with no legal effect', async () => {
     mockDocsPaths({
       docs: [{ id: 12, template_type: 'installation_authorization', title: 'Sandbox authorization', status: 'pending', signer_name: null, signed_at: null }],
       detail: {
@@ -553,7 +553,7 @@ describe('WorkOrders — install test window', () => {
     ));
   });
 
-  it('keeps the FireISP sandbox warning visible while commissioning a sandbox contract', async () => {
+  it('keeps the VigaBSS sandbox warning visible while commissioning a sandbox contract', async () => {
     mockWindowPaths({ contract: {
       status: 'pending',
       mx_contract_environment: 'sandbox',

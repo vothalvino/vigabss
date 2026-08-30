@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// FireISP 5.0 — OpenAPI Spec Drift Detector (P3.11)
+// VigaBSS 5.0 — OpenAPI Spec Drift Detector (P3.11)
 // =============================================================================
 // Regenerates the OpenAPI spec in memory and compares it to the committed
 // docs/openapi.json.  Exits 1 if any drift is found — meaning either:

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SAT Catalog Viewer
+// VigaBSS 5.0 — SAT Catalog Viewer
 // =============================================================================
 // Read-only reference page at /sat-catalogs. Lets operators browse the SAT
 // (Servicio de Administración Tributaria) reference catalogs used when issuing

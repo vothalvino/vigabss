@@ -1,6 +1,6 @@
 # SNMP trap forwarding
 
-Trap forwarding lets FireISP notify another system when a network device sends
+Trap forwarding lets VigaBSS notify another system when a network device sends
 an unsolicited SNMP trap. Typical examples are a link going down, a device
 restarting, or an authentication failure. This is separate from SNMP polling:
 polling asks a device for information on a schedule, while a trap is sent by
@@ -9,12 +9,12 @@ the device as soon as an event occurs.
 ## How it works
 
 ```text
-Network device --UDP trap--> FireISP --durable delivery--> one destination
+Network device --UDP trap--> VigaBSS --durable delivery--> one destination
                                       |                   email, HTTPS URL,
                                       +-- status/retries   or saved webhook
 ```
 
-FireISP stores the received trap and every matching delivery record in one
+VigaBSS stores the received trap and every matching delivery record in one
 database transaction. Only after that transaction commits are delivery jobs
 queued. Delivery happens asynchronously, so an unavailable email server or
 webhook cannot roll back the received trap, and the retry sweep can recover a
@@ -25,15 +25,15 @@ two rules. This keeps each destination's retry history and status independent.
 
 ## Before creating a rule
 
-1. Confirm this FireISP installation contains exactly one retained organization
+1. Confirm this VigaBSS installation contains exactly one retained organization
    in the shared database and no retained isolated-database configuration.
    Multi-organization and isolated-database installations remain fail-closed in
    this release because tenant-editable device IPs are not an install-wide trust
    registry.
-2. Add the sending network device to FireISP with its real management/source IP.
+2. Add the sending network device to VigaBSS with its real management/source IP.
    That IPv4 address must identify exactly one non-deleted device.
-3. Allow the device-management network to reach the FireISP UDP trap port.
-4. Configure the device to send SNMP traps to the FireISP host and port.
+3. Allow the device-management network to reach the VigaBSS UDP trap port.
+4. Configure the device to send SNMP traps to the VigaBSS host and port.
 5. If email will be used, have the install operator configure the trusted
    install-wide SMTP relay. Tenant-configured SMTP hosts are deliberately not
    used for trap forwarding. If a saved webhook will be used, create and enable
@@ -46,17 +46,17 @@ a rule that can never fire. Device IPv6 fields are still canonicalized when
 checking address ambiguity so an IPv4-mapped spelling cannot bypass tenant
 ownership checks.
 
-For a single-organization shared-database installation, FireISP verifies the
+For a single-organization shared-database installation, VigaBSS verifies the
 one current device and active organization in the same primary-database
 transaction that stores the trap and delivery rows. If the source IP is
-unknown, duplicated, or cannot be verified, FireISP stores nothing and
+unknown, duplicated, or cannot be verified, VigaBSS stores nothing and
 forwards nothing. Only bounded in-process counters record the drop; raw tenant
 payload is never copied into a fallback database.
 
 Trap source attribution is not currently enabled when the installation retains
 more than one organization. A tenant operator can edit that tenant's device IP
 records, so those rows cannot safely prove ownership of another organization's
-unauthenticated UDP traffic. FireISP therefore pauses activation, tests,
+unauthenticated UDP traffic. VigaBSS therefore pauses activation, tests,
 intake, retries, and egress installation-wide instead of letting one tenant
 create an address collision that blinds another. Supporting multiple
 organizations requires a future install-operator-controlled source-binding
@@ -65,7 +65,7 @@ registry.
 Trap source attribution is not currently enabled when any retained tenant
 database configuration uses physically isolated storage. A suspended tenant's
 devices can still emit traps, and independent databases cannot offer one atomic
-uniqueness decision for a source IP. In that installation mode FireISP stores
+uniqueness decision for a source IP. In that installation mode VigaBSS stores
 nothing and sends nothing. Isolated-database
 support requires a future primary source-binding registry; repeated scans or a
 short-lived cache are not treated as proof of ownership.
@@ -129,7 +129,7 @@ chosen limits and retention, alert on quota/volume growth, and lower the global
 limits for a small installation. The Trap Forwarding page shows the active
 organization's daily usage and any metadata-only, dropped, or skipped work.
 
-When Redis is unavailable, FireISP admits at most 100 immediate trap delivery
+When Redis is unavailable, VigaBSS admits at most 100 immediate trap delivery
 jobs to the local process (`SNMP_TRAP_LOCAL_QUEUE_CAPACITY`). Overflow remains
 durable in SQL and is recovered by the scheduled retry sweep; it does not
 create one timer per waiting delivery.
@@ -137,7 +137,7 @@ create one timer per waiting delivery.
 ### Kubernetes / Helm
 
 The chart declares the internal UDP 1620 container port. Its external trap
-Service is opt-in so installing FireISP does not expose an unauthenticated UDP
+Service is opt-in so installing VigaBSS does not expose an unauthenticated UDP
 listener accidentally. A production values file can enable it and restrict
 source ranges:
 
@@ -171,7 +171,7 @@ HTTP Service intentionally does not expose UDP. Copy
 its documentation-only source range with the trusted device-management CIDR,
 set `SNMP_TRAP_BIND_IP: "0.0.0.0"` in `k8s/configmap.yaml`, and then apply it.
 The example uses `externalTrafficPolicy: Local` so a
-compatible load balancer preserves the sender address FireISP needs for safe
+compatible load balancer preserves the sender address VigaBSS needs for safe
 device attribution. Do not expose the listener through the HTTP Ingress.
 
 ## Create a rule
@@ -202,21 +202,21 @@ every attributed trap in the organization.
   so tenant configuration cannot turn delivery into an internal-network probe.
 - **Secure HTTPS URL:** must resolve to a public address. HTTP, credentials in
   the URL, fragments, loopback, private, link-local, CGNAT, and metadata
-  addresses are rejected. FireISP checks and pins DNS again for every attempt
+  addresses are rejected. VigaBSS checks and pins DNS again for every attempt
   and does not follow redirects.
 - **Saved webhook:** choose an active webhook belonging to the same
-  organization. FireISP applies the same public-HTTPS checks at delivery time.
+  organization. VigaBSS applies the same public-HTTPS checks at delivery time.
 
 Destination URLs are operational configuration and are stored in the tenant
 database, including the immutable destination snapshot needed to retry a
-delivery safely. FireISP hides them from view-only responses and audit values,
+delivery safely. VigaBSS hides them from view-only responses and audit values,
 but the URL column itself is not application-encrypted. Treat the database,
 replicas, and backups as sensitive encrypted infrastructure; prefer the
 separate encrypted HMAC signing secret instead of placing reusable credentials
 in a URL path or query string.
 
 Forwarded data is deliberately limited to trap/device metadata. It does not
-include the SNMP community, device credentials, or varbind values. FireISP does
+include the SNMP community, device credentials, or varbind values. VigaBSS does
 not persist the inbound community. Raw varbind values are omitted from ordinary
 trap lists and require the separate `snmp_traps.payload.view` permission to open
 from an individual trap record. Migration 459 assigns that permission only to
@@ -248,7 +248,7 @@ stale final claim gets one bounded crash recovery so a process failure before
 network I/O does not create a zero-attempt delivery; a second crash in that
 ambiguous window is dead-lettered instead of allowing unbounded calls. A
 request that reached the destination before the first crash may therefore be
-repeated. Destinations should deduplicate with `X-FireISP-Delivery-Id`.
+repeated. Destinations should deduplicate with `X-VigaBSS-Delivery-Id`.
 
 Pausing, deleting, or changing a rule cancels work that has not been claimed.
 It cannot recall a network request already in progress: that one claimed
@@ -292,7 +292,7 @@ one destination, save it, send a test, and then enable it deliberately.
 Older releases also stored saved-webhook HMAC secrets as plaintext despite the
 column name. Migration 459 irreversibly clears those legacy values and pauses
 the affected saved webhooks. Rotate the secret at the receiving system, enter
-the new secret through the upgraded FireISP webhook editor, test it, and then
+the new secret through the upgraded VigaBSS webhook editor, test it, and then
 enable the webhook deliberately. This affects saved webhooks even when they
 were not used by a Trap Forwarding Rule; include that rotation in the upgrade
 maintenance window. Do not recover or reuse the old plaintext from a database
@@ -311,10 +311,10 @@ permission-scoped SNMP Traps page instead.
 - **No trap appears:** confirm UDP reachability and the device's destination
   host/port. SNMP polling success does not prove trap delivery works.
 - **Trap appears but is not forwarded:** confirm the device source IP maps to
-  one active FireISP device, the rule is enabled, and all filled match fields
+  one active VigaBSS device, the rule is enabled, and all filled match fields
   match the stored type/source/OID.
 - **Installation uses an isolated tenant database:** forwarding deliberately
-  remains unavailable until FireISP has an explicit primary source-binding
+  remains unavailable until VigaBSS has an explicit primary source-binding
   registry. Do not work around this boundary by duplicating device rows in the
   shared database.
 - **Installation contains more than one organization:** forwarding is paused

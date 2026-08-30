@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device row sanitizer
+// VigaBSS 5.0 — Device row sanitizer
 // =============================================================================
 // Strips the encrypted SNMPv3 auth/priv passphrase columns from a `devices`
 // record before it is returned by any endpoint. Both columns hold ciphertext

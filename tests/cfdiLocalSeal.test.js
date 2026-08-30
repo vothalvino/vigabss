@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — stamp() with seal_mode='local' (Phase 3)
+// VigaBSS 5.0 — stamp() with seal_mode='local' (Phase 3)
 // =============================================================================
 // The org's ACTIVE CSD seals the XML in-process and the SEALED document goes
 // to SW's stamp-only tier as a multipart file upload (probe-verified live:

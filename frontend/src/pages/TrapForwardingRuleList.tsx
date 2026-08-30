@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP trap forwarding rules
+// VigaBSS 5.0 — SNMP trap forwarding rules
 // =============================================================================
 // Blank match fields are wildcards. Populated match fields are joined with
 // AND. Each rule sends to exactly one destination.

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — taskRunner SNMP/FTTH dispatch unit tests
+// VigaBSS 5.0 — taskRunner SNMP/FTTH dispatch unit tests
 // Covers migration-254 SNMP tasks and migration-269 FTTH tasks.
 // =============================================================================
 

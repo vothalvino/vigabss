@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — §18 Automation & Scripting Integration Tests
+// VigaBSS 5.0 — §18 Automation & Scripting Integration Tests
 // =============================================================================
 
 const request = require('supertest');

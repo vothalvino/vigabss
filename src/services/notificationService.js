@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Notification Service
+// VigaBSS 5.0 — Notification Service
 // =============================================================================
 // Sends notifications (email, SMS, WhatsApp) and logs them.
 // Supports Twilio for SMS and WhatsApp delivery.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# FireISP deploy agent — the privileged half of the "Update" button.
+# VigaBSS deploy agent — the privileged half of the "Update" button.
 #
 # Runs on the HOST as root, outside Docker, on a systemd timer. Claims a pending
 # row from deploy_requests and runs redeploy.sh. That is the whole job.
@@ -17,7 +17,7 @@
 #
 # A GUI button that restarts the stack needs authority the application must not
 # have. Mounting the Docker socket into the app container is root on the host:
-# any RCE or path traversal in FireISP would own the machine, not just the app.
+# any RCE or path traversal in VigaBSS would own the machine, not just the app.
 # That architecture was refused for the TLS renew button and is refused here.
 #
 # So the privilege lives here instead, and the container's only power is to

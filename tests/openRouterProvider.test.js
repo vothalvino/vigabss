@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — OpenRouter as a first-class provider kind (migration 442)
+// VigaBSS 5.0 — OpenRouter as a first-class provider kind (migration 442)
 // =============================================================================
 // OpenRouter already worked through the generic 'custom' kind, because it speaks
 // the OpenAI chat-completions shape. What a first-class kind adds is that the

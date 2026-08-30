@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP trap log
+// VigaBSS 5.0 — SNMP trap log
 // =============================================================================
 // The list is deliberately metadata-only. Raw varbind values are fetched only
 // after an explicit operator action and only when the active user has the

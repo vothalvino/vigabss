@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DocumentTemplates page tests (migration 447)
+// VigaBSS 5.0 — DocumentTemplates page tests (migration 447)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';

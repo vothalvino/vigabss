@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Suspension Workflow Routes
+// VigaBSS 5.0 — Suspension Workflow Routes
 // =============================================================================
 
 const { Router } = require('express');

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAS Access Mode Tests
+// VigaBSS 5.0 — NAS Access Mode Tests
 // =============================================================================
 // Covers the per-NAS access_mode (direct vs nated) feature (migration 371):
 //

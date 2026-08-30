@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — the admin CLI must not take a password on the command line
+// VigaBSS 5.0 — the admin CLI must not take a password on the command line
 // =============================================================================
 // `node src/scripts/admin.js create-user --password hunter2` put the new
 // account's password in this process's argv, and /proc/<pid>/cmdline is mode

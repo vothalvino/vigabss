@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Expense Management
+// VigaBSS 5.0 — Expense Management
 // =============================================================================
 // Standalone page at /expenses. Lists operational expenses with:
 //   • Status filter

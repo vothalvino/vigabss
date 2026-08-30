@@ -1,8 +1,8 @@
 // =============================================================================
-// FireISP 5.0 — bounded, DNS-pinned outbound HTTPS POST
+// VigaBSS 5.0 — bounded, DNS-pinned outbound HTTPS POST
 // =============================================================================
 // Shared by saved webhooks and SNMP trap forwarding. The response body is
-// deliberately ignored: tenant-controlled endpoints must not turn FireISP
+// deliberately ignored: tenant-controlled endpoints must not turn VigaBSS
 // into a response-body exfiltration proxy or hold a worker with an endless
 // stream after response headers have arrived.
 // =============================================================================

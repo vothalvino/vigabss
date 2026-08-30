@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WireGuard User Peers Validation Schemas
+// VigaBSS 5.0 — WireGuard User Peers Validation Schemas
 // =============================================================================
 
 // POST /wg-peers — self-service peer creation.

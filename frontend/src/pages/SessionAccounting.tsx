@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Session Accounting Dashboard
+// VigaBSS 5.0 — Session Accounting Dashboard
 // =============================================================================
 // Page at /session-accounting. Shows per-client data usage aggregated by day,
 // with a daily bar chart and top-consumers ranking.

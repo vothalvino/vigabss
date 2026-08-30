@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# FireISP production redeploy: pull main, pull the matching image, migrate,
+# VigaBSS production redeploy: pull main, pull the matching image, migrate,
 # verify — as one command, from any directory.
 #
 # Install once as a global command:
@@ -418,7 +418,7 @@ if [[ "${FIREISP_LIB_ONLY:-}" == "1" ]]; then
 fi
 
 if [[ ! -f "$COMPOSE_FILE" ]]; then
-  echo "error: $COMPOSE_FILE not found — set FIREISP_DIR to your FireISP install path" >&2
+  echo "error: $COMPOSE_FILE not found — set FIREISP_DIR to your VigaBSS install path" >&2
   exit 1
 fi
 

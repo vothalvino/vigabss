@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Legal Document Templates (migration 447)
+// VigaBSS 5.0 — Legal Document Templates (migration 447)
 // =============================================================================
 // Per-org Markdown legal texts: the arrival installation authorization, the
 // PROFECO-registered activation contract (contrato de adhesión), a comodato

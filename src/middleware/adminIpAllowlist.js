@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — database-backed admin IP allowlist
+// VigaBSS 5.0 — database-backed admin IP allowlist
 // =============================================================================
 // ADMIN_IP_ALLOWLIST remains an optional installation-wide override. When it
 // is absent, active rows in admin_ip_allowlist enable the control for an

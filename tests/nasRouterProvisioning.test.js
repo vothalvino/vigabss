@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAS RouterOS Direct-Provisioning Route Tests
+// VigaBSS 5.0 — NAS RouterOS Direct-Provisioning Route Tests
 // =============================================================================
 // Covers src/routes/nas.js item (4): POST /nas/:id/test-connection wiring and
 // the guarantee that api_password_encrypted is never returned by POST/PUT /nas.

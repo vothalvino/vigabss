@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ScheduledTaskList page tests
+// VigaBSS 5.0 — ScheduledTaskList page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';

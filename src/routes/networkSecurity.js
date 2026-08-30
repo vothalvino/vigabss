@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Network Security Routes (§17)
+// VigaBSS 5.0 — Network Security Routes (§17)
 // Covers: firewall_rules, ddos_protection_rules, blackhole_routes,
 //         dns_blocklists, cpe_security_scans
 // =============================================================================

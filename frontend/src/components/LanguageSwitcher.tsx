@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Language Switcher
+// VigaBSS 5.0 — Language Switcher
 // =============================================================================
 // Small <select> for changing the UI language. i18next's LanguageDetector is
 // configured with caches: ['cookie', 'localStorage'], so calling

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — the client timeline does not leak another tenant's emails
+// VigaBSS 5.0 — the client timeline does not leak another tenant's emails
 // =============================================================================
 // activityTimeline UNIONs five sources, each keyed on a client_id that arrives
 // straight from the URL. Four of them carried their own org predicate. The

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Tax Rule Validation Schemas
+// VigaBSS 5.0 — Tax Rule Validation Schemas
 // =============================================================================
 
 const TAX_TYPES = ['vat', 'sales_tax', 'gst', 'other'];

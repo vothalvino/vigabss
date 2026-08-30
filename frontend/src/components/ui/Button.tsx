@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP UI — Button
+// VigaBSS UI — Button
 // =============================================================================
 // Faithful TSX port of @fireisp/ui Button. Flat, industrial, one accent.
 // variant: primary | secondary | ghost | danger · size: sm | md

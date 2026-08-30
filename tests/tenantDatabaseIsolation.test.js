@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Per-tenant database isolation tests (P2.6)
+// VigaBSS 5.0 — Per-tenant database isolation tests (P2.6)
 // =============================================================================
 
 const mockQuery = jest.fn();

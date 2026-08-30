@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — i18n message catalogue tests
+// VigaBSS 5.0 — i18n message catalogue tests
 // =============================================================================
 // Verifies:
 //   1. All three locale files parse as valid JSON.
@@ -105,7 +105,7 @@ describe('i18n — no orphaned keys in pt-BR.json', () => {
 
 describe('i18n — critical EN values', () => {
   it('login.title is the brand string', () => {
-    expect(enFlat['login.title']).toBe('🔥 FireISP 5.0');
+    expect(enFlat['login.title']).toBe('🔥 VigaBSS 5.0');
   });
   it('common.signIn is "Sign In"', () => {
     expect(enFlat['common.signIn']).toBe('Sign In');

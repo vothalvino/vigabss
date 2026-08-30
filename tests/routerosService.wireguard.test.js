@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RouterOS WireGuard service tests
+// VigaBSS 5.0 — RouterOS WireGuard service tests
 // =============================================================================
 // Covers: wireguardInterfaceUpsert, wireguardAddressUpsert, wireguardPeerUpsert,
 //         wireguardReadTopology, wireguardPeerRemove, and their handlers entries.

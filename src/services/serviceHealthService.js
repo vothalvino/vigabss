@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Service Health Service (P1 §3.2)
+// VigaBSS 5.0 — Service Health Service (P1 §3.2)
 // =============================================================================
 // Combines all live and recent telemetry for a contract into a single
 // deterministic JSON snapshot.  No LLM calls are made here.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Sidebar accordion section ("Faro" nav)
+// VigaBSS 5.0 — Sidebar accordion section ("Faro" nav)
 // =============================================================================
 // One collapsible section of the rail. Three kinds (see nav/routes.ts):
 //   • link  — plain NavLink (Dashboard)

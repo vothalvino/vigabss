@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — QoS Service
+// VigaBSS 5.0 — QoS Service
 // =============================================================================
 // Provides queue-tree configuration export and rate-limit string generation
 // for §10.1 (Speed Profiles) and §10.2 (Rate Limiting).
@@ -87,7 +87,7 @@ function buildRateString(template) {
  */
 function buildMikrotikQueueTreeScript(nodes) {
   const lines = [
-    '# FireISP 5.0 — MikroTik Queue Tree Export',
+    '# VigaBSS 5.0 — MikroTik Queue Tree Export',
     '# Generated: ' + new Date().toISOString(),
     '# Apply via: /import file-name=queue-tree.rsc',
     '',
@@ -107,7 +107,7 @@ function buildMikrotikQueueTreeScript(nodes) {
       ` burst-threshold=${burstThresh} burst-time=${burstTime}` +
       ` priority=${node.priority} queue=${node.queue_kind}` +
       (node.interface ? ' packet-mark=""' : '') +
-      ' comment="FireISP auto-generated"',
+      ' comment="VigaBSS auto-generated"',
     );
   }
 
@@ -120,7 +120,7 @@ function buildMikrotikQueueTreeScript(nodes) {
       `add name="${node.name}" max-limit=${maxLimit}` +
       ` priority=${node.priority}/${node.priority}` +
       ` queue=${node.queue_kind}/${node.queue_kind}` +
-      ' comment="FireISP auto-generated"',
+      ' comment="VigaBSS auto-generated"',
     );
   }
 
@@ -185,7 +185,7 @@ async function exportShapingRulesConfig(organizationId, planId = null) {
   const [rules] = await db.query(sql, params);
 
   const lines = [
-    '# FireISP 5.0 — MikroTik Mangle Rules (Protocol Shaping)',
+    '# VigaBSS 5.0 — MikroTik Mangle Rules (Protocol Shaping)',
     '# Generated: ' + new Date().toISOString(),
     '',
     '/ip firewall mangle',
@@ -253,7 +253,7 @@ async function exportDscpConfig(organizationId, format = 'json') {
 
   if (format === 'text') {
     const lines = [
-      '# FireISP 5.0 — MikroTik Mangle Rules (DSCP Marking)',
+      '# VigaBSS 5.0 — MikroTik Mangle Rules (DSCP Marking)',
       '# Generated: ' + new Date().toISOString(),
       '',
       '/ip firewall mangle',

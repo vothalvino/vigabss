@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RoleList (User Groups) page tests
+// VigaBSS 5.0 — RoleList (User Groups) page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';

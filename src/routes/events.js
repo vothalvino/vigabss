@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Real-Time Events (SSE)
+// VigaBSS 5.0 — Real-Time Events (SSE)
 // =============================================================================
 // Server-Sent Events (SSE) implementation for real-time push notifications.
 // Uses SSE instead of WebSocket to avoid additional dependencies (Socket.io)

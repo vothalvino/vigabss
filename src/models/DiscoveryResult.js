@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Discovery Result Model
+// VigaBSS 5.0 — Discovery Result Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

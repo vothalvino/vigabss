@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNII infrastructure preparation regressions
+// VigaBSS 5.0 — SNII infrastructure preparation regressions
 // =============================================================================
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -386,7 +386,7 @@ describe('SniiInfrastructureReportingPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'SNII infrastructure preparation' })).toBeInTheDocument();
     expect(screen.getByText('Preparation only')).toBeInTheDocument();
-    expect(screen.getByText(/FireISP does not submit to the CRT or certify legal compliance/)).toBeInTheDocument();
+    expect(screen.getByText(/VigaBSS does not submit to the CRT or certify legal compliance/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Infrastructure review' }));
     expect(await screen.findByText(/Customer CPE, ONUs, drops, dummy assets/)).toHaveTextContent(

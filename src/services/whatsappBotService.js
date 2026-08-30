@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WhatsApp bot (identity / binding phase)
+// VigaBSS 5.0 — WhatsApp bot (identity / binding phase)
 // =============================================================================
 // The conversation brain for an inbound WhatsApp message. In this phase it only
 // establishes identity: it links a phone number to a client via a portal code

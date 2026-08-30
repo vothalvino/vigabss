@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — LLM Provider Service (P1 §3.4)
+// VigaBSS 5.0 — LLM Provider Service (P1 §3.4)
 // =============================================================================
 // Pluggable abstraction over multiple LLM providers.
 //
@@ -700,7 +700,7 @@ async function embed(text, providerId) {
     case 'openrouter':
       // Explicit, not a fall-through to `default`. OpenRouter's API is
       // chat-completions only, so an org whose ONLY provider is OpenRouter would
-      // otherwise get a 500 "Unknown provider kind" — which reads as a FireISP
+      // otherwise get a 500 "Unknown provider kind" — which reads as a VigaBSS
       // bug rather than "this provider cannot do embeddings", and sends whoever
       // is debugging it looking in the wrong place entirely.
       throw new AppError(

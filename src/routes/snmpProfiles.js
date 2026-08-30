@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Profile Routes
+// VigaBSS 5.0 — SNMP Profile Routes
 // =============================================================================
 
 const { Router } = require('express');
@@ -21,7 +21,7 @@ router.use(authenticate);
 router.use(orgScope);
 
 // A profile the tenant may SEE: its own, a system profile that ships with
-// FireISP, or an unattributed legacy row. BaseModel cannot express this — with
+// VigaBSS, or an unattributed legacy row. BaseModel cannot express this — with
 // hasOrgScope true it emits a bare `organization_id = ?`, which would hide the
 // whole vendor library and leave every install with an empty profile list.
 const VISIBLE = '(p.organization_id = ? OR p.organization_id IS NULL)';
@@ -91,7 +91,7 @@ async function rejectSystemProfile(req, res, next) {
     );
     if (rows[0] && Number(rows[0].is_system) === 1) {
       throw new AppError(
-        'This profile ships with FireISP and cannot be changed. Create your own profile instead.',
+        'This profile ships with VigaBSS and cannot be changed. Create your own profile instead.',
         403,
         'SYSTEM_PROFILE_IMMUTABLE',
       );

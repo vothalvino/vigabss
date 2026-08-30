@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — §8 phraseLibraryService.search() Tests
+// VigaBSS 5.0 — §8 phraseLibraryService.search() Tests
 // =============================================================================
 
 jest.mock('../src/utils/logger', () => ({

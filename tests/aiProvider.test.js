@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AiProvider Model Tests (P1 §9)
+// VigaBSS 5.0 — AiProvider Model Tests (P1 §9)
 // =============================================================================
 // Covers:
 //   • Static metadata (tableName, fillable, hasOrgScope, softDelete)

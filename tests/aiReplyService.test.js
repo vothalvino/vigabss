@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — aiReplyService Tests (P1 §3.5)
+// VigaBSS 5.0 — aiReplyService Tests (P1 §3.5)
 // =============================================================================
 // All external calls (DB, LLM, topology, health) are mocked so tests run
 // in isolation without a database.

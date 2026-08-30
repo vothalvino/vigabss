@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Follow-up reminders route tests (ticket_id filter)
+// VigaBSS 5.0 — Follow-up reminders route tests (ticket_id filter)
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

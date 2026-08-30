@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay Middleware Tests
+// VigaBSS 5.0 — FireRelay Middleware Tests
 // =============================================================================
 
 jest.mock('../src/config/firerelay', () => ({

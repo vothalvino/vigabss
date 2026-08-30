@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DsarTool page tests
+// VigaBSS 5.0 — DsarTool page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
@@ -37,7 +37,7 @@ const dsar = {
       aiReplyLogs: 0,
     },
     scope: {
-      description: 'Selected FireISP operational datasets attributable to this client in this organization',
+      description: 'Selected VigaBSS operational datasets attributable to this client in this organization',
       organizationScoped: true,
       connectionAttribution: 'Direct client ID or unambiguous same-organization contract/session linkage',
       compatibilityViews: 'mxProfile is current; mxProfiles contains every held profile row',
@@ -95,7 +95,7 @@ describe('DsarTool page', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Data Subject Access Request Export' })).toBeInTheDocument());
     expect(screen.getByRole('form', { name: 'Assemble a client data-access export' })).toBeInTheDocument();
     expect(screen.getByLabelText('Client ID')).toHaveAttribute('placeholder', 'e.g. 42');
-    expect(screen.getByText(/enumerated FireISP datasets/i)).toBeInTheDocument();
+    expect(screen.getByText(/enumerated VigaBSS datasets/i)).toBeInTheDocument();
     expect(screen.queryByText(/every piece of personal data/i)).not.toBeInTheDocument();
   });
 
@@ -119,7 +119,7 @@ describe('DsarTool page', () => {
     fireEvent.click(screen.getByText('Assemble export'));
 
     const scope = await screen.findByRole('group', { name: 'Export scope' });
-    expect(scope).toHaveTextContent('This snapshot covers only the enumerated FireISP datasets shown below.');
+    expect(scope).toHaveTextContent('This snapshot covers only the enumerated VigaBSS datasets shown below.');
     expect(scope).toHaveTextContent('Server-declared scope');
     expect(scope).toHaveTextContent('Complete for enumerated datasets');
     expect(scope).toHaveTextContent('Organization scoped');
@@ -189,7 +189,7 @@ describe('DsarTool page', () => {
     expect(summary).toHaveTextContent('Solicitada por: No informado');
 
     const scope = screen.getByRole('group', { name: 'Alcance de la exportación' });
-    expect(scope).toHaveTextContent('Esta instantánea abarca únicamente los conjuntos de datos enumerados de FireISP');
+    expect(scope).toHaveTextContent('Esta instantánea abarca únicamente los conjuntos de datos enumerados de VigaBSS');
     expect(scope).toHaveTextContent('El servidor no proporcionó una descripción adicional del alcance.');
     expect(within(scope).getByText('Atribución de conexiones')).toBeInTheDocument();
     expect(within(scope).getAllByText('No informado')).toHaveLength(2);

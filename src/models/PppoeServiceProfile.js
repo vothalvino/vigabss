@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PppoeServiceProfile Model
+// VigaBSS 5.0 — PppoeServiceProfile Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

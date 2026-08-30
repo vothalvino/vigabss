@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — MX SNII infrastructure-report preparation API
+// VigaBSS 5.0 — MX SNII infrastructure-report preparation API
 // =============================================================================
 
 'use strict';

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Gateway Service
+// VigaBSS 5.0 — Payment Gateway Service
 // =============================================================================
 // Abstracts payment processing through configured gateways.
 // Supports Stripe, Conekta, and generic card processing.
@@ -249,7 +249,7 @@ async function chargeStripe(gateway, amount, currency, description, paymentMetho
   const params = {
     amount: Math.round(amount * 100).toString(), // Stripe uses cents
     currency: currency.toLowerCase(),
-    description: description || 'FireISP payment',
+    description: description || 'VigaBSS payment',
   };
   if (paymentMethodToken) {
     params.payment_method = paymentMethodToken;
@@ -312,7 +312,7 @@ async function createStripeCheckoutSession(gateway, { amount, currency, descript
     'line_items[0][quantity]': '1',
     'line_items[0][price_data][currency]': String(currency || 'MXN').toLowerCase(),
     'line_items[0][price_data][unit_amount]': String(Math.round(amount * 100)),
-    'line_items[0][price_data][product_data][name]': description || 'FireISP payment',
+    'line_items[0][price_data][product_data][name]': description || 'VigaBSS payment',
     success_url: successUrl,
     cancel_url: cancelUrl,
   };
@@ -384,13 +384,13 @@ async function createConektaCheckoutSession(gateway, { amount, currency, descrip
     currency: String(currency || 'MXN').toUpperCase(),
     customer_info: customerInfo,
     line_items: [{
-      name: (description || 'FireISP payment').slice(0, 250),
+      name: (description || 'VigaBSS payment').slice(0, 250),
       unit_price: Math.round(amount * 100), // Conekta uses cents
       quantity: 1,
     }],
     checkout: {
       type: 'HostedPayment',
-      name: (description || 'FireISP payment').slice(0, 250),
+      name: (description || 'VigaBSS payment').slice(0, 250),
       allowed_payment_methods: ['card', 'cash', 'bank_transfer'],
       success_url: successUrl,
       failure_url: failureUrl || successUrl,
@@ -527,7 +527,7 @@ async function chargeConekta(gateway, amount, currency, description, _paymentMet
   const secretKey = decrypt(gateway.secret_key_encrypted);
   const body = JSON.stringify({
     line_items: [{
-      name: description || 'FireISP payment',
+      name: description || 'VigaBSS payment',
       unit_price: Math.round(amount * 100), // Conekta uses cents
       quantity: 1,
     }],

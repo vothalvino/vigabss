@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Two-Factor Authentication Validation Schemas
+// VigaBSS 5.0 — Two-Factor Authentication Validation Schemas
 // =============================================================================
 
 const verifyCode = {

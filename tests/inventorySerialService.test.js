@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory Phase 3: Serialized Equipment Service Tests
+// VigaBSS 5.0 — Inventory Phase 3: Serialized Equipment Service Tests
 // =============================================================================
 // Unit tests for src/services/inventorySerialService.js (migration 391).
 // A single in-memory "database" object is shared by db.query AND every

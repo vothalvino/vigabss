@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ChangelogPanel tests (P3.8)
+// VigaBSS 5.0 — ChangelogPanel tests (P3.8)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';

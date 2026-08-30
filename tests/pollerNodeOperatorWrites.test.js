@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — poller node writes are install-operator only (j36)
+// VigaBSS 5.0 — poller node writes are install-operator only (j36)
 // =============================================================================
 // A poller node is a CAPACITY UNIT OF THE DEPLOYMENT, not tenant data: you add
 // one when a single box cannot keep up with the clients and contracts on it

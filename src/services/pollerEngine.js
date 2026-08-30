@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Poller Engine Service (§6.4)
+// VigaBSS 5.0 — Poller Engine Service (§6.4)
 // =============================================================================
 // Provides per-device polling interval management, adaptive polling for
 // active outages, and performance snapshot recording.

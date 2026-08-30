@@ -1,7 +1,7 @@
 # WireGuard activation & host setup
 
-FireISP is the **hub**: MikroTik NAS routers and technician / support / admin laptops
-dial in over WireGuard, and FireISP routes between them so an operator can reach every
+VigaBSS is the **hub**: MikroTik NAS routers and technician / support / admin laptops
+dial in over WireGuard, and VigaBSS routes between them so an operator can reach every
 device behind a NAS for monitoring and troubleshooting — without exposing the router's
 management plane to the internet.
 
@@ -45,7 +45,7 @@ Sign in as the installation operator, open **Settings → Organization Config �
 Installation-wide settings**, edit `wireguard_server_enabled`, and select
 **Enabled**. The helper creates the interfaces, firewall, and peers immediately;
 no shell, Compose override, or container restart is required. Select **Disabled**
-to remove the runtime interfaces and FireISP-owned firewall table while retaining
+to remove the runtime interfaces and VigaBSS-owned firewall table while retaining
 the server keys for a future re-enable.
 
 The settings row displays the public endpoint and both UDP ports. Fresh installs
@@ -55,7 +55,7 @@ Open the displayed ports in the cloud firewall/security group (and host firewall
 if active). A port is not a secret—WireGuard's keys provide security—but random
 ports reduce routine scan noise. `WG_ENDPOINT_HOST` may override `DOMAIN`.
 
-During the first upgrade to this release, FireISP imports the old deployment
+During the first upgrade to this release, VigaBSS imports the old deployment
 choice once: an explicitly disabled hub stays disabled, while an existing
 default-on/enabled hub stays enabled. From then on the database-backed GUI switch
 is authoritative.

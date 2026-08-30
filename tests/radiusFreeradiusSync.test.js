@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FreeRADIUS SQL Sync Tests (§3.1)
+// VigaBSS 5.0 — FreeRADIUS SQL Sync Tests (§3.1)
 // =============================================================================
 // Tests syncFreeradiusTables: verifies correct radcheck/radreply/radusergroup/
 // radgroupreply rows are generated per auth_method and certificate state.

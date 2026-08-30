@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Credit note → CFDI de Egreso conversion tests
+// VigaBSS 5.0 — Credit note → CFDI de Egreso conversion tests
 // =============================================================================
 // stampCreditNote: fiscal preconditions (stampable status, MXN, related vigente
 // ingreso REQUIRED, single-CFDI-per-note), tipo E + serie egreso + PUE + G02

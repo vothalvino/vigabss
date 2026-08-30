@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Retry Service
+// VigaBSS 5.0 — Payment Retry Service
 // =============================================================================
 // Handles automatic retry scheduling for failed payment charges.
 // When a charge fails, a retry record is created with exponential backoff:

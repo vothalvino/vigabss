@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Remote Backup Settings Tests
+// VigaBSS 5.0 — Remote Backup Settings Tests
 // =============================================================================
 // Covers src/models/BackupSettings.js, src/services/backupSettingsService.js,
 // and src/routes/backupSettings.js (GET/PUT /backup-settings, POST /test,

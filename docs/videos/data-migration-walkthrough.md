@@ -5,7 +5,7 @@
 
 ## Audience
 
-Operators migrating an existing ISP operation from a legacy billing system, spreadsheet workflow, or another ISP platform into FireISP 5.0.
+Operators migrating an existing ISP operation from a legacy billing system, spreadsheet workflow, or another ISP platform into VigaBSS 5.0.
 
 ## Key message
 
@@ -17,11 +17,11 @@ Run a staged, backup-first migration: prepare the tenant, import CSV resources i
 
 Narration:
 
-> This walkthrough shows the production-safe FireISP data migration flow. Before any import, confirm that FireISP is installed, database migrations are applied, an organization exists, and an admin user can authenticate.
+> This walkthrough shows the production-safe VigaBSS data migration flow. Before any import, confirm that VigaBSS is installed, database migrations are applied, an organization exists, and an admin user can authenticate.
 
 On-screen checklist:
 
-- FireISP 5.0 installed
+- VigaBSS 5.0 installed
 - Database migrations applied
 - Organization and admin user created
 - Plans and sites prepared
@@ -81,7 +81,7 @@ On-screen response:
 
 Narration:
 
-> After the imports complete, compare FireISP row counts and financial totals against the source system. Confirm there are no orphaned contracts or invoice-payment links, then spot-check known customers from the dashboard or API.
+> After the imports complete, compare VigaBSS row counts and financial totals against the source system. Confirm there are no orphaned contracts or invoice-payment links, then spot-check known customers from the dashboard or API.
 
 On-screen checklist:
 

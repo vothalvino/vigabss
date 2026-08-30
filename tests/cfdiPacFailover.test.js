@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PAC failover (Phase 5)
+// VigaBSS 5.0 — PAC failover (Phase 5)
 // =============================================================================
 // Failover is CONSERVATIVE: the next PAC is tried ONLY when the primary is
 // provably unreachable (ECONNREFUSED / DNS). A timeout or ANY PAC response

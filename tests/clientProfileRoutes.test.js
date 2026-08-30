@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Profile Route Validation Tests (§1.1)
+// VigaBSS 5.0 — Client Profile Route Validation Tests (§1.1)
 // =============================================================================
 // Verifies validation on the new subscriber-profile endpoints. Uses supertest
 // against the real Express app with a mocked database (same approach as

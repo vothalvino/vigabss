@@ -1,18 +1,18 @@
-# FreeRADIUS SQL Integration for FireISP 5.0
+# FreeRADIUS SQL Integration for VigaBSS 5.0
 
 This directory contains the SQL queries that FreeRADIUS needs to authenticate
-and authorize subscribers against the FireISP database.
+and authorize subscribers against the VigaBSS database.
 
 ## Overview
 
-FireISP stores RADIUS credentials in the `radius` table and NAS definitions
+VigaBSS stores RADIUS credentials in the `radius` table and NAS definitions
 in the `nas` table. FreeRADIUS reads these tables through its `rlm_sql` module.
 
 ## Prerequisites
 
 1. FreeRADIUS 3.x installed
 2. `rlm_sql` and `rlm_sql_mysql` modules enabled
-3. MySQL user with SELECT access to the FireISP database
+3. MySQL user with SELECT access to the VigaBSS database
 
 ## Configuration
 
@@ -113,7 +113,7 @@ sql {
     # --- Accounting queries ---
     # nas_id is resolved from the packet's NAS-IP-Address (the SERVING NAS),
     # NOT copied from radius.nas_id (the home NAS): auth is NAS-agnostic, so a
-    # subscriber may be online through any registered NAS, and FireISP's
+    # subscriber may be online through any registered NAS, and VigaBSS's
     # CoA/Disconnect targeting reads these rows to find the router the
     # session actually lives on.
     accounting_start_query = "\
@@ -166,11 +166,11 @@ sql {
 
 ### 3. CoA (Change of Authorization) Support
 
-FireISP automatically sends RADIUS CoA packets when:
+VigaBSS automatically sends RADIUS CoA packets when:
 - A contract is **suspended** → Disconnect-Request (Code 40)
 - A contract is **reconnected** → CoA-Request (Code 43)
 
-Configure CoA port in FireISP `.env`:
+Configure CoA port in VigaBSS `.env`:
 ```
 RADIUS_COA_PORT=3799
 ```

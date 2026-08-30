@@ -1,7 +1,7 @@
 // Resolve one device management IP without crossing a tenant boundary.
 //
 // Isolated tenant databases cannot presently participate in an atomic,
-// install-wide uniqueness decision. Until FireISP has a primary canonical
+// install-wide uniqueness decision. Until VigaBSS has a primary canonical
 // source-binding registry, the presence of any retained isolated database
 // configuration disables trap attribution for the whole install. Unknown,
 // ambiguous, or incomplete attribution is dropped before persistence.

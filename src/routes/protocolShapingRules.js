@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Protocol Shaping Rule Routes (§10.2)
+// VigaBSS 5.0 — Protocol Shaping Rule Routes (§10.2)
 // =============================================================================
 
 const { Router } = require('express');

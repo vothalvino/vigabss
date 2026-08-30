@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CFDI Cancellation Flow Tests
+// VigaBSS 5.0 — CFDI Cancellation Flow Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AiPhrase Model
+// VigaBSS 5.0 — AiPhrase Model
 // =============================================================================
 // Curated on-brand reply phrases, grouped by locale and category.
 // The LLM is constrained to draw from (or must include) these phrases so that

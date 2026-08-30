@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — DSAR routes get the guards the consent routes got (j46)
+// VigaBSS 5.0 — DSAR routes get the guards the consent routes got (j46)
 // =============================================================================
 // POST /dsar-requests had the same two holes /consent had before #562:
 //

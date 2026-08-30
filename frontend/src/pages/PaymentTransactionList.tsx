@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Transaction Viewer
+// VigaBSS 5.0 — Payment Transaction Viewer
 // =============================================================================
 // Read-only page at /payment-transactions. Lists the raw gateway transaction
 // log (every charge attempt) with its provider reference, client, amount,

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Topology Map Page (§13)
+// VigaBSS 5.0 — Topology Map Page (§13)
 // =============================================================================
 // Three-tab page:
 //   Tab 1 — Network Topology: Leaflet map with device nodes, link polylines,

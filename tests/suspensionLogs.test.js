@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — GET /suspension/logs (j22)
+// VigaBSS 5.0 — GET /suspension/logs (j22)
 // =============================================================================
 // The auto-suspension engine had no read surface at all: an operator could
 // enable a rule and then had no record of who it suspended or why. On the

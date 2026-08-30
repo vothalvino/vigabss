@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Pagination Consistency Tests
+// VigaBSS 5.0 — Pagination Consistency Tests
 // =============================================================================
 // Verifies that all list endpoints support ?page=&limit= query params and
 // return a consistent { data, meta } response shape.

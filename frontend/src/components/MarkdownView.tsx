@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — MarkdownView
+// VigaBSS 5.0 — MarkdownView
 // =============================================================================
 // Shared markdown renderer: GFM (tables, strikethrough, task lists) + heading
 // anchors so in-document tables of contents work. react-markdown never emits

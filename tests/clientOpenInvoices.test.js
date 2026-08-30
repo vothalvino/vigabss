@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GET /clients/:id/open-invoices
+// VigaBSS 5.0 — GET /clients/:id/open-invoices
 // =============================================================================
 // Data source for RecordPaymentModal's invoice checklist: the client's payable
 // open invoices with a computed, live balance_due. Shares its query with

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CRUD Controller Factory
+// VigaBSS 5.0 — CRUD Controller Factory
 // =============================================================================
 // Generates standard list/get/create/update/delete handlers for any model.
 // Controllers can override or extend these defaults.

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — POST /ai/reply/draft must not accept a foreign contract_id
+// VigaBSS 5.0 — POST /ai/reply/draft must not accept a foreign contract_id
 // =============================================================================
 // contract_id arrives from the REQUEST BODY and was handed straight to
 // serviceHealthService.getSnapshot / topologyContextService.summarize. Every

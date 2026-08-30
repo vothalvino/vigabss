@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — Contract activation orchestration
+// VigaBSS 5.0 — Contract activation orchestration
 // =============================================================================
 // A contract created directly from the Contracts screen starts pending and
 // offline.  This service joins that entry point back onto the canonical
@@ -1050,7 +1050,7 @@ async function renewPreviouslyActivated(contractId, {
         username: radius.username,
         password: radius.password,
         profile: radius.profile,
-        comment: `FireISP renewed service contract#${contract.id}`,
+        comment: `VigaBSS renewed service contract#${contract.id}`,
       });
       nasPushed = true;
     } catch (err) {
@@ -1131,7 +1131,7 @@ async function retryNetworkActivation(contractId, { orgId = null } = {}) {
       username: radius.username,
       password: radius.password,
       profile: radius.profile,
-      comment: `FireISP permanent activation contract#${contract.id}`,
+      comment: `VigaBSS permanent activation contract#${contract.id}`,
     });
     result.success = true;
   } catch (err) {

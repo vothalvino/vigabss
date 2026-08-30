@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — tenant-safe subscriber session and IP-attribution routes
+// VigaBSS 5.0 — tenant-safe subscriber session and IP-attribution routes
 // =============================================================================
 
 const { Router } = require('express');

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — Security headers have exactly ONE owner
+// VigaBSS 5.0 — Security headers have exactly ONE owner
 // =============================================================================
 // The app sets every security header itself (Helmet, src/app.js). The reverse
 // proxy must not repeat them, because nginx `add_header` APPENDS to whatever

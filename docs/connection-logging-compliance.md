@@ -1,7 +1,7 @@
 # Connection Logging and IP Attribution Evidence Operations
 
 This guide explains the subscriber-accounting and privacy-minimal CGNAT
-attribution datasets exposed by FireISP, how to validate them, and where the
+attribution datasets exposed by VigaBSS, how to validate them, and where the
 product boundary ends.
 
 > Connection data is highly sensitive. Enable and use it only for a documented
@@ -47,7 +47,7 @@ When RADIUS assigns a public IPv4 address directly to one subscriber session,
 the attribution key is that public address plus an exact UTC instant. The
 session interval must certainly cover the instant and exactly one
 same-organization subscriber/access session must match. For the lower bound,
-FireISP uses the first normalized lifecycle evidence for that exact public IP:
+VigaBSS uses the first normalized lifecycle evidence for that exact public IP:
 the queried instant must be at or after both its NAS event time and its server
 receipt time. For a closed session, the instant must be strictly before both
 the Stop event time and its receipt time. For an active session, both the latest
@@ -120,7 +120,7 @@ reconcile the covered pool so that no pre-existing allocation remains (or
 otherwise prove that the covered starting point is empty), retain the external
 change/reconciliation evidence, set `authoritative_baseline_confirmed=true`,
 and put that evidence reference in `baseline_reference`. Then start a new
-`exporter_boot_id` sequence at 0 or 1 and begin collection. FireISP does not
+`exporter_boot_id` sequence at 0 or 1 and begin collection. VigaBSS does not
 import a nonempty translator snapshot or historical live allocations; an
 allocation whose `allocated_at` predates baseline confirmation is rejected.
 Until the old mappings have drained and the clean epoch begins, historical
@@ -183,7 +183,7 @@ This engineering minimization is also consistent with
 which addresses subscriber attribution from external address/port/protocol/time
 information without treating destination logging as the default.
 
-FireISP does not derive translations from RADIUS accounting and does not decode
+VigaBSS does not derive translations from RADIUS accounting and does not decode
 RouterOS, NetFlow/IPFIX or syslog packets itself. Deploy an external normalizer
 that receives authoritative binding/allocation events from every CGNAT device
 and submits only the minimum normalized records through
@@ -215,17 +215,17 @@ binding fields are rejected. Each usable record carries:
   explicit zeroes. Omitting this health evidence makes the stored record
   incomplete and therefore unavailable for a positive legal attribution.
 
-`session_instance_id` is authority from FireISP's tenant RADIUS ledger, not an
+`session_instance_id` is authority from VigaBSS's tenant RADIUS ledger, not an
 optional collector guess. A collector must capture the UUID returned by
 `POST /api/v1/radius/accounting/tenant` and carry it through its authoritative
 allocation source. Client, contract, username and NAS-facing RADIUS-session
-values remain optional consistency hints. FireISP requires that exact canonical
+values remain optional consistency hints. VigaBSS requires that exact canonical
 session to be same-organization, to own the private address, and to cover the
 allocation interval; it rejects a missing, unknown, mismatched or non-covering
 session instead of searching by reused private address alone.
 
 The device-clock sign convention is `clock_offset_ms = raw device clock - UTC`.
-FireISP subtracts that offset from `device_recorded_at`, then subtracts
+VigaBSS subtracts that offset from `device_recorded_at`, then subtracts
 `clock_uncertainty_ms` again to obtain the last certain exporter coverage
 horizon. Exact tuple attribution also excludes the uncertainty bands at the
 allocation and release boundaries. Missing clock health never widens a claim.
@@ -259,7 +259,7 @@ If the device's raw event format contains a destination, the normalizer must
 discard it before persistence, queuing, dead-letter handling, telemetry or API
 submission. Disable raw-event/body logging and scrub crash reports. Collector
 buffers, rejected payloads and backups are part of the privacy and retention
-boundary even though FireISP rejects unknown/destination fields.
+boundary even though VigaBSS rejects unknown/destination fields.
 
 The same `POST /connection-logs/ip-attribution/lookup` route handles shared
 CGNAT with a public source IP, public source port, transport protocol, UTC
@@ -533,8 +533,8 @@ JSON
 ```
 
 Both calls return `{ "data": { "received": 1, ... } }`. Acceptance means
-FireISP stored that batch; it does not prove end-to-end completeness. The raw
-device time convention is device clock minus UTC, so FireISP subtracts
+VigaBSS stored that batch; it does not prove end-to-end completeness. The raw
+device time convention is device clock minus UTC, so VigaBSS subtracts
 `clock_offset_ms`; only corrected time minus uncertainty advances the certain
 exporter horizon. V1 has no heartbeat/checkpoint, so a quiet feed becomes stale
 even while a binding remains open.
@@ -735,7 +735,7 @@ release or review it when its authority ends.
 
 `CGNAT_ATTRIBUTION_RETENTION_MONTHS` is one installation-wide setting. The
 configured period must be approved for every organization that enables a CGNAT
-exporter in that FireISP installation. Per-organization retention is not
+exporter in that VigaBSS installation. Per-organization retention is not
 implemented; tenants requiring divergent schedules must use separate
 deployments. An isolated tenant database does not change this because the same
 application retention worker and environment policy sweep it. Ordinary CGNAT

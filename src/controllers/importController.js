@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Bulk Import Controller
+// VigaBSS 5.0 — Bulk Import Controller
 // =============================================================================
 // CSV bulk import for clients, devices, contracts, invoices, and payments.
 // Supports two modes:
@@ -306,7 +306,7 @@ async function insertContractRow(row, orgId) {
     // Deliberate migration-only exception to the guided first-activation gate:
     // the contracts CSV represents subscribers that are already live at the
     // source ISP, and preserves their service while data is moved into
-    // FireISP. Interactive/API-created contracts remain pending and must use
+    // VigaBSS. Interactive/API-created contracts remain pending and must use
     // /contracts/:id/activation/prepare + /activate with field evidence.
     await conn.query(
       `UPDATE contracts

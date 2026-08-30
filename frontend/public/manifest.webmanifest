@@ -1,6 +1,6 @@
 {
-  "name": "FireISP Customer Portal",
-  "short_name": "FireISP",
+  "name": "VigaBSS Customer Portal",
+  "short_name": "VigaBSS",
   "description": "Manage your internet service — invoices, support, usage, and more.",
   "start_url": "/portal",
   "display": "standalone",

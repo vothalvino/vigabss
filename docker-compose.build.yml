@@ -1,5 +1,5 @@
 # =============================================================================
-# FireISP — build-locally override for the production stack
+# VigaBSS — build-locally override for the production stack
 # =============================================================================
 # docker-compose.prod.yml PULLS the app image (CI builds, scans and publishes
 # it). That is deliberate: compiling on the production host is what used to

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — hashPasswordField middleware tests
+// VigaBSS 5.0 — hashPasswordField middleware tests
 // =============================================================================
 // Regression guard: POST /api/v1/users 500'd on every create because the generic
 // crudController never converted the schema's plaintext `password` into the

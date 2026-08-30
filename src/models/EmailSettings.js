@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Per-Organization, Per-Function Outbound Email (SMTP) Settings
+// VigaBSS 5.0 — Per-Organization, Per-Function Outbound Email (SMTP) Settings
 // =============================================================================
 // One row per (organization_id, email_function) since migration 407: an org
 // can hold a separate outbound identity for 'general', 'support', 'billing',

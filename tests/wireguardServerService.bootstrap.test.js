@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WireGuard Server Service Tests — host bootstrap
+// VigaBSS 5.0 — WireGuard Server Service Tests — host bootstrap
 // =============================================================================
 // Covers bootstrapHost(): first-run key generation + interface bring-up, second-
 // run idempotency (no key rewrite, no interface re-create), dormant no-op, and

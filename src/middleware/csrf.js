@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CSRF Protection Middleware (P3.4)
+// VigaBSS 5.0 — CSRF Protection Middleware (P3.4)
 // =============================================================================
 // Defense-in-depth CSRF guard for state-changing API requests.
 //
@@ -21,7 +21,7 @@
 // Origin/Referer header check for backward compatibility.
 //
 // Exempt from CSRF enforcement:
-//   - Requests without a FireISP auth cookie (API-key clients, unauthenticated)
+//   - Requests without a VigaBSS auth cookie (API-key clients, unauthenticated)
 //   - Requests carrying `Authorization: Bearer` (custom headers cannot be forged
 //     cross-origin, so these are inherently CSRF-safe even when cookies are present)
 //
@@ -181,7 +181,7 @@ function csrfOriginCheck(req, res, next) {
   // CSRF_EXEMPT_SUFFIXES above for why this is safe.
   if (isAuthBootstrap(req)) return next();
 
-  // Only enforce when the request carries the FireISP *access* cookie — that is
+  // Only enforce when the request carries the VigaBSS *access* cookie — that is
   // the ambient authenticator for cookie-based state-changing requests. The
   // refresh cookie is deliberately NOT counted here: it is a credential consumed
   // only by /auth/refresh and /auth/switch-organization (both SameSite=Strict,

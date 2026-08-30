@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Migration 444 — mark the INSTALL OPERATOR explicitly (j56)
 -- =============================================================================
--- FireISP had no way to say "this account runs the box". Code that needed the
+-- VigaBSS had no way to say "this account runs the box". Code that needed the
 -- idea used `users.role = 'admin'`, which cannot express it: `roles` is a
 -- GLOBAL table, migration 378 marks both the `admin` and `super_admin` groups
 -- kind='admin', and User.resolveGroupMirror copies group.kind into users.role —

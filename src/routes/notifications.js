@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Staff In-App Notifications
+// VigaBSS 5.0 — Staff In-App Notifications
 // =============================================================================
 // Personal resource: every route is scoped to the authenticated user's own
 // rows (user_id = req.user.id), so no requirePermission gate is needed — a

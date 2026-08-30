@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AdminIpAllowlist Model
+// VigaBSS 5.0 — AdminIpAllowlist Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

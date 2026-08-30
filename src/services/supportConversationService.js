@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Support Conversation Service (§21.2)
+// VigaBSS 5.0 — Support Conversation Service (§21.2)
 // =============================================================================
 // Manages AI support conversations: start, message, escalate, close.
 //
@@ -262,7 +262,7 @@ async function startConversation({ orgId, clientId, channel = 'web', message }) 
   await _insertMessage({
     conversationId,
     role:    'system',
-    content: 'Soy tu asistente virtual de FireISP. ¿En qué puedo ayudarte hoy?',
+    content: 'Soy tu asistente virtual de VigaBSS. ¿En qué puedo ayudarte hoy?',
   });
 
   // Customer opening message

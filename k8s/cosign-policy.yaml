@@ -1,4 +1,4 @@
-# Sigstore Policy Controller — ClusterImagePolicy for FireISP image verification
+# Sigstore Policy Controller — ClusterImagePolicy for VigaBSS image verification
 #
 # Prerequisites:
 #   1. Install policy-controller in your cluster:

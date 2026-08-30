@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Legal document generation + on-site signing (migration 447)
+// VigaBSS 5.0 — Legal document generation + on-site signing (migration 447)
 // =============================================================================
 // The two signatures MX field work actually needs: the installation
 // authorization the client signs when the technician ARRIVES (permission to
@@ -46,12 +46,12 @@ const GLOBAL_ACKNOWLEDGMENT_TYPE = 'service_acknowledgment';
 const GLOBAL_ACKNOWLEDGMENT_TITLE = 'Service installation acknowledgment';
 const SANDBOX_WATERMARK = `> **PRUEBA / SIMULACIÓN — NO REGISTRADO ANTE PROFECO — SIN EFECTOS LEGALES**
 >
-> Este documento fue generado en el entorno de simulación de FireISP. No es un
+> Este documento fue generado en el entorno de simulación de VigaBSS. No es un
 > sandbox oficial de PROFECO, no acredita registro y no puede convertirse en
 > un contrato de producción.
 >
 > **TEST / SIMULATION — NOT PROFECO REGISTERED — NO LEGAL EFFECT.** This is a
-> FireISP simulation, not an official PROFECO sandbox or registration, and it
+> VigaBSS simulation, not an official PROFECO sandbox or registration, and it
 > cannot be converted into a production contract.
 
 `;

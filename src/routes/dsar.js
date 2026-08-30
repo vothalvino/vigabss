@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DSAR (Data Subject Access Request) Route
+// VigaBSS 5.0 — DSAR (Data Subject Access Request) Route
 // =============================================================================
 // Produces a read-only JSON export of the enumerated, tenant-scoped datasets
 // held for a client. Collections are streamed with keyset pagination so the
@@ -506,7 +506,7 @@ router.get(
         completeForEnumeratedDatasets: true,
         collectionCounts: counts,
         scope: {
-          description: 'Selected FireISP operational datasets attributable to this client in this organization',
+          description: 'Selected VigaBSS operational datasets attributable to this client in this organization',
           organizationScoped: true,
           connectionAttribution: 'Direct client ID or unambiguous same-organization contract/session linkage',
           compatibilityViews: 'mxProfile is the current profile; mxProfiles contains every held profile row',

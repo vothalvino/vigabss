@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Contract Routes
+// VigaBSS 5.0 — Contract Routes
 // =============================================================================
 
 const { Router } = require('express');
@@ -1029,7 +1029,7 @@ router.post('/:id/regenerate-pppoe', requirePermission('contracts.update'), asyn
           username: radius.username,
           password,
           profile: radius.profile,
-          comment: 'FireISP radius#' + radius.id + ' contract#' + contract.id,
+          comment: 'VigaBSS radius#' + radius.id + ' contract#' + contract.id,
         });
         pushed = true;
       } catch (e) {

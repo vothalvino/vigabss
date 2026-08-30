@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Speed Test Validation Schemas
+// VigaBSS 5.0 — Speed Test Validation Schemas
 // =============================================================================
 
 const createSpeedTest = {

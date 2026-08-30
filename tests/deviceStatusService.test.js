@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Status Service Unit Tests
+// VigaBSS 5.0 — Device Status Service Unit Tests
 // =============================================================================
 // recordPollResult() no longer reads state and decides in JS — every write is
 // an atomic conditional UPDATE, and the emit decision is driven entirely by

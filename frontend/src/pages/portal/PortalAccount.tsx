@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Account Settings (§11.3)
+// VigaBSS 5.0 — Portal Account Settings (§11.3)
 // =============================================================================
 // Self-service actions: plan upgrade, Wi-Fi password, PPPoE password,
 // static IP request, cancellation, visit schedule.

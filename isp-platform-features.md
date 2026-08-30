@@ -12,7 +12,7 @@
 > |---|---|
 > | `- [x]` | Shipped. Where useful, the parenthetical cites the code that proves it. |
 > | `- [ ]` | **Genuinely open work** — 12 remain. Five are queued as jobs (attachment data-loss, Aviso de Privacidad, config rollback, WhatsApp→AI, technician map); the other seven are acknowledged backlog, not yet scheduled: PayPal, NetFlow/sFlow classification, FTTH OLT drivers, map clustering, Zabbix/LibreNMS sync, poller sharding, CDN docs. |
-> | `- ⊘` | **Never tickable.** Either a stack the spec *surveyed but FireISP did not choose* (Python/PHP, PostgreSQL), or an **operator action** — a legal/organizational step the software cannot perform (registering a licence, drafting terms with counsel). |
+> | `- ⊘` | **Never tickable.** Either a stack the spec *surveyed but VigaBSS did not choose* (Python/PHP, PostgreSQL), or an **operator action** — a legal/organizational step the software cannot perform (registering a licence, drafting terms with counsel). |
 > | `- ◷` / `✅` | A performance **target to measure**, not build. `◷` = never measured; `✅` = measured and passing. |
 >
 > **Section numbers are cited by 58 files** (`-- Implements isp-platform-features.md §10.1 ...`
@@ -655,7 +655,7 @@
 - [x] Address standardization (SEPOMEX / INEGI codes)
 
 ### 16.5 Quality of Service Requirements
-- [x] SLA monitoring against operator-configured thresholds; FireISP does not determine a regulatory minimum
+- [x] SLA monitoring against operator-configured thresholds; VigaBSS does not determine a regulatory minimum
 - [x] Complaint handling against operator-configured response targets; the applicable legal/contract deadline must be supplied and validated
 - [x] Service availability tracking
 - [x] Speed guarantee monitoring (advertised vs. delivered)
@@ -1170,8 +1170,8 @@ Beyond customer-facing AI, the same engine assists NOC staff:
 - ✅ API response <200ms for CRUD — **MEASURED AND PASSING.** docs/load-testing.md gates p99 ≤200ms (sample p50 17-20ms, p99 22-35ms, CI-gateable). The first run caught a real LIMIT/OFFSET bug in BaseModel.findAll.
 
 ### Recommended Stack (Budget-Oriented)
-- ⊘ Backend: Python (Django/FastAPI) or PHP (Laravel) — **surveyed, not chosen.** FireISP is Node/Express. Never tickable.
-- ⊘ Database: PostgreSQL (primary) + Redis (cache) — **surveyed, not chosen.** FireISP is MySQL + Redis. Never tickable.
+- ⊘ Backend: Python (Django/FastAPI) or PHP (Laravel) — **surveyed, not chosen.** VigaBSS is Node/Express. Never tickable.
+- ⊘ Database: PostgreSQL (primary) + Redis (cache) — **surveyed, not chosen.** VigaBSS is MySQL + Redis. Never tickable.
 - [x] Frontend: React SPA dashboard + Nginx — frontend/ (154 pages), nginx in prod compose and k8s ingress.
 - [x] RADIUS: FreeRADIUS 3.x with MySQL backend — docs/freeradius/, radiusService.syncFreeradiusTables(); embedded RADIUS also available.
 - [ ] NMS: Custom SNMP poller + LibreNMS/Zabbix integration
@@ -1190,7 +1190,7 @@ Beyond customer-facing AI, the same engine assists NOC staff:
 
 - [x] Subscriber identity capture (INE/IFE/CURP) — identity_verification_records + CURP checksum + verify/reject endpoints (regulatoryCompliance.js:231-324) + UI tab.
 - [x] LFPDPPP privacy-notice presentation and acceptance workflow — versioned notice/consent records and portal presentation exist; operator counsel must approve the deployed content, purposes, collection points, and withdrawal path.
-- [ ] Subscriber/CGNAT attribution production-verified — FireISP provides tenant-scoped RADIUS evidence and privacy-minimal bindings, but the operator must prove live collector coverage, exact lookup behavior, retention and legal holds on every real egress path.
+- [ ] Subscriber/CGNAT attribution production-verified — VigaBSS provides tenant-scoped RADIUS evidence and privacy-minimal bindings, but the operator must prove live collector coverage, exact lookup behavior, retention and legal holds on every real egress path.
 - [x] Consistency and audit controls — selected evidence and government-request rows have hashes/markers and access logs; these are not tamper-proof WORM storage against a privileged database operator.
 - [ ] Lawful-interception process — `gov_data_requests` is a case register, not traffic-mirroring/interception capability. The operator must validate authority, restrict access and separately implement any lawfully ordered interception.
 - [x] CFDI 4.0 invoicing integration with PAC — stamp + cancel against SW and Finkok with failover, local sealing, CFDI de Egreso (#528); both PACs sandbox-proven.
@@ -1198,7 +1198,7 @@ Beyond customer-facing AI, the same engine assists NOC staff:
 - [x] Complaint response SLA configured — sla_definitions + ticket_sla_events + scheduled sla_breach_check (taskRunner.js:171-172); profeco_complaints rides the same machinery.
 - ⊘ Consumer terms template compliant with PROFECO — **operator action** (legal drafting with your counsel). Software already stores/versions templates (contract_templates_mx) and handles complaints (profeco_complaints).
 - [x] Data-residency self-declaration workflow — `data_residency_config`, CRUD, `/check`, and UI record operator assertions; it does not verify databases, replicas, backups, processors, support access, or physical location.
-- [ ] Audit coverage verified for every sensitive administrative action — FireISP writes application audit/access records on covered paths, but they are not WORM storage and the operator must test route coverage and privileged-database controls.
+- [ ] Audit coverage verified for every sensitive administrative action — VigaBSS writes application audit/access records on covered paths, but they are not WORM storage and the operator must test route coverage and privileged-database controls.
 - [x] Access control policy documented and enforced — docs/rbac-permissions.md + requirePermission() on every route.
 - [x] Incident response plan documented — docs/runbook.md:237+ "Incident Response (P1.9)": severity matrix, declaration criteria, workflow, SEV1 scenarios.
 - ⊘ Annual compliance self-assessment scheduled — **operator action** (calendar). Automated inputs exist (DSAR-overdue check, data-residency /check) but the review itself is yours.

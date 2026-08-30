@@ -3,7 +3,7 @@
 # Do not apply this example unchanged. Copy it into the manifests used by your
 # cluster, replace the documentation-only source range with the trusted
 # device-management CIDR, and verify that the load balancer preserves UDP
-# source addresses. FireISP uses that source address to identify the device and
+# source addresses. VigaBSS uses that source address to identify the device and
 # fails closed when it is missing or ambiguous.
 apiVersion: v1
 kind: Service

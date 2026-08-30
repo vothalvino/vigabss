@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Lead Routes (prospect pipeline) — §1.2
+// VigaBSS 5.0 — Lead Routes (prospect pipeline) — §1.2
 // =============================================================================
 
 const { Router } = require('express');

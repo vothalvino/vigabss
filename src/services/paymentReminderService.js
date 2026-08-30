@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Reminder Service
+// VigaBSS 5.0 — Payment Reminder Service
 // =============================================================================
 // Sends transactional payment reminders (before/on/after due date) to clients
 // based on configurable schedules stored in payment_reminder_settings.

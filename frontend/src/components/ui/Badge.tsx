@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP UI — Badge
+// VigaBSS UI — Badge
 // =============================================================================
 // Faithful TSX port of @fireisp/ui Badge. Pill with a status tone.
 // tone: neutral | success | danger | warning | accent

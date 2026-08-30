@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — API Token Validation Schemas
+// VigaBSS 5.0 — API Token Validation Schemas
 // =============================================================================
 
 const createApiToken = {

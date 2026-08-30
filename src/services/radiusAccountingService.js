@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Accounting Service
+// VigaBSS 5.0 — RADIUS Accounting Service
 // =============================================================================
 // Ingests FreeRADIUS accounting records (Start/Stop/Interim-Update) delivered
 // via the FreeRADIUS rest module POST, persists them to connection_logs, and

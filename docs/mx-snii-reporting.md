@@ -17,7 +17,7 @@ passive infrastructure and rights of way. Articles 179–181 address public and
 private sites. The LMTR's Twenty-Eighth Transitory provision preserves prior
 rules only to the extent they do not conflict with the current law.
 
-FireISP's SNII module is designed to:
+VigaBSS's SNII module is designed to:
 
 - maintain an organization-specific applicability decision and reporting
   profile;
@@ -35,7 +35,7 @@ FireISP's SNII module is designed to:
 - fail closed when the data, tenant boundary, source version, or approval is
   incomplete.
 
-FireISP does **not** log into the CRT Ventanilla Electrónica, submit a package,
+VigaBSS does **not** log into the CRT Ventanilla Electrónica, submit a package,
 decide legal applicability, or infer authority acceptance. Generating or
 downloading a preparation artifact never changes a report to `submitted` or
 `accepted`. Those states require a separate operator-recorded event and its
@@ -46,7 +46,7 @@ external evidence reference.
 The public 2024 IFT template and dictionary bundle is now a historical archive,
 not a guarantee of the current upload contract. The current CRT procedure
 directs operators to obtain the live object templates through the authenticated
-Ventanilla. FireISP therefore treats the bundled 2024 adapter as a
+Ventanilla. VigaBSS therefore treats the bundled 2024 adapter as a
 bootstrap/reference only and blocks a ready package until the operator records
 the independently reviewed current Ventanilla template, dictionary, and Annex
 versions, HTTPS source references, and SHA-256 values, plus a dated adapter
@@ -65,7 +65,7 @@ dictionary, catalogue, instruction, or filing channel.
 - [Historical public data-dictionary archive](https://www.ift.org.mx/industria/diccionarios-de-datos)
 - [Official loader notes](https://www.ift.org.mx/sites/default/files/contenidogeneral/industria/notascargasniiv2.pdf)
 
-The archived templates still carry former IFT branding. FireISP records the
+The archived templates still carry former IFT branding. VigaBSS records the
 authority code, separate source URLs and hashes, dictionary/template/Annex
 versions, review actor/date, and external applicability decision instead of
 treating the archive or its embedded agency name as proof of the current upload
@@ -107,7 +107,7 @@ period and the operator's possession or use of the infrastructure.
 1. **Record applicability.** Set the profile to `applicable` or
    `not_applicable` only with an external counsel/compliance decision reference,
    reviewer, date, current title/authorization context (including its status),
-   electronic folio, and pinned official source version. FireISP preserves a
+   electronic folio, and pinned official source version. VigaBSS preserves a
    whitelisted snapshot and SHA-256 of a linked concession title; a later title
    edit or deletion forces a fresh review. Locale `MX` alone is never enough.
 2. **Discover candidates.** Refresh strictly from the active organization's
@@ -137,10 +137,10 @@ period and the operator's possession or use of the infrastructure.
    authorized session and a successful access-audit append. Responses are
    private/no-store attachments and include `X-Evidence-SHA256`. The browser
    verifies the received bytes before saving.
-8. **File outside FireISP.** An authorized representative uses the official CRT
+8. **File outside VigaBSS.** An authorized representative uses the official CRT
    channel. Record the external folio, exact local time with its matching IANA
    time zone, representative, and original response/submission evidence as one
-   atomic immutable event. FireISP computes the evidence SHA-256 server-side;
+   atomic immutable event. VigaBSS computes the evidence SHA-256 server-side;
    callers never supply or substitute that hash. Each evidence upload is
    limited to 10 MiB and must be PDF, XML, plain text, CSV, JPEG, or PNG; the
    server verifies the filename, media type, and file signature before storing
@@ -172,7 +172,7 @@ or modifications. The operator must determine which branch applies to its
 facts. The update procedure separately describes automated validation, an
 error/prevention notice within two business days, a five-business-day
 correction reload, and an acceptance notice within five business days after a
-valid load. These periods are operational prompts, not FireISP legal
+valid load. These periods are operational prompts, not VigaBSS legal
 calculations; the operator must revalidate the current source and its own facts.
 
 ## Security and tenant isolation
@@ -203,7 +203,7 @@ The module therefore uses the following boundary:
 Deployment controls still matter. Use TLS, MFA/step-up for authorized
 reviewers, encryption at rest and in backups, restricted administrative access,
 malware scanning for uploaded evidence, tested restore procedures, and an
-approved records schedule. FireISP does not infer Mexico residency from locale
+approved records schedule. VigaBSS does not infer Mexico residency from locale
 or claim that a self-entered storage-country field proves the storage,
 replication, backup, processor, support, and export boundary.
 

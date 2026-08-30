@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Alert Suppression Rule Management
+// VigaBSS 5.0 — Alert Suppression Rule Management
 // =============================================================================
 
 import { useState } from 'react';

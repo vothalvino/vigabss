@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — outages are org-scoped (j36)
+// VigaBSS 5.0 — outages are org-scoped (j36)
 // =============================================================================
 // Outage declared hasOrgScope = false and BaseModel omits the org predicate
 // SILENTLY when it does, so every verb behind the generic crudController ran

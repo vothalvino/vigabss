@@ -2,7 +2,7 @@
 -- Migration 418 — WhatsApp customer-support foundation (identity + binding)
 -- =============================================================================
 -- Adds the identity layer that lets an inbound WhatsApp message be tied to a
--- FireISP client safely. See docs/whatsapp-support-design.md for the full model.
+-- VigaBSS client safely. See docs/whatsapp-support-design.md for the full model.
 --
 -- Three tables:
 --   whatsapp_links          — the binding phone_e164 -> client. At most ONE

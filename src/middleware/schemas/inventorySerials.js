@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory Phase 3 Validation Schemas (serialized equipment)
+// VigaBSS 5.0 — Inventory Phase 3 Validation Schemas (serialized equipment)
 // =============================================================================
 // Manual serial registration, install-time assignment (rent/buy), and pickup
 // disposition — see src/services/inventorySerialService.js for the business

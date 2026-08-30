@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Reset Password Page
+// VigaBSS 5.0 — Portal Reset Password Page
 // =============================================================================
 // Public (unauthenticated) page reached from the portal password-reset email
 // link (?token=...). Submits a new password to

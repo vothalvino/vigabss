@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client List
+// VigaBSS 5.0 — Client List
 // =============================================================================
 // Searchable, paginated table of all clients with full CRUD:
 //   • "New Client" button → create modal

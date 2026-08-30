@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Scheduled Report Service Tests
+// VigaBSS 5.0 — Scheduled Report Service Tests
 // =============================================================================
 // Focused coverage for runSchedule()'s email-delivery leg, in particular the
 // HTML-escaping fix for schedule.report_def_name (see src/services/
@@ -68,7 +68,7 @@ describe('scheduledReportService.runSchedule', () => {
       expect.objectContaining({
         organizationId: 1,
         to: 'ops@example.com',
-        subject: '[FireISP] Scheduled Report: aging',
+        subject: '[VigaBSS] Scheduled Report: aging',
         html: expect.stringContaining('<strong>aging</strong>'),
       }),
     );

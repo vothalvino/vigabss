@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAT / CGNAT Pool Management
+// VigaBSS 5.0 — NAT / CGNAT Pool Management
 // =============================================================================
 // Standalone page at /nat-management. Lists NAT pools with a status filter,
 // paginated table, "New NAT Pool" create modal, and per-row Edit and Delete.

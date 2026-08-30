@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — MapTiles
+// VigaBSS 5.0 — MapTiles
 // =============================================================================
 // THE single tile layer for every map in the product. Three pages previously
 // hardcoded OpenStreetMap's public tile server, so changing provider meant

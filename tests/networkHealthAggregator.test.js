@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — daily network health aggregation (j52)
+// VigaBSS 5.0 — daily network health aggregation (j52)
 // =============================================================================
 // network_health_snapshots was read by three places since migration 117 and
 // written by nothing. `populate_network_health_snapshots` returned the string

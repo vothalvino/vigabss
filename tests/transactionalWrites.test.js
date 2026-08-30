@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — check-then-write is atomic on guarded updates (j17)
+// VigaBSS 5.0 — check-then-write is atomic on guarded updates (j17)
 // =============================================================================
 // beforeUpdate hooks read on one pooled connection and the UPDATE lands on
 // another, so a concurrent writer can slip between them. For invoices that is

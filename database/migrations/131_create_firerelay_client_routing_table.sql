@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Migration 131: Create firerelay_client_routing table
+-- VigaBSS 5.0 — Migration 131: Create firerelay_client_routing table
 -- =============================================================================
 -- Maps each client_id to the node that owns it so the master can route
 -- single-entity requests to the correct worker.

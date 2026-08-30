@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE event-ingest validation
+// VigaBSS 5.0 — PPPoE event-ingest validation
 // =============================================================================
 
 const { ValidationError } = require('../utils/errors');

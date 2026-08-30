@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Communication Campaign Validation Schemas (§1.4)
+// VigaBSS 5.0 — Communication Campaign Validation Schemas (§1.4)
 // =============================================================================
 
 const CHANNELS = ['email', 'sms', 'whatsapp'];

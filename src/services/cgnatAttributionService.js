@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — privacy-minimal CGNAT attribution ledger
+// VigaBSS 5.0 — privacy-minimal CGNAT attribution ledger
 // =============================================================================
 // This service stores only the information needed to map a public IPv4/port/
 // protocol at an exact instant to one tenant subscriber access session. It does

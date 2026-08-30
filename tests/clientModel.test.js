@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Model Tests: duplicates, custom fields, merge (§1.1)
+// VigaBSS 5.0 — Client Model Tests: duplicates, custom fields, merge (§1.1)
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

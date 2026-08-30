@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — deploy from the GUI, without giving the app any privilege
+// VigaBSS 5.0 — deploy from the GUI, without giving the app any privilege
 // =============================================================================
 // The security property is not "the button works". It is:
 //
@@ -8,7 +8,7 @@
 //   INFLUENCE WHAT THE HOST RUNS.
 //
 // The refused design mounts the Docker socket into the app container, which is
-// root on the host — an RCE in FireISP would own the machine rather than the
+// root on the host — an RCE in VigaBSS would own the machine rather than the
 // app. The accepted design keeps the privilege in a systemd timer outside
 // Docker that runs redeploy.sh with NO arguments.
 //

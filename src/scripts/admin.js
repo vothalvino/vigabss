@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// FireISP 5.0 — Admin CLI
+// VigaBSS 5.0 — Admin CLI
 // =============================================================================
 // Administrative command-line tools for user management, database health
 // checks, and migration status.
@@ -220,7 +220,7 @@ async function listUsers(args) {
 }
 
 async function dbHealth() {
-  logger.info('FireISP 5.0 — Database Health Check');
+  logger.info('VigaBSS 5.0 — Database Health Check');
 
   // 1. Connectivity
   const t0 = Date.now();
@@ -272,7 +272,7 @@ async function dbHealth() {
 }
 
 async function migrationStatus() {
-  logger.info('FireISP 5.0 — Migration Status');
+  logger.info('VigaBSS 5.0 — Migration Status');
 
   // Count migration files
   const migrationsDir = path.resolve(__dirname, '../../database/migrations');
@@ -327,7 +327,7 @@ async function main() {
 
   if (!command || command === '--help' || command === '-h') {
     logger.info(`
-  FireISP 5.0 — Admin CLI
+  VigaBSS 5.0 — Admin CLI
 
   Usage: node src/scripts/admin.js <command> [options]
 

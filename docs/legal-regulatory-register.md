@@ -1,15 +1,15 @@
-# FireISP Legal and Government Regulatory Touchpoint Register
+# VigaBSS Legal and Government Regulatory Touchpoint Register
 
 > **Engineering and operational traceability reference only.** This register is
 > not legal advice, not a legal opinion, not a certification, and not a conclusion that
-> FireISP or any installation complies with law. Applicability and legal
+> VigaBSS or any installation complies with law. Applicability and legal
 > interpretation must be decided for each operator, service, jurisdiction, and
 > deployment by authorized legal counsel. Selecting a locale, enabling a
 > feature, or marking a product control as available neither creates nor
 > satisfies a legal obligation.
 
 This is the central index for legal and government-regulatory subjects known to
-touch FireISP. It deliberately links to specialist documents instead of copying
+touch VigaBSS. It deliberately links to specialist documents instead of copying
 all of their operational detail. Its job is to make changes traceable: when a
 law, rule, service, data field, integration, or deployment changes, the affected
 requirement IDs show what must be reassessed.
@@ -27,7 +27,7 @@ requirement IDs show what must be reassessed.
 - [Acceptance-evidence minimums](#acceptance-evidence-minimums)
 - [Legal change workflow](#legal-change-workflow)
 - [Template for a new or revised record](#template-for-a-new-or-revised-record)
-- [Related FireISP documents](#related-fireisp-documents)
+- [Related VigaBSS documents](#related-fireisp-documents)
 - [Maintenance rules](#maintenance-rules)
 
 ## Document control
@@ -44,7 +44,7 @@ requirement IDs show what must be reassessed.
 | Last full source review | 2026-08-15 |
 | Next scheduled review | 2026-11-15 |
 | Jurisdictions assessed | Mexico federal; EU/EEA privacy only where marked conditional |
-| Product scope | FireISP repository and documented first-party deployment controls |
+| Product scope | VigaBSS repository and documented first-party deployment controls |
 | Evidence scope | Product evidence only; tenant deployment evidence remains outside Git |
 
 The owner must review this register at least quarterly even if no legal-change
@@ -91,7 +91,7 @@ Every assessment must keep these layers separate:
    authority, or standards authority published.
 2. **Applicability and interpretation:** a dated decision by the operator and
    its authorized counsel based on the operator's facts.
-3. **Product behavior:** what FireISP code, schema, APIs, tests, and documentation
+3. **Product behavior:** what VigaBSS code, schema, APIs, tests, and documentation
    do at a named commit or release.
 4. **Deployment behavior:** how one installation is configured and operated,
    including contracts, processors, storage regions, backups, credentials,
@@ -122,7 +122,7 @@ decision or evidence reference.
 |---|---|
 | `CAPABILITY_AVAILABLE` | An implemented and tested control exists; it may still be legally insufficient. |
 | `PARTIAL` | Some required workflow or evidence is supported, with stated gaps. |
-| `NOT_SUPPORTED` | FireISP does not provide the capability. |
+| `NOT_SUPPORTED` | VigaBSS does not provide the capability. |
 | `OPERATOR_ONLY` | The duty is organizational, contractual, filing, or external-system work. |
 | `NOT_ASSESSED` | Product support has not been mapped. |
 
@@ -236,9 +236,9 @@ means counsel has not made an operator-specific decision.
   service-specific orders.
 - **Trigger:** offering a regulated telecommunications service, operating a
   public network, using spectrum/numbering, or acting as a commercializer.
-- **FireISP support:** `concession_titles` and `regulatory_filings` are internal
+- **VigaBSS support:** `concession_titles` and `regulatory_filings` are internal
   registers.
-- **Limit:** FireISP does not decide the required title, obtain it, submit it, or
+- **Limit:** VigaBSS does not decide the required title, obtain it, submit it, or
   prove that an entry is current or accepted.
 - **Operator evidence:** current title/order, authorized services/territory,
   renewal calendar, named owner, and restricted counsel decision reference.
@@ -251,7 +251,7 @@ means counsel has not made an operator-specific decision.
 - **Rule:** use the LMTR as the current statute; preserve former LFTR references
   only for historical periods. Pre-LMTR instruments continue only to the extent
   the transition rule preserves them and they do not conflict.
-- **FireISP support:** current overview in
+- **VigaBSS support:** current overview in
   [`compliance-mexico.md`](compliance-mexico.md).
 - **Operator action:** counsel must map the title and services to current CRT
   instruments; software cannot infer this from an `MX` locale.
@@ -262,10 +262,10 @@ means counsel has not made an operator-specific decision.
 - **Sources/provisions:** LMTR Articles 182–183, LCMSJ, CNPP Article 303, and
   relevant CPF provisions; `SRC-MX-LMTR`, `SRC-MX-LCMSJ`, `SRC-MX-CNPP`,
   `SRC-MX-CPF`.
-- **FireISP support:** `gov_data_requests`, pending legal review, exact scoped
+- **VigaBSS support:** `gov_data_requests`, pending legal review, exact scoped
   tuple/time, case-gated attribution, evidence holds, access/export audit, and
   status transitions.
-- **Limits:** authority and legal basis are operator-entered. FireISP does not
+- **Limits:** authority and legal basis are operator-entered. VigaBSS does not
   authenticate an order, decide competence, require a judge in every fact
   pattern, attach the original restricted order, or replace legal review.
 - **Operator evidence:** original order outside Git, validation checklist,
@@ -279,7 +279,7 @@ means counsel has not made an operator-specific decision.
 - **Trigger:** depends on the operator, service, terminal/line, and owned or
   leased numbering. The official texts do not expressly turn every fixed
   broadband RADIUS or CGNAT record into the statutory retained copy.
-- **FireISP support:** RADIUS lifecycle projection/evidence, configurable
+- **VigaBSS support:** RADIUS lifecycle projection/evidence, configurable
   retention, case register, holds, and restricted exports.
 - **Limits:** product defaults are policies, not an applicability decision or
   proof of the two-stage 12+12-month operational availability requirements.
@@ -292,7 +292,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** LCMSJ Décimo Cuarto and LFPDPPP; exact telecom scope requires
   counsel review.
-- **FireISP support:** `data_residency_config`, RBAC, tenant isolation, audit,
+- **VigaBSS support:** `data_residency_config`, RBAC, tenant isolation, audit,
   deployment documentation, and backup configuration.
 - **Gap:** residency status is currently a self-declared register; it does not
   verify primary storage, isolated databases, replicas, backups, queues,
@@ -306,7 +306,7 @@ means counsel has not made an operator-specific decision.
 - **Sources:** operator/counsel decision under `SRC-MX-LMTR`, `SRC-MX-LCMSJ`,
   `SRC-MX-LFPDPPP`; the statutes reviewed do not expressly enumerate a universal
   fixed-broadband CGNAT source-port retention duty.
-- **FireISP support:** privacy-minimal public IP/source port or block/protocol,
+- **VigaBSS support:** privacy-minimal public IP/source port or block/protocol,
   exact UTC allocation interval, subscriber/access-session correlation,
   exporter health, exact one/none/ambiguous lookup, case-gated export, and hold.
 - **Limits:** no destination IP/port, URL, DNS, SNI, payload, DPI, or browsing
@@ -322,7 +322,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** operator-specific law/order and `SRC-MX-LMTR`, `SRC-MX-CNPP`,
   `SRC-MX-CPF`.
-- **Product posture:** `NOT_SUPPORTED`. FireISP is not an interception platform,
+- **Product posture:** `NOT_SUPPORTED`. VigaBSS is not an interception platform,
   traffic mirror, packet capture system, destination-flow logger, or authority
   delivery network.
 - **Operator action:** obtain specialized counsel and independently approved
@@ -335,7 +335,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** current LMTR/CRT rules, filing instructions, forms, title
   conditions, and `MON-MX-CRT`.
-- **FireISP support:** `regulatory_filings`, `ift_statistical_reports`, QoS and
+- **VigaBSS support:** `regulatory_filings`, `ift_statistical_reports`, QoS and
   coverage fields, and concession references are internal trackers.
 - **Gap:** the field review in
   [`ift-statistical-report-schema-review.md`](ift-statistical-report-schema-review.md)
@@ -351,7 +351,7 @@ means counsel has not made an operator-specific decision.
 - **Sources:** `SRC-MX-LMTR` and current CRT plans/lineamientos.
 - **Trigger:** operator use of national numbering, telephony/mobile service,
   portability, or a title/order that imposes the duty.
-- **FireISP support:** numbering/portability/mobile-related schemas are internal
+- **VigaBSS support:** numbering/portability/mobile-related schemas are internal
   workflow support only.
 - **Limits:** no currentness validation, external registry submission, or proof
   that a fixed-Internet-only operator is in scope.
@@ -388,7 +388,7 @@ means counsel has not made an operator-specific decision.
   and atomically preserve external filing/prevention/correction/acceptance
   evidence with server-computed hashes. Details and the 39-file supported-object contract are
   in [`mx-snii-reporting.md`](mx-snii-reporting.md).
-- **Explicit limits:** FireISP does not decide that an asset or operator is in
+- **Explicit limits:** VigaBSS does not decide that an asset or operator is in
   scope, authenticate to the CRT, file automatically, receive an authoritative
   portal state, or certify compliance. Artifact generation or upload success
   is not acceptance. Dummy/test assets, customer CPE/ONUs/drops, generic
@@ -414,7 +414,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources/provisions:** LFPDPPP Articles 5–17 and compatible regulation;
   `SRC-MX-LFPDPPP`, `SRC-MX-RLFPDPPP`.
-- **FireISP support:** versioned privacy notices, portal presentation,
+- **VigaBSS support:** versioned privacy notices, portal presentation,
   `subscriber_consents`, purpose-related settings, and DND preferences.
 - **Limits:** the operator is the controller; templates cannot identify every
   enabled field, free-text value, processor, AI path, transfer, or purpose.
@@ -428,7 +428,7 @@ means counsel has not made an operator-specific decision.
 - **Sources/provisions:** LFPDPPP Articles 21–36, including 20 business days for
   the determination and a following 15 business days to make it effective when
   granted, subject to the law's extension rules.
-- **FireISP support:** request register, identity checks, subject-linked export,
+- **VigaBSS support:** request register, identity checks, subject-linked export,
   audit, and cancellation-review metadata.
 - **Gaps:** the generic due date currently uses 30 calendar days. The export is
   a starting dataset, not proof of complete access, rectification, blocking,
@@ -442,7 +442,7 @@ means counsel has not made an operator-specific decision.
 ### `MX-PRIV-003` — Security safeguards and breach response
 
 - **Sources/provisions:** LFPDPPP Articles 18–20 and compatible regulation.
-- **FireISP support:** RBAC, encryption configuration, audit, incident runbook,
+- **VigaBSS support:** RBAC, encryption configuration, audit, incident runbook,
   monitoring, backups, and security tests.
 - **Gap:** the runbook's former generic Mexican 72-hour/INAI statement has been
   corrected. A deployment-specific notification matrix still must identify any
@@ -459,7 +459,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** LFPDPPP transfer/processor provisions and compatible regulation;
   telecom-specific location only where independently applicable.
-- **FireISP support:** processor inventory guidance and residency declaration.
+- **VigaBSS support:** processor inventory guidance and residency declaration.
 - **Gaps:** self-declared `primary_storage_country` is not technical enforcement;
   AI, email/SMS/WhatsApp, PAC, storage, observability, support, backup, and
   custom HTTP endpoints require actual mapping and contracts.
@@ -472,7 +472,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources/provisions:** LFPDPPP Articles 10, 12, 24–25; CFF/Código de Comercio
   where record-specific; valid preservation orders.
-- **FireISP support:** configurable policies, batched deletion, isolation
+- **VigaBSS support:** configurable policies, batched deletion, isolation
   fan-out, case-scoped holds, and DSAR review.
 - **Gaps:** several periods are installation policy, not universal law; the
   “data retention compliance” report is not a legal compliance determination;
@@ -486,7 +486,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** LFPDPPP purpose/consent/withdrawal rules and applicable LFPC
   electronic-commerce/advertising provisions.
-- **FireISP support:** DND and campaign preference controls.
+- **VigaBSS support:** DND and campaign preference controls.
 - **Limits:** channel/provider suppression, proof of consent, transactional
   versus marketing classification, and imported-list provenance remain
   operator responsibilities.
@@ -498,7 +498,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** LFPDPPP necessity, proportionality, security, notice, and ARCO
   provisions; service-specific identity duty only where applicable.
-- **FireISP support:** identity-verification records and permissions.
+- **VigaBSS support:** identity-verification records and permissions.
 - **Gap:** raw INE/IFE/CURP/passport/RFC identifiers are stored as plaintext
   fields and returned broadly; creation needs strict tenant-client validation
   and access minimization. Collection must not be justified by a mobile-line
@@ -511,9 +511,9 @@ means counsel has not made an operator-specific decision.
 
 - **Sources/provisions:** CFF Articles 28–30, current RMF, Anexo 20/CFDI 4.0;
   `SRC-MX-CFF`, `SRC-MX-RMF`, `SRC-MX-CFDI`.
-- **FireISP support:** CFDI 4.0 construction, local seal, PAC integration, CSD
+- **VigaBSS support:** CFDI 4.0 construction, local seal, PAC integration, CSD
   management, XML/PDF storage, fiscal snapshots, and status checks.
-- **Limits:** FireISP is not a tax engine. PAC acceptance does not validate the
+- **Limits:** VigaBSS is not a tax engine. PAC acceptance does not validate the
   taxpayer's regime, transaction classification, rate, eligibility,
   deductibility, accounting, or retention.
 - **Operator evidence:** current CSD/PAC, current schemas/catalogs, accountant
@@ -523,7 +523,7 @@ means counsel has not made an operator-specific decision.
 ### `MX-TAX-002` — Cancellation, REP, global invoices, and catalogs
 
 - **Sources:** `SRC-MX-CFF`, `SRC-MX-RMF`, `SRC-MX-CFDI`.
-- **FireISP support:** cancellation requests/evidence, replacement relation,
+- **VigaBSS support:** cancellation requests/evidence, replacement relation,
   payment complements, credit notes, global invoices, and SAT catalog tables.
 - **Limits:** validity depends on the exact current rule, timing, taxpayer facts,
   and PAC/SAT response; software state is not the authority's final status.
@@ -539,7 +539,7 @@ means counsel has not made an operator-specific decision.
   related declaration/due-date and has record-specific exceptions. Commercial
   records can independently require ten years. Do not assign one period from a
   CFDI stamp date to every record.
-- **FireISP support:** record storage and retention controls.
+- **VigaBSS support:** record storage and retention controls.
 - **Operator evidence:** record class, triggering event, applicable exception,
   legal hold, accessible integrity-preserving archive, and deletion date.
 - **Decision ref:** none.
@@ -548,7 +548,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** current fiscal statutes, decrees, RMF, and operator/accountant
   eligibility evidence; exact sources must be recorded per rule.
-- **FireISP support:** configurable/default IVA, exemptions, and postal-code
+- **VigaBSS support:** configurable/default IVA, exemptions, and postal-code
   border-zone rules.
 - **Critical gap:** seeded 8% border-zone matches can be active without proof of
   taxpayer enrollment and municipality-level eligibility. Automatic billing
@@ -562,7 +562,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** LMTR Articles 185–190, `SRC-MX-LFPC`, `SRC-MX-NOM184`,
   `SRC-MX-RPCA`, and current telecom-user-rights instruments.
-- **FireISP support:** versioned MX contract templates, registration references,
+- **VigaBSS support:** versioned MX contract templates, registration references,
   customer contracts, acceptance and signed-document evidence.
 - **Limits:** a template record does not prove PROFECO registration, that the
   production text matches the registered model, or that the operator/service is
@@ -576,7 +576,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** LMTR Articles 185–190 and tariff Articles 196–197, LFPC,
   NOM-184, registered contract, and operator title/tariff rules.
-- **FireISP support:** plans, prices, modifications, cancellation workflows, and
+- **VigaBSS support:** plans, prices, modifications, cancellation workflows, and
   notice records.
 - **Gap:** marking a notice `sent` currently records status/time but does not
   transmit it or prove delivery. A generic 30-day minimum must not be treated as
@@ -590,7 +590,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** LFPC complaint/remedy provisions, NOM-184, and current PROFECO
   process.
-- **FireISP support:** internal `profeco_complaints` workflow and generic
+- **VigaBSS support:** internal `profeco_complaints` workflow and generic
   CSV/JSON export.
 - **Limits:** the export is not an official filing or submission format. A
   quarterly-register claim needs an exact current source and counsel review.
@@ -602,7 +602,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** applicable LMTR/LFPC consumer provisions, disability and equality
   law, and operator title/contract; exact assessment remains open.
-- **FireISP support:** accessible UI practices and automated axe coverage for
+- **VigaBSS support:** accessible UI practices and automated axe coverage for
   selected states.
 - **Gap:** the README claim has been narrowed, but no complete accessibility
   conformance audit exists; automated tests with color-contrast disabled are not
@@ -616,7 +616,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** `SRC-MX-CCOM` and, for government acts in its scope,
   `SRC-MX-LFEA`.
-- **FireISP support:** frozen document text/hash, acceptance/signature image,
+- **VigaBSS support:** frozen document text/hash, acceptance/signature image,
   timestamp, actor, and signed-document storage.
 - **Limits:** those are useful evidence but do not automatically establish an
   advanced electronic signature, signer identity, certified timestamp,
@@ -628,7 +628,7 @@ means counsel has not made an operator-specific decision.
 ### `MX-COMM-002` — NOM-151 conservation and digitization
 
 - **Sources:** `SRC-MX-CCOM`, `SRC-MX-NOM151`.
-- **Product posture:** FireISP hashes and timestamps are not a NOM-151 constancia
+- **Product posture:** VigaBSS hashes and timestamps are not a NOM-151 constancia
   and no accredited Prestador de Servicios de Certificación workflow is
   implemented.
 - **Operator action:** determine with counsel which record sets require this
@@ -639,7 +639,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** LFPDPPP security/accountability duties and any applicable
   telecom/request security rules.
-- **FireISP support:** `audit_logs`, `report_access_logs`, RBAC, selected DB
+- **VigaBSS support:** `audit_logs`, `report_access_logs`, RBAC, selected DB
   triggers, hashes, and exports.
 - **Gaps:** hashes are consistency markers, not privileged-admin-proof WORM.
   Some audit writes fail open. Ordinary retention deletion conflicts with the
@@ -653,10 +653,10 @@ means counsel has not made an operator-specific decision.
 ### `MX-SEC-002` — Backups, restoration, encryption, and deletion propagation
 
 - **Sources:** LFPDPPP safeguards and record-specific retention duties.
-- **FireISP support:** local/remote backup, restore and DR documentation.
+- **VigaBSS support:** local/remote backup, restore and DR documentation.
 - **Gaps:** documentation now distinguishes local file-count retention from
   provider-controlled remote lifecycle and no longer equates gzip with
-  encryption. FireISP still does not verify each target's encryption, keys,
+  encryption. VigaBSS still does not verify each target's encryption, keys,
   lifecycle, geography, processors, support access, or custom endpoint.
 - **Operator evidence:** encrypted transport/at-rest proof, keys, retention for
   every target, region/processor, restore drill, deletion propagation, and
@@ -666,7 +666,7 @@ means counsel has not made an operator-specific decision.
 ### `MX-SEC-003` — Tenant isolation and separation of duties
 
 - **Sources:** privacy/security/confidentiality duties and operator contracts.
-- **FireISP support:** organization predicates, tenant database contexts, RBAC,
+- **VigaBSS support:** organization predicates, tenant database contexts, RBAC,
   primary control-plane boundaries, audit, and isolation tests.
 - **Limits:** one test suite or one validated tenant does not prove all paths or
   another deployment; shared installation-wide controls may not satisfy
@@ -681,7 +681,7 @@ means counsel has not made an operator-specific decision.
 - **Sources:** LFPDPPP purpose, notice, minimization, processor/transfer,
   security, ARCO, and automated-treatment provisions; consumer law where output
   affects customers.
-- **FireISP support:** provider configuration, selected redaction, audit/logging,
+- **VigaBSS support:** provider configuration, selected redaction, audit/logging,
   Reply Assistant documentation, and human-review options.
 - **Gap:** the current inventory focuses on the Reply Assistant while chatbot,
   support, NOC, diagnostics, analytics, embeddings/RAG, and auto-send paths can
@@ -696,7 +696,7 @@ means counsel has not made an operator-specific decision.
 
 - **Sources:** LFPDPPP for staff-user data; labor, IMSS, INFONAVIT, STPS,
   workplace, and payroll sources have not been assessed.
-- **Product posture:** FireISP stores user identity, permissions, audit data, and
+- **Product posture:** VigaBSS stores user identity, permissions, audit data, and
   can touch technician location, but it is not an HR/payroll/compliance product.
   A SAT catalog value or bundled XSLT does not establish nómina support.
 - **Trigger:** employee files, attendance, biometrics, continuous location,
@@ -711,9 +711,9 @@ means counsel has not made an operator-specific decision.
 - **Sources:** `SRC-EU-GDPR` and the laws/guidance of each relevant country.
 - **Trigger:** establishment, offering/monitoring, data subjects, processing,
   transfers, or contracts that bring a foreign regime into scope.
-- **FireISP support:** privacy inventory, consent/DSAR/security/retention and
+- **VigaBSS support:** privacy inventory, consent/DSAR/security/retention and
   processor configuration provide partial controls.
-- **Limits:** `global` locale is not a jurisdiction and FireISP has not assessed
+- **Limits:** `global` locale is not a jurisdiction and VigaBSS has not assessed
   member-state telecom/ePrivacy, representative, DPO, DPIA, transfer, breach,
   cookie, employment, or retention requirements.
 - **Decision ref:** none.
@@ -822,7 +822,7 @@ Copy this template; do not invent an unlisted status.
 - **Obligated party:**
 - **Applicability status and restricted counsel decision ref:**
 - **Data categories affected:**
-- **Product posture and precise FireISP support:**
+- **Product posture and precise VigaBSS support:**
 - **Explicit limitations / not supported:**
 - **Operator actions and deployment dependencies:**
 - **Acceptance evidence and tested release/commit:**
@@ -833,7 +833,7 @@ Copy this template; do not invent an unlisted status.
 - **Next calendar review and event triggers:**
 ```
 
-## Related FireISP documents
+## Related VigaBSS documents
 
 - [Mexican telecommunications regulatory reference](compliance-mexico.md) —
   current telecom/security-justice overview and legal boundary.

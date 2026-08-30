@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ContractDetail PPPoE tab tests
+// VigaBSS 5.0 — ContractDetail PPPoE tab tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';

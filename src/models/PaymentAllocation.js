@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PaymentAllocation Model
+// VigaBSS 5.0 — PaymentAllocation Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

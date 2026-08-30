@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Speed Window Service (§10.2)
+// VigaBSS 5.0 — Speed Window Service (§10.2)
 // =============================================================================
 // Time-based speed windows for plans. getActiveWindow() resolves the window
 // in force for a plan right now; applySpeedWindows() converges RADIUS state

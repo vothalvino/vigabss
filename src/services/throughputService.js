@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Network throughput aggregation
+// VigaBSS 5.0 — Network throughput aggregation
 // =============================================================================
 // Turns raw SNMP interface octet-counter samples into an org-wide throughput
 // series (in/out bit-rate per time bucket) plus peak/avg/p95 in Gbps.

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — aiReplyService.generate() proves ownership of BOTH ids
+// VigaBSS 5.0 — aiReplyService.generate() proves ownership of BOTH ids
 // =============================================================================
 // #601 added a contract_id ownership probe to src/routes/ai.js. That was the
 // wrong PLACE, and it also guarded only one of the two ids in the very request

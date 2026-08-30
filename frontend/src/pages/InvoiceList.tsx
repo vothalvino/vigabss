@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Invoice List
+// VigaBSS 5.0 — Invoice List
 // =============================================================================
 // Standalone page at /invoices. Shows all invoices across all clients with:
 //   • Filtering by status

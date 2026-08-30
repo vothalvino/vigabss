@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — BullMQ Workers & Queue Platform Tests
+// VigaBSS 5.0 — BullMQ Workers & Queue Platform Tests
 // =============================================================================
 
 jest.mock('../src/utils/logger', () => ({

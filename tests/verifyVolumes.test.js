@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Volume Persistence Verifier Tests
+// VigaBSS 5.0 — Volume Persistence Verifier Tests
 // =============================================================================
 
 const { classifyMounts, verify, DEFAULT_TARGETS } = require('../src/scripts/verify-volumes');

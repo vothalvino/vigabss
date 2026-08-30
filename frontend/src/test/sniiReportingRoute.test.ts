@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNII App/nav/i18n integration contract
+// VigaBSS 5.0 — SNII App/nav/i18n integration contract
 // =============================================================================
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
@@ -84,7 +84,7 @@ describe('SNII locale contract', () => {
     expect(en.sniiReporting.packages.truthHelp).toMatch(/separate states/);
     expect(en.sniiReporting.packages.truthHelp).toMatch(/authorized representative verifies and files them/);
     expect(en.sniiReporting.packages.truthHelp).toMatch(/operator-recorded evidence/);
-    expect(en.sniiReporting.packages.truthHelp).toMatch(/not verification by FireISP or the authority/);
+    expect(en.sniiReporting.packages.truthHelp).toMatch(/not verification by VigaBSS or the authority/);
   });
 
   it('does not silently fall back to English for the Spanish or Portuguese safety copy', () => {

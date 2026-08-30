@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE Profiles Page (§8.2)
+// VigaBSS 5.0 — CPE Profiles Page (§8.2)
 // =============================================================================
 // Tabbed page:
 //   Tab 1: Profiles — list/create/edit with parent selection, plan linkage, vendor targeting

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — GET /leads/:id/feasibility (desk check)
+// VigaBSS 5.0 — GET /leads/:id/feasibility (desk check)
 // =============================================================================
 
 const request = require('supertest');

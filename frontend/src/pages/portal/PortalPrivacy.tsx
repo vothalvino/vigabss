@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Privacy Notice (LFPDPPP §16)
+// VigaBSS 5.0 — Portal Privacy Notice (LFPDPPP §16)
 // =============================================================================
 // Renders the org's privacy notice (org-authored or the bundled template —
 // the backend decides) and records acceptance. The notice CONTENT arrives in

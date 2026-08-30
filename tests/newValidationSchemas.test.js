@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — New Validation Schemas Unit Tests
+// VigaBSS 5.0 — New Validation Schemas Unit Tests
 // =============================================================================
 // Tests all 38 new validation schema files for correctness.
 // =============================================================================

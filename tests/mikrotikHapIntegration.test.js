@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — MikroTik hAP Lab Integration Tests (Roadmap 3.1)
+// VigaBSS 5.0 — MikroTik hAP Lab Integration Tests (Roadmap 3.1)
 // =============================================================================
 // These tests validate the RouterOS API service against a real MikroTik device.
 //
@@ -100,7 +100,7 @@ describeHap('MikroTik hAP Lab Integration', () => {
       const result = await pppoeCreate(CONN, {
         name: secretName,
         secretPassword: 'TestPass!99',
-        comment: 'FireISP lab test — auto-cleanup',
+        comment: 'VigaBSS lab test — auto-cleanup',
       });
       expect(result).toHaveProperty('id');
       expect(typeof result.id).toBe('string');
@@ -141,7 +141,7 @@ describeHap('MikroTik hAP Lab Integration', () => {
         name: queueName,
         target: queueTarget,
         maxLimit: '10M/5M',
-        comment: 'FireISP lab test — auto-cleanup',
+        comment: 'VigaBSS lab test — auto-cleanup',
       });
       expect(result.created).toBe(true);
       expect(typeof result.id).toBe('string');
@@ -152,7 +152,7 @@ describeHap('MikroTik hAP Lab Integration', () => {
         name: queueName,
         target: queueTarget,
         maxLimit: '20M/10M',
-        comment: 'FireISP lab test — updated',
+        comment: 'VigaBSS lab test — updated',
       });
       expect(result.created).toBe(false);
       expect(typeof result.id).toBe('string');
@@ -195,7 +195,7 @@ describeHap('MikroTik hAP Lab Integration', () => {
       const result = await addressListAdd(CONN, {
         list: testList,
         address: testAddress,
-        comment: 'FireISP lab test — auto-cleanup',
+        comment: 'VigaBSS lab test — auto-cleanup',
       });
       expect(result).toHaveProperty('id');
       expect(typeof result.id).toBe('string');

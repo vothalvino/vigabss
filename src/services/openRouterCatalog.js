@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — OpenRouter model catalog
+// VigaBSS 5.0 — OpenRouter model catalog
 // =============================================================================
 // OpenRouter fronts hundreds of models from many vendors, and the roster changes
 // most weeks. A hardcoded list is stale by the next release and quietly denies

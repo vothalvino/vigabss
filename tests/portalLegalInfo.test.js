@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — GET /portal/legal-info (migration 449)
+// VigaBSS 5.0 — GET /portal/legal-info (migration 449)
 // =============================================================================
 // The portal footer's Carta de Derechos link: MX clients get the org's
 // configured URL or the official IFT document; the locale travels with it so

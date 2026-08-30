@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Pagination component tests
+// VigaBSS 5.0 — Pagination component tests
 // =============================================================================
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';

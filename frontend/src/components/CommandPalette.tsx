@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Command palette (Ctrl/Cmd+K) — "Faro" nav power layer
+// VigaBSS 5.0 — Command palette (Ctrl/Cmd+K) — "Faro" nav power layer
 // =============================================================================
 // Fuzzy jump-to-page over the nav registry, filtered to what the current
 // role/locale can actually see (same canSee() as the sidebar). Empty query

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Contract Validation Schemas
+// VigaBSS 5.0 — Contract Validation Schemas
 // =============================================================================
 
 const createContract = {

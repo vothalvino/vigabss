@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — routes that bypass crudController still cannot re-home a record
+// VigaBSS 5.0 — routes that bypass crudController still cannot re-home a record
 // =============================================================================
 // #604 put the ORG_IMMUTABLE check in crudController.applyUpdate. Right idea,
 // wrong altitude: TWELVE routes call

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Fiber Plant Service (§7.4)
+// VigaBSS 5.0 — Fiber Plant Service (§7.4)
 // =============================================================================
 // Provides the interface layer for fiber route topology, ODF management,
 // OTDR test records, and SFP lifecycle inventory.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Auth Context
+// VigaBSS 5.0 — Auth Context
 // =============================================================================
 // Manages:
 //   • Login  — POST /auth/login → store access token in memory, refresh in localStorage

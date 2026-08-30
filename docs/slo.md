@@ -1,7 +1,7 @@
-# FireISP 5.0 — Service Level Objectives (SLOs) & Alerting (P1.8)
+# VigaBSS 5.0 — Service Level Objectives (SLOs) & Alerting (P1.8)
 
 > **Audience:** Operations, on-call engineers, SRE.
-> This document defines the SLOs for FireISP, the Prometheus alerting rules
+> This document defines the SLOs for VigaBSS, the Prometheus alerting rules
 > that enforce them, and the on-call rotation policy.
 
 ---
@@ -72,23 +72,23 @@ catches sustained degradation.
 
 | Alert name | Condition | Severity | Action |
 |---|---|---|---|
-| `FireISP_API_HighErrorRate_FastBurn` | Error rate > 14.4× budget, 1 h + 5 min windows | critical | Immediate page |
-| `FireISP_API_HighErrorRate_SlowBurn` | Error rate > 6× budget, 6 h + 30 min windows | warning | Ticket + ack in 1 h |
-| `FireISP_API_HighErrorRate_LongBurn` | Error rate > 3× budget, 24 h + 6 h windows | info | Review in 4 h |
+| `VigaBSS_API_HighErrorRate_FastBurn` | Error rate > 14.4× budget, 1 h + 5 min windows | critical | Immediate page |
+| `VigaBSS_API_HighErrorRate_SlowBurn` | Error rate > 6× budget, 6 h + 30 min windows | warning | Ticket + ack in 1 h |
+| `VigaBSS_API_HighErrorRate_LongBurn` | Error rate > 3× budget, 24 h + 6 h windows | info | Review in 4 h |
 
 ### SLO-2 burn-rate alerts (latency)
 
 | Alert name | Condition | Severity | Action |
 |---|---|---|---|
-| `FireISP_API_HighLatency_FastBurn` | p99 > 500 ms for > 5 min, AND short window > 14.4× budget | critical | Immediate page |
-| `FireISP_API_HighLatency_SlowBurn` | p99 > 500 ms for > 30 min | warning | Ticket + ack in 1 h |
+| `VigaBSS_API_HighLatency_FastBurn` | p99 > 500 ms for > 5 min, AND short window > 14.4× budget | critical | Immediate page |
+| `VigaBSS_API_HighLatency_SlowBurn` | p99 > 500 ms for > 30 min | warning | Ticket + ack in 1 h |
 
 ### SLO-3 RADIUS alerts
 
 | Alert name | Condition | Severity | Action |
 |---|---|---|---|
-| `FireISP_RADIUS_AuthFailureSpike` | RADIUS accept rate < 99.5% over 5 min | critical | Immediate page |
-| `FireISP_RADIUS_AuthFailureSustained` | RADIUS accept rate < 99.95% over 1 h | warning | Ticket |
+| `VigaBSS_RADIUS_AuthFailureSpike` | RADIUS accept rate < 99.5% over 5 min | critical | Immediate page |
+| `VigaBSS_RADIUS_AuthFailureSustained` | RADIUS accept rate < 99.95% over 1 h | warning | Ticket |
 
 ---
 

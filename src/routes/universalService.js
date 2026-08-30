@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Universal Service Routes (§16.6)
+// VigaBSS 5.0 — Universal Service Routes (§16.6)
 // Covers: uso_obligations, rural_coverage_reports
 // =============================================================================
 

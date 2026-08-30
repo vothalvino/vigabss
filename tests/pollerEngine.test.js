@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Poller Engine Service Unit Tests (§6.4)
+// VigaBSS 5.0 — Poller Engine Service Unit Tests (§6.4)
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

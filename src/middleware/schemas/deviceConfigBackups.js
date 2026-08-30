@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Config Backup Validation Schemas
+// VigaBSS 5.0 — Device Config Backup Validation Schemas
 // =============================================================================
 
 const createDeviceConfigBackup = {

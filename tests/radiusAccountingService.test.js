@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS accounting lifecycle/projection tests
+// VigaBSS 5.0 — RADIUS accounting lifecycle/projection tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

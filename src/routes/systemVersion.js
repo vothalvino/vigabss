@@ -1,12 +1,12 @@
 // =============================================================================
-// FireISP 5.0 — System Version / Update Availability
+// VigaBSS 5.0 — System Version / Update Availability
 // =============================================================================
 // GET /api/v1/system/version — what this instance is running, and (only when
 // the operator has opted in) whether a newer commit exists upstream.
 //
 // INSTALL OPERATOR ONLY. Gated on the legacy users.role = 'admin' rather than a
 // permission slug, because the audience is a property of the INSTALL, not of a
-// tenant. FireISP is multi-tenant: a reseller's org-admin has no shell on the
+// tenant. VigaBSS is multi-tenant: a reseller's org-admin has no shell on the
 // box and cannot upgrade it, so showing them "a newer version is available" is
 // noise they can never act on — and it tells a tenant how often their provider
 // ships. A permission slug would be the wrong tool; every org's admin would end

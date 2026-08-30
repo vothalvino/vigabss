@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — PUT/PATCH /organizations/:id may not write another tenant's row
+// VigaBSS 5.0 — PUT/PATCH /organizations/:id may not write another tenant's row
 // =============================================================================
 // Organization.hasOrgScope is false, so BaseModel.update SILENTLY omits the
 // tenant predicate: `UPDATE organizations SET ... WHERE id = ?`. Combined with

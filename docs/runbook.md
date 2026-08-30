@@ -1,4 +1,4 @@
-# FireISP 5.0 — Operational Runbook
+# VigaBSS 5.0 — Operational Runbook
 
 Common operational scenarios and troubleshooting guides.
 
@@ -79,7 +79,7 @@ Common operational scenarios and troubleshooting guides.
    SELECT * FROM radius WHERE contract_id = <contract_id>;
    ```
 
-3. **Test UDP connectivity** from the FireISP server to the NAS:
+3. **Test UDP connectivity** from the VigaBSS server to the NAS:
    ```bash
    nc -u -z <nas_ip> <coa_port>
    ```
@@ -432,7 +432,7 @@ An incident should be **formally declared** (create an incident channel / ticket
 
 #### SEV1 — Status Page / Customer Email
 
-> **Subject:** [FireISP] Service interruption — [Date]
+> **Subject:** [VigaBSS] Service interruption — [Date]
 >
 > We are currently experiencing a service interruption affecting [describe affected service, e.g., internet connectivity for some customers].
 >
@@ -461,7 +461,7 @@ Bridge: [link if applicable]
 
 #### SEV2 — Status Page
 
-> **Subject:** [FireISP] Degraded service — [Date]
+> **Subject:** [VigaBSS] Degraded service — [Date]
 >
 > We are investigating a degraded service affecting [feature].
 >
@@ -473,7 +473,7 @@ Bridge: [link if applicable]
 
 #### Incident Resolution
 
-> **Subject:** [FireISP] Service restored — [Date]
+> **Subject:** [VigaBSS] Service restored — [Date]
 >
 > The service interruption that began at [start time UTC] has been resolved as of [resolution time UTC].
 >

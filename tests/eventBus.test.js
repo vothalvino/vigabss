@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Event Bus Unit Tests
+// VigaBSS 5.0 — Event Bus Unit Tests
 // =============================================================================
 
 const eventBus = require('../src/services/eventBus');

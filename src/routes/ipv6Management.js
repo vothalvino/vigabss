@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — IPv6 Management Routes (§5 Dual Stack)
+// VigaBSS 5.0 — IPv6 Management Routes (§5 Dual Stack)
 // RA Guard policies + subnet planner + pool conflict detection
 // =============================================================================
 

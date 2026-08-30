@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Win-back Campaign Management — §1.2 Customer Lifecycle
+// VigaBSS 5.0 — Win-back Campaign Management — §1.2 Customer Lifecycle
 // =============================================================================
 // Full CRUD for win-back campaigns targeting cancelled customers. Each campaign
 // defines:

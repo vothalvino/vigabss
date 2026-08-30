@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Thermal Receipt Service
+// VigaBSS 5.0 — Thermal Receipt Service
 // =============================================================================
 // Generates plain-text monospaced receipts for 58mm (32 chars) or
 // 80mm (48 chars) thermal printers.  No new migration needed — reads

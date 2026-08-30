@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CfdiCancellation Model
+// VigaBSS 5.0 — CfdiCancellation Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

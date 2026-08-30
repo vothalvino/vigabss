@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Remote Backup Settings Validation Schemas
+// VigaBSS 5.0 — Remote Backup Settings Validation Schemas
 // =============================================================================
 
 const updateBackupSettings = {

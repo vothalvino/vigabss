@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ServiceOrderList page tests (§1.2, simplified flow — migration 380)
+// VigaBSS 5.0 — ServiceOrderList page tests (§1.2, simplified flow — migration 380)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';

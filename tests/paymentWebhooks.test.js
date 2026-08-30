@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Webhooks & Idempotency Tests
+// VigaBSS 5.0 — Payment Webhooks & Idempotency Tests
 // =============================================================================
 
 const crypto = require('crypto');

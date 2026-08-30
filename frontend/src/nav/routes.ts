@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Navigation route registry ("Faro" nav)
+// VigaBSS 5.0 — Navigation route registry ("Faro" nav)
 // =============================================================================
 // Single source of truth for where every routed page lives in the UI.
 // Three consumers derive from this registry:

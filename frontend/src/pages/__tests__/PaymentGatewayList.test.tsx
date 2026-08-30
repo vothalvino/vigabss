@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PaymentGatewayList page tests
+// VigaBSS 5.0 — PaymentGatewayList page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';

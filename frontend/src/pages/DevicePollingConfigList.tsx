@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Polling Config Management (§6.4)
+// VigaBSS 5.0 — Device Polling Config Management (§6.4)
 // =============================================================================
 // Page at /device-polling-configs. Lists per-device polling overrides with
 // paginated table, create modal, and delete confirmation.

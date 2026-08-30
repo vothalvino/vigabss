@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Client Detail extra tabs (Subscriber Profile §1.1)
+// VigaBSS 5.0 — Client Detail extra tabs (Subscriber Profile §1.1)
 // =============================================================================
 // REST-backed tabs appended to ClientDetail:
 //   • ProfileExtrasTab — credit score, risk rating, GPS coords, geocode action,

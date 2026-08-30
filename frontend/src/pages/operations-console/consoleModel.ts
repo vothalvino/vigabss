@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP Operations Console — data model
+// VigaBSS Operations Console — data model
 // =============================================================================
 // One view-model for the whole console. Two producers feed it:
 //   • DEMO_MODEL  — the design's polished sample numbers, shown while the system

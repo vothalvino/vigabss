@@ -1,5 +1,5 @@
 # =============================================================================
-# FireISP 5.0 — Full-stack E2E test environment
+# VigaBSS 5.0 — Full-stack E2E test environment
 # =============================================================================
 # Spins up MySQL and the full production container (Express + bundled React),
 # then runs the Playwright smoke test suite against the live stack.
@@ -86,6 +86,6 @@ services:
       # admin with that value and the smoke suite logs in as it.
       ADMIN_PASSWORD: e2e-admin-password-not-for-production
     command: >
-      sh -c "corepack enable && corepack prepare pnpm@10.33.2 --activate && pnpm install --frozen-lockfile && pnpm --filter fireisp-e2e exec playwright install --with-deps chromium && pnpm --filter fireisp-e2e test"
+      sh -c "corepack enable && corepack prepare pnpm@10.33.2 --activate && pnpm install --frozen-lockfile && pnpm --filter vigabss-e2e exec playwright install --with-deps chromium && pnpm --filter vigabss-e2e test"
 
 volumes: {}

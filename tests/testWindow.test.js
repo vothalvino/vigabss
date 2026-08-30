@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — install test window (migration 448)
+// VigaBSS 5.0 — install test window (migration 448)
 // =============================================================================
 
 const request = require('supertest');

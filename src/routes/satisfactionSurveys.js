@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Satisfaction Survey Routes (NPS / CSAT) (§1.3)
+// VigaBSS 5.0 — Satisfaction Survey Routes (NPS / CSAT) (§1.3)
 // =============================================================================
 
 const { Router } = require('express');

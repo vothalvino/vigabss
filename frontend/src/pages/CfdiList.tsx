@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CFDI Management
+// VigaBSS 5.0 — CFDI Management
 // =============================================================================
 // Page at /cfdi. Shows all CFDI documents for the org with:
 //   • Filtering by status and type (I=Ingreso, E=Egreso, P=Pago)

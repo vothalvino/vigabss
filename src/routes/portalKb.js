@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Knowledge Base Admin Routes (§11.4)
+// VigaBSS 5.0 — Portal Knowledge Base Admin Routes (§11.4)
 // =============================================================================
 // Admin-side CRUD for knowledge-base / FAQ articles surfaced in the portal.
 // Mounted at /api/v1/portal-kb (staff-facing, requires JWT + permission).

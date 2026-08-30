@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PortalAuthContext tests
+// VigaBSS 5.0 — PortalAuthContext tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';

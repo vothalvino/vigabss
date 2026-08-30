@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE Diagnostics + Event Ingest Routes
+// VigaBSS 5.0 — PPPoE Diagnostics + Event Ingest Routes
 // =============================================================================
 // Mixed-auth router:
 //   - POST /events: machine-to-machine shared-secret auth (no JWT)

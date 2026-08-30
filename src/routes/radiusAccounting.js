@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Accounting Ingest Route (machine-to-machine)
+// VigaBSS 5.0 — RADIUS Accounting Ingest Route (machine-to-machine)
 // =============================================================================
 // FreeRADIUS rest module POST endpoint. No JWT authentication — uses a shared
 // secret in the Authorization: Bearer <secret> or X-Radius-Secret header.
@@ -35,7 +35,7 @@ function unwrapRadiusValue(value) {
   // FreeRADIUS 3 rlm_rest's native `body = 'json'` encoding is:
   //   "User-Name": { "type": "string", "value": ["alice"] }
   // Keep accepting the flat form used by hand-written shippers and older
-  // FireISP examples, but consume the real module wire shape directly.
+  // VigaBSS examples, but consume the real module wire shape directly.
   if (value && typeof value === 'object' && !Array.isArray(value)
       && Array.isArray(value.value)) {
     return value.value[0];

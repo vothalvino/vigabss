@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — useWebSocket hook
+// VigaBSS 5.0 — useWebSocket hook
 // =============================================================================
 // React hook that opens a WebSocket to the server's browser hub, authenticates
 // with the current access token (or the dedicated httpOnly WebSocket cookie

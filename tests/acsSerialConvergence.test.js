@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — TR-069 identity convergence: Inform serial → inventory unit
+// VigaBSS 5.0 — TR-069 identity convergence: Inform serial → inventory unit
 // =============================================================================
 // The inventory flow mints cpe_devices rows with oui = NULL (PO receive and
 // install-time registration both hardcode it), while the ACS resolved devices

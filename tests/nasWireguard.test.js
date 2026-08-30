@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAS WireGuard Route Tests (plan §9)
+// VigaBSS 5.0 — NAS WireGuard Route Tests (plan §9)
 // =============================================================================
 // Supertest HTTP-level coverage for the NAS WireGuard endpoints in
 // src/routes/nas.js:
@@ -172,7 +172,7 @@ describe('POST /api/nas/:id/wg/bootstrap', () => {
     Nas.findByIdOrFail.mockResolvedValue(mockNas);
 
     // Service resolves (no throw) with method:'snippet' — the route returns 200
-    const snippetText = '# FireISP WireGuard snippet\n/interface/wireguard add name=wg-fireisp';
+    const snippetText = '# VigaBSS WireGuard snippet\n/interface/wireguard add name=wg-fireisp';
     wgProvisioningService.bootstrap.mockResolvedValue({
       method: 'snippet',
       snippet: snippetText,

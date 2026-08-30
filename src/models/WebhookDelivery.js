@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WebhookDelivery Model
+// VigaBSS 5.0 — WebhookDelivery Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // =============================================================================
-// FireISP 5.0 — Static SQL column / ENUM check (no database required)
+// VigaBSS 5.0 — Static SQL column / ENUM check (no database required)
 // =============================================================================
-// FireISP's #1 historical bug class is column-name drift: the DB is fully mocked
+// VigaBSS's #1 historical bug class is column-name drift: the DB is fully mocked
 // in the jest suite, so an INSERT/UPDATE naming a column that does not exist
 // passes every test and 500s in production forever. `suspension_logs` shipped
 // exactly like that — four INSERTs writing `performed_by`, `invoice_id`,
@@ -57,11 +57,11 @@ const DYN = '@@DYN@@';
 
 // Tables the app talks to that are intentionally NOT in schema.sql. Most
 // FreeRADIUS tables (radcheck, radreply, radusergroup, radgroupcheck,
-// radgroupreply, radpostauth) are actually MIRRORED in schema.sql — FireISP
+// radgroupreply, radpostauth) are actually MIRRORED in schema.sql — VigaBSS
 // writes them directly, so they must be checked like any other table. Only
 // `radacct` (FreeRADIUS's own accounting table, written by FreeRADIUS itself,
-// never by FireISP) and `nas` were originally listed here as "external" — that
-// was wrong for `nas`: FireISP owns a first-party `nas` table (device
+// never by VigaBSS) and `nas` were originally listed here as "external" — that
+// was wrong for `nas`: VigaBSS owns a first-party `nas` table (device
 // inventory + RADIUS secrets) that IS in schema.sql, and excluding it meant
 // every INSERT/UPDATE against it went completely unchecked.
 // `information_schema` is MySQL's built-in system schema (used for runtime

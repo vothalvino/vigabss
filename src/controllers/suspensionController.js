@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Suspension Controller
+// VigaBSS 5.0 — Suspension Controller
 // =============================================================================
 // Domain-specific endpoints for contract suspension / reconnection workflow.
 // =============================================================================

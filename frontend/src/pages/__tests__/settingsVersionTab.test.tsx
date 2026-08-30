@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Settings / Version tab
+// VigaBSS 5.0 — Settings / Version tab
 // =============================================================================
 // The tab answers "what am I running?", which had no home in the product: the
 // update banner only appears when an update IS available AND the check is

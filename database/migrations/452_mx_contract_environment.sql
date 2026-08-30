@@ -1,8 +1,8 @@
 -- =============================================================================
 -- Migration 452 — MX contract sandbox / production separation
 -- =============================================================================
--- PROFECO does not provide FireISP with a test registry.  Sandbox mode is a
--- FireISP-only simulation lane whose records must never be mistaken for an
+-- PROFECO does not provide VigaBSS with a test registry.  Sandbox mode is a
+-- VigaBSS-only simulation lane whose records must never be mistaken for an
 -- externally registered contrato de adhesion.  Production remains the lane
 -- for the real external registration workflow.
 --
@@ -61,7 +61,7 @@ BEGIN
     ALTER TABLE contract_templates_mx
       ADD COLUMN environment ENUM('sandbox','production')
         NOT NULL DEFAULT 'production'
-        COMMENT 'Immutable legal-evidence lane; sandbox is a FireISP simulation, production is externally registered workflow'
+        COMMENT 'Immutable legal-evidence lane; sandbox is a VigaBSS simulation, production is externally registered workflow'
         AFTER organization_id;
   END IF;
 
@@ -93,7 +93,7 @@ BEGIN
     ALTER TABLE contract_templates_mx
       MODIFY COLUMN environment ENUM('sandbox','production')
         NOT NULL DEFAULT 'sandbox'
-        COMMENT 'Immutable legal-evidence lane; sandbox is a FireISP simulation, production is externally registered workflow';
+        COMMENT 'Immutable legal-evidence lane; sandbox is a VigaBSS simulation, production is externally registered workflow';
   END IF;
 
   IF NOT EXISTS (

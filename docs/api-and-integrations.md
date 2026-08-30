@@ -1,4 +1,4 @@
-# FireISP 5.0 — APIs & Integrations (§20)
+# VigaBSS 5.0 — APIs & Integrations (§20)
 
 ## 20.1 Core REST API
 
@@ -48,7 +48,7 @@ The following event types are dispatched to registered webhooks:
 
 ### Inbound Payment-Provider Webhooks (Stripe / Conekta)
 
-These are webhooks FireISP **receives** from a payment processor to auto-reconcile
+These are webhooks VigaBSS **receives** from a payment processor to auto-reconcile
 payments (mark invoices paid, record refunds/disputes). They are **public**
 endpoints authenticated by the provider's **HMAC signature** — never by a JWT.
 The receiver **fails closed**: if it can't verify a request, it rejects it rather
@@ -151,7 +151,7 @@ Base path: `/api/v1/integrations` — all require JWT auth + `X-Org-Id`.
 3. Update `integration_connections.status` to `'active'` and `last_synced_at`.
 4. Return the log entry.
 
-No live HTTP calls are made. Connectors for providers that have existing FireISP services (Stripe/Conekta, Twilio/Vonage, SendGrid, CFDI PAC) note the delegation path in code comments but do not call those services from `testConnection`/`sync` — the existing services have their own connectivity mechanisms (circuit breakers, PAC health checks).
+No live HTTP calls are made. Connectors for providers that have existing VigaBSS services (Stripe/Conekta, Twilio/Vonage, SendGrid, CFDI PAC) note the delegation path in code comments but do not call those services from `testConnection`/`sync` — the existing services have their own connectivity mechanisms (circuit breakers, PAC health checks).
 
 ### Frontend
 

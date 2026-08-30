@@ -5,7 +5,7 @@
 -- the application container any privilege on the host.
 --
 -- WHY THIS SHAPE. The obvious implementation mounts the Docker socket into the
--- app container. That is root on the host: any RCE or path traversal in FireISP
+-- app container. That is root on the host: any RCE or path traversal in VigaBSS
 -- would own the machine rather than the app. The same architecture was already
 -- refused for the TLS renew button, and it is refused here.
 --

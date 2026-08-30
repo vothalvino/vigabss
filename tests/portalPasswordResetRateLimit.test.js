@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal password-reset rate-limit isolation test
+// VigaBSS 5.0 — Portal password-reset rate-limit isolation test
 // =============================================================================
 // Guards the fix from migration 385: POST /portal/auth/password-reset/request
 // uses a DEDICATED portalPasswordResetLimiter instance, separate from the

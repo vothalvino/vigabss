@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — NAT Pool Validation Schemas
+// VigaBSS 5.0 — NAT Pool Validation Schemas
 // =============================================================================
 
 const createNatPool = {

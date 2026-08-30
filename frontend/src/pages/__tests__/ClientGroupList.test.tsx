@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ClientGroupList page tests (§1.1)
+// VigaBSS 5.0 — ClientGroupList page tests (§1.1)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Late Fee Service
+// VigaBSS 5.0 — Late Fee Service
 // =============================================================================
 // Applies configured late fee rules to overdue invoices.
 // Emits invoice.late_fee_applied event for notification hooks.

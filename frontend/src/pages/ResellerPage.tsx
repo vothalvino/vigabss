@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Reseller Management Page (Section 19)
+// VigaBSS 5.0 — Reseller Management Page (Section 19)
 // =============================================================================
 // Multi-tab page covering §19 Reseller Support:
 //   1. Resellers      — hierarchy list (master + sub-resellers)

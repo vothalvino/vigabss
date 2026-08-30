@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay WebSocket Tunnel Server
+// VigaBSS 5.0 — FireRelay WebSocket Tunnel Server
 // =============================================================================
 // Manages persistent WebSocket connections from remote POP-site agents.
 // Each agent connects outbound to the central server, authenticates with a

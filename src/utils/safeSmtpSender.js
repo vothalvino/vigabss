@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — one-shot, DNS-pinned and cancellable SMTP delivery
+// VigaBSS 5.0 — one-shot, DNS-pinned and cancellable SMTP delivery
 // =============================================================================
 // Tenant SMTP destinations are untrusted egress configuration: every delivery
 // resolves all addresses, rejects non-public results, and connects to one of

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — BullMQ Worker Registry
+// VigaBSS 5.0 — BullMQ Worker Registry
 // =============================================================================
 // Registers handlers for all named job queues. When REDIS_URL is set the
 // handlers are backed by BullMQ Workers; otherwise the InProcessQueue fallback

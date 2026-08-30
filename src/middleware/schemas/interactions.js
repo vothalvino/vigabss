@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Interaction Tracking Validation Schemas (§1.3)
+// VigaBSS 5.0 — Interaction Tracking Validation Schemas (§1.3)
 // =============================================================================
 // Covers client interactions, follow-up reminders, satisfaction surveys, and
 // ticket escalations. See migration 196.

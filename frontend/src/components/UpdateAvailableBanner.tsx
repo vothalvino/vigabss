@@ -1,11 +1,11 @@
 // =============================================================================
-// FireISP 5.0 — "a newer release is available" banner
+// VigaBSS 5.0 — "a newer release is available" banner
 // =============================================================================
 // Shows the INSTALL OPERATOR, once a day, that main has moved past the commit
 // this instance is running.
 //
 // Only rendered for the legacy users.role === 'admin' — an EXACT check, the
-// same one Layout.tsx uses. FireISP is multi-tenant: a reseller's org-admin has
+// same one Layout.tsx uses. VigaBSS is multi-tenant: a reseller's org-admin has
 // no shell on the box and cannot upgrade it, so telling them a newer version
 // exists is noise they can never act on, and it advertises the provider's
 // release cadence to its own tenants. The backend enforces this too (the

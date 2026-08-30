@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Adjustment Service Tests
+// VigaBSS 5.0 — Billing Adjustment Service Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

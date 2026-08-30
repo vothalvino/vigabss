@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Browser WebSocket authentication helpers
+// VigaBSS 5.0 — Browser WebSocket authentication helpers
 // =============================================================================
 // Browsers cannot attach an Authorization header to a WebSocket upgrade and the
 // SPA deliberately keeps access tokens in memory only. After a page reload,

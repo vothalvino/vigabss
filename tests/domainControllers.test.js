@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Domain Controller Tests
+// VigaBSS 5.0 — Domain Controller Tests
 // =============================================================================
 // Tests for billingController, cfdiController, suspensionController,
 // dashboardController, exportController, and importController.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Service Worker (§11.5 PWA)
+// VigaBSS 5.0 — Portal Service Worker (§11.5 PWA)
 // =============================================================================
 // Provides basic offline support (network-first with cache fallback) and
 // handles Web Push notifications for outage / billing / ticket events.
@@ -77,10 +77,10 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch (_) {
-    data = { title: 'FireISP', body: event.data ? event.data.text() : '' };
+    data = { title: 'VigaBSS', body: event.data ? event.data.text() : '' };
   }
 
-  const title = data.title || 'FireISP';
+  const title = data.title || 'VigaBSS';
   const options = {
     body: data.body || '',
     icon: '/icons/icon-192.png',

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Plan Availability Check
+// VigaBSS 5.0 — Plan Availability Check
 // =============================================================================
 // Shared "is this plan selectable for a NEW or newly-moved assignment?" guard,
 // used by routes/contracts.js (contract create + plan-move on PUT/PATCH/renew)

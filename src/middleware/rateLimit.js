@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Rate Limiting Middleware
+// VigaBSS 5.0 — Rate Limiting Middleware
 // =============================================================================
 // Tiered rate limits: public < general < authenticated < admin.
 // Each tier has a different request quota.

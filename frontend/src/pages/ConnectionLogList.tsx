@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Subscriber sessions and case-bound IP attribution
+// VigaBSS 5.0 — Subscriber sessions and case-bound IP attribution
 // =============================================================================
 
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';

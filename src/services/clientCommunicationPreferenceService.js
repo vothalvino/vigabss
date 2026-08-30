@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Authoritative client communication preference enforcement
+// VigaBSS 5.0 — Authoritative client communication preference enforcement
 // =============================================================================
 // `client_dnd_preferences` is the mutable delivery veto for every client-
 // directed email, SMS, and WhatsApp message. Marketing delivery additionally

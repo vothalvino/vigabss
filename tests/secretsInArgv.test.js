@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — no credential may reach process argv
+// VigaBSS 5.0 — no credential may reach process argv
 // =============================================================================
 // /proc/<pid>/cmdline is mode 0444: every local account can read the argv of
 // every process on the box, root's included — and CONTAINER processes appear in

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Geocoding Service (Google Maps Geocoding API)
+// VigaBSS 5.0 — Geocoding Service (Google Maps Geocoding API)
 // =============================================================================
 // Resolves a postal/service address to GPS coordinates (latitude/longitude) for
 // the client service-address map pin (isp-platform-features.md §1.1).

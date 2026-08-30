@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Subscriber Provisioning Service
+// VigaBSS 5.0 — Subscriber Provisioning Service
 // =============================================================================
 // Handles the network-side provisioning that must happen over a contract's
 // lifecycle:

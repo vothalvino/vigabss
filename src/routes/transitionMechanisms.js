@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — IPv6 Transition Mechanism Routes (§5 Dual Stack)
+// VigaBSS 5.0 — IPv6 Transition Mechanism Routes (§5 Dual Stack)
 // Covers: 6rd, DS-Lite, MAP-Rules, 464XLAT
 // All sub-paths share transition_mechanisms.view/create/update/delete permissions.
 // =============================================================================

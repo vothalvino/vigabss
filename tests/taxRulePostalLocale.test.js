@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — an MX org may only use 5-digit postal codes in a tax rule
+// VigaBSS 5.0 — an MX org may only use 5-digit postal codes in a tax rule
 // =============================================================================
 // A Mexican código postal is always exactly five digits. Anything else in an
 // MX org's tax rule is a data-entry error, and a SILENT one: "0801" or "K1A*"

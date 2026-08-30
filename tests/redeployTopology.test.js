@@ -62,7 +62,7 @@ describe('redeploy preserves the installer topology', () => {
     expect(install).toContain('FIREISP_HOST_NGINX=${USE_HOST_NGINX}');
     const commandAt = install.indexOf('REDEPLOY_BIN="/usr/local/bin/redeploy"');
     const tlsAt = install.indexOf('── TLS Certificates');
-    const startAt = install.indexOf('── Starting FireISP');
+    const startAt = install.indexOf('── Starting VigaBSS');
     expect(commandAt).toBeGreaterThan(0);
     expect(commandAt).toBeLessThan(tlsAt);
     expect(commandAt).toBeLessThan(startAt);

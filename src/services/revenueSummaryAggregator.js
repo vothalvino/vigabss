@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — monthly revenue summary aggregation
+// VigaBSS 5.0 — monthly revenue summary aggregation
 // =============================================================================
 // Fills revenue_summary, which five queries in reportService read and nothing
 // ever wrote. `populate_revenue_summary` returned the string "populated by

@@ -8,7 +8,7 @@ const request = require('supertest');
 const app = require('../src/app');
 
 // ---------------------------------------------------------------------------
-// Mock auth middleware (standard pattern for FireISP tests)
+// Mock auth middleware (standard pattern for VigaBSS tests)
 // ---------------------------------------------------------------------------
 jest.mock('../src/middleware/auth', () => ({
   authenticate: (req, _res, next) => {

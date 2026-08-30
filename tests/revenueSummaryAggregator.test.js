@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — monthly revenue summary aggregation (j52)
+// VigaBSS 5.0 — monthly revenue summary aggregation (j52)
 // =============================================================================
 // revenue_summary is read by five queries in reportService (Churn Revenue
 // Impact, Capacity Forecast, …) and was written by nothing.

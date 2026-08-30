@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SSO Service (P2.1)
+// VigaBSS 5.0 — SSO Service (P2.1)
 // =============================================================================
 // Handles SAML 2.0 and OIDC authentication flows for per-organization SSO.
 //
@@ -8,8 +8,8 @@
 //   OIDC: generateOidcLoginUrl() → processOidcCallback()  → mintTokens()
 //
 // Both flows end by calling findOrCreateSsoUser() which resolves the local
-// FireISP user (creating one on first login when auto_provision=1) and maps
-// IdP group memberships to FireISP roles via the group-mappings table.
+// VigaBSS user (creating one on first login when auto_provision=1) and maps
+// IdP group memberships to VigaBSS roles via the group-mappings table.
 // =============================================================================
 
 const crypto = require('crypto');
@@ -472,7 +472,7 @@ function normalizeOidcProfile(userinfo, attrMap, groupAttr) {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve (or auto-create) a FireISP user from an SSO profile.
+ * Resolve (or auto-create) a VigaBSS user from an SSO profile.
  *
  * Matching strategy:
  *   1. Find existing user by email.

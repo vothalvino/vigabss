@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Safe dynamic INSERT/UPDATE builders
+// VigaBSS 5.0 — Safe dynamic INSERT/UPDATE builders
 // =============================================================================
 // The DB layer (src/config/database.js) sends every query through
 // mysql2 `pool.execute()` (prepared statements). Prepared statements CANNOT

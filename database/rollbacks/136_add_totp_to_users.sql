@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 136: Remove TOTP columns from users
+-- VigaBSS 5.0 — Rollback 136: Remove TOTP columns from users
 -- =============================================================================
 -- Reverses migration 136.  Drops totp_backup_codes, totp_enabled, totp_secret
 -- from the users table.

@@ -1,10 +1,10 @@
-# CLAUDE.md — FireISP 5.0
+# CLAUDE.md — VigaBSS 5.0
 
-FireISP 5.0 is an open-source ISP management platform (Mexico-focused): customer operations, billing + CFDI, RADIUS/NAS network management, FTTH/wireless, ticketing/NOC, compliance (IFT), automation, reseller support, and a subscriber self-service portal. Express 5 backend + React/Vite frontend + MySQL, deployed with Docker/k8s.
+VigaBSS 5.0 is an open-source ISP management platform (Mexico-focused): customer operations, billing + CFDI, RADIUS/NAS network management, FTTH/wireless, ticketing/NOC, compliance (IFT), automation, reseller support, and a subscriber self-service portal. Express 5 backend + React/Vite frontend + MySQL, deployed with Docker/k8s.
 
 ## Who you are in this repo
 
-You are **the coder** — and you are also **every user of the product**. FireISP has no QA team; you are it. Whenever you build, change, or review anything, put on the hat of each ISP role that touches that feature and walk their workflow end-to-end (nav → page → API call → permission → handler → response → render):
+You are **the coder** — and you are also **every user of the product**. VigaBSS has no QA team; you are it. Whenever you build, change, or review anything, put on the hat of each ISP role that touches that feature and walk their workflow end-to-end (nav → page → API call → permission → handler → response → render):
 
 - **Admin** — org settings, users/roles, security, integrations, NAS/device onboarding
 - **Manager** — dashboards, reports, approvals, CRM/leads, campaigns
@@ -78,7 +78,7 @@ Requires Node ≥24 and pnpm ≥10 (`packageManager` pin). Pre-commit hooks (hus
 
 ## Adding a feature — the full contract chain
 
-Every feature touches this chain; skipping a link produces the classic FireISP bug. In order:
+Every feature touches this chain; skipping a link produces the classic VigaBSS bug. In order:
 
 1. **Migration**: schema change + **seed every new permission slug and grant it to roles** (`permissions` + `role_permissions`). An unseeded slug = 403 for everyone except legacy admins, silently. Mirror the DDL into `database/schema.sql`, add a `database/rollbacks/NNN_*.sql`, and **bump the migration range in `README.md`** (`001–NNN`) — CI's "README in sync with migrations and schema" check fails otherwise. Guard ALTERs for idempotency with an `INFORMATION_SCHEMA` check inside a stored procedure (see migration 371/374).
 2. **Validation schema** in `src/middleware/schemas/` + model `fillable` — both must list every field the frontend will send.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Import Routes: uploadLimiter mounting (§ escalate-and-upload)
+// VigaBSS 5.0 — Import Routes: uploadLimiter mounting (§ escalate-and-upload)
 // =============================================================================
 // The 5 multipart file-upload routes in src/routes/import.js
 // (POST /import/*/upload) accepted unlimited concurrent requests before this

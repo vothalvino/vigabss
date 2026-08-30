@@ -3,7 +3,7 @@
 -- =============================================================================
 -- 'pac'   = the PAC seals with the CSD registered in ITS vault (SW "Emisión",
 --           Facturama-style) — the pre-410 behavior, kept as the default.
--- 'local' = FireISP seals with the organization's ACTIVE csd_certificates row
+-- 'local' = VigaBSS seals with the organization's ACTIVE csd_certificates row
 --           (cfdiSealService, engine sandbox-proven byte-compatible) and sends
 --           the SEALED XML to the PAC's stamp-only tier (SW "Timbrado",
 --           /cfdi33/stamp/v4 multipart — probe-verified). The CSD private key
@@ -24,7 +24,7 @@ BEGIN
   ) THEN
     ALTER TABLE pac_providers
       ADD COLUMN seal_mode ENUM('pac', 'local') NOT NULL DEFAULT 'pac'
-        COMMENT 'pac = provider seals with vaulted CSD (Emisión); local = FireISP seals with the org''s active CSD and sends sealed XML to the stamp-only tier'
+        COMMENT 'pac = provider seals with vaulted CSD (Emisión); local = VigaBSS seals with the org''s active CSD and sends sealed XML to the stamp-only tier'
         AFTER environment;
   END IF;
 END //

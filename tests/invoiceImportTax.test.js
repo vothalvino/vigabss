@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — the CSV invoice importer and tax
+// VigaBSS 5.0 — the CSV invoice importer and tax
 // =============================================================================
 // Three defects in one statement, all of which write a wrong fiscal row
 // silently and en masse — an importer is the one place a mistake is multiplied

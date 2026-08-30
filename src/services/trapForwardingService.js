@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — durable SNMP trap forwarding
+// VigaBSS 5.0 — durable SNMP trap forwarding
 // =============================================================================
 // A received trap is stored first. forwardTrap() then evaluates tenant-scoped
 // rules and persists immutable delivery jobs containing only allowlisted trap
@@ -1236,9 +1236,9 @@ async function attemptDelivery(deliveryId, expectedOrganizationId = null, primar
         operationalRecipient: true,
         emailFunction: 'noc',
         to: row.target_email,
-        subject: `FireISP SNMP trap: ${trapType}`,
+        subject: `VigaBSS SNMP trap: ${trapType}`,
         text: plain,
-        html: `<p>FireISP received an SNMP trap matching rule <strong>${escapeHtml(row.rule_name || '')}</strong>.</p><pre>${escapeHtml(plain)}</pre>`,
+        html: `<p>VigaBSS received an SNMP trap matching rule <strong>${escapeHtml(row.rule_name || '')}</strong>.</p><pre>${escapeHtml(plain)}</pre>`,
         absoluteTimeoutMs: EMAIL_DELIVERY_TIMEOUT_MS,
         // Trap forwarding is tenant-configurable. Never let a rule/test use
         // the tenant's arbitrary SMTP host as a network target; only the
@@ -1279,10 +1279,10 @@ async function attemptDelivery(deliveryId, expectedOrganizationId = null, primar
         : null;
       const response = await safeHttpsPost(row.target_url, body, {
         'Content-Type': 'application/json',
-        'User-Agent': 'FireISP-Trap-Forwarder/5.0',
-        'X-FireISP-Event': event,
-        'X-FireISP-Delivery-Id': String(row.id),
-        ...(signature && { 'X-FireISP-Signature': `sha256=${signature}` }),
+        'User-Agent': 'VigaBSS-Trap-Forwarder/5.0',
+        'X-VigaBSS-Event': event,
+        'X-VigaBSS-Delivery-Id': String(row.id),
+        ...(signature && { 'X-VigaBSS-Signature': `sha256=${signature}` }),
       }, timeoutMs);
       httpStatus = response.statusCode;
       responseTimeMs = response.responseTimeMs;

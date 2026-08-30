@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — UserWgTunnels page tests
+// VigaBSS 5.0 — UserWgTunnels page tests
 // =============================================================================
 // Covers the self-service WireGuard tunnel page, in particular:
 //   - AddPeerModal: full_tunnel checkbox renders checked by default

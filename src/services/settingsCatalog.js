@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Settings catalog (j56)
+// VigaBSS 5.0 — Settings catalog (j56)
 // =============================================================================
 // Single source of truth for which setting keys exist and where each one
 // lives. Two scopes, split by migration 443:

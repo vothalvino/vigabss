@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FUP (Fair Use Policy) Throttle Service
+// VigaBSS 5.0 — FUP (Fair Use Policy) Throttle Service
 // =============================================================================
 // Applies and restores FUP speed throttling for contracts that have exceeded
 // their plan's fair-use policy threshold.

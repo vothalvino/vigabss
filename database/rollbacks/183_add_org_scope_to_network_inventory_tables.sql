@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 183: Remove org scope from network/inventory tables
+-- VigaBSS 5.0 — Rollback 183: Remove org scope from network/inventory tables
 -- =============================================================================
 -- Reverses migration 183 by dropping the organization_id foreign key, index,
 -- and column from devices, inventory_items, and network_links.  Uses guarded

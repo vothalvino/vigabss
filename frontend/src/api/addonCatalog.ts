@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Product/add-on catalog fetch (Inventory Phase 2 + follow-up)
+// VigaBSS 5.0 — Product/add-on catalog fetch (Inventory Phase 2 + follow-up)
 // =============================================================================
 // Shared by InvoiceDetail.tsx / QuoteDetail.tsx's "Add Item" product pickers
 // AND GenerateInvoiceModal.tsx / GenerateQuoteModal.tsx's product line type.
