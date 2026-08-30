@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Mexico SNII infrastructure reporting preparation
+// VigaBSS 5.0 — Mexico SNII infrastructure reporting preparation
 // =============================================================================
 // This is deliberately a preparation/evidence workflow. Generating an artifact
 // never means it was submitted to, or accepted by, the CRT.

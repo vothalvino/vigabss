@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PTR Record (Reverse DNS) Management
+// VigaBSS 5.0 — PTR Record (Reverse DNS) Management
 // =============================================================================
 // Standalone page at /ptr-records. Lists PTR records with a status filter,
 // paginated table, "New PTR Record" create modal, and per-row Edit and Delete.

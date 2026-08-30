@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Monthly CFDI Reconciliation Report Tests
+// VigaBSS 5.0 — Monthly CFDI Reconciliation Report Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

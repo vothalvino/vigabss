@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Group Validation Schemas
+// VigaBSS 5.0 — Client Group Validation Schemas
 // =============================================================================
 
 const createClientGroup = {

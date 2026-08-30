@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — org-scoping helpers for tables backfilled from a parent
+// VigaBSS 5.0 — org-scoping helpers for tables backfilled from a parent
 // =============================================================================
 // Several tables gained organization_id late, backfilled from a parent row
 // (an outage from its site/device, a speed test from its client/contract).

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — API Token Scope Utilities
+// VigaBSS 5.0 — API Token Scope Utilities
 // =============================================================================
 // Defines the scope system for API tokens. Scopes restrict what an API token
 // can do, layered on top of the user's RBAC permissions.

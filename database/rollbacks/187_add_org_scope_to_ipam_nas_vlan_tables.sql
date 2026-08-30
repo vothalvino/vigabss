@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 187: Remove org scope from IPAM/NAS/VLAN tables
+-- VigaBSS 5.0 — Rollback 187: Remove org scope from IPAM/NAS/VLAN tables
 -- =============================================================================
 -- Reverses migration 187 by dropping the organization_id foreign key, index,
 -- and column from nas, ip_pools, ip_assignments, and vlans.  Uses guarded

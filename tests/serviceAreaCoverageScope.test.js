@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — coverage zones are org-scoped
+// VigaBSS 5.0 — coverage zones are org-scoped
 // =============================================================================
 // GET /service-areas/:id/coverage-zones took the id straight from the URL and
 // queried coverage_zones with no org predicate:

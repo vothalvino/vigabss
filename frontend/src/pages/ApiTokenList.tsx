@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — API Token Management
+// VigaBSS 5.0 — API Token Management
 // =============================================================================
 // Standalone page at /api-tokens. Lists personal/organization API tokens with a
 // "New Token" create modal (the plaintext token is shown exactly once on

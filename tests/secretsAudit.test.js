@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Secrets Audit Tests (P1.4)
+// VigaBSS 5.0 — Secrets Audit Tests (P1.4)
 // =============================================================================
 // Verifies that:
 //   1. Health endpoints never expose secret values or secret env-var names.

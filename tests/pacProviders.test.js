@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PAC Provider Route Tests
+// VigaBSS 5.0 — PAC Provider Route Tests
 // =============================================================================
 // Regression coverage for the secret-redaction fix (same vulnerability class
 // as src/routes/paymentGateways.js): username_encrypted, password_encrypted,

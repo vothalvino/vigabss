@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — GET /map-config
+// VigaBSS 5.0 — GET /map-config
 // =============================================================================
 // Every map hardcoded OpenStreetMap's public tile server. OSM is the right
 // DEFAULT — no account, no API key, no signup, so a fresh install has working

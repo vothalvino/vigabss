@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Soak Test Unit Tests (P1.6)
+// VigaBSS 5.0 — Soak Test Unit Tests (P1.6)
 // =============================================================================
 // Tests for the soak test script's exportable helper: probeRssMb.
 // The main() integration is not exercised here because it requires a live

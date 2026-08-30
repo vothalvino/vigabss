@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ODF Frame/Port/Cross-Connect Validation Schemas (§7.4)
+// VigaBSS 5.0 — ODF Frame/Port/Cross-Connect Validation Schemas (§7.4)
 // =============================================================================
 
 const FRAME_TYPES = ['rack', 'wall_mount', 'splice_closure', 'patch_panel', 'other'];

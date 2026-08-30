@@ -2,13 +2,13 @@
 
 **Date:** 2026-04-20  
 **Status:** Accepted  
-**Deciders:** FireISP core team
+**Deciders:** VigaBSS core team
 
 ---
 
 ## Context
 
-FireISP 5.0 ships a legacy vanilla-JS SPA in `/public` (56 pages registered in `js/pages.js`).
+VigaBSS 5.0 ships a legacy vanilla-JS SPA in `/public` (56 pages registered in `js/pages.js`).
 It will be **replaced**, not extended.
 The new frontend must:
 

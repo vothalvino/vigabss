@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CFDI Document Routes
+// VigaBSS 5.0 — CFDI Document Routes
 // =============================================================================
 
 const { Router } = require('express');
@@ -85,7 +85,7 @@ router.get('/:id/related', requirePermission('cfdi_documents.view'), async (req,
 // all. Per the column comments in database/schema.sql, 'cancelado' means "SAT
 // confirmed cancellation" and cancelled_at means "Timestamp when SAT confirmed
 // cancellation" — that write was a legally false fiscal record: SAT still held
-// the CFDI as vigente while FireISP reported it cancelled (which would
+// the CFDI as vigente while VigaBSS reported it cancelled (which would
 // under-report declared income in getReconciliationReport /
 // getMonthlyReport), and — because cfdiService.cancel() guards
 // `sat_status !== 'vigente'` — the document became permanently

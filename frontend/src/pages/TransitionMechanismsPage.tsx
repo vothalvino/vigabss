@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IPv6 Transition Mechanisms
+// VigaBSS 5.0 — IPv6 Transition Mechanisms
 // =============================================================================
 // Tabbed page with 4 tabs: 6rd, DS-Lite, MAP Rules, 464XLAT.
 // Each tab provides a CRUD table + modal for its transition mechanism type.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — invoice-PDF fiscal gating (MX vs global orgs)
+// VigaBSS 5.0 — invoice-PDF fiscal gating (MX vs global orgs)
 // =============================================================================
 // USER CONSTRAINT (pinned): the representación impresa work must NEVER touch
 // non-MX org invoicing. Global orgs keep their exact plain-invoice path — no

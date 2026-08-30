@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Payment Reminder Settings (§2.2B)
+// VigaBSS 5.0 — Payment Reminder Settings (§2.2B)
 // =============================================================================
 // Billing-only page to configure automated payment reminder schedules:
 //   - days before due: e.g. [7, 3, 1]

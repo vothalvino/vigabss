@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — MAC Move Events
+// VigaBSS 5.0 — MAC Move Events
 // =============================================================================
 // Read-only table page at /mac-move-events. Shows MAC address move detection
 // events recorded by the RADIUS stack. Paginated, no create/edit/delete.

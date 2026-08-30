@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Organization Detail (tabbed)
+// VigaBSS 5.0 — Organization Detail (tabbed)
 // =============================================================================
 // Admin page at /organizations/:id. Consolidates what used to be per-row
 // modals on /organizations into tabs — Edit, Settings, Quota — and adds a

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Remote Backup Settings Service
+// VigaBSS 5.0 — Remote Backup Settings Service
 // =============================================================================
 // Thin service layer between src/routes/backupSettings.js and
 // src/models/BackupSettings.js / BackupRun.js — the emailSettingsService
@@ -158,7 +158,7 @@ async function testRemote() {
   }
 
   const objectKey = `${cloudStorage.normalizedPrefix(config)}fireisp-connection-test-${Date.now()}.txt`;
-  const body = Buffer.from(`FireISP backup connection test ${new Date().toISOString()}\n`, 'utf8');
+  const body = Buffer.from(`VigaBSS backup connection test ${new Date().toISOString()}\n`, 'utf8');
 
   try {
     const url = await cloudStorage.uploadObject(config, objectKey, body, 'text/plain');

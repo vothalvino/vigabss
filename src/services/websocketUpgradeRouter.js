@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — shared WebSocket upgrade router
+// VigaBSS 5.0 — shared WebSocket upgrade router
 // =============================================================================
 // Node's HTTP server broadcasts every `upgrade` event to every listener. The
 // `ws` package's `{ server, path }` shortcut rejects paths it does not own,

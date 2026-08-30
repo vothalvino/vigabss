@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RBAC Middleware
+// VigaBSS 5.0 — RBAC Middleware
 // =============================================================================
 // Checks that the authenticated user has the required permission slug(s)
 // based on their role within the current organization.

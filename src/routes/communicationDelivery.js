@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Communication Delivery Webhook Route — §1.4
+// VigaBSS 5.0 — Communication Delivery Webhook Route — §1.4
 // =============================================================================
 // Receives provider delivery status callbacks (email and SMS providers).
 // No authentication — uses a shared secret header for basic verification.

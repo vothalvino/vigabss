@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Trap Forwarding Rule Routes  §6.1
+// VigaBSS 5.0 — SNMP Trap Forwarding Rule Routes  §6.1
 // =============================================================================
 
 const { Router } = require('express');

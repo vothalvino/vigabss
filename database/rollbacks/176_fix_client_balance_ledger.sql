@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 176: Revert client_balance_ledger fixes
+-- VigaBSS 5.0 — Rollback 176: Revert client_balance_ledger fixes
 -- =============================================================================
 -- Reverses migration 176 by dropping the amount, currency, and reference_type
 -- columns, removing the entry_date DEFAULT, and restoring the entry_type ENUM

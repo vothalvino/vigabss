@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — real tenant isolation: who may switch into an organisation (j67)
+// VigaBSS 5.0 — real tenant isolation: who may switch into an organisation (j67)
 // =============================================================================
 // switchOrganization used to read:
 //

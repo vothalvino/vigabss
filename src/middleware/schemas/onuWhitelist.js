@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ONU Whitelist Validation Schemas (§7.2)
+// VigaBSS 5.0 — ONU Whitelist Validation Schemas (§7.2)
 // =============================================================================
 
 const createOnuWhitelistEntry = {

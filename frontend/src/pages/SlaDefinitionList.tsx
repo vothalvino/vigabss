@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SLA Definition Management
+// VigaBSS 5.0 — SLA Definition Management
 // =============================================================================
 // Standalone page at /sla-definitions. Lists service-level agreements with a
 // status filter, paginated table, and "New SLA" create modal plus per-row Edit

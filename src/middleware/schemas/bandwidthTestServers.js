@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — Bandwidth Test Server Validation Schemas (§10.4)
+// VigaBSS 5.0 — Bandwidth Test Server Validation Schemas (§10.4)
 // =============================================================================
 
 const createBandwidthTestServer = {

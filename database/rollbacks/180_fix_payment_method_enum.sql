@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 180: Revert payments.payment_method ENUM
+-- VigaBSS 5.0 — Rollback 180: Revert payments.payment_method ENUM
 -- =============================================================================
 -- Reverses migration 180 by restoring the pre-180 payment_method ENUM (as set
 -- by migration 074), removing the 'card', 'transfer', and 'online' values.

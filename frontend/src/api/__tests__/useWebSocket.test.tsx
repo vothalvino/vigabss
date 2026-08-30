@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — useWebSocket tests
+// VigaBSS 5.0 — useWebSocket tests
 // =============================================================================
 
 import { act, renderHook } from '@testing-library/react';

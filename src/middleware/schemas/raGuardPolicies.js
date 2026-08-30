@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — RA Guard Policy Validation Schemas
+// VigaBSS 5.0 — RA Guard Policy Validation Schemas
 // =============================================================================
 
 const createRaGuardPolicy = {

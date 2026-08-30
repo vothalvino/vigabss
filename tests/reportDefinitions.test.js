@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Report Definitions + On-Demand Generation Route Tests (§15 fix)
+// VigaBSS 5.0 — Report Definitions + On-Demand Generation Route Tests (§15 fix)
 // =============================================================================
 'use strict';
 

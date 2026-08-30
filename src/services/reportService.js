@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Report Generation Service
+// VigaBSS 5.0 — Report Generation Service
 // =============================================================================
 // Generates business reports: aging (AR), financial summary, technician
 // productivity, and subscriber growth. Returns structured data suitable

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CashReconciliationSession Model
+// VigaBSS 5.0 — CashReconciliationSession Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

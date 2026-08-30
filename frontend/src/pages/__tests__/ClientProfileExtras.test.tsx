@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ProfileExtrasTab permission gate (j13, bug half)
+// VigaBSS 5.0 — ProfileExtrasTab permission gate (j13, bug half)
 // =============================================================================
 // The tax-exemption and VIP-suspension controls were gated on
 // `user?.role === 'admin'` — the LEGACY users.role, not the resolved permission

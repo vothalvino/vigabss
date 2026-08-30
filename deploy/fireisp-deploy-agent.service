@@ -1,5 +1,5 @@
 [Unit]
-Description=FireISP deploy agent — services redeploy requests made from the web GUI
+Description=VigaBSS deploy agent — services redeploy requests made from the web GUI
 Documentation=file:///opt/fireisp/docs/deployment.md
 # Docker must be up: the agent talks to MySQL through the compose stack.
 After=docker.service

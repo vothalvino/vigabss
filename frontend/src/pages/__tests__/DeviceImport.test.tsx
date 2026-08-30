@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DeviceImport page tests
+// VigaBSS 5.0 — DeviceImport page tests
 // =============================================================================
 // This page had no test at all, which is how it kept posting to the
 // unversioned /api prefix unnoticed. That mount still forwards to the same v1

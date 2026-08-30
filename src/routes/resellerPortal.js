@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Reseller Portal Routes (§19.3)
+// VigaBSS 5.0 — Reseller Portal Routes (§19.3)
 // =============================================================================
 //
 //  §19.3 Reseller Portal (admin-side endpoints; reseller_admin role consumes)

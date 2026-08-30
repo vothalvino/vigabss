@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Security hardening regression tests
+// VigaBSS 5.0 — Security hardening regression tests
 // =============================================================================
 // Locks in the fixes for the admin-bypass / privilege-escalation audit:
 //   • /auth/register no longer honours a client-supplied role / organizationId

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP privileged WireGuard helper
+// VigaBSS privileged WireGuard helper
 // =============================================================================
 // Runs as the only production process with CAP_NET_ADMIN. It has no database,
 // Redis, JWT, or encryption environment and is reachable only through a Unix

@@ -5,7 +5,7 @@
 -- defaults can read from one authoritative source instead of per-plan pickers
 -- or hardcoded constants.
 --
--- Default 'MXN' matches FireISP's primary deployment market (Mexico).
+-- Default 'MXN' matches VigaBSS's primary deployment market (Mexico).
 -- MySQL 8 does not support ADD COLUMN IF NOT EXISTS, so the add is guarded by
 -- an INFORMATION_SCHEMA check inside a stored procedure.
 -- =============================================================================

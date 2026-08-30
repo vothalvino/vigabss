@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Plan Management
+// VigaBSS 5.0 — Plan Management
 // =============================================================================
 // Standalone page at /plans. Lists service plans with:
 //   • Status filter

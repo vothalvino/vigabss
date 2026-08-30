@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Chargeback Validation Schemas
+// VigaBSS 5.0 — Chargeback Validation Schemas
 // =============================================================================
 
 const CHARGEBACK_STATUSES = ['received', 'evidence_submitted', 'won', 'lost', 'accepted'];

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Routes
+// VigaBSS 5.0 — RADIUS Routes
 // =============================================================================
 
 const { Router } = require('express');
@@ -381,7 +381,7 @@ router.post('/:id/push', requirePermission('radius.sync'), async (req, res, next
       username: radius.username,
       password: radius.password,
       profile: radius.profile,
-      comment: 'FireISP radius#' + radius.id + ' client#' + radius.client_id + ' contract#' + radius.contract_id,
+      comment: 'VigaBSS radius#' + radius.id + ' client#' + radius.client_id + ' contract#' + radius.contract_id,
     };
 
     try {

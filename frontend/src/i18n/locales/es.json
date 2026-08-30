@@ -65,7 +65,7 @@
     "change": "Cambiar"
   },
   "login": {
-    "title": "🔥 FireISP 5.0",
+    "title": "🔥 VigaBSS 5.0",
     "subtitle": "Inicia sesión para continuar",
     "emailLabel": "Correo electrónico",
     "passwordLabel": "Contraseña",
@@ -350,7 +350,7 @@
     "documentTemplates": "Documentos Legales"
   },
   "layout": {
-    "brandName": "🔥 FireISP",
+    "brandName": "🔥 VigaBSS",
     "sidebarSubtitle": "Espacio de operaciones",
     "skipToContent": "Saltar al contenido",
     "primaryNavigation": "Navegación principal",
@@ -360,11 +360,11 @@
     "switchOrgFailed": "Error al cambiar de organización"
   },
   "portalLayout": {
-    "brandName": "🔥 FireISP — Mi cuenta",
+    "brandName": "🔥 VigaBSS — Mi cuenta",
     "navHome": "🏠 Inicio",
     "navInvoices": "🧾 Facturas",
     "navSupport": "🎫 Soporte",
-    "footer": "© {{year}} FireISP",
+    "footer": "© {{year}} VigaBSS",
     "privacyBanner": "Por favor revisa nuestro aviso de privacidad.",
     "privacyBannerLink": "Revisar y aceptar",
     "privacyLink": "Aviso de privacidad",
@@ -2395,16 +2395,16 @@
     "refresh_status": "Actualizar estado",
     "readiness_checking": "Comprobando si el reenvío de traps está disponible…",
     "readiness_unavailable_title": "El reenvío de traps no está disponible",
-    "readiness_reason_primary_schema_unavailable": "FireISP no puede verificar de forma segura los registros compartidos de equipos necesarios para enrutar traps en este momento.",
-    "readiness_reason_listener_not_ready": "El receptor de traps no está listo, por lo que FireISP no puede recibir ni enrutar eventos de equipos de forma segura.",
-    "readiness_reason_invalid_port": "El puerto configurado para el receptor de traps SNMP no es válido. Configure SNMP_TRAP_PORT con un número entre 1 y 65535 y reinicie FireISP.",
-    "readiness_reason_invalid_bind_ip": "La dirección configurada para el receptor de traps no es válida. Configure SNMP_TRAP_BIND_IP con una dirección IPv4 válida y reinicie FireISP.",
-    "readiness_reason_bind_failed": "FireISP no pudo abrir la dirección y el puerto configurados para el receptor de traps. Compruebe que la dirección exista en este servidor y que el puerto UDP esté disponible; después reinicie FireISP.",
-    "readiness_reason_isolated_tenant_attribution_unsupported": "Esta instalación tiene una organización con almacenamiento de datos separado. El envío está pausado para todas las organizaciones hasta que FireISP pueda asociar cada evento de forma segura con la organización correcta.",
+    "readiness_reason_primary_schema_unavailable": "VigaBSS no puede verificar de forma segura los registros compartidos de equipos necesarios para enrutar traps en este momento.",
+    "readiness_reason_listener_not_ready": "El receptor de traps no está listo, por lo que VigaBSS no puede recibir ni enrutar eventos de equipos de forma segura.",
+    "readiness_reason_invalid_port": "El puerto configurado para el receptor de traps SNMP no es válido. Configure SNMP_TRAP_PORT con un número entre 1 y 65535 y reinicie VigaBSS.",
+    "readiness_reason_invalid_bind_ip": "La dirección configurada para el receptor de traps no es válida. Configure SNMP_TRAP_BIND_IP con una dirección IPv4 válida y reinicie VigaBSS.",
+    "readiness_reason_bind_failed": "VigaBSS no pudo abrir la dirección y el puerto configurados para el receptor de traps. Compruebe que la dirección exista en este servidor y que el puerto UDP esté disponible; después reinicie VigaBSS.",
+    "readiness_reason_isolated_tenant_attribution_unsupported": "Esta instalación tiene una organización con almacenamiento de datos separado. El envío está pausado para todas las organizaciones hasta que VigaBSS pueda asociar cada evento de forma segura con la organización correcta.",
     "readiness_reason_multi_organization_attribution_unsupported": "Esta instalación contiene más de una organización. El envío está pausado porque los registros de IP editados por una organización no pueden identificar de forma segura los traps de otra.",
-    "readiness_reason_source_attribution_unavailable": "FireISP no puede confirmar de forma segura qué organización es propietaria del equipo emisor en este momento.",
+    "readiness_reason_source_attribution_unavailable": "VigaBSS no puede confirmar de forma segura qué organización es propietaria del equipo emisor en este momento.",
     "readiness_reason_feature_disabled": "La recepción de traps SNMP está deshabilitada para esta instalación.",
-    "readiness_reason_unknown": "FireISP no pudo verificar que el reenvío de traps sea seguro en este momento.",
+    "readiness_reason_unknown": "VigaBSS no pudo verificar que el reenvío de traps sea seguro en este momento.",
     "readiness_unavailable_help": "Aún puede crear y editar reglas para usarlas después. La activación de reglas y el envío de pruebas permanecen deshabilitados hasta que esto se resuelva.",
     "test_readiness_unavailable": "No se pueden enviar pruebas hasta que se restablezca el reenvío seguro de traps.",
     "add_rule": "Agregar regla de reenvío",
@@ -2413,10 +2413,10 @@
     "edit_loading": "Cargando…",
     "configuration_error": "No se pudo cargar el destino editable. No se cambió nada. Inténtelo de nuevo.",
     "what_is_trap": "¿Qué es un trap SNMP?",
-    "trap_explanation": "Un trap SNMP es un mensaje inmediato que envía un equipo de red cuando sucede algo. Una regla copia un trap recibido por FireISP al único destino que usted elija.",
+    "trap_explanation": "Un trap SNMP es un mensaje inmediato que envía un equipo de red cuando sucede algo. Una regla copia un trap recibido por VigaBSS al único destino que usted elija.",
     "trap_examples": "Ejemplos: se cae un enlace, se reinicia un equipo o falla un intento de autenticación. El sondeo SNMP no genera estos traps.",
     "setup_label": "Antes de comenzar",
-    "setup_hint": "Configure cada equipo de red para que envíe traps SNMP al receptor de traps de este servidor FireISP. El puerto predeterminado es UDP 1620, salvo que su instalación redirija el puerto estándar UDP 162. Docker Compose lo publica solo en loopback de forma predeterminada; configure SNMP_TRAP_PUBLISH_IP con la IP de administración protegida por firewall. Para una instalación directa en el servidor, use SNMP_TRAP_BIND_IP. Las reglas solo pueden enrutar los traps que FireISP realmente reciba.",
+    "setup_hint": "Configure cada equipo de red para que envíe traps SNMP al receptor de traps de este servidor VigaBSS. El puerto predeterminado es UDP 1620, salvo que su instalación redirija el puerto estándar UDP 162. Docker Compose lo publica solo en loopback de forma predeterminada; configure SNMP_TRAP_PUBLISH_IP con la IP de administración protegida por firewall. Para una instalación directa en el servidor, use SNMP_TRAP_BIND_IP. Las reglas solo pueden enrutar los traps que VigaBSS realmente reciba.",
     "form_intro": "Elija qué traps recibidos deben coincidir y después seleccione exactamente un destino.",
     "section_basics": "1. Asigne un nombre a la regla",
     "name": "Nombre de la regla",
@@ -2433,7 +2433,7 @@
     "source_ip_help": "Dirección IPv4 exacta del equipo emisor. Vacío significa cualquier equipo.",
     "oid_help": "Coincide con este OID y sus descendientes numéricos. Vacío significa cualquier OID.",
     "match_summary": "Esta regla incluye",
-    "match_all_traps": "Todos los traps SNMP que recibe FireISP",
+    "match_all_traps": "Todos los traps SNMP que recibe VigaBSS",
     "summary_trap_type": "El tipo es {{value}}",
     "summary_source_ip": "La IP de origen es {{value}}",
     "summary_oid_prefix": "El OID comienza con {{value}}",
@@ -2449,7 +2449,7 @@
     "https_url": "URL HTTPS",
     "url_placeholder": "https://alertas.ejemplo.com/traps-fireisp",
     "destination_webhook": "Usar un webhook registrado",
-    "destination_webhook_help": "Use un webhook activo ya configurado para esta organización en FireISP.",
+    "destination_webhook_help": "Use un webhook activo ya configurado para esta organización en VigaBSS.",
     "registered_webhook": "Webhook registrado",
     "select_webhook": "Seleccione un webhook",
     "webhooks_loading": "Cargando webhooks registrados…",
@@ -2457,7 +2457,7 @@
     "webhooks_empty": "No hay webhooks registrados activos. Aún puede elegir correo o un endpoint HTTPS.",
     "current_webhook_unavailable": "Webhook anterior #{{id}} (no disponible)",
     "current_webhook_help": "El webhook anterior ya no es una opción activa para esta organización. Elija un webhook activo, correo o endpoint HTTPS antes de guardar.",
-    "webhook_check_unavailable": "FireISP no pudo verificar el webhook actual. Se conserva aquí y el servidor lo validará al guardar.",
+    "webhook_check_unavailable": "VigaBSS no pudo verificar el webhook actual. Se conserva aquí y el servidor lo validará al guardar.",
     "section_status": "4. Active la regla",
     "enable_rule": "Habilitar esta regla",
     "enabled_help": "Los traps coincidentes se reenviarán después de guardar la regla.",
@@ -2534,7 +2534,7 @@
     "delete_error": "No se pudo eliminar la regla de reenvío de traps.",
     "error": "No se pudieron cargar las reglas de reenvío de traps.",
     "empty_title": "Todavía no hay reglas de reenvío",
-    "empty": "Agregue una regla cuando FireISP deba enviar un trap recibido de un equipo a un correo, endpoint HTTPS o webhook registrado.",
+    "empty": "Agregue una regla cuando VigaBSS deba enviar un trap recibido de un equipo a un correo, endpoint HTTPS o webhook registrado.",
     "create_first": "Crear la primera regla"
   },
   "snmp_traps": {
@@ -2583,7 +2583,7 @@
     "varbind_type": "Tipo",
     "varbind_value": "Valor",
     "truncation_title": "Se acortaron los detalles sin procesar",
-    "truncation_notice": "FireISP conservó {{stored}} de {{original}} entradas varbind, o acortó uno o más valores, para respetar los límites de seguridad. No considere esto como la carga completa del equipo.",
+    "truncation_notice": "VigaBSS conservó {{stored}} de {{original}} entradas varbind, o acortó uno o más valores, para respetar los límites de seguridad. No considere esto como la carga completa del equipo.",
     "value_truncated": "(acortado)"
   },
   "poller_nodes": {
@@ -4159,7 +4159,7 @@
       "protocol": "Protocolo autorizado",
       "selectProtocol": "Selecciona el protocolo",
       "exactTimestamp": "Marca de tiempo exacta autorizada",
-      "timezoneHelp": "Ingrese la hora local al segundo; FireISP guarda el instante UTC exacto usando la zona horaria de su navegador ({{timezone}}).",
+      "timezoneHelp": "Ingrese la hora local al segundo; VigaBSS guarda el instante UTC exacto usando la zona horaria de su navegador ({{timezone}}).",
       "create": "Crear expediente",
       "saving": "Guardando…",
       "created": "El expediente de rastreo de IP se creó para validación.",
@@ -4223,7 +4223,7 @@
       "registry": {
         "title": "Evidencia fuente de contratos MX",
         "explanation": "Sandbox y producción son carriles de evidencia separados permanentemente. Las fuentes listas para sandbox solo prueban el flujo. Las fuentes registradas de producción conservan la evidencia confirmada externamente, su texto y sus metadatos exactos.",
-        "externalWarning": "FireISP no presenta, registra ni aprueba contratos ante PROFECO ni otra autoridad. El registro de producción solo puede asentarse después de una confirmación externa. Esta pantalla no brinda asesoría legal.",
+        "externalWarning": "VigaBSS no presenta, registra ni aprueba contratos ante PROFECO ni otra autoridad. El registro de producción solo puede asentarse después de una confirmación externa. Esta pantalla no brinda asesoría legal.",
         "create": "Agregar fuente de contrato",
         "edit": "Editar fuente de contrato",
         "name": "Nombre de la plantilla",
@@ -4232,7 +4232,7 @@
         "registrationNumber": "Número de registro",
         "registrationDate": "Fecha de registro",
         "status": "Estado de la evidencia",
-        "confirmExternalRegistration": "Confirmo que el registro ocurrió fuera de FireISP y que el número, la fecha, la versión y el texto exacto coinciden con la evidencia externa.",
+        "confirmExternalRegistration": "Confirmo que el registro ocurrió fuera de VigaBSS y que el número, la fecha, la versión y el texto exacto coinciden con la evidencia externa.",
         "frozenEvidence": "La evidencia fuente lista para sandbox, registrada, vencida o revocada es de solo lectura. Los registros listos para sandbox siguen siendo solo de simulación. Un registro de producción vigente solo puede marcarse como vencido o revocado; crea una nueva versión para usar otro texto o metadatos.",
         "requiredFields": "El nombre, la versión y el texto exacto de la plantilla son obligatorios.",
         "registrationRequired": "La confirmación del operador, el número y la fecha de registro son obligatorios antes de marcar esta evidencia como registrada.",
@@ -4244,7 +4244,7 @@
         "environment": {
           "label": "Entorno contractual para clientes nuevos",
           "sourceEnvironment": "Entorno de la fuente",
-          "sandboxOption": "Sandbox (simulación de FireISP)",
+          "sandboxOption": "Sandbox (simulación de VigaBSS)",
           "productionOption": "Producción (contrato registrado real)",
           "sandboxSummary": "Los contratos MX nuevos usan el carril sandbox.",
           "productionSummary": "Modo real: los contratos MX nuevos requieren evidencia registrada real.",
@@ -4252,8 +4252,8 @@
           "productionConfirmation": "¿Cambiar a PRODUCCIÓN? Los contratos e instalaciones MX nuevos requerirán evidencia real de un contrato registrado externamente. Los registros sandbox no serán válidos y los registros existentes no se convertirán.",
           "loadError": "No se pudo cargar el entorno contractual activo.",
           "saveError": "No se pudo cambiar el entorno contractual.",
-          "sandboxSourceWarning": "PRUEBA / SIMULACIÓN — Esta es una fuente sandbox de FireISP, no un sandbox ni registro de PROFECO, y no tiene efectos legales.",
-          "productionSourceWarning": "PRODUCCIÓN — Usa únicamente el texto exacto del contrato y evidencia real del registro confirmado fuera de FireISP.",
+          "sandboxSourceWarning": "PRUEBA / SIMULACIÓN — Esta es una fuente sandbox de VigaBSS, no un sandbox ni registro de PROFECO, y no tiene efectos legales.",
+          "productionSourceWarning": "PRODUCCIÓN — Usa únicamente el texto exacto del contrato y evidencia real del registro confirmado fuera de VigaBSS.",
           "immutable": "El entorno de una fuente es permanente. Crea una fuente separada en el otro entorno en lugar de convertir este registro."
         },
         "statuses": {
@@ -4318,7 +4318,7 @@
       "allowlistWarningTitle": "La protección de IP para administración no está activa",
       "allowlistWarningDetail": "Agregue una o más direcciones de confianza y active una entrada cuando esté listo. Hasta entonces, las páginas administrativas sensibles siguen disponibles para administradores autenticados desde cualquier IP.",
       "environmentManaged": "Esta instalación está protegida por la variable ADMIN_IP_ALLOWLIST. Las entradas de la base de datos se muestran como referencia, pero no controlan el acceso.",
-      "currentIp": "Su IP actual vista por FireISP",
+      "currentIp": "Su IP actual vista por VigaBSS",
       "invalidActiveEntries": "{{count}} entrada activa no es válida. Corríjala antes de confiar en esta política.",
       "descriptionPlaceholder": "Oficina, VPN o ubicación de confianza",
       "activateNow": "Activar esta entrada ahora",
@@ -4927,7 +4927,7 @@
   },
   "wgTunnels": {
     "fullTunnelLabel": "Túnel completo (enrutar todo el tráfico por la VPN)",
-    "fullTunnelHint": "Cuando está habilitado, todo el tráfico de internet del dispositivo se enruta a través de FireISP. Deshabilita para acceso dividido solo a las LAN del dispositivo.",
+    "fullTunnelHint": "Cuando está habilitado, todo el tráfico de internet del dispositivo se enruta a través de VigaBSS. Deshabilita para acceso dividido solo a las LAN del dispositivo.",
     "title": "Mis Túneles VPN",
     "subtitle": "Túneles WireGuard de acceso para tus dispositivos.",
     "addPeer": "Agregar Dispositivo",
@@ -5056,12 +5056,12 @@
       "label": "Modo de acceso",
       "direct": "Directo",
       "nated": "Detrás de NAT",
-      "hint": "Cómo se conecta FireISP al dispositivo: Directo = IP enrutable; Detrás de NAT = accesible solo por túnel WireGuard.",
+      "hint": "Cómo se conecta VigaBSS al dispositivo: Directo = IP enrutable; Detrás de NAT = accesible solo por túnel WireGuard.",
       "immutable": "El modo de acceso no se puede cambiar tras el registro: elimina y vuelve a crear el NAS para cambiarlo."
     },
     "ipAddressLabel": "Dirección IP (IPv4)",
     "ipAddressPlaceholder": "ej. 10.0.0.1",
-    "natedHint": "FireISP asignará una dirección de túnel WireGuard como IP del dispositivo. Después de guardar, abre la pestaña WG, copia la configuración bootstrap, pégala en el router y ejecuta Seed / Test.",
+    "natedHint": "VigaBSS asignará una dirección de túnel WireGuard como IP del dispositivo. Después de guardar, abre la pestaña WG, copia la configuración bootstrap, pégala en el router y ejecuta Seed / Test.",
     "maintenanceMode": {
       "label": "Modo de mantenimiento",
       "hint": "Mantenga este NAS activo para el servicio de suscriptores, pero exclúyalo del sondeo automático de diagnósticos PPPoE de RouterOS y de la cobertura de preparación.",
@@ -5571,7 +5571,7 @@
     "accuracyCol": "Precisión"
   },
   "updateBanner": {
-    "message": "Hay una versión más reciente de FireISP — en ejecución {{running}}, la más reciente es {{latest}}.",
+    "message": "Hay una versión más reciente de VigaBSS — en ejecución {{running}}, la más reciente es {{latest}}.",
     "dismiss": "Ocultar hasta mañana"
   },
   "version": {
@@ -5590,7 +5590,7 @@
     "upToDate": "Actualizado",
     "checkedAt": "Última comprobación",
     "howToUpdate": "Para actualizar, ejecuta en el servidor:",
-    "howToEnable": "La comprobación de actualizaciones está activada de forma predeterminada. Es la única petición externa que FireISP realiza por sí mismo y no se envía ningún dato de la instalación. Para desactivarla, define",
+    "howToEnable": "La comprobación de actualizaciones está activada de forma predeterminada. Es la única petición externa que VigaBSS realiza por sí mismo y no se envía ningún dato de la instalación. Para desactivarla, define",
     "howToEnableTail": "en .env.prod y vuelve a desplegar.",
     "checkNow": "Buscar actualizaciones ahora",
     "checking": "Comprobando…"
@@ -5611,7 +5611,7 @@
     "nothingToDeploy": "Estás en la última versión — no hay nada que desplegar.",
     "enableCheckFirst": "La comprobación de actualizaciones está desactivada, así que no hay nada con qué comparar. Actívala para desplegar desde aquí.",
     "agentPending": "El agente de despliegue aún no se ha registrado. Se instala automáticamente con redeploy y se registra en unos 30 segundos; si esto persiste, ejecuta: journalctl -u fireisp-deploy-agent -n 30",
-    "agentPendingWhy": "El agente se ejecuta en el servidor, fuera de Docker. FireISP nunca recibe permiso para reiniciar la pila: solo puede registrar tu solicitud, y por eso una intrusión aquí no permite tomar el control de la máquina."
+    "agentPendingWhy": "El agente se ejecuta en el servidor, fuera de Docker. VigaBSS nunca recibe permiso para reiniciar la pila: solo puede registrar tu solicitud, y por eso una intrusión aquí no permite tomar el control de la máquina."
   },
   "communicationOptIn": {
     "title": "Comunicaciones opcionales de mercadotecnia",
@@ -5643,7 +5643,7 @@
     "ambiguousDocument": "Los documentos de activación MX activos de este entorno apuntan a fuentes distintas. Configúralos con una sola fuente antes de crear el contrato.",
     "sourceNotUsable": "La fuente vinculada al documento de este entorno no es utilizable. Sandbox requiere evidencia lista para sandbox; producción requiere evidencia real de registro completa.",
     "evidence": "Registro {{number}} · versión {{version}} · registrado el {{date}}",
-    "sandboxEvidence": "Fuente de simulación FireISP · versión {{version}} · sin número de registro",
+    "sandboxEvidence": "Fuente de simulación VigaBSS · versión {{version}} · sin número de registro",
     "configureHint": "Configura una fuente para el entorno activo y vincula esa fuente exacta a su documento de activación.",
     "registryLink": "Abrir registro MX",
     "documentsLink": "Abrir Plantillas de Documentos Legales"
@@ -5653,7 +5653,7 @@
       "sandbox": "SANDBOX · PRUEBA",
       "production": "PRODUCCIÓN · REAL"
     },
-    "documentWarning": "PRUEBA / SIMULACIÓN — NO REGISTRADO ANTE PROFECO — SIN EFECTOS LEGALES. Es una simulación de FireISP, no un sandbox oficial ni un registro de PROFECO."
+    "documentWarning": "PRUEBA / SIMULACIÓN — NO REGISTRADO ANTE PROFECO — SIN EFECTOS LEGALES. Es una simulación de VigaBSS, no un sandbox oficial ni un registro de PROFECO."
   },
   "documentTemplates": {
     "title": "Plantillas de Documentos Legales",
@@ -5708,7 +5708,7 @@
   },
   "dsarTool": {
     "title": "Exportación de solicitud de acceso a datos personales",
-    "intro": "Ingresa el ID de un cliente para reunir los conjuntos de datos enumerados de FireISP atribuidos a ese cliente dentro de tu organización. Revisa por separado el alcance declarado y los sistemas externos; después usa el documento JSON como parte del proceso de solicitud conforme a la LFPDPPP (MX) o al RGPD (UE).",
+    "intro": "Ingresa el ID de un cliente para reunir los conjuntos de datos enumerados de VigaBSS atribuidos a ese cliente dentro de tu organización. Revisa por separado el alcance declarado y los sistemas externos; después usa el documento JSON como parte del proceso de solicitud conforme a la LFPDPPP (MX) o al RGPD (UE).",
     "form": {
       "ariaLabel": "Preparar una exportación de acceso a datos del cliente",
       "clientId": "ID del cliente",
@@ -5735,7 +5735,7 @@
     "scope": {
       "ariaLabel": "Alcance de la exportación",
       "title": "Alcance de la exportación",
-      "framing": "Esta instantánea abarca únicamente los conjuntos de datos enumerados de FireISP que se muestran abajo. Verifica por separado los sistemas externos e integrados antes de usarla.",
+      "framing": "Esta instantánea abarca únicamente los conjuntos de datos enumerados de VigaBSS que se muestran abajo. Verifica por separado los sistemas externos e integrados antes de usarla.",
       "serverDescription": "Alcance declarado por el servidor",
       "serverDescriptionFallback": "El servidor no proporcionó una descripción adicional del alcance.",
       "completeForEnumeratedDatasets": "Completa para los conjuntos de datos enumerados",
@@ -5783,7 +5783,7 @@
   },
   "sniiReporting": {
     "title": "Preparación de infraestructura SNII",
-    "subtitle": "Revisa la infraestructura real de la organización MX, fija el paquete vigente de Ventanilla, congela una carga integral, genera archivos versionados de preparación y conserva evidencia. FireISP no presenta ante la CRT ni certifica cumplimiento legal.",
+    "subtitle": "Revisa la infraestructura real de la organización MX, fija el paquete vigente de Ventanilla, congela una carga integral, genera archivos versionados de preparación y conserva evidencia. VigaBSS no presenta ante la CRT ni certifica cumplimiento legal.",
     "preparationOnly": "Solo preparación",
     "ready": "Listo para preparar",
     "notReady": "Bloqueado / requiere revisión",
@@ -5828,7 +5828,7 @@
       "sourceAttestationReference": "Referencia de evidencia de revisión de Ventanilla",
       "sourceAttestationHint": "Referencia el ticket o revisión restringida que prueba que estas huellas provienen del paquete vigente de la Ventanilla autenticada y no del archivo público histórico.",
       "adapterReconciliationReference": "Referencia de conciliación del adaptador histórico",
-      "adapterReconciliationHint": "Referencia la revisión que comparó el adaptador histórico/de arranque de FireISP con el paquete vigente fijado de Ventanilla. Los bytes fijados no gobiernan automáticamente la generación.",
+      "adapterReconciliationHint": "Referencia la revisión que comparó el adaptador histórico/de arranque de VigaBSS con el paquete vigente fijado de Ventanilla. Los bytes fijados no gobiernan automáticamente la generación.",
       "adapterReconciliationSha256": "SHA-256 de la conciliación del adaptador",
       "adapterReconciledAt": "Fecha de conciliación del adaptador",
       "templateVersion": "Versión fijada de plantillas",
@@ -5883,7 +5883,7 @@
     },
     "packages": {
       "truthBoundary": "Generar no equivale a presentar",
-      "truthHelp": "Generado, presentado, corregido y aceptado son estados distintos. FireISP prepara archivos desde el contrato fijado; un representante autorizado los verifica y presenta por el canal vigente de la CRT. Los estados de presentación y aceptación son evidencia registrada por el operador, no una verificación de FireISP ni de la autoridad.",
+      "truthHelp": "Generado, presentado, corregido y aceptado son estados distintos. VigaBSS prepara archivos desde el contrato fijado; un representante autorizado los verifica y presenta por el canal vigente de la CRT. Los estados de presentación y aceptación son evidencia registrada por el operador, no una verificación de VigaBSS ni de la autoridad.",
       "create": "Crear borrador de carga integral",
       "periodStart": "Inicio del periodo",
       "periodEnd": "Fin del periodo",
@@ -5931,7 +5931,7 @@
       "timezoneHint": "Se usa la zona IANA actual del navegador para que la hora local capturada coincida con el instante UTC almacenado.",
       "authorityReference": "Referencia de autoridad / Ventanilla",
       "evidenceFile": "Archivo original de evidencia de presentación / respuesta",
-      "evidenceHelp": "PDF, XML, TXT, CSV, JPEG o PNG; máximo 10 MiB. FireISP calcula la huella y conserva los bytes de forma atómica con el evento. Generar un paquete nunca crea por sí solo esta evidencia de presentación.",
+      "evidenceHelp": "PDF, XML, TXT, CSV, JPEG o PNG; máximo 10 MiB. VigaBSS calcula la huella y conserva los bytes de forma atómica con el evento. Generar un paquete nunca crea por sí solo esta evidencia de presentación.",
       "verifyDownload": "Verificar y descargar evidencia",
       "notes": "Notas (sin credenciales ni asesoría privilegiada)",
       "record": "Registrar evento inmutable",
@@ -6051,7 +6051,7 @@
       "export": {
         "download": "Descargar CSV de evidencia del expediente",
         "preparing": "Preparando CSV del expediente…",
-        "help": "Esto repite la consulta exacta autorizada del expediente y crea una exportación auditada que contiene únicamente su resultado y evidencia de atribución. FireISP verifica los bytes descargados contra el SHA-256 del servidor antes de guardar el archivo.",
+        "help": "Esto repite la consulta exacta autorizada del expediente y crea una exportación auditada que contiene únicamente su resultado y evidencia de atribución. VigaBSS verifica los bytes descargados contra el SHA-256 del servidor antes de guardar el archivo.",
         "error": "No se pudo preparar el CSV de evidencia del expediente. No se descargó ningún archivo.",
         "checksumInvalid": "El servidor no proporcionó un checksum de evidencia válido. No se descargó ningún archivo.",
         "checksumMismatch": "El CSV no superó la verificación SHA-256. No se descargó ningún archivo; vuelve a intentarlo e investiga la transferencia.",
@@ -6142,7 +6142,7 @@
       "attributionRestricted": "La disponibilidad de atribución está restringida. La contabilidad de suscriptores permanece disponible por separado.",
       "sessionRetention": "Sesiones de suscriptores", "attributionRetention": "Evidencia de atribución de IP", "retentionValue": "{{months}} meses",
       "retentionGuidance": "Confirma que ambas ventanas de eliminación coincidan con el calendario legal y de privacidad aprobado por la organización.",
-      "sessionRetentionBelowBaseline": "La retención de sesiones de suscriptores es de {{months}} meses, inferior a la referencia de política de 24 meses de FireISP para México. Confirma el calendario legal aprobado de la organización antes de depender de estos registros.",
+      "sessionRetentionBelowBaseline": "La retención de sesiones de suscriptores es de {{months}} meses, inferior a la referencia de política de 24 meses de VigaBSS para México. Confirma el calendario legal aprobado de la organización antes de depender de estos registros.",
       "health": { "complete": "Completa", "partial": "Parcial", "missing": "Faltante", "synchronized": "Sincronizado", "reported": "Informado", "healthy": "Sin pérdida informada", "degraded": "Requiere atención", "unknown": "No informado" },
       "status": { "ready": "Recibiendo", "waiting": "Requiere atención", "notConfigured": "Sin configurar", "unknown": "Desconocido" }
     }

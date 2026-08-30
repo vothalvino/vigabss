@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WireGuard Provisioning Service Tests
+// VigaBSS 5.0 — WireGuard Provisioning Service Tests
 // =============================================================================
 // Covers wgProvisioningService (Part 1 — per-NAS tunnels):
 //

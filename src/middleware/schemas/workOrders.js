@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Validation Schemas: Work Orders — §12.3
+// VigaBSS 5.0 — Validation Schemas: Work Orders — §12.3
 // =============================================================================
 // work_orders is the single field-work / dispatch table (the legacy `jobs`
 // table was consolidated in here in migration 363). A work order can target a

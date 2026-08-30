@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Router Driver Service (§18.3)
+// VigaBSS 5.0 — Router Driver Service (§18.3)
 // =============================================================================
 // Vendor-agnostic router command dispatch interface.
 //

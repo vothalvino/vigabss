@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — Install-acceptance gate on work-order completion (migration 445)
+// VigaBSS 5.0 — Install-acceptance gate on work-order completion (migration 445)
 // =============================================================================
 // Completing an INSTALLATION work order that serves a contract requires at
 // least one acceptance reading (signal dBm / link Mbps / optical Rx dBm) or an

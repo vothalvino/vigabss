@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — shared fetch-state presentation
+// VigaBSS 5.0 — shared fetch-state presentation
 // =============================================================================
 // ~150 pages hand-roll their loading / empty / error JSX. The consistency is
 // the smaller half of the problem; the real defect is that many of them

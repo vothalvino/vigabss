@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL Client Helper (P3.3)
+// VigaBSS 5.0 — GraphQL Client Helper (P3.3)
 // =============================================================================
 // Thin wrapper around graphql-request that automatically attaches the current
 // JWT access token and points at the /api/v1/graphql endpoint.
@@ -29,7 +29,7 @@ function getClient(): GraphQLClient {
 }
 
 /**
- * Execute a GraphQL document against the FireISP API.
+ * Execute a GraphQL document against the VigaBSS API.
  * Automatically attaches the current access token.
  */
 export async function gql<T = unknown>(

@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 198: Drop Communication tables
+-- VigaBSS 5.0 — Rollback 198: Drop Communication tables
 -- =============================================================================
 -- Reverses migration 198. Drop order respects FK dependencies:
 --   campaign_messages references communication_campaigns (CASCADE), so

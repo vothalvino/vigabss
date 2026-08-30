@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DR Drill Warning Banner
+// VigaBSS 5.0 — DR Drill Warning Banner
 // =============================================================================
 // Shows a modal popup once per browser session when the quarterly DR drill
 // is overdue (> 90 days since the last passing run) or the last run failed.

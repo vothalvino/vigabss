@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AiPolicy Model
+// VigaBSS 5.0 — AiPolicy Model
 // =============================================================================
 // One row per organization: master on/off switch, channel toggles, mode, tone,
 // and a pointer to the currently active ai_providers row.

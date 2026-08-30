@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Controller
+// VigaBSS 5.0 — Billing Controller
 // =============================================================================
 // Domain-specific endpoints for the billing workflow:
 //   generate billing period → create invoice → allocate payment → ledger.

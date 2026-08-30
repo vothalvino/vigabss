@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Data Usage / Bandwidth Metering Service
+// VigaBSS 5.0 — Data Usage / Bandwidth Metering Service
 // =============================================================================
 // Aggregates application-ingested monotonic deltas. Mutable connection_logs
 // projections and legacy cumulative Interim rows are deliberately not summed.

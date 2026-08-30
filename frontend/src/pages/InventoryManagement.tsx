@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory & Asset Management (§14)
+// VigaBSS 5.0 — Inventory & Asset Management (§14)
 // =============================================================================
 // Tabbed page covering:
 //   1. Stock           — inventory items + low-stock alerts

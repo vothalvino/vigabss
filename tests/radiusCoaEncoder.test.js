@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS CoA Encoder Tests
+// VigaBSS 5.0 — RADIUS CoA Encoder Tests
 // =============================================================================
 // Tests RFC 2865-compliant attribute encoding. No mocks needed — pure Buffer
 // manipulation with no I/O or external dependencies.

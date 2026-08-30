@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE Service Profile Validation Schemas
+// VigaBSS 5.0 — PPPoE Service Profile Validation Schemas
 // =============================================================================
 
 const createPppoeServiceProfile = {

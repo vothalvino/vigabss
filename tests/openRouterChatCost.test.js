@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — an OpenRouter call must be priced, from a COLD cache
+// VigaBSS 5.0 — an OpenRouter call must be priced, from a COLD cache
 // =============================================================================
 // This is the regression test for the defect that mattered most in this feature.
 //
@@ -143,7 +143,7 @@ describe('the adapter talks to OpenRouter, and only OpenRouter', () => {
 describe('embeddings fail with an explanation, not a 500', () => {
   it('says OpenRouter cannot embed rather than "Unknown provider kind"', async () => {
     // An org whose only provider is OpenRouter would otherwise see a 500 that
-    // reads as a FireISP bug and sends the reader looking in the wrong place.
+    // reads as a VigaBSS bug and sends the reader looking in the wrong place.
     await expect(llm.embed('x', 7)).rejects.toMatchObject({
       statusCode: 400,
       code: 'LLM_EMBED_NOT_SUPPORTED',

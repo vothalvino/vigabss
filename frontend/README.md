@@ -1,6 +1,6 @@
-# FireISP 5.0 — Frontend
+# VigaBSS 5.0 — Frontend
 
-React 18 + TypeScript + Vite admin panel for FireISP 5.0.
+React 18 + TypeScript + Vite admin panel for VigaBSS 5.0.
 
 ## Quick Start
 

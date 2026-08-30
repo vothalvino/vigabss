@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — deviceActionsService.rebootDevice tests
+// VigaBSS 5.0 — deviceActionsService.rebootDevice tests
 // =============================================================================
 // Verifies reboot routes to the real mechanism per device type/driver, and
 // refuses honestly (ValidationError) when none exists — never fake success.

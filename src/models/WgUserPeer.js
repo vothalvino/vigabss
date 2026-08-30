@@ -1,8 +1,8 @@
 // =============================================================================
-// FireISP 5.0 — WgUserPeer Model
+// VigaBSS 5.0 — WgUserPeer Model
 // =============================================================================
 // One row per enrolled user VPN device (laptop, phone, etc.).
-// User peers connect to the wg-clients interface on the FireISP hub.
+// User peers connect to the wg-clients interface on the VigaBSS hub.
 // Both private_key_encrypted and preshared_key_encrypted are AES-256-GCM via
 // src/utils/encryption.js. Private key is returned only to its owner on create
 // and on the /config download endpoint — redactPeer() strips it everywhere else.

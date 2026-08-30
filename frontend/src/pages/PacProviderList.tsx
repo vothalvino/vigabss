@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PAC Providers
+// VigaBSS 5.0 — PAC Providers
 // =============================================================================
 // Page at /pac-providers (MX orgs). Lists the PAC (Proveedor Autorizado de
 // Certificación) configurations and lets an operator create/edit them —
@@ -216,7 +216,7 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
           </select>
           {form.seal_mode === 'local' && (
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '4px 0 8px' }}>
-              FireISP signs the invoice with the org’s active CSD (Facturación → Certificados CSD) and sends the
+              VigaBSS signs the invoice with the org’s active CSD (Facturación → Certificados CSD) and sends the
               sealed XML to the PAC’s stamp-only tier. Cancellations are signed with the same CSD sent inline
               per request (SW <code>cancel/csd</code>, Finkok cer/key), so the CSD never needs uploading to the
               PAC — it stays on your server. Supported for SW Sapien and Finkok.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client typeahead picker
+// VigaBSS 5.0 — Client typeahead picker
 // =============================================================================
 // Reusable, dependency-free typeahead for choosing a client by name instead of
 // guessing a raw client_id. As the user types, it debounces (~250ms) and hits

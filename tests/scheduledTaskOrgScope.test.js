@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — scheduled tasks are org-scoped, globals stay read-only (j36)
+// VigaBSS 5.0 — scheduled tasks are org-scoped, globals stay read-only (j36)
 // =============================================================================
 // ScheduledTask declared hasOrgScope=false, and BaseModel omits the org
 // predicate SILENTLY when it does — so list/get/update/delete ran unscoped and

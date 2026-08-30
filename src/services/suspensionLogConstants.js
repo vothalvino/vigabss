@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — suspension_logs contract (shared constants)
+// VigaBSS 5.0 — suspension_logs contract (shared constants)
 // =============================================================================
 // `suspension_logs.action` is an ENUM with EXACTLY four values (migration 105 /
 // database/schema.sql):
@@ -9,7 +9,7 @@
 // Everything that writes to the table must use one of these. The service layer
 // historically wrote 'suspend' / 'unsuspend' / 'soft_suspend' / 'walled_garden'
 // — none of which exist in the ENUM — so every INSERT threw and every
-// suspension path 500'd. This module is the single place that maps FireISP's
+// suspension path 500'd. This module is the single place that maps VigaBSS's
 // suspension *flavours* onto the ENUM, so the mapping can't drift again.
 //
 // Flavour → (action, reason prefix):

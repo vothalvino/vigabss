@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Metrics Routes
+// VigaBSS 5.0 — SNMP Metrics Routes
 // =============================================================================
 // Provides time-series SNMP metric data for the frontend charts page.
 //

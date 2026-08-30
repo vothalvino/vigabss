@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AI Suggested Reply panel tests (P1 §6.2)
+// VigaBSS 5.0 — AI Suggested Reply panel tests (P1 §6.2)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';

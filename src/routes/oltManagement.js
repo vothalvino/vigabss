@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — OLT Management Routes (§7.1 / §7.3)
+// VigaBSS 5.0 — OLT Management Routes (§7.1 / §7.3)
 // =============================================================================
 // Mounted at /api/olt-management and /api/v1/olt-management.
 //

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Reset Password Page
+// VigaBSS 5.0 — Reset Password Page
 // =============================================================================
 // Public (unauthenticated) page reached from the password-reset email link
 // (?token=...). Submits a new password to POST /auth/password-reset. Uses a

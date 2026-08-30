@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ACS (Auto Configuration Server) Service (§8.1/§8.3)
+// VigaBSS 5.0 — ACS (Auto Configuration Server) Service (§8.1/§8.3)
 // =============================================================================
 // Handles incoming CWMP/TR-069 HTTP requests from CPE devices.
 // Endpoint: POST /acs/cwmp — mounted OUTSIDE the authenticated /api/v1 surface.

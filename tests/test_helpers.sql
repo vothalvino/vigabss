@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Test Helper Procedures
+-- VigaBSS 5.0 — Test Helper Procedures
 -- =============================================================================
 -- Provides a lightweight test-assertion framework for MySQL.
 --

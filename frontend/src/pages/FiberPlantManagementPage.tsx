@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Fiber Plant Management (§7.4)
+// VigaBSS 5.0 — Fiber Plant Management (§7.4)
 // =============================================================================
 // Tabbed page covering:
 //   1. Fiber Routes     — CO → splitter → ONU path CRUD

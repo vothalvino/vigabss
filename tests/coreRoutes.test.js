@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Core Route Integration Tests
+// VigaBSS 5.0 — Core Route Integration Tests
 // =============================================================================
 // Comprehensive tests for 10 critical route groups:
 //   Contracts, Invoices, Payments, Users, Devices,

@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Security & Access Control Page (Section 17)
+// VigaBSS 5.0 — Security & Access Control Page (Section 17)
 // =============================================================================
 // Multi-tab page covering security management:
 //   1. User Security    — WebAuthn credentials, password policy, admin IP allowlist

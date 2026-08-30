@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PrivateRoute
+// VigaBSS 5.0 — PrivateRoute
 // =============================================================================
 // Wraps protected routes:
 //   • Redirects unauthenticated users to /login

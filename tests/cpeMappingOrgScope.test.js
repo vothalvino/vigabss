@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — CPE parameter mappings are org-scoped (j58)
+// VigaBSS 5.0 — CPE parameter mappings are org-scoped (j58)
 // =============================================================================
 // Every handler in the mappings block was missing its tenancy check entirely:
 //

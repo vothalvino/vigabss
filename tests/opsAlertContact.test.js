@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — infrastructure alerts go to the ops contact (j31)
+// VigaBSS 5.0 — infrastructure alerts go to the ops contact (j31)
 // =============================================================================
 // TLS expiry alerts fanned out to the admins and managers of EVERY active
 // organization, because the certificate serves the whole install. On a

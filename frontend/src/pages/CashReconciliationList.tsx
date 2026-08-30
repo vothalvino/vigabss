@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Cash Reconciliation (§1.3 Billing+)
+// VigaBSS 5.0 — Cash Reconciliation (§1.3 Billing+)
 // =============================================================================
 // Page for managing cash reconciliation sessions:
 //   • Table: all sessions with agent, status, opened/closed dates, expected /

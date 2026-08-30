@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Verify Email Page
+// VigaBSS 5.0 — Verify Email Page
 // =============================================================================
 // Public (unauthenticated) page reached from the verification email link
 // (?token=...). Auto-calls POST /auth/verify-email on mount. Uses a raw

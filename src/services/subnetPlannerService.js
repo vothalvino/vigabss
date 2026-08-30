@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — Subnet Planner Service
+// VigaBSS 5.0 — Subnet Planner Service
 // =============================================================================
 
 const db = require('../config/database');

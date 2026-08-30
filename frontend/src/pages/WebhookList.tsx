@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Webhook Management
+// VigaBSS 5.0 — Webhook Management
 // =============================================================================
 // Standalone page at /webhooks. Lists outbound webhook subscriptions with a
 // "New Webhook" create modal plus per-row Edit and Delete (soft-delete). All

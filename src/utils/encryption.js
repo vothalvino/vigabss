@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AES-256-GCM Envelope Encryption
+// VigaBSS 5.0 — AES-256-GCM Envelope Encryption
 // =============================================================================
 // Encrypts / decrypts sensitive data (payment gateway secrets, PAC passwords,
 // CSD private keys, webhook secrets) at the application layer.

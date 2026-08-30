@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay Service
+// VigaBSS 5.0 — FireRelay Service
 // =============================================================================
 // Core relay logic: node registry, health-check polling loop, routing table
 // CRUD, least-loaded-node selection, fan-out merge, and retry with backoff.

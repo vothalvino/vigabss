@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — E2E Payment Flow Test
+// VigaBSS 5.0 — E2E Payment Flow Test
 // =============================================================================
 // Full lifecycle: create client → create plan → assign plan (contract) →
 //   generate invoice → record payment → allocate payment → verify ledger.

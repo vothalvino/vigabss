@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Representación impresa tests
+// VigaBSS 5.0 — Representación impresa tests
 // =============================================================================
 // The parse/render fixtures are the two REAL SW-sealed sandbox documents
 // (SAT-accepted), so the parser is exercised against genuine PAC output.

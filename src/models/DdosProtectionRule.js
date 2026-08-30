@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DdosProtectionRule Model
+// VigaBSS 5.0 — DdosProtectionRule Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

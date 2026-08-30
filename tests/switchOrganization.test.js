@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Multi-tenant: switchOrganization unit tests (M5.10)
+// VigaBSS 5.0 — Multi-tenant: switchOrganization unit tests (M5.10)
 // =============================================================================
 // Query order in switchOrganization():
 //   1. User.findById            → [[user]]

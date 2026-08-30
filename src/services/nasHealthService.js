@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAS Health Service
+// VigaBSS 5.0 — NAS Health Service
 // =============================================================================
 // Probes NAS devices via RADIUS Status-Server (RFC 5997, code 12) and records
 // health transitions in the nas table. Emits named events on status change.

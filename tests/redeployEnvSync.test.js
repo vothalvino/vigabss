@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — redeploy.sh introduces new settings into a live .env.prod
+// VigaBSS 5.0 — redeploy.sh introduces new settings into a live .env.prod
 // =============================================================================
 // An upgrade that requires hand-editing a secrets file is an upgrade most
 // operators will not perform, so new options arrive on the next deploy already
@@ -215,7 +215,7 @@ function retire(file) {
 
 // What sync_managed_env actually wrote in #607, comment and all.
 const OURS = 'DB_PASSWORD=s3cret\nDOMAIN=isp.example\n'
-  + '\n# Show the install operator a once-a-day banner when a newer FireISP release exists. Set to 1 to enable.\n'
+  + '\n# Show the install operator a once-a-day banner when a newer VigaBSS release exists. Set to 1 to enable.\n'
   + 'FIREISP_UPDATE_CHECK=0\n';
 
 describe('withdrawing a setting whose default changed', () => {
@@ -282,7 +282,7 @@ describe('it can only withdraw a suggestion, never a decision', () => {
     // 108-byte file to 1 byte — and on a real install that file holds
     // DB_PASSWORD and ENCRYPTION_KEY. Found by mutation testing: removing the
     // guard passed every other case in this suite.
-    const onlyOurs = '# Show the install operator a once-a-day banner when a newer FireISP release exists.\n'
+    const onlyOurs = '# Show the install operator a once-a-day banner when a newer VigaBSS release exists.\n'
       + 'FIREISP_UPDATE_CHECK=0\n';
     const f = write('.env.prod', onlyOurs);
     retire(f);

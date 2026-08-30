@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS CoA Attribute Encoder
+// VigaBSS 5.0 — RADIUS CoA Attribute Encoder
 // =============================================================================
 // RFC 2865-compliant RADIUS attribute encoding for CoA and Disconnect packets.
 // Replaces the minimal single-attribute encoder in suspensionService.js.

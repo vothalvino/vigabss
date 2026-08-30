@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Generate Quote Modal (shared)
+// VigaBSS 5.0 — Generate Quote Modal (shared)
 // =============================================================================
 // Flexible multi-item quote builder — a clone of GenerateInvoiceModal.tsx
 // (same client/contract/product-catalog pickers, same three item types),

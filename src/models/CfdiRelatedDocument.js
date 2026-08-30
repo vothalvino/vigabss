@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CfdiRelatedDocument Model
+// VigaBSS 5.0 — CfdiRelatedDocument Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

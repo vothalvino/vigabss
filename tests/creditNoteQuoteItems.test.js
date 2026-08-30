@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CreditNote.addItem() / Quote.addItem() never write a GENERATED column
+// VigaBSS 5.0 — CreditNote.addItem() / Quote.addItem() never write a GENERATED column
 // =============================================================================
 // credit_note_items.total and quote_items.total are both
 // `GENERATED ALWAYS AS (quantity * unit_price) STORED` (database/schema.sql).

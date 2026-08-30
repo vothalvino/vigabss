@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — the tax/IVA exemption needs its own permission (j13)
+// VigaBSS 5.0 — the tax/IVA exemption needs its own permission (j13)
 // =============================================================================
 // Setting `tax_exempt` was gated on `clients.update`, which migration 119 grants
 // to SUPPORT. So a support agent could flip a client to IVA-exempt — and that is

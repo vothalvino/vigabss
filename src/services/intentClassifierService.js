@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Intent Classifier Service (§21.2)
+// VigaBSS 5.0 — Intent Classifier Service (§21.2)
 // =============================================================================
 // Classifies customer support text into intent categories.
 //

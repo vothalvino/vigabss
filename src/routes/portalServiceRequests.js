@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Service Requests Admin Routes (§11.3)
+// VigaBSS 5.0 — Portal Service Requests Admin Routes (§11.3)
 // =============================================================================
 // Admin-side management of client self-service requests.
 // Mounted at /api/v1/portal-service-requests (staff-facing, requires JWT + permission).

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Lead typeahead picker
+// VigaBSS 5.0 — Lead typeahead picker
 // =============================================================================
 // Reusable, dependency-free typeahead for choosing a lead by name instead of
 // guessing a raw lead_id. Modeled closely on ClientPicker.tsx: debounces

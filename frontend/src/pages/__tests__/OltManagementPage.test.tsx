@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — OltManagementPage tests (§7.1)
+// VigaBSS 5.0 — OltManagementPage tests (§7.1)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client contact creation regression
+// VigaBSS 5.0 — Client contact creation regression
 // =============================================================================
 // POST /clients/:id/contacts inserted into a non-existent `name` column and
 // 500'd ("Unknown column 'name'"). The contacts table stores first_name +

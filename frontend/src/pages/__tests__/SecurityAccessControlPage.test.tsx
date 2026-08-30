@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SecurityAccessControlPage tests (§17)
+// VigaBSS 5.0 — SecurityAccessControlPage tests (§17)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -101,7 +101,7 @@ const sampleTlsConfig = {
   min_tls_version: 'TLSv1.2',
   recommended_tls_version: 'TLSv1.3',
   cipher_suites: ['TLS_AES_256_GCM_SHA384'],
-  notes: 'FireISP enforces TLSv1.2+ for all API endpoints.',
+  notes: 'VigaBSS enforces TLSv1.2+ for all API endpoints.',
 };
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Role (User Group) Routes Tests
+// VigaBSS 5.0 — Role (User Group) Routes Tests
 // =============================================================================
 // Covers the migration-378 hardening of src/routes/roles.js:
 //   - createRole/updateRole require/accept `kind`, excluding 'admin' for

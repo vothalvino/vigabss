@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay Validation Schemas
+// VigaBSS 5.0 — FireRelay Validation Schemas
 // =============================================================================
 
 const firerelayNode = {

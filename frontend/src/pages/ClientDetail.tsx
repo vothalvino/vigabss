@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Detail
+// VigaBSS 5.0 — Client Detail
 // =============================================================================
 // Shows a single client with tabbed sub-sections:
 //   Contracts | Invoices | Payments | Devices | Ledger

@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — Wireless/WISP Management Service (§9.1 + §9.2 + §9.3)
+// VigaBSS 5.0 — Wireless/WISP Management Service (§9.1 + §9.2 + §9.3)
 // =============================================================================
 // Provides domain logic for:
 //   • AP sector configuration management               (§9.1)

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — legal document templates + on-site signing (migration 447)
+// VigaBSS 5.0 — legal document templates + on-site signing (migration 447)
 // =============================================================================
 // render() placeholder semantics, generateForOrder freezing+hashing, sign()
 // integrity/validation, the WO transition gates, and the /generate dedupe.

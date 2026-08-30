@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — OrganizationMxProfile Model
+// VigaBSS 5.0 — OrganizationMxProfile Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

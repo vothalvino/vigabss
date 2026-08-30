@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GenerateQuoteModal tests
+// VigaBSS 5.0 — GenerateQuoteModal tests
 // =============================================================================
 // A clone of GenerateInvoiceModal.test.tsx — same coverage, since
 // GenerateQuoteModal is itself a clone of GenerateInvoiceModal:

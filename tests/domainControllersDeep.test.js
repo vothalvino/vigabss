@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Deep Domain Controller Tests (Edge-cases & Error Paths)
+// VigaBSS 5.0 — Deep Domain Controller Tests (Edge-cases & Error Paths)
 // =============================================================================
 // Complements domainControllers.test.js with edge-case, error-path, and
 // boundary coverage for billingController, dashboardController,

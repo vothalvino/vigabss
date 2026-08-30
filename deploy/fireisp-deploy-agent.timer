@@ -1,5 +1,5 @@
 [Unit]
-Description=Poll for FireISP deploy requests made from the web GUI
+Description=Poll for VigaBSS deploy requests made from the web GUI
 
 [Timer]
 # First check shortly after boot, then every 30s. The interval is the worst-case

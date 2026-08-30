@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — device map pins are writable (j68 option C, half A)
+// VigaBSS 5.0 — device map pins are writable (j68 option C, half A)
 // =============================================================================
 // devices.latitude/longitude were readable everywhere (topology map, lead
 // feasibility's nearest-AP section) but writable NOWHERE: absent from the

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — POST /api/radius/sessions/disconnect-batch route tests
+// VigaBSS 5.0 — POST /api/radius/sessions/disconnect-batch route tests
 // =============================================================================
 // Pins the per-session targeting contract added by the roaming-aware CoA
 // change: the route must pass the DB-canonical session_id and the session's

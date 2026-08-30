@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Security Validation Schemas (§17)
+// VigaBSS 5.0 — Security Validation Schemas (§17)
 // =============================================================================
 
 const createFirewallRule = {

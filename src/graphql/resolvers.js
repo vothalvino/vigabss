@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL Resolvers (P3.3)
+// VigaBSS 5.0 — GraphQL Resolvers (P3.3)
 // =============================================================================
 // Each resolver is org-scoped: it uses ctx.orgId (set by the orgScope Express
 // middleware) to ensure users can only query data from their own organization.

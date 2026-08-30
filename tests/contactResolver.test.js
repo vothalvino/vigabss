@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL Contact resolver regression tests
+// VigaBSS 5.0 — GraphQL Contact resolver regression tests
 // =============================================================================
 // Guards a ClientDetail-breaking bug: the contacts table stores
 // first_name/last_name (no `name` column), but GraphQL Contact.name is NON-NULL.

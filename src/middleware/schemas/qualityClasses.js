@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — QualityClass Validation Schemas
+// VigaBSS 5.0 — QualityClass Validation Schemas
 // =============================================================================
 
 const createQualityClass = {

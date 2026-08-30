@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Discovery Scan Management
+// VigaBSS 5.0 — Discovery Scan Management
 // =============================================================================
 // Standalone page at /discovery-scans. Lists discovery scans with a paginated
 // table, "New Discovery Scan" create modal, and per-row Delete (scans are

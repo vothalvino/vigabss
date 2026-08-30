@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Command-palette search tests ("Faro" nav power layer)
+// VigaBSS 5.0 — Command-palette search tests ("Faro" nav power layer)
 // =============================================================================
 // The palette index must mirror sidebar visibility exactly (canSee), and the
 // search must rank labels above keywords and ignore case/diacritics.

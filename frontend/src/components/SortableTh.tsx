@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Sortable table header
+// VigaBSS 5.0 — Sortable table header
 // =============================================================================
 // A reusable clickable column header + the hook that backs it. Sorting is done
 // SERVER-SIDE: the hook exposes `order_by` / `order` that callers thread into

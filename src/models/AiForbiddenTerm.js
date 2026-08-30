@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AiForbiddenTerm Model
+// VigaBSS 5.0 — AiForbiddenTerm Model
 // =============================================================================
 // Words or phrases that must never appear in an AI-generated draft.
 // The output validator rejects any draft containing one of these terms,

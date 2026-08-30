@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Database Read Replica Routing Tests (M5.7)
+// VigaBSS 5.0 — Database Read Replica Routing Tests (M5.7)
 // =============================================================================
 // Verifies that:
 //   1. `replicaPool` is created only when DB_REPLICA_HOST is set.

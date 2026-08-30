@@ -4,7 +4,7 @@
 
 All documentation (README, markdown files in `docs/`, code comments, commit messages, PR descriptions) **must be written in English**.
 
-**Exception — Spanish domain terms:** Because FireISP was built for the Mexican ISP market, certain regulatory and fiscal terms that originate from Mexican law or the SAT (Servicio de Administración Tributaria) may remain in Spanish when no clear English equivalent exists or when the Spanish term is the industry-standard reference. Examples include *factura pública*, *CFDI*, *Carta de Adhesión*, *régimen fiscal*, *Complemento de Pago*, and SAT catalog names (`c_FormaPago`, `c_UsoCFDI`, etc.). When a Spanish term is used, provide a brief English explanation on first mention so readers unfamiliar with the term can follow along.
+**Exception — Spanish domain terms:** Because VigaBSS was built for the Mexican ISP market, certain regulatory and fiscal terms that originate from Mexican law or the SAT (Servicio de Administración Tributaria) may remain in Spanish when no clear English equivalent exists or when the Spanish term is the industry-standard reference. Examples include *factura pública*, *CFDI*, *Carta de Adhesión*, *régimen fiscal*, *Complemento de Pago*, and SAT catalog names (`c_FormaPago`, `c_UsoCFDI`, etc.). When a Spanish term is used, provide a brief English explanation on first mention so readers unfamiliar with the term can follow along.
 
 ## User Interface (UI)
 

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — P3.4 httpOnly cookie auth tests
+// VigaBSS 5.0 — P3.4 httpOnly cookie auth tests
 // =============================================================================
 // Verifies that:
 //  1. POST /api/v1/auth/login sets httpOnly SameSite=Strict cookies

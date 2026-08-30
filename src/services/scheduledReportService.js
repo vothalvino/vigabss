@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Scheduled Report Service
+// VigaBSS 5.0 — Scheduled Report Service
 // =============================================================================
 // Generates reports per schedule and emails them to recipients.
 // =============================================================================
@@ -76,7 +76,7 @@ async function runSchedule(schedule) {
           organizationId: schedule.organization_id,
           operationalRecipient: true,
           to: email,
-          subject: `[FireISP] Scheduled Report: ${schedule.report_def_name}`,
+          subject: `[VigaBSS] Scheduled Report: ${schedule.report_def_name}`,
           html: `<p>Your scheduled report <strong>${esc(schedule.report_def_name)}</strong> is attached.</p>
                  <p>Generated: ${new Date().toLocaleString()}</p>`,
           attachments: [{

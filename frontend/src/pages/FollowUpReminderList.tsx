@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Follow-up Reminders — §1.3
+// VigaBSS 5.0 — Follow-up Reminders — §1.3
 // =============================================================================
 // CRUD for client follow-up reminders. Due reminders are notified automatically
 // by the `follow_up_reminders` scheduled task; this page is the work queue.

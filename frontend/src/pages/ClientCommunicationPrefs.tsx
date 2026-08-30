@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Communication Preferences (DND) — §1.4
+// VigaBSS 5.0 — Client Communication Preferences (DND) — §1.4
 // =============================================================================
 // Per-customer, per-channel Do Not Disturb preferences. Rendered as the
 // "Communication" tab inside ClientDetail. Shows all channel opt-outs and

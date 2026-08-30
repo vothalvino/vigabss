@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Stub-Honesty Tests (g8)
+// VigaBSS 5.0 — Stub-Honesty Tests (g8)
 // Asserts that previously-fake-success stubs now surface honest failure.
 //
 // db.query() always resolves to [rows, fields] (mysql2 convention).

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Suspension Rule Management (grace period policies) — §1.2 + §2.4
+// VigaBSS 5.0 — Suspension Rule Management (grace period policies) — §1.2 + §2.4
 // =============================================================================
 // Full CRUD for suspension / dunning rules. Each rule defines:
 //   • days_past_due      — how many overdue days trigger the rule

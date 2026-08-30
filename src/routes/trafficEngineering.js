@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Traffic Engineering Routes (§10.4)
+// VigaBSS 5.0 — Traffic Engineering Routes (§10.4)
 // =============================================================================
 // Covers: interface QoS policies, MPLS/VLAN prioritization rules,
 //         DSCP marking policies (+ config export).

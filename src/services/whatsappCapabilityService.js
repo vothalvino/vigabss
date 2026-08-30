@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WhatsApp bot capabilities (read-only + report a problem)
+// VigaBSS 5.0 — WhatsApp bot capabilities (read-only + report a problem)
 // =============================================================================
 // Turns a resolved (bound) clientId into the short text answers the bot sends,
 // reusing the same data sources as the subscriber portal: computeClientBalance,

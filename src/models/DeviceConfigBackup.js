@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DeviceConfigBackup Model
+// VigaBSS 5.0 — DeviceConfigBackup Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

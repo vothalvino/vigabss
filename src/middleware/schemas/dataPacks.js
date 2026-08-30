@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — Data Pack Validation Schemas (§10.3)
+// VigaBSS 5.0 — Data Pack Validation Schemas (§10.3)
 // =============================================================================
 
 const createDataPack = {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Detail
+// VigaBSS 5.0 — Payment Detail
 // =============================================================================
 // Shows a single payment with its info card, allocations table, and the full
 // set of lifecycle action buttons (Edit, Allocate, Reallocate, Reassign,

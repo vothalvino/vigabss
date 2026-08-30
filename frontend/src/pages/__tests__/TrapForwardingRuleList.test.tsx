@@ -135,7 +135,7 @@ describe('TrapForwardingRuleList', () => {
     expect(screen.getByText(/a link goes down, a device restarts/i)).toBeInTheDocument();
     expect(screen.getByText(/SNMP polling does not create these traps/i)).toBeInTheDocument();
     expect(screen.getByText(/default listener is UDP port 1620/i)).toBeInTheDocument();
-    expect(screen.getByText(/only route traps FireISP actually receives/i)).toBeInTheDocument();
+    expect(screen.getByText(/only route traps VigaBSS actually receives/i)).toBeInTheDocument();
   });
 
   it('explains the isolated-storage safety pause and disables sending while rules remain editable', async () => {
@@ -255,7 +255,7 @@ describe('TrapForwardingRuleList', () => {
     renderPage();
     const allRow = (await screen.findByText('All traps to NOC')).closest('tr');
     expect(allRow).not.toBeNull();
-    expect(within(allRow!).getByText('All SNMP traps FireISP receives')).toBeInTheDocument();
+    expect(within(allRow!).getByText('All SNMP traps VigaBSS receives')).toBeInTheDocument();
     expect(within(allRow!).getByText('Configured email recipient')).toBeInTheDocument();
     expect(allRow).not.toHaveTextContent('noc@example.com');
     expect(within(allRow!).getByText('Enabled')).toBeInTheDocument();

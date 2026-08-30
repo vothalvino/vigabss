@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — MPLS/VLAN Prioritization Rule Validation Schemas (§10.4)
+// VigaBSS 5.0 — MPLS/VLAN Prioritization Rule Validation Schemas (§10.4)
 // =============================================================================
 
 const createMplsVlanRule = {

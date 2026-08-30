@@ -1,4 +1,4 @@
-# FireISP 5.0 — Webhook Event Payloads
+# VigaBSS 5.0 — Webhook Event Payloads
 
 > All webhook events are dispatched via `POST` to the configured webhook URL.
 > Each delivery includes a JSON body with the event type and payload.
@@ -215,7 +215,7 @@ Webhook deliveries are logged in the `webhook_deliveries` table. Failed deliveri
 
 ## Retry Policy
 
-When a delivery fails (non-2xx response or network error), FireISP schedules automatic retries using **full-jitter exponential backoff**.
+When a delivery fails (non-2xx response or network error), VigaBSS schedules automatic retries using **full-jitter exponential backoff**.
 
 | Attempt | Base delay window |
 |---------|-------------------|

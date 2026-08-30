@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL Subscription Tests (P3.9)
+// VigaBSS 5.0 — GraphQL Subscription Tests (P3.9)
 // =============================================================================
 // Subscriptions are RBAC-gated (parity with the query/mutation guard): the
 // subscribe() resolvers require the same permission/scope as the REST layer and

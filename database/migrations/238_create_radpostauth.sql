@@ -3,10 +3,10 @@
 -- =============================================================================
 -- Creates the FreeRADIUS radpostauth table for post-authentication logging.
 -- FreeRADIUS writes to this table directly via the rlm_sql module;
--- FireISP reads it for auth-failure diagnostics.
+-- VigaBSS reads it for auth-failure diagnostics.
 --
 -- NOTE: No foreign keys — FreeRADIUS writes this table without knowledge of
---       FireISP's organization or subscriber structure.
+--       VigaBSS's organization or subscriber structure.
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS radpostauth (

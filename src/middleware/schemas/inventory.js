@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory Validation Schemas
+// VigaBSS 5.0 — Inventory Validation Schemas
 // =============================================================================
 
 const createInventoryItem = {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Database Backups (admin)
+// VigaBSS 5.0 — Database Backups (admin)
 // =============================================================================
 // Admin page at /backups. Three concerns on one page:
 //   1. Status — when the nightly database_backup task last ran / runs next,

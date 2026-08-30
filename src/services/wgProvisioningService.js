@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WireGuard Provisioning Service (per-NAS, Part 1)
+// VigaBSS 5.0 — WireGuard Provisioning Service (per-NAS, Part 1)
 // =============================================================================
 // Orchestrates the per-NAS WireGuard tunnel lifecycle:
 //   provisionDesiredState  DB + host-side sync only (no router I/O). Idempotent.
@@ -107,7 +107,7 @@ function assembleSnippet(tunnel, serverCfg, subnets, privateKey) {
 
   const lines = [
     '# =================================================================',
-    '# FireISP WireGuard — paste-once RouterOS CLI bootstrap',
+    '# VigaBSS WireGuard — paste-once RouterOS CLI bootstrap',
     '# IMPORTANT: only /interface/wireguard, /ip/address, and routes are',
     '# written. Winbox (port 8291), /ip/service, and /ip/firewall are',
     '# NOT touched.',
@@ -119,7 +119,7 @@ function assembleSnippet(tunnel, serverCfg, subnets, privateKey) {
     '# 2. Assign the tunnel /32 address',
     `/ip/address/add interface=${ifaceName} address=${tunnelIp}/32`,
     '',
-    '# 3. Add the FireISP hub as a peer (NAS dials out)',
+    '# 3. Add the VigaBSS hub as a peer (NAS dials out)',
     `/interface/wireguard/peers/add interface=${ifaceName} \\`,
     `  public-key=${serverCfg.publicKey} \\`,
     `  endpoint-address=${serverCfg.endpoint} \\`,
@@ -130,11 +130,11 @@ function assembleSnippet(tunnel, serverCfg, subnets, privateKey) {
   ];
 
   // 4. Return route — RouterOS 7 does NOT auto-create routes from a peer's
-  // allowed-address, so the NAS must have an explicit route for the FireISP hub
+  // allowed-address, so the NAS must have an explicit route for the VigaBSS hub
   // subnet back via the WireGuard interface. Without this, reply traffic from the
   // NAS to the hub's masqueraded source (10.255.0.1) exits via the WAN and is lost.
   lines.push('');
-  lines.push('# 4. Return route — NAS must route the FireISP hub subnet via the WG interface');
+  lines.push('# 4. Return route — NAS must route the VigaBSS hub subnet via the WG interface');
   lines.push(`/ip/route/add dst-address=${serverCfg.subnet} gateway=${ifaceName} comment=fireisp-hub-return`);
 
   if (subnets && subnets.length > 0) {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — HTTP Response Cache Middleware (M5.6)
+// VigaBSS 5.0 — HTTP Response Cache Middleware (M5.6)
 // =============================================================================
 // Cache-aside middleware for GET endpoints.  Backed by cacheService (Redis
 // when REDIS_URL is set, in-memory LRU otherwise).

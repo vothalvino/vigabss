@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Communication Campaign Routes — §1.4
+// VigaBSS 5.0 — Communication Campaign Routes — §1.4
 // =============================================================================
 
 const { Router } = require('express');

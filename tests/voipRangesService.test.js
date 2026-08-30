@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — VoIP Ranges Service Tests
+// VigaBSS 5.0 — VoIP Ranges Service Tests
 // =============================================================================
 // Covers CIDR validation, source-body parsing (JSON + plain), range resolution
 // (fetch, dedupe, validate, cap, fallback) and the refreshAllNas fan-out. Config,

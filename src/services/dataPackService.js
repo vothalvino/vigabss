@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — Data Pack Service (§10.3)
+// VigaBSS 5.0 — Data Pack Service (§10.3)
 // =============================================================================
 // Manages the data pack catalog and subscriber purchases.
 // Effective allowance = base_cap + active_packs + rollover_balance.

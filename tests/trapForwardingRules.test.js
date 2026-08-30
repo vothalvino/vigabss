@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Trap Forwarding Rule Route Tests (§6.1)
+// VigaBSS 5.0 — Trap Forwarding Rule Route Tests (§6.1)
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

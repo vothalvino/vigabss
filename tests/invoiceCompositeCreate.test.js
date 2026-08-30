@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Invoice composite create (invoice + items, one transaction)
+// VigaBSS 5.0 — Invoice composite create (invoice + items, one transaction)
 // =============================================================================
 // Regression coverage for the two live-hit raw-API bugs: invoice_number is
 // NOT NULL in the DB but was never auto-generated (raw 500), and `items` was

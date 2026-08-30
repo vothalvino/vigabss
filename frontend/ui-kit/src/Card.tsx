@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Surface panel — the primary grouping primitive in FireISP's flat UI.
+ * Surface panel — the primary grouping primitive in VigaBSS's flat UI.
  * White card background, 1px border, 8px radius. Optional header with a
  * title on the left and arbitrary action nodes (e.g., Buttons) on the right.
  * No drop shadow; border-only elevation.

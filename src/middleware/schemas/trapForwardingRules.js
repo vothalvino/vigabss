@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Trap Forwarding Rule Validation Schemas
+// VigaBSS 5.0 — SNMP Trap Forwarding Rule Validation Schemas
 // =============================================================================
 
 const createTrapForwardingRule = {

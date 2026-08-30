@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ConcessionTitle Model
+// VigaBSS 5.0 — ConcessionTitle Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

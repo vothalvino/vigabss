@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Router Provisioning Service (direct RouterOS API)
+// VigaBSS 5.0 — Router Provisioning Service (direct RouterOS API)
 // =============================================================================
 // Pushes provisioning DIRECTLY to a MikroTik RouterOS device over its binary
 // API (no FireRelay/proxy agent). Builds a RouterOS connection descriptor from
@@ -158,8 +158,8 @@ async function removeSubscriber(nas, { username }) {
 // =============================================================================
 // Device seeding (one-click bootstrap)
 // =============================================================================
-// Configures a fresh MikroTik so it works as a FireISP-managed BNG/NAS:
-//   • RADIUS client pointing at FireISP's embedded RADIUS (service=ppp)
+// Configures a fresh MikroTik so it works as a VigaBSS-managed BNG/NAS:
+//   • RADIUS client pointing at VigaBSS's embedded RADIUS (service=ppp)
 //   • PPP AAA (use-radius + accounting + interim-update)
 //   • RADIUS incoming (CoA / Disconnect-Message listener)
 //   • optional global queue-tree skeleton (parent HTB nodes for total bw)
@@ -171,7 +171,7 @@ async function removeSubscriber(nas, { username }) {
 // (not thrown) so a partial failure still returns a useful report.
 // =============================================================================
 
-// Comment tag prefix marking every FireISP-managed object on the router.
+// Comment tag prefix marking every VigaBSS-managed object on the router.
 const SEED_TAG = 'fireisp';
 
 // Blueprint §4 — global priority-class simple-queue names. The numeric prefixes
@@ -256,7 +256,7 @@ async function upsertByName(client, basePath, name, attrWords, addOnlyWords = []
 }
 
 /**
- * Seed a MikroTik NAS with the FireISP RADIUS/PPP/QoS bootstrap.
+ * Seed a MikroTik NAS with the VigaBSS RADIUS/PPP/QoS bootstrap.
  *
  * Idempotent and non-destructive — safe to re-run. Connection/credential
  * problems propagate (so the route can map them to 422 / 502); per-command
@@ -264,7 +264,7 @@ async function upsertByName(client, basePath, name, attrWords, addOnlyWords = []
  *
  * @param {object} nas  NAS row (provides ip/api credentials + RADIUS `secret`)
  * @param {object} [opts]
- * @param {string}  opts.radiusAddress      Address the router uses to reach FireISP's RADIUS (required)
+ * @param {string}  opts.radiusAddress      Address the router uses to reach VigaBSS's RADIUS (required)
  * @param {number} [opts.authPort=1812]
  * @param {number} [opts.acctPort=1813]
  * @param {number} [opts.coaPort]           CoA listener port (defaults to nas.coa_port || 3799)
@@ -277,7 +277,7 @@ async function upsertByName(client, basePath, name, attrWords, addOnlyWords = []
  * @param {boolean}[opts.seedPriorityQueues=false] §4 — GLOBAL-POP-LIMIT → BUSINESS(2)/RESIDENTIAL(5) simple queues
  * @param {boolean}[opts.seedPppoeServer=false]    §2 — base PPP profile + pppoe-server on pppoeInterface
  * @param {string} [opts.pppoeInterface]           Required when seedPppoeServer (e.g. 'ether2')
- * @param {string} [opts.pppoeServiceName='FireISP-Internet']
+ * @param {string} [opts.pppoeServiceName='VigaBSS-Internet']
  * @param {string} [opts.pppoeProfileName='fireisp-pppoe']
  * @param {string} [opts.pppoeLocalAddress]        PPP profile local-address (gateway IP)
  * @param {string} [opts.pppoeParentQueue]         PPP profile parent-queue (defaults to POP limit when §4 seeded)
@@ -311,7 +311,7 @@ async function seedDevice(nas, opts = {}) {
     seedPriorityQueues = false,
     seedPppoeServer = false,
     pppoeInterface,
-    pppoeServiceName = 'FireISP-Internet',
+    pppoeServiceName = 'VigaBSS-Internet',
     pppoeProfileName = `${SEED_TAG}-pppoe`,
     pppoeLocalAddress,
     pppoeParentQueue,
@@ -378,7 +378,7 @@ async function seedDevice(nas, opts = {}) {
   };
 
   try {
-    // ── 1. RADIUS client → FireISP embedded RADIUS (service=ppp) ──────────────
+    // ── 1. RADIUS client → VigaBSS embedded RADIUS (service=ppp) ──────────────
     await step('radius-client', `RADIUS client → ${radiusAddr} (service=ppp, auth ${authPort}/acct ${acctPort})`, () =>
       upsertByComment(client, '/radius', `${SEED_TAG}-radius`, [
         '=service=ppp',
@@ -531,7 +531,7 @@ async function seedDevice(nas, opts = {}) {
         record('pppoe-server', 'skipped', 'no PPPoE interface provided (set pppoeInterface, e.g. ether2)');
       } else {
         const profileName = String(pppoeProfileName || `${SEED_TAG}-pppoe`).trim();
-        const serviceName = String(pppoeServiceName || 'FireISP-Internet').trim();
+        const serviceName = String(pppoeServiceName || 'VigaBSS-Internet').trim();
         const localAddr = pppoeLocalAddress ? String(pppoeLocalAddress).trim() : '';
         // Explicit parent-queue wins; otherwise hang sessions under the POP limit
         // ONLY when §4 actually creates it (flag set AND POP bandwidth provided).

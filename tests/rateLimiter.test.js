@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Rate Limiter Tests
+// VigaBSS 5.0 — Rate Limiter Tests
 // =============================================================================
 
 const { apiLimiter, authLimiter, publicLimiter, uploadLimiter, exportLimiter, sseLimiter, webhookLimiter, tenantApiLimiter } = require('../src/middleware/rateLimit');

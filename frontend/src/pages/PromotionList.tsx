@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Promotion Management
+// VigaBSS 5.0 — Promotion Management
 // =============================================================================
 // Standalone page at /promotions. Lists promotions/coupons with a type filter,
 // paginated table, and "New Promotion" create modal plus per-row Edit and

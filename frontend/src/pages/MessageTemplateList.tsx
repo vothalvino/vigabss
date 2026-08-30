@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Message Template Management
+// VigaBSS 5.0 — Message Template Management
 // =============================================================================
 // Standalone page at /message-templates (promoted out of the Settings page).
 // Lists notification templates (email / SMS / WhatsApp) with a channel filter,

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CSRF protection middleware tests (P3.4 + csrf library)
+// VigaBSS 5.0 — CSRF protection middleware tests (P3.4 + csrf library)
 // =============================================================================
 
 jest.mock('../src/config', () => ({
@@ -65,7 +65,7 @@ describe('csrfOriginCheck', () => {
   // =========================================================================
   // No cookie present — API-key / Bearer-only clients pass through
   // =========================================================================
-  test('POST without any FireISP cookie is allowed (Bearer/API-key client)', () => {
+  test('POST without any VigaBSS cookie is allowed (Bearer/API-key client)', () => {
     const req = mockReq({ method: 'POST', cookies: {} });
     const res = mockRes();
     const next = jest.fn();

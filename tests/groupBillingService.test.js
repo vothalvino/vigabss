@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client-Group Shared Billing Service Tests
+// VigaBSS 5.0 — Client-Group Shared Billing Service Tests
 // =============================================================================
 // Covers groupBillingService.getGroupBilling + payGroup: the primary pays the
 // group's balance and it FIFO-allocates across members' open invoices. Money

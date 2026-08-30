@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — VLAN Management
+// VigaBSS 5.0 — VLAN Management
 // =============================================================================
 // Standalone page at /vlans. Lists IEEE 802.1Q VLANs with a status filter,
 // paginated table, and "New VLAN" create modal plus per-row Edit and Delete

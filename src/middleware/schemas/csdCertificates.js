@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CSD Certificate Validation Schemas
+// VigaBSS 5.0 — CSD Certificate Validation Schemas
 // =============================================================================
 // Upload takes the RAW .cer/.key files (base64) + passphrase — the server
 // parses and validates them (RFC, validity, pair match) itself. The old shape

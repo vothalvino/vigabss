@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Remote Backup Settings Routes
+// VigaBSS 5.0 — Remote Backup Settings Routes
 // =============================================================================
 // GET  /backup-settings          — settings (secret masked) + env-fallback
 //                                  state + nightly schedule + latest run

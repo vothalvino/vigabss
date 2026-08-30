@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Service Area Validation Schemas
+// VigaBSS 5.0 — Service Area Validation Schemas
 // =============================================================================
 
 const createServiceArea = {

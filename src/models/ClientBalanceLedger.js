@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ClientBalanceLedger Model
+// VigaBSS 5.0 — ClientBalanceLedger Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

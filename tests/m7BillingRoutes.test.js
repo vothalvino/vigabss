@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — M7 Billing Routes Integration Tests
+// VigaBSS 5.0 — M7 Billing Routes Integration Tests
 // =============================================================================
 // Verifies the new promotions / tax-rules / tax-rates CRUD routes are wired,
 // authenticated, org-scoped, and validated.

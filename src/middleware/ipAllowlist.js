@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IP Allowlist Middleware
+// VigaBSS 5.0 — IP Allowlist Middleware
 // =============================================================================
 // Parsing and matching utilities shared by the optional ADMIN_IP_ALLOWLIST
 // environment override and the GUI-managed, database-backed admin policy.

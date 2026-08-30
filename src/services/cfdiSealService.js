@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CSD sealing engine (CFDI 4.0 "sello digital")
+// VigaBSS 5.0 — CSD sealing engine (CFDI 4.0 "sello digital")
 // =============================================================================
 // Seals CFDI XML locally with the organization's CSD:
 //

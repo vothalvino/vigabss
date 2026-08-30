@@ -1,10 +1,10 @@
-/* Brand typefaces — Inter (UI) + JetBrains Mono (numbers/IDs). FireISP self-hosts
+/* Brand typefaces — Inter (UI) + JetBrains Mono (numbers/IDs). VigaBSS self-hosts
    these via @fontsource in the app; the kit loads the same families from Google
    Fonts so it's self-sufficient wherever it's rendered. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* =============================================================================
-   FireISP 5.0 — Design tokens
+   VigaBSS 5.0 — Design tokens
    Source of truth: extracted from frontend/src/index.css
    Light theme (:root) and dark theme ([data-theme="dark"])
    ============================================================================= */

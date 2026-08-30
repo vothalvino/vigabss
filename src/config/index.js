@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Application Configuration
+// VigaBSS 5.0 — Application Configuration
 // =============================================================================
 
 const parseIntEnv = (key, fallback) => {
@@ -99,7 +99,7 @@ const config = {
   // Request timeout in milliseconds (0 = disabled)
   requestTimeoutMs: parseIntEnv('REQUEST_TIMEOUT_MS', 30000),
 
-  // Embedded RADIUS server (auth + accounting). Opt-in: enable to make FireISP
+  // Embedded RADIUS server (auth + accounting). Opt-in: enable to make VigaBSS
   // itself the RADIUS server for NAS devices (no external FreeRADIUS needed).
   radiusServer: {
     enabled: parseBoolEnv('RADIUS_SERVER_ENABLED', false),
@@ -132,7 +132,7 @@ const config = {
   // The public app initializes disabled; the installation-wide DB setting is
   // loaded after database startup. Production kernel work is delegated to the
   // isolated helper rather than granting this process NET_ADMIN.
-  // HARD CONSTRAINT: FireISP NEVER writes /ip/service or /ip/firewall on the router.
+  // HARD CONSTRAINT: VigaBSS NEVER writes /ip/service or /ip/firewall on the router.
   wireguard: {
     serverEnabled:    parseBoolEnv('WG_SERVER_ENABLED', false),
     serverInterface:  process.env.WG_SERVER_INTERFACE  || 'wg-fireisp',

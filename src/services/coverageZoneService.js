@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Coverage Zone Service (GeoJSON ↔ MySQL POLYGON)
+// VigaBSS 5.0 — Coverage Zone Service (GeoJSON ↔ MySQL POLYGON)
 // =============================================================================
 // MySQL stores the boundary as a POLYGON geometry (SRID 4326 / WGS 84).
 // The REST API exposes / accepts GeoJSON so the map editor can work directly

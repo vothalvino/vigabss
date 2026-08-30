@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — POST /cfdi-documents/:id/cancel delegates to cfdiService.cancel()
+// VigaBSS 5.0 — POST /cfdi-documents/:id/cancel delegates to cfdiService.cancel()
 // =============================================================================
 // This route used to hand-roll the cancellation SQL: it inserted
 // cfdi_cancellations and then IMMEDIATELY set cfdi_documents.sat_status =

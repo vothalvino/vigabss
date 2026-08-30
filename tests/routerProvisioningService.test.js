@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Router Provisioning Service Tests
+// VigaBSS 5.0 — Router Provisioning Service Tests
 // =============================================================================
 // Covers nasToConn (default port, decrypt usage, validation), testConnection
 // (parses /system/resource/print + best-effort identity) and pushSubscriber
@@ -341,7 +341,7 @@ describe('seedDevice', () => {
     expect(stepStatus(result.steps, 'radius-incoming')).toBe('updated');
     expect(stepStatus(result.steps, 'ppp-aaa')).toBe('updated');
 
-    // RADIUS client added with the NAS secret + service=ppp pointing at FireISP.
+    // RADIUS client added with the NAS secret + service=ppp pointing at VigaBSS.
     const add = callTo(calls, '/radius/add');
     expect(add).toContain('=service=ppp');
     expect(add).toContain('=address=203.0.113.10');
@@ -727,7 +727,7 @@ describe('seedDevice', () => {
 
     const serverAdd = callTo(calls, '/interface/pppoe-server/server/add');
     expect(serverAdd).toEqual(expect.arrayContaining([
-      '=service-name=FireISP-Internet', '=interface=ether2', '=default-profile=fireisp-pppoe', '=disabled=no',
+      '=service-name=VigaBSS-Internet', '=interface=ether2', '=default-profile=fireisp-pppoe', '=disabled=no',
     ]));
   });
 

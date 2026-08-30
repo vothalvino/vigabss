@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Contract Suspend / Unsuspend Route Tests
+// VigaBSS 5.0 — Contract Suspend / Unsuspend Route Tests
 // =============================================================================
 // Covers POST /api/contracts/:id/suspend and POST /api/contracts/:id/unsuspend.
 // These endpoints call suspensionService which sends RADIUS CoA Disconnect /

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ClientGroup model: addMembers / removeMember
+// VigaBSS 5.0 — ClientGroup model: addMembers / removeMember
 // =============================================================================
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 

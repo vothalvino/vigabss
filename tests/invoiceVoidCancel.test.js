@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Invoice void vs. SAT-cancel tests
+// VigaBSS 5.0 — Invoice void vs. SAT-cancel tests
 // =============================================================================
 // The Mexican compliance rule: a stamped CFDI is registered at SAT the moment
 // it is timbrado, so an internal "void" does NOT withhold it from the tax

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Express Application
+// VigaBSS 5.0 — Express Application
 // =============================================================================
 
 const express = require('express');
@@ -392,7 +392,7 @@ app.use(requestLogger);
 app.use(metricsMiddleware);
 app.use('/api/', apiLimiter);
 // CSRF origin check — validates Origin/Referer header on state-changing requests
-// that carry a FireISP auth cookie (browser SPA).  SameSite=Strict on the cookies
+// that carry a VigaBSS auth cookie (browser SPA).  SameSite=Strict on the cookies
 // already prevents CSRF; this is defense-in-depth.
 app.use('/api/', csrfOriginCheck);
 // The strict auth limiter (RATE_LIMIT_AUTH, default 20/window) guards ONLY

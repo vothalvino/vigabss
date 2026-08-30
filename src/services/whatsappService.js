@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WhatsApp identity service
+// VigaBSS 5.0 — WhatsApp identity service
 // =============================================================================
 // The trust layer beneath the WhatsApp bot: normalize phone numbers, mint and
 // verify short-lived linking/step-up codes (hashed, single-use, rate-limited),

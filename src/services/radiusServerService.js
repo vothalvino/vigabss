@@ -1,14 +1,14 @@
 // =============================================================================
-// FireISP 5.0 — Embedded RADIUS Server
+// VigaBSS 5.0 — Embedded RADIUS Server
 // =============================================================================
-// A native RADIUS auth (UDP 1812) + accounting (UDP 1813) server so FireISP can
+// A native RADIUS auth (UDP 1812) + accounting (UDP 1813) server so VigaBSS can
 // authenticate PPPoE/RADIUS subscribers itself — no external FreeRADIUS daemon
-// required. A MikroTik (or any NAS) points its `/radius` at the FireISP host and
-// FireISP answers Access-Requests from its own `radius` table and routes
+// required. A MikroTik (or any NAS) points its `/radius` at the VigaBSS host and
+// VigaBSS answers Access-Requests from its own `radius` table and routes
 // accounting through the existing radiusAccountingService.ingestAccounting.
 //
 // Opt-in via RADIUS_SERVER_ENABLED=true (default off — it binds privileged-ish
-// UDP ports and is only useful when FireISP is the RADIUS server).
+// UDP ports and is only useful when VigaBSS is the RADIUS server).
 //
 // Reuses: radiusServerCodec (decode + PAP/CHAP + signing), radiusCoaEncoder
 // (attribute/packet encoding) and radiusAttributeService (plan policy attrs).

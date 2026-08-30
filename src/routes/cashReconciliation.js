@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Cash Reconciliation Routes
+// VigaBSS 5.0 — Cash Reconciliation Routes
 // =============================================================================
 
 const { Router } = require('express');

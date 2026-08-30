@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SSO Routes (P2.1)
+// VigaBSS 5.0 — SSO Routes (P2.1)
 // =============================================================================
 // Mounts both the browser-facing redirect/callback endpoints (no auth required)
 // and the admin config/group-mapping management endpoints (JWT + RBAC required).

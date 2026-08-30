@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WhatsApp bot (binding state machine) tests
+// VigaBSS 5.0 — WhatsApp bot (binding state machine) tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));

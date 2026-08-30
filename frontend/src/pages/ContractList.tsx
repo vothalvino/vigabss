@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Contract Management
+// VigaBSS 5.0 — Contract Management
 // =============================================================================
 // Standalone page at /contracts. Shows all contracts across all clients with:
 //   • Filtering by status

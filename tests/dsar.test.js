@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — tenant-safe, complete DSAR export tests
+// VigaBSS 5.0 — tenant-safe, complete DSAR export tests
 // =============================================================================
 
 'use strict';

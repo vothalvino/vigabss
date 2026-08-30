@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay Agent Process
+// VigaBSS 5.0 — FireRelay Agent Process
 // =============================================================================
 // Runs on remote POP-site nodes. Connects outbound to the master tunnel and
 // waits for command messages from FireRelay.

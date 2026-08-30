@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Concession Title Viewer
+// VigaBSS 5.0 — Concession Title Viewer
 // =============================================================================
 // Read-only page at /concession-titles. Lists the IFT/CRT concession titles
 // (official authorizations to provide telecom services) with their type,

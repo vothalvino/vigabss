@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NasDetail page tests
+// VigaBSS 5.0 — NasDetail page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -268,7 +268,7 @@ describe('NasDetail page', () => {
     screen.getByRole('button', { name: 'Seed' }).click();
 
     await waitFor(() => expect(screen.getByRole('dialog', { name: /Seed NAS Core-Router/i })).toBeInTheDocument());
-    expect(screen.getByRole('textbox', { name: /FireISP RADIUS Address/i })).toHaveValue('10.255.0.1');
+    expect(screen.getByRole('textbox', { name: /VigaBSS RADIUS Address/i })).toHaveValue('10.255.0.1');
   });
 
   it('deletes the NAS after confirmation and returns to the list', async () => {

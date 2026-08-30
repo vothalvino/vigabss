@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Import Controller Tests
+// VigaBSS 5.0 — Import Controller Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({ query: jest.fn(), getConnection: jest.fn() }));

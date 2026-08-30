@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — a model that scopes by org must be able to WRITE the org
+// VigaBSS 5.0 — a model that scopes by org must be able to WRITE the org
 // =============================================================================
 // The trap, and it is silent in both directions:
 //

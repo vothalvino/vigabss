@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — App Layout (shell + nav)
+// VigaBSS 5.0 — App Layout (shell + nav)
 // =============================================================================
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';

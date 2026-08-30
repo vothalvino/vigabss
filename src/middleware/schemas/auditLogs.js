@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Audit Log Validation Schemas
+// VigaBSS 5.0 — Audit Log Validation Schemas
 // =============================================================================
 
 const listAuditLogs = {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Config Compliance Rule Routes — §6.6
+// VigaBSS 5.0 — Config Compliance Rule Routes — §6.6
 // =============================================================================
 
 const { Router } = require('express');

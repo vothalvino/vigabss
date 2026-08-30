@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Overage & Trial Tests
+// VigaBSS 5.0 — Billing Overage & Trial Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({ query: jest.fn(), getConnection: jest.fn() }));

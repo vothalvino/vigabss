@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Adjustments (§2.5 Billing+)
+// VigaBSS 5.0 — Billing Adjustments (§2.5 Billing+)
 // =============================================================================
 // Read-mostly billing reports page for manual adjustments:
 //   • Table: ID, Client ID, Entity Type, Entity ID, Adjustment Type,

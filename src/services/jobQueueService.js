@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Job Queue Service
+// VigaBSS 5.0 — Job Queue Service
 // =============================================================================
 // Provides an async job queue interface that works with or without Redis/BullMQ.
 // When REDIS_URL is set and bullmq is installed, uses BullMQ for distributed

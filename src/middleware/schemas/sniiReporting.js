@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNII preparation validation schemas
+// VigaBSS 5.0 — SNII preparation validation schemas
 // =============================================================================
 
 'use strict';

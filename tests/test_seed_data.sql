@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Seed Data Verification Tests
+-- VigaBSS 5.0 — Seed Data Verification Tests
 -- =============================================================================
 -- Verifies that all seeded data (roles, permissions, settings, tax rates,
 -- scheduled tasks, SAT catalogs, SNMP profiles) is present and correct.

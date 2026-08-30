@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Migration 130: Create firerelay_nodes table
+-- VigaBSS 5.0 — Migration 130: Create firerelay_nodes table
 -- =============================================================================
 -- Registry of all nodes in a FireRelay cluster.  Only used when
 -- FIRERELAY_MODE = master.  Workers and standalone installs ignore this table.

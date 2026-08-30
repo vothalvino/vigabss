@@ -1,7 +1,7 @@
 // =============================================================================
-// FireISP Operations Console — presentational widgets
+// VigaBSS Operations Console — presentational widgets
 // =============================================================================
-// Ported from the design's widgets.jsx. Composes the FireISP UI kit
+// Ported from the design's widgets.jsx. Composes the VigaBSS UI kit
 // (Card / Table / Badge) + token-driven layout glue. The topbar/sidebar/icons
 // from the design are omitted — the app shell (Layout.tsx) supplies them.
 // =============================================================================

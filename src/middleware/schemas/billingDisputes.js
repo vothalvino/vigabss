@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Dispute Validation Schemas
+// VigaBSS 5.0 — Billing Dispute Validation Schemas
 // =============================================================================
 
 const DISPUTE_TYPES = ['billing_error', 'service_quality', 'unauthorized_charge', 'other'];

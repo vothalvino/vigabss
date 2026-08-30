@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Trap Forwarding Rule Model
+// VigaBSS 5.0 — SNMP Trap Forwarding Rule Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

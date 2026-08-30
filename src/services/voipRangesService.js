@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — VoIP / RTC Address-List Auto-Updater
+// VigaBSS 5.0 — VoIP / RTC Address-List Auto-Updater
 // =============================================================================
 // Keeps the `fireisp-voip` firewall address-list on managed MikroTik NAS current
 // with real-time-communication (RTC) provider IP ranges, so the §VoIP realtime-

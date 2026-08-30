@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Wireless Management route tests (ap-sectors: migration 388)
+// VigaBSS 5.0 — Wireless Management route tests (ap-sectors: migration 388)
 // =============================================================================
 // Focused coverage for the 2 new per-sector diagnostic-threshold columns
 // (signal_min_dbm, link_capacity_min_mbps) added to ap_sector_configs by

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Site timeline + work-order audit logging
+// VigaBSS 5.0 — Site timeline + work-order audit logging
 // =============================================================================
 // /sites/:id/timeline merges work orders, outages and maintenance windows for
 // one site (the "what happened to tower X" view); work-order mutations now

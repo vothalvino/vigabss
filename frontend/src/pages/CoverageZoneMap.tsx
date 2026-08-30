@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Coverage Zone Map Editor
+// VigaBSS 5.0 — Coverage Zone Map Editor
 // =============================================================================
 // Interactive SVG polygon editor for drawing and editing coverage zone
 // boundaries on a lat/lng coordinate canvas.

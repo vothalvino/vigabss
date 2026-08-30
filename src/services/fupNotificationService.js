@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — FUP Usage Notification Service (§10.3)
+// VigaBSS 5.0 — FUP Usage Notification Service (§10.3)
 // =============================================================================
 // Checks subscriber data usage against their plan caps and sends de-duplicated
 // notifications at the 80%, 90%, and 100% thresholds each billing month.

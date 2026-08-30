@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 188: Restore the legacy ip_pools.cidr column
+-- VigaBSS 5.0 — Rollback 188: Restore the legacy ip_pools.cidr column
 -- =============================================================================
 -- Reverses migration 188.  The forward migration added subnet_mask and
 -- pool_type, back-filled subnet_mask from cidr, swapped the unique key, and

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Privileged-field guard for the users routes
+// VigaBSS 5.0 — Privileged-field guard for the users routes
 // =============================================================================
 // Only an administrator may set a user's privilege- or takeover-bearing fields.
 // The route already gates on the users.* permission; this additionally

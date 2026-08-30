@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Plan List (§1.3 Billing+)
+// VigaBSS 5.0 — Payment Plan List (§1.3 Billing+)
 // =============================================================================
 // CRUD page for payment plans. A payment plan lets a client pay a total in
 // recurring installments (weekly / biweekly / monthly).

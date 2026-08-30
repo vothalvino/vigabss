@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — §8 llmProviderService.embed() Tests
+// VigaBSS 5.0 — §8 llmProviderService.embed() Tests
 // =============================================================================
 
 jest.mock('../src/utils/logger', () => ({

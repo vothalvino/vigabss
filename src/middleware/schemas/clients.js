@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Validation Schemas
+// VigaBSS 5.0 — Client Validation Schemas
 // =============================================================================
 
 const CLIENT_TYPES = ['personal', 'company', 'residential', 'business', 'corporate', 'government', 'wholesale'];

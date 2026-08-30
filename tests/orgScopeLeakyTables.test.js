@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — the tables BaseModel used to leave unscoped
+// VigaBSS 5.0 — the tables BaseModel used to leave unscoped
 // =============================================================================
 // src/models/BaseModel.js reads:
 //

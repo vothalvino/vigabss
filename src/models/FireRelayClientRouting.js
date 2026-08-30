@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelayClientRouting Model
+// VigaBSS 5.0 — FireRelayClientRouting Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

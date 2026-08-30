@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Session Viewer
+// VigaBSS 5.0 — RADIUS Session Viewer
 // =============================================================================
 // Page at /radius-sessions. Shows live PPPoE sessions pulled from
 // connection_logs (start events with no corresponding stop event).

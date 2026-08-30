@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 174: Remove contracts org/billing columns
+-- VigaBSS 5.0 — Rollback 174: Remove contracts org/billing columns
 -- =============================================================================
 -- Reverses migration 174 by dropping the organization_id foreign key, its
 -- indexes, and the organization_id, billing_day, and ip_address columns.

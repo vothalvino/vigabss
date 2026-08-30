@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Staff notification bell (topbar)
+// VigaBSS 5.0 — Staff notification bell (topbar)
 // =============================================================================
 // Polls the unread count (60s + on focus), shows recent notifications in a
 // dropdown, marks read on click and deep-links via entity_type/entity_id.

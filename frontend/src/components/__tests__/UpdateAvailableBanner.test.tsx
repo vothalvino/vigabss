@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — UpdateAvailableBanner component tests
+// VigaBSS 5.0 — UpdateAvailableBanner component tests
 // =============================================================================
 // Two properties matter here and neither is "does a div render":
 //

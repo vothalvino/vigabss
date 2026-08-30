@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Subscriber Certificate Route Tests (§3.1)
+// VigaBSS 5.0 — Subscriber Certificate Route Tests (§3.1)
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

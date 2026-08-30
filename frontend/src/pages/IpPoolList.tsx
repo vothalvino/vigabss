@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IP Pool Management
+// VigaBSS 5.0 — IP Pool Management
 // =============================================================================
 // Standalone page at /ip-pools. Lists IP address pools with a status filter,
 // paginated table, and "New Pool" create modal plus per-row Edit and Delete

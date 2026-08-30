@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# FireISP 5.0 — Let's Encrypt bootstrap
+# VigaBSS 5.0 — Let's Encrypt bootstrap
 #
 # Run this ONCE on the host before starting the full production stack.
 # It solves the chicken-and-egg problem: nginx needs TLS certs to start,
@@ -280,7 +280,7 @@ log "    Certs  : $CERTS_DIR/"
 log ""
 log "Next steps:"
 if [[ "$USE_HOST_NGINX" == "1" ]]; then
-  log "  1. Start the FireISP stack (host-nginx overlay):"
+  log "  1. Start the VigaBSS stack (host-nginx overlay):"
   log "       docker compose -f $COMPOSE_FILE -f $(dirname "$COMPOSE_FILE")/docker-compose.host-nginx.yml up -d"
   log "  2. Certificates renew automatically every ~60 days (certbot service checks every 12h)."
   log "  3. Host nginx reloads every 6 hours via cron to pick up renewed certs."

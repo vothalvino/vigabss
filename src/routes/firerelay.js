@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay Routes
+// VigaBSS 5.0 — FireRelay Routes
 // =============================================================================
 // /api/firerelay/* endpoints for cluster node management.
 //

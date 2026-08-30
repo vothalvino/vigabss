@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Section 11 Tests
+// VigaBSS 5.0 — Portal Section 11 Tests
 // =============================================================================
 // Tests for §11.1 dashboard, §11.2 billing extensions, §11.3 service requests,
 // §11.4 KB + speed test + chat, §11.5 push subscriptions.

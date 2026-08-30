@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Topology Context Service (P1 §3.1)
+// VigaBSS 5.0 — Topology Context Service (P1 §3.1)
 // =============================================================================
 // Walks the network graph from a contract's CPE up to the edge/core device
 // and produces a clean context snapshot for the AI Reply Assistant.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory Transaction Route Tests (§14 — Inventory Phase 1)
+// VigaBSS 5.0 — Inventory Transaction Route Tests (§14 — Inventory Phase 1)
 // =============================================================================
 // Covers POST /api/v1/inventory/transactions: the generic stock-movement
 // ledger endpoint. Phase 1 added the ability to create a brand-new

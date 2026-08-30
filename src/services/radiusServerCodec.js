@@ -1,12 +1,12 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Server Codec (decode + auth helpers)
+// VigaBSS 5.0 — RADIUS Server Codec (decode + auth helpers)
 // =============================================================================
 // Decoding + authentication helpers for the embedded RADIUS server
 // (radiusServerService). Complements radiusCoaEncoder (which handles attribute
 // and packet ENCODING for CoA/Disconnect, reused here for replies).
 //
 // Implements just enough of RFC 2865 / 2866 / 2869 to authenticate and account
-// PPPoE subscribers natively inside FireISP — so an external FreeRADIUS daemon
+// PPPoE subscribers natively inside VigaBSS — so an external FreeRADIUS daemon
 // is no longer required:
 //   - packet + attribute (incl. Vendor-Specific) decoding
 //   - PAP User-Password decrypt (and encrypt, for tests/symmetry)

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RecurringPaymentProfile Model
+// VigaBSS 5.0 — RecurringPaymentProfile Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

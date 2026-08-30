@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — install vs org settings split (j56, migration 443)
+// VigaBSS 5.0 — install vs org settings split (j56, migration 443)
 // =============================================================================
 // Before the split, GET/PUT /settings read and wrote the INSTALL-level
 // `settings` table while pretending to be per-org: any tenant admin could

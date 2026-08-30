@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — session and privacy-minimal IP-attribution readiness
+// VigaBSS 5.0 — session and privacy-minimal IP-attribution readiness
 // =============================================================================
 
 const db = require('../config/database');

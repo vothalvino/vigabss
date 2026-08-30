@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Background Queue Status View
+// VigaBSS 5.0 — Background Queue Status View
 // =============================================================================
 // Standalone read-only page at /queue-stats. Surfaces the background job
 // queue counters (waiting / active / completed / failed / delayed) for each

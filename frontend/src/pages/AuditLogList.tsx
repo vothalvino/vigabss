@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Audit Log Viewer
+// VigaBSS 5.0 — Audit Log Viewer
 // =============================================================================
 // Standalone read-only page at /audit-logs. Lists audit trail entries with
 // filters (action, user, date range) and pagination. Data is fetched through

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// FireISP 5.0 — Route Stub Generator from OpenAPI Spec (P3.11)
+// VigaBSS 5.0 — Route Stub Generator from OpenAPI Spec (P3.11)
 // =============================================================================
 // Reads docs/openapi.json and generates skeleton files for a new resource:
 //   • src/routes/<resource>.js        — Express route file
@@ -103,7 +103,7 @@ function generateRouteFile(resource, paths, modelName) {
   const camel = toCamel(resource);
   const lines = [
     '// =============================================================================',
-    `// FireISP 5.0 — ${modelName} Routes  [GENERATED — fill in implementation]`,
+    `// VigaBSS 5.0 — ${modelName} Routes  [GENERATED — fill in implementation]`,
     '// =============================================================================',
     '',
     "const { Router } = require('express');",
@@ -164,7 +164,7 @@ function generateRouteFile(resource, paths, modelName) {
 function generateSchemaFile(resource, modelName) {
   return [
     '// =============================================================================',
-    `// FireISP 5.0 — ${modelName} Validation Schemas  [GENERATED — fill in fields]`,
+    `// VigaBSS 5.0 — ${modelName} Validation Schemas  [GENERATED — fill in fields]`,
     '// =============================================================================',
     '',
     `const create${modelName} = {`,
@@ -188,7 +188,7 @@ function generateSchemaFile(resource, modelName) {
 function generateTestFile(resource, paths, modelName) {
   const lines = [
     '// =============================================================================',
-    `// FireISP 5.0 — ${modelName} Route Tests  [GENERATED stub — fill in test cases]`,
+    `// VigaBSS 5.0 — ${modelName} Route Tests  [GENERATED stub — fill in test cases]`,
     '// =============================================================================',
     '',
     "const request = require('supertest');",

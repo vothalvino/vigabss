@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Feature Flag Middleware
+// VigaBSS 5.0 — Feature Flag Middleware
 // =============================================================================
 // Returns 404 when a feature flag is disabled, preventing access to routes
 // that belong to optional subsystems (CFDI, RADIUS, 2FA, Webhooks, SNMP).

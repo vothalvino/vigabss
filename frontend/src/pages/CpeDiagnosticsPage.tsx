@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE Diagnostics Page (§8.3)
+// VigaBSS 5.0 — CPE Diagnostics Page (§8.3)
 // =============================================================================
 // Tabbed page:
 //   Tab 1: Diagnostics — select a CPE device, choose diag type, run and view results

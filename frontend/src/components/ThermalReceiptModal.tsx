@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ThermalReceiptModal (§2.2B)
+// VigaBSS 5.0 — ThermalReceiptModal (§2.2B)
 // =============================================================================
 // Modal that fetches and displays a plain-text thermal receipt for an invoice
 // or payment. Supports 58mm (32-char) and 80mm (48-char) width toggle plus a

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PrivateRoute + hasRole tests
+// VigaBSS 5.0 — PrivateRoute + hasRole tests
 // =============================================================================
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';

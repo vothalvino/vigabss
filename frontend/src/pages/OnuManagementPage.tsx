@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ONU Management (§7.2)
+// VigaBSS 5.0 — ONU Management (§7.2)
 // =============================================================================
 // Tabbed page covering:
 //   1. ONU Details      — provisioned ONUs, optical diagnostics, reboot

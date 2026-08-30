@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 169: Remove AI Reply Assistant data layer
+-- VigaBSS 5.0 — Rollback 169: Remove AI Reply Assistant data layer
 -- =============================================================================
 -- Reverses migration 169.  Drops, in order:
 --   1. The columns the migration added to existing tables (guarded —

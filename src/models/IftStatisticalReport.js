@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IftStatisticalReport Model
+// VigaBSS 5.0 — IftStatisticalReport Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

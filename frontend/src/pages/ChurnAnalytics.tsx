@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Churn Analytics & Predictive At-Risk Alerts — §1.2
+// VigaBSS 5.0 — Churn Analytics & Predictive At-Risk Alerts — §1.2
 // =============================================================================
 // Read-only analytics dashboard backed by:
 //   • GET /lifecycle/churn    — monthly churn rate from contract status changes

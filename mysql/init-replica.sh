@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# FireISP 5.0 — MySQL Replication Initialisation Script
+# VigaBSS 5.0 — MySQL Replication Initialisation Script
 # Runs once inside the db-replica container on first start.
 #
 # What it does:

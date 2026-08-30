@@ -18,7 +18,7 @@
 
 ## 1. Why this review exists
 
-The issue (`Validate FireISP IFT statistical report schema against official IFT requirements`) requested a field-by-field engineering comparison before UI or export work. Shipping a mismatched schema would force a re-issue of stored snapshots. The former LFTR Article 175 citation used at the time no longer establishes the current duty or format.
+The issue (`Validate VigaBSS IFT statistical report schema against official IFT requirements`) requested a field-by-field engineering comparison before UI or export work. Shipping a mismatched schema would force a re-issue of stored snapshots. The former LFTR Article 175 citation used at the time no longer establishes the current duty or format.
 
 This document is the deliverable. It does three things:
 

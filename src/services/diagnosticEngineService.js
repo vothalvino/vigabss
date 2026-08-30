@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Diagnostic Engine Service (§21.4)
+// VigaBSS 5.0 — Diagnostic Engine Service (§21.4)
 // =============================================================================
 // Runs structured diagnostics for connectivity issues.
 // All external service calls are wrapped in try/catch (returns status:'unknown' on error).

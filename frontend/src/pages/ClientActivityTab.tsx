@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Activity Timeline tab — §1.3
+// VigaBSS 5.0 — Client Activity Timeline tab — §1.3
 // =============================================================================
 // Unified per-client history: manual interactions (calls, visits, chats),
 // tickets, payments, emails, and SMS, merged server-side by

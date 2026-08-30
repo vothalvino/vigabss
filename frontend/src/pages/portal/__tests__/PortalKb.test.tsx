@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PortalKb page tests
+// VigaBSS 5.0 — PortalKb page tests
 // =============================================================================
 // Regression coverage for the DOMPurify hardening added alongside the removal
 // of the global input-side sanitize.js middleware (see src/app.js). Once

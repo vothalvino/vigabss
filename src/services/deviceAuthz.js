@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device FK Authorization Guard
+// VigaBSS 5.0 — Device FK Authorization Guard
 // =============================================================================
 // Shared "does this FK belong to the caller's organization?" guard for any
 // write path that can set devices.client_id or devices.contract_id (cross-

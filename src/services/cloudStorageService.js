@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Cloud Storage Service (S3-compatible)
+// VigaBSS 5.0 — Cloud Storage Service (S3-compatible)
 // =============================================================================
 // Uploads files to any S3-compatible object store using AWS Signature
 // Version 4 and Node.js built-in modules only: AWS S3, Google Cloud Storage

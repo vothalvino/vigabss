@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 223: Drop FreeRADIUS tables, radius auth_method,
+-- VigaBSS 5.0 — Rollback 223: Drop FreeRADIUS tables, radius auth_method,
 --                              subscriber_certificates
 -- =============================================================================
 -- Reverses migration 223. Drop order respects FK dependencies:

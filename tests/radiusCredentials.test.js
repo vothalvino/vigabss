@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS credentials scoping tests
+// VigaBSS 5.0 — RADIUS credentials scoping tests
 // =============================================================================
 // Regression coverage for:
 //   - GET /radius, GET /radius/:id, GET /radius/contract/:contractId must

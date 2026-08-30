@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RouterOS API Service
+// VigaBSS 5.0 — RouterOS API Service
 // =============================================================================
 // Implements a minimal RouterOS API client (TCP, port 8728) and exposes the
 // five command functions used by the FireRelay agent:
@@ -867,7 +867,7 @@ async function addressListRemove(conn, params) {
 // =============================================================================
 // WireGuard command functions (RouterOS 7, native /interface/wireguard)
 // =============================================================================
-// HARD CONSTRAINT: these five functions are the ONLY WireGuard writes FireISP
+// HARD CONSTRAINT: these five functions are the ONLY WireGuard writes VigaBSS
 // makes to the router. They NEVER touch /ip/service (Winbox/8291 is left fully
 // alone) and NEVER touch /ip/firewall. The only permitted write paths are:
 //   /interface/wireguard   /ip/address   /interface/wireguard/peers   /ip/route
@@ -875,7 +875,7 @@ async function addressListRemove(conn, params) {
 
 /**
  * Create-or-update a WireGuard interface by name (idempotent).
- * No listen-port is written — the NAS dials out to the FireISP server hub.
+ * No listen-port is written — the NAS dials out to the VigaBSS server hub.
  *
  * @param {{ host: string, port?: number, user: string, password: string,
  *            secure?: boolean, timeoutMs?: number }} conn

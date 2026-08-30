@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Staff in-app notification routes + work-order assignment emits
+// VigaBSS 5.0 — Staff in-app notification routes + work-order assignment emits
 // =============================================================================
 // /notifications is a personal resource: every query is scoped to the
 // authenticated user's id — no permission gate, no cross-user access.

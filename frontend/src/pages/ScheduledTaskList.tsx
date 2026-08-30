@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Scheduled Task Management
+// VigaBSS 5.0 — Scheduled Task Management
 // =============================================================================
 // Standalone page at /scheduled-tasks. Lists background/cron tasks with a
 // "New Task" create modal plus per-row Edit and Delete. All mutations go

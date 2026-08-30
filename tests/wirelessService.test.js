@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — wirelessService.recordClientSessions tests
+// VigaBSS 5.0 — wirelessService.recordClientSessions tests
 // =============================================================================
 // Regression coverage for the bulk-insert-under-execute() bug: db.query()
 // runs mysql2 prepared statements (pool.execute()), which cannot expand a

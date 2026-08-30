@@ -1,8 +1,8 @@
 // =============================================================================
-// FireISP 5.0 — Subscriber Certificate Routes
+// VigaBSS 5.0 — Subscriber Certificate Routes
 // =============================================================================
 // Metadata registry for subscriber EAP-TLS certificates (§3.1 item 6).
-// NOTE: FireISP is a metadata registry only — it does NOT generate or sign
+// NOTE: VigaBSS is a metadata registry only — it does NOT generate or sign
 // certificates. Certificate files are managed by an external CA (e.g.
 // easy-rsa, step-ca, or a commercial CA). Only metadata (serial, fingerprint,
 // validity dates) is stored here.

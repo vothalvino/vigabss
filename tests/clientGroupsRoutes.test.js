@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Group routes: members management + shared billing
+// VigaBSS 5.0 — Client Group routes: members management + shared billing
 // =============================================================================
 // Route-level wiring + RBAC for the new endpoints:
 //   POST   /client-groups/:id/members          (bulk add, clients.update)

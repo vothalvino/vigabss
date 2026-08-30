@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — PROFECO Complaints Page (P3.12)
+// VigaBSS 5.0 — PROFECO Complaints Page (P3.12)
 // =============================================================================
 // Lists PROFECO (Procuraduría Federal del Consumidor) consumer complaints with
 // filtering by status and category, plus a CSV/JSON export button.

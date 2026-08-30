@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Inventory Phase 2: product linkage + sale drawdown tests
+// VigaBSS 5.0 — Inventory Phase 2: product linkage + sale drawdown tests
 // =============================================================================
 // Covers migration 390's plan_addons/invoice_items/quote_items.inventory_item_id
 // linkage: catalog quantity_on_hand surfacing, org-ownership validation,

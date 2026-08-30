@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Topology Map Validation Schemas — §13
+// VigaBSS 5.0 — Topology Map Validation Schemas — §13
 // =============================================================================
 
 const createGeofence = {

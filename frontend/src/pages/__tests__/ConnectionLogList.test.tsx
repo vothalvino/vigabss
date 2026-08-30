@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Connections page tests
+// VigaBSS 5.0 — Connections page tests
 // =============================================================================
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -765,7 +765,7 @@ describe('ConnectionLogList', () => {
     renderPage();
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      /12 months, below FireISP's 24-month Mexico policy baseline/i,
+      /12 months, below VigaBSS's 24-month Mexico policy baseline/i,
     );
   });
 

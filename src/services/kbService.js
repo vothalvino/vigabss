@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Knowledge Base Service (§21.8)
+// VigaBSS 5.0 — Knowledge Base Service (§21.8)
 // =============================================================================
 // Manages KB articles, embeddings, and feedback.
 // Supports keyword search and cosine-similarity semantic search.

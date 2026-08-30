@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying FireISP 5.0 in production environments. Choose the deployment method that best fits your infrastructure.
+This guide covers deploying VigaBSS 5.0 in production environments. Choose the deployment method that best fits your infrastructure.
 
 ---
 
@@ -24,7 +24,7 @@ This guide covers deploying FireISP 5.0 in production environments. Choose the d
 
 ## One-Line Installer (recommended)
 
-The fastest way to deploy FireISP 5.0 on a fresh Ubuntu/Debian server:
+The fastest way to deploy VigaBSS 5.0 on a fresh Ubuntu/Debian server:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vothalvino/fireisp5.0/main/install.sh | bash
@@ -213,7 +213,7 @@ acknowledgment.
 
 Do not manufacture or auto-backfill a registration link: the registration
 number, date, status, and exact registered text are operator-supplied evidence
-of an external authority process. FireISP validates and freezes that evidence;
+of an external authority process. VigaBSS validates and freezes that evidence;
 it does not register or legally approve the contract.
 
 Treat rollback 451 as evidence-destructive after this flow has gone live. It
@@ -229,7 +229,7 @@ contracts. This selector is separate from the PAC/CFDI environment: an ISP may
 test contract onboarding while issuing real CFDIs, or test CFDIs while using
 its real registered contract.
 
-The contract **sandbox is a FireISP simulation only**. It is not a PROFECO
+The contract **sandbox is a VigaBSS simulation only**. It is not a PROFECO
 sandbox, registration service, approval, or legal contract. Sandbox sources:
 
 - use `sandbox_ready` rather than `registered`;
@@ -321,7 +321,7 @@ would fail — a request is never queued for something that will not service it.
 #### Why an agent instead of just letting the app do it
 
 The obvious implementation mounts the Docker socket into the app container.
-**That is root on the host**: any RCE or path traversal in FireISP would own the
+**That is root on the host**: any RCE or path traversal in VigaBSS would own the
 machine rather than the application. Nothing about a convenience button is worth
 that, so the privilege lives outside the container instead.
 
@@ -371,7 +371,7 @@ On by default. The install operator gets a once-a-day banner and a
 **Settings → Version** tab when a newer release exists, with no configuration
 on a fresh install.
 
-This is the only outbound request FireISP makes on its own behalf: an
+This is the only outbound request VigaBSS makes on its own behalf: an
 unauthenticated read of the newest commit on the public repo. No install data,
 no version and no identifiers are sent. On an air-gapped or isolated management
 network, switch it off:
@@ -679,7 +679,7 @@ Create `/etc/systemd/system/fireisp.service`:
 
 ```ini
 [Unit]
-Description=FireISP 5.0
+Description=VigaBSS 5.0
 After=network.target mysql.service
 
 [Service]
@@ -828,7 +828,7 @@ docker stack deploy -c docker-stack.yml fireisp
 
 ## MySQL Tuning
 
-FireISP's SNMP metrics tables can grow to 155M+ rows. Recommended MySQL tuning for production:
+VigaBSS's SNMP metrics tables can grow to 155M+ rows. Recommended MySQL tuning for production:
 
 ```ini
 [mysqld]
@@ -967,7 +967,7 @@ hours to pick them up.
 
 ## Admin IP Allowlist
 
-FireISP can restrict access to sensitive admin endpoints to a set of trusted
+VigaBSS can restrict access to sensitive admin endpoints to a set of trusted
 IP addresses and/or CIDR ranges, providing an additional defence-in-depth
 layer on top of JWT authentication and RBAC.
 
@@ -991,7 +991,7 @@ to match the configured list:
 
 The recommended flow is in the web GUI: open **Security & Access Control**, add
 trusted IPv4 addresses or CIDR blocks as inactive entries, then explicitly
-activate an entry. FireISP refuses an activation or edit that would exclude the
+activate an entry. VigaBSS refuses an activation or edit that would exclude the
 current browser IP. Deactivating the last active entry disables enforcement.
 
 Until the first entry is activated, the endpoints remain accessible to
@@ -1028,7 +1028,7 @@ Requests from unlisted IPs receive:
 
 ### Behind a reverse proxy
 
-If FireISP runs behind Nginx (or any other reverse proxy), make sure the
+If VigaBSS runs behind Nginx (or any other reverse proxy), make sure the
 proxy sets `X-Forwarded-For` and that Express trusts the proxy:
 
 ```env
@@ -1057,7 +1057,7 @@ curl https://isp.example.com/health?detail=true
 
 ### Prometheus Metrics
 
-FireISP exposes metrics at `/metrics` in Prometheus exposition format:
+VigaBSS exposes metrics at `/metrics` in Prometheus exposition format:
 
 ```yaml
 # prometheus.yml
@@ -1101,7 +1101,7 @@ Available metrics:
 
 ## Kubernetes Deployment
 
-Kubernetes provides automatic scaling, self-healing, and declarative configuration for FireISP 5.0.
+Kubernetes provides automatic scaling, self-healing, and declarative configuration for VigaBSS 5.0.
 
 ### ConfigMap
 
@@ -1460,7 +1460,7 @@ redis-cli --cluster create \
 
 When scaling Redis:
 
-- **Sessions (JWT):** FireISP uses stateless JWTs — no server-side session store is required. Token revocation lists (if enabled) are stored in Redis and must be accessible from all app instances.
+- **Sessions (JWT):** VigaBSS uses stateless JWTs — no server-side session store is required. Token revocation lists (if enabled) are stored in Redis and must be accessible from all app instances.
 - **Cache:** Cached data (plan lookups, permission sets) is stored per-key in Redis. All app nodes share the same cache, so invalidation is automatic.
 - **BullMQ:** Job queues require a single Redis instance or Sentinel — Redis Cluster is not natively supported by BullMQ. Use a dedicated Redis Sentinel deployment for job queues if you use Redis Cluster for caching.
 
@@ -1468,7 +1468,7 @@ When scaling Redis:
 
 ## Load Balancing
 
-Distribute traffic across multiple FireISP instances for high availability and throughput.
+Distribute traffic across multiple VigaBSS instances for high availability and throughput.
 
 ### Nginx Upstream Configuration
 
@@ -1512,11 +1512,11 @@ server {
 
 ### Sticky Sessions
 
-Sticky sessions (session affinity) are **not required**. FireISP uses stateless JWT authentication — any backend instance can handle any request. Use `least_conn` or `round_robin` balancing for even distribution.
+Sticky sessions (session affinity) are **not required**. VigaBSS uses stateless JWT authentication — any backend instance can handle any request. Use `least_conn` or `round_robin` balancing for even distribution.
 
 ### WebSocket / SSE Considerations
 
-FireISP uses **Server-Sent Events (SSE)** for real-time updates:
+VigaBSS uses **Server-Sent Events (SSE)** for real-time updates:
 
 - SSE connections are long-lived HTTP connections (minutes to hours).
 - Configure `proxy_read_timeout` to a high value (e.g., `3600s`) for SSE endpoints.
@@ -1640,7 +1640,7 @@ Run these checks against the Green environment before switching traffic:
 
 ### Horizontal Scaling
 
-FireISP 5.0 is designed as a **stateless application** — any instance can serve any request. Scale horizontally by adding more app server instances behind a load balancer.
+VigaBSS 5.0 is designed as a **stateless application** — any instance can serve any request. Scale horizontally by adding more app server instances behind a load balancer.
 
 Requirements for horizontal scaling:
 
@@ -1662,7 +1662,7 @@ FireRelay uses Redis Pub/Sub to broadcast events (e.g., client disconnections, C
 
 ### Database Connection Pool Sizing
 
-Each FireISP instance maintains a connection pool to MySQL. Size it based on your instance count and MySQL `max_connections`:
+Each VigaBSS instance maintains a connection pool to MySQL. Size it based on your instance count and MySQL `max_connections`:
 
 ```env
 DB_POOL_SIZE=10
@@ -1718,7 +1718,7 @@ BULLMQ_CONCURRENCY=5
 
 ## Helm Chart Deployment
 
-FireISP 5.0 ships a production-grade Helm chart under `charts/fireisp/` that
+VigaBSS 5.0 ships a production-grade Helm chart under `charts/fireisp/` that
 templates every Kubernetes resource (Namespace, ConfigMap, Secret, Deployment,
 Service, Ingress, HPA, PDB, PVC, PrometheusRule, and ClusterImagePolicy).
 

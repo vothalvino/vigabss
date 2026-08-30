@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — suspension_rules create/update column contract
+// VigaBSS 5.0 — suspension_rules create/update column contract
 // =============================================================================
 // SuspensionRule.fillable and the create/update validation schemas both used
 // wrong column names — `is_enabled` (real: `is_active`), `notify_days_before`

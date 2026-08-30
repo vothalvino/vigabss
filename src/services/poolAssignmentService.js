@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Pool Assignment Service
+// VigaBSS 5.0 — Pool Assignment Service
 // =============================================================================
 // Handles dynamic IP/prefix assignment from ip_pools and overlap detection.
 // =============================================================================

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Email Verification Banner
+// VigaBSS 5.0 — Email Verification Banner
 // =============================================================================
 // Slim, non-blocking inline bar shown to ANY authenticated user (no permission
 // gate — this is a self-service identity action, not an RBAC-scoped one) while

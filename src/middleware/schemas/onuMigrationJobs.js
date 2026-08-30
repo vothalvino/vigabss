@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ONU Migration Job Validation Schemas (§7.3)
+// VigaBSS 5.0 — ONU Migration Job Validation Schemas (§7.3)
 // =============================================================================
 
 const createOnuMigrationJob = {

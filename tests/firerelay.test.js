@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay Tests
+// VigaBSS 5.0 — FireRelay Tests
 // =============================================================================
 // Tests for FireRelay configuration, standalone middleware, route endpoints,
 // validation schemas, enhanced health check, requestId in errors, and

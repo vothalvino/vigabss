@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — App Router
+// VigaBSS 5.0 — App Router
 // =============================================================================
 // Implements role-based UI routing:
 //   • Public routes: /login, /forgot-password, /reset-password, /verify-email

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// FireISP 5.0 — OpenAPI Spec Generator Script
+// VigaBSS 5.0 — OpenAPI Spec Generator Script
 // =============================================================================
 // Generates the OpenAPI 3.1 JSON spec and writes it to docs/openapi.json.
 // Usage: npm run openapi

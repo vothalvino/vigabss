@@ -1,6 +1,6 @@
 # MikroTik Auto-Provisioning — Development Guideline
 
-> **Purpose:** This document is the master specification for building FireISP 5.0's MikroTik auto-provisioning subsystem. It describes every feature, file location, database schema change, API endpoint, and test expectation that development agents should implement. Work should be broken into the phases listed below, each of which is independently shippable.
+> **Purpose:** This document is the master specification for building VigaBSS 5.0's MikroTik auto-provisioning subsystem. It describes every feature, file location, database schema change, API endpoint, and test expectation that development agents should implement. Work should be broken into the phases listed below, each of which is independently shippable.
 
 ---
 
@@ -31,7 +31,7 @@
 
 ## Vision
 
-FireISP 5.0 should be able to **fully configure a MikroTik router from scratch** when an ISP operator adds a new device in the dashboard. This means:
+VigaBSS 5.0 should be able to **fully configure a MikroTik router from scratch** when an ISP operator adds a new device in the dashboard. This means:
 
 - **SSH transport** for CLI commands (`/ip address add`, `/queue simple add`, etc.).
 - **MikroTik REST API** (RouterOS v7.1+) for structured read/write operations.
@@ -48,7 +48,7 @@ The subsystem should be **optional** — controlled by a feature flag `FEATURE_M
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    FireISP 5.0 Server                    │
+│                    VigaBSS 5.0 Server                    │
 │                                                         │
 │  src/services/mikrotik/                                 │
 │  ├── MikrotikSSHClient.js    ← SSH transport (ssh2)     │
@@ -213,7 +213,7 @@ Allow operators to define reusable router configuration templates that render wi
 ## Phase 3 — PPPoE Server & Subscriber Provisioning
 
 ### Goal
-When a new contract is created with a PPPoE plan, FireISP auto-configures the MikroTik router:
+When a new contract is created with a PPPoE plan, VigaBSS auto-configures the MikroTik router:
 
 1. Ensure a PPPoE server exists on the correct interface.
 2. Add a PPPoE profile matching the plan's speed limits.
@@ -323,9 +323,9 @@ The template applied on first provisioning should include at minimum:
 ## Phase 6 — RADIUS Integration on the MikroTik Side
 
 ### Goal
-Auto-configure the MikroTik RADIUS client to point to the FireISP FreeRADIUS server.
+Auto-configure the MikroTik RADIUS client to point to the VigaBSS FreeRADIUS server.
 
-> **Context:** FireISP already has `radiusService.js`, `suspensionService.js`, and `docs/radius-setup.md`. This phase configures the **MikroTik router** to use that RADIUS server.
+> **Context:** VigaBSS already has `radiusService.js`, `suspensionService.js`, and `docs/radius-setup.md`. This phase configures the **MikroTik router** to use that RADIUS server.
 
 ### Files to Create / Modify
 
@@ -352,7 +352,7 @@ Auto-configure the MikroTik RADIUS client to point to the FireISP FreeRADIUS ser
 ### Integration with Existing Code
 
 - Read `RADIUS_HOST` and `RADIUS_SECRET` from env (already defined in `.env.example`).
-- When a NAS device is created in FireISP, call `radiusSetupService.configureRadiusClient()` to auto-configure the MikroTik.
+- When a NAS device is created in VigaBSS, call `radiusSetupService.configureRadiusClient()` to auto-configure the MikroTik.
 - Verify connectivity by calling `radtest` equivalent via the MikroTik's built-in RADIUS test or by checking `/radius monitor`.
 
 ---
@@ -360,7 +360,7 @@ Auto-configure the MikroTik RADIUS client to point to the FireISP FreeRADIUS ser
 ## Phase 7 — IP Pool & DHCP Sync
 
 ### Goal
-Sync FireISP's `ip_pools` table to MikroTik's IP pool and DHCP server configuration.
+Sync VigaBSS's `ip_pools` table to MikroTik's IP pool and DHCP server configuration.
 
 ### Files to Create
 

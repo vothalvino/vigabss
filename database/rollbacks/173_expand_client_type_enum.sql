@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 173: Restore clients.client_type to the original
+-- VigaBSS 5.0 — Rollback 173: Restore clients.client_type to the original
 --                             two-value ENUM
 -- =============================================================================
 -- Reverses migration 173, restoring ENUM('personal','company').

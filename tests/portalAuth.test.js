@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Self-Service Portal Tests
+// VigaBSS 5.0 — Client Self-Service Portal Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

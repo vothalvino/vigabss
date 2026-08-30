@@ -1,4 +1,4 @@
-# FireISP Video Walkthroughs
+# VigaBSS Video Walkthroughs
 
 This directory contains self-contained walkthrough videos and accessible transcripts for the production-roadmap documentation items.
 

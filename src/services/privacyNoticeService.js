@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Privacy Notice Service (LFPDPPP §16)
+// VigaBSS 5.0 — Privacy Notice Service (LFPDPPP §16)
 // =============================================================================
 // Builds the subscriber-facing privacy notice for an org. The org's own text
 // (organizations.privacy_notice, migration 430) always wins; when it is NULL

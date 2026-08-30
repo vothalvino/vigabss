@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Organization Database Isolation Config Model
+// VigaBSS 5.0 — Organization Database Isolation Config Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

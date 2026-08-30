@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Backup Script dump-path tests
+// VigaBSS 5.0 — Backup Script dump-path tests
 // =============================================================================
 // The old `execSync('mysqldump … | gzip > file')` reported the PIPELINE's exit
 // status (gzip's), so a missing binary or failed dump wrote a 20-byte empty

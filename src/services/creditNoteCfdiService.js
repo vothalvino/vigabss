@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Credit note → CFDI de Egreso (tipo E) conversion + stamp
+// VigaBSS 5.0 — Credit note → CFDI de Egreso (tipo E) conversion + stamp
 // =============================================================================
 // A credit note against a STAMPED invoice must itself become a fiscal document:
 // a CFDI de Egreso relating to the original ingreso via CfdiRelacionados

@@ -1,7 +1,7 @@
 // =============================================================================
-// FireISP 5.0 — API Load Test Runner (Roadmap 4.1)
+// VigaBSS 5.0 — API Load Test Runner (Roadmap 4.1)
 // =============================================================================
-// Drives autocannon against a running FireISP API to validate that the
+// Drives autocannon against a running VigaBSS API to validate that the
 // `realistic ISP workload` target from roadmap 4.1 (500 clients, 5000
 // invoices, 100 devices) holds up under sustained read traffic.
 //
@@ -141,7 +141,7 @@ function summarizeScenario(r) {
 }
 
 async function main() {
-  logger.info({ BASE_URL, EMAIL, DURATION, CONNECTIONS, PIPELINING }, 'Starting FireISP 4.1 load test');
+  logger.info({ BASE_URL, EMAIL, DURATION, CONNECTIONS, PIPELINING }, 'Starting VigaBSS 4.1 load test');
 
   // ---------------------------------------------------------------
   // Auth
@@ -206,7 +206,7 @@ async function main() {
   logger.info(aggregate, 'Load test complete');
 
   // Mirror a human-readable summary to stdout (separate from JSON logs)
-  console.log('\n=== FireISP 4.1 Load Test — Summary ===');
+  console.log('\n=== VigaBSS 4.1 Load Test — Summary ===');
   for (const r of results) {
     console.log(
       `  ${r.name.padEnd(40)}  ${String(r.reqPerSec).padStart(6)} req/s  ` +

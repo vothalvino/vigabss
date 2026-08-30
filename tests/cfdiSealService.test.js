@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CSD sealing engine tests
+// VigaBSS 5.0 — CSD sealing engine tests
 // =============================================================================
 // Uses SAT's PUBLIC test CSD (EKU9003173C9, see tests/fixtures/csd/README.md)
 // and two REAL SW-sealed sandbox documents as PAC-compatibility pins: if our

@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * High-density data table matching FireISP's flat industrial aesthetic.
+ * High-density data table matching VigaBSS's flat industrial aesthetic.
  * Header uses muted uppercase labels; numeric columns use tabular-nums
  * (JetBrains Mono). Shows an empty-state message when there are no rows.
  * Wrap in a Card for a bordered panel surface.

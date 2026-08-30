@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ClientDndPreference Model — §1.4
+// VigaBSS 5.0 — ClientDndPreference Model — §1.4
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

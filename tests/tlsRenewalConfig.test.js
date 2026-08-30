@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — TLS renewal configuration consistency
+// VigaBSS 5.0 — TLS renewal configuration consistency
 // =============================================================================
 // A static guard over deployment config, because the failure it prevents is
 // invisible for 90 days and then takes the site down, and there is no container

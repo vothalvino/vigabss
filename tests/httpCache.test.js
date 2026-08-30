@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — HTTP Cache Middleware Tests (M5.6)
+// VigaBSS 5.0 — HTTP Cache Middleware Tests (M5.6)
 // =============================================================================
 // Unit tests for the httpCache middleware and bustCache helper.
 // All external I/O (DB) is mocked.

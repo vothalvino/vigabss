@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Automation & Scripting Page (Section 18)
+// VigaBSS 5.0 — Automation & Scripting Page (Section 18)
 // =============================================================================
 // Multi-tab page covering §18 automation features:
 //   1. Automation Rules  — event-triggered workflow rules

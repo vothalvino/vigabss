@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Ticket resolved_at lifecycle tests
+// VigaBSS 5.0 — Ticket resolved_at lifecycle tests
 // =============================================================================
 // The tickets update path stamps resolved_at = NOW() when a ticket transitions
 // into 'resolved' (so downstream CSAT dispatch fires), and clears it back to

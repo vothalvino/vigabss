@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE Service Profile Routes
+// VigaBSS 5.0 — PPPoE Service Profile Routes
 // =============================================================================
 
 const { Router } = require('express');

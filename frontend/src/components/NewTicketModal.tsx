@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — New Ticket Modal (client-scoped)
+// VigaBSS 5.0 — New Ticket Modal (client-scoped)
 // =============================================================================
 // A focused "open a ticket for THIS client" modal used from the client detail
 // page. The client is locked (passed in), so there is no client picker.

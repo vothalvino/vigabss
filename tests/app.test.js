@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — App Integration Tests
+// VigaBSS 5.0 — App Integration Tests
 // =============================================================================
 // Tests the Express application routes, middleware, and error handling
 // without requiring a live database connection.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Email Settings (per-org SMTP config) Tests
+// VigaBSS 5.0 — Email Settings (per-org SMTP config) Tests
 // =============================================================================
 // Covers src/models/EmailSettings.js, src/services/emailSettingsService.js,
 // and src/routes/emailSettings.js (GET/PUT /email-settings, POST /test).

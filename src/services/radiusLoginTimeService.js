@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Login-Time Serializer
+// VigaBSS 5.0 — RADIUS Login-Time Serializer
 // =============================================================================
 // Converts plan_access_windows rows into the FreeRADIUS Login-Time attribute
 // string format (RFC 2865 extension, FreeRADIUS-specific dialect).

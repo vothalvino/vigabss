@@ -1,7 +1,7 @@
 // =============================================================================
-// FireISP 5.0 — Soak Test Runner (Roadmap P1.6)
+// VigaBSS 5.0 — Soak Test Runner (Roadmap P1.6)
 // =============================================================================
-// Drives a low-rate, long-duration soak test against a running FireISP API
+// Drives a low-rate, long-duration soak test against a running VigaBSS API
 // to catch memory leaks, file-descriptor leaks, and connection-pool exhaustion
 // that only surface under sustained load over time.
 //
@@ -195,7 +195,7 @@ async function probeRssMb() {
 async function main() {
   logger.info(
     { BASE_URL, TOTAL_DURATION, ROUND_DURATION, CONNECTIONS, MAX_RSS_GROWTH_MB, MAX_ERROR_RATE },
-    'Starting FireISP P1.6 soak test',
+    'Starting VigaBSS P1.6 soak test',
   );
 
   // Auth
@@ -274,7 +274,7 @@ async function main() {
 
   // Final report
   const totalElapsed = Math.round((Date.now() - startedAt) / 1000);
-  console.log('\n=== FireISP P1.6 Soak Test — Summary ===');
+  console.log('\n=== VigaBSS P1.6 Soak Test — Summary ===');
   console.log(`  Duration: ${totalElapsed}s / ${TOTAL_DURATION}s  |  Rounds: ${roundNumber}  |  Connections: ${CONNECTIONS}`);
   console.log('');
   console.log('  Round  Elapsed   RSS(MB)  ΔRss(MB)   Reqs    Errors  ErrRate  p99(ms)');

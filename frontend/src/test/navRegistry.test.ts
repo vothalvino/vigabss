@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Nav registry invariants ("Faro" nav)
+// VigaBSS 5.0 — Nav registry invariants ("Faro" nav)
 // =============================================================================
 // Kills the URL-only-page bug class forever:
 //   • every staff path routed in App.tsx has exactly one home in the registry

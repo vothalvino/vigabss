@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Validation Schemas for Missing Routes
+// VigaBSS 5.0 — Validation Schemas for Missing Routes
 // =============================================================================
 // Tests the 11 new validation schema files added for routes that previously
 // lacked schemas: paymentTransactions, auditLogs, connectionLogs, dashboard,

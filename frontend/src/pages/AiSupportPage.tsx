@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — AI Customer Support Page (Section 21)
+// VigaBSS 5.0 — AI Customer Support Page (Section 21)
 // =============================================================================
 // 4-tab page covering §21 AI Customer Support:
 //   1. Chat        — conversation list + message thread + escalation

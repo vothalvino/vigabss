@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Production Hardening Tests
+// VigaBSS 5.0 — Production Hardening Tests
 // =============================================================================
 // Tests for SSE rate limiter, refresh token rotation, and webhook HMAC signing.
 // =============================================================================

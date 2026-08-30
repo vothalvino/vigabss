@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 186: Restore plans / quotes / credit_notes to the
+-- VigaBSS 5.0 — Rollback 186: Restore plans / quotes / credit_notes to the
 --                             pre-contract-alignment schema
 -- =============================================================================
 -- Reverses migration 186.  Mirrors the forward migration's guards: each rename

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Multi-Tenant Data Isolation Tests (P2.3)
+// VigaBSS 5.0 — Multi-Tenant Data Isolation Tests (P2.3)
 // =============================================================================
 // Verifies that a user authenticated as Org A **cannot** access or mutate
 // resources belonging to Org B.

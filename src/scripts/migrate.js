@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Migration Runner
+// VigaBSS 5.0 — Migration Runner
 // =============================================================================
 // Reads each numbered .sql file in database/migrations/ and applies it if not
 // already recorded in schema_migrations.
@@ -220,7 +220,7 @@ async function runMigrations(options = {}) {
 
 // Run when invoked directly
 if (require.main === module) {
-  logger.info('FireISP 5.0 — Running migrations...');
+  logger.info('VigaBSS 5.0 — Running migrations...');
   runMigrations()
     .then(() => {
       logger.info('Done.');

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WebSocket Hub
+// VigaBSS 5.0 — WebSocket Hub
 // =============================================================================
 // Real-time push hub for browser clients. It lives below the existing
 // /ws/firerelay reverse-proxy tunnel so upgrades work on every installed Nginx

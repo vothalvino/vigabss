@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WireGuard User-Peer Route Tests (§6d / plan §9)
+// VigaBSS 5.0 — WireGuard User-Peer Route Tests (§6d / plan §9)
 // =============================================================================
 // Supertest coverage for src/routes/wgPeers.js:
 //   - POST   /wg-peers                  create returns config+QR; data never contains key columns

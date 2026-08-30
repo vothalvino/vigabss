@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Router Driver Routes (§18.3)
+// VigaBSS 5.0 — Router Driver Routes (§18.3)
 // =============================================================================
 // MikroTik driver: live via routerosService.
 // Other vendors: STUBBED (no live SSH/NETCONF/REST call).

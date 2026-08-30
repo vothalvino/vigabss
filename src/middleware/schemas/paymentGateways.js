@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Gateway Validation Schemas
+// VigaBSS 5.0 — Payment Gateway Validation Schemas
 // =============================================================================
 
 const createPaymentGateway = {

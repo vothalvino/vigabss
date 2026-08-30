@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Remote Backup Settings Model (singleton)
+// VigaBSS 5.0 — Remote Backup Settings Model (singleton)
 // =============================================================================
 // Mirrors src/models/EmailSettings.js exactly, except the row is a SINGLETON
 // (id = 1) — database backups are instance-wide, like the org-NULL

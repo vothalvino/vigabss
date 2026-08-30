@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ProtocolShapingRule Model
+// VigaBSS 5.0 — ProtocolShapingRule Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

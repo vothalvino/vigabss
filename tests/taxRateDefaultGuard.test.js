@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — one active default tax rate per org
+// VigaBSS 5.0 — one active default tax rate per org
 // =============================================================================
 // resolveTaxContext picks the org default with `... LIMIT 1` and, when no
 // explicit rate id is passed, an ORDER BY key that is constant. With TWO active

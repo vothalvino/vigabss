@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Network Health Viewer
+// VigaBSS 5.0 — Network Health Viewer
 // =============================================================================
 // Read-only analytics page at /network-health. Lists daily network health
 // snapshots per device/link (uptime, latency, throughput, packet loss and

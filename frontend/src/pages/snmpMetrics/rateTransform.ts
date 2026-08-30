@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP traffic rate transform helpers
+// VigaBSS 5.0 — SNMP traffic rate transform helpers
 // =============================================================================
 // SNMP interface counters (if_in_octets / if_out_octets) are monotonic
 // positions, not rates — plotting them directly is meaningless to a user

@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 359: Restore single-column billing-number UNIQUE keys
+-- VigaBSS 5.0 — Rollback 359: Restore single-column billing-number UNIQUE keys
 -- =============================================================================
 -- Reverses migration 359.  The forward migration replaced the three
 -- single-column UNIQUE constraints with org-scoped composites:

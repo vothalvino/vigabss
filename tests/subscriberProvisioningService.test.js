@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Subscriber Provisioning Service Tests
+// VigaBSS 5.0 — Subscriber Provisioning Service Tests
 // =============================================================================
 // Covers PPPoE credential generation, IPv6 line enablement on IPv4 -> DUAL
 // upgrades, and duplicate IP-address prevention.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Ticket List
+// VigaBSS 5.0 — Ticket List
 // =============================================================================
 // Standalone page at /tickets. Shows all support tickets with:
 //   • Filtering by status and priority

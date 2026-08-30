@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WhatsApp outbound (bot replies)
+// VigaBSS 5.0 — WhatsApp outbound (bot replies)
 // =============================================================================
 // Sends a bot reply back to a WhatsApp number through whichever provider is
 // active. Self-contained (not smsTransport) for two reasons: replies must work

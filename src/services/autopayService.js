@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Autopay enrollment (Stripe off-session card capture)
+// VigaBSS 5.0 — Autopay enrollment (Stripe off-session card capture)
 // =============================================================================
 // Captures a reusable card via a Stripe Checkout Session in SETUP mode (Stripe
 // collects the card AND the SCA mandate that makes off-session charging legal),

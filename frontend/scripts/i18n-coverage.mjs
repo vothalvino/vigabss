@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// FireISP 5.0 — i18n message catalogue coverage checker
+// VigaBSS 5.0 — i18n message catalogue coverage checker
 // =============================================================================
 // Verifies that every key present in the English base catalogue (en.json) also
 // exists in every other supported locale (es.json, pt-BR.json).

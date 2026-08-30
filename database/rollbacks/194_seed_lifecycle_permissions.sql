@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 194: Remove Customer Lifecycle permissions
+-- VigaBSS 5.0 — Rollback 194: Remove Customer Lifecycle permissions
 -- =============================================================================
 -- Reverses migration 194. role_permissions rows are removed first (FK), then
 -- the permission slugs themselves.

@@ -1,6 +1,6 @@
 # Secrets Management
 
-This document explains how FireISP 5.0 manages production secrets, what
+This document explains how VigaBSS 5.0 manages production secrets, what
 options are available, and which approach is recommended for each deployment
 topology.
 
@@ -20,7 +20,7 @@ production deployments it has several problems:
 - **No access control** — Every user with shell access to the host can read
   the file.
 
-FireISP supports several alternatives. Pick the one that matches your
+VigaBSS supports several alternatives. Pick the one that matches your
 infrastructure.
 
 ---
@@ -140,7 +140,7 @@ helm install external-secrets external-secrets/external-secrets \
   --create-namespace
 ```
 
-### Store all FireISP secrets under one AWS Secrets Manager path
+### Store all VigaBSS secrets under one AWS Secrets Manager path
 
 Create the secret in AWS:
 

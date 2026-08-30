@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP Operations Console — route-aware access helpers
+// VigaBSS Operations Console — route-aware access helpers
 // =============================================================================
 // Dashboard deep links must follow the same visibility contract as the sidebar,
 // hubs, and command palette. Keeping the lookup here prevents a KPI from looking

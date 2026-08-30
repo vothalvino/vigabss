@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SMS Transport Service
+// VigaBSS 5.0 — SMS Transport Service
 // =============================================================================
 // Sends SMS (and WhatsApp) messages via a configurable provider.
 // Supported providers:

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — OrganizationQuota Model
+// VigaBSS 5.0 — OrganizationQuota Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

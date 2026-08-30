@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Pool Utilization Service Unit Tests
+// VigaBSS 5.0 — Pool Utilization Service Unit Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

@@ -16,7 +16,7 @@
 -- TWO KINDS OF PROFILE, and the distinction is the point of this migration.
 --
 --   SYSTEM profiles (is_system = 1, organization_id NULL) — the vendor library
---   that ships with FireISP: Generic IF-MIB, Ubiquiti airOS, MikroTik RouterOS,
+--   that ships with VigaBSS: Generic IF-MIB, Ubiquiti airOS, MikroTik RouterOS,
 --   Cambium, Mimosa, Tarana, Radwin, Siklu. Visible to every tenant, editable
 --   by NONE. They are product content, not customer data: letting one tenant
 --   retune "MikroTik RouterOS" would change what every other tenant polls, and
@@ -28,7 +28,7 @@
 --
 -- WHY MATCH ON NAME rather than "everything that exists right now": an operator
 -- who already created custom profiles before this migration must not have them
--- locked. Only the eight names FireISP itself seeds are marked system; anything
+-- locked. Only the eight names VigaBSS itself seeds are marked system; anything
 -- else becomes an unattributed legacy row (organization_id NULL), visible to
 -- all and ADOPTED by the first tenant that writes to it — the same treatment
 -- outages and speed_tests got, for the same reason.
@@ -69,10 +69,10 @@ BEGIN
           COMMENT 'Owning org. NULL = a system profile (is_system=1) or an unattributed legacy row, adoptable on write (migration 440)'
           AFTER id,
       ADD COLUMN is_system BOOLEAN NOT NULL DEFAULT FALSE
-          COMMENT 'Ships with FireISP: visible to every tenant, editable by none (migration 440)'
+          COMMENT 'Ships with VigaBSS: visible to every tenant, editable by none (migration 440)'
           AFTER organization_id;
 
-    -- The library FireISP seeds. Matched by name so an operator's own
+    -- The library VigaBSS seeds. Matched by name so an operator's own
     -- pre-existing profiles are NOT locked.
     UPDATE snmp_profiles
        SET is_system = TRUE, organization_id = NULL

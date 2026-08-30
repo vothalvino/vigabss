@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — requireMxLocale middleware tests
+// VigaBSS 5.0 — requireMxLocale middleware tests
 // =============================================================================
 
 jest.mock('../src/models/Organization', () => ({

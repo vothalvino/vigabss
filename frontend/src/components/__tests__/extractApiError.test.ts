@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — API errors never render raw English to a translated operator
+// VigaBSS 5.0 — API errors never render raw English to a translated operator
 // =============================================================================
 // 93 call sites across 36 files passed English literals like
 // 'Failed to load invoices' as the fallback. Whenever the server returned a

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — §18 Extended Coverage Tests
+// VigaBSS 5.0 — §18 Extended Coverage Tests
 // Covers: scheduled-task dispatch, §18 models, automationService,
 //         routerDriverService, analyticsService, and under-covered routes.
 // =============================================================================

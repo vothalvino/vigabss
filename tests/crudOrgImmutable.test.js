@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — generic CRUD must never move a record between tenants
+// VigaBSS 5.0 — generic CRUD must never move a record between tenants
 // =============================================================================
 // A live cross-tenant WRITE, proven on a running install before this fix:
 //

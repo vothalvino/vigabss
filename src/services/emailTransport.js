@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — bounded, tenant-safe SMTP delivery
+// VigaBSS 5.0 — bounded, tenant-safe SMTP delivery
 // =============================================================================
 // Tenant SMTP settings are untrusted egress configuration. Every tenant send
 // resolves and pins a public destination, requires TLS, rechecks the peer, and

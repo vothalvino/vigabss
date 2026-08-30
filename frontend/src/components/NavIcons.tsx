@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Sidebar section icons ("Faro" nav)
+// VigaBSS 5.0 — Sidebar section icons ("Faro" nav)
 // =============================================================================
 // Nine hand-inlined stroke SVGs, one per nav section — no icon library.
 // Child rows are text-only; these replace the per-item emoji that used to be

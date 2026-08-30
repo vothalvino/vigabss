@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Contract lifecycle route tests (renew + terminate) — §1.2
+// VigaBSS 5.0 — Contract lifecycle route tests (renew + terminate) — §1.2
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP fleet-glance formatting helper tests
+// VigaBSS 5.0 — SNMP fleet-glance formatting helper tests
 // =============================================================================
 import { describe, it, expect, vi } from 'vitest';
 import { fmtUptimeTicks, fmtRelativeTime, fmtPct, fmtSignal, fmtLatency, normalizeCpuSpark } from './format';

@@ -13,7 +13,7 @@
 // testConnection() and sync() are STUBBED — they record a 'stubbed' log entry
 // and return a queued/stubbed result without making any live HTTP calls.
 //
-// Connectors that DELEGATE to existing FireISP services (real I/O happens there):
+// Connectors that DELEGATE to existing VigaBSS services (real I/O happens there):
 //   stripe, conekta       → paymentGatewayService.js
 //   twilio, vonage        → smsTransport.js
 //   sendgrid              → emailTransport.js
@@ -302,7 +302,7 @@ async function testConnection(connectionId, organizationId) {
 
   const started_at = new Date();
   // ALL providers are STUBBED — no live HTTP calls made.
-  // Providers with existing FireISP service delegates (stripe/conekta → paymentGatewayService,
+  // Providers with existing VigaBSS service delegates (stripe/conekta → paymentGatewayService,
   // twilio/vonage → smsTransport, sendgrid → emailTransport, cfdi_pac → cfdiService)
   // note the delegation path in code comments but do not call those services here —
   // testConnection() is a connectivity placeholder; real I/O happens in the existing services.
@@ -350,7 +350,7 @@ async function testConnection(connectionId, organizationId) {
 /**
  * Trigger a sync for a connection.
  *
- * Like testConnection, connectors that have existing FireISP services are noted
+ * Like testConnection, connectors that have existing VigaBSS services are noted
  * but the sync itself is STUBBED (records a log entry, no live calls).
  *
  * STUBBED: all providers (see list in module header).

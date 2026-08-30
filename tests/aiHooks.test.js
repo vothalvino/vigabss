@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — §3.6 AI Hooks Tests
+// VigaBSS 5.0 — §3.6 AI Hooks Tests
 // =============================================================================
 // Tests cover:
 //   1. aiTriage worker handler — delegates to aiReplyService.generate

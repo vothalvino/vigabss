@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL authorization helper
+// VigaBSS 5.0 — GraphQL authorization helper
 // =============================================================================
 // Shared RBAC guard for GraphQL, mirroring the REST requirePermission layer:
 // enforceTokenScopes (so a scope-limited API token is bound) → legacy-admin

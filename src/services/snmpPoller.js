@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Poller Service
+// VigaBSS 5.0 — SNMP Poller Service
 // =============================================================================
 // Polls SNMP-enabled devices using their profile OIDs and stores metrics in
 // the snmp_metrics wide table.  Each profile OID's metric_column maps directly

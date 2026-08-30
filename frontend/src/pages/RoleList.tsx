@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — User Groups (UCRM-style)
+// VigaBSS 5.0 — User Groups (UCRM-style)
 // =============================================================================
 // Standalone page at /roles. "Roles" ARE the user groups: a group carries a
 // `kind` (the built-in persona it's based on — billing/support/technician/

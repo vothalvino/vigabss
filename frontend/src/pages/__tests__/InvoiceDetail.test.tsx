@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — InvoiceDetail page tests
+// VigaBSS 5.0 — InvoiceDetail page tests
 // =============================================================================
 // Covers the invoice's first-ever "Add Item" form (Inventory Phase 2,
 // §14.2) — InvoiceDetail previously had no add-item UI at all — and its

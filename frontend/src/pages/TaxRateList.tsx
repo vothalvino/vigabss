@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Tax Rate Management
+// VigaBSS 5.0 — Tax Rate Management
 // =============================================================================
 // Standalone page at /tax-rates. Lists tax rates with a status filter, paginated
 // table, and "New Tax Rate" create modal plus per-row Edit and Delete

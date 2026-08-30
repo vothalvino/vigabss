@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Support Billing Module (§21.3)
+// VigaBSS 5.0 — Support Billing Module (§21.3)
 // =============================================================================
 // Handles billing-related intents in AI customer support.
 // All functions return { response, requiresConfirmation, actionType, actionData }

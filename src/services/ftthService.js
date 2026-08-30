@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FTTH Service (§7.1/§7.2)
+// VigaBSS 5.0 — FTTH Service (§7.1/§7.2)
 // =============================================================================
 // Provides the interface layer between the API routes and the underlying
 // OLT/ONU device I/O layer.

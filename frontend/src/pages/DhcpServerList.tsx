@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DHCP Server Management
+// VigaBSS 5.0 — DHCP Server Management
 // =============================================================================
 // Standalone page at /dhcp-servers. Lists DHCP servers with a status filter,
 // paginated table, "New DHCP Server" create modal, and per-row Edit and Delete.

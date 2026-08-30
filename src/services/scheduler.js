@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Scheduler Service
+// VigaBSS 5.0 — Scheduler Service
 // =============================================================================
 // Loads enabled scheduled_tasks from the database, schedules them with
 // node-cron, and dispatches each run through taskRunner (single-instance) or

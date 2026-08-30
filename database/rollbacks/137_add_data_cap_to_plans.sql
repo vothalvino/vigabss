@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 137: Remove data_cap_gb column from plans
+-- VigaBSS 5.0 — Rollback 137: Remove data_cap_gb column from plans
 -- =============================================================================
 -- Reverses migration 137.
 --

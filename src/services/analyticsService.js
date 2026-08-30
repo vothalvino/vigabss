@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Analytics Service (§18.4)
+// VigaBSS 5.0 — Analytics Service (§18.4)
 // =============================================================================
 // Lightweight heuristic/statistical analytics — NOT real ML model training.
 //

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — User Tunnel Scope Service (§6a)
+// VigaBSS 5.0 — User Tunnel Scope Service (§6a)
 // =============================================================================
 // Single source of truth for which device subnets a given user is allowed to
 // reach through the wg-clients→wg-fireisp FORWARD chain.

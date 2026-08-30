@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Organization Locale Middleware
+// VigaBSS 5.0 — Organization Locale Middleware
 // =============================================================================
 // Gates Mexico-specific compliance routes (SAT CFDI 4.0, IFT/CRT, PROFECO) to
 // organizations whose regional-compliance switch is 'MX'. Companion to the

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DrDrillStatus page tests
+// VigaBSS 5.0 — DrDrillStatus page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -60,7 +60,7 @@ describe('DrDrillStatus page', () => {
   // The page is where the DrDrillBanner modal's "Open DR runbook" link lands,
   // so the runbook document must actually render here (GET /dr-drill/runbook).
   const RUNBOOK_MD = [
-    '# FireISP 5.0 — Disaster-Recovery Drill',
+    '# VigaBSS 5.0 — Disaster-Recovery Drill',
     '',
     '## Phase 1 — Take a Fresh Backup',
     '',

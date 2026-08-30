@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — versioned SNII preparation object contract
+// VigaBSS 5.0 — versioned SNII preparation object contract
 // =============================================================================
 // Exact basenames and wire-header spelling are taken from the historical IFT
 // baseline associated with the 2024-02-14 amendment.  In 2026 that public

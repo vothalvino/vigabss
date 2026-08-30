@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Forgot Password Page
+// VigaBSS 5.0 — Forgot Password Page
 // =============================================================================
 // Public (unauthenticated) page: collects an email and requests a password
 // reset link. Uses a raw fetch() to /auth/password-reset/request — the same

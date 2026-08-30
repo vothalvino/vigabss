@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Config Backup Routes
+// VigaBSS 5.0 — Device Config Backup Routes
 // =============================================================================
 
 const { Router } = require('express');

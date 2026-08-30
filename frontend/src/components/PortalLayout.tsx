@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Layout
+// VigaBSS 5.0 — Portal Layout
 // =============================================================================
 // Minimal shell for the client self-service portal.
 // Separate from the admin Layout — no sidebar nav for internal routes.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Actions Service
+// VigaBSS 5.0 — Device Actions Service
 // =============================================================================
 // Operator actions against network devices in the `devices` table. Today:
 // rebootDevice — routes a reboot to whatever real mechanism the device has,

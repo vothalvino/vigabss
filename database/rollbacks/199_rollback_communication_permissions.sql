@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 199: Remove Communication module permissions
+-- VigaBSS 5.0 — Rollback 199: Remove Communication module permissions
 -- =============================================================================
 -- Reverses migration 199. role_permissions rows are removed first to satisfy
 -- the FK constraint, then the permission definitions themselves.

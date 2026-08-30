@@ -1,10 +1,10 @@
-# FireISP 5.0
+# VigaBSS 5.0
 
 Open source ISP management software for customer operations, billing, network management, compliance, and modern self-service/admin workflows.
 
 ## Quick Install
 
-Deploy FireISP 5.0 on any Linux server with Docker in a single command:
+Deploy VigaBSS 5.0 on any Linux server with Docker in a single command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vothalvino/fireisp5.0/main/install.sh | bash
@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/vothalvino/fireisp5.0/main/install.
 All generated credentials are saved to `/opt/fireisp/.env.prod` (mode `600`).
 
 > **Full deployment guide:** [`docs/deployment.md`](docs/deployment.md) covers bare-metal, Docker Compose, Kubernetes, TLS setup, MySQL tuning, and a production checklist.
-> **FreeRADIUS integration:** [`docs/freeradius/README.md`](docs/freeradius/README.md) covers installing FreeRADIUS 3.x, pointing `rlm_sql` at the FireISP MySQL database, enabling PPPoE/MAB/802.1X/EAP-TLS, and generating `clients.conf` from the `nas` table.
+> **FreeRADIUS integration:** [`docs/freeradius/README.md`](docs/freeradius/README.md) covers installing FreeRADIUS 3.x, pointing `rlm_sql` at the VigaBSS MySQL database, enabling PPPoE/MAB/802.1X/EAP-TLS, and generating `clients.conf` from the `nas` table.
 
 ## Features
 
@@ -66,7 +66,7 @@ All generated credentials are saved to `/opt/fireisp/.env.prod` (mode `600`).
 - Scheduled task observability and active session management — fifteen core automation tasks seeded on install (`auto_generate_invoices`, `auto_suspend_overdue`, `radius_sync`, `populate_revenue_summary`, `populate_network_health_snapshots`, `csd_expiry_monitor`, `alert_evaluation`, `process_recurring_charges`, `data_retention`, `payment_retry`, `billing_cycle`, `database_backup`, `config_backup`, `webhook_retry`, `quarterly_dr_drill`)
 - Monitoring alert rules with configurable thresholds, severity levels, and multi-channel notifications (email, SMS, SSE, webhook)
 - Two-factor authentication (TOTP) with backup codes and brute-force account lockout
-- Single sign-on (SSO) — per-organization SAML 2.0 and OIDC IdP configuration, automatic user provisioning on first login, and IdP group-to-FireISP role mappings
+- Single sign-on (SSO) — per-organization SAML 2.0 and OIDC IdP configuration, automatic user provisioning on first login, and IdP group-to-VigaBSS role mappings
 - Per-tenant resource quotas — configurable upper bounds per organization for clients, devices, storage, and scheduled tasks (NULL = unlimited; absence of a quota row = unlimited)
 - Per-tenant database isolation — opt-in physically isolated MySQL/MariaDB database per organization; tenant-aware pool routing via `AsyncLocalStorage` context in `orgScope`; admin API to configure, verify (`POST /test`), and switch between shared and isolated modes; `MIGRATE_ISOLATED_TENANTS=true npm run migrate` applies the same migration set to every enabled isolated tenant database
 - Background job platform (BullMQ) — optional Redis-backed distributed job queues for webhook delivery, SMS dispatch, CFDI stamping retries, config-backup pulls, and scheduled-task execution; inline fallback when `REDIS_URL` is not configured; per-queue stats surfaced at `/api/v1/queue-stats`
@@ -79,7 +79,7 @@ All generated credentials are saved to `/opt/fireisp/.env.prod` (mode `600`).
 - Geographic service areas and coverage zones with WGS 84 boundary polygons
 - Speed test recording from client portal, technician tools, automated probes, and external services
 - IFT/CRT regulatory-support records — concession titles, periodic filings, statistical reports, and operator-entered adhesion-contract registration metadata; see the [legal register](docs/legal-regulatory-register.md) for applicability and validation boundaries
-- Customer lifecycle management — a guided lead → installation order → pending contract handoff, assigned installation visit, bounded technician PPPoE test window, recorded speed result, automatic test shutoff, field acceptance, explicit optional Email/SMS/WhatsApp choices, and customer signature before permanent service; MX organizations can rehearse with permanently watermarked FireISP-only sandbox evidence before switching new contracts to an exact externally registered production source, while global organizations sign a neutral service-installation acknowledgment
+- Customer lifecycle management — a guided lead → installation order → pending contract handoff, assigned installation visit, bounded technician PPPoE test window, recorded speed result, automatic test shutoff, field acceptance, explicit optional Email/SMS/WhatsApp choices, and customer signature before permanent service; MX organizations can rehearse with permanently watermarked VigaBSS-only sandbox evidence before switching new contracts to an exact externally registered production source, while global organizations sign a neutral service-installation acknowledgment
 - Customer interaction tracking — unified per-client activity timeline (calls, emails, tickets, payments, visits), manual interaction logging, follow-up reminders with automated due notifications, NPS/CSAT satisfaction surveys (auto-dispatched on ticket resolution) with aggregate metrics, and ticket escalation management with auto-escalation of stale unresolved tickets
 - Internationalization (i18n) — English, Spanish, and Brazilian Portuguese locale support
 - Customer self-service portal (§11) — dashboard with plan overview, live session status, daily usage graph; invoice PDF/CFDI download; online payment (card/OXXO/SPEI/PayPal via checkout session); payment history; self-service requests (plan upgrade with proration, Wi-Fi/PPPoE password change, static IP, cancellation, visit schedule) with admin approval workflow; knowledge-base / FAQ with rating; embedded speed test (queues `subscriber_speed_test_jobs`, results view); AI-powered chatbot with automatic ticket-creation fallback; callback request; Web Push notification subscriptions (outage/billing/ticket events); PWA with offline service worker and web app manifest
@@ -142,7 +142,7 @@ fireisp5.0/
 
 ## Database
 
-FireISP 5.0 uses MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 10.6+. The schema is located in the `database/` directory.
+VigaBSS 5.0 uses MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 10.6+. The schema is located in the `database/` directory.
 
 ### Quick Start
 
@@ -244,7 +244,7 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 | 80 | `cfdi_concepto_impuestos` | Per-line tax breakdown for CFDI 4.0 — one row per `<Traslado>` or `<Retencion>` inside a concept; stores tax type, SAT tax code (ISR/IVA/IEPS), rate type, rate, taxable base, and calculated tax amount |
 | 81 | `concession_titles` | IFT/CRT concession title registry — tracks title number, type, authorized services, spectrum bands, validity dates, and regulatory status for each organization |
 | 82 | `regulatory_filings` | Operator-maintained IFT/CRT filing log — annual reports, quarterly stats, tariff registrations, QoS reports, and other submissions whose applicability and current format must be externally validated |
-| 83 | `contract_templates_mx` | MX adhesion-contract template registry — stores operator-entered registration number, version, body text, and approval status; FireISP does not verify the external registration |
+| 83 | `contract_templates_mx` | MX adhesion-contract template registry — stores operator-entered registration number, version, body text, and approval status; VigaBSS does not verify the external registration |
 | 84 | `ift_statistical_reports` | Pre-aggregated IFT/CRT reporting snapshots — subscriber counts by speed tier/state/technology, average speeds, coverage municipalities, and revenue per reporting period (the historical [`schema review`](docs/ift-statistical-report-schema-review.md) requires revalidation against the current CRT instrument and form before reliance) |
 | 85 | `factura_publica_invoices` | Factura pública (venta al público en general) periodic aggregation documents — when MX contracts have `facturar = FALSE`, their invoices are aggregated into a periodic factura pública per SAT InformacionGlobal (Periodicidad, Meses, Año); one row per organization per period |
 | 86 | `factura_publica_invoice_items` | Junction table linking individual invoices from contracts with `facturar = FALSE` to their parent factura pública — each invoice belongs to at most one factura pública document |
@@ -274,7 +274,7 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 | 110 | `alert_rules` | Configurable monitoring alert rules per organization — defines metric thresholds (CPU, memory, signal, latency, packet loss, uptime), evaluation windows, severity levels, optional auto-outage creation, and notification channel routing (email/SMS/SSE/webhook) |
 | 111 | `alert_events` | Triggered alert event log — records each time an alert rule fires with current vs threshold values, acknowledgement tracking, and resolution timestamps |
 | 112 | `organization_sso_configs` | Per-organization SSO configuration — one row per (organization, provider_type); stores SAML 2.0 IdP metadata (entity ID, SSO URL, SLO URL, X.509 signing certificate, SP private key) and OIDC settings (issuer, client ID/secret, scopes); controls auto-provisioning behaviour and the default role for new SSO users |
-| 113 | `organization_sso_group_mappings` | IdP group-to-role mapping — maps an exact IdP group name to a FireISP role (admin/manager/technician/billing/readonly) for a given SSO config; evaluated at login to assign the highest-ranked matching role |
+| 113 | `organization_sso_group_mappings` | IdP group-to-role mapping — maps an exact IdP group name to a VigaBSS role (admin/manager/technician/billing/readonly) for a given SSO config; evaluated at login to assign the highest-ranked matching role |
 | 114 | `sso_auth_states` | Short-lived OIDC authorization state / nonce store — holds the random `state` and `nonce` parameters generated at the start of an OIDC authorization-code flow; rows expire after 10 minutes; prevents CSRF and replay attacks |
 | 115 | `organization_quotas` | Per-tenant resource quota table — stores optional upper bounds for `max_clients`, `max_devices`, `max_storage_mb`, and `max_scheduled_tasks`; a NULL limit means "unlimited"; absence of a row is also treated as unlimited |
 | 116 | `organization_database_configs` | Per-tenant database isolation configuration — stores the `isolation_mode` (`shared` default, `isolated` opt-in) and, for isolated tenants, the target database host/port/name/user, encrypted password, SSL flag, and `last_verified_at` connectivity-check timestamp |
@@ -313,20 +313,20 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 | 149 | `dispute_evidence` | File attachments for billing disputes (reuses multer upload infrastructure) |
 | 150 | `chargebacks` | Chargeback management; auto-created from gateway webhook dispute events |
 | 151 | `billing_adjustments` | Immutable billing adjustment log — written by refund processing, chargeback resolution, and manual admin actions; mirrors to audit_logs |
-| 152 | `radcheck` | Standard FreeRADIUS per-user check attributes (Cleartext-Password, Auth-Type, TLS-Cert-Serial) — populated by `radius_sync` task from FireISP state |
+| 152 | `radcheck` | Standard FreeRADIUS per-user check attributes (Cleartext-Password, Auth-Type, TLS-Cert-Serial) — populated by `radius_sync` task from VigaBSS state |
 | 153 | `radreply` | Standard FreeRADIUS per-user reply attributes — populated by `radius_sync` task |
 | 154 | `radusergroup` | Standard FreeRADIUS user → group membership — maps each subscriber username to their plan group |
 | 155 | `radgroupcheck` | Standard FreeRADIUS per-group check attributes |
 | 156 | `radgroupreply` | Standard FreeRADIUS per-group reply attributes — contains vendor speed attributes (MikroTik/Cisco/Juniper/WISPr) generated per plan by `radiusAttributeService` |
-| 157 | `subscriber_certificates` | EAP-TLS subscriber certificate metadata registry — CN, serial, SHA-256 fingerprint, validity window, and revocation tracking; FireISP stores metadata only (no CA/key generation) |
+| 157 | `subscriber_certificates` | EAP-TLS subscriber certificate metadata registry — CN, serial, SHA-256 fingerprint, validity window, and revocation tracking; VigaBSS stores metadata only (no CA/key generation) |
 | 158 | `plan_access_windows` | Per-plan time-based access restriction windows (day_mask + start/end time); converted to FreeRADIUS `Login-Time` radgroupcheck attribute by `syncFreeradiusTables()` |
 | 159 | `organization_walled_garden_settings` | Per-org walled garden configuration: enabled flag, captive portal redirect URL, MikroTik address-list name, allowed destinations for NAS ACL reference |
 | 160 | `radius_account_routes` | Per-RADIUS-account static route injection; each non-deleted row becomes one `Framed-Route` radreply attribute (`destination [gateway] [metric]`) during sync |
 | 161 | `mac_move_events` | MAC move event log — written by accounting ingest when the same RADIUS username is seen from a different Calling-Station-Id or NAS between sessions |
 | 162 | `pppoe_service_profiles` | PPPoE AC / BNG service profiles — MTU, MRU, auth-methods, DNS, session/idle timeouts, rate-limit override (MikroTik), address-list, Filter-Id; referenced by `ip_pools.service_profile_id` and `radius.service_profile_id` |
-| 163 | `radpostauth` | Tenant- and NAS-attributed RADIUS post-authentication log — written by the embedded server or FreeRADIUS; stores explicit non-secret outcome reason codes for diagnostics (the legacy `pass` column is always left blank by FireISP; no foreign keys) |
+| 163 | `radpostauth` | Tenant- and NAS-attributed RADIUS post-authentication log — written by the embedded server or FreeRADIUS; stores explicit non-secret outcome reason codes for diagnostics (the legacy `pass` column is always left blank by VigaBSS; no foreign keys) |
 | 164 | `pppoe_event_logs` | Tenant-scoped PPPoE stage event log (PADI/PADS/LCP/IPCP/AUTH/PADT); written by the RouterOS poller or `POST /pppoe/events`; a per-NAS SHA-256 `source_key` deduplicates overlapping polls (no FKs on org/NAS — loose coupling) |
-| 165 | `dhcp_servers` | DHCP server connection registry (ISC Kea, MikroTik); stores host, port, API URL, and encrypted API token for each DHCP server managed by FireISP |
+| 165 | `dhcp_servers` | DHCP server connection registry (ISC Kea, MikroTik); stores host, port, API URL, and encrypted API token for each DHCP server managed by VigaBSS |
 | 166 | `dhcp_static_reservations` | Static DHCP reservations binding MAC addresses to IP addresses; supports DHCP Option 82 circuit/remote-id binding for subscriber identification |
 | 167 | `nat_pools` | CGNAT, 1:1 NAT, and PAT pool definitions; tracks external IP ranges, port allocation ranges, and max ports per subscriber |
 | 168 | `ptr_records` | Reverse DNS PTR record management; supports both IPv4 and IPv6 PTR records with configurable TTL and DNS zone |
@@ -432,7 +432,7 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 | 268 | `gov_data_requests` | §16.3 Tenant-owned government-request case gate — validated authority/reference/legal basis, direct-IP or shared-CGNAT tuple/time scope, legal-review/processing lifecycle, scoped preservation metadata, and a SHA-256 consistency marker; this is not a tamper-proof statutory vault |
 | 269 | `phone_number_inventory` | §16.4 VoIP/DID phone number inventory — E.164 number, number type ENUM (did/toll_free/local/mobile), carrier, status ENUM (available/assigned/porting/reserved), assigned client FK |
 | 270 | `number_portability_records` | §16.4 MNP/FNP portability records — porting direction (in/out), donor/recipient carrier, port-in/port-out dates, status lifecycle, regulatory reference number |
-| 271 | `numbering_blocks` | §16.4 telephone-number block metadata — block prefix, range start/end, size, assigned carrier, operator-entered regulatory authority, allocation date, and utilization; FireISP does not validate the applicable Mexican CRT numbering source (CNMC is Spain's regulator) |
+| 271 | `numbering_blocks` | §16.4 telephone-number block metadata — block prefix, range start/end, size, assigned carrier, operator-entered regulatory authority, allocation date, and utilization; VigaBSS does not validate the applicable Mexican CRT numbering source (CNMC is Spain's regulator) |
 | 272 | `uso_obligations` | §16.6 Universal service obligation tracking — obligation type, reporting period, contribution amount, payment status, regulatory filing reference, and compliance deadline |
 | 273 | `rural_coverage_reports` | §16.6 Rural deployment and social coverage reporting — municipality code, coverage percentage, technology type, underserved flag, population covered, and reporting period |
 | 274 | `service_modification_notices` | §16.7 operator-configured service-modification notice records — modification type, effective date, claimed notice date/period, regulatory reference, and affected-contract count; changing status does not transmit or prove delivery |
@@ -549,7 +549,7 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 
 > **Migration 369 — Org-level currency:** Adds `currency CHAR(3) NOT NULL DEFAULT 'MXN'` to `organizations` (AFTER country). Each org now has one authoritative ISO 4217 currency; plan create defaults to it when no currency is supplied; Inventory UI reads it dynamically.
 
-> **Migration 371 — NAS access mode:** Adds `access_mode ENUM('direct','nated') NOT NULL DEFAULT 'direct'` to `nas`. In `direct` mode (default) the NAS has a routable IP and FireISP connects to it directly. In `nated` mode the device is behind NAT and FireISP reaches it exclusively over its WireGuard tunnel; `ip_address` is set to the allocated WG tunnel address at create time so RADIUS, health-checks, and the RouterOS API all use the tunnel uniformly.
+> **Migration 371 — NAS access mode:** Adds `access_mode ENUM('direct','nated') NOT NULL DEFAULT 'direct'` to `nas`. In `direct` mode (default) the NAS has a routable IP and VigaBSS connects to it directly. In `nated` mode the device is behind NAT and VigaBSS reaches it exclusively over its WireGuard tunnel; `ip_address` is set to the allocated WG tunnel address at create time so RADIUS, health-checks, and the RouterOS API all use the tunnel uniformly.
 
 > **Migration 165–173 table count note:** See migrations 241–246 below for the §5 Dual Stack tables. See migrations 249–263 for §6.1–6.6 SNMP & NMS tables.
 
@@ -607,7 +607,7 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 
 > **Migration 281 — Wireless RBAC Permissions Seed (§9.1):** `281_seed_wireless_permissions.sql` seeds 15 permissions in the `wireless` module: `ap_sectors.*` (4), `ap_channel_plans.*` (4), `wireless_clients.view` (1), `wireless_channels.*` (2: view/manage), `ap_commands.*` (2: view/create), `wireless_speed_profiles.*` (2: view/manage). Role matrix: admin (all 15), technician (all view + create/update for ap_sectors/channel_plans/ap_commands), readonly (5 view permissions). New REST routes under `/api/v1/wireless`: `/ap-sectors` (CRUD + restore), `/channel-plans` (CRUD + restore + conflicts/:siteId), `/clients` (list + batch ingest), `/channel-interference` (CRUD), `/ap-commands` (CRUD + cancel).
 
-> **Migration 286 — QoS Speed Profiles (§10.1):** `286_qos_speed_profiles.sql` creates `quality_classes` (priority class registry — traffic_type ENUM voip/video/web/download/other, priority 1–8, DSCP mark, MikroTik queue kind, max_limit_pct; seeds 4 default global classes: VoIP/EF/p1, Video/AF41/p2, Web/CS3/p4, Bulk/BE/p8) and `queue_tree_nodes` (hierarchical queue tree — parent_id self-FK for tree structure, queue_type ENUM tree/simple, interface, max/burst/threshold limits, burst_time_seconds, queue_kind, sort_order). Adds 3 guarded columns to `plans` via stored-procedure guards: `burst_threshold_mbps` and `burst_time_seconds` (MikroTik burst semantics — burst is active when 8 s average rate is below threshold, defaults to CIR/8s if omitted), `priority_class_id` FK→quality_classes. `radiusAttributeService.generateAttributes()` updated to emit the full 4-field MikroTik rate-limit string (`CIR/CIR burst/burst threshold/threshold burst-time`). New `qosService.js` with `buildRateString()` (per-vendor rate string builder) and `exportQueueTreeConfig()` (generates MikroTik RouterOS `/queue tree` + `/queue simple` script — stub driver pattern matching §7/§9; push to NAS via SSH/API outside FireISP scope). New routes: `/quality-classes` (CRUD + restore), `/queue-tree-nodes` (CRUD + restore + `GET /export/config?format=text` for `.rsc` download). Plan.js fillable updated with new fields; plan schemas expose burst_threshold_mbps, burst_time_seconds, priority_class_id.
+> **Migration 286 — QoS Speed Profiles (§10.1):** `286_qos_speed_profiles.sql` creates `quality_classes` (priority class registry — traffic_type ENUM voip/video/web/download/other, priority 1–8, DSCP mark, MikroTik queue kind, max_limit_pct; seeds 4 default global classes: VoIP/EF/p1, Video/AF41/p2, Web/CS3/p4, Bulk/BE/p8) and `queue_tree_nodes` (hierarchical queue tree — parent_id self-FK for tree structure, queue_type ENUM tree/simple, interface, max/burst/threshold limits, burst_time_seconds, queue_kind, sort_order). Adds 3 guarded columns to `plans` via stored-procedure guards: `burst_threshold_mbps` and `burst_time_seconds` (MikroTik burst semantics — burst is active when 8 s average rate is below threshold, defaults to CIR/8s if omitted), `priority_class_id` FK→quality_classes. `radiusAttributeService.generateAttributes()` updated to emit the full 4-field MikroTik rate-limit string (`CIR/CIR burst/burst threshold/threshold burst-time`). New `qosService.js` with `buildRateString()` (per-vendor rate string builder) and `exportQueueTreeConfig()` (generates MikroTik RouterOS `/queue tree` + `/queue simple` script — stub driver pattern matching §7/§9; push to NAS via SSH/API outside VigaBSS scope). New routes: `/quality-classes` (CRUD + restore), `/queue-tree-nodes` (CRUD + restore + `GET /export/config?format=text` for `.rsc` download). Plan.js fillable updated with new fields; plan schemas expose burst_threshold_mbps, burst_time_seconds, priority_class_id.
 
 > **Migration 287 — QoS Permissions Seed (§10.1):** `287_seed_qos_permissions.sql` seeds 9 permissions in the `qos` module: `quality_classes.*` (4), `queue_tree_nodes.*` (4), `queue_tree_nodes.export` (1). Role matrix: admin (all 9), technician (views + queue_tree_nodes.export), readonly (views only).
 
@@ -695,7 +695,7 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 > `225_radius_authorization_plan_columns.sql` adds `session_timeout_seconds`, `idle_timeout_seconds`, `simultaneous_use` (default 1) to `plans`, and `simultaneous_use` (NULL=inherit plan), `vlan_id`, `inner_vlan_id` to `radius`; seeds `kick_duplicate_sessions` scheduled task (every 5 min). `226_create_plan_access_windows.sql` adds the `plan_access_windows` table (day_mask + time window, mirroring `plan_speed_windows`). `227_walled_garden_and_suspension_action.sql` adds `organization_walled_garden_settings` and extends `suspension_rules.action` ENUM with `walled_garden`. `228_create_radius_account_routes.sql` adds `radius_account_routes` for per-account `Framed-Route` injection. `229_seed_radius_authz_permissions.sql` seeds RBAC permissions for `plan_access_windows.*`, `radius_account_routes.*`, `walled_garden.*`, `radius.kick_sessions`. Sync now emits: `Session-Timeout` / `Idle-Timeout` in radgroupreply; `Login-Time` in radgroupcheck from access windows (serialized by `radiusLoginTimeService`); `Simultaneous-Use :=` in radcheck (account override wins); `Tunnel-Type`, `Tunnel-Medium-Type`, `Tunnel-Private-Group-Id` in radreply for VLAN assignment (plus `:1` tag for QinQ); `Mikrotik-Address-List` in radreply for walled subscribers; `Framed-Route +=` per route row. New `walledGardenSuspendContract()` / `walledGardenReconnect()` functions handle CoA + suspension log + immediate re-sync. New `kickDuplicateSessions()` finds over-limit subscribers and disconnects oldest sessions via existing Disconnect-Request path. New API endpoints: `GET/POST /plans/:id/access-windows`, `PUT/DELETE /plans/:id/access-windows/:windowId`; `GET/POST /radius/:id/routes`, `PUT/DELETE /radius/:id/routes/:routeId`; `GET/PUT /radius/walled-garden`; `POST /radius/kick-sessions`. Walled garden NAS-side setup documented in `docs/freeradius/README.md`.
 
 > **Migrations 223–224 — §3.1 RADIUS/AAA Phase A:**
-> `223_create_freeradius_standard_tables.sql` adds the five standard FreeRADIUS SQL tables (`radcheck`, `radreply`, `radusergroup`, `radgroupcheck`, `radgroupreply`) required by FreeRADIUS `rlm_sql`; adds `auth_method ENUM('pppoe','mac','dot1x','eap_tls')` to the `radius` table (stored-procedure guard); creates the `subscriber_certificates` table for EAP-TLS certificate metadata; and seeds the `check_certificate_expiry` scheduled task (daily 06:00). `radiusService.syncFreeradiusTables()` materializes these tables from FireISP state — radcheck rows are auth-method-aware (Cleartext-Password for PPPoE/dot1x/EAP-TLS, Auth-Type or MAC-as-password for MAB, TLS-Cert-Serial for EAP-TLS), radgroupreply rows carry vendor speed attributes from `radiusAttributeService`. MAB password mode is configurable via org setting `mab_password_mode`. `224_seed_radius_aaa_permissions.sql` seeds `subscriber_certificates.*` and `radius.sync` RBAC permissions. New endpoints: `POST /radius/sync-freeradius`, full CRUD under `/subscriber-certificates` plus `POST /subscriber-certificates/:id/revoke`, `GET /subscriber-certificates/radius-account/:id`, `GET /subscriber-certificates/client/:id`. FreeRADIUS setup guide in `docs/freeradius/`.
+> `223_create_freeradius_standard_tables.sql` adds the five standard FreeRADIUS SQL tables (`radcheck`, `radreply`, `radusergroup`, `radgroupcheck`, `radgroupreply`) required by FreeRADIUS `rlm_sql`; adds `auth_method ENUM('pppoe','mac','dot1x','eap_tls')` to the `radius` table (stored-procedure guard); creates the `subscriber_certificates` table for EAP-TLS certificate metadata; and seeds the `check_certificate_expiry` scheduled task (daily 06:00). `radiusService.syncFreeradiusTables()` materializes these tables from VigaBSS state — radcheck rows are auth-method-aware (Cleartext-Password for PPPoE/dot1x/EAP-TLS, Auth-Type or MAC-as-password for MAB, TLS-Cert-Serial for EAP-TLS), radgroupreply rows carry vendor speed attributes from `radiusAttributeService`. MAB password mode is configurable via org setting `mab_password_mode`. `224_seed_radius_aaa_permissions.sql` seeds `subscriber_certificates.*` and `radius.sync` RBAC permissions. New endpoints: `POST /radius/sync-freeradius`, full CRUD under `/subscriber-certificates` plus `POST /subscriber-certificates/:id/revoke`, `GET /subscriber-certificates/radius-account/:id`, `GET /subscriber-certificates/client/:id`. FreeRADIUS setup guide in `docs/freeradius/`.
 
 > **Migrations 217–222 — §2.5 (Refund Requests, Disputes, Chargebacks, Billing Adjustments):**
 > Adds `refund_requests` table (217) with status lifecycle `requested → under_review → approved/rejected → processed`; RBAC seeds (218); `billing_disputes` + `dispute_evidence` tables (219) with multipart evidence upload reusing the existing upload middleware; dispute RBAC seeds (220); `chargebacks` + `billing_adjustments` tables (221); chargeback/adjustment RBAC seeds (222). `paymentGatewayService.handleWebhookEvent` now auto-creates a chargeback row when a dispute webhook is received. `billingAdjustmentService.record()` is called from refund processing and mirrors each adjustment into `audit_logs`. New events: `refund.requested` (webhook dispatch to billing staff), `refund.processed` (email to client + webhook).
@@ -858,7 +858,7 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 
 > **Migration 122 — Seed default suspension rule:** `122_seed_default_suspension_rule.sql` inserts a default auto-suspend rule into `suspension_rules` for the first organization (id = 1): 30 days past due, 5-day grace period, action `auto_suspend`. Uses `WHERE NOT EXISTS` to be idempotent. Because `suspension_rules.organization_id` is `NOT NULL`, this seed targets org id = 1; administrators should add per-organization rules as part of tenant onboarding.
 
-> **Migration 123 — Seed scheduled tasks for core automation:** `123_seed_scheduled_tasks_core_automation.sql` inserts the five system-level automation tasks that drive FireISP's main operational loops: `auto_generate_invoices` (daily at 01:00), `auto_suspend_overdue` (daily at 06:00), `radius_sync` (every 5 min), `populate_revenue_summary` (monthly on the 1st at 02:00), and `populate_network_health_snapshots` (daily at 04:00). All tasks use `organization_id = NULL` (global) and `is_enabled = TRUE`. Uses `INSERT IGNORE` on the `UNIQUE KEY (organization_id, task_name)`.
+> **Migration 123 — Seed scheduled tasks for core automation:** `123_seed_scheduled_tasks_core_automation.sql` inserts the five system-level automation tasks that drive VigaBSS's main operational loops: `auto_generate_invoices` (daily at 01:00), `auto_suspend_overdue` (daily at 06:00), `radius_sync` (every 5 min), `populate_revenue_summary` (monthly on the 1st at 02:00), and `populate_network_health_snapshots` (daily at 04:00). All tasks use `organization_id = NULL` (global) and `is_enabled = TRUE`. Uses `INSERT IGNORE` on the `UNIQUE KEY (organization_id, task_name)`.
 
 > **Migration 124 — Add currency to expenses (idempotent guard):** `124_add_currency_to_expenses.sql` adds `expenses.currency CHAR(3) NOT NULL DEFAULT 'USD'` after the `amount` column for multi-currency expense tracking. The migration is wrapped in a stored-procedure guard that checks `INFORMATION_SCHEMA.COLUMNS` before issuing the `ALTER TABLE`, making it a safe no-op on installations where migration 051 already applied the same column.
 
@@ -944,14 +944,14 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 
 > **Migration 165 — SSO configuration tables (P2.1):** `165_create_sso_configs.sql` creates three tables for per-organization single sign-on:
 > - **`organization_sso_configs`** — one row per `(organization_id, provider_type)` (SAML 2.0 or OIDC); holds all IdP connection settings (SAML entity ID / SSO URL / SLO URL / X.509 cert / SP private key; OIDC issuer / client ID / client secret), attribute-mapping JSON, auto-provisioning flag, and the default role assigned to new SSO users. Unique constraint on `(organization_id, provider_type)`.
-> - **`organization_sso_group_mappings`** — maps exact IdP group names to FireISP roles; evaluated at login to give authenticated users their correct role. Unique constraint on `(sso_config_id, idp_group)`.
+> - **`organization_sso_group_mappings`** — maps exact IdP group names to VigaBSS roles; evaluated at login to give authenticated users their correct role. Unique constraint on `(sso_config_id, idp_group)`.
 > - **`sso_auth_states`** — short-lived OIDC state/nonce store for the authorization-code flow; rows expire after 10 minutes and should be purged by a cleanup task. Unique constraint on `state`.
 
 > **Migration 166 — Per-tenant resource quotas:** `166_create_organization_quotas.sql` creates the `organization_quotas` table that stores optional upper bounds per organization for four resources: `max_clients` (active client records), `max_devices` (active device records), `max_storage_mb` (sum of all org-owned `files.file_size`), and `max_scheduled_tasks` (org-scoped scheduled task rows). A `NULL` value in any limit column means "unlimited" for that resource. A row is created only when a quota is first configured; the absence of a row is also treated as unlimited. The `checkQuota` middleware enforces these limits at the API layer before the relevant creation handlers. Unique constraint on `organization_id`.
 
 > **Migration 167 — Per-tenant database isolation config:** `167_create_organization_database_configs.sql` creates the `organization_database_configs` control-plane table. One row per organization (unique constraint). Stores `isolation_mode` (`shared` default, `isolated` opt-in), isolated database host, port, name, user, AES-256-GCM-encrypted password (`db_password_encrypted`), SSL flag, and `last_verified_at` timestamp. When `isolation_mode = 'isolated'` and a valid connection config is present, `src/config/database.js` routes every DB operation for that organization to a dedicated MySQL pool (cached in memory, invalidated on config update). Admin endpoints: `GET/PUT /api/v1/organizations/:id/database-isolation` (masked config), `POST /api/v1/organizations/:id/database-isolation/test` (connectivity check + records `last_verified_at`). `FK ON DELETE CASCADE` from `organizations`.
 
-> **Migration 168 — PROFECO-related complaint tracking:** `168_create_profeco_complaints_table.sql` creates an internal complaint-support table with operator-entered folio/contact/category/status/deadline/resolution fields and optional client/ticket links. Its CSV/JSON output is generic; FireISP does not establish CONCILIANET applicability, an official filing format, a quarterly duty, submission, or acceptance.
+> **Migration 168 — PROFECO-related complaint tracking:** `168_create_profeco_complaints_table.sql` creates an internal complaint-support table with operator-entered folio/contact/category/status/deadline/resolution fields and optional client/ticket links. Its CSV/JSON output is generic; VigaBSS does not establish CONCILIANET applicability, an official filing format, a quarterly duty, submission, or acceptance.
 
 > **Migration 169 — AI Reply Assistant tables + device/link columns:** `169_ai_assistant.sql` creates six tables for the AI Reply Assistant feature (`ai_policies`, `ai_providers`, `ai_phrase_library`, `ai_forbidden_terms`, `ai_reply_logs`, `contract_topology_paths`) and adds two ALTER TABLE statements: `devices.role ENUM('cpe','pop','backbone','border','access') NULL` for topology classification, and `network_links.medium ENUM('fiber','wireless','copper') NULL` + `network_links.role ENUM('backbone','distribution','access','client') NULL` for link metadata used by `topologyContextService`.
 
@@ -1147,7 +1147,7 @@ allocation interval, gateway/exporter provenance, and the canonical
 event requires that tenant-owned session UUID; optional subscriber hints or a
 reused private address cannot replace it. The dataset deliberately has no
 destination address/port, URL, domain, DNS, packet payload, application content,
-or browsing-history field. FireISP does not parse RouterOS, NetFlow/IPFIX, or
+or browsing-history field. VigaBSS does not parse RouterOS, NetFlow/IPFIX, or
 syslog itself.
 
 The LMTR does not expressly enumerate CGNAT address/port bindings. This is an
@@ -1163,7 +1163,7 @@ event and its receipt establish the upper bound. Translated port and protocol
 are required only when a public address is shared behind CGNAT.
 The CGNAT mode is supported only when a public IP/port/protocol tuple is
 exclusive to one subscriber at an instant. Translators that reuse the tuple and
-need remote destination for disambiguation are reported unsupported; FireISP
+need remote destination for disambiguation are reported unsupported; VigaBSS
 does not collect destinations to compensate.
 An exporter epoch with a reported sequence/loss/metadata incident remains
 fail-closed. After authoritative external reconciliation, retire that identity
@@ -1386,7 +1386,7 @@ pnpm run seed
 pnpm run dev
 
 # 7. In another terminal, start the frontend
-pnpm --filter fireisp-frontend dev
+pnpm --filter vigabss-frontend dev
 ```
 
 - Frontend dev UI: `http://localhost:5173`
@@ -1407,7 +1407,7 @@ docker compose up -d
 | Command | Description |
 |---------|-------------|
 | `pnpm run dev` | Start with auto-reload (nodemon) |
-| `pnpm --filter fireisp-frontend dev` | Start the Vite frontend on port 5173 |
+| `pnpm --filter vigabss-frontend dev` | Start the Vite frontend on port 5173 |
 | `pnpm start` | Production start |
 | `pnpm test` | Run test suite (Jest) |
 | `pnpm run test:watch` | Run tests in watch mode |
@@ -1422,10 +1422,10 @@ docker compose up -d
 | `pnpm run sql:check` | Check every `INSERT`/`UPDATE` in `src/` against `database/schema.sql` — column names and ENUM values (run in CI) |
 | `pnpm run schema:parity` | Offline `schema.sql` ↔ migrations parity check (no database needed; run in CI) |
 | `pnpm run spec:gen` | Scaffold a new route stub from the OpenAPI spec |
-| `pnpm --filter fireisp-frontend test` | Run frontend tests (Vitest) |
-| `pnpm --filter fireisp-frontend run lint` | Run frontend type-check / lint step |
-| `pnpm --filter fireisp-frontend build` | Build the frontend bundle |
-| `pnpm --filter fireisp-e2e test` | Run Playwright smoke tests |
+| `pnpm --filter vigabss-frontend test` | Run frontend tests (Vitest) |
+| `pnpm --filter vigabss-frontend run lint` | Run frontend type-check / lint step |
+| `pnpm --filter vigabss-frontend build` | Build the frontend bundle |
+| `pnpm --filter vigabss-e2e test` | Run Playwright smoke tests |
 | `FIREISP_ADMIN_PASSWORD='...' pnpm run admin -- create-user --email admin@example.com --role admin` | Create admin user — the password comes from `FIREISP_ADMIN_PASSWORD` (not `ADMIN_PASSWORD`, which is the seeded admin's initial password), or is prompted for when run in a terminal. Never pass it as a flag: argv is world-readable via `/proc/<pid>/cmdline` |
 | `pnpm run backup` | Back up the database |
 

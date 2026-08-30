@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Service Area Viewer
+// VigaBSS 5.0 — Service Area Viewer
 // =============================================================================
 // Read-only page at /service-areas. Lists the geographic service areas
 // (planned / active / retired coverage footprints) with their status, map

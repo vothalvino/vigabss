@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Ticket category taxonomy + billing-category scoping tests
+// VigaBSS 5.0 — Ticket category taxonomy + billing-category scoping tests
 // =============================================================================
 // Migration 394: tickets.category is a required 4-value taxonomy on create,
 // and users WITHOUT the tickets.view_billing permission (e.g. technician) see

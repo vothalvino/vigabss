@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Group Management
+// VigaBSS 5.0 — Device Group Management
 // =============================================================================
 // Standalone page at /device-groups. Lists device groups with a status filter,
 // paginated table, "New Device Group" create modal, and per-row Edit and Delete.

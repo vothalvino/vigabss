@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — repair-entity-encoded-fields script tests
+// VigaBSS 5.0 — repair-entity-encoded-fields script tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

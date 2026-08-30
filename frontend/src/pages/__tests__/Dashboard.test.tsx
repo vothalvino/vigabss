@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Dashboard / Operations Console tests
+// VigaBSS 5.0 — Dashboard / Operations Console tests
 // =============================================================================
 // The admin/staff dashboard route now renders the Operations Console. It shows
 // polished DEMO data while the system is empty (no real clients) and switches

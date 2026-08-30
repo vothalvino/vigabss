@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — MX SNII infrastructure-report preparation service
+// VigaBSS 5.0 — MX SNII infrastructure-report preparation service
 // =============================================================================
 // This service prepares deterministic, evidence-pinned full-load files.  It
 // does not contact the authority, submit a filing, or claim compliance.  Every

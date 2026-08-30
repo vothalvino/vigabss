@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Adjustment Routes
+// VigaBSS 5.0 — Billing Adjustment Routes
 // =============================================================================
 
 const { Router } = require('express');

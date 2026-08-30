@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Gateway Route Tests
+// VigaBSS 5.0 — Payment Gateway Route Tests
 // =============================================================================
 // Regression coverage for the secret-redaction fix: GET (list/get), POST, and
 // PUT must never return secret_key_encrypted / webhook_secret_encrypted

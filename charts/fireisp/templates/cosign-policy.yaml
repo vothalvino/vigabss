@@ -1,5 +1,5 @@
 {{- if .Values.cosignPolicy.enabled -}}
-# Sigstore Policy Controller — ClusterImagePolicy for FireISP image verification.
+# Sigstore Policy Controller — ClusterImagePolicy for VigaBSS image verification.
 # Prerequisites: policy-controller CRDs installed.
 #   helm repo add sigstore https://sigstore.github.io/helm-charts
 #   helm upgrade --install policy-controller sigstore/policy-controller \

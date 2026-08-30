@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — TicketDetail AI helpers tests
+// VigaBSS 5.0 — TicketDetail AI helpers tests
 // =============================================================================
 // Covers the ai-summary response contract (backend returns { skipped } or
 // { logId, draftText, action } — never `summary`) and kb_article_ids parsing

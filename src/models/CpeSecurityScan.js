@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CpeSecurityScan Model
+// VigaBSS 5.0 — CpeSecurityScan Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

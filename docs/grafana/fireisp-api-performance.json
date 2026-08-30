@@ -8,7 +8,7 @@
       "pluginId": "prometheus"
     }
   ],
-  "title": "FireISP 5.0 — API Performance",
+  "title": "VigaBSS 5.0 — API Performance",
   "uid": "fireisp-api-perf",
   "version": 1,
   "tags": ["fireisp", "api", "latency", "performance"],

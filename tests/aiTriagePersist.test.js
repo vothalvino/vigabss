@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ticket_ai_triage writer tests (aiReplyService._persistTriage)
+// VigaBSS 5.0 — ticket_ai_triage writer tests (aiReplyService._persistTriage)
 // =============================================================================
 // Migration 297 created ticket_ai_triage with a reader endpoint
 // (GET /tickets/:id/ai-triage) but no writer; the writer now lives in

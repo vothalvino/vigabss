@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Trap Receiver Service
+// VigaBSS 5.0 — SNMP Trap Receiver Service
 // =============================================================================
 // Listens on a UDP port for unsolicited SNMP trap messages (v1 and v2c)
 // from network devices, stores them in the snmp_traps table, and fires

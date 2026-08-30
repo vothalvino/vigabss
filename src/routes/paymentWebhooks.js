@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Webhook Receiver Routes
+// VigaBSS 5.0 — Payment Webhook Receiver Routes
 // =============================================================================
 // Receives inbound webhooks from payment gateways (Stripe, Conekta).
 // These endpoints are PUBLIC (no JWT auth) — authentication is done via

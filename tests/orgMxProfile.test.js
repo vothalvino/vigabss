@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Organization MX fiscal identity (emisor) routes
+// VigaBSS 5.0 — Organization MX fiscal identity (emisor) routes
 // =============================================================================
 // GET/PUT /organizations/:id/mx-profile — the org's SAT taxpayer identity that
 // cfdiService joins as cfdi:Emisor at XML-generation time. Gated on the TARGET

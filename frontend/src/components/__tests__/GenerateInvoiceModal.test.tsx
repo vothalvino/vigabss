@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GenerateInvoiceModal tests
+// VigaBSS 5.0 — GenerateInvoiceModal tests
 // =============================================================================
 // Covers the shared invoice builder's key behaviors:
 //   - Product line items pick from the add-on catalog and auto-fill the price

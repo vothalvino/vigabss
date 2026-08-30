@@ -1,4 +1,4 @@
-# FireISP 5.0 — Architecture Overview
+# VigaBSS 5.0 — Architecture Overview
 
 ## System Architecture
 

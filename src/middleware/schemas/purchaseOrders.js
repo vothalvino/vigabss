@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Purchase Order Validation Schemas
+// VigaBSS 5.0 — Purchase Order Validation Schemas
 // =============================================================================
 
 const createPurchaseOrder = {

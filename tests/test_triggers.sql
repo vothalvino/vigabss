@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Trigger Tests
+-- VigaBSS 5.0 — Trigger Tests
 -- =============================================================================
 -- Exercises every database trigger with both positive (should succeed) and
 -- negative (should raise SQLSTATE 45000) cases.

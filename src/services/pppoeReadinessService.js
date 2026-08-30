@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE diagnostics source readiness
+// VigaBSS 5.0 — PPPoE diagnostics source readiness
 // =============================================================================
 
 const db = require('../config/database');

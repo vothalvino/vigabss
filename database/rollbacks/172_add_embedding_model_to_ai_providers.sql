@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 172: Remove embedding_model column from ai_providers
+-- VigaBSS 5.0 — Rollback 172: Remove embedding_model column from ai_providers
 -- =============================================================================
 -- Reverses migration 172.
 --

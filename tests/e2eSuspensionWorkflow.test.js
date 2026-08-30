@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — E2E Workflow: Suspension Warning → Suspend → Payment → Restore
+// VigaBSS 5.0 — E2E Workflow: Suspension Warning → Suspend → Payment → Restore
 // =============================================================================
 // Tests the full suspension lifecycle: rule evaluation → suspend → reconnect.
 // =============================================================================

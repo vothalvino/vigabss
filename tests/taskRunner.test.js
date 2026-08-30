@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Task Runner Service Unit Tests
+// VigaBSS 5.0 — Task Runner Service Unit Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

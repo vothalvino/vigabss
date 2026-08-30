@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AI Assistant Settings page (P1 §6.1)
+// VigaBSS 5.0 — AI Assistant Settings page (P1 §6.1)
 // =============================================================================
 // Admin-only page at /ai-assistant.  Five tabs:
 //   1. General        — master toggle, per-channel toggles, mode, confidence,

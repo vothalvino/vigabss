@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Group Validation Schemas
+// VigaBSS 5.0 — Device Group Validation Schemas
 // =============================================================================
 
 const createDeviceGroup = {

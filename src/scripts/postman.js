@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// FireISP 5.0 — Postman Collection Generator
+// VigaBSS 5.0 — Postman Collection Generator
 // =============================================================================
 // Reads docs/openapi.json and produces docs/postman-collection.json in Postman
 // Collection v2.1 format. Run with: node src/scripts/postman.js
@@ -64,7 +64,7 @@ function convertToPostman(spec) {
 
   return {
     info: {
-      name: spec.info.title || 'FireISP 5.0 API',
+      name: spec.info.title || 'VigaBSS 5.0 API',
       description: spec.info.description || '',
       schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
       version: spec.info.version || '5.0.0',

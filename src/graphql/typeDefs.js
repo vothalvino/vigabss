@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL Type Definitions (P3.3)
+// VigaBSS 5.0 — GraphQL Type Definitions (P3.3)
 // =============================================================================
 // SDL schema covering the core resources used by operator detail pages.
 // Resolving nested fields (contracts, invoices, etc.) in a single round-trip

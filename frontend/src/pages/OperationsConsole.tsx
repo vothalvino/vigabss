@@ -1,9 +1,9 @@
 // =============================================================================
-// FireISP 5.0 — Operations Console
+// VigaBSS 5.0 — Operations Console
 // =============================================================================
 // The operations overview dashboard (replaces the former AdminDashboard at "/").
 // A single dense screen: KPI row, network throughput, live events, sites/POPs,
-// and a filterable device table — built on the FireISP UI kit + design tokens.
+// and a filterable device table — built on the VigaBSS UI kit + design tokens.
 //
 // Data gate: while the system is empty (no real clients yet) the console shows
 // the design's polished DEMO numbers so a fresh install looks alive. Once the

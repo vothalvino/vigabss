@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PAC Provider Validation Schemas
+// VigaBSS 5.0 — PAC Provider Validation Schemas
 // =============================================================================
 
 const createPacProvider = {

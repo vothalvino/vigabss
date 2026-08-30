@@ -1,5 +1,5 @@
 # =============================================================================
-# FireISP 5.0 — Host-Nginx Overlay
+# VigaBSS 5.0 — Host-Nginx Overlay
 # =============================================================================
 #
 # Use this overlay when a system-level (host) Nginx already owns port 80
@@ -10,7 +10,7 @@
 #   1. Moves the Docker nginx service to an opt-in profile ("docker-nginx")
 #      so it is NOT started during a plain `docker compose up`, freeing
 #      ports 80 and 443 for the host-level nginx.
-#   2. Exposes the FireISP app on 127.0.0.1:8080 (loopback only) so the
+#   2. Exposes the VigaBSS app on 127.0.0.1:8080 (loopback only) so the
 #      host nginx can proxy to it.
 #   3. Replaces the certbot_www named volume with a host bind-mount
 #      (./nginx/certbot-www) so the host nginx can serve Let's Encrypt
@@ -24,7 +24,7 @@
 #   2. Bootstrap TLS:
 #        DOMAIN=isp.example.com EMAIL=admin@example.com \
 #          ./nginx/init-letsencrypt.sh --host-nginx
-#   3. Start the FireISP stack with this overlay:
+#   3. Start the VigaBSS stack with this overlay:
 #        docker compose \
 #          -f docker-compose.prod.yml \
 #          -f docker-compose.host-nginx.yml \

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — sqlBuild helper tests
+// VigaBSS 5.0 — sqlBuild helper tests
 // =============================================================================
 
 const { buildInsert, buildUpdate, buildBulkValues, quoteIdent } = require('../src/utils/sqlBuild');

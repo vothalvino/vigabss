@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Invoice Branding Settings (§2.2B)
+// VigaBSS 5.0 — Invoice Branding Settings (§2.2B)
 // =============================================================================
 // Admin/billing page for configuring per-org invoice branding:
 // logo URL, header color, footer legal text, payment instructions.

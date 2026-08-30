@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Scripting Service (§18.2)
+// VigaBSS 5.0 — Scripting Service (§18.2)
 // =============================================================================
 // Manages the script library and execution records.
 //

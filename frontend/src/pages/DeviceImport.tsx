@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Device Bulk Import
+// VigaBSS 5.0 — Device Bulk Import
 // =============================================================================
 // Standalone page at /device-import.
 // Provides a CSV file upload form that posts to POST /api/v1/import/devices/upload.

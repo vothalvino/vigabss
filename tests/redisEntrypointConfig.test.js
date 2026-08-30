@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — the Redis entrypoint writes a config Redis can actually parse
+// VigaBSS 5.0 — the Redis entrypoint writes a config Redis can actually parse
 // =============================================================================
 // The password was moved out of `redis-server --requirepass <pw>` (argv, and
 // /proc/<pid>/cmdline is world-readable) into a config file written from the

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NasWireguardModal tests
+// VigaBSS 5.0 — NasWireguardModal tests
 // =============================================================================
 // Covers the discover → select → manual-add → confirm+bootstrap flow, and in
 // particular the regression where the modal read `subnets` instead of the

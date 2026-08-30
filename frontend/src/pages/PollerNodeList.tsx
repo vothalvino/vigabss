@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Poller Node Management (§6.4)
+// VigaBSS 5.0 — Poller Node Management (§6.4)
 // =============================================================================
 // Page at /poller-nodes. Lists poller nodes with status filter, paginated
 // table, create/edit modal, and delete confirmation.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay Middleware
+// VigaBSS 5.0 — FireRelay Middleware
 // =============================================================================
 // Express middleware mounted before all routes.
 //

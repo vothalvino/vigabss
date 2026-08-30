@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — daily network health aggregation
+// VigaBSS 5.0 — daily network health aggregation
 // =============================================================================
 // Fills network_health_snapshots, which has been read by three places since
 // migration 117 and written by nothing. The `populate_network_health_snapshots`

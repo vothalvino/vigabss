@@ -4,7 +4,7 @@ How to test CFDI stamping/cancellation against a PAC **sandbox** before going
 live. This is developer/self-hoster guidance; the regulatory reference lives in
 [compliance-mexico.md](compliance-mexico.md).
 
-FireISP seals CFDI XML locally with the organization's CSD and stamps through a
+VigaBSS seals CFDI XML locally with the organization's CSD and stamps through a
 PAC (SW Sapien and/or Finkok, with automatic failover). Everything below has been
 verified end-to-end against **both** PACs' sandboxes: invoice (Ingreso) stamp,
 invoice cancel, and payment complement (REP / Complemento de Pago 2.0) stamp.
@@ -102,7 +102,7 @@ UUID. Verified on both SW and Finkok sandboxes.
 ## 6. Error hint
 
 When a sandbox stamp fails with a receptor-data error (the CFDI40143–40149
-family or the UsoCFDI/régimen message), FireISP appends a pointer back to this
+family or the UsoCFDI/régimen message), VigaBSS appends a pointer back to this
 document (`receptorDataHint` in `src/services/cfdiService.js`). In production
 that hint is suppressed — there the error means the receptor's real fiscal data
 is wrong, and the raw SAT message is what the operator needs.

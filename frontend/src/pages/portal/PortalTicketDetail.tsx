@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Ticket Detail
+// VigaBSS 5.0 — Portal Ticket Detail
 // =============================================================================
 // Shows a ticket with its comments thread and allows the client to add a reply.
 // At /portal/tickets/:id

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Invoice Settings Routes
+// VigaBSS 5.0 — Invoice Settings Routes
 // =============================================================================
 // GET  /invoice-settings       — get branding settings for current org
 // PUT  /invoice-settings       — upsert branding settings

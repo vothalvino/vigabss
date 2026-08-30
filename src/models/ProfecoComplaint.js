@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ProfecoComplaint Model
+// VigaBSS 5.0 — ProfecoComplaint Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

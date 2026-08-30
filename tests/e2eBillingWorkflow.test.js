@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — E2E Workflow: Billing → Invoice → Payment
+// VigaBSS 5.0 — E2E Workflow: Billing → Invoice → Payment
 // =============================================================================
 // Full billing cycle test: generate billing period → create invoice → record
 // payment credit.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Lead feasibility (desk check) — lead-installation workflow Step 1
+// VigaBSS 5.0 — Lead feasibility (desk check) — lead-installation workflow Step 1
 // =============================================================================
 // Answers "can we serve this address?" from data the platform already has:
 //

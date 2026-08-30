@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — a refund credit note carries the IVA the invoice carried (j5)
+// VigaBSS 5.0 — a refund credit note carries the IVA the invoice carried (j5)
 // =============================================================================
 // processRequest's credit_note branch inserted `subtotal = amount, tax = 0,
 // total = amount` with no organization_id and no currency. Four defects in one

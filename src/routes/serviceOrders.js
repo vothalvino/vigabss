@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Service Order Routes (workflow) — §1.2
+// VigaBSS 5.0 — Service Order Routes (workflow) — §1.2
 // =============================================================================
 // Simplified lifecycle (migration 380): new → in_process → done, or cancelled
 // (reachable from new/in_process). Each new order is seeded with a default

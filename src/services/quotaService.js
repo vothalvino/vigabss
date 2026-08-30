@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Quota Service
+// VigaBSS 5.0 — Quota Service
 // =============================================================================
 // Provides per-tenant resource quota enforcement.
 // Supported resources: 'clients', 'devices', 'storage_mb', 'scheduled_tasks'

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE Diagnostics Service
+// VigaBSS 5.0 — PPPoE Diagnostics Service
 // =============================================================================
 // Provides auth-failure classification, MTU mismatch detection, and RouterOS
 // log line parsing for PPPoE diagnostics.

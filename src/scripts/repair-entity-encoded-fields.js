@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — One-off data repair: decode entity-encoded free-text fields
+// VigaBSS 5.0 — One-off data repair: decode entity-encoded free-text fields
 // =============================================================================
 // Historical context: the global input-sanitization middleware
 // (src/middleware/sanitize.js, removed alongside this script) used to

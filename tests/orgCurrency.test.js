@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Org-level currency tests
+// VigaBSS 5.0 — Org-level currency tests
 // =============================================================================
 // Tests that:
 //   1. Organization.getCurrency returns the org's currency (or 'MXN' fallback)

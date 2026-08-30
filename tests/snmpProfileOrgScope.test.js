@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — SNMP profiles are org-scoped, and the shipped ones are locked (j36)
+// VigaBSS 5.0 — SNMP profiles are org-scoped, and the shipped ones are locked (j36)
 // =============================================================================
 // SnmpProfile declared hasOrgScope = false on a table with no organization_id,
 // so every verb behind the generic crudController ran unscoped: any tenant
@@ -11,7 +11,7 @@
 //
 // Migration 440 adds organization_id and is_system, and splits profiles in two:
 //
-//   SYSTEM  (is_system=1, org NULL) — the vendor library FireISP ships.
+//   SYSTEM  (is_system=1, org NULL) — the vendor library VigaBSS ships.
 //           Visible to every tenant, editable by NONE. Not a permission: there
 //           is no per-tenant answer to "may I retune what everyone else polls".
 //   TENANT  (is_system=0) — owned by whoever created it, invisible to others.

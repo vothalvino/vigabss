@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IFT Statistical Report Routes
+// VigaBSS 5.0 — IFT Statistical Report Routes
 // =============================================================================
 
 const { Router } = require('express');

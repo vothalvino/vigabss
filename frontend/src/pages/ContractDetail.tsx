@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Contract Detail
+// VigaBSS 5.0 — Contract Detail
 // =============================================================================
 // Shows a single contract with tabbed sub-sections:
 //   Invoices | Devices | Add-ons

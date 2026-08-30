@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Revenue Summary Validation Schemas
+// VigaBSS 5.0 — Revenue Summary Validation Schemas
 // =============================================================================
 
 const listRevenueSummary = {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Report Definitions Routes
+// VigaBSS 5.0 — Report Definitions Routes
 // =============================================================================
 // CRUD for the report_definitions registry.
 // Built-in definitions (organization_id IS NULL, is_system = 1) are visible to

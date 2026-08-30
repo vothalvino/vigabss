@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Load Test Fixture Seeder
+// VigaBSS 5.0 — Load Test Fixture Seeder
 // =============================================================================
 // Inserts the realistic ISP workload fixture defined in roadmap item 4.1:
 // 500 clients, 5000 invoices, 100 devices (plus the supporting org, admin

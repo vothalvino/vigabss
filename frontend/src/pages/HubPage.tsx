@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Hub overview page ("Faro" nav)
+// VigaBSS 5.0 — Hub overview page ("Faro" nav)
 // =============================================================================
 // Card-grid landing page for the Billing / Network / Admin sections. Cards and
 // their links are generated from the nav route registry with the same

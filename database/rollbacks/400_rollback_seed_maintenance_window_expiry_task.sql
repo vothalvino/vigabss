@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 400: Remove maintenance_window_expiry scheduled task
+-- VigaBSS 5.0 — Rollback 400: Remove maintenance_window_expiry scheduled task
 -- =============================================================================
 -- Reverses migration 400.
 -- =============================================================================

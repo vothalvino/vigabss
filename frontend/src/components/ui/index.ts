@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP UI kit — the @fireisp/ui primitives as local, reusable components.
+// VigaBSS UI kit — the @fireisp/ui primitives as local, reusable components.
 // Flat/industrial, one accent, token-driven. No provider needed; dark mode is
 // driven by the app's existing [data-theme="dark"] on <html>.
 // =============================================================================

@@ -3,7 +3,7 @@
 > **Operator and counsel review required.** This is an engineering reference,
 > not legal advice and not a certification of compliance. The obligations attach
 > to the concessionaire or authorized provider and the services and numbering it
-> operates; selecting an `MX` organization in FireISP does not, by itself, make a
+> operates; selecting an `MX` organization in VigaBSS does not, by itself, make a
 > deployment compliant.
 
 ## 1. Current governing law
@@ -27,7 +27,7 @@ extent they do not conflict with the new law. Operators should have Mexican
 telecommunications counsel confirm which lineamientos apply to their exact
 concession, authorization, numbering resources, and services.
 
-FireISP supports concession-title management (`concession_titles`), regulatory
+VigaBSS supports concession-title management (`concession_titles`), regulatory
 filings (`regulatory_filings`), and statistical reports
 (`ift_statistical_reports`). These tools support an operator's process; they do
 not replace regulatory registration, technical facilities, trained personnel,
@@ -66,7 +66,7 @@ origin and destination **numbers**. The current official texts do **not expressl
 fixed-broadband destination IP addresses, source/destination ports, NAT/CGNAT
 tuples, URL/domain history, packet contents, or a record of every Internet flow.
 
-FireISP therefore distinguishes the statutory question from two operational
+VigaBSS therefore distinguishes the statutory question from two operational
 controls:
 
 1. **Subscriber accounting sessions and normalized RADIUS lifecycle evidence.** These associate
@@ -80,7 +80,7 @@ controls:
    address, translated source port or allocated port range, transport protocol,
    and exact UTC interval with the private subscriber tuple and RADIUS access
    session. The current official texts do not expressly enumerate CGNAT fields,
-   so FireISP does not label this control a universal Article 183 requirement.
+   so VigaBSS does not label this control a universal Article 183 requirement.
    It is enabled only when the operator and counsel document that it is needed
    for the operator's services and lawful-response duties.
 
@@ -94,7 +94,7 @@ CGNAT, the lookup also requires the translated source port and transport
 protocol so concurrent subscribers are not conflated.
 
 CGNAT bindings deliberately omit destination addresses and ports, URLs,
-domains, DNS data, packet payload, and application content. FireISP does not
+domains, DNS data, packet payload, and application content. VigaBSS does not
 derive the bindings from RADIUS or decode RouterOS/NetFlow/IPFIX/syslog on the
 web server. An operator-controlled collector must receive authoritative
 translation or port-allocation events from every CGNAT path, normalize only the
@@ -129,7 +129,7 @@ Article 183(III) otherwise states a 24-hour maximum response unless a different
 express rule or order applies. Article 183 also requires a responsible function
 available 24/7/365.
 
-FireISP's default RADIUS-accounting policy is 24 months, but that product policy
+VigaBSS's default RADIUS-accounting policy is 24 months, but that product policy
 does not prove that every RADIUS session is a covered numbered communication.
 Operators must separately document the operational/privacy basis and approved
 retention for CGNAT attribution records; they must not be treated as mandatory
@@ -140,7 +140,7 @@ rolling deletion: the approved hold must be activated before responsive records
 expire and released or reviewed when its authority ends.
 
 The product retention variable is installation-wide, not an organization-level
-setting. One shared FireISP installation may enable collection only when that
+setting. One shared VigaBSS installation may enable collection only when that
 same period is approved for every enabled tenant. Operators that require
 different tenant schedules need separate deployments until per-organization
 retention is implemented. Ordinary CGNAT retention is capped at 24 calendar
@@ -166,7 +166,7 @@ way, and public sites. Examples in the official object set include towers,
 transmission sites, central facilities, OLTs, microwave antennas and links,
 fiber routes, ducts, poles, and manholes. The exact applicable population must
 come from the operator's title, services, network, ownership/use arrangements,
-and counsel decision—not from every device in FireISP.
+and counsel decision—not from every device in VigaBSS.
 
 Primary operational sources:
 
@@ -189,7 +189,7 @@ bootstrap/reference. A dated, hashed reconciliation must explicitly bind that
 adapter to the pinned live package before preparation readiness can pass; the
 live package bytes do not automatically drive the generator.
 
-FireISP limits this workflow to an organization whose configured locale is
+VigaBSS limits this workflow to an organization whose configured locale is
 `MX`, but locale is only a product gate. The operator must separately record
 whether it is an obligated party and which titles, services, assets, third-party
 reporting facts, electronic folio, and period support that conclusion. Private
@@ -212,10 +212,10 @@ The safe preparation flow is:
 4. Reconcile the versioned adapter with the pinned current Ventanilla package,
    prepare its filenames and CSV/KML fields, preserve the source versions and
    snapshot, and store the artifact's SHA-256 and byte size.
-5. Have an authorized representative file outside FireISP through the current
+5. Have an authorized representative file outside VigaBSS through the current
    CRT Ventanilla, then preserve the external filing folio and each portal
    validation log, prevention, correction, and acceptance notice. Upload the
-   original evidence atomically with each event so FireISP, rather than the
+   original evidence atomically with each event so VigaBSS, rather than the
    caller, computes and preserves its SHA-256.
 
 The current CRT initial-delivery guidance lists three timing branches: the
@@ -231,7 +231,7 @@ Acceptance is a separate notice expected within five business days after a
 valid delivery. These prompts do not replace an operator-specific deadline
 calculation.
 
-FireISP is a preparation and evidence workflow only. It does **not** log into
+VigaBSS is a preparation and evidence workflow only. It does **not** log into
 the CRT, submit automatically, infer a portal result, or certify compliance.
 Generating or downloading a file is not filing, and upload success is not
 acceptance. Because LMTR Article 174 treats the georeferenced database as
@@ -256,7 +256,7 @@ Operators remain responsible for an adequate privacy notice, applicable legal
 basis, data minimization, safeguards, confidentiality, processor agreements,
 data-subject rights, breach handling, blocking/suppression, and lawful transfers.
 
-FireISP provides supporting controls including:
+VigaBSS provides supporting controls including:
 
 - `subscriber_consents` and versioned privacy-notice records;
 - `dsar_requests` and client data export workflows;
@@ -279,7 +279,7 @@ authority (Article 177), disclosure of secrets or private-intervention material
 only on valid authority and through the operator's approved legal-response
 procedure. See the [current Código Penal Federal](https://www.diputados.gob.mx/LeyesBiblio/pdf/CPF.pdf).
 
-FireISP's `gov_data_requests` records and row hash help document that procedure.
+VigaBSS's `gov_data_requests` records and row hash help document that procedure.
 The hash is a consistency marker, not an immutable chain or protection against
 a privileged database administrator. These records also do not decide whether
 a request is legally valid; the operator's authorized legal team must do so.
@@ -299,7 +299,7 @@ authority rather than inferring authority from the organization locale.
 
 ## 7. CFDI 4.0
 
-SAT fiscal obligations are separate from communications-data retention. FireISP
+SAT fiscal obligations are separate from communications-data retention. VigaBSS
 supports CFDI workflows through `cfdi_documents`, `cfdi_conceptos`,
 `cfdi_payment_complements`, `csd_certificates`, `/cfdi/*`, MX client fiscal
 profiles, public invoices, and SAT catalogs. Operators remain responsible for
@@ -338,7 +338,7 @@ valid CSDs, PAC configuration, tax treatment, and statutory fiscal retention.
 - Establish the v1 collector baseline by draining/reconciling each covered pool
   to a provably empty starting point, retaining the external change/snapshot
   evidence reference, and starting a fresh boot/sequence epoch at 0 or 1.
-  FireISP does not import a nonempty historical snapshot; pre-baseline
+  VigaBSS does not import a nonempty historical snapshot; pre-baseline
   allocations are unavailable and rejected rather than backfilled.
 - Verify that each translator assigns a public IP + source port + protocol to at
   most one subscriber at an instant, independently of destination. If it reuses
@@ -347,7 +347,7 @@ valid CSDs, PAC configuration, tax treatment, and statutory fiscal retention.
   separate privacy/legal design instead of collecting destinations.
 - Keep CGNAT and RADIUS clocks synchronized, monitor source sequence gaps,
   rejected batches and collector lag, and document every public pool/egress path
-  covered. Record clock offset as raw device time minus UTC; FireISP's certain
+  covered. Record clock offset as raw device time minus UTC; VigaBSS's certain
   feed horizon is corrected device time minus declared uncertainty. V1 has no
   heartbeat/checkpoint, so even an open long-lived port block becomes
   unavailable when authoritative allocate/release traffic no longer advances a

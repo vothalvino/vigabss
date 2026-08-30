@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — HTML escaping helper
+// VigaBSS 5.0 — HTML escaping helper
 // =============================================================================
 // Small, dependency-free HTML-entity escaper for interpolating untrusted
 // strings into server-rendered HTML (currently: outbound transactional email

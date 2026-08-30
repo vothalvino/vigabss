@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Migration 151: Add soft-delete (deleted_at) columns
+-- VigaBSS 5.0 — Migration 151: Add soft-delete (deleted_at) columns
 -- =============================================================================
 -- Adds a nullable deleted_at DATETIME column and an index to all resource
 -- tables, enabling archive-on-delete instead of hard DELETE.

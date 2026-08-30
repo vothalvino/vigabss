@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Audit Log Service Unit Tests
+// VigaBSS 5.0 — Audit Log Service Unit Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

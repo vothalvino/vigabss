@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Trap Receiver Unit Tests
+// VigaBSS 5.0 — SNMP Trap Receiver Unit Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));

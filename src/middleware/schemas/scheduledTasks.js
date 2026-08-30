@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Scheduled Task Validation Schemas
+// VigaBSS 5.0 — Scheduled Task Validation Schemas
 // =============================================================================
 
 const createScheduledTask = {

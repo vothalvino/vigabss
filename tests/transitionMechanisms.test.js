@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IPv6 Transition Mechanism Route Tests (§5 Dual Stack)
+// VigaBSS 5.0 — IPv6 Transition Mechanism Route Tests (§5 Dual Stack)
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

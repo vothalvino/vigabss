@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IP Assignment Management
+// VigaBSS 5.0 — IP Assignment Management
 // =============================================================================
 // Standalone page at /ip-assignments. Lists individual IP address assignments
 // with a status filter, paginated table, and "New Assignment" create modal plus

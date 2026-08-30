@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 224: Remove RADIUS AAA RBAC permissions
+-- VigaBSS 5.0 — Rollback 224: Remove RADIUS AAA RBAC permissions
 -- =============================================================================
 -- Reverses migration 224. Removes role_permissions assignments first (FK child),
 -- then removes the permission rows.

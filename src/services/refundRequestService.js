@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Refund Request Service
+// VigaBSS 5.0 — Refund Request Service
 // =============================================================================
 // Manages the refund request lifecycle: create → review → process.
 // Emits `refund.requested` and `refund.processed` events.

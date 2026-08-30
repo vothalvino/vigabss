@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Lifecycle Service Tests (§1.2)
+// VigaBSS 5.0 — Lifecycle Service Tests (§1.2)
 // =============================================================================
 
 const crypto = require('crypto');
@@ -1307,7 +1307,7 @@ describe('completeOrder', () => {
       expect.objectContaining({ id: 12 }),
       expect.objectContaining({
         username: 'client01', password: 'secret', profile: '50M',
-        comment: 'FireISP permanent activation contract#900',
+        comment: 'VigaBSS permanent activation contract#900',
       }),
     );
     expect(conn.commit.mock.invocationCallOrder[0])

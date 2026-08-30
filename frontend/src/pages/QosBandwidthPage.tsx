@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — QoS & Bandwidth Management (§10)
+// VigaBSS 5.0 — QoS & Bandwidth Management (§10)
 // =============================================================================
 // Tabbed page covering:
 //   1. Quality Classes      — quality_classes CRUD

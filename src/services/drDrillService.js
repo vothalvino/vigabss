@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DR Drill Service
+// VigaBSS 5.0 — DR Drill Service
 // =============================================================================
 // Runs the automated quarterly DR drill.  The drill is NON-DESTRUCTIVE and
 // safe to execute on a live production server:
@@ -26,7 +26,7 @@ const { backup } = require('../scripts/backup');
 const logger = require('../utils/logger').child({ service: 'drDrillService' });
 
 // Minimum acceptable backup size in bytes. A floor, not the real integrity
-// signal (that's the structural check below): FireISP's own schema gzips to
+// signal (that's the structural check below): VigaBSS's own schema gzips to
 // ~200 KB+, so 64 KB never false-positives on a legitimate install — the old
 // hardcoded 1 MB flagged small orgs whose COMPLETE dump was a few hundred KB.
 const MIN_BACKUP_BYTES = parseInt(process.env.DR_DRILL_MIN_BACKUP_BYTES || '65536', 10);

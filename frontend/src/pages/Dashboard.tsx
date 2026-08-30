@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Dashboard (role router)
+// VigaBSS 5.0 — Dashboard (role router)
 // =============================================================================
 // Technicians get the field/NOC dashboard built from endpoints their role can
 // load; everyone else lands on the Operations Console — the dense operations

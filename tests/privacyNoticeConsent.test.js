@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — privacy notice display + acceptance (LFPDPPP, j25)
+// VigaBSS 5.0 — privacy notice display + acceptance (LFPDPPP, j25)
 // =============================================================================
 // The consent tables and staff routes existed since migration 314, but nothing
 // ever DISPLAYED a notice or WROTE a consent row through the product — so

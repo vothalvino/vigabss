@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Consumer Protection Routes (§16.7)
+// VigaBSS 5.0 — Consumer Protection Routes (§16.7)
 // Covers: service_modification_notices, contract_templates_mx
 // =============================================================================
 

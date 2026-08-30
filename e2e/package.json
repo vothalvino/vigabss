@@ -1,7 +1,7 @@
 {
-  "name": "fireisp-e2e",
+  "name": "vigabss-e2e",
   "version": "1.0.0",
-  "description": "FireISP 5.0 — Playwright end-to-end smoke tests",
+  "description": "VigaBSS 5.0 — Playwright end-to-end smoke tests",
   "private": true,
   "scripts": {
     "test": "playwright test",

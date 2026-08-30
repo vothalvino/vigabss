@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Ticket Validation Schemas
+// VigaBSS 5.0 — Ticket Validation Schemas
 // =============================================================================
 
 // Ticket taxonomy (migration 394) — mirrors the tickets.category ENUM. A staff

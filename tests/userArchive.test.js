@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Staff-account archiving
+// VigaBSS 5.0 — Staff-account archiving
 // =============================================================================
 // "Deleting" a staff user is ARCHIVING: soft-delete + forced status='inactive'
 // in one statement, so a later restore never revives a login-able account.

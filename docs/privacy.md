@@ -1,8 +1,8 @@
-# FireISP 5.0 — Privacy & PII Inventory (LFPDPPP MX / GDPR)
+# VigaBSS 5.0 — Privacy & PII Inventory (LFPDPPP MX / GDPR)
 
 > **Audience:** Operators, compliance officers, legal counsel.
 > This document is a working inventory of personal-data categories held by
-> FireISP. Operators must verify it against their enabled modules, free-text
+> VigaBSS. Operators must verify it against their enabled modules, free-text
 > fields, integrations, logs, replicas, backups and exports; it is not a claim
 > that every deployed personal-data element or legal basis is automatically
 > identified.
@@ -30,9 +30,9 @@
 
 ## Data Controller
 
-The data controller is the **ISP operator** who deploys FireISP.  FireISP is
+The data controller is the **ISP operator** who deploys VigaBSS.  VigaBSS is
 software — the legal entity responsible for LFPDPPP / GDPR compliance is the
-ISP company, not the FireISP project itself.
+ISP company, not the VigaBSS project itself.
 
 ---
 
@@ -246,7 +246,7 @@ not made healthy by reusing or changing a boot identifier.
 
 ## AI Reply Assistant — prompt-forwarding notice
 
-When the **AI Reply Assistant** is enabled (`ai_policies.enabled = 1`), FireISP
+When the **AI Reply Assistant** is enabled (`ai_policies.enabled = 1`), VigaBSS
 constructs a prompt for each inbound support ticket and sends it to the
 configured LLM provider.  The prompt includes:
 
@@ -306,7 +306,7 @@ Operators must:
    days**. If granted, make it effective within the following **15 business
    days**. Article 31 permits one equal extension when justified.
 
-3. Use the FireISP DSAR export as a starting dataset:
+3. Use the VigaBSS DSAR export as a starting dataset:
 
    ```bash
    # Via API — admin credential required
@@ -354,7 +354,7 @@ Operators must:
 
 ### Soft-delete (default)
 
-FireISP uses soft-delete (`deleted_at IS NOT NULL`) for several tables.
+VigaBSS uses soft-delete (`deleted_at IS NOT NULL`) for several tables.
 Soft-delete only hides a row from normal APIs; it is not LFPDPPP blocking or
 suppression and is not itself a legal basis for indefinite retention. Apply the
 approved purpose/legal-hold schedule, block where required, then suppress.
@@ -405,7 +405,7 @@ expires, record the action in `dsar_requests`, and communicate the result.
 |---|---|---|---|
 | PAC provider (for example Finkok) | CFDI stamping | RFC, tax_id, invoice amounts | Applicable processor/service agreement; validate current registration duties with counsel |
 | SMTP provider (Nodemailer + any relay) | Transactional email | Email address, name | Data processing agreement required |
-| Sentry (optional) | Error monitoring | Sanitized stack traces and diagnostic context. FireISP suppresses request bodies, cookies, authorization headers, query strings and full URLs, and applies a fail-closed event scrubber; remaining stack/context text can still contain indirect identifiers | Sentry DPA, deployment-specific retention/access controls, and regression-tested scrubbing |
+| Sentry (optional) | Error monitoring | Sanitized stack traces and diagnostic context. VigaBSS suppresses request bodies, cookies, authorization headers, query strings and full URLs, and applies a fail-closed event scrubber; remaining stack/context text can still contain indirect identifiers | Sentry DPA, deployment-specific retention/access controls, and regression-tested scrubbing |
 | AWS S3 / Cloudflare R2 (optional backup) | Database backups | All database data; at-rest encryption, keys, region, lifecycle, and support access depend on the actual bucket/provider configuration and must be verified | AWS DPA / Cloudflare DPA plus deployment evidence |
 | Stripe / Conekta (optional) | Payment processing | Name, email, amount | Their own compliance (PCI-DSS) |
 | Twilio (optional) | SMS | Phone number | Twilio DPA |

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — REP (Complemento de Pago) automation tests
+// VigaBSS 5.0 — REP (Complemento de Pago) automation tests
 // =============================================================================
 // generateRepForAllocation: PPD-only liability, parcialidad chain math,
 // forma_pago derivation, best-effort wrapper, retryable-draft contract.

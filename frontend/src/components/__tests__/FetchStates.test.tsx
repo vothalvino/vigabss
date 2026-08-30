@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FetchStates tests (j23, first pass)
+// VigaBSS 5.0 — FetchStates tests (j23, first pass)
 // =============================================================================
 // The consistency problem was the smaller half. The real defect: 22 pages
 // rendered a literal English "Loading..." while a fully translated

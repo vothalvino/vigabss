@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — update availability check
+// VigaBSS 5.0 — update availability check
 // =============================================================================
 // The security-relevant property here is NOT the banner. It is that a
 // self-hosted install makes NO outbound request unless its operator explicitly

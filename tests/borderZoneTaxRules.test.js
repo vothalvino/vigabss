@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — Mexican border-region IVA (8% vs 16%) by postal code
+// VigaBSS 5.0 — Mexican border-region IVA (8% vs 16%) by postal code
 // =============================================================================
 // Mexico has two IVA rates. The standard is 16%, but the "estímulo fiscal
 // región fronteriza" decrees (norte, DOF 31/12/2018; sur, DOF 30/12/2020)

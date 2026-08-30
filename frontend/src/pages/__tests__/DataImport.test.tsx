@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DataImport page tests (j45)
+// VigaBSS 5.0 — DataImport page tests (j45)
 // =============================================================================
 // Four of the five CSV importers had no GUI at all, so day-one migration off a
 // previous billing system was curl-only. What matters most here is that the

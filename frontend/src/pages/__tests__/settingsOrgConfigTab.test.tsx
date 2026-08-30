@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Settings / Org Config tab (j56 split)
+// VigaBSS 5.0 — Settings / Org Config tab (j56 split)
 // =============================================================================
 // Two properties under test.
 //
@@ -12,7 +12,7 @@
 // 2. THE SCOPE SPLIT IS VISIBLE. Install-wide rows arrive with
 //    editable:false for an org caller and must offer no Edit button — the
 //    backend 403s the write, and a visible button that 403s is the classic
-//    FireISP bug this codebase keeps re-growing.
+//    VigaBSS bug this codebase keeps re-growing.
 // =============================================================================
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';

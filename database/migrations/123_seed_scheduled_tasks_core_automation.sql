@@ -1,6 +1,6 @@
 -- Migration: 123_seed_scheduled_tasks_core_automation
 -- Description: Seeds the five core automation jobs that drive the main
---              operational loops of FireISP:
+--              operational loops of VigaBSS:
 --
 --                auto_generate_invoices         — daily billing engine
 --                auto_suspend_overdue           — overdue contract suspension

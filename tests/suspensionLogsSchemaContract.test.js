@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — suspension_logs write contract
+// VigaBSS 5.0 — suspension_logs write contract
 // =============================================================================
 // These tests pin the EXACT columns and values every suspension path writes.
 //

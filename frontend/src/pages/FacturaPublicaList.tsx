@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Factura Pública Viewer
+// VigaBSS 5.0 — Factura Pública Viewer
 // =============================================================================
 // Read-only page at /facturas-publicas. Lists the "facturas públicas" (venta al
 // público en general) — periodic aggregations of non-invoiced sales emitted as

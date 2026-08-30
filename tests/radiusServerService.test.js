@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Embedded RADIUS Server (radiusServerService) Tests
+// VigaBSS 5.0 — Embedded RADIUS Server (radiusServerService) Tests
 // =============================================================================
 // A radtest-style, in-process round-trip exercise of the embedded RADIUS server.
 // We build real RFC 2865/2866 packets with radiusCoaEncoder + radiusServerCodec,

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Prometheus Metrics Tests
+// VigaBSS 5.0 — Prometheus Metrics Tests
 // =============================================================================
 
 const { metricsMiddleware, counters } = require('../src/routes/metrics');

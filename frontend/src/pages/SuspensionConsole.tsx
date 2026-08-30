@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Suspension Operations Console
+// VigaBSS 5.0 — Suspension Operations Console
 // =============================================================================
 // The auto-suspension engine was fully built server-side and had ZERO frontend
 // consumers. An operator could write "suspend after 15 days overdue" and then:

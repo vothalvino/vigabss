@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Auth Context
+// VigaBSS 5.0 — Portal Auth Context
 // =============================================================================
 // Manages authentication state for the client self-service portal.
 // Completely separate from the staff AuthContext — uses /portal/* endpoints

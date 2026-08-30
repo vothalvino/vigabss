@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Late Fee Rule Management (§2.2B)
+// VigaBSS 5.0 — Late Fee Rule Management (§2.2B)
 // =============================================================================
 // Billing-only page for CRUD management of late fee rules. Each rule defines:
 //   - fee_type: flat | percent

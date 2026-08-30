@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 146: Drop credit note invoice total guard triggers
+-- VigaBSS 5.0 — Rollback 146: Drop credit note invoice total guard triggers
 -- =============================================================================
 -- Reverses migration 146.
 -- =============================================================================

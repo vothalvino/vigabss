@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE Management Page (§8.1)
+// VigaBSS 5.0 — CPE Management Page (§8.1)
 // =============================================================================
 // Tabbed page:
 //   Tab 1: CPE Devices  — list with status badge, manufacturer, model, last inform

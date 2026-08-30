@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ProtocolShapingRule Validation Schemas
+// VigaBSS 5.0 — ProtocolShapingRule Validation Schemas
 // =============================================================================
 
 const createProtocolShapingRule = {

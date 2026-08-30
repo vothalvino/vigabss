@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Wireless Metrics (§9)
+// VigaBSS 5.0 — Wireless Metrics (§9)
 // =============================================================================
 // Tabbed page covering:
 //   1. Signal Distribution — SVG bar chart of signal strength histogram per AP

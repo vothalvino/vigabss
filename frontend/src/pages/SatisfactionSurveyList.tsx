@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Satisfaction Surveys (NPS / CSAT) — §1.3
+// VigaBSS 5.0 — Satisfaction Surveys (NPS / CSAT) — §1.3
 // =============================================================================
 // Survey list with aggregate NPS score and CSAT average. CSAT surveys are
 // dispatched automatically when tickets are resolved; NPS campaigns and manual

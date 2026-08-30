@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NocDashboard tests
+// VigaBSS 5.0 — NocDashboard tests
 // =============================================================================
 // Guards the response-shape contract that previously broke the whole page:
 // /noc/health and /noc/sla-compliance reply { data: { …inner } } and the page

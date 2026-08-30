@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP Operations Console — KPI tile visibility + deep links
+// VigaBSS Operations Console — KPI tile visibility + deep links
 // =============================================================================
 // Active Clients is admin-only and Overdue is admin/billing. KPI values remain
 // visible as designed, but a tile is only interactive when the shared route

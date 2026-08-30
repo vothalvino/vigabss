@@ -1,7 +1,7 @@
 # FreeRADIUS Integration Guide
 
-FireISP is the **management plane** for an external FreeRADIUS 3.x server.
-FireISP stores subscriber credentials and plan attributes in its own MySQL database
+VigaBSS is the **management plane** for an external FreeRADIUS 3.x server.
+VigaBSS stores subscriber credentials and plan attributes in its own MySQL database
 and synchronizes them into the standard FreeRADIUS SQL tables
 (`radcheck`, `radreply`, `radusergroup`, `radgroupcheck`, `radgroupreply`).
 FreeRADIUS reads these tables directly — no custom RADIUS proxy is required.
@@ -17,7 +17,7 @@ FreeRADIUS reads these tables directly — no custom RADIUS proxy is required.
                   └────────────┼─────────────┘
                                │  reads
                   ┌────────────▼─────────────┐
-                  │  FireISP MySQL database   │
+                  │  VigaBSS MySQL database   │
                   │  radcheck / radreply      │
                   │  radusergroup             │
                   │  radgroupcheck            │
@@ -25,7 +25,7 @@ FreeRADIUS reads these tables directly — no custom RADIUS proxy is required.
                   └───────────────────────────┘
                                ▲  synced by
                   ┌────────────┴─────────────┐
-                  │  FireISP management plane │
+                  │  VigaBSS management plane │
                   │  (radius_sync task)       │
                   └───────────────────────────┘
 ```
@@ -67,7 +67,7 @@ cp docs/freeradius/sql.conf /etc/freeradius/3.0/mods-available/sql
 ln -s /etc/freeradius/3.0/mods-available/sql /etc/freeradius/3.0/mods-enabled/sql
 ```
 
-Edit `/etc/freeradius/3.0/mods-available/sql` and fill in your FireISP database credentials
+Edit `/etc/freeradius/3.0/mods-available/sql` and fill in your VigaBSS database credentials
 (the variables shown with `YOUR_*` placeholders).
 
 The key settings are:
@@ -75,11 +75,11 @@ The key settings are:
 | Setting | Value |
 |---------|-------|
 | `dialect` | `mysql` |
-| `server` | FireISP DB host |
+| `server` | VigaBSS DB host |
 | `port` | 3306 |
 | `login` | DB user (`SELECT` for auth; writes on `radacct`/`radpostauth` when those feeds are enabled) |
 | `password` | DB password |
-| `radius_db` | FireISP database name |
+| `radius_db` | VigaBSS database name |
 
 ---
 
@@ -88,7 +88,7 @@ The key settings are:
 Edit `/etc/freeradius/3.0/sites-available/default` and ensure `sql` appears in the
 `authorize {}` and `post-auth {}` sections. The `accounting {}` SQL call is
 optional and requires the `radacct` table described in the bundled `sql.conf`;
-FireISP's Diagnostics feed itself is populated by the REST accounting module
+VigaBSS's Diagnostics feed itself is populated by the REST accounting module
 configured later in this guide.
 
 ```
@@ -137,7 +137,7 @@ authentication is in use.
 
 ### Tenant-attributing post-auth query (required)
 
-FireISP intentionally ignores legacy `radpostauth` rows whose tenant is NULL.
+VigaBSS intentionally ignores legacy `radpostauth` rows whose tenant is NULL.
 Replace the stock MySQL post-auth query in
 `/etc/freeradius/3.0/mods-config/sql/main/mysql/queries.conf` with this
 `INSERT ... SELECT` form so the live NAS row supplies both `organization_id`
@@ -180,7 +180,7 @@ This follows the SQL module's normal escaped expansions: use
 `%{SQL-User-Name}` (not a raw `User-Name` substitution), and keep the NAS
 address sourced from the typed `NAS-IP-Address` / `Packet-Src-IP-Address`
 attributes. Do not build this query in an `exec` script or concatenate raw
-request text. The password is deliberately stored as an empty string; FireISP
+request text. The password is deliberately stored as an empty string; VigaBSS
 does not need or retain the attempted credential.
 
 If no single live NAS matches the request address, the `SELECT` produces zero
@@ -193,7 +193,7 @@ registered routable or WireGuard address.
 
 For an organization configured with database isolation, point that tenant's
 FreeRADIUS SQL module (or a tenant-specific virtual server/module instance) at
-the isolated database—not the FireISP primary database. This is required for
+the isolated database—not the VigaBSS primary database. This is required for
 both authorization tables and tenant-owned `radpostauth` diagnostics rows.
 The global `scan_auth_failures` task scans shared tenants in the primary
 database and then fans out through every active isolated tenant context. Its
@@ -202,7 +202,7 @@ the same rejection cannot raise an alert from both database copies.
 
 Use tenant-local external FreeRADIUS for authentication, then send accounting
 to `POST /api/v1/radius/accounting/tenant` with an API token bound to that same
-organization. FireISP routes the write into its isolated database context.
+organization. VigaBSS routes the write into its isolated database context.
 Before enabling isolation, apply the complete schema and copy the organization's
 tenant-owned data; an empty schema is not a usable cutover. See
 [Per-tenant database isolation](../tenant-database-isolation.md).
@@ -218,7 +218,7 @@ WireGuard source address if the embedded listener is required.
 
 ## Step 4: Configure NAS clients
 
-NAS secrets are stored in the FireISP `nas` table. Generate `clients.conf` from that table:
+NAS secrets are stored in the VigaBSS `nas` table. Generate `clients.conf` from that table:
 
 ```sql
 SELECT CONCAT(
@@ -284,7 +284,7 @@ radtest subscriber_username cleartext_password 127.0.0.1 0 testing123
 - `radcheck` rows:
   - `Cleartext-Password := <password>` (fallback / inner-auth, optional)
   - `TLS-Cert-Serial == <serial_number>` — enforces certificate binding
-- Client certificates are registered in the `subscriber_certificates` table (FireISP is a
+- Client certificates are registered in the `subscriber_certificates` table (VigaBSS is a
   **metadata registry only** — it does NOT generate or sign certificates).
   Use an external CA (easy-rsa, step-ca, HashiCorp Vault PKI, or a commercial CA)
   to issue and revoke certificates.
@@ -344,7 +344,7 @@ FreeRADIUS enforces this via the `radutmp` or `sql-session-log` module. Enable `
 `authorize {}` and `session {}` sections of your `sites-available/default`.
 
 The `kick_duplicate_sessions` scheduled task (every 5 minutes) also enforces limits at the
-FireISP layer by sending Disconnect-Request for the oldest excess sessions.
+VigaBSS layer by sending Disconnect-Request for the oldest excess sessions.
 
 ---
 
@@ -383,7 +383,7 @@ subscriber interface template.
 
 ## Walled garden for unpaid subscribers
 
-FireISP supports placing unpaid subscribers into a walled garden (captive portal) as an alternative
+VigaBSS supports placing unpaid subscribers into a walled garden (captive portal) as an alternative
 to full suspension.
 
 ### How it works
@@ -476,10 +476,10 @@ X-Pppoe-Secret: <PPPOE_EVENTS_SECRET>
 Content-Type: application/json
 ```
 
-Use a dedicated `PPPOE_EVENTS_SECRET`; when absent, FireISP falls back to
+Use a dedicated `PPPOE_EVENTS_SECRET`; when absent, VigaBSS falls back to
 `RADIUS_ACCOUNTING_SECRET`. The endpoint fails closed when neither is set.
 
-Raw-line payload (FireISP parses stage/severity/reason and derives username/MAC
+Raw-line payload (VigaBSS parses stage/severity/reason and derives username/MAC
 when present):
 
 ```json
@@ -538,7 +538,7 @@ write scope, additional scope, and a token shared with the CGNAT binding
 collector are rejected.
 
 For a subscriber Start/Interim/Stop lifecycle, the JSON response includes
-`session_instance_id`, FireISP's canonical UUID for that exact tenant access
+`session_instance_id`, VigaBSS's canonical UUID for that exact tenant access
 session. A CGNAT normalizer must capture and preserve this returned value: every
 allocate and release record requires it. Do not reconstruct the UUID or guess a
 session from username, `Acct-Session-Id`, NAS address, or a reused private IP.
@@ -556,7 +556,7 @@ isolated tenant databases, where this token fixes the database context.
 `POST /api/v1/radius/accounting` remains available for staged upgrades. It uses
 `X-Radius-Secret` or `Authorization: Bearer` with
 `RADIUS_ACCOUNTING_SECRET`, and is disabled with HTTP 503 when that setting is
-unset. The caller cannot name an organization: FireISP scans shared and active
+unset. The caller cannot name an organization: VigaBSS scans shared and active
 isolated database contexts and accepts the request only when
 `NAS-IP-Address` identifies exactly one active NAS installation-wide. Unknown
 or ambiguous addresses fail closed. Do not use this path where private NAS
@@ -575,7 +575,7 @@ rest {
         uri = "${..connect_uri}/api/v1/radius/accounting/tenant"
         method = 'post'
         body = 'json'
-        # FireISP returns an acknowledgement object, not RADIUS attributes.
+        # VigaBSS returns an acknowledgement object, not RADIUS attributes.
         force_to = 'plain'
         do_xlat = no
         tls = ${..tls}
@@ -599,7 +599,7 @@ ln -s ../mods-available/rest rest
 
 In `/etc/freeradius/3.0/sites-available/default`, add `rest` to the accounting
 section. `sql` is optional and needs a separate `radacct` table; it is not a
-replacement for the FireISP REST projection/evidence path.
+replacement for the VigaBSS REST projection/evidence path.
 
 ```apacheconf
 accounting {
@@ -617,7 +617,7 @@ accounting {
 
 With `body = 'json'`, FreeRADIUS 3's `rlm_rest` module sends each standard
 hyphenated attribute in an envelope such as
-`"User-Name":{"type":"string","value":["alice"]}`. FireISP consumes that
+`"User-Name":{"type":"string","value":["alice"]}`. VigaBSS consumes that
 native format directly. It also accepts flat hyphenated
 (`"Acct-Status-Type":"Start"`) and camelCase (`"acctStatusType":"Start"`)
 forms for custom shippers.
@@ -646,7 +646,7 @@ the rollup and are not a supported usage source.
 ### MAC move detection
 
 When a `Start` record arrives for a username that already has an open session on
-a different `Calling-Station-Id` or NAS, FireISP closes the old projection,
+a different `Calling-Station-Id` or NAS, VigaBSS closes the old projection,
 records `mac_move_events`, and continues the new lifecycle. View the event under
 **RADIUS → MAC Move Events** or `GET /api/v1/radius/mac-move-events`.
 

@@ -1,4 +1,4 @@
-FireISP {{ .Chart.AppVersion }} deployed successfully.
+VigaBSS {{ .Chart.AppVersion }} deployed successfully.
 
 1. Get the application URL:
 {{- if .Values.ingress.enabled }}

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL LedgerEntry resolver regression tests
+// VigaBSS 5.0 — GraphQL LedgerEntry resolver regression tests
 // =============================================================================
 // Guards the ClientDetail-breaking bug: the LedgerEntry.balanceAfter resolver
 // read a nonexistent `balance_after` column (real column is `running_balance`),

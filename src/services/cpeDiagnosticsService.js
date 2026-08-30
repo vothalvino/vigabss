@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE Diagnostics Service (§8.3)
+// VigaBSS 5.0 — CPE Diagnostics Service (§8.3)
 // =============================================================================
 // Orchestrates TR-069 diagnostic task dispatching and result storage.
 // Diagnostic flow:

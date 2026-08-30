@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Auth Service
+// VigaBSS 5.0 — Portal Auth Service
 // =============================================================================
 // Handles authentication for the client self-service portal.
 // Clients are NOT staff users — they authenticate with their email +

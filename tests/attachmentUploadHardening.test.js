@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — ticket / work-order attachment hardening (j35)
+// VigaBSS 5.0 — ticket / work-order attachment hardening (j35)
 // =============================================================================
 // Neither route had a multer fileFilter, so BOTH accepted any extension and any
 // mime type with the 20 MB cap as the only restriction. Two more problems sat

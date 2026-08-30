@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Settings page / Email Settings tab tests (migration 386)
+// VigaBSS 5.0 — Settings page / Email Settings tab tests (migration 386)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL Endpoint Tests (P3.3)
+// VigaBSS 5.0 — GraphQL Endpoint Tests (P3.3)
 // =============================================================================
 // Integration tests that POST GraphQL queries against the Express app.
 // The DB, auth middleware, and orgScope are mocked so no real MySQL connection

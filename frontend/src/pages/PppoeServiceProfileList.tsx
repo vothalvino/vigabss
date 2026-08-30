@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE Service Profile Management
+// VigaBSS 5.0 — PPPoE Service Profile Management
 // =============================================================================
 // Standalone page at /pppoe-service-profiles. Lists PPPoE service profiles with
 // a status filter, paginated table, "New Profile" create modal, and per-row

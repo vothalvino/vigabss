@@ -118,7 +118,7 @@ for arg in "$@"; do
     esac
 done
 
-echo -e "${BLUE}Starting FireISP Automated Setup...${NC}"
+echo -e "${BLUE}Starting VigaBSS Automated Setup...${NC}"
 
 if [ "$PROD" = true ]; then
     # ------------------------------------------------------------------ PROD --

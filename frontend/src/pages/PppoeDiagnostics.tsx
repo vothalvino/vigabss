@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PPPoE Diagnostics
+// VigaBSS 5.0 — PPPoE Diagnostics
 // =============================================================================
 // Tabbed diagnostics page at /pppoe-diagnostics. Combines:
 //   - Auth Failure Classification (from radpostauth)

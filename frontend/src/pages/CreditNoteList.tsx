@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Credit Note Management
+// VigaBSS 5.0 — Credit Note Management
 // =============================================================================
 // Standalone page at /credit-notes. Lists credit notes with:
 //   • Status filter
@@ -166,7 +166,7 @@ const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
  * tax, which makes subtotal + tax === total true by construction at any rate.
  * Rounding each independently is NOT equivalent in general — it disagrees at
  * 12% on a 0.14 credit, for instance — though I could find no divergence at
- * the rates FireISP actually uses (16%, 8%, 0%) for any amount up to 20,000.
+ * the rates VigaBSS actually uses (16%, 8%, 0%) for any amount up to 20,000.
  * The construction is kept because the backend rejects an inconsistent triple
  * outright (#530), so "correct by construction" beats "correct at the rates we
  * happen to use today". The invariant is swept in the tests rather than left

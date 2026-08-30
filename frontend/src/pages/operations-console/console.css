@@ -1,8 +1,8 @@
 /* ============================================================================
-   FireISP Operations Console — layout + chrome
+   VigaBSS Operations Console — layout + chrome
    Ported from the design's console.css. Topbar/sidebar are dropped: the app's
    existing shell (Layout.tsx) provides them. Colors/spacing/type come from the
-   FireISP design tokens (var(--*)) declared in src/index.css.
+   VigaBSS design tokens (var(--*)) declared in src/index.css.
    ============================================================================ */
 
 .fi-console {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Plans Route Integration Tests
+// VigaBSS 5.0 — Payment Plans Route Integration Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

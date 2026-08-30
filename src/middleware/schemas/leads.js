@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Lead Validation Schemas (§1.2)
+// VigaBSS 5.0 — Lead Validation Schemas (§1.2)
 // =============================================================================
 
 const SOURCES = ['website', 'referral', 'phone', 'walk_in', 'social', 'campaign', 'other'];

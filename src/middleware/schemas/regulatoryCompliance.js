@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Regulatory Compliance schemas (§16)
+// VigaBSS 5.0 — Regulatory Compliance schemas (§16)
 // =============================================================================
 // The consent routes ran with NO validation since migration 314 — an invalid
 // purpose or channel went straight into the ENUM column and 500'd, and a

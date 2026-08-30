@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP UI — Table
+// VigaBSS UI — Table
 // =============================================================================
 // Faithful TSX port of @fireisp/ui Table. Columns/rows; numeric columns get
 // tabular mono. Rows are keyed by column.key with ReactNode cell values.

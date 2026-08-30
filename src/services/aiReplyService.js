@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AI Reply Service (P1 §3.5) — Orchestrator
+// VigaBSS 5.0 — AI Reply Service (P1 §3.5) — Orchestrator
 // =============================================================================
 // 10-step pipeline that produces, validates, and dispatches AI-generated
 // customer-support replies for tickets.

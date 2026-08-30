@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 196: Drop Interaction Tracking tables
+-- VigaBSS 5.0 — Rollback 196: Drop Interaction Tracking tables
 -- =============================================================================
 -- Reverses migration 196. Drop order respects FK dependencies:
 --   follow_up_reminders and satisfaction_surveys reference client_interactions,

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NOC AI Service (§21.11)
+// VigaBSS 5.0 — NOC AI Service (§21.11)
 // =============================================================================
 // AI-powered insights for Network Operations Center staff.
 // All LLM calls via llmProviderService; deterministic fallback when no provider.

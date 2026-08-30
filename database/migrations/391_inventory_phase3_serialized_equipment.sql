@@ -88,7 +88,7 @@ BEGIN
           COMMENT 'Which inventory_items catalog product this serial IS — set when the unit is created from a PO receive or manual registration (migration 391)'
           AFTER contract_id,
       ADD COLUMN ownership ENUM('rented','sold') NULL
-          COMMENT 'Set at install time: rented = stays FireISP property (returned on pickup), sold = client property (never appears in a pickup checklist) — migration 391'
+          COMMENT 'Set at install time: rented = stays VigaBSS property (returned on pickup), sold = client property (never appears in a pickup checklist) — migration 391'
           AFTER inventory_item_id,
       ADD KEY idx_cpe_devices_inventory_item (inventory_item_id),
       ADD CONSTRAINT fk_cpe_devices_inventory_item FOREIGN KEY (inventory_item_id)

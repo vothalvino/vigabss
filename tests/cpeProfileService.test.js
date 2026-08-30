@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE Profile Service Tests (inheritance merge)
+// VigaBSS 5.0 — CPE Profile Service Tests (inheritance merge)
 // =============================================================================
 'use strict';
 

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — User model: permission resolution + membership sync
+// VigaBSS 5.0 — User model: permission resolution + membership sync
 // =============================================================================
 // Migration 378 makes users.group_id the authoritative permission source:
 //   1. live group + org access → the group's permission set (EVEN when empty —

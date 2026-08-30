@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — per-account Framed-Routes are org-scoped
+// VigaBSS 5.0 — per-account Framed-Routes are org-scoped
 // =============================================================================
 // All four verbs on /radius/:id/routes took the account id straight from the
 // URL and queried radius_account_routes with no org predicate:

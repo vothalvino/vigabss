@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Technician Live Map
+// VigaBSS 5.0 — Technician Live Map
 // =============================================================================
 // The GPS tracking backend was complete and had ZERO frontend consumers at
 // BOTH ends: nothing displayed technician positions and nothing posted them.

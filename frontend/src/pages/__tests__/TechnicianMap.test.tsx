@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — TechnicianMap tests (j28)
+// VigaBSS 5.0 — TechnicianMap tests (j28)
 // =============================================================================
 // The feature was unwired at BOTH ends — nothing showed positions, nothing
 // sent them. The behaviours worth pinning are the ones that make a dispatch

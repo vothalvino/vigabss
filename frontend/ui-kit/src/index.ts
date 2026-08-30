@@ -1,4 +1,4 @@
-// FireISP UI Kit — design-token stylesheet + component exports
+// VigaBSS UI Kit — design-token stylesheet + component exports
 // Importing this module in a bundler-aware environment (Vite, webpack, etc.)
 // will automatically pull in the token CSS alongside the JS.
 import './tokens.css';

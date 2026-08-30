@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Speed Test Viewer
+// VigaBSS 5.0 — Speed Test Viewer
 // =============================================================================
 // Read-only analytics page at /speed-tests. Lists recorded speed-test results
 // (download/upload throughput, latency, jitter, packet loss) with their source

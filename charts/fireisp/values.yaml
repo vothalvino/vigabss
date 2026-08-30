@@ -72,7 +72,7 @@ service:
 
 ## Optional UDP service for unsolicited SNMP traps. Keep this disabled until
 ## the load balancer/firewall is restricted to trusted device-management
-## networks. Network devices normally send to port 162; FireISP listens on the
+## networks. Network devices normally send to port 162; VigaBSS listens on the
 ## non-privileged container port configured by SNMP_TRAP_PORT (default 1620).
 snmpTrap:
   enabled: false
@@ -204,7 +204,7 @@ config:
   SNMP_TRAP_LOCAL_QUEUE_CAPACITY: "100"
   SNMP_TRAP_DRAIN_TIMEOUT_MS: "10000"
 
-  ## Embedded RADIUS server (FireISP answers RADIUS auth/accounting itself —
+  ## Embedded RADIUS server (VigaBSS answers RADIUS auth/accounting itself —
   ## docs/radius-server.md). Off by default here; to expose it externally on
   ## Kubernetes you must also add UDP 1812/1813 to the Service + container ports
   ## (follow-up — the chart Service is HTTP/TCP only today).

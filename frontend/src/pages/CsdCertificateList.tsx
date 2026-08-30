@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CSD Certificates (upload + lifecycle)
+// VigaBSS 5.0 — CSD Certificates (upload + lifecycle)
 // =============================================================================
 // Page at /csd-certificates. Lists the SAT CSD (Certificado de Sello Digital)
 // certificates for the organization, uploads new ones (raw .cer/.key +

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SuspensionConsole tests (j22)
+// VigaBSS 5.0 — SuspensionConsole tests (j22)
 // =============================================================================
 // The engine had zero frontend consumers, so it acted invisibly on the feature
 // most likely to anger a paying customer if it misfires. The behaviours worth

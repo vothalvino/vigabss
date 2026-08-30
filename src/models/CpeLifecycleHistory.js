@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CpeLifecycleHistory Model (§8.4)
+// VigaBSS 5.0 — CpeLifecycleHistory Model (§8.4)
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

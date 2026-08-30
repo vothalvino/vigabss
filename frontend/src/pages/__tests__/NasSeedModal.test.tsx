@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SeedModal tests
+// VigaBSS 5.0 — SeedModal tests
 // =============================================================================
 // The Seed action moved from the NAS list to the NAS detail page; SeedModal is
 // now a shared, exported component. These tests exercise it directly.
@@ -31,7 +31,7 @@ function renderSeed(props: Partial<React.ComponentProps<typeof SeedModal>> = {})
   );
 }
 
-const radiusInput = () => screen.getByRole('textbox', { name: /FireISP RADIUS Address/i });
+const radiusInput = () => screen.getByRole('textbox', { name: /VigaBSS RADIUS Address/i });
 
 describe('SeedModal', () => {
   beforeEach(() => vi.clearAllMocks());

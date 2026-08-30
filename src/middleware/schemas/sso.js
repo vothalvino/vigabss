@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SSO Validation Schemas (P2.1)
+// VigaBSS 5.0 — SSO Validation Schemas (P2.1)
 // =============================================================================
 
 const SSO_ROLES = ['admin', 'manager', 'technician', 'billing', 'readonly'];

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CSD Certificate Route Tests
+// VigaBSS 5.0 — CSD Certificate Route Tests
 // =============================================================================
 // Regression coverage for the secret-redaction fix (same vulnerability class
 // as src/routes/paymentGateways.js): key_pem_encrypted holds the CSD PRIVATE

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — HTTP Endpoint Integration Tests
+// VigaBSS 5.0 — HTTP Endpoint Integration Tests
 // =============================================================================
 // Tests Express routes end-to-end with mocked database and models.
 // =============================================================================

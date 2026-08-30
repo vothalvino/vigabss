@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Password-hashing middleware
+// VigaBSS 5.0 — Password-hashing middleware
 // =============================================================================
 // The user create/update validation schemas accept a plaintext `password`, but
 // the `users` table stores `password_hash` (the only password column exposed by

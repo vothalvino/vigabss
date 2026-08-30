@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Adjustment Validation Schemas
+// VigaBSS 5.0 — Billing Adjustment Validation Schemas
 // =============================================================================
 
 const ENTITY_TYPES = ['invoice', 'payment', 'credit_note', 'balance'];

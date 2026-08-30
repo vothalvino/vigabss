@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Admin Service Requests Tests
+// VigaBSS 5.0 — Portal Admin Service Requests Tests
 // =============================================================================
 // Tests for:
 //   - portalServiceRequestService admin functions (adminListRequests,

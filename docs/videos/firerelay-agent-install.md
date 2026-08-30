@@ -5,11 +5,11 @@
 
 ## Audience
 
-Operators adding a FireRelay worker node to a FireISP 5.0 deployment after the primary node approaches capacity.
+Operators adding a FireRelay worker node to a VigaBSS 5.0 deployment after the primary node approaches capacity.
 
 ## Key message
 
-FireRelay uses the same FireISP codebase on every node. Promote the first node to `master`, configure the new server as `worker`, assign a unique node ID and auto-increment offset, then verify health and routing from the master.
+FireRelay uses the same VigaBSS codebase on every node. Promote the first node to `master`, configure the new server as `worker`, assign a unique node ID and auto-increment offset, then verify health and routing from the master.
 
 ## Storyboard and narration
 
@@ -17,7 +17,7 @@ FireRelay uses the same FireISP codebase on every node. Promote the first node t
 
 Narration:
 
-> Start from a healthy standalone FireISP node. Plan FireRelay when the deployment is approaching the ~30,000-client capacity threshold.
+> Start from a healthy standalone VigaBSS node. Plan FireRelay when the deployment is approaching the ~30,000-client capacity threshold.
 
 On-screen checklist:
 
@@ -46,7 +46,7 @@ FIRERELAY_MAX_RETRIES=3
 
 Narration:
 
-> Provision the second server exactly like a normal FireISP installation. Use the same repository and run the database migrations before starting the service.
+> Provision the second server exactly like a normal VigaBSS installation. Use the same repository and run the database migrations before starting the service.
 
 On-screen command sequence:
 

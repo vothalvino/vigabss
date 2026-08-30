@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — is a newer release available?
+// VigaBSS 5.0 — is a newer release available?
 // =============================================================================
 // Answers two separate questions, and keeps them separate on purpose:
 //
@@ -13,7 +13,7 @@
 // on notifies nobody.
 //
 // The cost is real and stated rather than hidden: this is the only outbound
-// request FireISP makes on its own behalf. An air-gapped or
+// request VigaBSS makes on its own behalf. An air-gapped or
 // management-network install should set FIREISP_UPDATE_CHECK=0, which is
 // documented in .env.prod.example, docs/deployment.md and the Settings ->
 // Version tab. Until it does, the failed request is cached for a day and
@@ -181,7 +181,7 @@ async function doFetch() {
       headers: {
         Accept: 'application/vnd.github+json',
         // GitHub requires a User-Agent. It names the product, never the install.
-        'User-Agent': 'FireISP-update-check',
+        'User-Agent': 'VigaBSS-update-check',
       },
     });
     if (!res.ok) throw new Error(`GitHub responded ${res.status}`);

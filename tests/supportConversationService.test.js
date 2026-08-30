@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — supportConversationService Tests (PR F: AI support replies)
+// VigaBSS 5.0 — supportConversationService Tests (PR F: AI support replies)
 // =============================================================================
 // Covers:
 //  - the new {text, escalate, escalationReason, dataSources, ...} return

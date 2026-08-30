@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — OLT Splitter Validation Schemas (§7.1)
+// VigaBSS 5.0 — OLT Splitter Validation Schemas (§7.1)
 // =============================================================================
 
 const createOltSplitter = {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IFT Statistical Report Viewer
+// VigaBSS 5.0 — IFT Statistical Report Viewer
 // =============================================================================
 // Read-only page at /ift-statistical-reports. Lists the periodic statistical
 // snapshots submitted to IFT/CRT (subscriber counts, coverage and speed

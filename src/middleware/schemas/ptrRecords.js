@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — PTR Record Validation Schemas
+// VigaBSS 5.0 — PTR Record Validation Schemas
 // =============================================================================
 
 const createPtrRecord = {

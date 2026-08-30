@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE Session Log Service (§8.3)
+// VigaBSS 5.0 — CPE Session Log Service (§8.3)
 // =============================================================================
 // Writes to cpe_session_logs for protocol events and errors.
 // Called from acsService on: auth_failure, parse_error, fault, session_error.

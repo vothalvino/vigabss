@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — where INFRASTRUCTURE alerts go
+// VigaBSS 5.0 — where INFRASTRUCTURE alerts go
 // =============================================================================
 // Host-level problems (TLS expiry today; disk, daemon or backup failures later)
 // are not a tenant's business. They fanned out to the admins and managers of

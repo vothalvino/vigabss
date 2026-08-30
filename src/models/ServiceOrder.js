@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ServiceOrder Model
+// VigaBSS 5.0 — ServiceOrder Model
 // =============================================================================
 // Simplified service order workflow — new → in_process → done, or cancelled
 // (reachable from new/in_process) (§1.2 Customer Lifecycle). See migration

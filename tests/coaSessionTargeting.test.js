@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CoA / Disconnect NAS targeting tests
+// VigaBSS 5.0 — CoA / Disconnect NAS targeting tests
 // =============================================================================
 // Authentication is NAS-agnostic (any registered NAS can authenticate any
 // account), so CoA/Disconnect must follow the subscriber to the NAS its open

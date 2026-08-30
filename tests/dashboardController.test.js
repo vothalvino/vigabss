@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Dashboard Controller Tests
+// VigaBSS 5.0 — Dashboard Controller Tests
 // =============================================================================
 // Covers the revenue/financial accuracy fixes applied in fix/revenue-report-accuracy:
 //   - void, cancelled, draft invoices excluded from invoiced/total_invoiced

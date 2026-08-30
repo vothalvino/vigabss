@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Work-order assignee authorization tests
+// VigaBSS 5.0 — Work-order assignee authorization tests
 // Covers:
 //   A. Only users authorized to work with work orders (work_orders.update) may
 //      be set as an assignee — enforced on POST, PUT and PATCH.

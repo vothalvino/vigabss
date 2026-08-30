@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Reseller Service (§19)
+// VigaBSS 5.0 — Reseller Service (§19)
 // =============================================================================
 // Business logic for the multi-level reseller hierarchy:
 //   - getResellerSubtree  — resolve all reseller IDs in a subtree (for scoping)

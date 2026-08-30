@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAS WireGuard Provisioning Modal
+// VigaBSS 5.0 — NAS WireGuard Provisioning Modal
 // =============================================================================
 // Four-phase flow:
 //   idle        → intro + "Discover Subnets" button

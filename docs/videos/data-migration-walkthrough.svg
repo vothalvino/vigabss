@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1280 720">
-  <title id="title">FireISP Data Migration Flow video walkthrough</title>
+  <title id="title">VigaBSS Data Migration Flow video walkthrough</title>
   <desc id="desc">Animated six-scene walkthrough covering backup, CSV preparation, ordered imports, row-level errors, verification, and rollback readiness.</desc>
   <style>
     svg { font-family: Inter, "Segoe UI", Arial, sans-serif; background: #07111f; }
@@ -36,7 +36,7 @@
 
   <g id="s1" class="scene">
     <text x="64" y="196" class="title">Data migration: start safe</text>
-    <text x="64" y="260" class="body">Prepare FireISP before importing production records.</text>
+    <text x="64" y="260" class="body">Prepare VigaBSS before importing production records.</text>
     <rect x="690" y="168" width="470" height="330" class="panel"/>
     <text x="730" y="230" class="small">✓ Migrations applied</text>
     <text x="730" y="282" class="small">✓ Organization exists</text>
@@ -78,7 +78,7 @@
 
   <g id="s5" class="scene">
     <text x="64" y="196" class="title">Verify before sign-off</text>
-    <text x="64" y="260" class="body">Compare FireISP with the source system.</text>
+    <text x="64" y="260" class="body">Compare VigaBSS with the source system.</text>
     <rect x="160" y="316" width="960" height="245" class="panel"/>
     <text x="210" y="374" class="small">✓ Row counts match source</text>
     <text x="210" y="424" class="small">✓ Invoice and payment totals match</text>

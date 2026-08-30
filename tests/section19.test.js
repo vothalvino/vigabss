@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Section 19: Multi-Tenancy / Reseller Support Tests
+// VigaBSS 5.0 — Section 19: Multi-Tenancy / Reseller Support Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

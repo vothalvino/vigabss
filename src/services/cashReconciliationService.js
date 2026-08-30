@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Cash Reconciliation Service
+// VigaBSS 5.0 — Cash Reconciliation Service
 // =============================================================================
 
 const db = require('../config/database');

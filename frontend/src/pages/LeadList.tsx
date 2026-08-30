@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Lead List (prospect pipeline) — §1.2
+// VigaBSS 5.0 — Lead List (prospect pipeline) — §1.2
 // =============================================================================
 // CRUD for sales leads plus pipeline-stage summary and lead → client conversion.
 // =============================================================================

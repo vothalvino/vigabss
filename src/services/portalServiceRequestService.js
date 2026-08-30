@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Service Request Service (§11.3)
+// VigaBSS 5.0 — Portal Service Request Service (§11.3)
 // =============================================================================
 // Handles self-service requests submitted via the client portal:
 //   - Plan upgrade/change with proration calculation

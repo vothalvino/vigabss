@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — cpeSessionLogService.cleanupOldLogs unit tests
+// VigaBSS 5.0 — cpeSessionLogService.cleanupOldLogs unit tests
 // =============================================================================
 // Regression: the seeded cpe_session_log_cleanup task was dead until taskRunner
 // wired it, so the first run faces the table's entire >90-day backlog. The

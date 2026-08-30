@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — User row sanitizer
+// VigaBSS 5.0 — User row sanitizer
 // =============================================================================
 // Strips sensitive / internal columns from a user record before it is returned
 // in any API response.  Lives in its own module (rather than as a User model

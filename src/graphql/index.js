@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL Server Factory (P3.3)
+// VigaBSS 5.0 — GraphQL Server Factory (P3.3)
 // =============================================================================
 // Creates a graphql-yoga server and exports it as an Express middleware.
 //
@@ -83,7 +83,7 @@ const yoga = createYoga({
   // Express handles routing — this entry-point covers all sub-paths.
   graphqlEndpoint: '*',
 
-  // Disable the built-in logger; FireISP uses Pino.
+  // Disable the built-in logger; VigaBSS uses Pino.
   logging: false,
 });
 

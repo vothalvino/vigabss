@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Recurring Payment Profile Viewer
+// VigaBSS 5.0 — Recurring Payment Profile Viewer
 // =============================================================================
 // Read-only page at /recurring-payment-profiles. Lists the stored autopay
 // card/token profiles per client with their gateway, masked card, expiry,

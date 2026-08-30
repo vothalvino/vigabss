@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS row sanitizer
+// VigaBSS 5.0 — RADIUS row sanitizer
 // =============================================================================
 // Strips the cleartext PPPoE `password` column from a `radius` record before
 // it is returned by any endpoint that is not gated by

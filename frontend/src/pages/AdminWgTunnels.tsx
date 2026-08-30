@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Admin WireGuard Tunnels
+// VigaBSS 5.0 — Admin WireGuard Tunnels
 // =============================================================================
 // Admin-only page at /admin/user-tunnels. Provides:
 //   • Paginated table of ALL org peers (User | Peer | IP | Endpoint | Handshake | Status)

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Site Management
+// VigaBSS 5.0 — Site Management
 // =============================================================================
 // Standalone page at /sites. Lists network sites (POPs, towers, data centers)
 // with a status filter, paginated table, and "New Site" create modal plus

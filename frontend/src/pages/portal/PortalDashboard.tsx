@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Dashboard (§11.1)
+// VigaBSS 5.0 — Portal Dashboard (§11.1)
 // =============================================================================
 // Landing page: account overview, plan info, session status, usage graph,
 // unpaid invoices, open tickets.

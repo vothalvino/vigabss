@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — TLS certificate expiry monitor
+// VigaBSS 5.0 — TLS certificate expiry monitor
 // =============================================================================
 // Guards the behaviours that make this monitor worth having:
 //   • it alerts BEFORE expiry, at 30/14/7 days, and again once expired

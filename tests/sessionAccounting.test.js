@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Session Accounting Endpoint Tests
+// VigaBSS 5.0 — Session Accounting Endpoint Tests
 // Tests for GET /connection-logs/daily-usage and GET /connection-logs/top-consumers
 // =============================================================================
 

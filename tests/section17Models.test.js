@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Section 17 Model Unit Tests
+// VigaBSS 5.0 — Section 17 Model Unit Tests
 // Tests that the §17 model classes load correctly and have the right properties
 // =============================================================================
 

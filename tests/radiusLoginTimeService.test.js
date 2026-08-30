@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — radiusLoginTimeService Tests (§3.2 item 12)
+// VigaBSS 5.0 — radiusLoginTimeService Tests (§3.2 item 12)
 // =============================================================================
 // Tests the Login-Time serializer that converts plan_access_windows rows into
 // FreeRADIUS Login-Time attribute strings.

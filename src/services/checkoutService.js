@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Checkout / Payment Flow Service
+// VigaBSS 5.0 — Checkout / Payment Flow Service
 // =============================================================================
 // Handles payment link generation, checkout sessions, and auto-charge
 // for recurring payment profiles.

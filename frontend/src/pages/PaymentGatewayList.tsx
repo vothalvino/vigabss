@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Gateway Viewer
+// VigaBSS 5.0 — Payment Gateway Viewer
 // =============================================================================
 // Read-only page at /payment-gateways. Lists the payment provider gateways
 // configured for the organization with their provider, environment, default

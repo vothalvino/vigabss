@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Critical Model Unit Tests
+// VigaBSS 5.0 — Critical Model Unit Tests
 // =============================================================================
 // Tests the six most critical untested models: PaymentTransaction,
 // PaymentAllocation, CfdiCancellation, SuspensionLog, ClientBalanceLedger,

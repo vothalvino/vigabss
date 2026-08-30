@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CFDI cancellation → invoice sync wiring
+// VigaBSS 5.0 — CFDI cancellation → invoice sync wiring
 // =============================================================================
 // When SAT ACCEPTS a CFDI cancellation (sat_status → 'cancelado'), cfdiService
 // must sync the underlying invoice to 'cancelled' via billingService so it drops

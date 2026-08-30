@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Structured Logger (Pino)
+// VigaBSS 5.0 — Structured Logger (Pino)
 // =============================================================================
 // Provides structured JSON logging for development and production.
 // Usage:  const logger = require('./utils/logger');

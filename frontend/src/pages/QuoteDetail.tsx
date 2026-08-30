@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Quote Detail
+// VigaBSS 5.0 — Quote Detail
 // =============================================================================
 // Shows a single quote at /quotes/:id, mirroring InvoiceDetail's structure:
 //   • Quote metadata (number, client, valid_until, status, amounts)

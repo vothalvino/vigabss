@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — bounded installation commissioning (migrations 448 + 450)
+// VigaBSS 5.0 — bounded installation commissioning (migrations 448 + 450)
 // =============================================================================
 
 const db = require('../config/database');

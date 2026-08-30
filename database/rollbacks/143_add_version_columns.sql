@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 143: Remove version columns (optimistic locking)
+-- VigaBSS 5.0 — Rollback 143: Remove version columns (optimistic locking)
 -- =============================================================================
 -- Reverses migration 143.
 -- =============================================================================

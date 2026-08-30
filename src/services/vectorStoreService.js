@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Vector Store Service (P1 §8)
+// VigaBSS 5.0 — Vector Store Service (P1 §8)
 // =============================================================================
 // ChromaDB HTTP API wrapper for vector similarity search.
 // All public methods are opt-in: when VECTOR_RETRIEVAL_ENABLED !== 'true'

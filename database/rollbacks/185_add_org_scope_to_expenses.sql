@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 185: Remove org scope from expenses
+-- VigaBSS 5.0 — Rollback 185: Remove org scope from expenses
 -- =============================================================================
 -- Reverses migration 185 by dropping the organization_id foreign key, index,
 -- and column from the expenses table.  Uses guarded INFORMATION_SCHEMA checks

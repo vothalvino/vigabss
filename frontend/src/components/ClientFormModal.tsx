@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Shared Client create/edit modal
+// VigaBSS 5.0 — Shared Client create/edit modal
 // =============================================================================
 // Used by ClientList (create + edit) and ClientDetail (edit). Talks to the
 // typed API client (POST /clients, PUT /clients/:id) and reports success via

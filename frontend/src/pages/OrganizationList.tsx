@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Organization Management
+// VigaBSS 5.0 — Organization Management
 // =============================================================================
 // Admin page at /organizations. Lists tenant organizations with a paginated
 // table, a "New Organization" create modal, a per-row "Manage" link to the

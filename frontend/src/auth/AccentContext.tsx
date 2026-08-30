@@ -1,7 +1,7 @@
 // =============================================================================
-// FireISP 5.0 — Accent Colour Context
+// VigaBSS 5.0 — Accent Colour Context
 // =============================================================================
-// The app ships two brand accents: the default FireISP orange and an emerald
+// The app ships two brand accents: the default VigaBSS orange and an emerald
 // green. This context mirrors DarkModeContext — it persists the choice and
 // stamps `data-accent` on <html>, where index.css swaps the --accent* tokens.
 // Orange is the default (no data-accent match needed); green overrides apply

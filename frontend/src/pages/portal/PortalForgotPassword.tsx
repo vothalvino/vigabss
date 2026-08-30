@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Forgot Password Page
+// VigaBSS 5.0 — Portal Forgot Password Page
 // =============================================================================
 // Public (unauthenticated) page: collects an email and requests a portal
 // password reset link. Uses a raw fetch() to

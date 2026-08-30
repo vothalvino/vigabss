@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 140: Remove brute-force lockout columns from users
+-- VigaBSS 5.0 — Rollback 140: Remove brute-force lockout columns from users
 -- =============================================================================
 -- Reverses migration 140.  Drops locked_until and failed_login_attempts.
 --

@@ -1,6 +1,6 @@
 # Load Testing — Roadmap 4.1
 
-This page describes how to run the FireISP API load test that satisfies
+This page describes how to run the VigaBSS API load test that satisfies
 roadmap milestone **4.1 — Infrastructure** ("Load test API with realistic
 ISP workload (500 clients, 5000 invoices, 100 devices)").
 
@@ -111,7 +111,7 @@ A representative run on a laptop-class machine (MySQL 8 + Node.js 24, 20
 connections, 8s per scenario):
 
 ```
-=== FireISP 4.1 Load Test — Summary ===
+=== VigaBSS 4.1 Load Test — Summary ===
   GET /health (baseline, no auth)             3883 req/s  p50=   4ms  p97.5=   9ms  p99=  11ms  2xx=31060  4xx=0  5xx=0  errors=0
   GET /clients/1 (single record)              1066 req/s  p50=  18ms  p97.5=  25ms  p99=  27ms  2xx=8527   4xx=0  5xx=0  errors=0
   GET /clients/250 (mid-range id)             1118 req/s  p50=  17ms  p97.5=  23ms  p99=  24ms  2xx=8940   4xx=0  5xx=0  errors=0
@@ -246,7 +246,7 @@ SOAK_TOTAL_DURATION=86400 SOAK_ROUND_DURATION=60 npm run loadtest:soak
 The soak test prints a table after each round:
 
 ```
-=== FireISP P1.6 Soak Test — Summary ===
+=== VigaBSS P1.6 Soak Test — Summary ===
   Duration: 300s / 300s  |  Rounds: 10  |  Connections: 5
 
   Round  Elapsed   RSS(MB)  ΔRss(MB)   Reqs    Errors  ErrRate  p99(ms)

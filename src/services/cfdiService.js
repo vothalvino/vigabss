@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CFDI Service
+// VigaBSS 5.0 — CFDI Service
 // =============================================================================
 // Generates CFDI 4.0 XML documents, submits to PAC for stamping,
 // and handles cancellation flows.
@@ -824,7 +824,7 @@ async function callPacStamp(pac, xmlContent) {
 
     // Emisión Timbrado (issue): SW SEALS AND STAMPS our unsealed XML using
     // the CSD registered in the SW account. This is the correct service for
-    // FireISP's builder, which emits no Sello/Certificado — SW's 'stamp'
+    // VigaBSS's builder, which emits no Sello/Certificado — SW's 'stamp'
     // endpoint family (Timbrado corporativo) expects PRE-SEALED XML and
     // rejects ours. The /cfdi33/ prefix is historical: the endpoint accepts
     // CFDI 4.0 (SW docs, "nuevo inicio rápido"). JSON variant, base64 body.

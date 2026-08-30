@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Referential Integrity Tests
+-- VigaBSS 5.0 — Referential Integrity Tests
 -- =============================================================================
 -- Verifies that foreign key constraints enforce parent-child relationships
 -- and ON DELETE / ON UPDATE behaviors work correctly.

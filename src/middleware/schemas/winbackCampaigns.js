@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Win-back Campaign Validation Schemas (§1.2)
+// VigaBSS 5.0 — Win-back Campaign Validation Schemas (§1.2)
 // =============================================================================
 
 const STATUSES = ['draft', 'active', 'paused', 'completed'];

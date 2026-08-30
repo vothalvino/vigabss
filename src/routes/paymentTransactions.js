@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Transaction Routes
+// VigaBSS 5.0 — Payment Transaction Routes
 // =============================================================================
 
 const { Router } = require('express');

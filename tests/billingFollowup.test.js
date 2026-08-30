@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — billing follow-up dispatcher (migration 445)
+// VigaBSS 5.0 — billing follow-up dispatcher (migration 445)
 // =============================================================================
 // A ticket for the billing team, N days after a service order completes, N per
 // org via the billing_followup_days setting. Exactly once per order; 0

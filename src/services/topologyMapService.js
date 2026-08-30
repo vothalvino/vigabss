@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Topology Map Service — §13
+// VigaBSS 5.0 — Topology Map Service — §13
 // =============================================================================
 // Provides data for the three map layers:
 //   §13.1  Network Topology Map — device graph with link utilization

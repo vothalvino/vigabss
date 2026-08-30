@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Changelog Route (P3.8)
+// VigaBSS 5.0 — Changelog Route (P3.8)
 // =============================================================================
 // Public endpoint — no authentication required.
 // Returns the static changelog JSON sorted newest-first.

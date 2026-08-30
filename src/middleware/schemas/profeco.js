@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PROFECO Complaint Validation Schemas
+// VigaBSS 5.0 — PROFECO Complaint Validation Schemas
 // =============================================================================
 
 const SERVICE_TYPES = ['internet', 'telefonia', 'television', 'paquete'];

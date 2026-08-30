@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WhatsApp capability service tests (read-only + report)
+// VigaBSS 5.0 — WhatsApp capability service tests (read-only + report)
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));

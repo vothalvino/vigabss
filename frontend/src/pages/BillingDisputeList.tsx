@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Billing Disputes (§2.5 Billing+)
+// VigaBSS 5.0 — Billing Disputes (§2.5 Billing+)
 // =============================================================================
 // Page for tracking billing disputes:
 //   • Table: ID, Client ID, Type, Status, Description (truncated), Opened By, Created At

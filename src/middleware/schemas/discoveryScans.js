@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Discovery Scan Validation Schemas
+// VigaBSS 5.0 — Discovery Scan Validation Schemas
 // =============================================================================
 
 const createDiscoveryScan = {

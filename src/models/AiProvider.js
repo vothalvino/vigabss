@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AiProvider Model
+// VigaBSS 5.0 — AiProvider Model
 // =============================================================================
 // Stores LLM provider registrations (OpenAI, Azure OpenAI, Anthropic, Gemini,
 // Ollama, custom). API keys are stored encrypted via src/utils/encryption.js

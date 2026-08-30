@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Phrase Library Service (P1 §3.3)
+// VigaBSS 5.0 — Phrase Library Service (P1 §3.3)
 // =============================================================================
 // Provides CRUD and retrieval operations for:
 //   • ai_phrase_library   — curated on-brand reply phrases per org/locale/category

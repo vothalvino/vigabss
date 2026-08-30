@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — Rollover Balance Service (§10.3)
+// VigaBSS 5.0 — Rollover Balance Service (§10.3)
 // =============================================================================
 // Manages monthly data rollover balances for subscribers with data caps.
 // Unused data (up to 25% of cap) is carried forward to the next billing month.

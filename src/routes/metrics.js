@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Prometheus Metrics
+// VigaBSS 5.0 — Prometheus Metrics
 // =============================================================================
 // Lightweight Prometheus-compatible metrics endpoint at /metrics.
 // No external dependency — generates text/plain Prometheus exposition format.

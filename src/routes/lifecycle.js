@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Customer Lifecycle Analytics Routes — §1.2
+// VigaBSS 5.0 — Customer Lifecycle Analytics Routes — §1.2
 // =============================================================================
 // Churn analytics and predictive at-risk (churn) alerts.
 // =============================================================================

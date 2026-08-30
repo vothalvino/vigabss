@@ -1,8 +1,8 @@
 // =============================================================================
-// FireISP 5.0 — DSAR (Data Subject Access Request) Tool
+// VigaBSS 5.0 — DSAR (Data Subject Access Request) Tool
 // =============================================================================
 // Admin page at /dsar. Operators enter a client ID to assemble the enumerated
-// FireISP datasets attributable to that client (LFPDPPP / GDPR data-subject
+// VigaBSS datasets attributable to that client (LFPDPPP / GDPR data-subject
 // access request) via GET /dsar/clients/{id}, review the declared export scope,
 // and download the JSON document for case review. This is a read/export tool,
 // so there are no mutations.

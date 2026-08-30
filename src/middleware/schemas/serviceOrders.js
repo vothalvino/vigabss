@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Service Order Validation Schemas (§1.2)
+// VigaBSS 5.0 — Service Order Validation Schemas (§1.2)
 // =============================================================================
 
 const ORDER_TYPES = ['new_install', 'upgrade', 'downgrade', 'relocation', 'reconnect'];

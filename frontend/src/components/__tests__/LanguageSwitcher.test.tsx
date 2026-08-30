@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — LanguageSwitcher tests
+// VigaBSS 5.0 — LanguageSwitcher tests
 // =============================================================================
 // Verifies the switcher renders the supported languages, changing it updates
 // the active i18n language, and a detected regional/base code (e.g. "en-US",

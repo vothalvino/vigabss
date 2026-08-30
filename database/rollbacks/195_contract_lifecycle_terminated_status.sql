@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 195: Revert terminated status + FSM trigger
+-- VigaBSS 5.0 — Rollback 195: Revert terminated status + FSM trigger
 -- =============================================================================
 -- Reverses migration 195.
 -- IMPORTANT: If any contracts have status = 'terminated' this rollback will

@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — IPv6 Transition Mechanism Validation Schemas
+// VigaBSS 5.0 — IPv6 Transition Mechanism Validation Schemas
 // =============================================================================
 
 const createTransitionMechanism = {

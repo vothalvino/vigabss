@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Maintenance Window Management
+// VigaBSS 5.0 — Maintenance Window Management
 // =============================================================================
 
 import { useState } from 'react';

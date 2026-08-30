@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Regulatory Filing Validation Schemas
+// VigaBSS 5.0 — Regulatory Filing Validation Schemas
 // =============================================================================
 
 const createRegulatoryFiling = {

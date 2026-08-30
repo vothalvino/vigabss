@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Pool Utilization Service
+// VigaBSS 5.0 — Pool Utilization Service
 // =============================================================================
 // Computes IP pool utilization for all active pools across all orgs.
 // Emits ip_pool.threshold events when utilization crosses 75% or 90%,

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Cash Reconciliation Validation Schemas
+// VigaBSS 5.0 — Cash Reconciliation Validation Schemas
 // =============================================================================
 
 const openSessionSchema = {

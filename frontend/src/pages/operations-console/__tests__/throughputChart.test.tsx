@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP Operations Console — ThroughputChart point inspector
+// VigaBSS Operations Console — ThroughputChart point inspector
 // =============================================================================
 // The chart is clickable/hoverable: a crosshair + tooltip shows the bucket's
 // timestamp and ingress/egress rates; click pins the tooltip, Escape releases.

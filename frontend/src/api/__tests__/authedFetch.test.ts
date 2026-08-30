@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — authedFetch regression tests
+// VigaBSS 5.0 — authedFetch regression tests
 // =============================================================================
 // Guards the ClientDetail-breaking bug: the access token lives in memory only
 // and is wiped on every page reload. The REST client silently refreshes on 401

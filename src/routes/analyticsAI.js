@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Analytics AI Routes (§18.4)
+// VigaBSS 5.0 — Analytics AI Routes (§18.4)
 // =============================================================================
 // Heuristic/statistical analytics — NOT real ML model training.
 // Anomaly detection: z-score; churn: rule-based; forecasting: §15 linear regression.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Section 16 Route Tests (Regulatory Compliance — Mexico)
+// VigaBSS 5.0 — Section 16 Route Tests (Regulatory Compliance — Mexico)
 // Covers: /regulatory-compliance, /numbering-management, /universal-service,
 //         /consumer-protection, /data-residency, /audit-logs (export + report-access-logs),
 //         /dsar/requests

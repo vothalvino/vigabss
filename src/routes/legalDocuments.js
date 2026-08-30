@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Legal document templates + on-site signing (migration 447)
+// VigaBSS 5.0 — Legal document templates + on-site signing (migration 447)
 // =============================================================================
 // /document-templates — per-org CRUD of the Markdown legal texts (the ISP's
 //   real PROFECO-registered contrato de adhesión, arrival authorization,

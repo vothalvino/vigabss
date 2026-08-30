@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PROFECO Complaint Route + Service Tests (P3.12)
+// VigaBSS 5.0 — PROFECO Complaint Route + Service Tests (P3.12)
 // =============================================================================
 
 const request = require('supertest');
