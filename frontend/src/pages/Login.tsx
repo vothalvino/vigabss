@@ -7,6 +7,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { BrandLockup } from '@/components/BrandLockup';
 
 export function Login() {
   const { login } = useAuth();
@@ -50,7 +51,7 @@ export function Login() {
         <LanguageSwitcher variant="bar" />
       </div>
       <form style={styles.card} onSubmit={handleSubmit}>
-        <h1 style={styles.title}>{t('login.title')}</h1>
+        <h1 style={styles.title}><BrandLockup size="hero" showVersion /></h1>
         <p style={styles.subtitle}>{t('login.subtitle')}</p>
 
         {error && <div style={styles.error}>{error}</div>}

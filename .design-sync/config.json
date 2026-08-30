@@ -1,9 +1,9 @@
 {
-  "pkg": "@fireisp/ui",
-  "globalName": "FireispUI",
+  "pkg": "@vigabss/ui",
+  "globalName": "VigaBSSUI",
   "projectId": "a1935acd-620b-4770-8173-1779afe9b182",
   "shape": "package",
-  "buildCmd": "npm run build",
+  "buildCmd": "pnpm run build",
   "cssEntry": "dist/index.css",
   "readmeHeader": ".design-sync/conventions.md",
   "docsDir": "../../.design-sync/docs",

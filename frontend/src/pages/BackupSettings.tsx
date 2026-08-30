@@ -384,7 +384,7 @@ export function BackupSettings() {
         </select>
 
         <label style={label}>{t('backups.bucket')}</label>
-        <input style={input} value={form.bucket} onChange={e => set('bucket', e.target.value)} placeholder="fireisp-backups" />
+        <input style={input} value={form.bucket} onChange={e => set('bucket', e.target.value)} placeholder="vigabss-backups" />
 
         <label style={label}>{t('backups.region')}</label>
         <input style={input} value={form.region} onChange={e => set('region', e.target.value)} placeholder={preset.region ?? 'us-east-1'} />

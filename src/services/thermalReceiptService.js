@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS 5.0 — Thermal Receipt Service
+// VigaBSS — Thermal Receipt Service
 // =============================================================================
 // Generates plain-text monospaced receipts for 58mm (32 chars) or
 // 80mm (48 chars) thermal printers.  No new migration needed — reads
@@ -8,6 +8,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const product = require('../product');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -104,7 +105,7 @@ async function generateInvoiceThermalReceipt(invoiceId, { width = 48 } = {}) {
   const D2 = divider(width, '=');
 
   lines.push(D2);
-  lines.push(center(inv.org_name || 'FIREISP', width));
+  lines.push(center(inv.org_name || product.name, width));
   if (inv.org_phone) lines.push(center(inv.org_phone, width));
   if (inv.org_email) lines.push(center(inv.org_email, width));
   lines.push(D2);
@@ -181,7 +182,7 @@ async function generatePaymentThermalReceipt(paymentId, { width = 48 } = {}) {
   const D2 = divider(width, '=');
 
   lines.push(D2);
-  lines.push(center(pay.org_name || 'FIREISP', width));
+  lines.push(center(pay.org_name || product.name, width));
   if (pay.org_phone) lines.push(center(pay.org_phone, width));
   lines.push(D2);
   lines.push(center('PAYMENT RECEIPT / RECIBO', width));

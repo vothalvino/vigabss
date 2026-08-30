@@ -36,6 +36,7 @@ const path = require('path');
 const mysql = require('mysql2/promise');
 const db   = require('../config/database');
 const logger = require('../utils/logger').child({ script: 'rollback' });
+const product = require('../product');
 const { splitStatements } = require('./migrate');
 const { listIsolatedMigrationTargets } = require('../services/tenantDatabaseService');
 
@@ -350,7 +351,7 @@ async function runRollback(inputArgs, options = {}) {
 // ---------------------------------------------------------------------------
 if (require.main === module) {
   const args = parseArgs(process.argv.slice(2));
-  logger.info({ step: args.step, to: args.to, dryRun: args.dryRun }, 'VigaBSS 5.0 — Rolling back migrations');
+  logger.info({ step: args.step, to: args.to, dryRun: args.dryRun }, `${product.displayName} — Rolling back migrations`);
   runRollback(args)
     .then(() => {
       logger.info('Done.');

@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS 5.0 — Server Entry Point
+// VigaBSS — Server Entry Point
 // =============================================================================
 
 require('dotenv').config();
@@ -16,6 +16,7 @@ const snmpTrapReceiver = require('./services/snmpTrapReceiver');
 const radiusServer = require('./services/radiusServerService');
 const wireguardRuntime = require('./services/wireguardRuntimeService');
 const logger = require('./utils/logger');
+const product = require('./product');
 
 async function start() {
   // Validate critical environment variables before anything else
@@ -92,7 +93,7 @@ async function start() {
   }
 
   const server = app.listen(config.port, () => {
-    logger.info({ port: config.port, env: config.env }, 'VigaBSS 5.0 listening');
+    logger.info({ port: config.port, env: config.env, version: product.version }, `${product.displayName} listening`);
   });
 
   // Attach the FireRelay WebSocket tunnel to the HTTP server

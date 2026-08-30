@@ -9,8 +9,9 @@
 // credentials (PR #631).
 //
 // The password now arrives by a channel that is not world-readable: the
-// FIREISP_ADMIN_PASSWORD environment variable (/proc/<pid>/environ is 0400,
-// owner only), or an interactive prompt. The flag still works so existing scripts do not
+// VIGABSS_ADMIN_PASSWORD environment variable (/proc/<pid>/environ is 0400,
+// owner only), or an interactive prompt. The legacy FIREISP_ADMIN_PASSWORD
+// alias and flag still work so existing scripts do not
 // break, but it warns.
 //
 // resolvePassword is exercised for real rather than asserted on as text: the
@@ -54,6 +55,7 @@ function harnessPath() {
 function run(env, file) {
   const clean = { ...process.env };
   delete clean.ADMIN_PASSWORD;
+  delete clean.VIGABSS_ADMIN_PASSWORD;
   delete clean.FIREISP_ADMIN_PASSWORD;
   return spawnSync('node', [file], { env: { ...clean, ...env }, input: '', encoding: 'utf8' });
 }
@@ -62,14 +64,28 @@ describe('the admin CLI takes the password off the command line', () => {
   let file;
   beforeAll(() => { file = harnessPath(); });
 
-  it('prefers FIREISP_ADMIN_PASSWORD from the environment', () => {
-    const r = run({ FIREISP_ADMIN_PASSWORD: 'from-env-123', TEST_ARGS: '{}' }, file);
+  it('prefers VIGABSS_ADMIN_PASSWORD from the environment', () => {
+    const r = run({ VIGABSS_ADMIN_PASSWORD: 'from-env-123', TEST_ARGS: '{}' }, file);
     expect(r.stdout).toContain('RESOLVED:from-env-123');
   });
 
   it('lets the environment win over the deprecated flag', () => {
-    const r = run({ FIREISP_ADMIN_PASSWORD: 'from-env-123', TEST_ARGS: JSON.stringify({ password: 'from-flag' }) }, file);
+    const r = run({ VIGABSS_ADMIN_PASSWORD: 'from-env-123', TEST_ARGS: JSON.stringify({ password: 'from-flag' }) }, file);
     expect(r.stdout).toContain('RESOLVED:from-env-123');
+  });
+
+  it('keeps FIREISP_ADMIN_PASSWORD as a legacy alias', () => {
+    const r = run({ FIREISP_ADMIN_PASSWORD: 'legacy-env-123', TEST_ARGS: '{}' }, file);
+    expect(r.stdout).toContain('RESOLVED:legacy-env-123');
+  });
+
+  it('lets the canonical variable win over the legacy alias', () => {
+    const r = run({
+      VIGABSS_ADMIN_PASSWORD: 'canonical-123',
+      FIREISP_ADMIN_PASSWORD: 'legacy-123',
+      TEST_ARGS: '{}',
+    }, file);
+    expect(r.stdout).toContain('RESOLVED:canonical-123');
   });
 
   it('still accepts --password, so existing scripts keep working', () => {
@@ -86,7 +102,7 @@ describe('the admin CLI takes the password off the command line', () => {
     // A prompt written without this guard blocks forever under cron/CI.
     const r = run({ TEST_ARGS: '{}' }, file);
     expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/FIREISP_ADMIN_PASSWORD/);
+    expect(r.stderr).toMatch(/VIGABSS_ADMIN_PASSWORD/);
   });
 });
 
@@ -99,8 +115,8 @@ describe('the shipped script and its docs agree', () => {
     expect(src).toContain('await resolvePassword(args');
   });
 
-  it('documents FIREISP_ADMIN_PASSWORD in the built-in help', () => {
-    expect(source()).toMatch(/FIREISP_ADMIN_PASSWORD/);
+  it('documents VIGABSS_ADMIN_PASSWORD in the built-in help', () => {
+    expect(source()).toMatch(/VIGABSS_ADMIN_PASSWORD/);
   });
 
   it('does NOT read ADMIN_PASSWORD, which belongs to the seeded account', () => {

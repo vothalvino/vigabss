@@ -46,7 +46,7 @@ const config = {
     level: process.env.LOG_LEVEL || 'debug',
   },
 
-  // CORS — comma-separated allowlist of origins, e.g. "https://app.fireisp.com,https://admin.fireisp.com"
+  // CORS — comma-separated allowlist of origins, e.g. "https://app.vigabss.example,https://admin.vigabss.example"
   corsOrigins: process.env.CORS_ORIGINS || '',
 
   // IP allowlist for admin endpoints — comma-separated IPv4 addresses and/or CIDR ranges.

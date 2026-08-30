@@ -37,6 +37,7 @@ const path = require('path');
 const zlib = require('zlib');
 const { pipeline } = require('stream/promises');
 const logger = require('../utils/logger').child({ script: 'backup' });
+const product = require('../product');
 const cloudStorage = require('../services/cloudStorageService');
 
 const BACKUP_DIR = process.env.BACKUP_DIR
@@ -277,7 +278,7 @@ function rotate() {
 
 // Run when invoked directly
 if (require.main === module) {
-  logger.info('VigaBSS 5.0 — Creating database backup...');
+  logger.info(`${product.displayName} — Creating database backup...`);
   backup().then(() => {
     logger.info('Done.');
     process.exit(0);

@@ -1,5 +1,5 @@
 {{- if .Values.monitoring.enabled -}}
-# VigaBSS 5.0 — Prometheus Alerting Rules
+# VigaBSS 0.1.0-alpha.1 — Prometheus Alerting Rules
 # Managed by Helm chart. Edit values.yaml to toggle.
 # Prerequisites: Prometheus Operator CRDs installed.
 apiVersion: monitoring.coreos.com/v1

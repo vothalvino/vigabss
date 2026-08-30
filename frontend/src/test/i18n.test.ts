@@ -105,7 +105,7 @@ describe('i18n — no orphaned keys in pt-BR.json', () => {
 
 describe('i18n — critical EN values', () => {
   it('login.title is the brand string', () => {
-    expect(enFlat['login.title']).toBe('🔥 VigaBSS 5.0');
+    expect(enFlat['login.title']).toBe('VigaBSS');
   });
   it('common.signIn is "Sign In"', () => {
     expect(enFlat['common.signIn']).toBe('Sign In');

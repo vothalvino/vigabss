@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// VigaBSS 5.0 — Postman Collection Generator
+// VigaBSS — Postman Collection Generator
 // =============================================================================
 // Reads docs/openapi.json and produces docs/postman-collection.json in Postman
 // Collection v2.1 format. Run with: node src/scripts/postman.js
@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger').child({ script: 'postman' });
+const product = require('../product');
 
 const OPENAPI_PATH = path.resolve(__dirname, '../../docs/openapi.json');
 const OUTPUT_PATH = path.resolve(__dirname, '../../docs/postman-collection.json');
@@ -64,10 +65,10 @@ function convertToPostman(spec) {
 
   return {
     info: {
-      name: spec.info.title || 'VigaBSS 5.0 API',
+      name: spec.info.title || `${product.name} API`,
       description: spec.info.description || '',
       schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
-      version: spec.info.version || '5.0.0',
+      version: spec.info.version || product.version,
     },
     auth: {
       type: 'bearer',

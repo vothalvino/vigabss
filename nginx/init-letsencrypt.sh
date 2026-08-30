@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # =============================================================================
-# VigaBSS 5.0 — Let's Encrypt bootstrap
+# VigaBSS 0.1.0-alpha.1 — Let's Encrypt bootstrap
 #
 # Run this ONCE on the host before starting the full production stack.
 # It solves the chicken-and-egg problem: nginx needs TLS certs to start,
 # but Certbot needs a running nginx to answer the HTTP-01 ACME challenge.
 #
 # Strategy:
-#   1. Create a dummy self-signed certificate so nginx can start with the
-#      production config later (it requires the cert files to exist).
+#   1. Reuse an existing complete certificate/key pair, or create a dummy
+#      self-signed pair so nginx can start (it requires both files to exist).
 #   2. Temporarily swap nginx.conf → nginx.bootstrap.conf so nginx can start
 #      WITHOUT the `app` upstream container (open-source nginx resolves
 #      `upstream { server app:3000; }` at startup, which fails with
@@ -67,6 +67,43 @@ DOCKER_COMPOSE_CMD="docker compose -f $COMPOSE_FILE"
 log()  { echo "[$(date '+%H:%M:%S')] $*"; }
 die()  { echo "[ERROR] $*" >&2; exit 1; }
 
+# A rerun must never replace a working production certificate merely to solve
+# the first-install chicken-and-egg problem. Treat one missing/empty half as a
+# recovery condition and fail closed; overwriting the surviving half would make
+# both the original certificate and a later manual recovery harder to trust.
+ensure_tls_bootstrap_certificate() {
+  local cert_dir="$1" cert_domain="$2"
+  local fullchain="$cert_dir/fullchain.pem" privkey="$cert_dir/privkey.pem"
+  local temp_dir
+
+  if [[ -s "$fullchain" && -s "$privkey" ]]; then
+    log "Existing complete TLS certificate/key pair found; preserving it for ACME renewal."
+    return 0
+  fi
+  if [[ -e "$fullchain" || -L "$fullchain" || -e "$privkey" || -L "$privkey" ]]; then
+    echo "[ERROR] TLS files are incomplete in $cert_dir; refusing to overwrite the surviving certificate or key." >&2
+    return 1
+  fi
+
+  mkdir -p "$cert_dir"
+  temp_dir="$(mktemp -d "$cert_dir/.tls-bootstrap-XXXXXX")" || return 1
+  if ! openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+      -keyout "$temp_dir/privkey.pem" \
+      -out "$temp_dir/fullchain.pem" \
+      -subj "/CN=${cert_domain}" 2>/dev/null \
+    || ! install -m 0644 "$temp_dir/fullchain.pem" "$fullchain" \
+    || ! install -m 0640 "$temp_dir/privkey.pem" "$privkey"; then
+    rm -rf -- "$temp_dir"
+    # There was no pre-existing pair on this branch, so removing a partial
+    # install cannot destroy operator data.
+    rm -f -- "$fullchain" "$privkey"
+    echo "[ERROR] Could not create the temporary TLS certificate in $cert_dir." >&2
+    return 1
+  fi
+  rm -rf -- "$temp_dir"
+  log "Dummy certificate created."
+}
+
 # Restore the production nginx.conf if we swapped in the bootstrap one.
 # Idempotent — safe to call multiple times and from the EXIT trap.
 restore_nginx_conf() {
@@ -88,14 +125,9 @@ fi
 
 mkdir -p "$CERTS_DIR" "$LE_DIR"
 
-# ── Step 1: Create dummy self-signed certificate ─────────────────────────────
-log "Creating temporary self-signed certificate for $DOMAIN ..."
-openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
-  -keyout "$CERTS_DIR/privkey.pem" \
-  -out    "$CERTS_DIR/fullchain.pem" \
-  -subj   "/CN=$DOMAIN" \
-  2>/dev/null
-log "Dummy certificate created."
+# ── Step 1: Ensure nginx has a certificate without rotating an existing one ─
+ensure_tls_bootstrap_certificate "$CERTS_DIR" "$DOMAIN" \
+  || die "TLS bootstrap certificate preparation failed; repair the incomplete pair, then rerun."
 
 # =============================================================================
 # ── HOST-NGINX bootstrap path ────────────────────────────────────────────────
@@ -168,7 +200,7 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
 
   # ── Step 5 (host-nginx): Reload host nginx to pick up the real certificate ───
   log "Reloading host nginx with the real certificate ..."
-  nginx -t || die "nginx config test failed after cert install — check /etc/nginx/conf.d/fireisp.conf"
+  nginx -t || die "nginx config test failed after cert install — check the active VigaBSS file in /etc/nginx/conf.d/"
   systemctl reload nginx
   log "Host nginx reloaded."
 

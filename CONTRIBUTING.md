@@ -1,4 +1,4 @@
-# Contributing to VigaBSS 5.0
+# Contributing to VigaBSS 0.1.0-alpha.1
 
 Thank you for your interest in contributing to VigaBSS! This guide will help you get started.
 
@@ -6,7 +6,8 @@ Thank you for your interest in contributing to VigaBSS! This guide will help you
 
 ### Prerequisites
 
-- **Node.js** 18+ (LTS recommended)
+- **Node.js** 24+
+- **pnpm** 10+ (Corepack recommended)
 - **MySQL** 8.0+ or MariaDB 10.6+ (with `event_scheduler=ON`)
 - **Git**
 
@@ -14,30 +15,31 @@ Thank you for your interest in contributing to VigaBSS! This guide will help you
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/vigabss.git
+git clone https://github.com/vothalvino/vigabss.git
 cd vigabss
 
 # Install dependencies
-npm ci
+corepack enable
+pnpm install --frozen-lockfile
 
 # Copy environment config
 cp .env.example .env
 # Edit .env with your database credentials
 
 # Run database migrations
-npm run migrate
+pnpm run migrate
 
 # Seed test data (optional)
-npm run seed
+pnpm run seed
 
 # Start development server (auto-reload)
-npm run dev
+pnpm run dev
 
 # Run tests
-npm test
+pnpm test
 
 # Run linter
-npm run lint
+pnpm run lint
 ```
 
 ### Project Structure
@@ -49,10 +51,8 @@ vigabss/
 │   └── migrations/     # Numbered migration files (150+)
 ├── docs/               # Deployment, RADIUS, API, and Grafana docs
 ├── k8s/                # Kubernetes manifests (deployment, HPA, ingress…)
-├── public/             # Admin dashboard (vanilla HTML/CSS/JS SPA)
-│   ├── index.html      # SPA entry point
-│   ├── css/            # Stylesheets
-│   └── js/             # Client-side JavaScript (56 pages)
+├── frontend/           # React 19 + TypeScript + Vite admin/customer SPA
+├── e2e/                # Playwright end-to-end tests
 ├── src/
 │   ├── app.js          # Express application setup
 │   ├── server.js       # HTTP server entry point
@@ -76,28 +76,28 @@ vigabss/
 - **Multi-org**: All data scoped by `organization_id` via `X-Org-Id` header
 - **RBAC**: Permission-based access control per route
 - **Versioning**: Routes available at both `/api/` and `/api/v1/`
-- **Real-time**: SSE event streams at `/api/events/`
+- **Real-time**: SSE event streams at `/api/v1/events/`
 - **Metrics**: Prometheus at `/metrics`, Grafana templates in `docs/grafana/`
 
 ### Running Tests
 
 ```bash
 # All tests (unit + integration)
-npm test
+pnpm test
 
 # Watch mode
-npm run test:watch
+pnpm run test:watch
 
 # Database integration tests (requires Docker)
-npm run test:db
+pnpm run test:db
 
 # Run a specific test file
-npx jest tests/billingService.test.js --forceExit
+pnpm exec jest tests/billingService.test.js --forceExit
 ```
 
 ### Code Style
 
-- **ESLint** is configured — run `npm run lint` before committing
+- **ESLint** is configured — run `pnpm run lint` before committing
 - No trailing semicolons? Wrong — this project **uses semicolons**
 - Single quotes for strings
 - 2-space indentation
@@ -107,7 +107,7 @@ npx jest tests/billingService.test.js --forceExit
 
 1. **Create a branch** from `main`: `git checkout -b feat/my-feature`
 2. **Write tests first** — all new code needs test coverage
-3. **Run the full suite** before pushing: `npm run lint && npm test`
+3. **Run the full suite** before pushing: `pnpm run lint && pnpm test`
 4. **Keep PRs focused** — one feature or fix per PR
 5. **Update docs** if your change affects the API or configuration
 
@@ -117,17 +117,17 @@ Migrations are numbered SQL files in `database/migrations/`:
 
 ```bash
 # Create a new migration
-touch database/migrations/137_description.sql
+touch database/migrations/463_description.sql
 
 # Apply migrations
-npm run migrate
+pnpm run migrate
 ```
 
 Rules:
 - Always add `IF NOT EXISTS` / `IF EXISTS` guards
 - Include both the forward migration in the file
 - Test with `docker compose -f docker-compose.test.yml up --build`
-- **Always update `database/schema.sql`** — every migration that changes the database structure (new table, altered column, new index, new trigger, etc.) **must** be reflected in `database/schema.sql`. This file is the combined full schema used for fresh installs and developer onboarding. If your migration adds a table, append the `CREATE TABLE` to `schema.sql`; if it alters a column, update the corresponding table definition in `schema.sql`. Alternatively, after applying all migrations on a fresh database you can regenerate it with: `mysqldump -u root -p --no-data fireisp > database/schema.sql`
+- **Always update `database/schema.sql`** — every migration that changes the database structure (new table, altered column, new index, new trigger, etc.) **must** be reflected in `database/schema.sql`. This file is the combined full schema used for fresh installs and developer onboarding. If your migration adds a table, append the `CREATE TABLE` to `schema.sql`; if it alters a column, update the corresponding table definition in `schema.sql`. Alternatively, after applying all migrations on a fresh database you can regenerate it with: `mysqldump -u root -p --no-data vigabss > database/schema.sql` (substitute the configured database name; legacy installs may still use `fireisp`).
 - **Always update `README.md`** — the README contains a **Database Tables** table and **migration notes** that serve as the project's living database reference. If your migration creates a new table, add a row to the Database Tables table. If your migration makes a notable structural change (ALTER TABLE, new trigger, new stored procedure, seed data, etc.), add a migration note blockquote (e.g. `> **Migration NNN — Short description:** ...`) to the README following the existing format.
 
 ### Commit Messages

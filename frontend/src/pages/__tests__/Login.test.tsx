@@ -53,7 +53,9 @@ describe('Login page', () => {
   it('renders the login form', () => {
     mockLogin(vi.fn());
     renderLogin();
-    expect(screen.getByText('🔥 VigaBSS 5.0')).toBeInTheDocument();
+    expect(screen.getByText('VigaBSS')).toBeInTheDocument();
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.getByText('v0.1.0-alpha.1')).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { Table, Badge } from '@fireisp/ui';
+import { Table, Badge } from '@vigabss/ui';
 
 const columns = [
   { key: 'number', header: 'Invoice #' },

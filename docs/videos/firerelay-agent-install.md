@@ -5,7 +5,7 @@
 
 ## Audience
 
-Operators adding a FireRelay worker node to a VigaBSS 5.0 deployment after the primary node approaches capacity.
+Operators adding a FireRelay worker node to a VigaBSS 0.1.0-alpha.1 deployment after the primary node approaches capacity.
 
 ## Key message
 
@@ -36,7 +36,7 @@ On-screen environment:
 
 ```env
 FIRERELAY_MODE=master
-FIRERELAY_NODES=["https://node2.fireisp.com"]
+FIRERELAY_NODES=["https://node2.vigabss.example.com"]
 FIRERELAY_HEALTH_INTERVAL=30000
 FIRERELAY_REQUEST_TIMEOUT=5000
 FIRERELAY_MAX_RETRIES=3
@@ -66,7 +66,7 @@ On-screen environment:
 
 ```env
 FIRERELAY_MODE=worker
-FIRERELAY_MASTER_URL=https://node1.fireisp.com
+FIRERELAY_MASTER_URL=https://node1.vigabss.example.com
 FIRERELAY_NODE_ID=node2
 FIRERELAY_AUTO_INCREMENT_OFFSET=10000001
 FIRERELAY_MAX_CLIENTS=10000
@@ -82,8 +82,8 @@ Narration:
 On-screen checks:
 
 ```bash
-curl https://node2.fireisp.com/api/firerelay/health
-curl https://node1.fireisp.com/api/firerelay/nodes
+curl https://node2.vigabss.example.com/api/v1/firerelay/health
+curl https://node1.vigabss.example.com/api/v1/firerelay/nodes
 ```
 
 ### 6. Operate the cluster safely

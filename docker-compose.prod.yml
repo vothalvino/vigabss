@@ -1,5 +1,5 @@
 # =============================================================================
-# VigaBSS 5.0 — Production docker-compose
+# VigaBSS 0.1.0-alpha.1 — Production docker-compose
 # =============================================================================
 #
 # Services:
@@ -66,6 +66,8 @@ services:
       - backend
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+      # Legacy fallbacks are intentional: established custom env files could
+      # omit these optional keys and already own a `fireisp` database/user.
       MYSQL_DATABASE:      ${DB_NAME:-fireisp}
       MYSQL_USER:          ${DB_USER:-fireisp}
       MYSQL_PASSWORD:      ${DB_PASSWORD:?DB_PASSWORD is required}
@@ -238,14 +240,15 @@ services:
     # deploys, and the machine eventually thrashed hard enough to lock out SSH.
     #
     # CI builds and scans the image, then publishes it (.github/workflows/ci.yml
-    # → container-scan). redeploy.sh pins FIREISP_IMAGE to the exact commit SHA,
+    # → container-scan). redeploy.sh pins VIGABSS_IMAGE (and its FIREISP_IMAGE
+    # compatibility alias) to the exact commit SHA,
     # so what runs here always corresponds to a specific commit — and a rollback
     # is a tag change rather than a rebuild.
     #
     # To build locally instead (dev boxes, air-gapped installs, testing an
     # unmerged commit), add the override that restores the build block:
     #   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml --env-file .env.prod up -d --build
-    image: ${FIREISP_IMAGE:-ghcr.io/vothalvino/vigabss:latest}
+    image: ${VIGABSS_IMAGE:-${FIREISP_IMAGE:-ghcr.io/vothalvino/vigabss:latest}}
     restart: unless-stopped
     # Least privilege: no `user` override means the image's non-root `fireisp`
     # user runs the web/API application with no added Linux capabilities.
@@ -267,6 +270,10 @@ services:
       NODE_ENV:   production
       DB_HOST:    db-primary
       DB_PORT:    3306
+      # Keep the application aligned with the database container even when an
+      # operator omits these optional values from a hand-written env file.
+      DB_USER:    ${DB_USER:-fireisp}
+      DB_NAME:    ${DB_NAME:-fireisp}
       REDIS_URL:  redis://:${REDIS_PASSWORD}@redis:6379
       # Embedded RADIUS server (VigaBSS is the RADIUS server — docs/radius-server.md).
       # Defaults ON in production; set RADIUS_SERVER_ENABLED=false in .env.prod to disable.
@@ -286,16 +293,18 @@ services:
       # new DB setting, then the GUI becomes authoritative.
       WG_LEGACY_SERVER_ENABLED: ${WG_SERVER_ENABLED-__unset__}
       WG_HELPER_SOCKET:      /run/fireisp-wireguard/helper.sock
-      # "A newer release is available" banner for the install operator. ON by
+      # "A newer main build is available" banner for the install operator. ON by
       # default so a fresh install works with no configuration. This is the only
       # outbound request VigaBSS makes on its own behalf: an unauthenticated
       # read of the newest public commit — no install data, no telemetry.
-      # Set FIREISP_UPDATE_CHECK=0 in .env.prod to switch it off.
+      # Set VIGABSS_UPDATE_CHECK=0 in .env.prod to switch it off. The inherited
+      # FIREISP_UPDATE_CHECK spelling remains supported for existing installs.
       #
       # An env var, NOT a row in `settings`, deliberately: only whoever edits
       # .env.prod can change this, which is exactly the install operator. A
       # settings row would be writable by any tenant's admin.
-      FIREISP_UPDATE_CHECK:  ${FIREISP_UPDATE_CHECK:-1}
+      VIGABSS_UPDATE_CHECK:   ${VIGABSS_UPDATE_CHECK:-${FIREISP_UPDATE_CHECK:-1}}
+      FIREISP_UPDATE_CHECK:  ${VIGABSS_UPDATE_CHECK:-${FIREISP_UPDATE_CHECK:-1}}
     volumes:
       # Named volume, NOT a host bind mount: the previous `./storage` bind mount
       # was root-owned on the host, so the non-root `fireisp` container user hit
@@ -335,7 +344,7 @@ services:
   # DB, Redis, JWT, or encryption secrets and accepts only named WireGuard
   # operations over a Unix socket mounted solely into these two containers.
   wireguard-helper:
-    image: ${FIREISP_IMAGE:-ghcr.io/vothalvino/vigabss:latest}
+    image: ${VIGABSS_IMAGE:-${FIREISP_IMAGE:-ghcr.io/vothalvino/vigabss:latest}}
     restart: unless-stopped
     user: "0:0"
     cap_drop:

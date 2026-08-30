@@ -1,4 +1,4 @@
-# VigaBSS 5.0 — Architecture Overview
+# VigaBSS 0.1.0-alpha.1 — Architecture Overview
 
 ## System Architecture
 

@@ -1,6 +1,6 @@
-# VigaBSS 5.0 — Database Test Suite
+# VigaBSS 0.1.0-alpha.1 — Database Test Suite
 
-Comprehensive SQL-based tests for the VigaBSS 5.0 database schema, covering schema integrity, constraints, triggers, seed data, and referential integrity.
+Comprehensive SQL-based tests for the VigaBSS 0.1.0-alpha.1 database schema, covering schema integrity, constraints, triggers, seed data, and referential integrity.
 
 ## Prerequisites
 
@@ -8,8 +8,8 @@ Comprehensive SQL-based tests for the VigaBSS 5.0 database schema, covering sche
 - A **test database** created and schema applied:
 
 ```bash
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS fireisp_test;"
-mysql -u root fireisp_test < database/schema.sql
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS vigabss_test;"
+mysql -u root vigabss_test < database/schema.sql
 ```
 
 ## Running Tests
@@ -17,7 +17,7 @@ mysql -u root fireisp_test < database/schema.sql
 ### Quick start
 
 ```bash
-./tests/run_tests.sh -u root -d fireisp_test
+./tests/run_tests.sh -u root -d vigabss_test
 ```
 
 ### With environment variables
@@ -27,14 +27,14 @@ export MYSQL_HOST=127.0.0.1
 export MYSQL_PORT=3306
 export MYSQL_USER=root
 export MYSQL_PASSWORD=secret
-export MYSQL_DATABASE=fireisp_test
+export MYSQL_DATABASE=vigabss_test
 ./tests/run_tests.sh
 ```
 
 ### Run a single test file
 
 ```bash
-mysql -u root fireisp_test < tests/test_triggers.sql
+mysql -u root vigabss_test < tests/test_triggers.sql
 ```
 
 ## Test Files
@@ -90,7 +90,7 @@ Add to your CI pipeline:
 ```yaml
 - name: Run database tests
   run: |
-    mysql -u root -e "CREATE DATABASE IF NOT EXISTS fireisp_test;"
-    mysql -u root fireisp_test < database/schema.sql
-    ./tests/run_tests.sh -u root -d fireisp_test
+    mysql -u root -e "CREATE DATABASE IF NOT EXISTS vigabss_test;"
+    mysql -u root vigabss_test < database/schema.sql
+    ./tests/run_tests.sh -u root -d vigabss_test
 ```

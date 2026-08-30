@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS 5.0 — Express Application
+// VigaBSS — Express Application
 // =============================================================================
 
 const express = require('express');
@@ -20,6 +20,7 @@ const { csrfOriginCheck } = require('./middleware/csrf');
 const { authenticate } = require('./middleware/auth');
 const { orgScope } = require('./middleware/orgScope');
 const logger = require('./utils/logger');
+const product = require('./product');
 
 // Route imports
 const authRoutes = require('./routes/auth');
@@ -482,7 +483,7 @@ async function snmpTrapHealthCheck() {
 app.get('/health', async (req, res) => {
   const health = {
     status: 'ok',
-    version: '5.0.0',
+    version: product.version,
     uptime: Math.floor((Date.now() - startedAt.getTime()) / 1000),
     relay: relayConfig.mode,
     timestamp: new Date().toISOString(),

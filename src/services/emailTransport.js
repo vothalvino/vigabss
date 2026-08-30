@@ -71,7 +71,7 @@ async function getOrgTransport(organizationId, emailFunction = DEFAULT_FUNCTION)
     port: normalizePort(row.smtp_port, 587),
     secure: Boolean(row.smtp_secure),
     auth: row.smtp_user ? { user: row.smtp_user, pass: password || '' } : undefined,
-    from: formatFrom(row, process.env.SMTP_FROM || 'noreply@fireisp.local'),
+    from: formatFrom(row, process.env.SMTP_FROM || 'noreply@vigabss.local'),
   };
 }
 
@@ -216,7 +216,7 @@ async function sendEmail({
       }
     }
 
-    const fallbackFrom = process.env.SMTP_FROM || 'noreply@fireisp.local';
+    const fallbackFrom = process.env.SMTP_FROM || 'noreply@vigabss.local';
     const tenant = organizationId && !installTransportOnly
       ? await getOrgTransport(organizationId, emailFunction)
       : null;

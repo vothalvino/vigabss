@@ -19,6 +19,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { NavSection } from '@/components/NavSection';
 import { CommandPalette } from '@/components/CommandPalette';
 import { NotificationBell } from '@/components/NotificationBell';
+import { BrandLockup } from '@/components/BrandLockup';
 import {
   SECTIONS,
   WORKSPACES,
@@ -342,7 +343,9 @@ export function Layout() {
       >
         <div className="sidebar-brand">
           <div>
-            <div className="sidebar-brand-name">{t('layout.brandName')}</div>
+            <div className="sidebar-brand-name">
+              <BrandLockup size="compact" showVersion inverse />
+            </div>
             <div className="sidebar-brand-subtitle">{t('layout.sidebarSubtitle')}</div>
           </div>
           <button

@@ -14,7 +14,7 @@ VigaBSS {{ .Chart.AppVersion }} deployed successfully.
   kubectl wait -n {{ .Release.Namespace }} --for=condition=Available deploy/{{ include "fireisp.fullname" . }} --timeout=180s
 
 3. (Optional, development/demo installations only) Seed demo data:
-  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "fireisp.fullname" . }} -- npm run seed
+  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "fireisp.fullname" . }} -- node src/scripts/seed.js
 
 ⚠  IMPORTANT: Replace the placeholder secret values in values.yaml (or a
    sealed-secrets / external-secrets overlay) before going to production.

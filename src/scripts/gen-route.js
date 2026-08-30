@@ -20,6 +20,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const product = require('../product');
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -103,7 +104,7 @@ function generateRouteFile(resource, paths, modelName) {
   const camel = toCamel(resource);
   const lines = [
     '// =============================================================================',
-    `// VigaBSS 5.0 — ${modelName} Routes  [GENERATED — fill in implementation]`,
+    `// ${product.displayName} — ${modelName} Routes  [GENERATED — fill in implementation]`,
     '// =============================================================================',
     '',
     "const { Router } = require('express');",
@@ -164,7 +165,7 @@ function generateRouteFile(resource, paths, modelName) {
 function generateSchemaFile(resource, modelName) {
   return [
     '// =============================================================================',
-    `// VigaBSS 5.0 — ${modelName} Validation Schemas  [GENERATED — fill in fields]`,
+    `// ${product.displayName} — ${modelName} Validation Schemas  [GENERATED — fill in fields]`,
     '// =============================================================================',
     '',
     `const create${modelName} = {`,
@@ -188,7 +189,7 @@ function generateSchemaFile(resource, modelName) {
 function generateTestFile(resource, paths, modelName) {
   const lines = [
     '// =============================================================================',
-    `// VigaBSS 5.0 — ${modelName} Route Tests  [GENERATED stub — fill in test cases]`,
+    `// ${product.displayName} — ${modelName} Route Tests  [GENERATED stub — fill in test cases]`,
     '// =============================================================================',
     '',
     "const request = require('supertest');",

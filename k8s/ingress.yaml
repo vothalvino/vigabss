@@ -17,10 +17,10 @@ spec:
   # Uncomment for TLS:
   # tls:
   #   - hosts:
-  #       - fireisp.example.com
+  #       - vigabss.example.com
   #     secretName: fireisp-tls
   rules:
-    - host: fireisp.example.com
+    - host: vigabss.example.com
       http:
         paths:
           - path: /

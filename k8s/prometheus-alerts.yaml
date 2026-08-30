@@ -1,4 +1,4 @@
-# VigaBSS 5.0 — Prometheus Alerting Rules (P1.8)
+# VigaBSS 0.1.0-alpha.1 — Prometheus Alerting Rules (P1.8)
 #
 # Implements multi-window burn-rate alerts for the three SLOs defined in
 # docs/slo.md:
@@ -239,7 +239,7 @@ spec:
             summary: "VigaBSS process RSS > 1.5 GB"
             description: >
               The VigaBSS Node.js process RSS is {{ $value | humanize1024 }}B.
-              This may indicate a memory leak. Run `npm run loadtest:soak` against
+              This may indicate a memory leak. Run `pnpm run loadtest:soak` against
               a staging instance to confirm. Consider rolling restart if in production.
 
         - alert: VigaBSS_DBConnectionPoolExhausted

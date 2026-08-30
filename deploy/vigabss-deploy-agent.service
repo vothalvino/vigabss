@@ -1,6 +1,6 @@
 [Unit]
 Description=VigaBSS deploy agent — services redeploy requests made from the web GUI
-Documentation=file:///opt/fireisp/docs/deployment.md
+Documentation=file://__VIGABSS_INSTALL_DIR__/docs/deployment.md
 # Docker must be up: the agent talks to MySQL through the compose stack.
 After=docker.service
 Requires=docker.service
@@ -12,13 +12,14 @@ Type=oneshot
 # insert a row; everything that can actually change the running system lives
 # here, on the host, outside Docker.
 User=root
-Environment=FIREISP_DIR=/opt/fireisp
+Environment="VIGABSS_DIR=__VIGABSS_INSTALL_DIR__"
+# Retain the old name for a safe rollback to a FireISP-era deploy-agent.sh.
+Environment="FIREISP_DIR=__VIGABSS_INSTALL_DIR__"
 # Points at the file IN THE REPO, not a copy in /usr/local/bin. A copy is a
-# second thing to keep in step: `redeploy` pulls a fixed agent into
-# /opt/fireisp, the copy stays stale, and the symptom is an agent that silently
-# keeps failing the old way. Running it from the checkout means agent fixes
-# arrive with every deploy, like the rest of the code.
-ExecStart=/opt/fireisp/deploy-agent.sh
+# second thing to keep in step: `redeploy` updates the checkout, while a copy
+# stays stale. Running it from the checkout makes agent fixes arrive with every
+# deploy, like the rest of the code.
+ExecStart="__VIGABSS_INSTALL_DIR__/deploy-agent.sh"
 
 # A deploy pulls an image and waits for the stack to come back. Generous, but
 # bounded — the agent's own one-hour sweep marks anything longer as failed.

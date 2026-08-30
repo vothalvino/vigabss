@@ -1,4 +1,4 @@
-import { Button } from '@fireisp/ui';
+import { Button } from '@vigabss/ui';
 
 const noop = () => {};
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# VigaBSS 5.0 — MySQL Replication Initialisation Script
+# VigaBSS 0.1.0-alpha.1 — MySQL Replication Initialisation Script
 # Runs once inside the db-replica container on first start.
 #
 # What it does:

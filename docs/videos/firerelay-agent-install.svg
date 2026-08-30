@@ -29,7 +29,7 @@
     @keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   </style>
   <rect width="1280" height="720" fill="#07111f"/>
-  <text x="64" y="74" class="brand">FIREISP 5.0</text>
+  <text x="64" y="74" class="brand">VigaBSS 0.1.0-alpha.1</text>
   <text x="64" y="118" class="muted">Production docs walkthrough</text>
   <rect x="64" y="640" width="1152" height="44" rx="22" fill="#0f2035" stroke="#24496f" stroke-width="2"/>
   <rect id="progress" x="120" y="662" width="1040" height="8" rx="4" fill="#ff7a18"/>
@@ -52,7 +52,7 @@
     <text x="64" y="260" class="body">It keeps serving local clients and starts routing.</text>
     <rect x="105" y="300" width="1070" height="250" class="panel"/>
     <text x="145" y="352" class="code">FIRERELAY_MODE=master</text>
-    <text x="145" y="394" class="code">FIRERELAY_NODES=["https://node2.fireisp.com"]</text>
+    <text x="145" y="394" class="code">FIRERELAY_NODES=["https://node2.vigabss.example.com"]</text>
     <text x="145" y="436" class="code">FIRERELAY_HEALTH_INTERVAL=30000</text>
     <text x="145" y="478" class="code">FIRERELAY_REQUEST_TIMEOUT=5000</text>
     <text x="145" y="520" class="code">FIRERELAY_MAX_RETRIES=3</text>
@@ -72,7 +72,7 @@
     <text x="64" y="260" class="body">Set master URL, node ID, and a unique ID range.</text>
     <rect x="96" y="285" width="1088" height="300" class="panel"/>
     <text x="135" y="337" class="code">FIRERELAY_MODE=worker</text>
-    <text x="135" y="379" class="code">FIRERELAY_MASTER_URL=https://node1.fireisp.com</text>
+    <text x="135" y="379" class="code">FIRERELAY_MASTER_URL=https://node1.vigabss.example.com</text>
     <text x="135" y="421" class="code">FIRERELAY_NODE_ID=node2</text>
     <text x="135" y="463" class="code">FIRERELAY_AUTO_INCREMENT_OFFSET=10000001</text>
     <text x="135" y="505" class="code">FIRERELAY_MAX_CLIENTS=10000</text>
@@ -87,7 +87,7 @@
     <line x1="430" y1="400" x2="825" y2="400" class="line"/>
     <rect x="835" y="335" width="270" height="130" class="node"/>
     <text x="904" y="410" class="small">Worker</text>
-    <text x="262" y="530" class="code">GET /api/firerelay/health → active</text>
+    <text x="262" y="530" class="code">GET /api/v1/firerelay/health → active</text>
   </g>
 
   <g id="s6" class="scene">

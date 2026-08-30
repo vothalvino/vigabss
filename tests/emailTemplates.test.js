@@ -3,6 +3,7 @@
 // =============================================================================
 
 const templates = require('../src/views/emailTemplates');
+const product = require('../src/product');
 
 describe('Email Templates', () => {
   describe('baseLayout()', () => {
@@ -10,7 +11,7 @@ describe('Email Templates', () => {
       const html = templates.baseLayout('<p>Hello</p>');
       expect(html).toContain('<!DOCTYPE html>');
       expect(html).toContain('<p>Hello</p>');
-      expect(html).toContain('Powered by VigaBSS 5.0');
+      expect(html).toContain(`Powered by ${product.displayName}`);
     });
 
     it('accepts custom footer text', () => {

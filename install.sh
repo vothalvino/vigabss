@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# VigaBSS 5.0 — One-line Installer
+# VigaBSS 0.1.0-alpha.1 — One-line Installer
 # =============================================================================
 #
 # Usage:
@@ -12,7 +12,8 @@
 # Full variable reference:
 #   DOMAIN              Public domain name (e.g. isp.example.com)
 #   EMAIL               Email for Let's Encrypt + admin account
-#   INSTALL_DIR         Target install directory (default: /opt/fireisp)
+#   INSTALL_DIR         Target install directory (default: /opt/vigabss;
+#                       an existing /opt/fireisp install is reused automatically)
 #   SKIP_TLS            Set to 1 to use a self-signed cert instead of Let's Encrypt
 #   DB_PASSWORD         MySQL app user password     (auto-generated if omitted)
 #   DB_ROOT_PASSWORD    MySQL root password          (auto-generated if omitted)
@@ -29,8 +30,77 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/vothalvino/vigabss.git"
-FIREISP_VERSION="5.0"
-INSTALL_DIR="${INSTALL_DIR:-/opt/fireisp}"
+VIGABSS_VERSION="0.1.0-alpha.1"
+
+# New installations use the VigaBSS path. An upgrade must not silently create a
+# second stack beside an existing FireISP-era checkout: that would reuse neither
+# its secrets nor its database volume and would then collide on ports 80/443.
+# An explicit INSTALL_DIR always wins. With no override, reuse exactly one
+# detected install; if both paths look live, fail closed instead of guessing
+# which stack owns the production secrets, volumes and ports.
+install_dir_present() {
+  local dir="$1"
+  [[ -d "$dir/.git" || -f "$dir/.env.prod" || -f "$dir/docker-compose.prod.yml" ]]
+}
+
+normalize_install_dir() {
+  local dir="$1"
+
+  if [[ "$dir" != /* ]]; then
+    echo "error: INSTALL_DIR must be an absolute path (received: $dir)." >&2
+    return 1
+  fi
+  while [[ "$dir" != "/" && "$dir" == */ ]]; do
+    dir="${dir%/}"
+  done
+  if [[ "$dir" == "/" ]]; then
+    echo "error: INSTALL_DIR=/ is unsafe; choose a dedicated directory such as /opt/vigabss." >&2
+    return 1
+  fi
+  if [[ "$dir" == *"//"* || "$dir" == *"/./"* || "$dir" == *"/../"* \
+        || "$dir" == */. || "$dir" == */.. ]]; then
+    echo "error: INSTALL_DIR must not contain empty, '.' or '..' path components (received: $dir)." >&2
+    return 1
+  fi
+  # Management wrappers embed this path into generated shell commands and
+  # systemd directives. Explicitly reject whitespace and shell metacharacters
+  # instead of producing a wrapper that splits or executes unintended text.
+  if [[ ! "$dir" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+    echo "error: INSTALL_DIR may contain only ASCII letters, numbers, '/', '.', '_' and '-' (received: $dir)." >&2
+    return 1
+  fi
+
+  printf '%s' "$dir"
+}
+
+select_install_dir() {
+  local requested="$1" canonical="$2" legacy="$3"
+  local canonical_present=0 legacy_present=0 selected
+
+  if [[ -n "$requested" ]]; then
+    normalize_install_dir "$requested"
+    return
+  fi
+
+  install_dir_present "$canonical" && canonical_present=1
+  install_dir_present "$legacy" && legacy_present=1
+  if (( canonical_present && legacy_present )); then
+    echo "error: both $canonical and $legacy look like VigaBSS installs." >&2
+    echo "       Set INSTALL_DIR explicitly to the production install you intend to update." >&2
+    return 1
+  elif (( canonical_present )); then
+    selected="$canonical"
+  elif (( legacy_present )); then
+    selected="$legacy"
+  else
+    selected="$canonical"
+  fi
+  normalize_install_dir "$selected"
+}
+
+if ! INSTALL_DIR="$(select_install_dir "${INSTALL_DIR:-}" /opt/vigabss /opt/fireisp)"; then
+  exit 1
+fi
 ENV_FILE="$INSTALL_DIR/.env.prod"
 
 # ── Colour helpers ─────────────────────────────────────────────────────────────
@@ -41,6 +111,38 @@ log()  { echo -e "${GREEN}[✓]${RESET} $*"; }
 info() { echo -e "${BLUE}[i]${RESET} $*"; }
 warn() { echo -e "${YELLOW}[!]${RESET} $*"; }
 die()  { echo -e "${RED}[✗]${RESET} $*" >&2; exit 1; }
+
+# Host nginx loads its TLS key while `nginx -t` parses the candidate config.
+# On a fresh install those files do not exist until the later ACME/self-signed
+# phase, so create a one-day bootstrap pair first. Never overwrite half of an
+# existing pair: that may be the only recoverable production certificate/key.
+HOST_NGINX_BOOTSTRAP_CREATED=0
+ensure_host_nginx_bootstrap_certificate() {
+  local cert_dir="$1" cert_domain="$2"
+  local fullchain="$cert_dir/fullchain.pem" privkey="$cert_dir/privkey.pem"
+
+  if [[ -s "$fullchain" && -s "$privkey" ]]; then
+    return 0
+  fi
+  if [[ -e "$fullchain" || -L "$fullchain" || -e "$privkey" || -L "$privkey" ]]; then
+    echo "Host-nginx TLS files are incomplete in $cert_dir; refusing to overwrite the surviving certificate or key." >&2
+    return 1
+  fi
+
+  mkdir -p "$cert_dir"
+  if ! openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+      -keyout "$privkey" \
+      -out "$fullchain" \
+      -subj "/CN=${cert_domain}" 2>/dev/null; then
+    rm -f -- "$fullchain" "$privkey"
+    echo "Could not create the temporary host-nginx TLS certificate in $cert_dir." >&2
+    return 1
+  fi
+  chmod 644 "$fullchain"
+  chmod 640 "$privkey"
+  HOST_NGINX_BOOTSTRAP_CREATED=1
+  log "Temporary host-nginx TLS certificate created for configuration validation."
+}
 
 # ── Root / sudo check ──────────────────────────────────────────────────────────
 if [[ "$EUID" -ne 0 ]]; then
@@ -59,9 +161,9 @@ if [[ -z "${STY:-}" && -z "${TMUX:-}" ]]; then
   warn "the process will be killed before it completes."
   warn ""
   warn "It is strongly recommended to run the installer inside screen or tmux:"
-  warn "  screen -S fireisp"
+  warn "  screen -S vigabss"
   warn "  # or"
-  warn "  tmux new -s fireisp"
+  warn "  tmux new -s vigabss"
   warn ""
   warn "Press Ctrl-C within 15 seconds to abort, or wait to continue anyway..."
   sleep 15 || true
@@ -240,8 +342,8 @@ get_env_value() {
   if [[ "$compose_help" == *"--environment"* ]]; then
     if ! rendered="$(
       unset "$key"
-      printf 'services:\n  env-reader:\n    image: scratch\n    environment:\n      FIREISP_ENV_VALUE: ${%s}\n' "$key" \
-        | docker compose --project-name fireisp-env-reader --env-file "$file" -f - \
+      printf 'services:\n  env-reader:\n    image: scratch\n    environment:\n      VIGABSS_ENV_VALUE: ${%s}\n' "$key" \
+        | docker compose --project-name vigabss-env-reader --env-file "$file" -f - \
             config --environment 2>/dev/null
     )"; then
       return 2
@@ -291,6 +393,30 @@ get_env_value() {
   fi
   [[ "$found" -eq 1 ]] || return 1
   printf '%s' "$value"
+}
+
+# Read a renamed installer setting without abandoning existing installations.
+# The VIGABSS_* spelling is authoritative when both are present; a missing new
+# key falls back to its FIREISP_* predecessor. Parse/format errors are preserved
+# so callers still fail closed instead of guessing at a secrets file.
+get_compatible_env_value() {
+  local file="$1" primary="$2" legacy="$3" value status=0
+  value="$(get_env_value "$file" "$primary")" || status=$?
+  if [[ "$status" -eq 0 ]]; then
+    printf '%s' "$value"
+    return 0
+  fi
+  [[ "$status" -eq 1 ]] || return "$status"
+  get_env_value "$file" "$legacy"
+}
+
+normalize_boolean_value() {
+  local value="${1,,}"
+  case "$value" in
+    1|true|yes|on)  printf '1' ;;
+    0|false|no|off) printf '0' ;;
+    *) return 1 ;;
+  esac
 }
 
 # Atomically append an authoritative final assignment for one key. Compose uses
@@ -392,12 +518,7 @@ gen_udp_port() {
 # ── Banner ─────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BLUE}${BOLD}"
-echo "  ███████╗██╗██████╗ ███████╗    ██╗███████╗██████╗"
-echo "  ██╔════╝██║██╔══██╗██╔════╝    ██║██╔════╝██╔══██╗"
-echo "  █████╗  ██║██████╔╝█████╗      ██║███████╗██████╔╝"
-echo "  ██╔══╝  ██║██╔══██╗██╔══╝      ██║╚════██║██╔═══╝"
-echo "  ██║     ██║██║  ██║███████╗    ██║███████║██║"
-echo "  ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝╚══════╝╚═╝  v${FIREISP_VERSION}"
+echo "  VigaBSS  v${VIGABSS_VERSION}"
 echo -e "${RESET}"
 echo "  Open-source ISP Management Software"
 echo ""
@@ -415,6 +536,8 @@ echo ""
 REUSE_EXISTING_ENV=0
 ENV_UPDATE_BACKUP=""
 SAVED_BOOTSTRAP_STATE=""
+SAVED_HOST_NGINX=""
+HOST_NGINX_TOPOLOGY_PERSISTED=0
 
 # Losing .env.prod does not make an initialized MySQL volume fresh: the official
 # image ignores new initialization passwords once its data directory exists.
@@ -423,13 +546,13 @@ SAVED_BOOTSTRAP_STATE=""
 # run may have been interrupted between `git clone` and env creation.
 _INSTALL_BASENAME="${INSTALL_DIR%/}"
 _INSTALL_BASENAME="${_INSTALL_BASENAME##*/}"
-_COMPOSE_PROJECT_GUESS="${COMPOSE_PROJECT_NAME:-${_INSTALL_BASENAME:-fireisp}}"
+_COMPOSE_PROJECT_GUESS="${COMPOSE_PROJECT_NAME:-${_INSTALL_BASENAME:-vigabss}}"
 _COMPOSE_PROJECT_GUESS="${_COMPOSE_PROJECT_GUESS,,}"
 _COMPOSE_PROJECT_GUESS="${_COMPOSE_PROJECT_GUESS//[^a-z0-9_-]/}"
 while [[ "$_COMPOSE_PROJECT_GUESS" == [-_]* ]]; do
   _COMPOSE_PROJECT_GUESS="${_COMPOSE_PROJECT_GUESS:1}"
 done
-_COMPOSE_PROJECT_GUESS="${_COMPOSE_PROJECT_GUESS:-fireisp}"
+_COMPOSE_PROJECT_GUESS="${_COMPOSE_PROJECT_GUESS:-vigabss}"
 _DB_VOLUME_GUESS="${_COMPOSE_PROJECT_GUESS}_db_primary_data"
 _DB_CONTAINER_IDS="$(docker ps -aq \
   --filter "label=com.docker.compose.project.working_dir=$INSTALL_DIR" \
@@ -469,15 +592,31 @@ if [[ -f "$ENV_FILE" ]]; then
   fi
 
   _BOOTSTRAP_STATE_STATUS=0
-  SAVED_BOOTSTRAP_STATE="$(get_env_value "$ENV_FILE" FIREISP_BOOTSTRAP_STATE)" \
+  SAVED_BOOTSTRAP_STATE="$(get_compatible_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE FIREISP_BOOTSTRAP_STATE)" \
     || _BOOTSTRAP_STATE_STATUS=$?
   if [[ "$_BOOTSTRAP_STATE_STATUS" -eq 0 ]]; then
     case "$SAVED_BOOTSTRAP_STATE" in
       pending|seeded|complete) ;;
-      *) die "Existing $ENV_FILE has an invalid FIREISP_BOOTSTRAP_STATE value." ;;
+      *) die "Existing $ENV_FILE has an invalid VIGABSS_BOOTSTRAP_STATE (or legacy FIREISP_BOOTSTRAP_STATE) value." ;;
     esac
   elif [[ "$_BOOTSTRAP_STATE_STATUS" -ge 2 ]]; then
-    die "Docker Compose could not safely resolve FIREISP_BOOTSTRAP_STATE from $ENV_FILE.
+    die "Docker Compose could not safely resolve VIGABSS_BOOTSTRAP_STATE/FIREISP_BOOTSTRAP_STATE from $ENV_FILE.
+  Upgrade Compose to 2.27.2 or newer if the file uses quotes/interpolation."
+  fi
+
+  # Topology is persistent state just like the database credentials. Read it
+  # before SKIP_TLS and port-ownership heuristics so a rerun cannot silently
+  # switch an established host-nginx install back to the Docker proxy (or vice
+  # versa). The canonical spelling wins; legacy files remain readable.
+  _HOST_NGINX_STATE_STATUS=0
+  _SAVED_HOST_NGINX_RAW="$(get_compatible_env_value "$ENV_FILE" VIGABSS_HOST_NGINX FIREISP_HOST_NGINX)" \
+    || _HOST_NGINX_STATE_STATUS=$?
+  if [[ "$_HOST_NGINX_STATE_STATUS" -eq 0 ]]; then
+    SAVED_HOST_NGINX="$(normalize_boolean_value "$_SAVED_HOST_NGINX_RAW")" \
+      || die "Existing $ENV_FILE has an invalid VIGABSS_HOST_NGINX (or legacy FIREISP_HOST_NGINX) value. Use 1 or 0."
+    HOST_NGINX_TOPOLOGY_PERSISTED=1
+  elif [[ "$_HOST_NGINX_STATE_STATUS" -ge 2 ]]; then
+    die "Docker Compose could not safely resolve VIGABSS_HOST_NGINX/FIREISP_HOST_NGINX from $ENV_FILE.
   Upgrade Compose to 2.27.2 or newer if the file uses quotes/interpolation."
   fi
 
@@ -503,7 +642,7 @@ prompt EMAIL  "Admin email address (used for Let's Encrypt and first-run account
 
 SKIP_TLS="${SKIP_TLS:-0}"
 if [[ "$SKIP_TLS" == "1" ]]; then
-  warn "SKIP_TLS=1 — a self-signed certificate will be used (not trusted by browsers)."
+  warn "SKIP_TLS=1 — ACME issuance is skipped; an existing pair is retained, otherwise a self-signed certificate is used."
 else
   info "TLS: Let's Encrypt certificate will be obtained for ${DOMAIN}."
   info "     The domain must resolve to this server's public IP before continuing."
@@ -516,24 +655,46 @@ echo ""
 # This is required when another service already binds port 80 on the host
 # (e.g. a pre-existing system nginx, Apache, or another Docker container),
 # preventing the bundled Docker nginx service from starting.
-USE_HOST_NGINX="${USE_HOST_NGINX:-0}"
-
-if [[ "$USE_HOST_NGINX" != "1" && "$SKIP_TLS" != "1" ]]; then
-  # Auto-detect: if port 80 is occupied by something that is NOT docker-proxy
-  # (i.e. not our own Docker nginx container), switch to host-nginx mode.
-  # Use :[[:space:]] to anchor the match so we do not accidentally match
-  # port 8080 (which would appear as ":8080 ") — the target pattern is
-  # specifically ":80 " (colon-80-space) as formatted by ss and netstat.
-  _port80_owner=""
-  if command -v ss >/dev/null 2>&1; then
-    _port80_owner=$(ss -tlnp 2>/dev/null | awk '$4 ~ /:80$/ || $4 ~ /:80 /' | grep -v docker-proxy | head -1 || true)
-  elif command -v netstat >/dev/null 2>&1; then
-    _port80_owner=$(netstat -tlnp 2>/dev/null | awk '$4 ~ /:80$/ || $4 ~ /:80 /' | grep -v docker-proxy | head -1 || true)
+_REQUESTED_USE_HOST_NGINX="${USE_HOST_NGINX:-}"
+if (( HOST_NGINX_TOPOLOGY_PERSISTED )); then
+  if [[ -n "$_REQUESTED_USE_HOST_NGINX" ]]; then
+    _NORMALIZED_REQUESTED_HOST_NGINX="$(normalize_boolean_value "$_REQUESTED_USE_HOST_NGINX")" \
+      || die "USE_HOST_NGINX must be a recognised boolean (1/0, true/false, yes/no, on/off)."
+    if [[ "$_NORMALIZED_REQUESTED_HOST_NGINX" != "$SAVED_HOST_NGINX" ]]; then
+      warn "Ignoring USE_HOST_NGINX=${_REQUESTED_USE_HOST_NGINX}: this install keeps its persisted topology (${SAVED_HOST_NGINX})."
+    fi
   fi
-  if [[ -n "$_port80_owner" ]]; then
-    warn "Port 80 is already in use (not by Docker): $_port80_owner"
-    warn "Enabling host-nginx mode to avoid port conflict."
+  USE_HOST_NGINX="$SAVED_HOST_NGINX"
+elif [[ -n "$_REQUESTED_USE_HOST_NGINX" ]]; then
+  USE_HOST_NGINX="$(normalize_boolean_value "$_REQUESTED_USE_HOST_NGINX")" \
+    || die "USE_HOST_NGINX must be a recognised boolean (1/0, true/false, yes/no, on/off)."
+else
+  USE_HOST_NGINX=0
+fi
+
+if (( ! HOST_NGINX_TOPOLOGY_PERSISTED )) && [[ "$USE_HOST_NGINX" != "1" ]]; then
+  # Config-file detection is topology evidence even with SKIP_TLS=1. This is
+  # the compatibility path for installs created before the env marker existed.
+  if [[ -f /etc/nginx/conf.d/vigabss.conf || -f /etc/nginx/conf.d/fireisp.conf ]]; then
     USE_HOST_NGINX=1
+    info "Existing VigaBSS host-nginx configuration detected; preserving host-nginx mode."
+  elif [[ "$SKIP_TLS" != "1" ]]; then
+    # Auto-detect: if port 80 is occupied by something that is NOT docker-proxy
+    # (i.e. not our own Docker nginx container), switch to host-nginx mode.
+    # Use :[[:space:]] to anchor the match so we do not accidentally match
+    # port 8080 (which would appear as ":8080 ") — the target pattern is
+    # specifically ":80 " (colon-80-space) as formatted by ss and netstat.
+    _port80_owner=""
+    if command -v ss >/dev/null 2>&1; then
+      _port80_owner=$(ss -tlnp 2>/dev/null | awk '$4 ~ /:80$/ || $4 ~ /:80 /' | grep -v docker-proxy | head -1 || true)
+    elif command -v netstat >/dev/null 2>&1; then
+      _port80_owner=$(netstat -tlnp 2>/dev/null | awk '$4 ~ /:80$/ || $4 ~ /:80 /' | grep -v docker-proxy | head -1 || true)
+    fi
+    if [[ -n "$_port80_owner" ]]; then
+      warn "Port 80 is already in use (not by Docker): $_port80_owner"
+      warn "Enabling host-nginx mode to avoid port conflict."
+      USE_HOST_NGINX=1
+    fi
   fi
 fi
 
@@ -616,7 +777,7 @@ else
     || die "Cannot create a secure temporary environment file."
   cat > "$_NEW_ENV_TEMP" <<ENVEOF
 # =============================================================================
-# VigaBSS 5.0 — Production environment
+# VigaBSS 0.1.0-alpha.1 — Production environment
 # Generated by install.sh on $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 # ⚠  Keep this file secret — never commit it to version control.
 # =============================================================================
@@ -629,7 +790,7 @@ LOG_LEVEL=info
 
 # Deployment topology selected by the installer. redeploy.sh reads this so an
 # install using host nginx never later tries to bind a Docker nginx to 80/443.
-FIREISP_HOST_NGINX=${USE_HOST_NGINX}
+VIGABSS_HOST_NGINX=${USE_HOST_NGINX}
 
 # ---- TLS / Let's Encrypt -----------------------------------------------------
 DOMAIN=${DOMAIN}
@@ -638,9 +799,9 @@ CERTBOT_EMAIL=${EMAIL}
 # ---- MySQL -------------------------------------------------------------------
 DB_HOST=db-primary
 DB_PORT=3306
-DB_USER=fireisp
+DB_USER=vigabss
 DB_PASSWORD=${DB_PASSWORD}
-DB_NAME=fireisp
+DB_NAME=vigabss
 DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
 
 # MySQL replication
@@ -674,7 +835,7 @@ ADMIN_PASSWORD=${ADMIN_PASSWORD}
 # Installer bootstrap state. `pending` makes an interrupted post-migration run
 # resume the idempotent initial seed; install.sh advances this to `seeded`, then
 # `complete` only after it has displayed the one-time login instructions.
-FIREISP_BOOTSTRAP_STATE=pending
+VIGABSS_BOOTSTRAP_STATE=pending
 
 # ---- SMTP (configure after install) ------------------------------------------
 SMTP_HOST=localhost
@@ -724,8 +885,9 @@ fi
 # environment exist. These used to be installed only after app readiness, so
 # an interrupted install could leave a usable/recovered stack with the exact
 # advertised command (`sudo redeploy`) missing.
-FIREISP_BIN="/usr/local/bin/fireisp"
-info "Installing fireisp CLI wrapper at $FIREISP_BIN ..."
+VIGABSS_BIN="/usr/local/bin/vigabss"
+LEGACY_FIREISP_BIN="/usr/local/bin/fireisp"
+info "Installing VigaBSS CLI wrapper at $VIGABSS_BIN ..."
 
 if [[ "$USE_HOST_NGINX" == "1" ]]; then
   _COMPOSE_CMD="docker compose -f $INSTALL_DIR/docker-compose.prod.yml -f $INSTALL_DIR/docker-compose.host-nginx.yml --env-file $ENV_FILE"
@@ -733,34 +895,45 @@ else
   _COMPOSE_CMD="docker compose -f $INSTALL_DIR/docker-compose.prod.yml --env-file $ENV_FILE"
 fi
 
-cat > "$FIREISP_BIN" <<WRAPEOF
+cat > "$VIGABSS_BIN" <<WRAPEOF
 #!/usr/bin/env bash
-# VigaBSS 5.0 management wrapper — generated by install.sh
-# Usage: fireisp <docker compose subcommand>
-#   fireisp logs -f
-#   fireisp ps
-#   fireisp restart
-#   fireisp down
-#   fireisp pull && fireisp up -d
-#   fireisp exec app bash
+# VigaBSS 0.1.0-alpha.1 management wrapper — generated by install.sh
+# Usage: vigabss <docker compose subcommand>
+#   vigabss logs -f
+#   vigabss ps
+#   vigabss restart
+#   vigabss down
+#   vigabss pull && vigabss up -d
+#   vigabss exec app bash
 exec ${_COMPOSE_CMD} "\$@"
 WRAPEOF
 
-chmod +x "$FIREISP_BIN"
-log "fireisp CLI wrapper installed. Run 'fireisp --help' to get started."
+chmod +x "$VIGABSS_BIN"
+
+# Keep the old command as an alias so existing automation and operator muscle
+# memory continue to work. Both names execute the one canonical wrapper, so the
+# compatibility path cannot drift.
+if [[ -d "$LEGACY_FIREISP_BIN" && ! -L "$LEGACY_FIREISP_BIN" ]]; then
+  warn "Cannot retain the legacy 'fireisp' alias because $LEGACY_FIREISP_BIN is a directory."
+else
+  ln -sfn "$VIGABSS_BIN" "$LEGACY_FIREISP_BIN"
+  info "Legacy 'fireisp' command retained as an alias to 'vigabss'."
+fi
+log "VigaBSS CLI installed. Run 'vigabss --help' to get started."
 
 # A wrapper, not a copy: every invocation executes the redeploy logic from the
-# current checkout. Pinning FIREISP_DIR here also survives sudo's default
-# environment reset and keeps non-default install paths working.
+# current checkout. Pinning VIGABSS_DIR here also survives sudo's default
+# environment reset and keeps non-default install paths working. FIREISP_DIR is
+# passed too for a rollback to an older redeploy.sh.
 REDEPLOY_BIN="/usr/local/bin/redeploy"
 if [[ -f "$INSTALL_DIR/redeploy.sh" ]]; then
   info "Installing redeploy command at $REDEPLOY_BIN ..."
   cat > "$REDEPLOY_BIN" <<REDEPLOYEOF
 #!/usr/bin/env bash
-# VigaBSS 5.0 redeploy wrapper — generated by install.sh
+# VigaBSS 0.1.0-alpha.1 redeploy wrapper — generated by install.sh
 #   sudo redeploy              # deploy the current main
 #   sudo redeploy <commit-sha> # roll back to an earlier published build
-exec env FIREISP_DIR="$INSTALL_DIR" "$INSTALL_DIR/redeploy.sh" "\$@"
+exec env VIGABSS_DIR="$INSTALL_DIR" FIREISP_DIR="$INSTALL_DIR" "$INSTALL_DIR/redeploy.sh" "\$@"
 REDEPLOYEOF
   chmod +x "$REDEPLOY_BIN"
   log "redeploy installed. Update any time with: sudo redeploy"
@@ -787,6 +960,12 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
   # ACME challenge files here; host nginx reads them to answer HTTP-01).
   mkdir -p "$INSTALL_DIR/nginx/certbot-www/.well-known/acme-challenge"
 
+  # nginx -t below parses ssl_certificate/ssl_certificate_key immediately.
+  # Seed only a genuinely fresh install; the TLS phase later replaces this
+  # one-day pair with Let's Encrypt or the requested self-signed certificate.
+  ensure_host_nginx_bootstrap_certificate "$INSTALL_DIR/nginx/certs" "$DOMAIN" \
+    || die "Host-nginx TLS bootstrap could not be prepared. The existing nginx configuration was not changed."
+
   # Expand the __INSTALL_DIR__ placeholder in host-nginx.conf and install it
   # into conf.d/ rather than sites-available/ because this file contains
   # http-level directives (upstream, limit_req_zone, server{}) that must be
@@ -794,25 +973,73 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
   # inside its http{} block.
   HOST_NGINX_CONF_SRC="$INSTALL_DIR/nginx/host-nginx.conf"
   [[ -f "$HOST_NGINX_CONF_SRC" ]] || die "Missing $HOST_NGINX_CONF_SRC — repository may be incomplete."
-  sed "s|__INSTALL_DIR__|$INSTALL_DIR|g" "$HOST_NGINX_CONF_SRC" \
-    > /etc/nginx/conf.d/fireisp.conf
+  HOST_NGINX_CONF_DST="/etc/nginx/conf.d/vigabss.conf"
+  LEGACY_HOST_NGINX_CONF="/etc/nginx/conf.d/fireisp.conf"
+  HOST_NGINX_CONF_BACKUP=""
+  LEGACY_HOST_NGINX_BACKUP=""
+  HOST_NGINX_BACKUP_SUFFIX="$(date -u '+%Y%m%d%H%M%S')-$$"
+  HOST_NGINX_CONF_TEMP="$(mktemp /etc/nginx/conf.d/.vigabss-rendered-XXXXXX)" \
+    || die "Cannot create a temporary nginx configuration."
+  HOST_NGINX_CONF_CONTENT="$(<"$HOST_NGINX_CONF_SRC")"
+  HOST_NGINX_CONF_CONTENT="${HOST_NGINX_CONF_CONTENT//__INSTALL_DIR__/$INSTALL_DIR}"
+  if ! printf '%s\n' "$HOST_NGINX_CONF_CONTENT" > "$HOST_NGINX_CONF_TEMP"; then
+    rm -f -- "$HOST_NGINX_CONF_TEMP"
+    die "Could not render $HOST_NGINX_CONF_SRC. The existing nginx configuration was not changed."
+  fi
 
-  # Disable the nginx default site to avoid conflicts on port 80/443.
-  rm -f /etc/nginx/sites-enabled/default
+  # Loading both files would define the same listeners twice. Move the legacy
+  # config out of nginx's *.conf include set. Existing canonical and legacy
+  # files both get recoverable backups until the newly rendered config passes
+  # validation, so a bad update cannot erase a working proxy configuration.
+  if [[ -f "$HOST_NGINX_CONF_DST" ]]; then
+    HOST_NGINX_CONF_BACKUP="${HOST_NGINX_CONF_DST}.pre-vigabss-${HOST_NGINX_BACKUP_SUFFIX}"
+    mv -- "$HOST_NGINX_CONF_DST" "$HOST_NGINX_CONF_BACKUP"
+  fi
+  if [[ -f "$LEGACY_HOST_NGINX_CONF" ]]; then
+    LEGACY_HOST_NGINX_BACKUP="${LEGACY_HOST_NGINX_CONF}.pre-vigabss-${HOST_NGINX_BACKUP_SUFFIX}"
+    mv -- "$LEGACY_HOST_NGINX_CONF" "$LEGACY_HOST_NGINX_BACKUP"
+  fi
+  if ! install -m 0644 "$HOST_NGINX_CONF_TEMP" "$HOST_NGINX_CONF_DST"; then
+    rm -f -- "$HOST_NGINX_CONF_TEMP"
+    [[ -z "$HOST_NGINX_CONF_BACKUP" ]] || mv -- "$HOST_NGINX_CONF_BACKUP" "$HOST_NGINX_CONF_DST"
+    [[ -z "$LEGACY_HOST_NGINX_BACKUP" ]] || mv -- "$LEGACY_HOST_NGINX_BACKUP" "$LEGACY_HOST_NGINX_CONF"
+    die "Could not install $HOST_NGINX_CONF_DST. The previous nginx configuration was restored."
+  fi
+  rm -f -- "$HOST_NGINX_CONF_TEMP"
 
   # Validate the generated nginx config.
-  nginx -t || die "Generated nginx configuration is invalid.
-  Check /etc/nginx/conf.d/fireisp.conf and fix any errors."
+  if ! nginx -t; then
+    rm -f -- "$HOST_NGINX_CONF_DST"
+    if [[ -n "$HOST_NGINX_CONF_BACKUP" && -f "$HOST_NGINX_CONF_BACKUP" ]]; then
+      mv -- "$HOST_NGINX_CONF_BACKUP" "$HOST_NGINX_CONF_DST"
+    fi
+    if [[ -n "$LEGACY_HOST_NGINX_BACKUP" && -f "$LEGACY_HOST_NGINX_BACKUP" ]]; then
+      mv -- "$LEGACY_HOST_NGINX_BACKUP" "$LEGACY_HOST_NGINX_CONF"
+    fi
+    die "Generated nginx configuration is invalid. The previous configuration was restored.
+  Check $HOST_NGINX_CONF_SRC and fix any errors."
+  fi
 
-  log "Host nginx configured (/etc/nginx/conf.d/fireisp.conf)."
+  # Disable the nginx default site only after the replacement config validates,
+  # so a failed migration truly leaves the previous nginx setup untouched.
+  rm -f /etc/nginx/sites-enabled/default
+
+  log "Host nginx configured ($HOST_NGINX_CONF_DST)."
+  if [[ -n "$HOST_NGINX_CONF_BACKUP" ]]; then
+    info "Previous VigaBSS nginx config archived at $HOST_NGINX_CONF_BACKUP."
+  fi
+  if [[ -n "$LEGACY_HOST_NGINX_BACKUP" ]]; then
+    info "Legacy nginx config archived at $LEGACY_HOST_NGINX_BACKUP."
+  fi
 
   # Schedule nginx to reload every 6 hours so it picks up renewed TLS
   # certificates without manual intervention.  Uses the root crontab.
   # A unique comment marker is used so we can safely remove or update this
   # entry without accidentally removing unrelated crontab lines.
-  CRON_MARKER="# fireisp-nginx-reload"
+  CRON_MARKER="# vigabss-nginx-reload"
+  LEGACY_CRON_MARKER="# fireisp-nginx-reload"
   CRON_LINE="0 */6 * * * /usr/sbin/nginx -s reload 2>/dev/null || true  $CRON_MARKER"
-  ( crontab -l 2>/dev/null | grep -v "$CRON_MARKER" ; echo "$CRON_LINE" ) | crontab -
+  ( crontab -l 2>/dev/null | grep -v -e "$CRON_MARKER" -e "$LEGACY_CRON_MARKER" ; echo "$CRON_LINE" ) | crontab -
   log "Cron job added: nginx reloads every 6 hours to pick up renewed certs."
 fi
 
@@ -823,13 +1050,33 @@ echo ""
 
 mkdir -p "$INSTALL_DIR/nginx/certs" "$INSTALL_DIR/nginx/letsencrypt"
 
+_TLS_FULLCHAIN="$INSTALL_DIR/nginx/certs/fullchain.pem"
+_TLS_PRIVKEY="$INSTALL_DIR/nginx/certs/privkey.pem"
+_TLS_HAD_COMPLETE_PAIR=0
+if [[ -s "$_TLS_FULLCHAIN" && -s "$_TLS_PRIVKEY" ]]; then
+  # A pair made by this run's host-nginx config bootstrap is disposable. Any
+  # pair that predates this run is production state and must survive a failed
+  # ACME retry byte-for-byte.
+  if [[ "$HOST_NGINX_BOOTSTRAP_CREATED" != "1" ]]; then
+    _TLS_HAD_COMPLETE_PAIR=1
+  fi
+elif [[ -e "$_TLS_FULLCHAIN" || -L "$_TLS_FULLCHAIN" \
+        || -e "$_TLS_PRIVKEY" || -L "$_TLS_PRIVKEY" ]]; then
+  die "TLS files are incomplete in $INSTALL_DIR/nginx/certs.
+  Refusing to overwrite the surviving certificate or key; restore the missing half, then rerun."
+fi
+
 if [[ "$SKIP_TLS" == "1" ]]; then
-  warn "Creating self-signed certificate (not trusted by browsers)."
-  openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
-    -keyout "$INSTALL_DIR/nginx/certs/privkey.pem" \
-    -out    "$INSTALL_DIR/nginx/certs/fullchain.pem" \
-    -subj   "/CN=${DOMAIN}" 2>/dev/null
-  log "Self-signed certificate created."
+  if (( _TLS_HAD_COMPLETE_PAIR )); then
+    log "Existing complete TLS certificate/key pair preserved (ACME issuance skipped)."
+  else
+    warn "Creating self-signed certificate (not trusted by browsers)."
+    openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+      -keyout "$_TLS_PRIVKEY" \
+      -out    "$_TLS_FULLCHAIN" \
+      -subj   "/CN=${DOMAIN}" 2>/dev/null
+    log "Self-signed certificate created."
+  fi
   if [[ "$USE_HOST_NGINX" == "1" ]]; then
     # Start host nginx now that dummy certs are in place.
     systemctl enable nginx --now || true
@@ -856,7 +1103,11 @@ else
     warn "This usually means ${DOMAIN} does not yet resolve to this server's IP,"
     warn "or that port 80 is not reachable from the internet."
     warn ""
-    warn "VigaBSS will start with a temporary self-signed certificate."
+    if (( _TLS_HAD_COMPLETE_PAIR )); then
+      warn "The existing TLS certificate/key pair was preserved; VigaBSS will continue using it."
+    else
+      warn "VigaBSS will start with a temporary self-signed certificate."
+    fi
     warn "Once DNS is in place, obtain a real certificate by running:"
     warn "  DOMAIN=${DOMAIN} EMAIL=${EMAIL} bash ${LETSENCRYPT_SCRIPT}"
     warn ""
@@ -871,14 +1122,22 @@ else
       mv -f "$_NGINX_CONF_BACKUP" "$INSTALL_DIR/nginx/nginx.conf"
       info "Restored production nginx.conf from bootstrap backup."
     fi
-    # Create a fallback self-signed certificate.  Errors are shown so the
-    # user can diagnose disk-space or permission problems.
-    mkdir -p "$INSTALL_DIR/nginx/certs"
-    openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
-      -keyout "$INSTALL_DIR/nginx/certs/privkey.pem" \
-      -out    "$INSTALL_DIR/nginx/certs/fullchain.pem" \
-      -subj   "/CN=${DOMAIN}" 2>&1 | grep -v "^Generating" || true
-    log "Fallback self-signed certificate created."
+    if (( _TLS_HAD_COMPLETE_PAIR )); then
+      # init-letsencrypt.sh also refuses to overwrite this pair for its dummy
+      # bootstrap. Do not turn an ACME/DNS outage into an unrelated TLS outage.
+      log "Existing TLS certificate/key pair retained after the failed ACME attempt."
+    else
+      # No pair existed before this run, so create a usable fallback over any
+      # disposable one-day bootstrap files left by the failed attempt.
+      mkdir -p "$INSTALL_DIR/nginx/certs"
+      openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+        -keyout "$_TLS_PRIVKEY" \
+        -out    "$_TLS_FULLCHAIN" \
+        -subj   "/CN=${DOMAIN}" 2>&1 | grep -v "^Generating" || true
+      [[ -s "$_TLS_FULLCHAIN" && -s "$_TLS_PRIVKEY" ]] \
+        || die "Could not create a fallback TLS certificate."
+      log "Fallback self-signed certificate created."
+    fi
     if [[ "$USE_HOST_NGINX" == "1" ]]; then
       systemctl enable nginx --now || true
     fi
@@ -1039,7 +1298,7 @@ if [[ "$RUN_INITIAL_SEED" == "1" ]]; then
   info "Seeding the initial administrator and demo data..."
   # The app service receives ADMIN_PASSWORD through its 0600 env_file.
   $COMPOSE run --rm -T --no-deps app node src/scripts/seed.js
-  set_env_value "$ENV_FILE" FIREISP_BOOTSTRAP_STATE seeded
+  set_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE seeded
   SAVED_BOOTSTRAP_STATE="seeded"
   log "Initial data loaded."
 else
@@ -1076,7 +1335,7 @@ done
 # ── Summary ────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${RESET}"
-echo -e "${GREEN}${BOLD}  ✅  VigaBSS 5.0 is installed and running!${RESET}"
+echo -e "${GREEN}${BOLD}  ✅  VigaBSS ${VIGABSS_VERSION} is installed and running!${RESET}"
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${RESET}"
 echo ""
 echo -e "  ${BOLD}URL${RESET}           https://${DOMAIN}"
@@ -1085,12 +1344,12 @@ echo -e "  ${BOLD}Swagger UI${RESET}    https://${DOMAIN}/api/docs"
 echo ""
 echo -e "  ${BOLD}Install directory${RESET}  $INSTALL_DIR"
 echo -e "  ${BOLD}Environment file${RESET}   $ENV_FILE"
-echo -e "  ${BOLD}CLI wrapper${RESET}        $FIREISP_BIN"
+echo -e "  ${BOLD}CLI wrapper${RESET}        $VIGABSS_BIN"
 if [[ "$USE_HOST_NGINX" == "1" ]]; then
   echo ""
   echo -e "  ${BOLD}Nginx mode${RESET}         Host nginx (system service)"
   echo -e "  ${BOLD}App port${RESET}           localhost:8080 → Docker app container"
-  echo -e "  ${BOLD}Nginx config${RESET}       /etc/nginx/conf.d/fireisp.conf"
+  echo -e "  ${BOLD}Nginx config${RESET}       /etc/nginx/conf.d/vigabss.conf"
   echo -e "  ${BOLD}Cert reload${RESET}        Cron: nginx -s reload every 6 hours"
 fi
 echo ""
@@ -1110,20 +1369,20 @@ fi
 # SSH session dies earlier, `seeded` survives and the next run displays the
 # saved initial credential without rerunning demo data.
 if [[ "$SAVED_BOOTSTRAP_STATE" == "seeded" ]]; then
-  set_env_value "$ENV_FILE" FIREISP_BOOTSTRAP_STATE complete
+  set_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE complete
   SAVED_BOOTSTRAP_STATE="complete"
 fi
 echo -e "   3. Configure SMTP in Settings → Organization → Email"
 echo -e "   4. Fill in your ISP organization details"
 echo ""
-echo -e "  ${BOLD}Management commands (via the fireisp wrapper):${RESET}"
-echo -e "   fireisp logs -f               # stream all container logs"
-echo -e "   fireisp ps                    # show container status"
-echo -e "   fireisp stop                  # stop containers (keeps data volumes)"
-echo -e "   fireisp down                  # stop and remove containers"
-echo -e "   fireisp restart               # restart all containers"
-echo -e "   fireisp pull && fireisp up -d # fetch the published image and start"
-echo -e "   fireisp exec app bash         # open a shell in the app container"
+echo -e "  ${BOLD}Management commands (via the vigabss wrapper):${RESET}"
+echo -e "   vigabss logs -f               # stream all container logs"
+echo -e "   vigabss ps                    # show container status"
+echo -e "   vigabss stop                  # stop containers (keeps data volumes)"
+echo -e "   vigabss down                  # stop and remove containers"
+echo -e "   vigabss restart               # restart all containers"
+echo -e "   vigabss pull && vigabss up -d # fetch the published image and start"
+echo -e "   vigabss exec app bash         # open a shell in the app container"
 echo ""
 echo -e "  ${BOLD}Update VigaBSS:${RESET}"
 echo -e "   sudo redeploy                 # pull main + the matching image, migrate, verify"

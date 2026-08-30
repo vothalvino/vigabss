@@ -1,7 +1,7 @@
-# FireISP UI (`@fireisp/ui`) — how to build with it
+# VigaBSS UI (`@vigabss/ui`) — how to build with it
 
 A small, flat, **industrial** component kit: borders over shadows, **exactly one accent**
-(`--accent`, FireISP orange `#e25822`), high information density, a 4px spacing grid, Inter
+(`--accent`, VigaBSS orange `#e25822`), high information density, a 4px spacing grid, Inter
 for text and JetBrains Mono for numbers/IDs.
 
 ## Setup — no provider needed
@@ -38,7 +38,7 @@ its `.prompt.md` the usage reference — read those before composing.
 
 ## Idiomatic snippet
 ```tsx
-import { Card, Table, Badge, Button } from '@fireisp/ui';
+import { Card, Table, Badge, Button } from '@vigabss/ui';
 
 <Card
   title="Recent invoices"

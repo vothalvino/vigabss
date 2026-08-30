@@ -29,7 +29,7 @@
     @keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   </style>
   <rect width="1280" height="720" fill="#07111f"/>
-  <text x="64" y="74" class="brand">FIREISP 5.0</text>
+  <text x="64" y="74" class="brand">VigaBSS 0.1.0-alpha.1</text>
   <text x="64" y="118" class="muted">Production docs walkthrough</text>
   <rect x="64" y="640" width="1152" height="44" rx="22" fill="#0f2035" stroke="#24496f" stroke-width="2"/>
   <rect id="progress" x="120" y="662" width="1040" height="8" rx="4" fill="#ff7a18"/>
@@ -63,7 +63,7 @@
     <text x="64" y="196" class="title">Import in dependency order</text>
     <text x="64" y="260" class="body">Clients → Devices → Contracts → Invoices → Payments</text>
     <rect x="95" y="330" width="1090" height="150" class="panel"/>
-    <text x="135" y="386" class="code">curl -X POST /api/import/clients/upload \</text>
+    <text x="135" y="386" class="code">curl -X POST /api/v1/import/clients/upload \</text>
     <text x="135" y="428" class="code">  -H "Authorization: Bearer &lt;token&gt;" -H "X-Org-Id: &lt;org_id&gt;"</text>
   </g>
 
@@ -91,7 +91,7 @@
     <text x="64" y="260" class="body">Hold the backup until business sign-off is complete.</text>
     <rect x="170" y="305" width="940" height="260" class="panel"/>
     <text x="220" y="360" class="small">✓ Backup filename recorded</text>
-    <text x="220" y="410" class="code">gunzip &lt; storage/backups/fireisp_*.sql.gz | mysql fireisp</text>
+    <text x="220" y="410" class="code">gunzip &lt; storage/backups/vigabss_*.sql.gz | mysql vigabss</text>
     <text x="220" y="460" class="small">✓ Event scheduler re-enabled after restore</text>
     <text x="220" y="510" class="small">✓ Production sign-off captured</text>
   </g>

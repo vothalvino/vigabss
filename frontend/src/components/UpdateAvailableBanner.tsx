@@ -1,20 +1,18 @@
 // =============================================================================
-// VigaBSS 5.0 — "a newer release is available" banner
+// VigaBSS — "a newer main build is available" banner
 // =============================================================================
 // Shows the INSTALL OPERATOR, once a day, that main has moved past the commit
 // this instance is running.
 //
-// Only rendered for the legacy users.role === 'admin' — an EXACT check, the
-// same one Layout.tsx uses. VigaBSS is multi-tenant: a reseller's org-admin has
-// no shell on the box and cannot upgrade it, so telling them a newer version
-// exists is noise they can never act on, and it advertises the provider's
-// release cadence to its own tenants. The backend enforces this too (the
-// endpoint 404s for everyone else) — this check only avoids a pointless
-// request.
+// Only rendered when the backend-resolved is_install_operator flag is true.
+// VigaBSS is multi-tenant: a reseller's org-admin has no shell on the box and
+// cannot upgrade it, so telling them a newer build exists is noise they cannot
+// act on. The backend also returns 404 for everyone else; this check avoids a
+// pointless request.
 //
-// The whole feature is inert unless the operator set FIREISP_UPDATE_CHECK=1 in
-// .env.prod: without it the endpoint reports check_enabled false, no outbound
-// request is ever made, and this renders nothing.
+// The whole feature is inert when the operator sets VIGABSS_UPDATE_CHECK=0 in
+// .env.prod: the endpoint reports check_enabled false, no outbound request is
+// made, and this renders nothing.
 //
 // DISMISSAL IS PER DAY, not per session, because that is what was asked for and
 // because the underlying fact changes slowly. localStorage (survives restarts),
@@ -28,6 +26,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { api } from '@/api/client';
 
 interface SystemVersion {
+  release_version: string | null;
   running_sha: string | null;
   latest_sha: string | null;
   update_available: boolean;
@@ -88,7 +87,6 @@ export function UpdateAvailableBanner() {
   const [dismissedOn, setDismissedOn] = useState(() => readDismissedOn());
   const dismissed = dismissedOn === today();
 
-  // EXACT check, deliberately — not hasRole(). See the header.
   // Backend-resolved (GET /auth/me) — see AuthUser.is_install_operator. A
   // tenant admin must not be told the install has an update they cannot apply.
   const isInstallOperator = user?.is_install_operator === true;
@@ -100,8 +98,9 @@ export function UpdateAvailableBanner() {
     queryKey: ['system-version'],
     queryFn: fetchVersion,
     enabled: isInstallOperator && !dismissed,
-    // The backend caches the upstream lookup for a day; this keeps the browser
-    // from re-asking on every navigation within a session.
+    // Keep the low-urgency banner stable across navigation. The backend refreshes
+    // successful upstream answers every 15 minutes; the Version tab can force a
+    // fresh check when the operator needs an immediate answer.
     staleTime: 60 * 60 * 1000,
     // Quietly skip if the endpoint is unavailable — an older backend, or a
     // non-admin who somehow got here, must not produce an error toast.

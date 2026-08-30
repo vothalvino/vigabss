@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ script: 'migration-smoke-test' });
+const product = require('../product');
 
 const SCHEMA_SQL = path.resolve(__dirname, '../../database/schema.sql');
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../database/migrations');
@@ -318,7 +319,7 @@ async function runSmokeTest() {
 // Entry point
 // ---------------------------------------------------------------------------
 if (require.main === module) {
-  logger.info('VigaBSS 5.0 — Migration smoke test');
+  logger.info(`${product.displayName} — Migration smoke test`);
   runSmokeTest()
     .then(async passed => {
       await db.close();

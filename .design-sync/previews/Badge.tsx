@@ -1,4 +1,4 @@
-import { Badge } from '@fireisp/ui';
+import { Badge } from '@vigabss/ui';
 
 export const Statuses = () => (
   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

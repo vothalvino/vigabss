@@ -1,8 +1,15 @@
 # Secrets Management
 
-This document explains how VigaBSS 5.0 manages production secrets, what
+This document explains how VigaBSS 0.1.0-alpha.1 manages production secrets, what
 options are available, and which approach is recommended for each deployment
 topology.
+
+Cloud secret IDs and Vault paths in this guide use fresh VigaBSS names. The
+checked-in raw Kubernetes manifests deliberately retain the `fireisp`
+namespace, workload, service-account, and Secret names as compatibility
+identifiers; the examples below match those manifests. Existing identifiers
+should be renamed only through the normal migration procedure for that backend,
+never as a cosmetic edit.
 
 ---
 
@@ -66,7 +73,7 @@ helm install sealed-secrets sealed-secrets/sealed-secrets \
 #    /proc/<pid>/cmdline is world-readable, so any local account can read the
 #    arguments of a running process — including root's.
 umask 077
-cat > /tmp/fireisp-secrets.env <<EOF
+cat > /tmp/vigabss-secrets.env <<EOF
 JWT_SECRET=$(openssl rand -base64 48)
 ENCRYPTION_KEY=$(openssl rand -hex 32)
 DB_PASSWORD=$(openssl rand -base64 24)
@@ -74,18 +81,18 @@ EOF
 
 kubectl create secret generic fireisp-secret \
   --namespace fireisp \
-  --from-env-file=/tmp/fireisp-secrets.env \
-  --dry-run=client -o yaml > /tmp/fireisp-plain.yaml
+  --from-env-file=/tmp/vigabss-secrets.env \
+  --dry-run=client -o yaml > /tmp/vigabss-plain.yaml
 
-rm -f /tmp/fireisp-secrets.env   # discard the plaintext env file immediately
+rm -f /tmp/vigabss-secrets.env   # discard the plaintext env file immediately
 
 # 3. Seal it
 kubeseal --controller-namespace kube-system \
          --controller-name sealed-secrets-controller \
          --format yaml \
-  < /tmp/fireisp-plain.yaml > k8s/sealed-secret.yaml
+  < /tmp/vigabss-plain.yaml > k8s/sealed-secret.yaml
 
-rm /tmp/fireisp-plain.yaml   # discard plaintext immediately
+rm /tmp/vigabss-plain.yaml   # discard plaintext immediately
 
 # 4. Commit k8s/sealed-secret.yaml to Git — safe
 git add k8s/sealed-secret.yaml && git commit -m "chore: seal production secrets"
@@ -149,7 +156,7 @@ Create the secret in AWS:
 # --secret-string would put every value in the world-readable
 # /proc/<pid>/cmdline for the life of the call.
 umask 077
-cat > fireisp-production.json <<'EOF'
+cat > vigabss-production.json <<'EOF'
 {
   "JWT_SECRET": "<value>",
   "ENCRYPTION_KEY": "<value>",
@@ -160,13 +167,13 @@ cat > fireisp-production.json <<'EOF'
 EOF
 
 aws secretsmanager create-secret \
-  --name "fireisp/production" \
-  --secret-string file://fireisp-production.json
+  --name "vigabss/production" \
+  --secret-string file://vigabss-production.json
 
-rm -f fireisp-production.json
+rm -f vigabss-production.json
 ```
 
-Create an IAM role with `secretsmanager:GetSecretValue` on `fireisp/*` and
+Create an IAM role with `secretsmanager:GetSecretValue` on `vigabss/*` and
 annotate the Kubernetes service account to use it (IRSA).
 
 ### ClusterSecretStore
@@ -206,11 +213,12 @@ spec:
     creationPolicy: Owner
   dataFrom:
     - extract:
-        key: fireisp/production
+        key: vigabss/production
 ```
 
-ESO will create (and periodically refresh) a Kubernetes Secret named
-`fireisp-secret` in the `fireisp` namespace with all keys from the AWS secret.
+ESO will create (and periodically refresh) the compatibility-named Kubernetes
+Secret `fireisp-secret` in the `fireisp` namespace with all keys from the
+VigaBSS-named AWS secret.
 
 ---
 
@@ -221,10 +229,10 @@ ESO will create (and periodically refresh) a Kubernetes Secret named
 ```bash
 # Create each secret in GCP
 echo -n "$(openssl rand -base64 48)" | \
-  gcloud secrets create fireisp-jwt-secret --data-file=-
+  gcloud secrets create vigabss-jwt-secret --data-file=-
 
 echo -n "$(openssl rand -hex 32)" | \
-  gcloud secrets create fireisp-encryption-key --data-file=-
+  gcloud secrets create vigabss-encryption-key --data-file=-
 ```
 
 Grant the Kubernetes service account the `secretmanager.secretAccessor` role.
@@ -268,13 +276,13 @@ spec:
   data:
     - secretKey: JWT_SECRET
       remoteRef:
-        key: fireisp-jwt-secret
+        key: vigabss-jwt-secret
     - secretKey: ENCRYPTION_KEY
       remoteRef:
-        key: fireisp-encryption-key
+        key: vigabss-encryption-key
     - secretKey: DB_PASSWORD
       remoteRef:
-        key: fireisp-db-password
+        key: vigabss-db-password
 ```
 
 ---
@@ -300,16 +308,16 @@ vault write auth/kubernetes/config \
   kubernetes_host="https://$(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}'):443" \
   kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
 
-vault policy write fireisp - <<EOF
-path "secret/data/fireisp/production" {
+vault policy write vigabss - <<EOF
+path "secret/data/vigabss/production" {
   capabilities = ["read"]
 }
 EOF
 
-vault write auth/kubernetes/role/fireisp \
+vault write auth/kubernetes/role/vigabss \
   bound_service_account_names=fireisp \
   bound_service_account_namespaces=fireisp \
-  policies=fireisp \
+  policies=vigabss \
   ttl=1h
 ```
 
@@ -318,7 +326,7 @@ Write the secrets to Vault:
 ```bash
 # Given `-` as the data argument, vault reads the JSON payload from stdin, so
 # no secret value ever appears in the world-readable /proc/<pid>/cmdline.
-vault kv put secret/fireisp/production - <<EOF
+vault kv put secret/vigabss/production - <<EOF
 {
   "JWT_SECRET": "$(openssl rand -base64 48)",
   "ENCRYPTION_KEY": "$(openssl rand -hex 32)",
@@ -327,15 +335,16 @@ vault kv put secret/fireisp/production - <<EOF
 EOF
 ```
 
-Add annotations to the `fireisp` Deployment pod template to inject secrets:
+Add annotations to the compatibility-named `fireisp` Deployment pod template
+to inject the VigaBSS-named Vault secret:
 
 ```yaml
 annotations:
   vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/role: "fireisp"
-  vault.hashicorp.com/agent-inject-secret-config: "secret/data/fireisp/production"
+  vault.hashicorp.com/role: "vigabss"
+  vault.hashicorp.com/agent-inject-secret-config: "secret/data/vigabss/production"
   vault.hashicorp.com/agent-inject-template-config: |
-    {{- with secret "secret/data/fireisp/production" -}}
+    {{- with secret "secret/data/vigabss/production" -}}
     export JWT_SECRET="{{ .Data.data.JWT_SECRET }}"
     export ENCRYPTION_KEY="{{ .Data.data.ENCRYPTION_KEY }}"
     export DB_PASSWORD="{{ .Data.data.DB_PASSWORD }}"
@@ -362,10 +371,9 @@ For non-Kubernetes production deployments (systemd service on a Linux VM):
 
 ```ini
 [Service]
-LoadCredential=jwt_secret:/run/credentials/fireisp/jwt_secret
-LoadCredential=encryption_key:/run/credentials/fireisp/encryption_key
-ExecStartPre=/bin/sh -c 'export JWT_SECRET=$(cat $CREDENTIALS_DIRECTORY/jwt_secret)'
-ExecStart=/usr/bin/node src/server.js
+LoadCredential=jwt_secret:/etc/vigabss/credentials/jwt_secret
+LoadCredential=encryption_key:/etc/vigabss/credentials/encryption_key
+ExecStart=/bin/sh -c 'export JWT_SECRET="$(cat "$CREDENTIALS_DIRECTORY/jwt_secret")"; export ENCRYPTION_KEY="$(cat "$CREDENTIALS_DIRECTORY/encryption_key")"; exec /usr/bin/node src/server.js'
 ```
 
 Credentials are stored with `0400` permissions and exposed only to the service
@@ -374,21 +382,22 @@ process.
 ### Alternative: environment file with strict permissions
 
 ```bash
-# /etc/fireisp/secrets.env — NEVER in the application directory or version control
-install -m 0600 -o fireisp -g fireisp /dev/null /etc/fireisp/secrets.env
-echo "JWT_SECRET=$(openssl rand -base64 48)" >> /etc/fireisp/secrets.env
-echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" >> /etc/fireisp/secrets.env
+# /etc/vigabss/secrets.env — NEVER in the application directory or version control
+install -m 0600 -o vigabss -g vigabss /dev/null /etc/vigabss/secrets.env
+echo "JWT_SECRET=$(openssl rand -base64 48)" >> /etc/vigabss/secrets.env
+echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" >> /etc/vigabss/secrets.env
 ```
 
 Reference it from the systemd unit:
 
 ```ini
 [Service]
-EnvironmentFile=/etc/fireisp/secrets.env
+EnvironmentFile=/etc/vigabss/secrets.env
 ```
 
 Non-secret configuration (NODE_ENV, PORT, etc.) can still live in
-`/opt/fireisp/.env`.
+`/opt/vigabss/.env.prod` (or the retained `/opt/fireisp/.env.prod` on an
+upgraded installation).
 
 ---
 
@@ -405,7 +414,8 @@ includes one of the listed field names will have the value replaced with
 - All known environment variable names: `JWT_SECRET`, `ENCRYPTION_KEY`,
   `DB_PASSWORD`, `SMTP_PASS`, `TWILIO_AUTH_TOKEN`, `STRIPE_SECRET_KEY`,
   `CONEKTA_API_KEY`, `PAC_PASSWORD`, `RADIUS_SECRET`, `REDIS_PASSWORD`,
-  `BACKUP_S3_SECRET_KEY`, `CF_API_TOKEN`
+  `BACKUP_S3_SECRET_KEY`, plus the legacy `CF_API_TOKEN` spelling (still
+  redacted defensively even though DNS-01 certificate issuance is not supported)
 - HTTP request fields: `req.headers.authorization`, `req.headers["x-api-key"]`,
   `req.body.password`, `req.body.token`, `req.body.secret`
 
@@ -423,7 +433,7 @@ The health endpoints (`/health`, `/health?detail=true`, `/health/live`,
 | Field | Example | Secret? |
 |---|---|---|
 | `status` | `"ok"` | No |
-| `version` | `"5.0.0"` | No |
+| `version` | `"0.1.0-alpha.1"` | No |
 | `uptime` | `3600` | No |
 | `relay` | `"standalone"` | No |
 | `timestamp` | `"2026-04-23T..."` | No |
@@ -500,13 +510,13 @@ cat > new-key.json <<'EOF'
 EOF
 
 # 1. Update the provider with the new key (old encrypted value is overwritten)
-curl -X PUT "https://your-fireisp.domain/api/v1/ai/providers/<provider_id>" \
+curl -X PUT "https://your-vigabss.domain/api/v1/ai/providers/<provider_id>" \
   --config auth.curl \
   -H "Content-Type: application/json" \
   -d @new-key.json
 
 # 2. Verify the connection
-curl -X POST "https://your-fireisp.domain/api/v1/ai/providers/<provider_id>/verify" \
+curl -X POST "https://your-vigabss.domain/api/v1/ai/providers/<provider_id>/verify" \
   --config auth.curl
 # Expected: { "success": true, "message": "Connection OK", ... }
 

@@ -1,6 +1,6 @@
 # FireRelay — Architecture Specification
 
-VigaBSS 5.0's built-in multi-node clustering system.
+VigaBSS 0.1.0-alpha.1's built-in multi-node clustering system.
 
 ---
 
@@ -74,7 +74,7 @@ The first node becomes the central relay point for the cluster.
 All nodes beyond the first run as workers.
 
 - Handles only its own local data (clients, devices, SNMP polling, scheduled tasks, etc.).
-- Exposes the same API endpoints as any VigaBSS node, plus a dedicated `GET /api/firerelay/health` endpoint.
+- Exposes the same API endpoints as any VigaBSS node, plus a dedicated `GET /api/v1/firerelay/health` endpoint.
 - Reports health and capacity metrics to the master.
 - Does **not** know about other workers — it only knows about the master.
 - Runs the exact same codebase as the master node. The only difference is the `.env` configuration.
@@ -176,7 +176,7 @@ Step 2: Provision Node 2 — same codebase, different .env
 
   .env on Node 2:
     FIRERELAY_MODE=worker
-    FIRERELAY_MASTER_URL=https://node1.fireisp.com
+    FIRERELAY_MASTER_URL=https://node1.vigabss.example.com
     FIRERELAY_NODE_ID=node2
     FIRERELAY_AUTO_INCREMENT_OFFSET=10000001
 
@@ -184,7 +184,7 @@ Step 3: Register Node 2 on the master
 
   .env on Node 1 (update):
     FIRERELAY_MODE=master
-    FIRERELAY_NODES=["https://node2.fireisp.com"]
+    FIRERELAY_NODES=["https://node2.vigabss.example.com"]
 
 Step 4: Cluster is live — new clients go to Node 2
 
@@ -199,7 +199,7 @@ Step 4: Cluster is live — new clients go to Node 2
 ### 3.4 Request Routing Flow
 
 ```
-Browser sends: GET /api/clients/15432
+Browser sends: GET /api/v1/clients/15432
                          │
                          ▼
             ┌────────────────────────┐
@@ -217,7 +217,7 @@ Browser sends: GET /api/clients/15432
             │     to node2          │
             └───────────┬───────────┘
                         │
-                        │  GET /api/clients/15432
+                        │  GET /api/v1/clients/15432
                         │  (internal HTTP call)
                         ▼
             ┌────────────────────────┐
@@ -308,9 +308,9 @@ FireRelay handles four categories of requests differently:
 
 | Request Type | Example | Routing Behaviour |
 |--------------|---------|-------------------|
-| **Single-entity lookup** | `GET /api/clients/5432` | Master looks up which node owns `client_id=5432`, proxies the request to that node, returns the response. |
-| **Search / list query** | `GET /api/clients?search=John` | Master fans out the request to **all** nodes simultaneously, collects results, merges and sorts them, returns a combined list. |
-| **Create operation** | `POST /api/clients` | Master selects the least-loaded `active` node, routes the creation request there, records the `client_id → node` mapping in the routing table. |
+| **Single-entity lookup** | `GET /api/v1/clients/5432` | Master looks up which node owns `client_id=5432`, proxies the request to that node, returns the response. |
+| **Search / list query** | `GET /api/v1/clients?search=John` | Master fans out the request to **all** nodes simultaneously, collects results, merges and sorts them, returns a combined list. |
+| **Create operation** | `POST /api/v1/clients` | Master selects the least-loaded `active` node, routes the creation request there, records the `client_id → node` mapping in the routing table. |
 | **Local operations** | SNMP polling, scheduled tasks, billing runs | Each node handles its own devices and tasks locally. These are never proxied. The existing `scheduled_tasks.locked_by` column is used for distributed locking within a single node. |
 
 ### 4.6 Node Health Monitoring
@@ -318,7 +318,7 @@ FireRelay handles four categories of requests differently:
 The master polls each worker at the interval defined by `FIRERELAY_HEALTH_INTERVAL` (default 30 seconds). Workers expose a dedicated endpoint:
 
 ```
-GET /api/firerelay/health
+GET /api/v1/firerelay/health
 ```
 
 Every request must include the cluster pre-shared token:
@@ -416,7 +416,7 @@ FIRERELAY_AUTH_TOKEN=
 # ─────────────────────────────────────────────
 
 # JSON array of worker node base URLs
-# Example: ["https://node2.fireisp.com","https://node3.fireisp.com"]
+# Example: ["https://node2.vigabss.example.com","https://node3.vigabss.example.com"]
 FIRERELAY_NODES=[]
 
 # How often the master polls each worker for health metrics (milliseconds)
@@ -472,7 +472,7 @@ FIRERELAY_MODE=standalone
 ```env
 FIRERELAY_MODE=master
 FIRERELAY_AUTH_TOKEN=<same-random-token-on-every-node>
-FIRERELAY_NODES=["https://node2.fireisp.com"]
+FIRERELAY_NODES=["https://node2.vigabss.example.com"]
 FIRERELAY_HEALTH_INTERVAL=30000
 FIRERELAY_REQUEST_TIMEOUT=5000
 FIRERELAY_MAX_RETRIES=3
@@ -485,7 +485,7 @@ FIRERELAY_MAX_DEVICES=3000
 ```env
 FIRERELAY_MODE=worker
 FIRERELAY_AUTH_TOKEN=<same-random-token-on-every-node>
-FIRERELAY_MASTER_URL=https://node1.fireisp.com
+FIRERELAY_MASTER_URL=https://node1.vigabss.example.com
 FIRERELAY_NODE_ID=node2
 FIRERELAY_AUTO_INCREMENT_OFFSET=10000001
 FIRERELAY_MAX_CLIENTS=10000
@@ -521,12 +521,12 @@ src/
 │                                 (~300 lines)
 │
 ├── routes/
-│   └── firerelay.js           ← /api/firerelay/* endpoints:
-│                                   GET    /api/firerelay/health    (worker: reports metrics)
-│                                   GET    /api/firerelay/nodes     (master: lists all nodes)
-│                                   POST   /api/firerelay/nodes     (master: register a node)
-│                                   PUT    /api/firerelay/nodes/:id (master: update node status)
-│                                   DELETE /api/firerelay/nodes/:id (master: deregister a node)
+│   └── firerelay.js           ← /api/v1/firerelay/* endpoints:
+│                                   GET    /api/v1/firerelay/health    (worker: reports metrics)
+│                                   GET    /api/v1/firerelay/nodes     (master: lists all nodes)
+│                                   POST   /api/v1/firerelay/nodes     (master: register a node)
+│                                   PUT    /api/v1/firerelay/nodes/:id (master: update node status)
+│                                   DELETE /api/v1/firerelay/nodes/:id (master: deregister a node)
 │                                 (~140 lines)
 │
 ├── controllers/               ← Unchanged — no FireRelay awareness needed here
@@ -565,7 +565,7 @@ FireRelay becomes relevant at the 30K-client threshold. Below that, a single wel
 
 ## 8. Implementation Priority
 
-FireRelay is **Step 5** in the VigaBSS 5.0 development roadmap. It must not be built before the core application exists — there is nothing to relay without it.
+FireRelay is **Step 5** in the VigaBSS 0.1.0-alpha.1 development roadmap. It must not be built before the core application exists — there is nothing to relay without it.
 
 | Step | What | Status |
 |------|------|--------|
@@ -579,5 +579,5 @@ FireRelay is **Step 5** in the VigaBSS 5.0 development roadmap. It must not be b
 
 ---
 
-*Document created: 2025 — VigaBSS 5.0 project.*
+*Document created: 2025 — VigaBSS 0.1.0-alpha.1 project.*
 *Updated: 2026 — All steps complete. FireRelay implemented.*

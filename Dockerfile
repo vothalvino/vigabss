@@ -73,8 +73,8 @@ RUN mkdir -p /etc/wireguard && chmod 700 /etc/wireguard
 USER fireisp
 
 # The commit this image was built from. Nothing in the running app knew this
-# before: package.json carries a static "5.0.0" that has not moved in the
-# platform's lifetime, so "what is actually deployed?" could only be answered by
+# before: package.json carries a release number, not the exact source revision.
+# As a result, "what is actually deployed?" could only be answered by
 # SSHing in and reading `git rev-parse HEAD` — which reports the SOURCE tree,
 # not the image, and those two disagree precisely when it matters (a rollback
 # pins an older image against a newer checkout).
@@ -86,6 +86,9 @@ USER fireisp
 # Empty when built outside CI (docker-compose.build.yml passes nothing), and the
 # app treats an empty value as "unknown" rather than guessing.
 ARG GIT_SHA=""
+ENV VIGABSS_GIT_SHA=$GIT_SHA
+# Compatibility for installations and observability tooling created before the
+# VigaBSS rename. New code reads VIGABSS_GIT_SHA first.
 ENV FIREISP_GIT_SHA=$GIT_SHA
 
 EXPOSE 3000

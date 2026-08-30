@@ -20,7 +20,7 @@
 //
 // Configuration (env vars, all optional):
 //   LOADTEST_URL         — API base URL                    (default http://127.0.0.1:3000)
-//   LOADTEST_EMAIL       — login email                     (default loadtest@fireisp.local)
+//   LOADTEST_EMAIL       — login email                     (default loadtest@vigabss.local)
 //   LOADTEST_PASSWORD    — login password                  (default loadtest123!)
 //   LOADTEST_DURATION    — seconds per scenario            (default 10)
 //   LOADTEST_CONNECTIONS — concurrent connections          (default 25)
@@ -39,7 +39,7 @@ const autocannon = require('autocannon');
 const logger = require('../utils/logger').child({ script: 'loadtest' });
 
 const BASE_URL = (process.env.LOADTEST_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
-const EMAIL = process.env.LOADTEST_EMAIL || 'loadtest@fireisp.local';
+const EMAIL = process.env.LOADTEST_EMAIL || 'loadtest@vigabss.local';
 const PASSWORD = process.env.LOADTEST_PASSWORD || 'loadtest123!';
 const DURATION = parseInt(process.env.LOADTEST_DURATION, 10) || 10;
 const CONNECTIONS = parseInt(process.env.LOADTEST_CONNECTIONS, 10) || 25;

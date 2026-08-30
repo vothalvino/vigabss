@@ -1,4 +1,6 @@
-# Default values for fireisp Helm chart.
+# Default values for the VigaBSS Helm chart. The on-disk chart/helper name is a
+# legacy compatibility identifier retained to avoid replacing live PVCs and
+# selectors during an upgrade.
 # Override these in a values file or with --set flags.
 
 ## Number of application replicas.
@@ -90,7 +92,7 @@ ingress:
   enabled: true
   className: nginx
   ## Hostname for the Ingress rule.
-  hostname: fireisp.example.com
+  hostname: vigabss.example.com
   ## Annotations added to the Ingress resource.
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
@@ -220,8 +222,12 @@ config:
 secrets:
   JWT_SECRET: "REPLACEME-generate-a-random-64-char-string"
   ENCRYPTION_KEY: "REPLACEME-generate-a-random-32-byte-hex-key"
+  # The chart deliberately retains the `fireisp` namespace identity so existing
+  # releases, service discovery, selectors, and PVCs remain upgrade-compatible.
   DB_HOST: "mysql.fireisp.svc.cluster.local"
   DB_PORT: "3306"
+  # Database/user names are also retained compatibility identifiers. Override
+  # them explicitly for a fresh database created with VigaBSS-native names.
   DB_NAME: "fireisp"
   DB_USER: "fireisp"
   DB_PASSWORD: "REPLACEME-database-password"

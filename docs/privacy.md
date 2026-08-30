@@ -1,4 +1,4 @@
-# VigaBSS 5.0 — Privacy & PII Inventory (LFPDPPP MX / GDPR)
+# VigaBSS 0.1.0-alpha.1 — Privacy & PII Inventory (LFPDPPP MX / GDPR)
 
 > **Audience:** Operators, compliance officers, legal counsel.
 > This document is a working inventory of personal-data categories held by
@@ -310,7 +310,7 @@ Operators must:
 
    ```bash
    # Via API — admin credential required
-   curl -X GET "https://your-fireisp.domain/api/v1/dsar/clients/<client_id>" \
+   curl -X GET "https://your-vigabss.domain/api/v1/dsar/clients/<client_id>" \
      -H "Authorization: Bearer <admin_token>" \
      -H "X-Org-Id: <org_id>"
    ```

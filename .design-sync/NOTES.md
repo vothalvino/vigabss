@@ -1,11 +1,11 @@
-# design-sync notes — @fireisp/ui
+# design-sync notes — @vigabss/ui
 
 Repo-specific gotchas for future syncs.
 
 ## Setup
-- The synced package is `frontend/ui-kit/` (`@fireisp/ui`) — a **new** component library
-  extracted from the FireISP app's design tokens (`frontend/src/index.css`). It is NOT the app.
-- Build it before the converter: `cd frontend/ui-kit && npm run build` (tsup → `dist/index.mjs`,
+- The synced package is `frontend/ui-kit/` (`@vigabss/ui`) — a **new** component library
+  extracted from the VigaBSS app's design tokens (`frontend/src/index.css`). It is NOT the app.
+- Build it before the converter: `cd frontend/ui-kit && pnpm run build` (tsup → `dist/index.mjs`,
   `dist/index.d.ts`, `dist/index.css`). Converter entry: `--entry frontend/ui-kit/dist/index.mjs`,
   `--node-modules frontend/ui-kit/node_modules`.
 - Tokens are the cssEntry (`dist/index.css`). Components style via inline styles + `var(--token)`;
@@ -26,7 +26,7 @@ Repo-specific gotchas for future syncs.
 ## Re-sync risks (what can silently go stale)
 - The kit's tokens are a **copy** of `frontend/src/index.css`. If the app's tokens change, re-copy
   them into `frontend/ui-kit/src/tokens.css` and rebuild, or the design system drifts from the app.
-- Preview content (client names, invoice numbers, amounts) is illustrative FireISP data inlined in
+- Preview content (client names, invoice numbers, amounts) is illustrative VigaBSS data inlined in
   `.design-sync/previews/*.tsx` — safe, but update if the brand examples should change.
 - Groups come from `cfg.docsDir` (`../../.design-sync/docs`): each `<Name>.md`'s frontmatter
   `category` sets the section (Actions / Forms / Feedback / Surfaces / Data) and doubles as the

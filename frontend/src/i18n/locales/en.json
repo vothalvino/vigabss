@@ -65,7 +65,7 @@
     "change": "Change"
   },
   "login": {
-    "title": "🔥 VigaBSS 5.0",
+    "title": "VigaBSS",
     "subtitle": "Sign in to continue",
     "emailLabel": "Email",
     "passwordLabel": "Password",
@@ -350,7 +350,7 @@
     "documentTemplates": "Legal Documents"
   },
   "layout": {
-    "brandName": "🔥 VigaBSS",
+    "brandName": "VigaBSS Alpha",
     "sidebarSubtitle": "Operations workspace",
     "skipToContent": "Skip to content",
     "primaryNavigation": "Primary navigation",
@@ -360,7 +360,7 @@
     "switchOrgFailed": "Failed to switch organization"
   },
   "portalLayout": {
-    "brandName": "🔥 VigaBSS — My Account",
+    "brandName": "VigaBSS Alpha — My Account",
     "navHome": "🏠 Home",
     "navInvoices": "🧾 Invoices",
     "navSupport": "🎫 Support",
@@ -2447,7 +2447,7 @@
     "destination_https": "Send to an HTTPS endpoint",
     "destination_https_help": "POST the trap to a public, secure HTTPS endpoint you control.",
     "https_url": "HTTPS URL",
-    "url_placeholder": "https://alerts.example.com/fireisp-traps",
+    "url_placeholder": "https://alerts.example.com/vigabss-traps",
     "destination_webhook": "Use a registered webhook",
     "destination_webhook_help": "Use an active webhook already configured for this organization in VigaBSS.",
     "registered_webhook": "Registered webhook",
@@ -5571,23 +5571,26 @@
     "accuracyCol": "Accuracy"
   },
   "updateBanner": {
-    "message": "A newer VigaBSS release is available — running {{running}}, latest is {{latest}}.",
+    "message": "A newer VigaBSS main build is available — running {{running}}, latest is {{latest}}.",
     "dismiss": "Dismiss until tomorrow"
   },
   "version": {
     "title": "Installed version",
     "loading": "Checking…",
-    "running": "Running commit",
+    "release": "Release",
+    "unknownRelease": "unknown release",
+    "running": "Build commit",
     "unknownBuild": "unknown",
     "unknownBuildNote": "This image was not built by CI, so it carries no commit stamp. Deploy a published build to see the exact version.",
     "checkState": "Update check",
     "checkOn": "Enabled",
     "checkOff": "Disabled — no outbound requests are made",
-    "latest": "Latest available",
+    "latest": "Latest main build",
     "unreachable": "could not reach github.com",
     "status": "Status",
-    "updateAvailable": "A newer release is available",
-    "upToDate": "Up to date",
+    "updateAvailable": "A newer main build is available",
+    "upToDate": "Up to date with main",
+    "comparisonUnknown": "Unable to compare this build with main",
     "checkedAt": "Last checked",
     "howToUpdate": "To update, run on the server:",
     "howToEnable": "Update checks are on by default. This is the only outbound request VigaBSS makes on its own, and no install data is sent. To switch it off, set",
@@ -5608,9 +5611,10 @@
       "succeeded": "Succeeded",
       "failed": "Failed"
     },
-    "nothingToDeploy": "You are on the latest release — nothing to deploy.",
+    "nothingToDeploy": "You are on the latest main build — nothing to deploy.",
+    "comparisonUnknown": "VigaBSS cannot confirm whether an update is available until both build commits are known. Check again before deploying.",
     "enableCheckFirst": "Update checks are off, so there is nothing to compare against. Enable them to deploy from here.",
-    "agentPending": "The deploy agent has not reported in yet. It is installed automatically by redeploy and checks in within about 30 seconds — if this persists, run: journalctl -u fireisp-deploy-agent -n 30",
+    "agentPending": "The deploy agent has not reported in yet. It is installed automatically by redeploy and checks in within about 30 seconds — if this persists, run: journalctl -u vigabss-deploy-agent -n 30",
     "agentPendingWhy": "The agent runs on the host, outside Docker. VigaBSS itself is never given permission to restart the stack — it can only record that you asked, which is why a break-in here cannot take over the machine."
   },
   "communicationOptIn": {

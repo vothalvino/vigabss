@@ -1,4 +1,4 @@
-# VigaBSS 5.0 — Disaster-Recovery Drill
+# VigaBSS 0.1.0-alpha.1 — Disaster-Recovery Drill
 
 > **Frequency:** Run this drill **quarterly**.  Record each run in the
 > [Quarterly Drill Log](#quarterly-drill-log) at the bottom of this file
@@ -41,15 +41,19 @@
 | `mysqldump` and `mysql` CLI in `PATH` | `mysqldump --version` |
 | MySQL/MariaDB root or admin credentials | `.env` → `DB_ROOT_PASSWORD` or `DB_PASSWORD` |
 | Enough disk space for the dump (≥ current DB size × 1.5) | `df -h` |
-| VigaBSS application **stopped** or in maintenance mode during restore | `npm run stop` / `docker compose stop app` |
+| VigaBSS application **stopped** or in maintenance mode during restore | `sudo systemctl stop vigabss` / `docker compose stop app` |
 | Storage files backed up (optional but recommended) | `tar czf storage-$(date +%Y%m%d).tar.gz storage/` |
 
 Set shell variables before starting to avoid typos across commands:
 
+The default below is for a fresh VigaBSS install. Set `DB_NAME` explicitly to
+the existing configured name when testing an upgraded installation; do not
+rename a live FireISP-era database as part of the drill.
+
 ```bash
 export DB_HOST="${DB_HOST:-127.0.0.1}"
 export DB_PORT="${DB_PORT:-3306}"
-export DB_NAME="${DB_NAME:-fireisp}"
+export DB_NAME="${DB_NAME:-vigabss}"
 export DB_USER="${DB_USER:-root}"
 # Prompt once for the password — avoids storing it in shell history
 read -s -p "MySQL password: " DB_PASS; export DB_PASS
@@ -70,9 +74,9 @@ interactive terminal, a bare `-p` (prompt, no value) is equally safe.
 ### 1a. Automated backup (recommended)
 
 ```bash
-npm run backup
+pnpm run backup
 # Output example:
-# {"level":"info","filename":"fireisp_2026-04-23T02-00-00.sql.gz","script":"backup","msg":"Backup created","sizeKB":"42312.8"}
+# {"level":"info","filename":"vigabss_2026-04-23T02-00-00.sql.gz","script":"backup","msg":"Backup created","sizeKB":"42312.8"}
 ```
 
 The compressed dump is saved to `storage/backups/`.  Record the filename:
@@ -82,7 +86,7 @@ BACKUP_FILE=$(ls -t storage/backups/*.sql.gz | head -1)
 echo "Backup: $BACKUP_FILE"
 ```
 
-### 1b. Manual backup (if `npm run backup` is unavailable)
+### 1b. Manual backup (if `pnpm run backup` is unavailable)
 
 ```bash
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -208,7 +212,7 @@ SELECT 'schema_migrations',   COUNT(*) FROM schema_migrations;
 
 All `rows` values must be **≥ the pre-drill count** (or ≥ 1 for a
 freshly-seeded drill environment).  The `schema_migrations` count must be
-**164** (as of VigaBSS 5.0.x).
+**164** (as of VigaBSS 0.1.0-alpha.1).
 
 ### 4b. Referential integrity — orphaned child rows
 
@@ -289,7 +293,7 @@ MYSQL_PWD="$DB_PASS" mysql \
 
 ```bash
 # Alternatively — start the application and call the health endpoint
-npm start &
+pnpm start &
 APP_PID=$!
 sleep 5
 curl -sf http://localhost:3000/health/ready && echo "READY" || echo "NOT READY"
@@ -303,7 +307,7 @@ kill $APP_PID
 If a storage archive was taken in the prerequisites step:
 
 ```bash
-tar xzf "storage-$(date +%Y%m%d).tar.gz" -C /path/to/fireisp5.0/
+tar xzf "storage-$(date +%Y%m%d).tar.gz" -C /path/to/vigabss/
 ```
 
 Verify that uploaded PDFs and client documents are accessible:

@@ -1,7 +1,7 @@
 {
-  "name": "@fireisp/ui",
-  "version": "0.1.0",
-  "description": "VigaBSS 5.0 design-system component library — design tokens + 6 core components",
+  "name": "@vigabss/ui",
+  "version": "0.1.0-alpha.1",
+  "description": "VigaBSS design-system component library — design tokens + 6 core components",
   "type": "module",
   "private": true,
   "module": "./dist/index.mjs",

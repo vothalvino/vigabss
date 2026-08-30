@@ -1,11 +1,13 @@
 // =============================================================================
-// VigaBSS 5.0 — Portal Service Worker (§11.5 PWA)
+// VigaBSS — Portal Service Worker (§11.5 PWA)
 // =============================================================================
 // Provides basic offline support (network-first with cache fallback) and
 // handles Web Push notifications for outage / billing / ticket events.
 // =============================================================================
 
-const CACHE_NAME = 'fireisp-portal-v1';
+// Changing the cache name also retires the legacy FireISP-branded cache in the
+// activate handler below, so existing installations move over cleanly.
+const CACHE_NAME = 'vigabss-portal-v2';
 
 // Shell assets to cache on install (Vite build outputs vary; keep minimal)
 const PRECACHE_URLS = [
@@ -13,6 +15,7 @@ const PRECACHE_URLS = [
   '/portal',
   '/portal/login',
   '/manifest.webmanifest',
+  '/icons/vigabss.svg',
 ];
 
 // ---------------------------------------------------------------------------
@@ -83,10 +86,10 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'VigaBSS';
   const options = {
     body: data.body || '',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: '/icons/vigabss.svg',
+    badge: '/icons/vigabss.svg',
     data: { url: data.url || '/portal' },
-    tag: data.tag || 'fireisp',
+    tag: data.tag || 'vigabss',
     requireInteraction: data.requireInteraction || false,
   };
 

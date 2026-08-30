@@ -1,4 +1,4 @@
-import { Modal, Button } from '@fireisp/ui';
+import { Modal, Button } from '@vigabss/ui';
 
 const noop = () => {};
 

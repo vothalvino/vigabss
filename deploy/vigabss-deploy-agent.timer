@@ -8,10 +8,10 @@ Description=Poll for VigaBSS deploy requests made from the web GUI
 OnBootSec=60
 OnUnitActiveSec=30s
 AccuracySec=5s
-# Overlapping runs are prevented by the unit itself (Type=oneshot will not start
-# a second instance while the first is running) AND by claim-by-update in the
-# agent, which is what actually guarantees redeploy.sh cannot run twice.
-Unit=fireisp-deploy-agent.service
+# Type=oneshot prevents overlap within this unit name. deploy-agent.sh also
+# holds a shared host lock, which covers the brief migration window where the
+# legacy fireisp timer and this canonical timer can both exist.
+Unit=vigabss-deploy-agent.service
 
 [Install]
 WantedBy=timers.target

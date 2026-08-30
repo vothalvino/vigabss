@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS 5.0 — UpdateAvailableBanner component tests
+// VigaBSS — UpdateAvailableBanner component tests
 // =============================================================================
 // Two properties matter here and neither is "does a div render":
 //
@@ -66,6 +66,7 @@ function respond(over: Record<string, unknown> = {}) {
   mockApiGet.mockResolvedValue({
     data: {
       data: {
+        release_version: '0.1.0-alpha.1',
         running_sha: 'aaaaaaaaaaaaaaaa',
         latest_sha: 'bbbbbbbbbbbbbbbb',
         update_available: true,

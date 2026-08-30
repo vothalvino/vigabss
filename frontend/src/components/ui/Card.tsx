@@ -1,7 +1,7 @@
 // =============================================================================
 // VigaBSS UI — Card
 // =============================================================================
-// Faithful TSX port of @fireisp/ui Card. Titled surface panel with an optional
+// Faithful TSX port of @vigabss/ui Card. Titled surface panel with an optional
 // actions slot. Set padding={false} to wrap a full-bleed Table.
 // =============================================================================
 

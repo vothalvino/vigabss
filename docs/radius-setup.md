@@ -1,6 +1,6 @@
 # FreeRADIUS Integration Guide
 
-VigaBSS 5.0 uses the `radius` database table as the authentication and authorization source for FreeRADIUS. This guide explains how to connect FreeRADIUS to the VigaBSS database.
+VigaBSS 0.1.0-alpha.1 uses the `radius` database table as the authentication and authorization source for FreeRADIUS. This guide explains how to connect FreeRADIUS to the VigaBSS database.
 
 ---
 
@@ -37,7 +37,7 @@ VigaBSS manages RADIUS subscriber accounts in the `radius` table. Each row repre
 > and a recoverable cleartext `password`, inserts the matching `radius` row, and
 > returns the credentials in the create response (`data.provisioning.pppoe`).
 > The password is stored in cleartext — required for PAP/CHAP `Cleartext-Password`
-> lookups — so it stays visible for future reference via `GET /api/radius`.
+> lookups — so it stays visible for future reference via `GET /api/v1/radius`.
 > Upgrading a contract from an IPv4-only type to a dual-stack type
 > (`pppoe` → `pppoe_dual`, or `static` → `dual`) enables a new IPv6 line by
 > attaching an active IPv6 pool to the subscriber's RADIUS account. Static IP
@@ -55,6 +55,10 @@ VigaBSS manages RADIUS subscriber accounts in the `radius` table. Each row repre
 ---
 
 ## FreeRADIUS SQL Module Configuration
+
+The examples use the fresh-install database name `vigabss`. For an upgraded
+installation, keep and enter its configured database name (commonly the legacy
+`fireisp`); no database rename is required for VigaBSS.
 
 ### 1. Enable the SQL module
 
@@ -75,7 +79,7 @@ sql {
     login    = "radius_user"     # Dedicated read-only DB user recommended
     password = "radius_password"
 
-    radius_db = "fireisp"        # VigaBSS database name
+    radius_db = "vigabss"        # VigaBSS database name
 
     # Connection pooling
     pool {
@@ -368,8 +372,8 @@ set accept=yes port=3799
    `connection_logs` when accounting uses the recommended tenant API:
    ```sql
    CREATE USER 'radius_user'@'%' IDENTIFIED BY 'strong_password';
-   GRANT SELECT ON fireisp.radius TO 'radius_user'@'%';
-   GRANT SELECT ON fireisp.nas TO 'radius_user'@'%';
+   GRANT SELECT ON vigabss.radius TO 'radius_user'@'%';
+   GRANT SELECT ON vigabss.nas TO 'radius_user'@'%';
    FLUSH PRIVILEGES;
    ```
 

@@ -1,5 +1,5 @@
 # =============================================================================
-# FireISP 5.0 — OWASP ZAP Passive-Scan Rule Overrides
+# VigaBSS 0.1.0-alpha.1 — OWASP ZAP Passive-Scan Rule Overrides
 # =============================================================================
 # Format: <rule-id> TAB <IGNORE|WARN|FAIL> TAB (<optional description>)
 # Reference: https://www.zaproxy.org/docs/alerts/
@@ -27,7 +27,7 @@
 10021	IGNORE	(Set by helmet; confirmed in secretsAudit.test.js)
 
 # 90003 — Sub Resource Integrity Attribute Missing
-# Rationale: FireISP serves self-hosted bundled assets from Vite; SRI is
+# Rationale: VigaBSS serves self-hosted bundled assets from Vite; SRI is
 # relevant only for CDN-hosted third-party scripts, not self-hosted bundles.
 90003	IGNORE	(Self-hosted Vite bundle; no CDN third-party scripts)
 

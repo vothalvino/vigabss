@@ -1,4 +1,4 @@
-# VigaBSS 5.0 — Operational Runbook
+# VigaBSS 0.1.0-alpha.1 — Operational Runbook
 
 Common operational scenarios and troubleshooting guides.
 
@@ -61,7 +61,7 @@ Common operational scenarios and troubleshooting guides.
 
 - Check that `suspension_rules.is_enabled = TRUE` for the organization
 - Check `scheduled_tasks` table to verify the suspension task is active
-- Review logs: `grep "suspension" /var/log/fireisp/*.log`
+- Review container logs: `docker compose -f docker-compose.prod.yml --env-file .env.prod logs app | grep suspension`
 
 ---
 
@@ -143,21 +143,21 @@ Common operational scenarios and troubleshooting guides.
 ### Run migrations
 
 ```bash
-npm run migrate
+pnpm run migrate
 # Or in Docker:
-docker exec fireisp-app node src/scripts/migrate.js
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T app node src/scripts/migrate.js
 ```
 
 ### Check migration status
 
 ```bash
-npm run admin -- migration-status
+pnpm run admin -- migration-status
 ```
 
 ### Database health check
 
 ```bash
-npm run admin -- db-health
+pnpm run admin -- db-health
 # Or via API:
 curl http://localhost:3000/health?detail=true
 ```
@@ -165,7 +165,7 @@ curl http://localhost:3000/health?detail=true
 ### Manual backup
 
 ```bash
-npm run backup
+pnpm run backup
 # Backs up to storage/backups/
 ```
 
@@ -280,12 +280,13 @@ An incident should be **formally declared** (create an incident channel / ticket
 
 #### 🔴 Database is down
 
-1. **Verify**: `curl https://your-fireisp.domain/health?detail=true` → `db.connected: false`
+1. **Verify**: `curl https://vigabss.example.com/health?detail=true` → `db.connected: false`
 2. **Check MySQL service**:
    ```bash
-   docker exec fireisp-db mysqladmin -u root -p ping
-   # or in K8s:
-   kubectl exec -n fireisp deploy/mysql -- mysqladmin ping
+   docker compose -f docker-compose.prod.yml --env-file .env.prod exec db-primary mysqladmin -u root -p ping
+   # K8s/Helm does not bundle MySQL. Confirm the external host configured for it,
+   # then use that provider's health tooling (or your own in-cluster workload):
+   kubectl get secret fireisp-secret -n fireisp -o jsonpath='{.data.DB_HOST}' | base64 --decode; echo
    ```
 3. **Check disk space** (MySQL will stop if disk is full):
    ```bash
@@ -293,15 +294,18 @@ An incident should be **formally declared** (create an incident channel / ticket
    ```
 4. **Check MySQL error log**:
    ```bash
-   docker logs fireisp-db --tail 50
-   kubectl logs -n fireisp -l app=mysql --tail 50
+   docker compose -f docker-compose.prod.yml --env-file .env.prod logs --tail 50 db-primary
+   # For a MySQL workload that your team provisioned in Kubernetes:
+   kubectl logs -n <database-namespace> <mysql-pod> --tail 50
    ```
 5. **Restart MySQL** (if no data-integrity issue):
    ```bash
-   docker compose -f docker-compose.prod.yml --env-file .env.prod restart db
+   docker compose -f docker-compose.prod.yml --env-file .env.prod restart db-primary
    ```
 6. **Switch to read replica** (if write DB is down and read-only mode is acceptable):
-   - Set `DB_READ_REPLICA_URL` in `.env` to the replica host; the app will serve reads from replica.
+   - Set `DB_REPLICA_HOST` (and, when needed, `DB_REPLICA_PORT`,
+     `DB_REPLICA_USER`, and `DB_REPLICA_PASSWORD`) in `.env.prod`; the app
+     will serve eligible reads from the replica.
 7. **If MySQL will not start**, initiate a DR restore: see `docs/dr-drill.md`.
 8. **Customer comms**: Use SEV1 comms template below.
 
@@ -374,7 +378,7 @@ An incident should be **formally declared** (create an incident channel / ticket
    ```
 4. **Bulk reconnect** affected clients:
    ```bash
-   curl -X POST https://your-fireisp.domain/api/v1/suspension/bulk-reconnect \
+   curl -X POST https://vigabss.example.com/api/v1/suspension/bulk-reconnect \
      -H "Authorization: Bearer <admin_token>" \
      -H "X-Org-Id: <org_id>" \
      -H "Content-Type: application/json" \
@@ -414,17 +418,17 @@ An incident should be **formally declared** (create an incident channel / ticket
 
 #### 🔴 TLS certificate expired
 
-1. **Identify** via browser or `curl -vI https://your-fireisp.domain 2>&1 | grep "expire"`.
+1. **Identify** via browser or `curl -vI https://vigabss.example.com 2>&1 | grep "expire"`.
 2. **Force Let's Encrypt renewal**:
    ```bash
-   docker exec fireisp-certbot certbot renew --force-renewal
-   docker exec fireisp-nginx nginx -s reload
+   docker compose -f docker-compose.prod.yml --env-file .env.prod exec certbot certbot renew --force-renewal
+   docker compose -f docker-compose.prod.yml --env-file .env.prod exec nginx nginx -s reload
    ```
-4. If automated renewal is broken, check Certbot logs:
+3. If automated renewal is broken, check Certbot logs:
    ```bash
-   docker logs fireisp-certbot --tail 50
+   docker compose -f docker-compose.prod.yml --env-file .env.prod logs --tail 50 certbot
    ```
-5. Add a Prometheus alert for certificate expiry < 14 days (see `docs/slo.md`).
+4. Add a Prometheus alert for certificate expiry < 14 days (see `docs/slo.md`).
 
 ---
 

@@ -1,16 +1,17 @@
 // =============================================================================
-// VigaBSS 5.0 — OpenAPI Spec Generation Tests
+// VigaBSS — OpenAPI Spec Generation Tests
 // =============================================================================
 
 const { generateSpec, convertSchemaToOpenApi } = require('../src/utils/openapi');
+const product = require('../src/product');
 
 describe('OpenAPI spec generation', () => {
   test('generates valid OpenAPI 3.1 spec', () => {
     const spec = generateSpec();
 
     expect(spec.openapi).toBe('3.1.0');
-    expect(spec.info.title).toBe('VigaBSS 5.0 API');
-    expect(spec.info.version).toBe('5.0.0');
+    expect(spec.info.title).toBe('VigaBSS API');
+    expect(spec.info.version).toBe(product.version);
     expect(spec.paths).toBeDefined();
     expect(Object.keys(spec.paths).length).toBeGreaterThan(20);
   });
@@ -80,6 +81,21 @@ describe('OpenAPI spec generation', () => {
 
     // Should have at least some schemas from the schema files
     expect(Object.keys(spec.components.schemas).length).toBeGreaterThan(0);
+  });
+
+  test('documents semantic release and main-build status separately', () => {
+    const spec = generateSpec();
+    const systemVersion = spec.components.schemas.SystemVersion;
+    const response = spec.paths['/system/version'].get.responses[200]
+      .content['application/json'].schema;
+
+    expect(systemVersion.required).toEqual(expect.arrayContaining([
+      'release_version', 'running_sha', 'latest_sha',
+      'update_available', 'check_enabled', 'checked_at',
+    ]));
+    expect(systemVersion.properties.release_version.type).toEqual(['string', 'null']);
+    expect(response.properties.data).toEqual({ $ref: '#/components/schemas/SystemVersion' });
+    expect(spec.paths['/system/version'].get.summary).toMatch(/release.*main build/i);
   });
 
   test('documents NAS maintenance mode and localized PPPoE readiness metadata', () => {
