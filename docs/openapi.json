@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "VigaBSS 5.0 API",
-    "version": "5.0.0",
+    "title": "VigaBSS API",
+    "version": "0.1.0-alpha.1",
     "description": "Open source ISP management — customers, plans, billing, and network monitoring, with Mexican fiscal compliance (CFDI 4.0) enabled for MX organizations and omitted in global mode.",
     "license": {
       "name": "MIT",
@@ -24266,7 +24266,7 @@
         "tags": [
           "System"
         ],
-        "summary": "Force a fresh update check, bypassing the cache",
+        "summary": "Force a fresh main-build check, bypassing the cache",
         "operationId": "forceSystemVersionCheck",
         "security": [
           {
@@ -24275,11 +24275,20 @@
         ],
         "responses": {
           "200": {
-            "description": "SystemVersion",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SystemVersion"
+                    }
+                  }
                 }
               }
             }
@@ -24324,8 +24333,8 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": "SystemDeploy",
+          "202": {
+            "description": "SystemDeploy request accepted",
             "content": {
               "application/json": {
                 "schema": {
@@ -24342,7 +24351,7 @@
         "tags": [
           "System"
         ],
-        "summary": "Running commit, and whether a newer release exists",
+        "summary": "Installed release, running commit, and whether a newer main build exists",
         "operationId": "getSystemVersion",
         "security": [
           {
@@ -24351,11 +24360,20 @@
         ],
         "responses": {
           "200": {
-            "description": "SystemVersion",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SystemVersion"
+                    }
+                  }
                 }
               }
             }
@@ -78135,6 +78153,58 @@
           "download_mbps",
           "upload_mbps"
         ]
+      },
+      "SystemVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "release_version",
+          "running_sha",
+          "latest_sha",
+          "update_available",
+          "check_enabled",
+          "checked_at"
+        ],
+        "properties": {
+          "release_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Installed semantic release version."
+          },
+          "running_sha": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Commit baked into the running image, when built by CI."
+          },
+          "latest_sha": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Newest commit on the configured main branch, when reachable."
+          },
+          "update_available": {
+            "type": "boolean"
+          },
+          "check_enabled": {
+            "type": "boolean"
+          },
+          "checked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "refreshing": {
+            "type": "boolean",
+            "description": "A background refresh is running; poll again shortly."
+          }
+        }
       },
       "ConnectionSession": {
         "type": "object",

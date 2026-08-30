@@ -4,7 +4,7 @@ category: Actions
 
 # Button
 
-Primary interactive control covering the four FireISP action tones.
+Primary interactive control covering the four VigaBSS action tones.
 
 - **variant**: `primary` (accent fill) · `secondary` (bordered) · `ghost` (text-only) · `danger` (destructive red). Default `primary`.
 - **size**: `sm` · `md`. Default `md`.

@@ -5,6 +5,11 @@ dial in over WireGuard, and VigaBSS routes between them so an operator can reach
 device behind a NAS for monitoring and troubleshooting — without exposing the router's
 management plane to the internet.
 
+The interface name `wg-fireisp`, nftables table `fireisp_wg`, and the container
+image's `fireisp` Linux account are legacy protocol/runtime identifiers retained
+for upgrades and host firewall rules. They are not display branding and should
+not be renamed on a working installation.
+
 A fresh installation ships **disabled**. While disabled the app
 still *generates* configs / paste-once snippets / QR codes, but it does **not** bring up
 kernel tunnels (`GET /nas/:id/wg` stays `null`, peers report `server_peer_synced=0`).

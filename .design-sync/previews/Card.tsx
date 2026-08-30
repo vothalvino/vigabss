@@ -1,4 +1,4 @@
-import { Card, Button, Table, Badge } from '@fireisp/ui';
+import { Card, Button, Table, Badge } from '@vigabss/ui';
 
 const noop = () => {};
 
@@ -18,7 +18,7 @@ export const Plain = () => (
     <Card>
       <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.5 }}>
         A surface for grouping related content — borders over shadows, the primary
-        grouping primitive in FireISP's flat UI.
+        grouping primitive in VigaBSS's flat UI.
       </p>
     </Card>
   </div>

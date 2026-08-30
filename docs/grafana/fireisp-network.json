@@ -8,7 +8,7 @@
       "pluginId": "prometheus"
     }
   ],
-  "title": "VigaBSS 5.0 — Network & SNMP",
+  "title": "VigaBSS — Network & SNMP",
   "uid": "fireisp-network",
   "version": 1,
   "tags": ["fireisp", "network", "snmp", "radius"],

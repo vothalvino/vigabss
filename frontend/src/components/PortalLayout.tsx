@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { usePortalAuth, portalTokenStore } from '@/auth/PortalAuthContext';
 import { useDarkMode } from '@/auth/DarkModeContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { BrandLockup } from '@/components/BrandLockup';
 
 export function PortalLayout() {
   const { client, logout } = usePortalAuth();
@@ -58,7 +59,9 @@ export function PortalLayout() {
     <div style={styles.shell}>
       {/* Top bar */}
       <header className="portal-header">
-        <Link to="/portal" style={styles.logo}>{t('portalLayout.brandName')}</Link>
+        <Link to="/portal" style={styles.logo} aria-label={t('portalLayout.brandName')}>
+          <BrandLockup size="compact" />
+        </Link>
         <nav className="portal-nav">
           <NavLink
             to="/portal"

@@ -1,4 +1,4 @@
-# FreeRADIUS SQL Integration for VigaBSS 5.0
+# FreeRADIUS SQL Integration for VigaBSS 0.1.0-alpha.1
 
 This directory contains the SQL queries that FreeRADIUS needs to authenticate
 and authorize subscribers against the VigaBSS database.
@@ -16,6 +16,10 @@ in the `nas` table. FreeRADIUS reads these tables through its `rlm_sql` module.
 
 ## Configuration
 
+The SQL below uses the fresh-install database name `vigabss`. If this is an
+upgraded installation, substitute its configured `DB_NAME` (which may remain
+`fireisp`); do not rename a live database for branding.
+
 ### 1. Create a read-only MySQL user for FreeRADIUS
 
 > **⚠️ Important:** Replace `change-this-password` with a strong, randomly generated
@@ -23,11 +27,11 @@ in the `nas` table. FreeRADIUS reads these tables through its `rlm_sql` module.
 
 ```sql
 CREATE USER 'freeradius'@'localhost' IDENTIFIED BY 'change-this-password';
-GRANT SELECT ON fireisp.radius TO 'freeradius'@'localhost';
-GRANT SELECT ON fireisp.nas TO 'freeradius'@'localhost';
-GRANT SELECT ON fireisp.contracts TO 'freeradius'@'localhost';
-GRANT SELECT ON fireisp.plans TO 'freeradius'@'localhost';
-GRANT SELECT, INSERT, UPDATE ON fireisp.connection_logs TO 'freeradius'@'localhost';
+GRANT SELECT ON vigabss.radius TO 'freeradius'@'localhost';
+GRANT SELECT ON vigabss.nas TO 'freeradius'@'localhost';
+GRANT SELECT ON vigabss.contracts TO 'freeradius'@'localhost';
+GRANT SELECT ON vigabss.plans TO 'freeradius'@'localhost';
+GRANT SELECT, INSERT, UPDATE ON vigabss.connection_logs TO 'freeradius'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -43,7 +47,7 @@ sql {
     login    = "freeradius"
     password = "change-this-password"
 
-    radius_db = "fireisp"
+    radius_db = "vigabss"
 
     read_clients = yes
 

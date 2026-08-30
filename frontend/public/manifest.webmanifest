@@ -1,23 +1,17 @@
 {
-  "name": "VigaBSS Customer Portal",
-  "short_name": "VigaBSS",
-  "description": "Manage your internet service — invoices, support, usage, and more.",
+  "name": "VigaBSS Alpha Customer Portal",
+  "short_name": "VigaBSS Alpha",
+  "description": "VigaBSS 0.1.0-alpha.1 — manage your internet service, invoices, support, usage, and more.",
   "start_url": "/portal",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1a5276",
+  "background_color": "#f7f8fa",
+  "theme_color": "#18181b",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/icons/vigabss.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],

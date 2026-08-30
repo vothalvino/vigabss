@@ -27,14 +27,14 @@ requirement IDs show what must be reassessed.
 - [Acceptance-evidence minimums](#acceptance-evidence-minimums)
 - [Legal change workflow](#legal-change-workflow)
 - [Template for a new or revised record](#template-for-a-new-or-revised-record)
-- [Related VigaBSS documents](#related-fireisp-documents)
+- [Related VigaBSS documents](#related-vigabss-documents)
 - [Maintenance rules](#maintenance-rules)
 
 ## Document control
 
 | Field | Value |
 |---|---|
-| Register ID | `FIREISP-LEGAL-REGISTER` |
+| Register ID | `VIGABSS-LEGAL-REGISTER` |
 | Register owner | Compliance engineering |
 | Legal reviewer | Each deployment operator's authorized counsel |
 | Operational approver | Each deployment operator's compliance owner |

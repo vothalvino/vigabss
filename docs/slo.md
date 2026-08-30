@@ -1,4 +1,4 @@
-# VigaBSS 5.0 — Service Level Objectives (SLOs) & Alerting (P1.8)
+# VigaBSS 0.1.0-alpha.1 — Service Level Objectives (SLOs) & Alerting (P1.8)
 
 > **Audience:** Operations, on-call engineers, SRE.
 > This document defines the SLOs for VigaBSS, the Prometheus alerting rules
@@ -100,7 +100,7 @@ Configure your Alertmanager receiver in `k8s/alertmanager-config.yaml`
 ```yaml
 # k8s/alertmanager-config.yaml — template
 receivers:
-  - name: pagerduty-fireisp
+  - name: pagerduty-vigabss
     pagerduty_configs:
       - routing_key: <PAGERDUTY_INTEGRATION_KEY>
         description: '{{ .GroupLabels.alertname }}: {{ .Annotations.summary }}'
@@ -120,7 +120,7 @@ route:
   routes:
     - matchers:
         - severity = critical
-      receiver: pagerduty-fireisp
+      receiver: pagerduty-vigabss
       group_wait:      0s
       repeat_interval: 1h
     - matchers:

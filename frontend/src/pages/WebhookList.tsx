@@ -212,7 +212,7 @@ function WebhookModal({ webhook, onClose, onSaved }: WebhookModalProps) {
               maxLength={2000}
               value={form.url}
               onChange={e => setField('url', e.target.value)}
-              placeholder="https://example.com/hooks/fireisp"
+              placeholder="https://example.com/hooks/vigabss"
               required
             />
           </label>

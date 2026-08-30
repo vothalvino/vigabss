@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS 5.0 — OpenAPI Spec Generator
+// VigaBSS — OpenAPI Spec Generator
 // =============================================================================
 // Auto-generates an OpenAPI 3.1 spec from the registered routes and schemas.
 // Serves Swagger UI at /api/docs and raw spec at /api/docs/openapi.json.
@@ -7,6 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const product = require('../product');
 
 /**
  * Build OpenAPI spec from routes and schema files.
@@ -31,8 +32,8 @@ function generateSpec() {
   return {
     openapi: '3.1.0',
     info: {
-      title: 'VigaBSS 5.0 API',
-      version: '5.0.0',
+      title: `${product.name} API`,
+      version: product.version,
       description: 'Open source ISP management — customers, plans, billing, and network monitoring, with Mexican fiscal compliance (CFDI 4.0) enabled for MX organizations and omitted in global mode.',
       license: { name: 'MIT', url: 'https://opensource.org/licenses/MIT' },
     },
@@ -1179,13 +1180,13 @@ function generateSpec() {
       // POST, not GET: it has a side effect the operator asked for (an outbound
       // request), and must not be issued by a prefetcher.
       '/system/version/check': {
-        post: { tags: ['System'], summary: 'Force a fresh update check, bypassing the cache', operationId: 'forceSystemVersionCheck', security: [{ bearerAuth: [] }], responses: r200('SystemVersion') },
+        post: { tags: ['System'], summary: 'Force a fresh main-build check, bypassing the cache', operationId: 'forceSystemVersionCheck', security: [{ bearerAuth: [] }], responses: dataResponses('SystemVersion') },
       },
       '/system/deploy': {
         get: { tags: ['System'], summary: 'Newest deploy request and host agent liveness', operationId: 'getSystemDeploy', security: [{ bearerAuth: [] }], responses: r200('SystemDeploy') },
-        post: { tags: ['System'], summary: 'Ask the host to redeploy', operationId: 'requestSystemDeploy', security: [{ bearerAuth: [] }], responses: r201('SystemDeploy') },
+        post: { tags: ['System'], summary: 'Ask the host to redeploy', operationId: 'requestSystemDeploy', security: [{ bearerAuth: [] }], responses: r202('SystemDeploy request accepted') },
       },
-      '/system/version': { get: { tags: ['System'], summary: 'Running commit, and whether a newer release exists', operationId: 'getSystemVersion', security: [{ bearerAuth: [] }], responses: r200('SystemVersion') } },
+      '/system/version': { get: { tags: ['System'], summary: 'Installed release, running commit, and whether a newer main build exists', operationId: 'getSystemVersion', security: [{ bearerAuth: [] }], responses: dataResponses('SystemVersion') } },
       '/firerelay/health': { get: { tags: ['FireRelay'], summary: 'Node health (cluster token required)', operationId: 'firerelayHealth', security: [{ relayTokenAuth: [] }], responses: { ...r200('NodeHealth'), 401: { description: 'Invalid or missing relay token' }, 503: { description: 'Relay token not configured' } } } },
       '/firerelay/nodes': {
         get: { tags: ['FireRelay'], summary: 'List cluster nodes', operationId: 'listFirerelayNodes', security: [{ bearerAuth: [] }], responses: r200('Node[]') },
@@ -3309,6 +3310,7 @@ function generateSpec() {
       },
       schemas: {
         ...schemas,
+        SystemVersion: systemVersionSchema(),
         ConnectionSession: connectionSessionSchema(),
         CgnatBindingInput: cgnatBindingInputSchema(),
         CgnatBindingIngestRequest: cgnatBindingIngestRequestSchema(),
@@ -4492,6 +4494,26 @@ function r200(desc) {
   return { 200: { description: desc, content: { 'application/json': { schema: { type: 'object' } } } } };
 }
 
+function systemVersionSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'release_version', 'running_sha', 'latest_sha',
+      'update_available', 'check_enabled', 'checked_at',
+    ],
+    properties: {
+      release_version: { type: ['string', 'null'], description: 'Installed semantic release version.' },
+      running_sha: { type: ['string', 'null'], description: 'Commit baked into the running image, when built by CI.' },
+      latest_sha: { type: ['string', 'null'], description: 'Newest commit on the configured main branch, when reachable.' },
+      update_available: { type: 'boolean' },
+      check_enabled: { type: 'boolean' },
+      checked_at: { type: ['string', 'null'], format: 'date-time' },
+      refreshing: { type: 'boolean', description: 'A background refresh is running; poll again shortly.' },
+    },
+  };
+}
+
 function dataResponses(componentName, status = 200) {
   return {
     [status]: {
@@ -4707,6 +4729,9 @@ function mxContractEnvironmentResponse(includeActiveSource) {
 function r201(desc) {
   return { 201: { description: desc, content: { 'application/json': { schema: { type: 'object' } } } } };
 }
+function r202(desc) {
+  return { 202: { description: desc, content: { 'application/json': { schema: { type: 'object' } } } } };
+}
 function r204() {
   return { 204: { description: 'No content' } };
 }
@@ -4818,7 +4843,7 @@ function mountApiDocs(app) {
 
   app.get('/api/docs', (_req, res) => {
     res.send(`<!DOCTYPE html>
-<html><head><title>VigaBSS 5.0 API Docs</title>
+<html><head><title>${product.displayName} API Docs</title>
 <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
 </head><body>
 <div id="swagger-ui"></div>

@@ -1,5 +1,5 @@
 # =============================================================================
-# VigaBSS 5.0 — Host-Nginx Overlay
+# VigaBSS 0.1.0-alpha.1 — Host-Nginx Overlay
 # =============================================================================
 #
 # Use this overlay when a system-level (host) Nginx already owns port 80
@@ -19,7 +19,7 @@
 # Pre-requisites (handled automatically by install.sh when USE_HOST_NGINX=1):
 #   1. Install and configure host nginx:
 #        apt install nginx
-#        # copy nginx/host-nginx.conf to /etc/nginx/conf.d/fireisp.conf
+#        # copy nginx/host-nginx.conf to /etc/nginx/conf.d/vigabss.conf
 #        # (see docs/tls-setup.md#host-nginx-mode-port-80-conflict)
 #   2. Bootstrap TLS:
 #        DOMAIN=isp.example.com EMAIL=admin@example.com \

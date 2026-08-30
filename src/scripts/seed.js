@@ -14,6 +14,7 @@ const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ script: 'seed' });
+const product = require('../product');
 
 // Keep the sample tenant out of the ordinary low-numbered organization space.
 // Organization.create() reserves id=1 for the first real ISP created after
@@ -163,7 +164,7 @@ async function seed() {
 
 // Run when invoked directly
 if (require.main === module) {
-  logger.info('VigaBSS 5.0 — Seeding development data...');
+  logger.info(`${product.displayName} — Seeding development data...`);
   seed()
     .then(() => {
       logger.info('Done.');

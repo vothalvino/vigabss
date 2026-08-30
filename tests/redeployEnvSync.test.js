@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// VigaBSS 5.0 — redeploy.sh introduces new settings into a live .env.prod
+// VigaBSS 0.1.0-alpha.1 — redeploy.sh introduces new settings into a live .env.prod
 // =============================================================================
 // An upgrade that requires hand-editing a secrets file is an upgrade most
 // operators will not perform, so new options arrive on the next deploy already
@@ -26,14 +26,14 @@ const path = require('node:path');
 const SCRIPT = path.join(__dirname, '../redeploy.sh');
 let dir;
 
-beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-envsync-')); });
+beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-envsync-')); });
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 /** Source redeploy.sh in library mode and run the sync against `file`. */
 function sync(file) {
   return execFileSync(
     'bash',
-    ['-c', `set -euo pipefail; FIREISP_LIB_ONLY=1 source "$1"; sync_managed_env "$2"`,
+    ['-c', `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; sync_managed_env "$2"`,
       'bash', SCRIPT, file],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   );
@@ -52,7 +52,7 @@ describe('a new setting arrives without the operator editing anything', () => {
   // mechanism with a synthetic entry so it stays proven for the next setting,
   // rather than deleting the coverage until one appears.
   const withKey = (file, entry) => execFileSync('bash', ['-c',
-    `set -euo pipefail; FIREISP_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("$3"); sync_managed_env "$2"`,
+    `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("$3"); sync_managed_env "$2"`,
     'bash', SCRIPT, file, entry], { encoding: 'utf8' });
   const ENTRY = 'FIREISP_DEMO_KEY=7|A synthetic managed setting used only by the test suite.';
 
@@ -89,7 +89,7 @@ describe('a new setting arrives without the operator editing anything', () => {
 
 describe('it never overrides what the operator decided', () => {
   const withKey = (file) => execFileSync('bash', ['-c',
-    `set -euo pipefail; FIREISP_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("FIREISP_DEMO_KEY=7|synthetic setting for the test suite"); sync_managed_env "$2"`,
+    `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("FIREISP_DEMO_KEY=7|synthetic setting for the test suite"); sync_managed_env "$2"`,
     'bash', SCRIPT, file], { encoding: 'utf8' });
 
   it.each([
@@ -125,7 +125,7 @@ describe('it never overrides what the operator decided', () => {
 
 describe('it cannot corrupt the file it is appending to', () => {
   const withKey = (file) => execFileSync('bash', ['-c',
-    `set -euo pipefail; FIREISP_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("FIREISP_DEMO_KEY=7|synthetic setting for the test suite"); sync_managed_env "$2"`,
+    `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; MANAGED_ENV_KEYS=("FIREISP_DEMO_KEY=7|synthetic setting for the test suite"); sync_managed_env "$2"`,
     'bash', SCRIPT, file], { encoding: 'utf8' });
 
   it('does not glue the new key onto a file with no trailing newline', () => {
@@ -181,7 +181,7 @@ describe('the allowlist is the safety mechanism', () => {
     // The list is legitimately EMPTY between settings — assert the shape of
     // whatever is there rather than requiring something to be there.
     const out = execFileSync('bash', ['-c',
-      'set -euo pipefail; FIREISP_LIB_ONLY=1 source "$1"; printf "%s\\n" "${MANAGED_ENV_KEYS[@]:-}"',
+      'set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; printf "%s\\n" "${MANAGED_ENV_KEYS[@]:-}"',
       'bash', SCRIPT], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
     for (const entry of out) {
       expect(entry).toMatch(/^[A-Z0-9_]+=[^|]*\|.+/);
@@ -207,7 +207,7 @@ describe('the allowlist is the safety mechanism', () => {
 function retire(file) {
   return execFileSync(
     'bash',
-    ['-c', 'set -euo pipefail; FIREISP_LIB_ONLY=1 source "$1"; retire_managed_env "$2"',
+    ['-c', 'set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; retire_managed_env "$2"',
       'bash', SCRIPT, file],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   );

@@ -1,16 +1,15 @@
 // =============================================================================
-// VigaBSS 5.0 — System Version / Update Availability
+// VigaBSS — Release Version / Main-Build Availability
 // =============================================================================
 // GET /api/v1/system/version — what this instance is running, and (only when
-// the operator has opted in) whether a newer commit exists upstream.
+// the operator has left checks enabled) whether a newer main commit exists.
 //
-// INSTALL OPERATOR ONLY. Gated on the legacy users.role = 'admin' rather than a
-// permission slug, because the audience is a property of the INSTALL, not of a
-// tenant. VigaBSS is multi-tenant: a reseller's org-admin has no shell on the
-// box and cannot upgrade it, so showing them "a newer version is available" is
-// noise they can never act on — and it tells a tenant how often their provider
-// ships. A permission slug would be the wrong tool; every org's admin would end
-// up holding it.
+// INSTALL OPERATOR ONLY. Gated on the explicit users.is_install_operator fact,
+// not a role or permission slug, because the audience is a property of the
+// INSTALL rather than a tenant. VigaBSS is multi-tenant: a reseller's org-admin
+// has no shell on the box and cannot upgrade it, so showing them "a newer version
+// is available" is noise they can never act on — and tells a tenant how often
+// their provider ships.
 //
 // POST /api/v1/system/deploy — ask the host to redeploy.
 // GET  /api/v1/system/deploy — the newest request, and whether the host agent

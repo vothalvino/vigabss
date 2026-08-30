@@ -17,7 +17,7 @@
 //   LOADTEST_CLIENTS   — number of clients to insert       (default 500)
 //   LOADTEST_INVOICES  — number of invoices to insert      (default 5000)
 //   LOADTEST_DEVICES   — number of devices to insert       (default 100)
-//   LOADTEST_EMAIL     — admin email                       (default loadtest@fireisp.local)
+//   LOADTEST_EMAIL     — admin email                       (default loadtest@vigabss.local)
 //   LOADTEST_PASSWORD  — admin password                    (default loadtest123!)
 // =============================================================================
 
@@ -30,7 +30,7 @@ const logger = require('../utils/logger').child({ script: 'loadtest-seed' });
 const NUM_CLIENTS = parseInt(process.env.LOADTEST_CLIENTS, 10) || 500;
 const NUM_INVOICES = parseInt(process.env.LOADTEST_INVOICES, 10) || 5000;
 const NUM_DEVICES = parseInt(process.env.LOADTEST_DEVICES, 10) || 100;
-const ADMIN_EMAIL = process.env.LOADTEST_EMAIL || 'loadtest@fireisp.local';
+const ADMIN_EMAIL = process.env.LOADTEST_EMAIL || 'loadtest@vigabss.local';
 const ADMIN_PASSWORD = process.env.LOADTEST_PASSWORD || 'loadtest123!';
 
 const ORG_NAME = 'Load Test ISP (4.1)';

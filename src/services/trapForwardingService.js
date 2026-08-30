@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS 5.0 — durable SNMP trap forwarding
+// VigaBSS — durable SNMP trap forwarding
 // =============================================================================
 // A received trap is stored first. forwardTrap() then evaluates tenant-scoped
 // rules and persists immutable delivery jobs containing only allowlisted trap
@@ -23,6 +23,7 @@ const {
 const { normalizeIpAddress } = require('../utils/ipAddress');
 const { decrypt } = require('../utils/encryption');
 const { checkSchemaReadiness } = require('./trapForwardingReadinessService');
+const product = require('../product');
 
 const MAX_ACTIVE_RULES = 100;
 const DEFAULT_MAX_ATTEMPTS = 4;
@@ -1279,7 +1280,7 @@ async function attemptDelivery(deliveryId, expectedOrganizationId = null, primar
         : null;
       const response = await safeHttpsPost(row.target_url, body, {
         'Content-Type': 'application/json',
-        'User-Agent': 'VigaBSS-Trap-Forwarder/5.0',
+        'User-Agent': `VigaBSS-Trap-Forwarder/${product.version}`,
         'X-VigaBSS-Event': event,
         'X-VigaBSS-Delivery-Id': String(row.id),
         ...(signature && { 'X-VigaBSS-Signature': `sha256=${signature}` }),

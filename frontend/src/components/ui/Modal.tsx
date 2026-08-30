@@ -1,7 +1,7 @@
 // =============================================================================
 // VigaBSS UI — Modal
 // =============================================================================
-// Faithful TSX port of @fireisp/ui Modal. Centered dialog over a dimmed
+// Faithful TSX port of @vigabss/ui Modal. Centered dialog over a dimmed
 // overlay; ESC and backdrop-click close it. open/title/onClose/footer.
 // =============================================================================
 
@@ -109,11 +109,11 @@ export function Modal({ open, title, onClose, children, footer, inline = false, 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="fireisp-modal-title"
+      aria-labelledby="vigabss-modal-title"
     >
       <div style={cardStyle}>
         <div style={headerStyle}>
-          <h2 id="fireisp-modal-title" style={titleStyle}>{title}</h2>
+          <h2 id="vigabss-modal-title" style={titleStyle}>{title}</h2>
           <button style={closeStyle} onClick={onClose} aria-label="Close" type="button">✕</button>
         </div>
         <div style={bodyStyle}>{children}</div>

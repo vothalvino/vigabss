@@ -1,4 +1,4 @@
-import { Field } from '@fireisp/ui';
+import { Field } from '@vigabss/ui';
 
 const noop = () => {};
 

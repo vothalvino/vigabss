@@ -1,6 +1,11 @@
 # Data Migration Runbook
 
-This runbook covers migrating an existing ISP's data into VigaBSS 5.0. It applies when you are replacing a legacy billing system, spreadsheet-based operation, or another ISP management platform.
+This runbook covers migrating an existing ISP's data into VigaBSS 0.1.0-alpha.1. It applies when you are replacing a legacy billing system, spreadsheet-based operation, or another ISP management platform.
+
+Examples use the fresh-install database name and backup prefix `vigabss`.
+Before any destructive command, replace them with the configured `DB_NAME` and
+the exact backup filename from your installation. Existing FireISP-era
+databases and backup prefixes do not need to be renamed.
 
 ---
 
@@ -24,17 +29,17 @@ This runbook covers migrating an existing ISP's data into VigaBSS 5.0. It applie
 
 ## Overview
 
-VigaBSS 5.0 exposes bulk-import API endpoints that accept **CSV** files. Each endpoint inserts rows independently — errors in individual rows do not abort the entire import; instead they are collected and returned in the response.
+VigaBSS 0.1.0-alpha.1 exposes bulk-import API endpoints that accept **CSV** files. Each endpoint inserts rows independently — errors in individual rows do not abort the entire import; instead they are collected and returned in the response.
 
 ### Import endpoints summary
 
 | Resource | JSON (CSV body) | File upload |
 |---|---|---|
-| Clients | `POST /api/import/clients` | `POST /api/import/clients/upload` |
-| Devices | `POST /api/import/devices` | `POST /api/import/devices/upload` |
-| Contracts | `POST /api/import/contracts` | `POST /api/import/contracts/upload` |
-| Invoices | `POST /api/import/invoices` | `POST /api/import/invoices/upload` |
-| Payments | `POST /api/import/payments` | `POST /api/import/payments/upload` |
+| Clients | `POST /api/v1/import/clients` | `POST /api/v1/import/clients/upload` |
+| Devices | `POST /api/v1/import/devices` | `POST /api/v1/import/devices/upload` |
+| Contracts | `POST /api/v1/import/contracts` | `POST /api/v1/import/contracts/upload` |
+| Invoices | `POST /api/v1/import/invoices` | `POST /api/v1/import/invoices/upload` |
+| Payments | `POST /api/v1/import/payments` | `POST /api/v1/import/payments/upload` |
 
 All endpoints require authentication and the `X-Org-Id` header. File uploads use `multipart/form-data` with the field name `file`. Maximum file size is **10 MB**. Maximum rows per import is **10,000**.
 
@@ -44,12 +49,12 @@ All endpoints require authentication and the `X-Org-Id` header. File uploads use
 
 Before importing any data, complete every item on this checklist:
 
-- [ ] VigaBSS 5.0 is installed and all database migrations have been applied (`npm run migrate`)
+- [ ] VigaBSS 0.1.0-alpha.1 is installed and all database migrations have been applied (`pnpm run migrate`)
 - [ ] At least one Organization exists in the system
 - [ ] At least one admin user exists and can obtain a JWT token
-- [ ] All required **Plans** exist (`POST /api/plans`) — contracts reference `plan_id`
-- [ ] All required **Sites** exist (`POST /api/sites`) — devices reference `site_id`
-- [ ] A fresh backup of the target database has been taken (`npm run backup`)
+- [ ] All required **Plans** exist (`POST /api/v1/plans`) — contracts reference `plan_id`
+- [ ] All required **Sites** exist (`POST /api/v1/sites`) — devices reference `site_id`
+- [ ] A fresh backup of the target database has been taken (`pnpm run backup`)
 - [ ] Source data has been exported to CSV
 - [ ] Source data has been reviewed for encoding (UTF-8 required) and date format (`YYYY-MM-DD`)
 - [ ] A staging environment has been used to validate the import before running on production
@@ -75,14 +80,15 @@ Data must be imported in this order to satisfy foreign-key dependencies:
 Always take a backup before starting. The import operations cannot be automatically rolled back.
 
 ```bash
-npm run backup
-# Backup written to storage/backups/fireisp_<timestamp>.sql.gz
+pnpm run backup
+# Backup written to storage/backups/vigabss_<timestamp>.sql.gz
 ```
 
 To back up from Docker:
 
 ```bash
-docker compose exec app npm run backup
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T app \
+  node src/scripts/backup.js
 ```
 
 Record the backup filename. You will need it if rollback is required.
@@ -107,7 +113,7 @@ Optional columns: `email`, `phone`, `city`, `state`, `country`
 ### Import via file upload
 
 ```bash
-curl -X POST http://localhost:3000/api/import/clients/upload \
+curl -X POST http://localhost:3000/api/v1/import/clients/upload \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>" \
   -F "file=@clients.csv"
@@ -116,7 +122,7 @@ curl -X POST http://localhost:3000/api/import/clients/upload \
 ### Import via JSON body
 
 ```bash
-curl -X POST http://localhost:3000/api/import/clients \
+curl -X POST http://localhost:3000/api/v1/import/clients \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>" \
   -H "Content-Type: application/json" \
@@ -145,7 +151,7 @@ Review every error before proceeding. Fix the source file and re-run only the fa
 After importing clients, retrieve their VigaBSS IDs to map them to contracts and invoices:
 
 ```bash
-curl "http://localhost:3000/api/clients?limit=100" \
+curl "http://localhost:3000/api/v1/clients?limit=100" \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>"
 ```
@@ -170,7 +176,7 @@ Optional columns: `type` (default `router`), `site_id`, `mac_address`, `snmp_com
 ### Import
 
 ```bash
-curl -X POST http://localhost:3000/api/import/devices/upload \
+curl -X POST http://localhost:3000/api/v1/import/devices/upload \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>" \
   -F "file=@devices.csv"
@@ -204,7 +210,7 @@ currently supported by this CSV shape. `static`/`dual` rows need no RADIUS accou
 ### Import
 
 ```bash
-curl -X POST http://localhost:3000/api/import/contracts/upload \
+curl -X POST http://localhost:3000/api/v1/import/contracts/upload \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>" \
   -F "file=@contracts.csv"
@@ -213,7 +219,7 @@ curl -X POST http://localhost:3000/api/import/contracts/upload \
 ### Retrieve imported IDs
 
 ```bash
-curl "http://localhost:3000/api/contracts?limit=100" \
+curl "http://localhost:3000/api/v1/contracts?limit=100" \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>"
 ```
@@ -240,7 +246,7 @@ Valid `status` values: `draft`, `sent`, `paid`, `overdue`, `cancelled`
 ### Import
 
 ```bash
-curl -X POST http://localhost:3000/api/import/invoices/upload \
+curl -X POST http://localhost:3000/api/v1/import/invoices/upload \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>" \
   -F "file=@invoices.csv"
@@ -268,7 +274,7 @@ Valid `payment_method` values: `cash`, `check`, `credit_card`, `debit_card`, `ba
 ### Import
 
 ```bash
-curl -X POST http://localhost:3000/api/import/payments/upload \
+curl -X POST http://localhost:3000/api/v1/import/payments/upload \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>" \
   -F "file=@payments.csv"
@@ -331,12 +337,12 @@ WHERE p.invoice_id IS NOT NULL
 
 ```bash
 # Fetch a known client by email
-curl "http://localhost:3000/api/clients?email=juan@ejemplo.com" \
+curl "http://localhost:3000/api/v1/clients?email=juan@ejemplo.com" \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>"
 
 # Fetch their invoices
-curl "http://localhost:3000/api/invoices?client_id=<client_id>" \
+curl "http://localhost:3000/api/v1/invoices?client_id=<client_id>" \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>"
 ```
@@ -351,19 +357,19 @@ The import endpoints do not support transactional rollback across a full batch. 
 
 ```bash
 ls -lh storage/backups/
-# e.g. fireisp_2026-04-20T02-00-00.sql.gz
+# e.g. vigabss_2026-04-20T02-00-00.sql.gz
 ```
 
 ### 2. Drop and recreate the database
 
 ```bash
-mysql -u root -p -e "DROP DATABASE fireisp; CREATE DATABASE fireisp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p -e "DROP DATABASE vigabss; CREATE DATABASE vigabss CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
 ### 3. Restore the backup
 
 ```bash
-gunzip < storage/backups/fireisp_2026-04-20T02-00-00.sql.gz | mysql -u root -p fireisp
+gunzip < storage/backups/vigabss_2026-04-20T02-00-00.sql.gz | mysql -u root -p vigabss
 ```
 
 ### 4. Verify row counts match pre-migration state
@@ -371,7 +377,7 @@ gunzip < storage/backups/fireisp_2026-04-20T02-00-00.sql.gz | mysql -u root -p f
 ```sql
 SELECT table_name, table_rows
 FROM information_schema.tables
-WHERE table_schema = 'fireisp'
+WHERE table_schema = 'vigabss'
 ORDER BY table_name;
 ```
 

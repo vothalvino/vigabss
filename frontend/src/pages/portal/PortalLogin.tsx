@@ -7,6 +7,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { usePortalAuth } from '@/auth/PortalAuthContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { BrandLockup } from '@/components/BrandLockup';
 
 export function PortalLogin() {
   const { login } = usePortalAuth();
@@ -40,7 +41,7 @@ export function PortalLogin() {
         <LanguageSwitcher variant="bar" />
       </div>
       <form style={styles.card} onSubmit={handleSubmit}>
-        <h1 style={styles.title}>🔥 VigaBSS</h1>
+        <h1 style={styles.title}><BrandLockup size="hero" showVersion /></h1>
         <p style={styles.subtitle}>{t('portalLogin.subtitle')}</p>
 
         {error && <div style={styles.error}>{error}</div>}

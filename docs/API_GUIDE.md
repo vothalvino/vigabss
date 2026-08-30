@@ -1,4 +1,4 @@
-# VigaBSS 5.0 — API Guide
+# VigaBSS 0.1.0-alpha.1 — API Guide
 
 This guide covers everything a developer needs to integrate with the VigaBSS REST API.
 
@@ -28,10 +28,14 @@ This guide covers everything a developer needs to integrate with the VigaBSS RES
 ## Base URL & Versioning
 
 ```
-https://your-domain.com/api/
+https://your-domain.com/api/v1/
 ```
 
-All API endpoints are prefixed with `/api/`. The health check endpoint (`/health`) is the only non-prefixed route. There is no version prefix — the API is versioned by the application release (currently 5.0.0).
+The canonical REST API is versioned under `/api/v1/`. The legacy unversioned
+`/api/` mount remains temporarily available with deprecation headers, but new
+clients must use `/api/v1/`. Health endpoints and the Swagger UI at `/api/docs`
+are intentionally outside the versioned REST prefix. The current application
+release is `0.1.0-alpha.1`.
 
 ---
 
@@ -42,7 +46,7 @@ VigaBSS uses JWT (JSON Web Tokens) for authentication. Tokens are issued on logi
 ### Register
 
 ```http
-POST /api/auth/register
+POST /api/v1/auth/register
 Content-Type: application/json
 
 {
@@ -56,7 +60,7 @@ Content-Type: application/json
 ### Login
 
 ```http
-POST /api/auth/login
+POST /api/v1/auth/login
 Content-Type: application/json
 
 {
@@ -92,7 +96,7 @@ Content-Type: application/json
 Include the access token (JWT) in the `Authorization` header:
 
 ```http
-GET /api/clients
+GET /api/v1/clients
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
@@ -101,7 +105,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 Send the refresh token in the request body to revoke the session:
 
 ```http
-POST /api/auth/logout
+POST /api/v1/auth/logout
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 Content-Type: application/json
 
@@ -113,7 +117,7 @@ Content-Type: application/json
 ### Get Current User
 
 ```http
-GET /api/auth/me
+GET /api/v1/auth/me
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
@@ -124,7 +128,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 Access tokens expire after 60 minutes by default (configurable via `JWT_ACCESS_EXPIRES_IN`). Refresh tokens last 7 days (configurable via `JWT_REFRESH_EXPIRES_IN`). Use the refresh endpoint to rotate your token pair without re-authenticating:
 
 ```http
-POST /api/auth/refresh
+POST /api/v1/auth/refresh
 Content-Type: application/json
 
 {
@@ -220,7 +224,7 @@ All list endpoints support pagination via query parameters:
 **Example:**
 
 ```http
-GET /api/clients?page=2&limit=25&order_by=created_at&order=DESC
+GET /api/v1/clients?page=2&limit=25&order_by=created_at&order=DESC
 ```
 
 **Response meta:**
@@ -290,10 +294,10 @@ Requests are rate-limited per IP address. Rate limit headers are included in eve
 
 | Tier | Limit | Window | Applied To |
 |------|-------|--------|------------|
-| Auth | 20 req | 15 min | `/api/auth/{login,register,password-reset,change-password,verify-email}` |
-| SSE | 10 req | 15 min | `/api/events/*` |
-| Export | 20 req | 15 min | `/api/export/*`, `/api/pdf/*` |
-| General | 200 req | 15 min | All other `/api/*` |
+| Auth | 20 req | 15 min | `/api/v1/auth/{login,register,password-reset,change-password,verify-email}` |
+| SSE | 10 req | 15 min | `/api/v1/events/*` |
+| Export | 20 req | 15 min | `/api/v1/export/*`, `/api/v1/pdf/*` |
+| General | 200 req | 15 min | All other `/api/v1/*` |
 
 ---
 
@@ -333,7 +337,7 @@ VigaBSS uses Server-Sent Events (SSE) for real-time push notifications. SSE work
 ### Connecting
 
 ```javascript
-const eventSource = new EventSource('/api/events/stream', {
+const eventSource = new EventSource('/api/v1/events/stream', {
   headers: { 'Authorization': 'Bearer ' + token }
 });
 
@@ -350,11 +354,11 @@ eventSource.addEventListener('invoice.created', (e) => {
 
 | Endpoint | Description | Auth Required |
 |----------|-------------|---------------|
-| `/api/events/stream` | Organization notification feed | Yes |
-| `/api/events/metrics` | Live SNMP metrics (admin) | Yes |
-| `/api/events/tickets/:id` | Ticket updates for a specific ticket | Yes |
-| `/api/events/outages` | Outage alerts for the organization | Yes |
-| `/api/events/stats` | Connection statistics (non-SSE, JSON) | Yes |
+| `/api/v1/events/stream` | Organization notification feed | Yes |
+| `/api/v1/events/metrics` | Live SNMP metrics (admin) | Yes |
+| `/api/v1/events/tickets/:id` | Ticket updates for a specific ticket | Yes |
+| `/api/v1/events/outages` | Outage alerts for the organization | Yes |
+| `/api/v1/events/stats` | Connection statistics (non-SSE, JSON) | Yes |
 
 ### Channel Naming
 
@@ -365,7 +369,7 @@ Events are scoped by organization: `org:{orgId}:notifications`, `org:{orgId}:met
 The server sends `:keepalive` comments every 30 seconds to maintain the connection. Configure your reverse proxy (nginx) to disable buffering for SSE:
 
 ```nginx
-location /api/events/ {
+location /api/v1/events/ {
     proxy_buffering off;
     proxy_cache off;
     proxy_read_timeout 86400s;
@@ -449,16 +453,16 @@ Failed deliveries are retried up to 3 times with exponential backoff (2s, 4s, 8s
 
 ### Automated Billing Cycle
 
-1. **Create Plans** — Define service packages with pricing (`POST /api/plans`)
-2. **Create Contracts** — Link clients to plans with billing day (`POST /api/contracts`)
+1. **Create Plans** — Define service packages with pricing (`POST /api/v1/plans`)
+2. **Create Contracts** — Link clients to plans with billing day (`POST /api/v1/contracts`)
 3. **Auto-Invoice** — The scheduler generates invoices on each billing cycle
-4. **Record Payments** — Payments are received and allocated to invoices (`POST /api/payments`)
+4. **Record Payments** — Payments are received and allocated to invoices (`POST /api/v1/payments`)
 5. **Auto-Suspend** — Overdue contracts are suspended per organization rules
 
 ### Manual Invoice Generation
 
 ```http
-POST /api/billing/generate-invoice
+POST /api/v1/billing/generate-invoice
 Content-Type: application/json
 
 {
@@ -471,7 +475,7 @@ Content-Type: application/json
 When recording a payment, allocate it to the client's open invoices:
 
 ```http
-POST /api/payments
+POST /api/v1/payments
 {
   "client_id": 5,
   "amount": 499.00,
@@ -485,7 +489,7 @@ transaction. This is what the RecordPaymentModal checklist (PaymentList /
 ClientDetail / InvoiceDetail) submits to.
 
 ```http
-POST /api/payments/:id/allocate-auto
+POST /api/v1/payments/:id/allocate-auto
 {
   "invoice_ids": [42, 43]
 }
@@ -504,7 +508,7 @@ POST /api/payments/:id/allocate-auto
 **Single-invoice (kept for existing API integrations):**
 
 ```http
-POST /api/payments/:id/allocate
+POST /api/v1/payments/:id/allocate
 {
   "invoice_id": 42,
   "amount": 499.00
@@ -516,7 +520,7 @@ POST /api/payments/:id/allocate
 Configure auto-suspension rules per organization:
 
 ```http
-POST /api/suspension-rules
+POST /api/v1/suspension-rules
 {
   "name": "30-day overdue",
   "days_overdue": 30,
@@ -535,8 +539,8 @@ is auto-assigned (`QUO-######`, atomic per-organization sequence — same
 mechanism as `invoice_number`), and an explicit approval step gates whether
 a quote can become an invoice.
 
-1. **Generate the quote** — `POST /api/quotes/generate`
-   (`{ client_id, items: [...] }`, mirrors `POST /api/invoices/generate`'s
+1. **Generate the quote** — `POST /api/v1/quotes/generate`
+   (`{ client_id, items: [...] }`, mirrors `POST /api/v1/invoices/generate`'s
    flexible format). Each item is `{ type: 'contract'|'product'|'custom', ... }`:
    - `contract` — `{ type: 'contract', contract_id }`, priced at the
      contract's current plan price (`price_override` or the plan's price).
@@ -550,25 +554,25 @@ a quote can become an invoice.
    auto-assigned, `subtotal`/`tax_amount`/`total` computed from the org's
    default tax rate as a **fraction** — `subtotal * tax_rate`, never `* 100`).
    `requirePermission('quotes.create')`.
-2. **Add more line items later** (optional) — `POST /api/quotes/:id/items`
+2. **Add more line items later** (optional) — `POST /api/v1/quotes/:id/items`
    for a single item (`description`, `quantity`, `unit_price`);
    `quote_items.total` is a generated column (`quantity * unit_price`)
    computed by the database. Used by the quote detail page to extend an
-   already-created quote; `POST /api/quotes` (plain create, no items) also
+   already-created quote; `POST /api/v1/quotes` (plain create, no items) also
    auto-assigns `quote_number` when omitted, for callers that don't need the
    full generate flow.
-3. **Approve or reject** — `POST /api/quotes/:id/approve` or
-   `POST /api/quotes/:id/reject` (requires `quotes.update`; any user who can
+3. **Approve or reject** — `POST /api/v1/quotes/:id/approve` or
+   `POST /api/v1/quotes/:id/reject` (requires `quotes.update`; any user who can
    edit quotes can decide one — there is no separate approval permission).
    Both are lenient: a quote can be approved/rejected from any status,
    including re-deciding an already-accepted or already-rejected quote.
-4. **Convert to invoice** — `POST /api/quotes/:id/convert-to-invoice` only
+4. **Convert to invoice** — `POST /api/v1/quotes/:id/convert-to-invoice` only
    succeeds once the quote's status is `accepted`; otherwise it returns
    `409 QUOTE_NOT_ACCEPTED`. On success the quote's items are copied to a new
    invoice's `invoice_items` and the invoice is returned.
 
 ```http
-POST /api/quotes/generate
+POST /api/v1/quotes/generate
 {
   "client_id": 5,
   "items": [
@@ -579,11 +583,11 @@ POST /api/quotes/generate
 ```
 
 ```http
-POST /api/quotes/42/approve
+POST /api/v1/quotes/42/approve
 ```
 
 ```http
-POST /api/quotes/42/convert-to-invoice
+POST /api/v1/quotes/42/convert-to-invoice
 ```
 
 ---
@@ -594,30 +598,30 @@ VigaBSS supports Mexican fiscal compliance with CFDI 4.0 electronic invoicing.
 
 ### Prerequisites
 
-1. **Upload CSD Certificate** — `POST /api/csd-certificates` (PFX file + password)
-2. **Configure PAC Provider** — `POST /api/pac-providers` (Finkok or SW Sapien)
+1. **Upload CSD Certificate** — `POST /api/v1/csd-certificates` (PFX file + password)
+2. **Configure PAC Provider** — `POST /api/v1/pac-providers` (Finkok or SW Sapien)
 3. **Set Organization MX Profile** — RFC, régimen fiscal, domicilio fiscal
 
 ### CFDI Generation Flow
 
 1. **Create Invoice** — Standard invoice generation (see Billing Workflow)
-2. **Stamp CFDI** — `POST /api/cfdi/stamp` with the invoice ID
-3. **Download XML/PDF** — `GET /api/pdf/cfdi/:id` or `GET /api/cfdi-documents/:id`
-4. **Cancel CFDI** — `POST /api/cfdi/cancel` with motivo and optional folio_sustitucion
+2. **Stamp CFDI** — `POST /api/v1/cfdi/stamp` with the invoice ID
+3. **Download XML/PDF** — `GET /api/v1/pdf/cfdi/:id` or `GET /api/v1/cfdi-documents/:id`
+4. **Cancel CFDI** — `POST /api/v1/cfdi/cancel` with motivo and optional folio_sustitucion
 
 ### SAT Catalogs
 
 Read-only endpoints for Mexican SAT catalog values:
 
 ```http
-GET /api/sat-catalogs/regimen-fiscal
-GET /api/sat-catalogs/uso-cfdi
-GET /api/sat-catalogs/forma-pago
-GET /api/sat-catalogs/metodo-pago
-GET /api/sat-catalogs/tipo-comprobante
-GET /api/sat-catalogs/moneda
-GET /api/sat-catalogs/clave-prod-serv?search=internet
-GET /api/sat-catalogs/clave-unidad?search=servicio
+GET /api/v1/sat-catalogs/regimen-fiscal
+GET /api/v1/sat-catalogs/uso-cfdi
+GET /api/v1/sat-catalogs/forma-pago
+GET /api/v1/sat-catalogs/metodo-pago
+GET /api/v1/sat-catalogs/tipo-comprobante
+GET /api/v1/sat-catalogs/moneda
+GET /api/v1/sat-catalogs/clave-prod-serv?search=internet
+GET /api/v1/sat-catalogs/clave-unidad?search=servicio
 ```
 
 ### Factura Pública vs Individual CFDI
@@ -632,7 +636,7 @@ GET /api/sat-catalogs/clave-unidad?search=servicio
 Files are uploaded via multipart/form-data and scoped to entities (clients, devices, tickets, organizations):
 
 ```http
-POST /api/files
+POST /api/v1/files
 Content-Type: multipart/form-data
 
 entity_type=clients
@@ -649,19 +653,19 @@ File uploads are rate-limited to 30 requests per 15 minutes (upload tier).
 ### CSV Exports
 
 ```http
-GET /api/export/invoices?date_from=2025-01-01&date_to=2025-01-31
-GET /api/export/clients
-GET /api/export/contracts
-GET /api/export/payments
+GET /api/v1/export/invoices?date_from=2025-01-01&date_to=2025-01-31
+GET /api/v1/export/clients
+GET /api/v1/export/contracts
+GET /api/v1/export/payments
 ```
 
 ### PDF Downloads
 
 ```http
-GET /api/pdf/invoices/:id
-GET /api/pdf/credit-notes/:id
-GET /api/pdf/quotes/:id
-GET /api/pdf/cfdi/:id
+GET /api/v1/pdf/invoices/:id
+GET /api/v1/pdf/credit-notes/:id
+GET /api/v1/pdf/quotes/:id
+GET /api/v1/pdf/cfdi/:id
 ```
 
 Export endpoints are rate-limited to 20 requests per 15 minutes.

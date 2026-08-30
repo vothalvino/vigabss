@@ -1,22 +1,23 @@
 // =============================================================================
-// VigaBSS 5.0 — is a newer release available?
+// VigaBSS — is a newer main build available?
 // =============================================================================
 // Answers two separate questions, and keeps them separate on purpose:
 //
-//   1. What commit is this instance running?  — always known, no network.
+//   1. What commit is this instance running?  — known for CI-published images;
+//                                               local builds may be unknown.
 //   2. Is there a newer one?                  — needs an outbound call, and is
-//                                               OFF unless an operator opts in.
+//                                               ON unless an operator opts out.
 //
 // ON BY DEFAULT, OPT-OUT. A fresh install should tell its operator that a
-// newer release exists without anyone first discovering that a variable exists
+// newer main build exists without anyone first discovering that a variable exists
 // and editing a file full of secrets to set it — an update notice nobody turns
 // on notifies nobody.
 //
 // The cost is real and stated rather than hidden: this is the only outbound
 // request VigaBSS makes on its own behalf. An air-gapped or
-// management-network install should set FIREISP_UPDATE_CHECK=0, which is
+// management-network install should set VIGABSS_UPDATE_CHECK=0, which is
 // documented in .env.prod.example, docs/deployment.md and the Settings ->
-// Version tab. Until it does, the failed request is cached for a day and
+// Version tab. Until it does, a failed request is cached for six hours and
 // logged at info — it never retries per page load and never surfaces an error.
 //
 // What it sends is unchanged and is what makes the default defensible: an
@@ -41,9 +42,13 @@
 // =============================================================================
 
 const logger = require('../utils/logger').child({ service: 'updateCheck' });
+const product = require('../product');
 
-const ENV_FLAG = 'FIREISP_UPDATE_CHECK';
-const REPO = process.env.FIREISP_UPDATE_REPO || 'vothalvino/vigabss';
+const ENV_FLAG = 'VIGABSS_UPDATE_CHECK';
+const LEGACY_ENV_FLAG = 'FIREISP_UPDATE_CHECK';
+const REPO = process.env.VIGABSS_UPDATE_REPO
+  || process.env.FIREISP_UPDATE_REPO
+  || 'vothalvino/vigabss';
 const API = `https://api.github.com/repos/${REPO}/commits/main`;
 
 // TWO DIFFERENT CADENCES, and conflating them made this feature useless.
@@ -95,14 +100,14 @@ let inFlight = null;
 /**
  * The commit this image was built from, or null when it was not built by CI.
  *
- * Baked in by the Dockerfile (ARG GIT_SHA -> ENV FIREISP_GIT_SHA). Empty for a
+ * Baked in by the Dockerfile (ARG GIT_SHA -> ENV VIGABSS_GIT_SHA). Empty for a
  * local docker-compose.build.yml image, and null is reported honestly rather
- * than guessed: package.json's "5.0.0" is static and has never moved, and the
+ * than guessed: a locally built image has no authoritative commit stamp, and the
  * host's git checkout describes the SOURCE, which disagrees with the image
  * exactly when someone has rolled back.
  */
 function runningSha() {
-  const sha = (process.env.FIREISP_GIT_SHA || '').trim();
+  const sha = (process.env.VIGABSS_GIT_SHA || process.env.FIREISP_GIT_SHA || '').trim();
   return sha.length ? sha : null;
 }
 
@@ -111,24 +116,21 @@ function runningSha() {
  * opt-out.
  *
  * Deliberately an allowlist of "off" spellings rather than `!== '1'`: an
- * operator who writes `FIREISP_UPDATE_CHECK=yes` meaning to enable it must not
+ * operator who writes `VIGABSS_UPDATE_CHECK=yes` meaning to enable it must not
  * be read as disabling it, and a typo should fail toward the documented
  * default rather than silently disabling a feature they can then not explain.
  */
 function isEnabled() {
-  const raw = String(process.env[ENV_FLAG] ?? '').trim().toLowerCase();
+  const raw = String(
+    process.env[ENV_FLAG] ?? process.env[LEGACY_ENV_FLAG] ?? '',
+  ).trim().toLowerCase();
   if (raw === '') return true;
   return !['0', 'false', 'no', 'off'].includes(raw);
 }
 
 /**
- * Newest commit on main, or null. Cached for CHECK_TTL_MS including failures,
- * so an install with no egress retries once a day rather than on every page
- * load.
- */
-/**
- * The actual network call, deduplicated. Every concurrent caller awaits the same
- * promise, so a burst of page loads costs one request.
+ * The actual network call, deduplicated. Every concurrent caller awaits the
+ * same promise, so a burst of page loads costs one request.
  */
 function refresh() {
   if (inFlight) return inFlight;
@@ -214,6 +216,7 @@ async function getStatus({ force = false } = {}) {
   const running = runningSha();
   if (!isEnabled()) {
     return {
+      release_version: product.version,
       running_sha: running,
       latest_sha: null,
       update_available: false,
@@ -224,6 +227,7 @@ async function getStatus({ force = false } = {}) {
 
   const latest = await fetchLatestSha({ force });
   return {
+    release_version: product.version,
     running_sha: running,
     latest_sha: latest,
     update_available: Boolean(running && latest && running !== latest),
@@ -243,8 +247,8 @@ async function getStatus({ force = false } = {}) {
  *
  * Fire-and-forget by design: nothing may wait on it, and a failure is already
  * recorded in the cache with its own longer retry window. Does nothing at all
- * when the operator has not enabled checks — startup must not make a network
- * call they declined.
+ * when the operator has disabled checks — startup must not make a network call
+ * they declined.
  */
 function warmCache() {
   if (!isEnabled()) return;
@@ -260,6 +264,6 @@ function _resetCache() {
 
 module.exports = {
   getStatus, runningSha, isEnabled, warmCache,
-  ENV_FLAG, CHECK_TTL_MS, FAILURE_TTL_MS, MIN_FORCED_INTERVAL_MS,
+  ENV_FLAG, LEGACY_ENV_FLAG, CHECK_TTL_MS, FAILURE_TTL_MS, MIN_FORCED_INTERVAL_MS,
   _resetCache,
 };

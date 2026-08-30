@@ -1,5 +1,5 @@
 # =============================================================================
-# VigaBSS 5.0 — MySQL Replica (Standby) Configuration
+# VigaBSS 0.1.0-alpha.1 — MySQL Replica (Standby) Configuration
 # Used by the db-replica service in docker-compose.prod.yml
 # =============================================================================
 

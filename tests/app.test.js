@@ -32,6 +32,7 @@ jest.mock('../src/services/trapForwardingReadinessService', () => ({
 
 const db = require('../src/config/database');
 const app = require('../src/app');
+const product = require('../src/product');
 
 beforeEach(() => {
   mockGetTrapStatus.mockReturnValue({
@@ -54,7 +55,7 @@ describe('Health Check', () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ok');
-    expect(res.body.version).toBe('5.0.0');
+    expect(res.body.version).toBe(product.version);
   });
 
   test('GET /health includes uptime and relay fields', async () => {

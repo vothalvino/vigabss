@@ -1,11 +1,12 @@
 // =============================================================================
-// VigaBSS 5.0 — QoS Service
+// VigaBSS — QoS Service
 // =============================================================================
 // Provides queue-tree configuration export and rate-limit string generation
 // for §10.1 (Speed Profiles) and §10.2 (Rate Limiting).
 // =============================================================================
 
 const db = require('../config/database');
+const product = require('../product');
 
 // ---------------------------------------------------------------------------
 // Rate-string builders (mirrors radiusAttributeService logic but for templates)
@@ -87,7 +88,7 @@ function buildRateString(template) {
  */
 function buildMikrotikQueueTreeScript(nodes) {
   const lines = [
-    '# VigaBSS 5.0 — MikroTik Queue Tree Export',
+    `# ${product.displayName} — MikroTik Queue Tree Export`,
     '# Generated: ' + new Date().toISOString(),
     '# Apply via: /import file-name=queue-tree.rsc',
     '',
@@ -185,7 +186,7 @@ async function exportShapingRulesConfig(organizationId, planId = null) {
   const [rules] = await db.query(sql, params);
 
   const lines = [
-    '# VigaBSS 5.0 — MikroTik Mangle Rules (Protocol Shaping)',
+    `# ${product.displayName} — MikroTik Mangle Rules (Protocol Shaping)`,
     '# Generated: ' + new Date().toISOString(),
     '',
     '/ip firewall mangle',
@@ -253,7 +254,7 @@ async function exportDscpConfig(organizationId, format = 'json') {
 
   if (format === 'text') {
     const lines = [
-      '# VigaBSS 5.0 — MikroTik Mangle Rules (DSCP Marking)',
+      `# ${product.displayName} — MikroTik Mangle Rules (DSCP Marking)`,
       '# Generated: ' + new Date().toISOString(),
       '',
       '/ip firewall mangle',

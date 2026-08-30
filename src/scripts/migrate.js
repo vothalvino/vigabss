@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ script: 'migrate' });
+const product = require('../product');
 const { listIsolatedMigrationTargets } = require('../services/tenantDatabaseService');
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../database/migrations');
@@ -220,7 +221,7 @@ async function runMigrations(options = {}) {
 
 // Run when invoked directly
 if (require.main === module) {
-  logger.info('VigaBSS 5.0 — Running migrations...');
+  logger.info(`${product.displayName} — Running migrations...`);
   runMigrations()
     .then(() => {
       logger.info('Done.');

@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 #
-# VigaBSS deploy agent — the privileged half of the "Update" button.
+# VigaBSS 0.1.0-alpha.1 deploy agent — the privileged half of the "Update" button.
 #
 # Runs on the HOST as root, outside Docker, on a systemd timer. Claims a pending
 # row from deploy_requests and runs redeploy.sh. That is the whole job.
 #
-# Install (one time):
-#     sudo cp /opt/fireisp/deploy/fireisp-deploy-agent.{service,timer} /etc/systemd/system/
-#     sudo systemctl daemon-reload
-#     sudo systemctl enable --now fireisp-deploy-agent.timer
+# Install or refresh the path-rendered systemd units:
+#     sudo redeploy
 #
 # The unit runs this file from the checkout, so `redeploy` keeps the agent up to
 # date on its own — there is no copy in /usr/local/bin to fall out of step.
@@ -37,13 +35,33 @@
 #
 set -euo pipefail
 
-APP_DIR="${FIREISP_DIR:-/opt/fireisp}"
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+SCRIPT_DIR="${SCRIPT_PATH%/*}"
+[[ "$SCRIPT_DIR" == "$SCRIPT_PATH" ]] && SCRIPT_DIR="."
+SCRIPT_DIR="$(cd -- "$SCRIPT_DIR" && pwd)"
+if [[ -n "${VIGABSS_DIR:-}" ]]; then
+  APP_DIR="$VIGABSS_DIR"
+elif [[ -n "${FIREISP_DIR:-}" ]]; then
+  APP_DIR="$FIREISP_DIR"
+elif [[ -f /opt/vigabss/docker-compose.prod.yml ]]; then
+  APP_DIR="/opt/vigabss"
+elif [[ -f /opt/fireisp/docker-compose.prod.yml ]]; then
+  APP_DIR="/opt/fireisp"
+elif [[ -f "$SCRIPT_DIR/docker-compose.prod.yml" ]]; then
+  APP_DIR="$SCRIPT_DIR"
+else
+  APP_DIR="/opt/vigabss"
+fi
+# The canonical path wins, while exporting the predecessor keeps a rollback to
+# an older redeploy.sh pointed at this same checkout.
+export VIGABSS_DIR="$APP_DIR"
+export FIREISP_DIR="$APP_DIR"
 COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
 ENV_FILE="$APP_DIR/.env.prod"
 AGENT_VERSION="1"
 # How much redeploy output to keep for the UI. Enough to see what failed, not so
 # much that a root process dumps a whole log into a table the GUI renders.
-OUTPUT_TAIL_BYTES="${FIREISP_DEPLOY_TAIL_BYTES:-4000}"
+OUTPUT_TAIL_BYTES="${VIGABSS_DEPLOY_TAIL_BYTES:-${FIREISP_DEPLOY_TAIL_BYTES:-4000}}"
 
 [[ -f "$COMPOSE_FILE" ]] || { echo "deploy-agent: $COMPOSE_FILE not found" >&2; exit 1; }
 [[ -f "$ENV_FILE" ]]     || { echo "deploy-agent: $ENV_FILE not found" >&2; exit 1; }
@@ -54,11 +72,44 @@ OUTPUT_TAIL_BYTES="${FIREISP_DEPLOY_TAIL_BYTES:-4000}"
 # polling until the next deploy. Exiting before the heartbeat is what makes that
 # visible — no heartbeat means the GUI reports no agent and hides the button,
 # which is exactly what "GUI deploys are off" should look like.
-FLAG="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?FIREISP_DEPLOY_AGENT[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null \
-  | tail -n1 | cut -d= -f2- | sed -E 's/[[:space:]]*#.*$//' | tr -d '\r"'"'"' \t' | tr '[:upper:]' '[:lower:]' )" || FLAG=""
+FLAG_KEY="VIGABSS_DEPLOY_AGENT"
+if [[ -n "${VIGABSS_DEPLOY_AGENT+x}" ]]; then
+  FLAG_RAW="$VIGABSS_DEPLOY_AGENT"
+elif [[ -n "${FIREISP_DEPLOY_AGENT+x}" ]]; then
+  FLAG_KEY="FIREISP_DEPLOY_AGENT"
+  FLAG_RAW="$FIREISP_DEPLOY_AGENT"
+else
+  FLAG_LINE="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?VIGABSS_DEPLOY_AGENT[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
+  if [[ -z "$FLAG_LINE" ]]; then
+    FLAG_KEY="FIREISP_DEPLOY_AGENT"
+    FLAG_LINE="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?FIREISP_DEPLOY_AGENT[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
+  fi
+  FLAG_RAW="${FLAG_LINE#*=}"
+fi
+FLAG="$(printf '%s\n' "$FLAG_RAW" | sed -E 's/[[:space:]]*#.*$//' | tr -d '\r"'"'"' \t' | tr '[:upper:]' '[:lower:]')" || FLAG=""
 case "$FLAG" in
-  0|false|no|off) echo "deploy-agent: FIREISP_DEPLOY_AGENT=${FLAG} — GUI deploys are disabled; exiting"; exit 0 ;;
+  0|false|no|off) echo "deploy-agent: ${FLAG_KEY}=${FLAG} — GUI deploys are disabled; exiting"; exit 0 ;;
 esac
+
+# The legacy and canonical timers can coexist briefly while redeploy migrates
+# systemd. Their service names are different, so Type=oneshot alone cannot
+# prevent them from running at the same time. Hold one host-wide advisory lock
+# for the entire poll/claim/deploy/writeback lifecycle. Both unit names execute
+# this same checkout, so the first agent owns the cycle and the other exits
+# without touching a request.
+DEPLOY_LOCK_FILE="${VIGABSS_DEPLOY_LOCK_FILE:-${FIREISP_DEPLOY_LOCK_FILE:-/run/vigabss-deploy-agent.lock}}"
+command -v flock >/dev/null 2>&1 || {
+  echo "deploy-agent: flock is required to prevent overlapping legacy/canonical agents" >&2
+  exit 1
+}
+if ! exec 9>"$DEPLOY_LOCK_FILE"; then
+  echo "deploy-agent: cannot open overlap lock $DEPLOY_LOCK_FILE" >&2
+  exit 1
+fi
+if ! flock -n 9; then
+  echo "deploy-agent: another deploy-agent instance is active; leaving requests to its owner"
+  exit 0
+fi
 
 # The agent deliberately has NO API token and no network listener: it talks to
 # MySQL through the existing compose stack, so there is no new credential to
@@ -80,7 +131,7 @@ esac
 # heartbeat was never written and the Update button never appeared. Overridable
 # for a non-standard compose file; tests cross-check the default against
 # docker-compose.prod.yml so it cannot silently drift again.
-DB_SERVICE="${FIREISP_DB_SERVICE:-db-primary}"
+DB_SERVICE="${VIGABSS_DB_SERVICE:-${FIREISP_DB_SERVICE:-db-primary}}"
 
 dc() { docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"; }
 
@@ -152,22 +203,22 @@ sql "INSERT INTO deploy_agent_status (id, last_seen_at, agent_version, hostname)
 }
 
 # ── Claim one request ────────────────────────────────────────────────────────
-# Claim-by-update, not select-then-update: two overlapping timer runs (a deploy
-# that outlives the interval) must not both run redeploy.sh. Only the row that
-# is still 'pending' is claimed, so the second run's UPDATE matches nothing.
+# Claim and identify the row in ONE MySQL session. LAST_INSERT_ID(id) records
+# the exact row changed in connection-local state, while ROW_COUNT() proves this
+# invocation actually changed one pending row. A separate "oldest running"
+# SELECT could adopt work claimed by another timer during the unit rename.
 #
 # Every step below reports before exiting. Bare `set -e` exits looked tidy but
 # left `systemctl status` showing a failed unit and `journalctl -u
-# fireisp-deploy-agent` — the command the UI tells the operator to run —
+# vigabss-deploy-agent` — the command the UI tells the operator to run —
 # completely empty.
-sql "UPDATE deploy_requests
-        SET status = 'running', started_at = NOW()
+REQUEST_ID="$(sql "UPDATE deploy_requests
+        SET id = LAST_INSERT_ID(id), status = 'running', started_at = NOW()
       WHERE status = 'pending'
       ORDER BY id ASC
-      LIMIT 1;" || { err_report "claiming a request"; exit 1; }
-
-REQUEST_ID="$(sql "SELECT id FROM deploy_requests WHERE status = 'running' ORDER BY id ASC LIMIT 1;")" \
-  || { err_report "reading the claimed request"; exit 1; }
+      LIMIT 1;
+      SELECT LAST_INSERT_ID() WHERE ROW_COUNT() = 1;")" \
+  || { err_report "claiming a request"; exit 1; }
 REQUEST_ID="$(printf '%s' "$REQUEST_ID" | head -1)"
 [[ -n "${REQUEST_ID:-}" ]] || exit 0    # nothing to do — the common case
 

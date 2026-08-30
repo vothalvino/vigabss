@@ -1,6 +1,6 @@
 ---
 name: Support Question
-description: Ask a question about installing, configuring, or using FireISP 5.0
+description: Ask a question about installing, configuring, or using VigaBSS 0.1.0-alpha.1
 title: "[Support]: "
 labels: ["question"]
 body:
@@ -40,8 +40,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: FireISP version
-      placeholder: "5.0.0"
+      label: VigaBSS version
+      placeholder: "0.1.0-alpha.1"
   - type: textarea
     id: additional
     attributes:

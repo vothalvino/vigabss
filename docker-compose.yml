@@ -3,8 +3,8 @@ services:
     image: mysql:8.4.9
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-fireisp_root}
-      MYSQL_DATABASE: ${DB_NAME:-fireisp}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-vigabss_root}
+      MYSQL_DATABASE: ${DB_NAME:-vigabss}
     ports:
       - '3306:3306'
     volumes:

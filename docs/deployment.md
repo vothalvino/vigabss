@@ -1,6 +1,19 @@
 # Deployment Guide
 
-This guide covers deploying VigaBSS 5.0 in production environments. Choose the deployment method that best fits your infrastructure.
+This guide covers deploying VigaBSS 0.1.0-alpha.1 in production environments. Choose the deployment method that best fits your infrastructure.
+
+> **Alpha release:** validate restore, upgrade, billing, and device automation
+> against a non-production deployment before serving customers.
+
+### Existing FireISP-era installations
+
+The VigaBSS defaults below are for fresh installs. An existing installation at
+`/opt/fireisp`, with a `fireisp` Compose project/database/volume set or
+`FIREISP_*` environment settings, remains supported. Do **not** rename a live
+database, Docker volume, Compose project, WireGuard interface, or install
+directory merely for branding. The deployment scripts accept the legacy names
+as compatibility aliases; keep using the identifiers already attached to your
+data and pass that installation's path explicitly when needed.
 
 ---
 
@@ -24,7 +37,7 @@ This guide covers deploying VigaBSS 5.0 in production environments. Choose the d
 
 ## One-Line Installer (recommended)
 
-The fastest way to deploy VigaBSS 5.0 on a fresh Ubuntu/Debian server:
+The fastest way to deploy VigaBSS 0.1.0-alpha.1 on a fresh Ubuntu/Debian server:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
@@ -32,10 +45,10 @@ curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh 
 
 The script will interactively prompt for your domain name and email address, then:
 
-1. Verify Docker, Docker Compose v2, Git, and OpenSSL are present
-2. Clone the repository to `/opt/fireisp`
+1. Install missing Docker, Docker Compose v2, Git, and OpenSSL dependencies on Ubuntu/Debian (or verify they are present on another distribution)
+2. Clone the repository to `/opt/vigabss`
 3. Auto-generate strong random passwords and cryptographic secrets
-4. Write `/opt/fireisp/.env.prod` (mode `600`) with all generated values
+4. Write `/opt/vigabss/.env.prod` (mode `600`) with all generated values
 5. Obtain a TLS certificate via Let's Encrypt HTTP-01 challenge
 6. Pull the published app image and start the full production stack (MySQL primary + replica, Redis, app, Nginx, Certbot)
 7. Run database migrations (`node src/scripts/migrate.js`)
@@ -56,7 +69,7 @@ curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh 
 |---|---|---|
 | `DOMAIN` | *(prompted)* | Public domain pointing to this server |
 | `EMAIL` | *(prompted)* | Admin email — Let's Encrypt notifications + first login |
-| `INSTALL_DIR` | `/opt/fireisp` | Destination directory |
+| `INSTALL_DIR` | `/opt/vigabss` | Destination directory |
 | `SKIP_TLS` | `0` | Set to `1` to create a self-signed cert (dev / air-gapped) |
 | `DB_PASSWORD` | *(auto-generated)* | MySQL app user password |
 | `DB_ROOT_PASSWORD` | *(auto-generated)* | MySQL root password |
@@ -71,14 +84,17 @@ curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh 
 
 ```bash
 # View running services
-docker compose -f /opt/fireisp/docker-compose.prod.yml --env-file /opt/fireisp/.env.prod ps
+docker compose -f /opt/vigabss/docker-compose.prod.yml --env-file /opt/vigabss/.env.prod ps
 
 # Follow application logs
-docker compose -f /opt/fireisp/docker-compose.prod.yml --env-file /opt/fireisp/.env.prod logs -f app
+docker compose -f /opt/vigabss/docker-compose.prod.yml --env-file /opt/vigabss/.env.prod logs -f app
 
 ```
 
-> **Note:** After install, open `https://<DOMAIN>` in your browser to create your admin account. Then configure SMTP in **Settings → Organization → Email** so notifications are delivered.
+> **Note:** After install, open `https://<DOMAIN>` and sign in with the initial
+> administrator credentials printed by the installer. Change that password,
+> then configure SMTP in **Settings → Organization → Email** so notifications
+> are delivered.
 
 ### Updating to a new version
 
@@ -98,7 +114,7 @@ audit data; fix or roll forward the migration and rerun `redeploy`.
 ```bash
 sudo tee /usr/local/bin/redeploy >/dev/null <<'EOF'
 #!/usr/bin/env bash
-exec env FIREISP_DIR=/opt/fireisp /opt/fireisp/redeploy.sh "$@"
+exec env VIGABSS_DIR=/opt/vigabss /opt/vigabss/redeploy.sh "$@"
 EOF
 sudo chmod +x /usr/local/bin/redeploy
 ```
@@ -112,8 +128,8 @@ sudo redeploy
 > **Why a wrapper and not `install -m 0755 …`?** A copy goes stale the moment
 > you `git pull`: you keep running the old script and get the old behaviour with
 > nothing to indicate it. The wrapper always executes the version that shipped
-> with the code you have. It also pins `FIREISP_DIR`, which cannot be left to
-> the caller — `sudo` resets the environment, so `FIREISP_DIR=… sudo redeploy`
+> with the code you have. It also pins `VIGABSS_DIR`, which cannot be left to
+> the caller — `sudo` resets the environment, so `VIGABSS_DIR=… sudo redeploy`
 > is silently discarded. If you already installed a copy, replace it with the
 > wrapper above.
 
@@ -141,7 +157,7 @@ falling back to the shared primary database.
 > when `NODE_ENV` is explicitly `development` or `test`; deployed environments ignore
 > the flag and continue to fail closed.
 
-For a non-standard install path, set `FIREISP_DIR` inside a root shell
+For a non-standard install path, set `VIGABSS_DIR` inside a root shell
 (`sudo -i`) — as a `sudo` prefix it is stripped, see the rollback note below.
 
 #### Nothing is compiled on the server
@@ -168,11 +184,11 @@ therefore a tag change, not a rebuild — **pass the commit as an argument**:
 sudo redeploy <older-commit-sha>
 ```
 
-> Not `FIREISP_IMAGE_TAG=<sha> sudo redeploy`. `sudo` resets the environment by
+> Not `VIGABSS_IMAGE_TAG=<sha> sudo redeploy`. `sudo` resets the environment by
 > default (`Defaults env_reset`), so that prefix is **silently discarded** and
 > the script falls through to `HEAD` — redeploying the newest build, i.e. the
 > exact thing you were rolling back from, and exiting 0. An argument cannot be
-> stripped. The same applies to `FIREISP_DIR`: set it inside a root shell
+> stripped. The same applies to `VIGABSS_DIR`: set it inside a root shell
 > (`sudo -i`) rather than as a `sudo` prefix.
 
 **Rolling the image back does not roll the database back.** Migrations already
@@ -298,12 +314,12 @@ The rules that make all of this safe against a file holding `DB_PASSWORD`,
 agent's systemd units in place and keeps them current, the same way it applies
 migrations. The button appears once the timer has ticked once (≤30s).
 
-Set `FIREISP_DEPLOY_AGENT=0` in `.env.prod` if you would rather not have a timer
+Set `VIGABSS_DEPLOY_AGENT=0` in `.env.prod` if you would rather not have a timer
 on the box; GUI deploys are then unavailable and the CLI is unaffected. A host
 without systemd is skipped automatically.
 
 Put it in **`.env.prod`**, not in front of the command: `sudo` clears the
-environment, so `FIREISP_DEPLOY_AGENT=0 sudo redeploy` is discarded silently —
+environment, so `VIGABSS_DEPLOY_AGENT=0 sudo redeploy` is discarded silently —
 the same trap that makes the rollback target a positional argument.
 
 The next `sudo redeploy` **stops and disables** an agent that is already
@@ -368,8 +384,9 @@ anyway. Compare that with handing out root.
 #### Update notification
 
 On by default. The install operator gets a once-a-day banner and a
-**Settings → Version** tab when a newer release exists, with no configuration
-on a fresh install.
+**Settings → Version** tab when a newer `main` build exists, with no
+configuration on a fresh install. The installed semantic release and exact
+image commit are displayed separately.
 
 This is the only outbound request VigaBSS makes on its own behalf: an
 unauthenticated read of the newest commit on the public repo. No install data,
@@ -377,7 +394,7 @@ no version and no identifiers are sent. On an air-gapped or isolated management
 network, switch it off:
 
 ```bash
-FIREISP_UPDATE_CHECK=0
+VIGABSS_UPDATE_CHECK=0
 ```
 
 An unrecognised value is read as the default rather than as "off", so a typo
@@ -386,11 +403,11 @@ cannot silently disable it.
 The most common "failure" is not one: you merge, immediately run `sudo
 redeploy`, and the image does not exist yet because CI publishes only *after*
 the security scan passes — several minutes later. `redeploy` **retries the
-pull** until it succeeds, up to `FIREISP_IMAGE_WAIT` seconds (default `600`,
+pull** until it succeeds, up to `VIGABSS_IMAGE_WAIT` seconds (default `600`,
 `0` disables):
 
 ```bash
-FIREISP_IMAGE_WAIT=1800 sudo -E redeploy    # note -E: sudo strips the variable otherwise
+VIGABSS_IMAGE_WAIT=1800 sudo -E redeploy    # note -E: sudo strips the variable otherwise
 ```
 
 It retries the real pull rather than probing first, because **GHCR answers
@@ -425,17 +442,17 @@ install form), it is still what runs after `git pull` — replace it with the
 wrapper shown above, then deploy:
 
 ```bash
-git -C /opt/fireisp pull
+git -C /opt/vigabss pull
 sudo tee /usr/local/bin/redeploy >/dev/null <<'EOF'
 #!/usr/bin/env bash
-exec env FIREISP_DIR=/opt/fireisp /opt/fireisp/redeploy.sh "$@"
+exec env VIGABSS_DIR=/opt/vigabss /opt/vigabss/redeploy.sh "$@"
 EOF
 sudo chmod +x /usr/local/bin/redeploy
 sudo redeploy
 ```
 
 Skipping that is not harmless: the old script runs `up -d --build`, finds no
-`build:` block for `app`, and falls back to `${FIREISP_IMAGE:-…:latest}`. If CI
+`build:` block for `app`, and falls back to `${VIGABSS_IMAGE:-…:latest}`. If CI
 has not yet published the commit you just pulled, `:latest` is still the
 *previous* one — so it succeeds while deploying older code against a newer
 source tree.
@@ -482,7 +499,7 @@ untouched.
 #### Verifying what is actually deployed
 
 ```bash
-COMPOSE="docker compose -f /opt/fireisp/docker-compose.prod.yml --env-file /opt/fireisp/.env.prod"
+COMPOSE="docker compose -f /opt/vigabss/docker-compose.prod.yml --env-file /opt/vigabss/.env.prod"
 
 # Which commit is the running container built from?
 $COMPOSE images app
@@ -516,7 +533,8 @@ clean heap OOM instead of taking the host down with it.
 
 ## Prerequisites
 
-- **Node.js** 18+ (LTS recommended)
+- **Node.js** 24+
+- **pnpm** 10+
 - **MySQL** 8.0.29+ (8.4 LTS recommended) or MariaDB 10.6+ with Event Scheduler enabled
 - **RAM**: 2 GB minimum (4 GB recommended for >5,000 clients)
 - **Disk**: 20 GB minimum (SSD recommended for SNMP metrics tables)
@@ -545,9 +563,9 @@ JWT_EXPIRES_IN=8h
 # MySQL
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_USER=fireisp
+DB_USER=vigabss
 DB_PASSWORD=<strong-password>
-DB_NAME=fireisp
+DB_NAME=vigabss
 
 # SMTP (required for notifications)
 SMTP_HOST=smtp.example.com
@@ -586,7 +604,7 @@ admin when it has more.
 Set the environment variable — user **IDs**, comma-separated — and restart:
 
 ```env
-# /opt/fireisp/.env.prod
+# /opt/vigabss/.env.prod
 INSTALL_OPERATOR_USER_IDS=1
 ```
 
@@ -597,9 +615,9 @@ email allowlist would be writable by the accounts it is meant to exclude.
 Find the id under **Admin → Users**, or:
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T db \
-  mysql -u fireisp -p fireisp -e \
-  "SELECT id, email, role, is_install_operator FROM users WHERE deleted_at IS NULL;"
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T db-primary \
+  sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql -u "$MYSQL_USER" "$MYSQL_DATABASE" \
+    -e "SELECT id, email, role, is_install_operator FROM users WHERE deleted_at IS NULL;"'
 ```
 
 To move the flag permanently instead of overriding it, update the column
@@ -620,8 +638,9 @@ restart.
 ### 1. Install Node.js
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt-get install -y nodejs
+sudo corepack enable
 ```
 
 ### 2. Install MySQL 8.4
@@ -647,9 +666,9 @@ event_scheduler = ON
 ### 3. Create Database and User
 
 ```sql
-CREATE DATABASE fireisp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'fireisp'@'localhost' IDENTIFIED BY '<strong-password>';
-GRANT ALL PRIVILEGES ON fireisp.* TO 'fireisp'@'localhost';
+CREATE DATABASE vigabss CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'vigabss'@'localhost' IDENTIFIED BY '<strong-password>';
+GRANT ALL PRIVILEGES ON vigabss.* TO 'vigabss'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -657,36 +676,41 @@ FLUSH PRIVILEGES;
 
 ```bash
 # Clone or copy the application
-cd /opt/fireisp
+cd /opt/vigabss
 
-# Install production dependencies
-npm ci --production
+# Install the pinned workspace dependencies
+pnpm install --frozen-lockfile
 
 # Run migrations
-npm run migrate
+pnpm run migrate
 
 # Seed default data (roles, permissions, settings, tax rates)
 # Only needed on first install
-npm run seed
+pnpm run seed
 
 # Start the server
-npm start
+pnpm start
 ```
 
 ### 5. Run as a System Service (systemd)
 
-Create `/etc/systemd/system/fireisp.service`:
+Create a dedicated account, then create `/etc/systemd/system/vigabss.service`:
+
+```bash
+sudo useradd --system --user-group --home-dir /opt/vigabss --shell /usr/sbin/nologin vigabss
+sudo chown -R vigabss:vigabss /opt/vigabss
+```
 
 ```ini
 [Unit]
-Description=VigaBSS 5.0
+Description=VigaBSS 0.1.0-alpha.1
 After=network.target mysql.service
 
 [Service]
 Type=simple
-User=fireisp
-WorkingDirectory=/opt/fireisp
-EnvironmentFile=/opt/fireisp/.env
+User=vigabss
+WorkingDirectory=/opt/vigabss
+EnvironmentFile=/opt/vigabss/.env
 ExecStart=/usr/bin/node src/server.js
 Restart=on-failure
 RestartSec=10
@@ -695,7 +719,7 @@ RestartSec=10
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/fireisp/storage
+ReadWritePaths=/opt/vigabss/storage
 
 [Install]
 WantedBy=multi-user.target
@@ -703,21 +727,25 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable fireisp
-sudo systemctl start fireisp
-sudo journalctl -u fireisp -f  # View logs
+sudo systemctl enable vigabss
+sudo systemctl start vigabss
+sudo journalctl -u vigabss -f  # View logs
 ```
 
 ---
 
 ## Docker Deployment
 
-### Single-Node Docker Compose
+### Local/source Docker Compose
+
+The default `docker-compose.yml` is the local source stack: it builds the
+application image on this machine and reads `.env`. Use the one-line installer
+and `docker-compose.prod.yml` for a production host.
 
 ```bash
 # Configure environment
 cp .env.example .env
-# Edit .env with production values
+# Edit .env with local/development values
 
 # Start services
 docker compose up -d
@@ -735,16 +763,19 @@ docker compose logs -f app
 
 ### Updating
 
+On an installer-managed production host, use the generated wrapper. It selects
+`docker-compose.prod.yml`, pins the image that matches `main`, migrates before
+starting listeners, and verifies readiness:
+
 ```bash
-sudo redeploy            # pull main, pull the matching image, migrate, verify
+sudo redeploy
 ```
 
-Broken out, if you want the steps:
+For the local/source stack above, rebuild after pulling source changes:
 
 ```bash
 git pull
-docker compose pull app                               # CI publishes; nothing builds here
-docker compose up -d
+docker compose up -d --build
 docker compose exec app node src/scripts/migrate.js   # apply any new migrations
 ```
 
@@ -755,8 +786,10 @@ verify which image is actually running.
 ### Custom Dockerfile (production optimized)
 
 The included `Dockerfile` is production-ready:
-- Alpine base (minimal attack surface)
-- Non-root user (`fireisp`)
+- Node.js 24 on Debian Bookworm slim
+- Non-root user (the image currently retains the legacy internal account name
+  `fireisp`; this is not an installation or database name and need not be
+  changed on existing volumes)
 - Health check built-in
 - Production dependencies only
 
@@ -772,7 +805,7 @@ version: '3.8'
 
 services:
   app:
-    image: fireisp:5.0
+    image: ghcr.io/vothalvino/vigabss:0.1.0-alpha.1
     deploy:
       replicas: 2
       update_config:
@@ -787,7 +820,7 @@ services:
     env_file:
       - .env
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/health']
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3000/health/live',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -802,7 +835,7 @@ services:
       - db_data:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_password
-      MYSQL_DATABASE: fireisp
+      MYSQL_DATABASE: vigabss
     secrets:
       - db_password
     command: >
@@ -821,7 +854,7 @@ volumes:
 Deploy:
 
 ```bash
-docker stack deploy -c docker-stack.yml fireisp
+docker stack deploy -c docker-stack.yml vigabss
 ```
 
 ---
@@ -876,10 +909,10 @@ collation-server = utf8mb4_unicode_ci
 
 ## Reverse Proxy (Nginx)
 
-### `/etc/nginx/sites-available/fireisp`
+### `/etc/nginx/sites-available/vigabss`
 
 ```nginx
-upstream fireisp {
+upstream vigabss {
     server 127.0.0.1:3000;
     keepalive 32;
 }
@@ -896,8 +929,8 @@ server {
     # so repeating them puts two values on every response instead of overriding.
 
     # SSE support — disable buffering for event streams
-    location /api/events/ {
-        proxy_pass http://fireisp;
+    location /api/v1/events/ {
+        proxy_pass http://vigabss;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_buffering off;
@@ -907,7 +940,7 @@ server {
 
     # API and application
     location / {
-        proxy_pass http://fireisp;
+        proxy_pass http://vigabss;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -924,7 +957,7 @@ server {
         allow 172.16.0.0/12;
         allow 192.168.0.0/16;
         deny all;
-        proxy_pass http://fireisp;
+        proxy_pass http://vigabss;
     }
 }
 
@@ -956,7 +989,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
 This production topology runs the public application as the image's non-root
-`fireisp` user and grants it no Linux capabilities. The optional WireGuard hub is
+`fireisp` compatibility account and grants it no Linux capabilities. The optional WireGuard hub is
 enabled from the installation-wide web Settings page; a separate hardened helper
 owns `NET_ADMIN`. See [WireGuard activation](wireguard-setup.md#1-activation--web-gui).
 
@@ -1049,7 +1082,7 @@ than the real client IP, and the allowlist will not work as expected.
 
 ```bash
 curl https://isp.example.com/health
-# {"status":"ok","version":"5.0.0","uptime":3600,"relay":"standalone","timestamp":"..."}
+# {"status":"ok","version":"0.1.0-alpha.1","uptime":3600,"relay":"standalone","timestamp":"..."}
 
 curl https://isp.example.com/health?detail=true
 # Adds memory usage and DB latency
@@ -1062,7 +1095,7 @@ VigaBSS exposes metrics at `/metrics` in Prometheus exposition format:
 ```yaml
 # prometheus.yml
 scrape_configs:
-  - job_name: fireisp
+  - job_name: vigabss
     static_configs:
       - targets: ['isp.example.com:3000']
     metrics_path: /metrics
@@ -1083,8 +1116,8 @@ Available metrics:
 - [ ] `NODE_ENV=production` is set
 - [ ] `JWT_SECRET` is a strong random value (64+ chars)
 - [ ] MySQL Event Scheduler is `ON` (`CALL preflight_check_event_scheduler();`)
-- [ ] All migrations applied (`npm run migrate`)
-- [ ] Default roles, permissions, and settings seeded (`npm run seed`)
+- [ ] All migrations applied (`pnpm run migrate`)
+- [ ] Default roles, permissions, and settings seeded (`pnpm run seed`)
 - [ ] SMTP configured and tested
 - [ ] TLS/HTTPS enabled
 - [ ] Reverse proxy configured with security headers
@@ -1101,11 +1134,18 @@ Available metrics:
 
 ## Kubernetes Deployment
 
-Kubernetes provides automatic scaling, self-healing, and declarative configuration for VigaBSS 5.0.
+Kubernetes provides automatic scaling, self-healing, and declarative configuration for VigaBSS 0.1.0-alpha.1.
+
+The checked-in raw manifests intentionally retain the `fireisp` namespace,
+resource names, selectors, and PVC name. Treat these as stable compatibility
+identifiers: changing them during a rebrand can orphan storage or create a
+parallel deployment.
 
 ### ConfigMap
 
-Store non-secret configuration in a ConfigMap:
+The maintained [`k8s/configmap.yaml`](../k8s/configmap.yaml) stores non-secret
+configuration under the compatibility name `fireisp-config`. Add site-specific
+non-secret settings there; database connection values belong in the Secret.
 
 ```yaml
 apiVersion: v1
@@ -1116,23 +1156,15 @@ metadata:
 data:
   NODE_ENV: "production"
   PORT: "3000"
-  APP_URL: "https://isp.example.com"
-  DB_HOST: "mysql-primary.fireisp.svc.cluster.local"
-  DB_PORT: "3306"
-  DB_NAME: "fireisp"
-  DB_USER: "fireisp"
-  DB_POOL_SIZE: "10"
-  SMTP_HOST: "smtp.example.com"
-  SMTP_PORT: "587"
-  SMTP_SECURE: "false"
-  SMTP_FROM: "noreply@example.com"
   LOG_LEVEL: "info"
-  REDIS_URL: "redis://redis.fireisp.svc.cluster.local:6379"
 ```
 
 ### Secret
 
-Store sensitive values in a Kubernetes Secret (base64-encoded):
+Edit the maintained [`k8s/secret.yaml`](../k8s/secret.yaml) before applying it.
+It uses `stringData`, so values must be plain text rather than pre-encoded.
+The `fireisp` database host/name/user defaults are compatibility identifiers;
+change them only when the target database was provisioned with different names.
 
 ```yaml
 apiVersion: v1
@@ -1141,18 +1173,14 @@ metadata:
   name: fireisp-secret
   namespace: fireisp
 type: Opaque
-data:
-  JWT_SECRET: <base64-encoded-value>
-  DB_PASSWORD: <base64-encoded-value>
-  ENCRYPTION_KEY: <base64-encoded-value>
-  SMTP_USER: <base64-encoded-value>
-  SMTP_PASS: <base64-encoded-value>
-```
-
-Generate base64 values:
-
-```bash
-echo -n 'my-secret-value' | base64
+stringData:
+  JWT_SECRET: <strong-random-value>
+  ENCRYPTION_KEY: <32-byte-hex-value>
+  DB_HOST: mysql.fireisp.svc.cluster.local
+  DB_PORT: "3306"
+  DB_NAME: fireisp
+  DB_USER: fireisp
+  DB_PASSWORD: <database-password>
 ```
 
 ### Deployment
@@ -1172,7 +1200,11 @@ image can start code against the wrong schema.
 ```bash
 RELEASE_SHA=<full-40-character-main-commit-sha>
 test "${#RELEASE_SHA}" -eq 40
+kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/secret.yaml
+kubectl apply -f k8s/pvc.yaml
+kubectl apply -f k8s/service.yaml
 sed "s/REPLACE_WITH_FULL_COMMIT_SHA/$RELEASE_SHA/g" k8s/deployment.yaml \
   | kubectl apply -f -
 kubectl rollout status -n fireisp deployment/fireisp --timeout=180s
@@ -1189,7 +1221,8 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app: fireisp
+    app.kubernetes.io/name: fireisp
+    app.kubernetes.io/component: api
   ports:
     - name: http
       port: 80
@@ -1379,19 +1412,19 @@ Take backups from a replica to avoid impacting production traffic:
 # Full backup from replica using mysqldump
 mysqldump -h replica.db.example.com -u backup_user -p \
   --single-transaction --routines --events --triggers \
-  fireisp > fireisp_backup_$(date +%Y%m%d).sql
+  vigabss > vigabss_backup_$(date +%Y%m%d).sql
 
 # Or use Percona XtraBackup for large databases. Keep the password in a 0600
 # defaults file rather than in argv — /proc/<pid>/cmdline is world-readable, so
 # any local account can read the password off a running backup.
-cat > /etc/fireisp/backup.cnf <<'EOF'
+cat > /etc/vigabss/backup.cnf <<'EOF'
 [xtrabackup]
 user=backup_user
 password=<password>
 EOF
-chmod 600 /etc/fireisp/backup.cnf
+chmod 600 /etc/vigabss/backup.cnf
 
-xtrabackup --defaults-extra-file=/etc/fireisp/backup.cnf \
+xtrabackup --defaults-extra-file=/etc/vigabss/backup.cnf \
   --backup --target-dir=/backups/full \
   --host=replica.db.example.com
 ```
@@ -1399,7 +1432,7 @@ xtrabackup --defaults-extra-file=/etc/fireisp/backup.cnf \
 Schedule daily backups via cron:
 
 ```bash
-0 2 * * * /opt/fireisp/scripts/backup.sh >> /var/log/fireisp-backup.log 2>&1
+0 2 * * * cd /opt/vigabss && docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T app node src/scripts/backup.js >> /var/log/vigabss-backup.log 2>&1
 ```
 
 ---
@@ -1418,25 +1451,25 @@ Redis Sentinel provides automatic failover with a primary and multiple replicas:
 Example Sentinel configuration (`sentinel.conf`):
 
 ```conf
-sentinel monitor fireisp-redis primary.redis.example.com 6379 2
-sentinel down-after-milliseconds fireisp-redis 5000
-sentinel failover-timeout fireisp-redis 10000
-sentinel parallel-syncs fireisp-redis 1
-sentinel auth-pass fireisp-redis <redis-password>
+sentinel monitor vigabss-redis primary.redis.example.com 6379 2
+sentinel down-after-milliseconds vigabss-redis 5000
+sentinel failover-timeout vigabss-redis 10000
+sentinel parallel-syncs vigabss-redis 1
+sentinel auth-pass vigabss-redis <redis-password>
 ```
 
 Configure the application to use Sentinel. With `ioredis` (used by BullMQ), provide Sentinel configuration via environment variables:
 
 ```env
 REDIS_SENTINELS=sentinel1:26379,sentinel2:26379,sentinel3:26379
-REDIS_SENTINEL_NAME=fireisp-redis
+REDIS_SENTINEL_NAME=vigabss-redis
 REDIS_DB=0
 ```
 
 If your Redis client library supports a Sentinel URL scheme, the format is:
 
 ```env
-REDIS_URL=redis+sentinel://sentinel1:26379,sentinel2:26379,sentinel3:26379/fireisp-redis/0
+REDIS_URL=redis+sentinel://sentinel1:26379,sentinel2:26379,sentinel3:26379/vigabss-redis/0
 ```
 
 > **Note:** The `redis+sentinel://` URL scheme is not universally supported. Check your client library's documentation. `ioredis` uses a structured `sentinels` option rather than a URL string.
@@ -1473,7 +1506,7 @@ Distribute traffic across multiple VigaBSS instances for high availability and t
 ### Nginx Upstream Configuration
 
 ```nginx
-upstream fireisp_backend {
+upstream vigabss_backend {
     least_conn;
     server 10.0.1.10:3000;
     server 10.0.1.11:3000;
@@ -1484,11 +1517,11 @@ server {
     listen 443 ssl http2;
     server_name isp.example.com;
 
-    ssl_certificate     /etc/ssl/certs/fireisp.crt;
-    ssl_certificate_key /etc/ssl/private/fireisp.key;
+    ssl_certificate     /etc/ssl/certs/vigabss.crt;
+    ssl_certificate_key /etc/ssl/private/vigabss.key;
 
     location / {
-        proxy_pass http://fireisp_backend;
+        proxy_pass http://vigabss_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -1496,8 +1529,8 @@ server {
     }
 
     # SSE endpoints need long-lived connections
-    location /api/events {
-        proxy_pass http://fireisp_backend;
+    location /api/v1/events {
+        proxy_pass http://vigabss_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -1528,7 +1561,7 @@ VigaBSS uses **Server-Sent Events (SSE)** for real-time updates:
 Configure active health checks in Nginx (requires `nginx-plus` or the open-source `nginx_upstream_check_module`):
 
 ```nginx
-upstream fireisp_backend {
+upstream vigabss_backend {
     least_conn;
     server 10.0.1.10:3000 max_fails=3 fail_timeout=30s;
     server 10.0.1.11:3000 max_fails=3 fail_timeout=30s;
@@ -1563,19 +1596,19 @@ Run migrations before switching traffic:
 
 ```bash
 # Deploy Green and run migrations
-cd /opt/fireisp-green
-npm run migrate
+cd /opt/vigabss-green
+pnpm run migrate
 ```
 
 ### Traffic Switching with Nginx
 
 ```nginx
-upstream fireisp_blue {
+upstream vigabss_blue {
     server 10.0.1.10:3000;
     server 10.0.1.11:3000;
 }
 
-upstream fireisp_green {
+upstream vigabss_green {
     server 10.0.2.10:3000;
     server 10.0.2.11:3000;
 }
@@ -1585,9 +1618,9 @@ server {
     server_name isp.example.com;
 
     # Switch traffic: edit this line to point to the desired upstream group
-    # (fireisp_blue or fireisp_green), then reload Nginx with:
+    # (vigabss_blue or vigabss_green), then reload Nginx with:
     #   sudo nginx -t && sudo systemctl reload nginx
-    set $backend fireisp_green;
+    set $backend vigabss_green;
 
     location / {
         proxy_pass http://$backend;
@@ -1607,15 +1640,20 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ### Traffic Switching with Kubernetes
 
-Update the Service selector to point to the green Deployment:
+The maintained raw manifests define one Deployment, not a blue-green pair.
+Before using selector-based switching, create separate blue and green
+Deployments whose pod templates retain the two compatibility labels and add a
+third `deployment-track` label. Then switch the Service without dropping its
+base selectors:
 
 ```bash
-kubectl set selector service/fireisp -n fireisp app=fireisp,version=green
+kubectl patch service fireisp -n fireisp --type merge -p \
+  '{"spec":{"selector":{"app.kubernetes.io/name":"fireisp","app.kubernetes.io/component":"api","deployment-track":"green"}}}'
 ```
 
 ### Rollback Procedure
 
-1. Switch traffic back to Blue (change `$backend` to `fireisp_blue` in Nginx, or update the Kubernetes service selector).
+1. Switch traffic back to Blue (change `$backend` to `vigabss_blue` in Nginx, or update the Kubernetes service selector).
 2. Reload the load balancer or apply the selector change.
 3. Investigate the issue in the Green environment.
 4. If a database migration was applied, deploy a compensating migration — never roll back migrations manually.
@@ -1640,7 +1678,7 @@ Run these checks against the Green environment before switching traffic:
 
 ### Horizontal Scaling
 
-VigaBSS 5.0 is designed as a **stateless application** — any instance can serve any request. Scale horizontally by adding more app server instances behind a load balancer.
+VigaBSS 0.1.0-alpha.1 is designed as a **stateless application** — any instance can serve any request. Scale horizontally by adding more app server instances behind a load balancer.
 
 Requirements for horizontal scaling:
 
@@ -1718,14 +1756,23 @@ BULLMQ_CONCURRENCY=5
 
 ## Helm Chart Deployment
 
-VigaBSS 5.0 ships a production-grade Helm chart under `charts/fireisp/` that
+VigaBSS 0.1.0-alpha.1 ships a production-grade Helm chart under `charts/fireisp/` that
 templates every Kubernetes resource (Namespace, ConfigMap, Secret, Deployment,
 Service, Ingress, HPA, PDB, PVC, PrometheusRule, and ClusterImagePolicy).
+
+> **Compatibility identifier:** the on-disk chart name, chart package,
+> template helpers, example release name, namespace, selectors, and PVCs retain
+> `fireisp`. They are stable infrastructure identifiers, not the product's
+> display name. Renaming them can replace selectors or detach persistent data.
 
 ### Prerequisites
 
 - Helm 3.12+
 - Kubernetes 1.27+
+- MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 10.6+, provisioned
+  separately and reachable from the cluster. The chart deploys VigaBSS, not a
+  database server. Keep an existing FireISP-era database/user name unchanged;
+  create `vigabss` names only for a fresh database.
 - (Optional) [cert-manager](https://cert-manager.io/) for TLS
 - (Optional) [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) for alerting rules
 - (Optional) [Sigstore policy-controller](https://github.com/sigstore/policy-controller) for image verification
@@ -1745,14 +1792,18 @@ ingress:
 secrets:
   JWT_SECRET: "$(openssl rand -base64 48)"
   ENCRYPTION_KEY: "$(openssl rand -hex 32)"
+  # Replace with the separately provisioned database service/hostname.
   DB_HOST: mysql.fireisp.svc.cluster.local
+  DB_NAME: vigabss
+  DB_USER: vigabss
   DB_PASSWORD: my-db-password
 EOF
 chmod 600 values-secret.yaml
 
-# Install into the fireisp namespace (creates namespace automatically)
+# Install into the fireisp compatibility namespace (creates it automatically)
 helm install fireisp fireisp/fireisp \
   --namespace fireisp --create-namespace \
+  --version 0.1.0-alpha.1 \
   -f values-secret.yaml
 ```
 
@@ -1784,7 +1835,7 @@ replicaCount: 3
 
 image:
   repository: ghcr.io/vothalvino/vigabss
-  tag: "5.0.0"
+  tag: "0.1.0-alpha.1"
 
 ingress:
   hostname: isp.example.com
@@ -1828,8 +1879,9 @@ kubectl rollout status -n fireisp deployment/fireisp --timeout=180s
 ```bash
 helm upgrade fireisp fireisp/fireisp \
   --namespace fireisp \
+  --version 0.1.0-alpha.1 \
   -f my-values.yaml \
-  --set image.tag=5.1.0
+  --set-string image.tag=0.1.0-alpha.1
 ```
 
 ### Uninstalling
@@ -1876,7 +1928,7 @@ spec:
 
   source:
     repoURL: https://github.com/vothalvino/vigabss
-    targetRevision: main          # or a tag, e.g. v5.0.0
+    targetRevision: main          # or a tag, e.g. v0.1.0-alpha.1
     path: charts/fireisp
     helm:
       valueFiles:
@@ -1886,7 +1938,7 @@ spec:
       # Fine-grained overrides (avoid plain-text secrets here):
       parameters:
         - name: image.tag
-          value: "5.0.0"
+          value: "0.1.0-alpha.1"
         - name: ingress.hostname
           value: isp.example.com
         - name: ingress.tls.enabled
@@ -1942,7 +1994,7 @@ DB_PASSWORD=my-password
 EOF
 chmod 600 secrets.env
 
-# Seal the fireisp-secret for the fireisp namespace
+# Seal the fireisp-secret for the fireisp compatibility namespace
 kubectl create secret generic fireisp-secret \
   --namespace fireisp \
   --dry-run=client \
@@ -1954,7 +2006,7 @@ kubectl create secret generic fireisp-secret \
 shred -u secrets.env 2>/dev/null || rm -f secrets.env
 
 git add gitops/fireisp-sealed-secret.yaml
-git commit -m "chore: rotate fireisp secrets"
+git commit -m "chore: rotate VigaBSS secrets"
 git push
 # Argo CD will automatically apply the SealedSecret and Sealed Secrets
 # controller will decrypt it into a regular Secret inside the cluster.
@@ -1984,6 +2036,6 @@ To cut a new chart release, bump `version` in `charts/fireisp/Chart.yaml`
 (and `appVersion` if the app changed) and push a matching git tag:
 
 ```bash
-git tag v5.1.0
-git push origin v5.1.0
+git tag v0.1.0-alpha.1
+git push origin v0.1.0-alpha.1
 ```

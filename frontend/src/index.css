@@ -92,6 +92,96 @@
   --radius-lg: 8px;
 }
 
+/* -- Product identity ------------------------------------------------------ */
+.vigabss-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1;
+  text-align: left;
+}
+.vigabss-brand__mark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 7px;
+}
+.vigabss-brand__copy {
+  display: inline-flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.vigabss-brand__line {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.vigabss-brand__name {
+  color: inherit;
+  font-size: 1.05rem;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+.vigabss-brand__channel {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.vigabss-brand__version {
+  color: var(--text-muted);
+  font: 500 0.68rem/1.15 var(--font-mono);
+  white-space: nowrap;
+}
+.vigabss-brand--hero {
+  gap: 11px;
+}
+.vigabss-brand--hero .vigabss-brand__mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+.vigabss-brand--hero .vigabss-brand__name {
+  font-size: 1.45rem;
+}
+.vigabss-brand--compact {
+  gap: 7px;
+}
+.vigabss-brand--compact .vigabss-brand__mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+.vigabss-brand--compact .vigabss-brand__name {
+  font-size: 1rem;
+}
+.vigabss-brand--inverse {
+  color: #fff;
+}
+.vigabss-brand--inverse .vigabss-brand__version {
+  color: var(--sidebar-fg-muted);
+}
+.vigabss-brand--inverse .vigabss-brand__channel {
+  border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: #ff9a70;
+}
+
 /* =============================================================================
    2. Design tokens — dark theme (deep slate / zinc)
    ============================================================================= */

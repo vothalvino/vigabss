@@ -65,7 +65,7 @@
     "change": "Alterar"
   },
   "login": {
-    "title": "🔥 VigaBSS 5.0",
+    "title": "VigaBSS",
     "subtitle": "Entre para continuar",
     "emailLabel": "E-mail",
     "passwordLabel": "Senha",
@@ -350,7 +350,7 @@
     "documentTemplates": "Documentos Legais"
   },
   "layout": {
-    "brandName": "🔥 VigaBSS",
+    "brandName": "VigaBSS Alpha",
     "sidebarSubtitle": "Espaço de operações",
     "skipToContent": "Pular para o conteúdo",
     "primaryNavigation": "Navegação principal",
@@ -360,7 +360,7 @@
     "switchOrgFailed": "Falha ao trocar de organização"
   },
   "portalLayout": {
-    "brandName": "🔥 VigaBSS — Minha conta",
+    "brandName": "VigaBSS Alpha — Minha conta",
     "navHome": "🏠 Início",
     "navInvoices": "🧾 Faturas",
     "navSupport": "🎫 Suporte",
@@ -2447,7 +2447,7 @@
     "destination_https": "Enviar para um endpoint HTTPS",
     "destination_https_help": "Envie o trap por POST para um endpoint HTTPS público, seguro e sob seu controle.",
     "https_url": "URL HTTPS",
-    "url_placeholder": "https://alertas.exemplo.com/traps-fireisp",
+    "url_placeholder": "https://alertas.exemplo.com/traps-vigabss",
     "destination_webhook": "Usar um webhook registrado",
     "destination_webhook_help": "Use um webhook ativo já configurado para esta organização no VigaBSS.",
     "registered_webhook": "Webhook registrado",
@@ -5571,23 +5571,26 @@
     "accuracyCol": "Precisão"
   },
   "updateBanner": {
-    "message": "Há uma versão mais recente do VigaBSS — em execução {{running}}, a mais recente é {{latest}}.",
+    "message": "Há uma compilação mais recente da ramificação principal do VigaBSS — em execução {{running}}, a mais recente é {{latest}}.",
     "dismiss": "Ocultar até amanhã"
   },
   "version": {
     "title": "Versão instalada",
     "loading": "Verificando…",
-    "running": "Commit em execução",
+    "release": "Versão",
+    "unknownRelease": "versão desconhecida",
+    "running": "Commit da compilação",
     "unknownBuild": "desconhecido",
     "unknownBuildNote": "Esta imagem não foi compilada pelo CI, portanto não carrega marca de commit. Implante uma compilação publicada para ver a versão exata.",
     "checkState": "Verificação de atualizações",
     "checkOn": "Ativada",
     "checkOff": "Desativada — nenhuma requisição externa é feita",
-    "latest": "Mais recente disponível",
+    "latest": "Compilação principal mais recente",
     "unreachable": "não foi possível contatar o github.com",
     "status": "Status",
-    "updateAvailable": "Há uma versão mais recente disponível",
-    "upToDate": "Atualizado",
+    "updateAvailable": "Há uma compilação principal mais recente",
+    "upToDate": "Atualizado com a ramificação principal",
+    "comparisonUnknown": "Não foi possível comparar esta compilação com a ramificação principal",
     "checkedAt": "Última verificação",
     "howToUpdate": "Para atualizar, execute no servidor:",
     "howToEnable": "A verificação de atualizações vem ativada por padrão. É a única requisição externa que o VigaBSS faz por conta própria e nenhum dado da instalação é enviado. Para desativá-la, defina",
@@ -5608,9 +5611,10 @@
       "succeeded": "Concluída",
       "failed": "Falhou"
     },
-    "nothingToDeploy": "Você está na versão mais recente — nada a implantar.",
+    "nothingToDeploy": "Você está na compilação principal mais recente — nada a implantar.",
+    "comparisonUnknown": "O VigaBSS não pode confirmar se há uma atualização até que ambos os commits de compilação sejam conhecidos. Verifique novamente antes de implantar.",
     "enableCheckFirst": "A verificação de atualizações está desativada, portanto não há com o que comparar. Ative-a para implantar daqui.",
-    "agentPending": "O agente de implantação ainda não se registrou. Ele é instalado automaticamente pelo redeploy e se registra em cerca de 30 segundos; se isso persistir, execute: journalctl -u fireisp-deploy-agent -n 30",
+    "agentPending": "O agente de implantação ainda não se registrou. Ele é instalado automaticamente pelo redeploy e se registra em cerca de 30 segundos; se isso persistir, execute: journalctl -u vigabss-deploy-agent -n 30",
     "agentPendingWhy": "O agente roda no servidor, fora do Docker. O VigaBSS nunca recebe permissão para reiniciar a pilha: ele só pode registrar seu pedido, e é por isso que uma invasão aqui não permite assumir o controle da máquina."
   },
   "communicationOptIn": {

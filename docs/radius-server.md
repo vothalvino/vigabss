@@ -29,7 +29,7 @@ fallback. Requests from an unknown source IP with no secret are silently dropped
 ## Point a MikroTik at VigaBSS
 
 ```
-/radius add service=ppp address=<FIREISP_IP> secret=<nas.secret> \
+/radius add service=ppp address=<VIGABSS_IP> secret=<nas.secret> \
         authentication-port=1812 accounting-port=1813
 /ppp aaa set use-radius=yes accounting=yes interim-update=5m
 ```
@@ -91,7 +91,7 @@ The server answers standard RADIUS, so you can test it with `radtest`/`radclient
 or any RADIUS test tool (no router or CPE required):
 
 ```
-radtest <username> <password> <fireisp-host>:1812 0 <shared-secret>
+radtest <username> <password> <vigabss-host>:1812 0 <shared-secret>
 ```
 
 Expect `Access-Accept` with the policy attributes for a valid subscriber, or

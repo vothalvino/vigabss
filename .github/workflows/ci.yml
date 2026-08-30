@@ -724,7 +724,7 @@ jobs:
           build-args: |
             GIT_SHA=${{ github.sha }}
           tags: |
-            fireisp/fireisp:ci-${{ github.sha }}-${{ matrix.arch }}
+            vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
             ${{ env.RELEASE_IMAGE }}:${{ github.sha }}-${{ matrix.arch }}
           # Scoped per architecture. Without this the two matrix jobs share one
           # cache key and repeatedly evict each other's layers.
@@ -735,7 +735,7 @@ jobs:
         if: steps.warm.outcome == 'success'
         uses: anchore/sbom-action@v0.18.0
         with:
-          image: fireisp/fireisp:ci-${{ github.sha }}-${{ matrix.arch }}
+          image: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
           artifact-name: sbom-${{ github.sha }}-${{ matrix.arch }}.spdx.json
           output-file: sbom.spdx.json
           format: spdx-json
@@ -752,7 +752,7 @@ jobs:
         if: github.event_name == 'pull_request' && steps.warm.outcome == 'success'
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          image-ref: fireisp/fireisp:ci-${{ github.sha }}-${{ matrix.arch }}
+          image-ref: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
           format: sarif
           output: trivy-results.sarif
           version: v0.71.1
@@ -766,7 +766,7 @@ jobs:
         if: github.event_name != 'pull_request' && steps.warm.outcome == 'success'
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          image-ref: fireisp/fireisp:ci-${{ github.sha }}-${{ matrix.arch }}
+          image-ref: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
           format: sarif
           output: trivy-results.sarif
           version: v0.71.1
@@ -1040,6 +1040,8 @@ jobs:
 
       - name: Template Helm chart (smoke-render)
         run: |
+          # The chart/release name remains the compatibility identity used by
+          # existing Helm installations and the deployment guide.
           helm template fireisp charts/fireisp \
             --set-string image.tag=${{ github.sha }} \
             --set secrets.JWT_SECRET=test-jwt-secret-placeholder \
@@ -1053,8 +1055,16 @@ jobs:
           RELEASE_VERSION="${GITHUB_REF_NAME#v}"
           CHART_VERSION=$(awk '$1 == "version:" { print $2 }' charts/fireisp/Chart.yaml | tr -d '"')
           APP_VERSION=$(awk '$1 == "appVersion:" { print $2 }' charts/fireisp/Chart.yaml | tr -d '"')
+          ROOT_VERSION=$(node -p "require('./package.json').version")
+          FRONTEND_VERSION=$(node -p "require('./frontend/package.json').version")
+          E2E_VERSION=$(node -p "require('./e2e/package.json').version")
+          UI_KIT_VERSION=$(node -p "require('./frontend/ui-kit/package.json').version")
           test "$RELEASE_VERSION" = "$CHART_VERSION"
           test "$RELEASE_VERSION" = "$APP_VERSION"
+          test "$RELEASE_VERSION" = "$ROOT_VERSION"
+          test "$RELEASE_VERSION" = "$FRONTEND_VERSION"
+          test "$RELEASE_VERSION" = "$E2E_VERSION"
+          test "$RELEASE_VERSION" = "$UI_KIT_VERSION"
           test "${{ needs.publish-manifest.result }}" = success
 
       - name: Pin the packaged chart to its published release image

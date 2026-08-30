@@ -9,7 +9,7 @@ VigaBSS defaults to a shared database with strict `organization_id` scoping. For
 2. Create an empty MySQL/MariaDB database and user for the tenant.
 3. Run migrations against the primary control-plane database:
    ```bash
-   npm run migrate
+   pnpm run migrate
    ```
 4. While the organization still uses shared mode, apply the complete VigaBSS
    schema directly to the candidate tenant database using that database's
@@ -34,14 +34,17 @@ VigaBSS defaults to a shared database with strict `organization_id` scoping. For
 7. Reconcile row counts and ownership, then configure the tenant database
    through the admin API. This `PUT` is the routing cutover and must happen only
    after the schema and data checks pass:
+
+   The names below are examples for a new isolated database. Keep existing
+   tenant database names during an upgrade; branding does not require a rename.
    ```http
    PUT /api/v1/organizations/{organizationId}/database-isolation
    {
      "isolation_mode": "isolated",
      "db_host": "tenant-db.internal",
      "db_port": 3306,
-     "db_name": "fireisp_org_123",
-     "db_user": "fireisp_org_123",
+     "db_name": "vigabss_org_123",
+     "db_user": "vigabss_org_123",
      "db_password": "replace-with-secret",
      "ssl_enabled": true
    }
@@ -49,7 +52,7 @@ VigaBSS defaults to a shared database with strict `organization_id` scoping. For
 8. Run migrations across every now-enabled isolated database and perform
    tenant-scoped read/write acceptance checks before ending the write freeze:
    ```bash
-   MIGRATE_ISOLATED_TENANTS=true npm run migrate
+   MIGRATE_ISOLATED_TENANTS=true pnpm run migrate
    ```
 
    For connection logging, the acceptance check must resolve an active NAS and

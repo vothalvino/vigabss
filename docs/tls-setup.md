@@ -1,6 +1,6 @@
 # TLS Setup Guide
 
-VigaBSS 5.0 ships with a production-ready Nginx reverse proxy that enforces
+VigaBSS 0.1.0-alpha.1 ships with a production-ready Nginx reverse proxy that enforces
 HTTPS.  This guide covers four ways to provision TLS certificates:
 
 | Method | Use case |
@@ -39,7 +39,7 @@ must point to this server.
 ### 1. Configure environment
 
 ```bash
-cp .env.example .env.prod
+cp .env.prod.example .env.prod
 # Edit .env.prod and fill in all required values, then also set:
 export DOMAIN=isp.example.com
 export EMAIL=admin@example.com
@@ -57,8 +57,10 @@ DOMAIN=isp.example.com EMAIL=admin@example.com ./nginx/init-letsencrypt.sh
 ```
 
 What it does:
-1. Creates a temporary self-signed certificate in `./nginx/certs/` (so the
-   production nginx config can later start without missing-file errors).
+1. Reuses a complete certificate/key pair on a rerun, or creates a temporary
+   self-signed pair in `./nginx/certs/` on a first run (so the production nginx
+   config can later start without missing-file errors). It fails closed if only
+   one half of an existing pair is present.
 2. Temporarily swaps `nginx/nginx.conf` for `nginx/nginx.bootstrap.conf` —
    a stripped-down config that only listens on port 80 and serves the ACME
    challenge. This avoids the
@@ -88,9 +90,9 @@ The `certbot` service starts alongside nginx and checks for renewal every
 openssl s_client -connect isp.example.com:443 -servername isp.example.com \
   </dev/null 2>/dev/null | openssl x509 -noout -dates
 
-# Check nginx is using the live cert
-docker compose -f docker-compose.prod.yml --env-file .env.prod exec nginx \
-  openssl x509 -in /etc/nginx/certs/fullchain.pem -noout -subject -dates
+# Check the exact certificate file bind-mounted into nginx. The nginx:alpine
+# image does not guarantee an openssl CLI, so inspect it from the host.
+openssl x509 -in nginx/certs/fullchain.pem -noout -subject -dates
 ```
 
 ---
@@ -164,8 +166,8 @@ If the installer (`install.sh`) detects port 80 is occupied by a non-Docker
 process it enables host-nginx mode automatically.  You can also force it:
 
 ```bash
-USE_HOST_NGINX=1 DOMAIN=isp.example.com EMAIL=admin@example.com \
-  curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh \
+  | USE_HOST_NGINX=1 DOMAIN=isp.example.com EMAIL=admin@example.com bash
 ```
 
 ### Manual setup
@@ -176,29 +178,52 @@ USE_HOST_NGINX=1 DOMAIN=isp.example.com EMAIL=admin@example.com \
 sudo apt install nginx
 ```
 
-**2. Configure nginx**
+**2. Prepare the webroot and bootstrap certificate**
+
+Host nginx parses its TLS files during `nginx -t`, before Certbot can issue the
+first certificate. Preserve a complete existing pair on reruns and stop if only
+one half survives:
 
 ```bash
-# Replace __INSTALL_DIR__ with your actual install path (e.g. /opt/fireisp)
-# The file is placed in conf.d/ (not sites-available/) because it contains
-# http-level directives (upstream, server{}) that nginx includes inside http{}.
-sed 's|__INSTALL_DIR__|/opt/fireisp|g' /opt/fireisp/nginx/host-nginx.conf \
-  > /etc/nginx/conf.d/fireisp.conf
-# Disable the default nginx site to prevent port conflicts
-rm -f /etc/nginx/sites-enabled/default
-nginx -t && systemctl reload nginx
+CERT_DIR=/opt/vigabss/nginx/certs
+mkdir -p "$CERT_DIR" /opt/vigabss/nginx/certbot-www/.well-known/acme-challenge
+if [[ -s "$CERT_DIR/fullchain.pem" && -s "$CERT_DIR/privkey.pem" ]]; then
+  echo "Preserving the existing TLS certificate/key pair."
+elif [[ -e "$CERT_DIR/fullchain.pem" || -e "$CERT_DIR/privkey.pem" ]]; then
+  echo "Incomplete TLS pair; restore the missing file before continuing." >&2
+  exit 1
+else
+  openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+    -keyout "$CERT_DIR/privkey.pem" -out "$CERT_DIR/fullchain.pem" \
+    -subj "/CN=isp.example.com"
+  chmod 644 "$CERT_DIR/fullchain.pem"
+  chmod 640 "$CERT_DIR/privkey.pem"
+fi
 ```
 
-**3. Create the certbot webroot directory**
+**3. Configure nginx**
 
 ```bash
-mkdir -p /opt/fireisp/nginx/certbot-www/.well-known/acme-challenge
+# Replace __INSTALL_DIR__ with your actual install path (e.g. /opt/vigabss)
+# The file is placed in conf.d/ (not sites-available/) because it contains
+# http-level directives (upstream, server{}) that nginx includes inside http{}.
+sed 's|__INSTALL_DIR__|/opt/vigabss|g' /opt/vigabss/nginx/host-nginx.conf \
+  > /etc/nginx/conf.d/vigabss.conf
+# Disable the default nginx site to prevent port conflicts
+rm -f /etc/nginx/sites-enabled/default
+nginx -t
+systemctl enable nginx
+if systemctl is-active --quiet nginx; then
+  systemctl reload nginx
+else
+  systemctl start nginx
+fi
 ```
 
 **4. Bootstrap TLS**
 
 ```bash
-cd /opt/fireisp
+cd /opt/vigabss
 DOMAIN=isp.example.com EMAIL=admin@example.com \
   ./nginx/init-letsencrypt.sh --host-nginx
 ```
@@ -253,8 +278,8 @@ The `certbot` service handles renewal automatically:
 ### Verify renewal works (dry-run)
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm certbot \
-  certbot renew --dry-run
+docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+  --entrypoint certbot certbot renew --dry-run
 ```
 
 ### Force an immediate reload of nginx

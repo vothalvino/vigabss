@@ -1,10 +1,15 @@
 # Backup & Disaster Recovery Guide
 
-VigaBSS 5.0 includes a built-in backup script (`npm run backup`) that performs MySQL dumps with gzip compression and automatic rotation. This document covers the backup process, restore procedures, and disaster recovery planning.
+VigaBSS 0.1.0-alpha.1 includes a built-in backup script (`pnpm run backup`) that performs MySQL dumps with gzip compression and automatic rotation. This document covers the backup process, restore procedures, and disaster recovery planning.
 
 > **Updating or recreating containers?** First confirm your data is on a
 > persistent volume (not the container's ephemeral layer) with the
 > [Volume Persistence — Verification & Migration Protocol](volume-persistence.md).
+
+The command examples use the fresh-install database name `vigabss`. Always
+substitute the `DB_NAME` configured for the installation you are operating;
+upgraded FireISP-era deployments may legitimately still use `fireisp`. A
+backup or restore is not the time to rename a live database or volume.
 
 ---
 
@@ -23,7 +28,7 @@ VigaBSS 5.0 includes a built-in backup script (`npm run backup`) that performs M
 ### Built-in Backup Script
 
 ```bash
-npm run backup
+pnpm run backup
 ```
 
 This script (`src/scripts/backup.js`):
@@ -50,7 +55,7 @@ Add a cron job on the host machine:
 
 ```bash
 # Daily backup at 2:00 AM
-0 2 * * * cd /path/to/fireisp5.0 && npm run backup >> /var/log/fireisp-backup.log 2>&1
+0 2 * * * cd /path/to/vigabss && pnpm run backup >> /var/log/vigabss-backup.log 2>&1
 ```
 
 ### Docker Backup
@@ -58,14 +63,15 @@ Add a cron job on the host machine:
 When running in Docker, backup from the host:
 
 ```bash
-docker compose exec app npm run backup
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T app \
+  node src/scripts/backup.js
 ```
 
 Or backup the MySQL container directly:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T db-primary \
-  sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqldump -u root --single-transaction --routines --triggers --events fireisp' \
+  sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqldump -u root --single-transaction --routines --triggers --events "$MYSQL_DATABASE"' \
   | gzip > backup-$(date +%Y%m%d-%H%M%S).sql.gz
 ```
 
@@ -89,7 +95,7 @@ mysqldump -u root -p \
   --triggers \
   --events \
   --set-gtid-purged=OFF \
-  fireisp | gzip > fireisp-full-$(date +%Y%m%d-%H%M%S).sql.gz
+  vigabss | gzip > vigabss-full-$(date +%Y%m%d-%H%M%S).sql.gz
 ```
 
 > **Important flags:**
@@ -101,18 +107,18 @@ mysqldump -u root -p \
 ### Schema-Only Backup
 
 ```bash
-mysqldump -u root -p --no-data --routines --triggers --events fireisp > schema-only.sql
+mysqldump -u root -p --no-data --routines --triggers --events vigabss > schema-only.sql
 ```
 
 ### Specific Table Backup
 
 ```bash
 # Backup just the SNMP metrics (large tables)
-mysqldump -u root -p --single-transaction fireisp \
+mysqldump -u root -p --single-transaction vigabss \
   snmp_metrics snmp_metrics_1hr snmp_metrics_1day | gzip > snmp-data.sql.gz
 
 # Backup just financial data
-mysqldump -u root -p --single-transaction fireisp \
+mysqldump -u root -p --single-transaction vigabss \
   invoices invoice_items payments payment_allocations \
   credit_notes credit_note_items cfdi_documents | gzip > financial-data.sql.gz
 ```
@@ -132,20 +138,20 @@ tar czf storage-$(date +%Y%m%d).tar.gz storage/
 
 ```bash
 # 1. Create a fresh database (if needed)
-mysql -u root -p -e "CREATE DATABASE fireisp_restored CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p -e "CREATE DATABASE vigabss_restored CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 2. Restore from backup
-gunzip < backup-20260401-020000.sql.gz | mysql -u root -p fireisp_restored
+gunzip < backup-20260401-020000.sql.gz | mysql -u root -p vigabss_restored
 
 # 3. Verify the restore
-mysql -u root -p fireisp_restored -e "SELECT COUNT(*) FROM schema_migrations;"
-mysql -u root -p fireisp_restored -e "SELECT COUNT(*) FROM clients;"
+mysql -u root -p vigabss_restored -e "SELECT COUNT(*) FROM schema_migrations;"
+mysql -u root -p vigabss_restored -e "SELECT COUNT(*) FROM clients;"
 
 # 4. Enable event scheduler (required for SNMP rollups and partition maintenance)
 mysql -u root -p -e "SET GLOBAL event_scheduler = ON;"
 
 # 5. Run preflight check
-mysql -u root -p fireisp_restored -e "CALL preflight_check_event_scheduler();"
+mysql -u root -p vigabss_restored -e "CALL preflight_check_event_scheduler();"
 ```
 
 ### Restore to Docker
@@ -156,7 +162,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod cp backup.sql.gz 
 
 # Restore inside container (password expanded inside the container, never in argv)
 docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T db-primary \
-  sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; gunzip < /tmp/backup.sql.gz | mysql -u root fireisp'
+  sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; gunzip < /tmp/backup.sql.gz | mysql -u root "$MYSQL_DATABASE"'
 
 # Remove the copy when the restore finishes
 docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T db-primary rm -f /tmp/backup.sql.gz
@@ -178,16 +184,16 @@ Restore to a specific point:
 
 ```bash
 # 1. Restore the last full backup
-gunzip < backup.sql.gz | mysql -u root -p fireisp
+gunzip < backup.sql.gz | mysql -u root -p vigabss
 
 # 2. Apply binary logs up to the desired timestamp
-mysqlbinlog --stop-datetime="2026-04-01 15:30:00" mysql-bin.000042 | mysql -u root -p fireisp
+mysqlbinlog --stop-datetime="2026-04-01 15:30:00" mysql-bin.000042 | mysql -u root -p vigabss
 ```
 
 ### Restore Storage Files
 
 ```bash
-tar xzf storage-20260401.tar.gz -C /path/to/fireisp5.0/
+tar xzf storage-20260401.tar.gz -C /path/to/vigabss/
 ```
 
 ---
@@ -271,7 +277,7 @@ systemctl daemon-reload && systemctl enable --now minio
 ```
 
 Then open the MinIO console (`http://backup-server:9001`), create a bucket
-(e.g. `fireisp-backups`) plus a dedicated access key, and in VigaBSS's
+(e.g. `vigabss-backups`) plus a dedicated access key, and in VigaBSS's
 **Admin → Backups** choose provider **MinIO / self-hosted**, endpoint
 `http://backup-server:9000`, region `us-east-1` (MinIO accepts any), and the
 bucket + keys you created. Click **Test connection**. Prefer HTTPS (put
@@ -285,7 +291,7 @@ Add backup verification to your monitoring system:
 ```bash
 #!/bin/bash
 # Check that today's backup exists and is > 1MB
-BACKUP_DIR="/path/to/fireisp5.0/storage/backups"
+BACKUP_DIR="/path/to/vigabss/storage/backups"
 TODAY=$(date +%Y%m%d)
 LATEST=$(ls -t "$BACKUP_DIR"/*.sql.gz 2>/dev/null | head -1)
 

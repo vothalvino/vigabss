@@ -1,5 +1,5 @@
 # =============================================================================
-# VigaBSS 5.0 — Full-stack E2E test environment
+# VigaBSS 0.1.0-alpha.1 — Full-stack E2E test environment
 # =============================================================================
 # Spins up MySQL and the full production container (Express + bundled React),
 # then runs the Playwright smoke test suite against the live stack.

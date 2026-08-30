@@ -1,10 +1,15 @@
-# VigaBSS 5.0
+# VigaBSS 0.1.0-alpha.1
 
 Open source ISP management software for customer operations, billing, network management, compliance, and modern self-service/admin workflows.
 
+> **Pre-release:** `0.1.0-alpha.1` is the first VigaBSS alpha. Test backups,
+> upgrades, network automation, and billing workflows in a non-production
+> environment before relying on them operationally.
+
 ## Quick Install
 
-Deploy VigaBSS 5.0 on any Linux server with Docker in a single command:
+Deploy VigaBSS 0.1.0-alpha.1 on Ubuntu/Debian in a single command (other Linux
+distributions work when the prerequisites are installed first):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
@@ -12,17 +17,21 @@ curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh 
 
 The installer will prompt for your domain name and email, then automatically:
 
-- Clone the repository to `/opt/fireisp`
+- Clone the repository to `/opt/vigabss`
 - Generate strong random passwords and secrets
 - Obtain a free TLS certificate via Let's Encrypt
-- Build and start all containers (MySQL, Redis, app, Nginx)
+- Pull the published application image on amd64/arm64 (or build it on an
+  unsupported architecture) and start MySQL, Redis, the app, and Nginx
 - Run database migrations and seed default data
 
-**Prerequisites:** Docker 24+, Docker Compose v2, Git, OpenSSL — all on a server where the domain already resolves.
+**Prerequisites:** a root shell on the target server and a domain that already
+resolves to it. On Ubuntu/Debian the installer adds missing curl, Git, OpenSSL,
+Docker CE, and Docker Compose v2 automatically. Install those dependencies
+yourself first on another distribution.
 
 ### Options
 
-Pass variables before the pipe to skip interactive prompts:
+Pass variables to the `bash` process after the pipe to skip interactive prompts:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh \
@@ -33,7 +42,7 @@ curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh 
 |---|---|---|
 | `DOMAIN` | *(prompted)* | Public domain name pointing to this server |
 | `EMAIL` | *(prompted)* | Admin email — used for Let's Encrypt and first login |
-| `INSTALL_DIR` | `/opt/fireisp` | Installation directory |
+| `INSTALL_DIR` | `/opt/vigabss` | Installation directory |
 | `SKIP_TLS` | `0` | Set to `1` to use a self-signed certificate (dev/testing) |
 | `DB_PASSWORD` | *(auto-generated)* | MySQL application user password |
 | `DB_ROOT_PASSWORD` | *(auto-generated)* | MySQL root password |
@@ -41,9 +50,14 @@ curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh 
 | `REDIS_PASSWORD` | *(auto-generated)* | Redis password |
 | `JWT_SECRET` | *(auto-generated)* | JWT signing secret (64 chars) |
 | `ENCRYPTION_KEY` | *(auto-generated)* | AES-256 key for secrets stored at rest |
-| `GOOGLE_MAPS_API_KEY` | — | Google Maps Geocoding API key — enables resolving a client service address to GPS coordinates (`POST /clients/:id/geocode`). When unset, geocoding returns `503` and coordinates can still be entered manually. |
+| `GOOGLE_MAPS_API_KEY` | — | Google Maps Geocoding API key — enables resolving a client service address to GPS coordinates (`POST /api/v1/clients/:id/geocode`). When unset, geocoding returns `503` and coordinates can still be entered manually. |
 
-All generated credentials are saved to `/opt/fireisp/.env.prod` (mode `600`).
+All generated credentials are saved to `/opt/vigabss/.env.prod` (mode `600`).
+
+Existing FireISP-era installs remain supported at `/opt/fireisp`; do not move
+that directory or rename its Docker volumes or database merely to match the new
+defaults. Their existing wrappers and `FIREISP_*` compatibility variables keep
+working. New documentation uses the VigaBSS names.
 
 > **Full deployment guide:** [`docs/deployment.md`](docs/deployment.md) covers bare-metal, Docker Compose, Kubernetes, TLS setup, MySQL tuning, and a production checklist.
 > **FreeRADIUS integration:** [`docs/freeradius/README.md`](docs/freeradius/README.md) covers installing FreeRADIUS 3.x, pointing `rlm_sql` at the VigaBSS MySQL database, enabling PPPoE/MAB/802.1X/EAP-TLS, and generating `clients.conf` from the `nas` table.
@@ -68,7 +82,7 @@ All generated credentials are saved to `/opt/fireisp/.env.prod` (mode `600`).
 - Two-factor authentication (TOTP) with backup codes and brute-force account lockout
 - Single sign-on (SSO) — per-organization SAML 2.0 and OIDC IdP configuration, automatic user provisioning on first login, and IdP group-to-VigaBSS role mappings
 - Per-tenant resource quotas — configurable upper bounds per organization for clients, devices, storage, and scheduled tasks (NULL = unlimited; absence of a quota row = unlimited)
-- Per-tenant database isolation — opt-in physically isolated MySQL/MariaDB database per organization; tenant-aware pool routing via `AsyncLocalStorage` context in `orgScope`; admin API to configure, verify (`POST /test`), and switch between shared and isolated modes; `MIGRATE_ISOLATED_TENANTS=true npm run migrate` applies the same migration set to every enabled isolated tenant database
+- Per-tenant database isolation — opt-in physically isolated MySQL/MariaDB database per organization; tenant-aware pool routing via `AsyncLocalStorage` context in `orgScope`; admin API to configure, verify (`POST /test`), and switch between shared and isolated modes; `MIGRATE_ISOLATED_TENANTS=true pnpm run migrate` applies the same migration set to every enabled isolated tenant database
 - Background job platform (BullMQ) — optional Redis-backed distributed job queues for webhook delivery, SMS dispatch, CFDI stamping retries, config-backup pulls, and scheduled-task execution; inline fallback when `REDIS_URL` is not configured; per-queue stats surfaced at `/api/v1/queue-stats`
 - FireRelay cluster mode for multi-node deployments with client routing
 - Outbound webhooks with HMAC signing, configurable retries, and dead-letter queue for failed deliveries
@@ -83,7 +97,7 @@ All generated credentials are saved to `/opt/fireisp/.env.prod` (mode `600`).
 - Customer interaction tracking — unified per-client activity timeline (calls, emails, tickets, payments, visits), manual interaction logging, follow-up reminders with automated due notifications, NPS/CSAT satisfaction surveys (auto-dispatched on ticket resolution) with aggregate metrics, and ticket escalation management with auto-escalation of stale unresolved tickets
 - Internationalization (i18n) — English, Spanish, and Brazilian Portuguese locale support
 - Customer self-service portal (§11) — dashboard with plan overview, live session status, daily usage graph; invoice PDF/CFDI download; online payment (card/OXXO/SPEI/PayPal via checkout session); payment history; self-service requests (plan upgrade with proration, Wi-Fi/PPPoE password change, static IP, cancellation, visit schedule) with admin approval workflow; knowledge-base / FAQ with rating; embedded speed test (queues `subscriber_speed_test_jobs`, results view); AI-powered chatbot with automatic ticket-creation fallback; callback request; Web Push notification subscriptions (outage/billing/ticket events); PWA with offline service worker and web app manifest
-- RESTful API with 960 REST API endpoints, interactive Swagger UI documentation (`/api/docs`), and static OpenAPI spec (`docs/openapi.json`)
+- RESTful API with an OpenAPI 3.1 contract covering 1,001 paths, interactive Swagger UI documentation (`/api/docs`), and a static specification (`docs/openapi.json`)
 - GraphQL gateway (`/api/v1/graphql`) powered by graphql-yoga v5 — single-request multi-entity fetches, real-time subscriptions via SSE (PubSub), and a live ClientDetail query replacing multiple REST round-trips
 - Real-time event hub (WebSocket + SSE dual-broadcast) — live Dashboard device-status indicator, live TicketDetail comment stream, and a useWebSocket React hook for all frontend consumers
 - httpOnly SameSite=Strict cookie authentication — access token in memory, refresh token in httpOnly cookie, Origin-based CSRF guard; eliminates localStorage token exposure
@@ -142,7 +156,7 @@ vigabss/
 
 ## Database
 
-VigaBSS 5.0 uses MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 10.6+. The schema is located in the `database/` directory.
+VigaBSS 0.1.0-alpha.1 uses MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 10.6+. The schema is located in the `database/` directory.
 
 ### Quick Start
 
@@ -1362,6 +1376,11 @@ See the [`docs/`](docs/) directory for detailed guides on the central [legal and
 
 ## Getting Started (from Source)
 
+Source development requires Node.js 24+ and pnpm 10 (the repository pins the
+exact pnpm release through Corepack). The admin frontend uses React 19,
+TypeScript, and Vite; the backend exposes the canonical REST API under
+`/api/v1/`.
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/vothalvino/vigabss.git
@@ -1426,7 +1445,7 @@ docker compose up -d
 | `pnpm --filter vigabss-frontend run lint` | Run frontend type-check / lint step |
 | `pnpm --filter vigabss-frontend build` | Build the frontend bundle |
 | `pnpm --filter vigabss-e2e test` | Run Playwright smoke tests |
-| `FIREISP_ADMIN_PASSWORD='...' pnpm run admin -- create-user --email admin@example.com --role admin` | Create admin user — the password comes from `FIREISP_ADMIN_PASSWORD` (not `ADMIN_PASSWORD`, which is the seeded admin's initial password), or is prompted for when run in a terminal. Never pass it as a flag: argv is world-readable via `/proc/<pid>/cmdline` |
+| `VIGABSS_ADMIN_PASSWORD='...' pnpm run admin -- create-user --email admin@example.com --role admin` | Create admin user — the password comes from `VIGABSS_ADMIN_PASSWORD` (legacy `FIREISP_ADMIN_PASSWORD` remains accepted), or is prompted for when run in a terminal. Never pass it as a flag: argv is world-readable via `/proc/<pid>/cmdline` |
 | `pnpm run backup` | Back up the database |
 
 ## Contributing

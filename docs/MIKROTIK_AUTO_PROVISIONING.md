@@ -1,6 +1,6 @@
 # MikroTik Auto-Provisioning — Development Guideline
 
-> **Purpose:** This document is the master specification for building VigaBSS 5.0's MikroTik auto-provisioning subsystem. It describes every feature, file location, database schema change, API endpoint, and test expectation that development agents should implement. Work should be broken into the phases listed below, each of which is independently shippable.
+> **Purpose:** This document is the master specification for building VigaBSS 0.1.0-alpha.1's MikroTik auto-provisioning subsystem. It describes every feature, file location, database schema change, API endpoint, and test expectation that development agents should implement. Work should be broken into the phases listed below, each of which is independently shippable.
 
 ---
 
@@ -31,7 +31,7 @@
 
 ## Vision
 
-VigaBSS 5.0 should be able to **fully configure a MikroTik router from scratch** when an ISP operator adds a new device in the dashboard. This means:
+VigaBSS 0.1.0-alpha.1 should be able to **fully configure a MikroTik router from scratch** when an ISP operator adds a new device in the dashboard. This means:
 
 - **SSH transport** for CLI commands (`/ip address add`, `/queue simple add`, etc.).
 - **MikroTik REST API** (RouterOS v7.1+) for structured read/write operations.
@@ -48,7 +48,7 @@ The subsystem should be **optional** — controlled by a feature flag `FEATURE_M
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    VigaBSS 5.0 Server                    │
+│                    VigaBSS 0.1.0-alpha.1 Server                    │
 │                                                         │
 │  src/services/mikrotik/                                 │
 │  ├── MikrotikSSHClient.js    ← SSH transport (ssh2)     │
@@ -425,8 +425,8 @@ Periodically backup MikroTik configurations and store them in the database.
 
 ### Two Backup Types
 
-1. **Binary backup** (`/system backup save name=fireisp-{{date}}`) — full restore, includes passwords.
-2. **Text export** (`/export file=fireisp-{{date}}`) — human-readable, diff-able.
+1. **Binary backup** (`/system backup save name=vigabss-{{date}}`) — full restore, includes passwords.
+2. **Text export** (`/export file=vigabss-{{date}}`) — human-readable, diff-able.
 
 ### Storage
 

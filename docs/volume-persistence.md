@@ -72,12 +72,12 @@ each critical path is persistent or ephemeral:
 
 ```bash
 # Check the MySQL data directory (default target)
-npm run verify:volumes -- fireisp-db-1
+pnpm run verify:volumes -- "$(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q db-primary)"
 
 # Check several paths at once
-npm run verify:volumes -- fireisp-db-1 /var/lib/mysql
-npm run verify:volumes -- fireisp-redis-1 /data
-npm run verify:volumes -- fireisp-app-1 /app/storage
+pnpm run verify:volumes -- "$(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q db-primary)" /var/lib/mysql
+pnpm run verify:volumes -- "$(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q redis)" /data
+pnpm run verify:volumes -- "$(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q app)" /app/storage
 ```
 
 Exit codes make it scriptable in a pre-update gate:
@@ -95,7 +95,8 @@ a `tmpfs` mount is reported as ephemeral.
 
 ```bash
 # List mount type → name → destination for a container
-docker inspect -f '{{range .Mounts}}{{.Type}} {{.Name}} -> {{.Destination}}{{println}}{{end}}' fireisp-db-1
+docker inspect -f '{{range .Mounts}}{{.Type}} {{.Name}} -> {{.Destination}}{{println}}{{end}}' \
+  "$(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q db-primary)"
 
 # Confirm the named volume exists and is Docker-managed
 docker volume ls | grep -E 'db_data|db_primary_data'
@@ -117,7 +118,7 @@ removed, restored into the new container that has the named volume attached.
    any storage-driver or schema change across recreation:
 
    ```bash
-   docker exec fireisp-db-1 sh -c \
+   docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T db-primary sh -c \
      'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqldump -uroot \
        --single-transaction --routines --triggers --events --all-databases' \
      | gzip > migrate-$(date +%F-%H%M%S).sql.gz
@@ -129,7 +130,7 @@ removed, restored into the new container that has the named volume attached.
    load-bearing: the variable must be expanded inside the container, where the compose
    file already set it.
 
-   (Or run `npm run backup` if the app container can reach the database.)
+   (Or run `pnpm run backup` if the app container can reach the database.)
 
 2. **Recreate the stack from the committed compose file** so the named volume
    is attached. Bring the stack down **without** `-v`:
@@ -143,13 +144,14 @@ removed, restored into the new container that has the named volume attached.
 
    ```bash
    gunzip < migrate-YYYY-MM-DD-HHMMSS.sql.gz \
-     | docker exec -i fireisp-db-1 sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot'
+     | docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T db-primary \
+         sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot'
    ```
 
 4. **Re-verify** before declaring success:
 
    ```bash
-   npm run verify:volumes -- fireisp-db-1
+   pnpm run verify:volumes -- "$(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q db-primary)"
    ```
 
 5. **Enable the event scheduler** (required for SNMP rollups and partition

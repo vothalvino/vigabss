@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS 5.0 — Email Templates
+// VigaBSS — Email Templates
 // =============================================================================
 // HTML email template builders for transactional emails.
 // Each function returns { subject, html } ready for nodemailer.
@@ -7,6 +7,7 @@
 // =============================================================================
 
 const { escapeHtml } = require('../utils/htmlEscape');
+const product = require('../product');
 
 /**
  * Base HTML wrapper shared by all templates.
@@ -46,7 +47,7 @@ function baseLayout(content, footerText) {
       ${content}
     </div>
     <div class="footer">
-      ${footerText || 'Powered by VigaBSS 5.0'}
+      ${footerText || `Powered by ${product.displayName}`}
     </div>
   </div>
 </body>

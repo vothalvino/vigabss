@@ -5,7 +5,7 @@
 
 ## Audience
 
-Operators migrating an existing ISP operation from a legacy billing system, spreadsheet workflow, or another ISP platform into VigaBSS 5.0.
+Operators migrating an existing ISP operation from a legacy billing system, spreadsheet workflow, or another ISP platform into VigaBSS 0.1.0-alpha.1.
 
 ## Key message
 
@@ -21,7 +21,7 @@ Narration:
 
 On-screen checklist:
 
-- VigaBSS 5.0 installed
+- VigaBSS 0.1.0-alpha.1 installed
 - Database migrations applied
 - Organization and admin user created
 - Plans and sites prepared
@@ -53,7 +53,7 @@ Narration:
 On-screen command:
 
 ```bash
-curl -X POST http://localhost:3000/api/import/clients/upload \
+curl -X POST http://localhost:3000/api/v1/import/clients/upload \
   -H "Authorization: Bearer <token>" \
   -H "X-Org-Id: <org_id>" \
   -F "file=@clients.csv"

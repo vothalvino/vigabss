@@ -1,6 +1,6 @@
-# CLAUDE.md — VigaBSS 5.0
+# CLAUDE.md — VigaBSS 0.1.0-alpha.1
 
-VigaBSS 5.0 is an open-source ISP management platform (Mexico-focused): customer operations, billing + CFDI, RADIUS/NAS network management, FTTH/wireless, ticketing/NOC, compliance (IFT), automation, reseller support, and a subscriber self-service portal. Express 5 backend + React/Vite frontend + MySQL, deployed with Docker/k8s.
+VigaBSS 0.1.0-alpha.1 is an open-source ISP management platform (Mexico-focused): customer operations, billing + CFDI, RADIUS/NAS network management, FTTH/wireless, ticketing/NOC, compliance (IFT), automation, reseller support, and a subscriber self-service portal. Express 5 backend + React/Vite frontend + MySQL, deployed with Docker/k8s.
 
 ## Who you are in this repo
 
@@ -103,6 +103,6 @@ Every feature touches this chain; skipping a link produces the classic VigaBSS b
 ## Deploy
 
 - `docker-compose.yml` (dev) / `docker-compose.prod.yml` (prod: MySQL, Redis, app, Nginx) / `docker-compose.test.yml` (integration DB) / `docker-compose.e2e.yml` / `docker-compose.host-nginx.yml`
-- One-command production install: `install.sh` (clones to `/opt/fireisp`, TLS via Let's Encrypt)
+- One-command production install: `install.sh` (fresh installs use `/opt/vigabss`, TLS via Let's Encrypt; `/opt/fireisp` remains a legacy-compatible path)
 - `k8s/` + `charts/` for Kubernetes/Helm; `docs/deployment.md`, `docs/backup-restore.md`
 - FireRelay (remote NAS tunneling): `docs/firerelay.md`, `pnpm run firerelay:agent`

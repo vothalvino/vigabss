@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// VigaBSS 5.0 — deploy from the GUI, without giving the app any privilege
+// VigaBSS 0.1.0-alpha.1 — deploy from the GUI, without giving the app any privilege
 // =============================================================================
 // The security property is not "the button works". It is:
 //
@@ -184,10 +184,13 @@ describe('the agent script keeps the invariant', () => {
     expect(cmdLine).not.toMatch(/REQUEST|TARGET|COMMIT|IMAGE|TAG/);
   });
 
-  it('claims work by UPDATE, not select-then-update', () => {
-    // Two overlapping timer runs must not both run redeploy.sh. Only the row
-    // still 'pending' is claimed, so the loser's UPDATE matches nothing.
-    expect(src()).toMatch(/UPDATE deploy_requests\s*\n?\s*SET status = 'running'[\s\S]{0,120}WHERE status = 'pending'/);
+  it('proves ownership of the exact row changed before running it', () => {
+    const s = src();
+    expect(s).toMatch(/UPDATE deploy_requests\s*\n?\s*SET id = LAST_INSERT_ID\(id\), status = 'running'/);
+    expect(s).toMatch(/SELECT LAST_INSERT_ID\(\) WHERE ROW_COUNT\(\) = 1/);
+    // This was the race: another timer could claim a row, then this global
+    // query adopted that already-running request despite changing zero rows.
+    expect(code()).not.toMatch(/SELECT id FROM deploy_requests WHERE status = 'running' ORDER BY id/);
   });
 
   it('keeps the password out of argv', () => {
@@ -241,13 +244,55 @@ describe('the agent script keeps the invariant', () => {
   });
 
   it('reports before exiting at every query, not just the heartbeat', () => {
-    // A bare `set -e` exit left `journalctl -u fireisp-deploy-agent` — the
+    // A bare `set -e` exit left `journalctl -u vigabss-deploy-agent` — the
     // command the UI tells the operator to run — completely empty, while the
     // captured reason was deleted by the EXIT trap.
     const s = src();
-    for (const site of ['claiming a request', 'reading the claimed request',
-      'sweeping stale deploys', 're-checking the claim', 'writing the result of request']) {
+    for (const site of ['claiming a request', 'sweeping stale deploys',
+      're-checking the claim', 'writing the result of request']) {
       expect(s).toContain(`err_report "${site}`);
+    }
+  });
+
+  it('serializes the legacy and canonical timer names with one host lock', async () => {
+    const fs = require('node:fs');
+    const os = require('node:os');
+    const path = require('node:path');
+    const { execFileSync, spawn } = require('node:child_process');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-agent-lock-'));
+    const lock = path.join(dir, 'agent.lock');
+    const ready = path.join(dir, 'ready');
+    fs.writeFileSync(path.join(dir, '.env.prod'), 'DB_PASSWORD=x\n');
+    fs.writeFileSync(path.join(dir, 'docker-compose.prod.yml'), 'services: {}\n');
+    const holder = spawn('bash', ['-c', [
+      'set -e',
+      'exec 9>"$1"',
+      'flock -n 9',
+      'printf ready >"$2"',
+      'read -r _',
+    ].join('; '), 'lock-holder', lock, ready], { stdio: ['pipe', 'ignore', 'inherit'] });
+
+    try {
+      const sleeper = new Int32Array(new SharedArrayBuffer(4));
+      for (let i = 0; i < 100 && !fs.existsSync(ready); i += 1) {
+        Atomics.wait(sleeper, 0, 0, 10);
+      }
+      expect(fs.existsSync(ready)).toBe(true);
+      const env = { ...process.env, VIGABSS_DIR: dir, VIGABSS_DEPLOY_LOCK_FILE: lock };
+      delete env.VIGABSS_DEPLOY_AGENT;
+      delete env.FIREISP_DEPLOY_AGENT;
+      const output = execFileSync('bash', [path.join(__dirname, '../deploy-agent.sh')], {
+        encoding: 'utf8',
+        env,
+      });
+      expect(output).toMatch(/another deploy-agent instance is active/);
+      expect(output).toMatch(/leaving requests to its owner/);
+    } finally {
+      holder.stdin.end('\n');
+      if (holder.exitCode === null) {
+        await new Promise(resolve => holder.once('exit', resolve));
+      }
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
@@ -266,8 +311,34 @@ describe('the agent script keeps the invariant', () => {
     // reports no agent and hides the button — what "off" should look like.
     const s = src();
     const guard = s.slice(0, s.indexOf('deploy_agent_status'));
+    expect(guard).toMatch(/VIGABSS_DEPLOY_AGENT/);
     expect(guard).toMatch(/FIREISP_DEPLOY_AGENT/);
     expect(guard).toMatch(/0\|false\|no\|off\)/);
+  });
+
+  it.each([
+    ['VIGABSS_DEPLOY_AGENT', 'canonical'],
+    ['FIREISP_DEPLOY_AGENT', 'legacy'],
+  ])('exits before Docker when the %s file setting disables the agent (%s alias)', (key) => {
+    const fs = require('node:fs');
+    const os = require('node:os');
+    const path = require('node:path');
+    const { execFileSync } = require('node:child_process');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-agent-optout-'));
+    fs.writeFileSync(path.join(dir, '.env.prod'), `${key}=0\n`);
+    fs.writeFileSync(path.join(dir, 'docker-compose.prod.yml'), 'services: {}\n');
+    const env = { ...process.env, VIGABSS_DIR: dir };
+    delete env.VIGABSS_DEPLOY_AGENT;
+    delete env.FIREISP_DEPLOY_AGENT;
+    try {
+      const output = execFileSync('bash', [path.join(__dirname, '../deploy-agent.sh')], {
+        encoding: 'utf8', env,
+      });
+      expect(output).toMatch(new RegExp(`deploy-agent: ${key}=0`));
+      expect(output).toMatch(/GUI deploys are disabled/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('reports the real database error instead of guessing', () => {
@@ -309,19 +380,21 @@ describe('the agent script keeps the invariant', () => {
       .filter(Boolean)
       .map(m => m[1]);
 
-    const declared = src().match(/DB_SERVICE="\$\{FIREISP_DB_SERVICE:-([a-z0-9_-]+)\}"/);
+    const declared = src().match(/DB_SERVICE="\$\{VIGABSS_DB_SERVICE:-\$\{FIREISP_DB_SERVICE:-([a-z0-9_-]+)\}\}"/);
     expect(declared).not.toBeNull();
     expect(services).toContain(declared[1]);
   });
 
   it('runs from the checkout, not a copy in /usr/local/bin', () => {
     // A copy is a second thing to keep in step: redeploy pulls a fixed agent
-    // into /opt/fireisp, the copy stays stale, and the symptom is an agent that
+    // into /opt/vigabss, the copy stays stale, and the symptom is an agent that
     // silently keeps failing the old way.
     const unit = require('node:fs').readFileSync(
-      require('node:path').join(__dirname, '../deploy/fireisp-deploy-agent.service'), 'utf8',
+      require('node:path').join(__dirname, '../deploy/vigabss-deploy-agent.service'), 'utf8',
     );
-    expect(unit).toMatch(/^ExecStart=\/opt\/fireisp\/deploy-agent\.sh$/m);
+    expect(unit).toMatch(/^ExecStart="__VIGABSS_INSTALL_DIR__\/deploy-agent\.sh"$/m);
+    expect(unit).toMatch(/^Environment="VIGABSS_DIR=__VIGABSS_INSTALL_DIR__"$/m);
+    expect(unit).toMatch(/^Environment="FIREISP_DIR=__VIGABSS_INSTALL_DIR__"$/m);
     // Directives only — the comment above ExecStart legitimately explains why
     // /usr/local/bin is NOT used, and a blunt string match flags its own
     // rationale.
@@ -357,7 +430,7 @@ describe('redeploy installs the deploy-agent units', () => {
   const script = require('node:path').join(__dirname, '../redeploy.sh');
   const run = (env) => require('node:child_process').execFileSync(
     'bash',
-    ['-c', `set -euo pipefail; FIREISP_LIB_ONLY=1 source "$1"; ${env} install_deploy_agent`, 'bash', script],
+    ['-c', `set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; ${env} install_deploy_agent`, 'bash', script],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   );
 
@@ -373,7 +446,7 @@ describe('redeploy installs the deploy-agent units', () => {
   it('skips a host with no systemd rather than failing the deploy', () => {
     const out = require('node:child_process').execFileSync(
       'bash',
-      ['-c', 'set -euo pipefail; PATH=/nonexistent; FIREISP_LIB_ONLY=1 source "$1"; install_deploy_agent', 'bash', script],
+      ['-c', 'set -euo pipefail; PATH=/nonexistent; VIGABSS_LIB_ONLY=1 source "$1"; install_deploy_agent', 'bash', script],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
     );
     expect(out).toMatch(/no systemctl/);
@@ -383,8 +456,8 @@ describe('redeploy installs the deploy-agent units', () => {
     // Rewriting identical files every deploy would restart the timer for
     // nothing, on every single deploy.
     const src = require('node:fs').readFileSync(script, 'utf8');
-    expect(src).toMatch(/if ! cmp -s "\$src" "\$dst"; then/);
-    expect(src).toMatch(/if \(\( changed \)\); then\s*\n\s*systemctl daemon-reload/);
+    expect(src).toMatch(/if ! cmp -s "\$rendered" "\$dst"; then/);
+    expect(src).toMatch(/if \(\( changed \)\); then\s*\n\s*if ! systemctl daemon-reload/);
   });
 
   // A sandbox whose `systemctl` RECORDS instead of acting. Without it these
@@ -392,41 +465,100 @@ describe('redeploy installs the deploy-agent units', () => {
   // feature under test working — so a regression in the flag parse would, on a
   // root shell or in the uid-0 test containers, enable a production timer as a
   // side effect of the test that exists to prove it does not.
-  const sandbox = ({ env = '', timerInstalled = false } = {}) => {
+  const sandbox = ({
+    env = '',
+    timerInstalled = false,
+    legacyTimerInstalled = timerInstalled,
+    canonicalTimerInstalled = timerInstalled,
+    failCanonicalEnable = false,
+    failLegacyRestore = false,
+  } = {}) => {
     const fs = require('node:fs');
     const os = require('node:os');
     const path = require('node:path');
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fireisp-agent-flag-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-agent-flag-'));
     fs.writeFileSync(path.join(dir, '.env.prod'), env);
     fs.mkdirSync(path.join(dir, 'bin'));
+    fs.mkdirSync(path.join(dir, 'deploy'));
+    fs.mkdirSync(path.join(dir, 'systemd'));
+    fs.mkdirSync(path.join(dir, 'systemctl-state'));
+    for (const unit of ['vigabss-deploy-agent.service', 'vigabss-deploy-agent.timer']) {
+      fs.copyFileSync(path.join(__dirname, '..', 'deploy', unit), path.join(dir, 'deploy', unit));
+    }
     const calls = path.join(dir, 'systemctl.calls');
+    const stateDir = path.join(dir, 'systemctl-state');
+    if (legacyTimerInstalled) fs.writeFileSync(path.join(stateDir, 'fireisp-deploy-agent.timer'), 'active\n');
+    if (canonicalTimerInstalled) fs.writeFileSync(path.join(stateDir, 'vigabss-deploy-agent.timer'), 'active\n');
     fs.writeFileSync(path.join(dir, 'bin', 'systemctl'),
-      `#!/usr/bin/env bash\necho "$@" >> ${JSON.stringify(calls)}\n`
-      // is-enabled/is-active decide whether a timer is considered present.
-      + `case "$1" in is-enabled|is-active) exit ${timerInstalled ? 0 : 1} ;; esac\nexit 0\n`);
+      [
+        '#!/usr/bin/env bash',
+        `echo "$@" >> ${JSON.stringify(calls)}`,
+        `state_dir=${JSON.stringify(stateDir)}`,
+        'command="$1"; shift || true',
+        'case "$command" in',
+        '  is-enabled|is-active) [[ -f "$state_dir/$1" ]]; exit $? ;;',
+        '  disable)',
+        '    [[ "${1:-}" != "--now" ]] || shift',
+        '    rm -f -- "$state_dir/$1"',
+        '    ;;',
+        '  enable)',
+        '    [[ "${1:-}" != "--now" ]] || shift',
+        `    if [[ "$1" == "vigabss-deploy-agent.timer" && "${failCanonicalEnable ? 1 : 0}" == 1 ]]; then exit 1; fi`,
+        `    if [[ "$1" == "fireisp-deploy-agent.timer" && "${failLegacyRestore ? 1 : 0}" == 1 ]]; then exit 1; fi`,
+        '    : > "$state_dir/$1"',
+        '    ;;',
+        '  restart) [[ -f "$state_dir/$1" ]]; exit $? ;;',
+        '  daemon-reload) ;;',
+        'esac',
+        'exit 0',
+        '',
+      ].join('\n'));
     fs.chmodSync(path.join(dir, 'bin', 'systemctl'), 0o755);
     // stderr merged into stdout: warnings are written to stderr, and
     // execFileSync's return value carries stdout only.
     const run = (extraEnv = {}) => require('node:child_process').execFileSync(
       'bash',
-      ['-c', 'exec 2>&1; set -euo pipefail; FIREISP_LIB_ONLY=1 source "$1"; install_deploy_agent', 'bash', script],
+      ['-c', 'exec 2>&1; set -euo pipefail; VIGABSS_LIB_ONLY=1 source "$1"; install_deploy_agent', 'bash', script],
       {
         encoding: 'utf8',
-        env: { ...process.env, PATH: `${path.join(dir, 'bin')}:${process.env.PATH}`, FIREISP_DIR: dir, ...extraEnv },
+        env: {
+          ...process.env,
+          PATH: `${path.join(dir, 'bin')}:${process.env.PATH}`,
+          VIGABSS_DIR: dir,
+          VIGABSS_SYSTEMD_UNIT_DIR: path.join(dir, 'systemd'),
+          ...extraEnv,
+        },
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
-    return { run, systemctlCalls: () => (fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8') : '') };
+    return {
+      dir,
+      run,
+      systemctlCalls: () => (fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8') : ''),
+      installedUnit: unit => fs.readFileSync(path.join(dir, 'systemd', unit), 'utf8'),
+    };
   };
 
-  it('honours FIREISP_DEPLOY_AGENT=0 written in .env.prod — the one place sudo cannot strip it', () => {
+  it('honours VIGABSS_DEPLOY_AGENT=0 written in .env.prod — the one place sudo cannot strip it', () => {
     // The docs always pointed operators at .env.prod, but the script only read
     // the process environment — which sudoers' env_reset empties, so the
     // documented opt-out could never work. Quotes, a trailing comment and a CR
     // are all present here because hand-edited files have all three.
-    const s = sandbox({ env: 'DB_PASSWORD=x\nFIREISP_DEPLOY_AGENT="0" # no timer on this box\r\n' });
+    const s = sandbox({ env: 'DB_PASSWORD=x\nVIGABSS_DEPLOY_AGENT="0" # no timer on this box\r\n' });
     expect(s.run()).toMatch(/GUI deploys are off/);
     expect(s.systemctlCalls()).not.toMatch(/^enable --now/m);
+  });
+
+  it('still honours the legacy FIREISP_DEPLOY_AGENT opt-out', () => {
+    const s = sandbox({ env: 'FIREISP_DEPLOY_AGENT=0\n' });
+    expect(s.run()).toMatch(/GUI deploys are off/);
+    expect(s.systemctlCalls()).not.toMatch(/^enable --now/m);
+  });
+
+  it('uses the canonical deploy-agent setting when both spellings exist', () => {
+    const s = sandbox({ env: 'FIREISP_DEPLOY_AGENT=0\nVIGABSS_DEPLOY_AGENT=1\n' });
+    expect(s.run()).not.toMatch(/GUI deploys are off/);
+    expect(s.systemctlCalls()).toMatch(/^enable --now vigabss-deploy-agent\.timer$/m);
   });
 
   it('STOPS a timer that is already installed, rather than just declining to install one', () => {
@@ -434,13 +566,14 @@ describe('redeploy installs the deploy-agent units', () => {
     // time an operator reads the docs and sets the flag the timer is already
     // enabled. "Skipping" left a root poller servicing GUI deploy requests on a
     // box whose operator had just been told GUI deploys were off.
-    const s = sandbox({ env: 'FIREISP_DEPLOY_AGENT=0\n', timerInstalled: true });
+    const s = sandbox({ env: 'VIGABSS_DEPLOY_AGENT=0\n', timerInstalled: true });
     expect(s.run()).toMatch(/stopped and disabled/);
+    expect(s.systemctlCalls()).toMatch(/^disable --now vigabss-deploy-agent\.timer$/m);
     expect(s.systemctlCalls()).toMatch(/^disable --now fireisp-deploy-agent\.timer$/m);
   });
 
   it.each([['false'], ['no'], ['off'], ['FALSE'], ['Off']])('reads %s as off, not as on', (value) => {
-    const s = sandbox({ env: `FIREISP_DEPLOY_AGENT=${value}\n`, timerInstalled: true });
+    const s = sandbox({ env: `VIGABSS_DEPLOY_AGENT=${value}\n`, timerInstalled: true });
     expect(s.run()).toMatch(/stopped and disabled/);
     expect(s.systemctlCalls()).not.toMatch(/^enable --now/m);
   });
@@ -450,17 +583,66 @@ describe('redeploy installs the deploy-agent units', () => {
     // default is an inert banner. It is wrong here: the default grants a root
     // timer the power to service GUI-initiated deploys, so an operator who
     // meant "off" must not be told nothing.
-    const s = sandbox({ env: 'FIREISP_DEPLOY_AGENT=disabled\n' });
+    const s = sandbox({ env: 'VIGABSS_DEPLOY_AGENT=disabled\n' });
     const out = s.run();
     expect(out).toMatch(/not a recognised value/);
     expect(out).toMatch(/stays ENABLED/);
   });
 
   it('an environment value that genuinely survives still wins over the file', () => {
-    const s = sandbox({ env: 'FIREISP_DEPLOY_AGENT=0\n', timerInstalled: true });
-    const out = s.run({ FIREISP_DEPLOY_AGENT: '1' });
+    const s = sandbox({ env: 'VIGABSS_DEPLOY_AGENT=0\n', timerInstalled: true });
+    const out = s.run({ VIGABSS_DEPLOY_AGENT: '1' });
     expect(out).not.toMatch(/GUI deploys are off/);
-    expect(s.systemctlCalls()).not.toMatch(/disable/);
+    expect(s.systemctlCalls()).toMatch(/^enable --now vigabss-deploy-agent\.timer$/m);
+  });
+
+  it('renders the real custom install path into canonical units', () => {
+    const s = sandbox();
+    s.run();
+    const unit = s.installedUnit('vigabss-deploy-agent.service');
+    expect(unit).not.toContain('__VIGABSS_INSTALL_DIR__');
+    expect(unit).toContain(`Environment="VIGABSS_DIR=${s.dir}"`);
+    expect(unit).toContain(`Environment="FIREISP_DIR=${s.dir}"`);
+    expect(unit).toContain(`ExecStart="${s.dir}/deploy-agent.sh"`);
+    expect(s.systemctlCalls()).toMatch(/^enable --now vigabss-deploy-agent\.timer$/m);
+    expect(s.systemctlCalls()).not.toMatch(/^enable --now fireisp-deploy-agent\.timer$/m);
+  });
+
+  it('stops the legacy timer before enabling canonical, with the shared lock covering a running old service', () => {
+    const s = sandbox({ legacyTimerInstalled: true });
+    s.run();
+    const calls = s.systemctlCalls();
+    const enabledAt = calls.indexOf('enable --now vigabss-deploy-agent.timer');
+    const disabledAt = calls.indexOf('disable --now fireisp-deploy-agent.timer');
+    expect(enabledAt).toBeGreaterThanOrEqual(0);
+    expect(disabledAt).toBeGreaterThanOrEqual(0);
+    expect(disabledAt).toBeLessThan(enabledAt);
+    expect(require('node:fs').readFileSync(require('node:path').join(__dirname, '../deploy-agent.sh'), 'utf8'))
+      .toMatch(/flock -n 9/);
+  });
+
+  it('restores the legacy timer when canonical activation fails', () => {
+    const s = sandbox({ legacyTimerInstalled: true, failCanonicalEnable: true });
+    expect(s.run()).toMatch(/restored fireisp-deploy-agent\.timer/);
+    const calls = s.systemctlCalls();
+    const stopOld = calls.indexOf('disable --now fireisp-deploy-agent.timer');
+    const tryNew = calls.indexOf('enable --now vigabss-deploy-agent.timer');
+    const restoreOld = calls.lastIndexOf('enable --now fireisp-deploy-agent.timer');
+    expect(stopOld).toBeLessThan(tryNew);
+    expect(tryNew).toBeLessThan(restoreOld);
+  });
+
+  it('does not claim the legacy timer was restored when rollback activation also fails', () => {
+    const s = sandbox({
+      legacyTimerInstalled: true,
+      failCanonicalEnable: true,
+      failLegacyRestore: true,
+    });
+    const out = s.run();
+    expect(out).toMatch(/fireisp-deploy-agent\.timer could not be restored/);
+    expect(out).toMatch(/GUI deploys are unavailable; CLI redeploy remains available/);
+    expect(out).not.toMatch(/restored fireisp-deploy-agent\.timer/);
+    expect(s.systemctlCalls()).toMatch(/^disable --now vigabss-deploy-agent\.timer$/m);
   });
 
   it('never lets a unit-install failure fail the deploy', () => {

@@ -1,7 +1,7 @@
 // =============================================================================
 // VigaBSS UI — Field
 // =============================================================================
-// Faithful TSX port of @fireisp/ui Field. Labeled input with error/hint/
+// Faithful TSX port of @vigabss/ui Field. Labeled input with error/hint/
 // required affordances and an accent focus ring.
 // =============================================================================
 

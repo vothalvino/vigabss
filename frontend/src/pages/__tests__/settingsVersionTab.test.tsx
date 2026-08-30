@@ -50,6 +50,7 @@ vi.mock('@/api/client', () => ({
 }));
 
 const VERSION = {
+  release_version: '0.1.0-alpha.1',
   running_sha: 'abcdef1234567890',
   latest_sha: '99999992222222',
   update_available: true,
@@ -124,6 +125,14 @@ describe('the tab is install-operator only', () => {
 });
 
 describe('what it shows', () => {
+  it('reports the semantic release separately from the build commit', async () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: /Version/i }));
+    expect(await screen.findByText('0.1.0-alpha.1')).toBeInTheDocument();
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.getByText('abcdef1')).toBeInTheDocument();
+  });
+
   it('reports the running commit, shortened', async () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
@@ -134,7 +143,19 @@ describe('what it shows', () => {
     respondWith({ latest_sha: 'abcdef1234567890', update_available: false });
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
-    expect(await screen.findByText(/Up to date/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Up to date with main/i)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['running build commit', { running_sha: null }],
+    ['latest main commit', { latest_sha: null }],
+  ])('does not claim to be up to date when the %s is unknown', async (_label, missing) => {
+    respondWith({ ...missing, update_available: false });
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: /Version/i }));
+
+    expect(await screen.findByText(/Unable to compare this build with main/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Up to date with main/i)).not.toBeInTheDocument();
   });
 
   it('flags an available update', async () => {
@@ -144,7 +165,7 @@ describe('what it shows', () => {
     // host has no systemd.
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
-    expect(await screen.findByText(/newer release is available/i)).toBeInTheDocument();
+    expect(await screen.findByText(/newer main build is available/i)).toBeInTheDocument();
   });
 
   it('explains how to switch the check OFF, since on is now the default', async () => {
@@ -154,17 +175,17 @@ describe('what it shows', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
     expect(await screen.findByText(/Disabled/i)).toBeInTheDocument();
-    expect(screen.getByText('FIREISP_UPDATE_CHECK=0')).toBeInTheDocument();
+    expect(screen.getByText('VIGABSS_UPDATE_CHECK=0')).toBeInTheDocument();
   });
 
   it('hides the upstream rows entirely when the check is off', async () => {
-    // Showing "Latest available: —" would imply a failed check rather than one
+    // Showing "Latest main build: —" would imply a failed check rather than one
     // that was never made.
     respondWith({ check_enabled: false, latest_sha: null, update_available: false, checked_at: null });
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
     await screen.findByText(/Disabled/i);
-    expect(screen.queryByText(/Latest available/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Latest main build/i)).not.toBeInTheDocument();
   });
 
   it('says so plainly when the image carries no commit stamp', async () => {
@@ -212,7 +233,7 @@ describe('deploy panel — before the agent is installed', () => {
     // not exist.
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
-    expect(await screen.findByText(/journalctl -u fireisp-deploy-agent/)).toBeInTheDocument();
+    expect(await screen.findByText(/journalctl -u vigabss-deploy-agent/)).toBeInTheDocument();
   });
 
   it('explains WHY there is an agent rather than a direct button', async () => {
@@ -309,7 +330,7 @@ describe('Update now appears only when there is an update', () => {
     respondWith({ latest_sha: 'abcdef1234567890', update_available: false }, { agent_alive: true });
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
-    await screen.findByText(/Up to date/i);
+    await screen.findByText(/Up to date with main/i);
     expect(screen.queryByRole('button', { name: /Update now/i })).not.toBeInTheDocument();
   });
 
@@ -319,6 +340,19 @@ describe('Update now appears only when there is an update', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: /Version/i }));
     expect(await screen.findByText(/nothing to deploy/i)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['running build commit', { running_sha: null }],
+    ['latest main commit', { latest_sha: null }],
+  ])('explains why deployment is unavailable when the %s is unknown', async (_label, missing) => {
+    respondWith({ ...missing, update_available: false }, { agent_alive: true });
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: /Version/i }));
+
+    expect(await screen.findByText(/cannot confirm whether an update is available/i)).toBeInTheDocument();
+    expect(screen.queryByText(/nothing to deploy/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Update now/i })).not.toBeInTheDocument();
   });
 
   it('explains the disabled-checks case differently', async () => {

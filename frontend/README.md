@@ -1,24 +1,24 @@
-# VigaBSS 5.0 — Frontend
+# VigaBSS 0.1.0-alpha.1 — Frontend
 
-React 18 + TypeScript + Vite admin panel for VigaBSS 5.0.
+React 19 + TypeScript + Vite admin panel for VigaBSS 0.1.0-alpha.1.
 
 ## Quick Start
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Generate typed API client from OpenAPI spec (re-run whenever the spec changes)
-npm run gen:api
+pnpm run gen:api
 
 # Start dev server (proxies /api/* to http://localhost:3000)
-npm run dev
+pnpm run dev
 
 # Type-check
-npm run lint
+pnpm run lint
 
 # Production build
-npm run build
+pnpm run build
 ```
 
 The dev server runs on `http://localhost:5173` and proxies all `/api` and `/healthz` requests
@@ -36,7 +36,7 @@ frontend/
 │   ├── App.tsx           # Router + providers
 │   ├── api/
 │   │   ├── client.ts     # Typed openapi-fetch client + token store + silent refresh
-│   │   └── schema.d.ts   # Generated types (do not edit manually — run npm run gen:api)
+│   │   └── schema.d.ts   # Generated types (do not edit manually — run pnpm run gen:api)
 │   ├── auth/
 │   │   ├── AuthContext.tsx   # JWT auth context (login / logout / silent refresh)
 │   │   └── PrivateRoute.tsx  # Role-based route guard
@@ -50,10 +50,10 @@ frontend/
 
 ## Auth Flow
 
-1. **Login** → `POST /api/v1/auth/login` → access token stored in JS memory, refresh token in `localStorage`.
-2. **Startup** → reads refresh token from `localStorage`, silently calls `/api/v1/auth/refresh` to restore session.
+1. **Login** → `POST /api/v1/auth/login` → access token held in JS memory and refresh token set as an httpOnly cookie.
+2. **Startup** → calls `/api/v1/auth/refresh` with the cookie to restore the in-memory session.
 3. **Silent refresh** → `openapi-fetch` middleware intercepts any `401`, calls `/api/v1/auth/refresh`, retries the original request transparently.
-4. **Logout** → `POST /api/v1/auth/logout` → clears both tokens.
+4. **Logout** → `POST /api/v1/auth/logout` → clears the in-memory token and server-managed cookie.
 
 ## Role-Based Routing
 
@@ -81,10 +81,10 @@ Whenever the backend OpenAPI spec changes:
 
 ```bash
 # From the repo root
-npm run openapi        # regenerates /docs/openapi.json
+pnpm run openapi        # regenerates /docs/openapi.json
 
 # From /frontend
-npm run gen:api        # regenerates src/api/schema.d.ts
+pnpm run gen:api        # regenerates src/api/schema.d.ts
 ```
 
 The `schema.d.ts` file is gitignored — it is always generated at install/build time.

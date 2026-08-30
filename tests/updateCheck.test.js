@@ -32,6 +32,7 @@ const config = require('../src/config');
 const db = require('../src/config/database');
 const updateCheck = require('../src/services/updateCheck');
 const app = require('../src/app');
+const product = require('../src/product');
 
 const RUNNING = 'a'.repeat(40);
 const LATEST = 'b'.repeat(40);
@@ -61,15 +62,19 @@ let fetchSpy;
 beforeEach(() => {
   jest.clearAllMocks();
   updateCheck._resetCache();
+  delete process.env.VIGABSS_UPDATE_CHECK;
   delete process.env.FIREISP_UPDATE_CHECK;
-  process.env.FIREISP_GIT_SHA = RUNNING;
+  delete process.env.FIREISP_GIT_SHA;
+  process.env.VIGABSS_GIT_SHA = RUNNING;
   fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
     ok: true, status: 200, json: async () => ({ sha: LATEST }),
   });
 });
 afterEach(() => {
   fetchSpy.mockRestore();
+  delete process.env.VIGABSS_GIT_SHA;
   delete process.env.FIREISP_GIT_SHA;
+  delete process.env.VIGABSS_UPDATE_CHECK;
   delete process.env.FIREISP_UPDATE_CHECK;
 });
 
@@ -81,17 +86,17 @@ describe('on by default, explicit opt-OUT', () => {
   });
 
   it.each([['0'], ['false'], ['no'], ['off'], ['OFF'], ['  0  ']])(
-    'makes NO network call for FIREISP_UPDATE_CHECK=%j', async (val) => {
+    'makes NO network call for VIGABSS_UPDATE_CHECK=%j', async (val) => {
       // The opt-out has to actually stop the request, not just report disabled.
-      process.env.FIREISP_UPDATE_CHECK = val;
+      process.env.VIGABSS_UPDATE_CHECK = val;
       await updateCheck.getStatus();
       expect(fetchSpy).not.toHaveBeenCalled();
     },
   );
 
   it.each([['1'], ['true'], ['TRUE'], ['yes'], ['']])(
-    'checks for FIREISP_UPDATE_CHECK=%j', async (val) => {
-      process.env.FIREISP_UPDATE_CHECK = val;
+    'checks for VIGABSS_UPDATE_CHECK=%j', async (val) => {
+      process.env.VIGABSS_UPDATE_CHECK = val;
       const status = await updateCheck.getStatus();
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(status.check_enabled).toBe(true);
@@ -101,16 +106,31 @@ describe('on by default, explicit opt-OUT', () => {
   it('reads an unrecognised value as the DEFAULT, not as off', async () => {
     // A typo must fail toward the documented default. Silently disabling a
     // feature on a typo leaves an operator unable to explain why it is dead.
-    process.env.FIREISP_UPDATE_CHECK = 'ture';
+    process.env.VIGABSS_UPDATE_CHECK = 'ture';
     expect((await updateCheck.getStatus()).check_enabled).toBe(true);
   });
 
   it('still reports the running commit while disabled', async () => {
     // Knowing what you are running needs no network and must not be gated.
-    process.env.FIREISP_UPDATE_CHECK = '0';
+    process.env.VIGABSS_UPDATE_CHECK = '0';
     const status = await updateCheck.getStatus();
     expect(status.running_sha).toBe(RUNNING);
+    expect(status.release_version).toBe(product.version);
     expect(status.check_enabled).toBe(false);
+  });
+
+  it('keeps the legacy FIREISP_UPDATE_CHECK alias working', async () => {
+    process.env.FIREISP_UPDATE_CHECK = '0';
+    const status = await updateCheck.getStatus();
+    expect(status.check_enabled).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('prefers the canonical VIGABSS_UPDATE_CHECK value over the legacy alias', async () => {
+    process.env.VIGABSS_UPDATE_CHECK = '1';
+    process.env.FIREISP_UPDATE_CHECK = '0';
+    expect((await updateCheck.getStatus()).check_enabled).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
   it('sends no identifying data', async () => {
@@ -130,17 +150,23 @@ describe('update_available is only claimed when it is knowable', () => {
   });
 
   it('false when they match', async () => {
-    process.env.FIREISP_GIT_SHA = LATEST;
+    process.env.VIGABSS_GIT_SHA = LATEST;
     expect((await updateCheck.getStatus()).update_available).toBe(false);
   });
 
   it('false when the running commit is unknown', async () => {
     // A locally-built image bakes no SHA. Claiming an update exists would send
     // the operator to redeploy on the strength of a comparison never made.
-    delete process.env.FIREISP_GIT_SHA;
+    delete process.env.VIGABSS_GIT_SHA;
     const status = await updateCheck.getStatus();
     expect(status.running_sha).toBeNull();
     expect(status.update_available).toBe(false);
+  });
+
+  it('reads the legacy FIREISP_GIT_SHA stamp when upgrading an old image contract', async () => {
+    delete process.env.VIGABSS_GIT_SHA;
+    process.env.FIREISP_GIT_SHA = RUNNING;
+    expect((await updateCheck.getStatus()).running_sha).toBe(RUNNING);
   });
 
   it('false, and does not throw, when GitHub is unreachable', async () => {
@@ -161,7 +187,7 @@ describe('the answer stays FRESH enough to be useful', () => {
   // deploy — at the moment the operator had just deployed HEAD, so the answer
   // was guaranteed to be "up to date" — and then froze. Anyone deploying more
   // often than daily would never once see an update reported.
-  beforeEach(() => { process.env.FIREISP_GIT_SHA = RUNNING; });
+  beforeEach(() => { process.env.VIGABSS_GIT_SHA = RUNNING; });
 
   it('re-checks within a working session, not once a day', () => {
     expect(updateCheck.CHECK_TTL_MS).toBeLessThanOrEqual(30 * 60 * 1000);
@@ -231,7 +257,7 @@ describe('a page load never waits on GitHub', () => {
   // could paint: ~300ms normally, and up to REQUEST_TIMEOUT_MS when GitHub is
   // slow, rate-limiting or unreachable from the host. With a 15-minute TTL and
   // someone visiting the tab occasionally, nearly EVERY visit was a cold one.
-  beforeEach(() => { process.env.FIREISP_GIT_SHA = RUNNING; });
+  beforeEach(() => { process.env.VIGABSS_GIT_SHA = RUNNING; });
 
   it('serves the stale answer immediately once anything is cached', async () => {
     fetchSpy.mockResolvedValue({ ok: true, status: 200, json: async () => ({ sha: RUNNING }) });
@@ -299,7 +325,7 @@ describe('warmCache', () => {
 
   it('makes NO call when the operator has not enabled checks', async () => {
     // Boot must not make a network request they declined.
-    process.env.FIREISP_UPDATE_CHECK = '0';
+    process.env.VIGABSS_UPDATE_CHECK = '0';
     updateCheck.warmCache();
     await new Promise((r) => setTimeout(r, 20));
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -315,7 +341,7 @@ describe('a FORCED check bypasses the cache', () => {
   // The passive answer is at most 15 minutes old, which is fine in the
   // background and not fine when the operator has deliberately come to the
   // Version tab and asked.
-  beforeEach(() => { process.env.FIREISP_GIT_SHA = RUNNING; });
+  beforeEach(() => { process.env.VIGABSS_GIT_SHA = RUNNING; });
 
   it('sees a commit the cached answer missed', async () => {
     fetchSpy.mockResolvedValue({ ok: true, status: 200, json: async () => ({ sha: RUNNING }) });
@@ -355,7 +381,7 @@ describe('a FORCED check bypasses the cache', () => {
   });
 
   it('does not force when the operator has not enabled checks at all', async () => {
-    process.env.FIREISP_UPDATE_CHECK = '0';
+    process.env.VIGABSS_UPDATE_CHECK = '0';
     await updateCheck.getStatus({ force: true });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -373,7 +399,11 @@ describe('POST /system/version/check', () => {
     wireUser(ADMIN);
     const res = await asUser(ADMIN)(request(app).post('/api/v1/system/version/check'));
     expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({ running_sha: RUNNING, latest_sha: LATEST });
+    expect(res.body.data).toMatchObject({
+      release_version: product.version,
+      running_sha: RUNNING,
+      latest_sha: LATEST,
+    });
   });
 });
 
@@ -432,6 +462,7 @@ describe('GET /system/version is install-operator only', () => {
     const res = await asUser(ADMIN)(request(app).get('/api/v1/system/version'));
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({
+      release_version: product.version,
       running_sha: RUNNING, latest_sha: LATEST, update_available: true, check_enabled: true,
     });
   });

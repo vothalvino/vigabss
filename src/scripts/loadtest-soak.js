@@ -33,7 +33,7 @@
 //
 // Configuration (env vars, all optional):
 //   LOADTEST_URL             API base URL                  (default http://127.0.0.1:3000)
-//   LOADTEST_EMAIL           login email                   (default loadtest@fireisp.local)
+//   LOADTEST_EMAIL           login email                   (default loadtest@vigabss.local)
 //   LOADTEST_PASSWORD        login password                (default loadtest123!)
 //   SOAK_TOTAL_DURATION      total soak seconds            (default 300)
 //   SOAK_ROUND_DURATION      seconds per autocannon round  (default 30)
@@ -50,7 +50,7 @@ const autocannon = require('autocannon');
 const logger = require('../utils/logger').child({ script: 'loadtest-soak' });
 
 const BASE_URL            = (process.env.LOADTEST_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
-const EMAIL               = process.env.LOADTEST_EMAIL    || 'loadtest@fireisp.local';
+const EMAIL               = process.env.LOADTEST_EMAIL    || 'loadtest@vigabss.local';
 const PASSWORD            = process.env.LOADTEST_PASSWORD || 'loadtest123!';
 const TOTAL_DURATION      = parseInt(process.env.SOAK_TOTAL_DURATION,     10) || 300;
 const ROUND_DURATION      = parseInt(process.env.SOAK_ROUND_DURATION,     10) || 30;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================================================
-// VigaBSS 5.0 — Admin CLI
+// VigaBSS — Admin CLI
 // =============================================================================
 // Administrative command-line tools for user management, database health
 // checks, and migration status.
@@ -16,7 +16,8 @@
 //   migration-status  Show applied vs pending migrations
 //
 // THE PASSWORD IS NEVER A COMMAND-LINE ARGUMENT. It is read from the
-// FIREISP_ADMIN_PASSWORD environment variable, or prompted for interactively.
+// VIGABSS_ADMIN_PASSWORD environment variable, or prompted for interactively.
+// FIREISP_ADMIN_PASSWORD remains a compatibility alias for older automation.
 //
 // NOT `ADMIN_PASSWORD`: seed.js already owns that name for the INITIAL password
 // of the seeded admin account, install.sh writes it into .env.prod, and the app
@@ -37,6 +38,7 @@ const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
 const logger = require('../utils/logger').child({ script: 'admin' });
+const product = require('../product');
 
 const SALT_ROUNDS = 12;
 const COMMANDS = ['create-user', 'reset-password', 'list-users', 'db-health', 'migration-status'];
@@ -68,23 +70,25 @@ function promptHidden(question) {
 /**
  * Resolve the password for a command, preferring channels that never reach argv.
  *
- * Order: FIREISP_ADMIN_PASSWORD (environment — /proc/<pid>/environ is 0400,
- * owner only) → interactive prompt → the deprecated flag, which works but warns.
+ * Order: VIGABSS_ADMIN_PASSWORD, legacy FIREISP_ADMIN_PASSWORD (environment —
+ * /proc/<pid>/environ is 0400, owner only) → interactive prompt → the
+ * deprecated flag, which works but warns.
  */
 async function resolvePassword(args, { confirm = false } = {}) {
+  if (process.env.VIGABSS_ADMIN_PASSWORD) return process.env.VIGABSS_ADMIN_PASSWORD;
   if (process.env.FIREISP_ADMIN_PASSWORD) return process.env.FIREISP_ADMIN_PASSWORD;
 
   if (args.password && args.password !== true) {
     logger.warn(
       'The --password flag puts the password in this process\'s command line, which every '
-      + 'local account can read from /proc/<pid>/cmdline. Use FIREISP_ADMIN_PASSWORD=... instead, '
+      + 'local account can read from /proc/<pid>/cmdline. Use VIGABSS_ADMIN_PASSWORD=... instead, '
       + 'or omit it and be prompted.',
     );
     return args.password;
   }
 
   if (!process.stdin.isTTY) {
-    logger.error('No password supplied. Set FIREISP_ADMIN_PASSWORD in the environment, or run this attached to a terminal to be prompted.');
+    logger.error('No password supplied. Set VIGABSS_ADMIN_PASSWORD in the environment, or run this attached to a terminal to be prompted.');
     process.exit(1);
   }
 
@@ -118,7 +122,7 @@ function parseArgs(argv) {
 
 async function createUser(args) {
   if (!args.email) {
-    logger.error('Usage: FIREISP_ADMIN_PASSWORD=<password> admin.js create-user --email <email> [--role admin]');
+    logger.error('Usage: VIGABSS_ADMIN_PASSWORD=<password> admin.js create-user --email <email> [--role admin]');
     process.exit(1);
   }
 
@@ -155,7 +159,7 @@ async function createUser(args) {
 
 async function resetPassword(args) {
   if (!args.email) {
-    logger.error('Usage: FIREISP_ADMIN_PASSWORD=<new-password> admin.js reset-password --email <email>');
+    logger.error('Usage: VIGABSS_ADMIN_PASSWORD=<new-password> admin.js reset-password --email <email>');
     process.exit(1);
   }
 
@@ -220,7 +224,7 @@ async function listUsers(args) {
 }
 
 async function dbHealth() {
-  logger.info('VigaBSS 5.0 — Database Health Check');
+  logger.info(`${product.displayName} — Database Health Check`);
 
   // 1. Connectivity
   const t0 = Date.now();
@@ -272,7 +276,7 @@ async function dbHealth() {
 }
 
 async function migrationStatus() {
-  logger.info('VigaBSS 5.0 — Migration Status');
+  logger.info(`${product.displayName} — Migration Status`);
 
   // Count migration files
   const migrationsDir = path.resolve(__dirname, '../../database/migrations');
@@ -327,7 +331,7 @@ async function main() {
 
   if (!command || command === '--help' || command === '-h') {
     logger.info(`
-  VigaBSS 5.0 — Admin CLI
+  ${product.displayName} — Admin CLI
 
   Usage: node src/scripts/admin.js <command> [options]
 
@@ -342,11 +346,11 @@ async function main() {
       --email <email>        (required) User email
 
   THE PASSWORD (min 8 chars) IS NOT A FLAG. Supply it as the
-  FIREISP_ADMIN_PASSWORD environment variable (NOT ADMIN_PASSWORD — that one is
+  VIGABSS_ADMIN_PASSWORD environment variable (NOT ADMIN_PASSWORD — that one is
   the seeded admin's initial password and lives in .env.prod), or omit it and
   you will be prompted without echo:
 
-      FIREISP_ADMIN_PASSWORD='...' node src/scripts/admin.js create-user --email a@b.c
+      VIGABSS_ADMIN_PASSWORD='...' node src/scripts/admin.js create-user --email a@b.c
       node src/scripts/admin.js reset-password --email a@b.c        # prompts
 
   A command line is readable by every local account via /proc/<pid>/cmdline,

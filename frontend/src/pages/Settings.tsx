@@ -1139,8 +1139,8 @@ function EmailSettingsTab({ userId, organizationId }: { userId: number | null; o
 // ---------------------------------------------------------------------------
 // Version tab — what am I running, and is there anything newer?
 // ---------------------------------------------------------------------------
-// Before this, the answer lived nowhere in the product: package.json carries a
-// static "5.0.0", and the update banner only appears when an update IS
+// Before this, the answer lived nowhere in the product, and the update banner
+// only appears when an update IS
 // available AND the check is switched on — so an operator asking "what version
 // is this?" or "is the check even working?" had nothing to look at.
 //
@@ -1166,6 +1166,7 @@ interface DeployState {
 }
 
 interface SystemVersion {
+  release_version: string | null;
   running_sha: string | null;
   latest_sha: string | null;
   update_available: boolean;
@@ -1231,6 +1232,8 @@ function VersionTab() {
 
   const dep = deployData?.data;
   const busy = dep?.request?.status === 'pending' || dep?.request?.status === 'running';
+  const comparisonKnown = Boolean(v.running_sha && v.latest_sha);
+  const isUpToDate = comparisonKnown && v.running_sha === v.latest_sha;
 
   const short = (sha: string | null) => (sha ? sha.slice(0, 7) : '—');
 
@@ -1239,6 +1242,20 @@ function VersionTab() {
       <h3 style={sty.sectionTitle}>{t('version.title')}</h3>
 
       <dl style={sty.verList}>
+        <dt style={sty.verKey}>{t('version.release')}</dt>
+        <dd style={{ ...sty.verVal, display: 'flex', alignItems: 'center', gap: 8 }}>
+          {v.release_version
+            ? (
+              <>
+                <code style={sty.code}>{v.release_version}</code>
+                {v.release_version.includes('-alpha') && (
+                  <span className="vigabss-brand__channel">Alpha</span>
+                )}
+              </>
+            )
+            : <span style={sty.muted}>{t('version.unknownRelease')}</span>}
+        </dd>
+
         <dt style={sty.verKey}>{t('version.running')}</dt>
         <dd style={sty.verVal}>
           {v.running_sha
@@ -1264,7 +1281,9 @@ function VersionTab() {
             <dd style={sty.verVal}>
               {v.update_available
                 ? <strong>{t('version.updateAvailable')}</strong>
-                : t('version.upToDate')}
+                : isUpToDate
+                  ? t('version.upToDate')
+                  : t('version.comparisonUnknown')}
             </dd>
 
             {v.checked_at && (
@@ -1292,7 +1311,7 @@ function VersionTab() {
 
       {!v.check_enabled && (
         <p style={sty.verNote}>
-          {t('version.howToEnable')} <code style={sty.code}>FIREISP_UPDATE_CHECK=0</code>
+          {t('version.howToEnable')} <code style={sty.code}>VIGABSS_UPDATE_CHECK=0</code>
           {' '}{t('version.howToEnableTail')}
         </p>
       )}
@@ -1332,7 +1351,11 @@ function VersionTab() {
             </button>
           ) : (
             <p style={sty.muted}>
-              {v.check_enabled ? t('deploy.nothingToDeploy') : t('deploy.enableCheckFirst')}
+              {!v.check_enabled
+                ? t('deploy.enableCheckFirst')
+                : isUpToDate
+                  ? t('deploy.nothingToDeploy')
+                  : t('deploy.comparisonUnknown')}
             </p>
           )}
 

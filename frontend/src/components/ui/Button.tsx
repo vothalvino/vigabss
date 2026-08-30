@@ -1,7 +1,7 @@
 // =============================================================================
 // VigaBSS UI — Button
 // =============================================================================
-// Faithful TSX port of @fireisp/ui Button. Flat, industrial, one accent.
+// Faithful TSX port of @vigabss/ui Button. Flat, industrial, one accent.
 // variant: primary | secondary | ghost | danger · size: sm | md
 // Styles itself entirely from design tokens (var(--*)); no provider needed.
 // =============================================================================

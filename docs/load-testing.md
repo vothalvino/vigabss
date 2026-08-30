@@ -15,13 +15,13 @@ single-record reads, paginated list reads).
 # 0. Start MySQL and the API as you normally would (locally, or against a
 #    staging environment), with a JWT_SECRET set and rate limits bumped:
 RATE_LIMIT_API=10000000 RATE_LIMIT_AUTH=10000000 \
-  JWT_SECRET=<at-least-64-chars> npm start
+  JWT_SECRET=<at-least-64-chars> pnpm start
 
 # 1. Insert the 500 / 5000 / 100 fixture into the configured DB:
-npm run loadtest:seed
+pnpm run loadtest:seed
 
 # 2. Run the load test against the running API:
-LOADTEST_URL=http://127.0.0.1:3000 npm run loadtest
+LOADTEST_URL=http://127.0.0.1:3000 pnpm run loadtest
 ```
 
 The load test prints a per-scenario table to stdout and emits structured JSON
@@ -31,13 +31,13 @@ responses — so the script can be wired into CI as a gate.
 
 ## What gets seeded
 
-`npm run loadtest:seed` (`src/scripts/loadtest-seed.js`) creates a dedicated
+`pnpm run loadtest:seed` (`src/scripts/loadtest-seed.js`) creates a dedicated
 load-test organization (`Load Test ISP (4.1)`) and inserts:
 
 | Entity        | Count | Notes                                                         |
 |---------------|------:|---------------------------------------------------------------|
 | organizations |     1 | Scoping container for everything below; safe to re-seed.      |
-| users         |     1 | Admin user (`loadtest@fireisp.local` / `loadtest123!`).        |
+| users         |     1 | Admin user (`loadtest@vigabss.local` / `loadtest123!`).        |
 | sites         |     1 | One POP site referenced by every contract and device.         |
 | plans         |     1 | One plan referenced by every contract.                        |
 | clients       |   500 | `Load Client 1`…`Load Client 500`, mostly personal.           |
@@ -56,12 +56,12 @@ or a larger soak:
 
 ```bash
 LOADTEST_CLIENTS=100 LOADTEST_INVOICES=1000 LOADTEST_DEVICES=20 \
-  npm run loadtest:seed
+  pnpm run loadtest:seed
 ```
 
 ## What the load test runs
 
-`npm run loadtest` (`src/scripts/loadtest.js`) does the following:
+`pnpm run loadtest` (`src/scripts/loadtest.js`) does the following:
 
 1. POSTs to `/api/v1/auth/login` with the seeded admin credentials and
    captures the JWT access token.
@@ -95,13 +95,13 @@ All settings are environment variables; defaults are in parentheses.
 | `LOADTEST_CLIENTS`     | seed       | `500`                         | Number of clients to insert.                     |
 | `LOADTEST_INVOICES`    | seed       | `5000`                        | Number of invoices to insert.                    |
 | `LOADTEST_DEVICES`     | seed       | `100`                         | Number of devices to insert.                     |
-| `LOADTEST_EMAIL`       | seed + run | `loadtest@fireisp.local`      | Admin login email.                               |
+| `LOADTEST_EMAIL`       | seed + run | `loadtest@vigabss.local`      | Admin login email.                               |
 | `LOADTEST_PASSWORD`    | seed + run | `loadtest123!`                | Admin login password.                            |
 | `LOADTEST_URL`         | run        | `http://127.0.0.1:3000`       | API base URL.                                    |
 | `LOADTEST_DURATION`    | run        | `10`                          | Seconds per scenario.                            |
 | `LOADTEST_CONNECTIONS` | run        | `25`                          | Concurrent autocannon connections.               |
 | `LOADTEST_PIPELINING`  | run        | `1`                           | Pipelined requests per connection.               |
-| `RATE_LIMIT_API`       | server     | `200`                         | **Bump for load tests.** Otherwise `429`s storm. |
+| `RATE_LIMIT_API`       | server     | `1000`                        | **Bump for load tests.** Deployment overrides may be lower. |
 | `RATE_LIMIT_AUTH`      | server     | `20`                          | Bump for load tests.                             |
 | `DB_POOL_SIZE`         | server     | `20`                          | Increase if `connections` exceeds this number.   |
 
@@ -164,33 +164,36 @@ against the full production stack, not just the dev API.
 ### Start the production stack
 
 ```bash
-# Copy and fill in all secrets:
-cp .env.example .env
-# Edit .env — set JWT_SECRET (≥ 64 chars), ENCRYPTION_KEY, DB_PASSWORD, etc.
+# Copy and fill in all production secrets:
+cp .env.prod.example .env.prod
+# Edit .env.prod — set JWT_SECRET (≥ 64 chars), ENCRYPTION_KEY, DB_PASSWORD,
+# and these load-test-only limits (restore normal limits afterward):
+#   RATE_LIMIT_API=10000000
+#   RATE_LIMIT_AUTH=10000000
 
 # Start MySQL primary, Redis, app, and Nginx:
-RATE_LIMIT_API=10000000 RATE_LIMIT_AUTH=10000000 \
-  docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
-# Wait for MySQL to be ready, then run migrations and seed:
-docker exec fireisp-app npm run migrate
-docker exec fireisp-app npm run seed
-docker exec fireisp-app npm run loadtest:seed
+# Wait for MySQL to be ready, then run migrations and seed. The production
+# image intentionally contains Node.js but no package-manager executable:
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T app node src/scripts/migrate.js
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T app node src/scripts/seed.js
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T app node src/scripts/loadtest-seed.js
 ```
 
 ### Run the standard load test against it
 
 ```bash
 # Point the load test at the Nginx TLS frontend (or plain HTTP for local):
-LOADTEST_URL=https://your-fireisp.domain npm run loadtest
+LOADTEST_URL=https://vigabss.example.com pnpm run loadtest
 # or locally:
-LOADTEST_URL=http://localhost npm run loadtest
+LOADTEST_URL=http://localhost pnpm run loadtest
 ```
 
 ### Regression budget
 
 The following thresholds define a **passing** load test run.
-Exit code 0 from `npm run loadtest` means all assertions below hold:
+Exit code 0 from `pnpm run loadtest` means all assertions below hold:
 
 | Metric | Budget | Rationale |
 |---|---|---|
@@ -219,13 +222,13 @@ for a much longer duration. Its purpose is to catch:
 
 ```bash
 # 5-minute soak (CI gate — default):
-npm run loadtest:soak
+pnpm run loadtest:soak
 
 # 30-minute soak (pre-release check):
-SOAK_TOTAL_DURATION=1800 npm run loadtest:soak
+SOAK_TOTAL_DURATION=1800 pnpm run loadtest:soak
 
 # Full overnight soak (major release):
-SOAK_TOTAL_DURATION=86400 SOAK_ROUND_DURATION=60 npm run loadtest:soak
+SOAK_TOTAL_DURATION=86400 SOAK_ROUND_DURATION=60 pnpm run loadtest:soak
 ```
 
 ### Configuration
@@ -233,7 +236,7 @@ SOAK_TOTAL_DURATION=86400 SOAK_ROUND_DURATION=60 npm run loadtest:soak
 | Variable | Default | Description |
 |---|---|---|
 | `LOADTEST_URL` | `http://127.0.0.1:3000` | API base URL |
-| `LOADTEST_EMAIL` | `loadtest@fireisp.local` | Auth email (same as standard load test) |
+| `LOADTEST_EMAIL` | `loadtest@vigabss.local` | Auth email (same as standard load test) |
 | `LOADTEST_PASSWORD` | `loadtest123!` | Auth password |
 | `SOAK_TOTAL_DURATION` | `300` | Total soak duration in seconds |
 | `SOAK_ROUND_DURATION` | `30` | Duration of each autocannon round in seconds |
@@ -270,8 +273,7 @@ Run the 5-minute soak as part of the release candidate checklist:
 
 ```bash
 # After deploying RC to staging:
-npm run loadtest:seed   # ensure fixture exists
-LOADTEST_URL=https://staging.your-isp.com npm run loadtest:soak
+pnpm run loadtest:seed   # ensure fixture exists
+LOADTEST_URL=https://staging.your-isp.com pnpm run loadtest:soak
 # Exit 0 = soak passed; exit 1 = investigate before promoting to production
 ```
-

@@ -1,5 +1,5 @@
 # Agent Orchestration Guidelines
-## FireISP — 21-section build, multi-stack (DB / Express backend / OpenAPI / React frontend)
+## VigaBSS — 21-section build, multi-stack (DB / Express backend / OpenAPI / React frontend)
 
 How the **main agent (orchestrator)** and the **`fullstack-autonomous-engineer` subagent (Sonnet)** divide work on this project. This is a reference doc — it is **not** auto-loaded into context (only a root `CLAUDE.md` or memory files would be), so it costs nothing per turn. Read it when picking up the project.
 
@@ -28,7 +28,7 @@ It does **not** silently "fix" things it noticed outside scope — it notes them
 ## 3. Section workflow
 
 1. **Spec read** — read the section's items in `isp-platform-features.md`; note cross-section dependencies. Don't start a section whose dependencies are incomplete.
-2. **Worktree** — `git worktree add ../fireisp-wt-secN -bN-of-isp-platform-feature.md` off latest `main`; install deps.
+2. **Worktree** — `git worktree add ../vigabss-wt-secN -bN-of-isp-platform-feature.md` off latest `main`; install deps.
 3. **Dispatch** — one subagent brief (§4) implementing the whole section in the worktree.
 4. **Sweep (orchestrator, mandatory)** — re-verify every claim. Run the gates fresh:
    - `node src/scripts/schema-parity-check.js`; full backend `pnpm test`; `pnpm lint`; `pnpm spec:check`; frontend `gen:api` + `tsc --noEmit` + `pnpm test` + `i18n:check` + `build`; fresh `pnpm install --frozen-lockfile`.
