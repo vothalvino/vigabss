@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE Profile Validation Schemas (§8.2)
+// VigaBSS 5.0 — CPE Profile Validation Schemas (§8.2)
 // =============================================================================
 
 const createCpeProfile = {

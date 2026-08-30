@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Suspension Service
+// VigaBSS 5.0 — Suspension Service
 // =============================================================================
 // Evaluates suspension rules, suspends/reconnects contracts, logs events.
 // Sends RADIUS Disconnect-Request / CoA-Request to NAS devices.

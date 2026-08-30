@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Wireless Management (§9)
+// VigaBSS 5.0 — Wireless Management (§9)
 // =============================================================================
 // Tabbed page covering:
 //   1. AP Sectors       — ap_sector_configs CRUD + nested client sessions panel

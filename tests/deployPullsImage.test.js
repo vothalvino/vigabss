@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — production pulls its image, it does not build one
+// VigaBSS 5.0 — production pulls its image, it does not build one
 // =============================================================================
 // The production host used to compile the app on every deploy. The in-image
 // frontend build (gen:api + a whole-program `tsc --noEmit` over 376 files +

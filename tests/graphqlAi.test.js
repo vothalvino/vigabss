@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — GraphQL AI Extension Tests (§5.2)
+// VigaBSS 5.0 — GraphQL AI Extension Tests (§5.2)
 // =============================================================================
 // Tests cover:
 //   • Schema shape (all new types and fields exist)

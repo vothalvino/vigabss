@@ -1,7 +1,7 @@
 # WireGuard activation & host setup
 
-FireISP is the **hub**: MikroTik NAS routers and technician / support / admin laptops
-dial in over WireGuard, and FireISP routes between them so an operator can reach every
+VigaBSS is the **hub**: MikroTik NAS routers and technician / support / admin laptops
+dial in over WireGuard, and VigaBSS routes between them so an operator can reach every
 device behind a NAS for monitoring and troubleshooting — without exposing the router's
 management plane to the internet.
 

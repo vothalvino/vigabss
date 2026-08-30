@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP UI — Modal
+// VigaBSS UI — Modal
 // =============================================================================
 // Faithful TSX port of @fireisp/ui Modal. Centered dialog over a dimmed
 // overlay; ESC and backdrop-click close it. open/title/onClose/footer.

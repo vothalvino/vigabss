@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — §18 Service + Route Coverage (scriptingService + extra routes)
+// VigaBSS 5.0 — §18 Service + Route Coverage (scriptingService + extra routes)
 // Separate file so scriptingService is NOT mocked (unlike section18Extended
 // which must mock it for route-level tests on automationScripts).
 // =============================================================================

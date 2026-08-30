@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 160: Remove portal credential columns from clients
+-- VigaBSS 5.0 — Rollback 160: Remove portal credential columns from clients
 -- =============================================================================
 -- Reverses migration 160.  Drops portal_locked_until, portal_login_attempts,
 -- and portal_password_hash from clients.

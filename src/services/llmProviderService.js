@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — LLM Provider Service (P1 §3.4)
+// VigaBSS 5.0 — LLM Provider Service (P1 §3.4)
 // =============================================================================
 // Pluggable abstraction over multiple LLM providers.
 //

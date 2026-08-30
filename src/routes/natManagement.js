@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — NAT Pool Management Routes (§5 Dual Stack)
+// VigaBSS 5.0 — NAT Pool Management Routes (§5 Dual Stack)
 // =============================================================================
 
 const { Router } = require('express');

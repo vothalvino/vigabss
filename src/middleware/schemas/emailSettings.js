@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Email Settings Validation Schemas
+// VigaBSS 5.0 — Email Settings Validation Schemas
 // =============================================================================
 
 const updateEmailSettings = {

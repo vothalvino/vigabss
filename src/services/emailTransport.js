@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Email Transport Service
+// VigaBSS 5.0 — Email Transport Service
 // =============================================================================
 // Sends queued emails via SMTP using Nodemailer.
 //

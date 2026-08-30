@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PTR Record Route Tests (§5 Dual Stack)
+// VigaBSS 5.0 — PTR Record Route Tests (§5 Dual Stack)
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

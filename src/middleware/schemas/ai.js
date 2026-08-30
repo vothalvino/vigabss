@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AI Reply Assistant Validation Schemas (§5.1)
+// VigaBSS 5.0 — AI Reply Assistant Validation Schemas (§5.1)
 // =============================================================================
 
 const PROVIDER_KINDS = ['openai', 'azure_openai', 'anthropic', 'gemini', 'ollama', 'custom'];

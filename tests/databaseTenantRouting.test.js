@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Tenant-aware database pool routing tests (P2.6)
+// VigaBSS 5.0 — Tenant-aware database pool routing tests (P2.6)
 // =============================================================================
 
 describe('database tenant routing', () => {

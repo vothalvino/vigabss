@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WorkOrders page tests (§12 / Inventory Phase 3, migration 391)
+// VigaBSS 5.0 — WorkOrders page tests (§12 / Inventory Phase 3, migration 391)
 // =============================================================================
 // Focused on the pickup-checklist disposition UI: a work_type='pickup' order
 // shows the outstanding rented-equipment checklist instead of the materials

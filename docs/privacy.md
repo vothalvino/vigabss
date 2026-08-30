@@ -1,7 +1,7 @@
-# FireISP 5.0 — Privacy & PII Inventory (LFPDPPP MX / GDPR)
+# VigaBSS 5.0 — Privacy & PII Inventory (LFPDPPP MX / GDPR)
 
 > **Audience:** Operators, compliance officers, legal counsel.
-> This document lists every personal data element held by FireISP, the lawful
+> This document lists every personal data element held by VigaBSS, the lawful
 > basis for processing it, its retention period, and how it is erased when a
 > data subject exercises their right to erasure.
 >
@@ -28,9 +28,9 @@
 
 ## Data Controller
 
-The data controller is the **ISP operator** who deploys FireISP.  FireISP is
+The data controller is the **ISP operator** who deploys VigaBSS.  VigaBSS is
 software — the legal entity responsible for LFPDPPP / GDPR compliance is the
-ISP company, not the FireISP project itself.
+ISP company, not the VigaBSS project itself.
 
 ---
 
@@ -159,7 +159,7 @@ ISP company, not the FireISP project itself.
 
 ## AI Reply Assistant — prompt-forwarding notice
 
-When the **AI Reply Assistant** is enabled (`ai_policies.enabled = 1`), FireISP
+When the **AI Reply Assistant** is enabled (`ai_policies.enabled = 1`), VigaBSS
 constructs a prompt for each inbound support ticket and sends it to the
 configured LLM provider.  The prompt includes:
 
@@ -204,7 +204,7 @@ Operators must:
 
 2. Operator has **20 business days** to respond (Art. 24 LFPDPPP).
 
-3. Use the FireISP DSAR export tool to generate a JSON of all data held:
+3. Use the VigaBSS DSAR export tool to generate a JSON of all data held:
 
    ```bash
    # Via API — admin credential required
@@ -241,7 +241,7 @@ Operators must:
 
 ### Soft-delete (default)
 
-FireISP uses soft-delete (`deleted_at IS NOT NULL`) for clients, contacts,
+VigaBSS uses soft-delete (`deleted_at IS NOT NULL`) for clients, contacts,
 contracts, invoices, and payments. Soft-deleted rows are invisible to the API
 but remain in the database for referential integrity and legal compliance.
 

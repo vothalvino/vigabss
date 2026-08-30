@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Poller Node Routes (§6.4)
+// VigaBSS 5.0 — Poller Node Routes (§6.4)
 // =============================================================================
 //
 // GET    /poller-nodes              — list (requirePermission poller_nodes.view)

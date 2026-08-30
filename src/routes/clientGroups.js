@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Group Routes (family/account grouping) — §1.1
+// VigaBSS 5.0 — Client Group Routes (family/account grouping) — §1.1
 // =============================================================================
 
 const { Router } = require('express');

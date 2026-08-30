@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — no settings key may render without a reader (j20)
+// VigaBSS 5.0 — no settings key may render without a reader (j20)
 // =============================================================================
 // settings.default_tax_rate sat in the seed with ZERO readers while still
 // rendering as an editable field on the org Settings tab — Organization

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WireGuard Server Service Tests — Part 1: NAS peer management
+// VigaBSS 5.0 — WireGuard Server Service Tests — Part 1: NAS peer management
 // =============================================================================
 // Covers: generateKeypair, allocateTunnelIp, syncPeer, removePeer
 // All child_process.execFile calls are mocked; no live system required.

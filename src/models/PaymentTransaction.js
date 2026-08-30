@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PaymentTransaction Model
+// VigaBSS 5.0 — PaymentTransaction Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

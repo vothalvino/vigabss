@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 142: Revert webhook_deliveries dead-letter support
+-- VigaBSS 5.0 — Rollback 142: Revert webhook_deliveries dead-letter support
 -- =============================================================================
 -- Reverses migration 142.  Restores the original ENUM (without 'dead_letter')
 -- and drops the dead-letter index.

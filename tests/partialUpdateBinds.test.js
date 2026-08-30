@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Partial-PUT bind-parameter guard
+// VigaBSS 5.0 — Partial-PUT bind-parameter guard
 // =============================================================================
 // Several PUT handlers use `COALESCE(?, col)` with raw destructured binds. When
 // the client omits a field it is `undefined`, which mysql2's execute() rejects

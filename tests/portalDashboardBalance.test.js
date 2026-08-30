@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Dashboard balance (PR "balance-computed-currency-org")
+// VigaBSS 5.0 — Portal Dashboard balance (PR "balance-computed-currency-org")
 // =============================================================================
 // GET /portal/dashboard's "Outstanding balance" used to be a plain
 // SUM(total) of unpaid invoices — it overstated what the client owed

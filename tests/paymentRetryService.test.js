@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Retry Service Unit Tests
+// VigaBSS 5.0 — Payment Retry Service Unit Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

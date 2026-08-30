@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — throughputService.aggregateThroughput tests
+// VigaBSS 5.0 — throughputService.aggregateThroughput tests
 // =============================================================================
 const { aggregateThroughput, deviceThroughput } = require('../src/services/throughputService');
 

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FacturaPublicaInvoice Model
+// VigaBSS 5.0 — FacturaPublicaInvoice Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

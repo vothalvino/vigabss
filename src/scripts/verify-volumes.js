@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Docker Volume Persistence Verifier
+// VigaBSS 5.0 — Docker Volume Persistence Verifier
 // =============================================================================
 // Inspects a running Docker container and reports whether its critical data
 // directories (MySQL data, Redis AOF, app storage, Chroma) are backed by a

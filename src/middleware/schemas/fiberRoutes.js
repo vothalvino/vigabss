@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Fiber Route Validation Schemas (§7.4)
+// VigaBSS 5.0 — Fiber Route Validation Schemas (§7.4)
 // =============================================================================
 
 const ROUTE_TYPES = ['trunk', 'distribution', 'drop', 'feeder', 'other'];

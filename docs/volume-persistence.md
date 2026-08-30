@@ -1,6 +1,6 @@
 # Volume Persistence — Verification & Migration Protocol
 
-Before updating or recreating the FireISP application stack, you must confirm
+Before updating or recreating the VigaBSS application stack, you must confirm
 that **no data loss will occur** when a container is stopped and removed
 (`docker rm`). This guide is the operational companion to the
 [backup & restore guide](backup-restore.md): use it to **verify** that the
@@ -26,7 +26,7 @@ container's mutable layer and is lost on `docker rm`,
 > (and `docker volume rm` / `docker volume prune`). Never use the `-v` flag
 > during a routine update.
 
-In the shipped FireISP compose files the critical paths are **already**
+In the shipped VigaBSS compose files the critical paths are **already**
 persistent:
 
 | Service | Container path | Volume (prod) | Volume (dev) |
@@ -67,7 +67,7 @@ See [`docker-compose.prod.yml`](../docker-compose.prod.yml) and
 
 ## Phase 1 — Verify (automated)
 
-FireISP ships a verifier that inspects a running container and reports whether
+VigaBSS ships a verifier that inspects a running container and reports whether
 each critical path is persistent or ephemeral:
 
 ```bash

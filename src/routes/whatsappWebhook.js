@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WhatsApp inbound webhook routes
+// VigaBSS 5.0 — WhatsApp inbound webhook routes
 // =============================================================================
 // PUBLIC (no JWT). Authenticated by the provider's signature. Security posture
 // mirrors paymentWebhooks.js (fail closed):

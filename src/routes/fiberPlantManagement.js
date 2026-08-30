@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — Fiber Plant Management Routes (§7.4)
+// VigaBSS 5.0 — Fiber Plant Management Routes (§7.4)
 // =============================================================================
 // Mounted at /api/fiber-plant and /api/v1/fiber-plant.
 //

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — InventoryList page tests (§14.2 — Inventory Phase 1)
+// VigaBSS 5.0 — InventoryList page tests (§14.2 — Inventory Phase 1)
 // =============================================================================
 // Regression coverage for the "+ Txn" Record Transaction modal first-time-
 // stock fix: selecting a warehouse for an item with NO existing inventory_stock

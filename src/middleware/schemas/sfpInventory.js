@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SFP Inventory Validation Schemas (§7.4)
+// VigaBSS 5.0 — SFP Inventory Validation Schemas (§7.4)
 // =============================================================================
 
 const FORM_FACTORS = ['sfp', 'sfp_plus', 'sfp28', 'qsfp', 'qsfp_plus', 'xfp', 'gbic', 'other'];

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Dispute Routes Integration Tests
+// VigaBSS 5.0 — Billing Dispute Routes Integration Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

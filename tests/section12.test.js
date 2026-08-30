@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Section 12 Tests (Ticketing & NOC)
+// VigaBSS 5.0 — Section 12 Tests (Ticketing & NOC)
 // =============================================================================
 
 const request = require('supertest');

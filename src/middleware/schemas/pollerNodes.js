@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Validation schemas: Poller Nodes (§6.4)
+// VigaBSS 5.0 — Validation schemas: Poller Nodes (§6.4)
 // =============================================================================
 
 const createPollerNode = {

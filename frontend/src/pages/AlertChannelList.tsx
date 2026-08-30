@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Alert Notification Channel Management
+// VigaBSS 5.0 — Alert Notification Channel Management
 // =============================================================================
 
 import { useState } from 'react';

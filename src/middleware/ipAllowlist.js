@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IP Allowlist Middleware
+// VigaBSS 5.0 — IP Allowlist Middleware
 // =============================================================================
 // Restricts access to admin endpoints to a configurable set of IP addresses
 // and/or CIDR ranges. Enabled by setting the ADMIN_IP_ALLOWLIST environment

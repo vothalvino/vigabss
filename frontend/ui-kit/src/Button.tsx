@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 /**
- * Primary interactive control. Covers the four FireISP action tones:
+ * Primary interactive control. Covers the four VigaBSS action tones:
  * primary (accent fill), secondary (bordered), ghost (text-only), and
  * danger (destructive red). Border-based, no drop shadows.
  */

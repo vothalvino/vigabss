@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Notification Hooks
+// VigaBSS 5.0 — Notification Hooks
 // =============================================================================
 // Registers event bus listeners that send emails, SMS, SSE broadcasts, and
 // webhook dispatches when business events occur.

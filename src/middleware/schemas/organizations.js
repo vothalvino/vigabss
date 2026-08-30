@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Organization Validation Schemas
+// VigaBSS 5.0 — Organization Validation Schemas
 // =============================================================================
 
 const createOrganization = {

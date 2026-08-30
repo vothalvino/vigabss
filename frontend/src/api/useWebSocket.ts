@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — useWebSocket hook
+// VigaBSS 5.0 — useWebSocket hook
 // =============================================================================
 // React hook that opens a WebSocket to the server's /ws hub, authenticates
 // with the current access token, subscribes to a channel, and exposes the

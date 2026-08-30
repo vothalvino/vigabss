@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Layout (sidebar navigation grouping) tests
+// VigaBSS 5.0 — Layout (sidebar navigation grouping) tests
 // =============================================================================
 // Verifies the sidebar groups nav items into translated sections and that
 // section headings only appear when the user can see at least one item in them.

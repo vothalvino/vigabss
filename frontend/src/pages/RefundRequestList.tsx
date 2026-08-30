@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Refund Requests (§2.5 Billing+)
+// VigaBSS 5.0 — Refund Requests (§2.5 Billing+)
 // =============================================================================
 // Page for managing refund requests:
 //   • Table: ID, Client ID, Amount, Reason, Status, Requested By, Created At

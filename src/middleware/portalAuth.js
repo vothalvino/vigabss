@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Authentication Middleware
+// VigaBSS 5.0 — Portal Authentication Middleware
 // =============================================================================
 // Validates a portal JWT token and attaches req.client with:
 //   { id, organizationId, type: 'portal' }

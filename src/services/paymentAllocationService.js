@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Allocation Service
+// VigaBSS 5.0 — Payment Allocation Service
 // =============================================================================
 // Shared logic between POST /payments/:id/allocate (single invoice, kept for
 // API compatibility) and POST /payments/:id/allocate-auto (FIFO oldest→newest,

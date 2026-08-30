@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WinbackCampaign Model
+// VigaBSS 5.0 — WinbackCampaign Model
 // =============================================================================
 // Win-back campaigns for cancelled customers (§1.2 Customer Lifecycle).
 // See migration 193.

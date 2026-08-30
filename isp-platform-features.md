@@ -12,7 +12,7 @@
 > |---|---|
 > | `- [x]` | Shipped. Where useful, the parenthetical cites the code that proves it. |
 > | `- [ ]` | **Genuinely open work** — 12 remain. Five are queued as jobs (attachment data-loss, Aviso de Privacidad, config rollback, WhatsApp→AI, technician map); the other seven are acknowledged backlog, not yet scheduled: PayPal, NetFlow/sFlow classification, FTTH OLT drivers, map clustering, Zabbix/LibreNMS sync, poller sharding, CDN docs. |
-> | `- ⊘` | **Never tickable.** Either a stack the spec *surveyed but FireISP did not choose* (Python/PHP, PostgreSQL), or an **operator action** — a legal/organizational step the software cannot perform (registering a licence, drafting terms with counsel). |
+> | `- ⊘` | **Never tickable.** Either a stack the spec *surveyed but VigaBSS did not choose* (Python/PHP, PostgreSQL), or an **operator action** — a legal/organizational step the software cannot perform (registering a licence, drafting terms with counsel). |
 > | `- ◷` / `✅` | A performance **target to measure**, not build. `◷` = never measured; `✅` = measured and passing. |
 >
 > **Section numbers are cited by 58 files** (`-- Implements isp-platform-features.md §10.1 ...`
@@ -1169,8 +1169,8 @@ Beyond customer-facing AI, the same engine assists NOC staff:
 - ✅ API response <200ms for CRUD — **MEASURED AND PASSING.** docs/load-testing.md gates p99 ≤200ms (sample p50 17-20ms, p99 22-35ms, CI-gateable). The first run caught a real LIMIT/OFFSET bug in BaseModel.findAll.
 
 ### Recommended Stack (Budget-Oriented)
-- ⊘ Backend: Python (Django/FastAPI) or PHP (Laravel) — **surveyed, not chosen.** FireISP is Node/Express. Never tickable.
-- ⊘ Database: PostgreSQL (primary) + Redis (cache) — **surveyed, not chosen.** FireISP is MySQL + Redis. Never tickable.
+- ⊘ Backend: Python (Django/FastAPI) or PHP (Laravel) — **surveyed, not chosen.** VigaBSS is Node/Express. Never tickable.
+- ⊘ Database: PostgreSQL (primary) + Redis (cache) — **surveyed, not chosen.** VigaBSS is MySQL + Redis. Never tickable.
 - [x] Frontend: React SPA dashboard + Nginx — frontend/ (154 pages), nginx in prod compose and k8s ingress.
 - [x] RADIUS: FreeRADIUS 3.x with MySQL backend — docs/freeradius/, radiusService.syncFreeradiusTables(); embedded RADIUS also available.
 - [ ] NMS: Custom SNMP poller + LibreNMS/Zabbix integration

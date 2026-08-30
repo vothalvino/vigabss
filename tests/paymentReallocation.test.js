@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Reallocation / Reassign / Void-Paid-Invoice Tests
+// VigaBSS 5.0 — Payment Reallocation / Reassign / Void-Paid-Invoice Tests
 // =============================================================================
 // Three new capabilities:
 //   1. Voiding a PAID invoice releases its payment_allocations as client credits

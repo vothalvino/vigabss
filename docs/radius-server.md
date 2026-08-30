@@ -1,14 +1,14 @@
 # Embedded RADIUS Server
 
-FireISP ships a **native RADIUS server** (authentication + accounting) so you do
+VigaBSS ships a **native RADIUS server** (authentication + accounting) so you do
 **not** need to run a separate FreeRADIUS daemon. A NAS (e.g. MikroTik RouterOS)
-points its `/radius` at the FireISP host, and FireISP authenticates PPPoE
+points its `/radius` at the VigaBSS host, and VigaBSS authenticates PPPoE
 subscribers from its own `radius` table and records sessions via the existing
 accounting pipeline (`connection_logs`).
 
 > The external-FreeRADIUS path (`radcheck`/`radreply` sync + the accounting REST
 > ingest) still works unchanged. The embedded server is an alternative that keeps
-> everything inside FireISP.
+> everything inside VigaBSS.
 
 ## Enabling
 
@@ -26,7 +26,7 @@ The **per-NAS shared secret** is the `secret` column on the `nas` row whose
 fallback. Requests from an unknown source IP with no secret are silently dropped
 (RFC 2865).
 
-## Point a MikroTik at FireISP
+## Point a MikroTik at VigaBSS
 
 ```
 /radius add service=ppp address=<FIREISP_IP> secret=<nas.secret> \
@@ -40,7 +40,7 @@ fallback. Requests from an unknown source IP with no secret are silently dropped
 > sent to this same server on its `accounting-port`. The **Seed** button in
 > *NAS Devices* applies exactly this configuration over the RouterOS API.
 
-## What FireISP returns
+## What VigaBSS returns
 
 - **Access-Accept** with `Service-Type=Framed`, `Framed-Protocol=PPP`, an optional
   `Framed-IP-Address` (when the subscriber has a static IP), and the plan's policy
@@ -95,5 +95,5 @@ radtest <username> <password> <fireisp-host>:1812 0 <shared-secret>
 ```
 
 Expect `Access-Accept` with the policy attributes for a valid subscriber, or
-`Access-Reject` otherwise. FireISP's own test suite exercises this end-to-end with
+`Access-Reject` otherwise. VigaBSS's own test suite exercises this end-to-end with
 an in-process UDP round-trip.

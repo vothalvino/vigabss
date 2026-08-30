@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — diagnosticEngineService.generateSupportResponse Tests
+// VigaBSS 5.0 — diagnosticEngineService.generateSupportResponse Tests
 // =============================================================================
 // generateSupportResponse() is the bridge between supportConversationService's
 // technical-intent branch and this file's real diagnostic handlers. These

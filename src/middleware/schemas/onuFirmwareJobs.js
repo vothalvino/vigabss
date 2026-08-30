@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ONU Firmware Job Validation Schemas (§7.2)
+// VigaBSS 5.0 — ONU Firmware Job Validation Schemas (§7.2)
 // =============================================================================
 
 const createOnuFirmwareJob = {

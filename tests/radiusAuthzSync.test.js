@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Authorization Sync Tests (§3.2 Phase B)
+// VigaBSS 5.0 — RADIUS Authorization Sync Tests (§3.2 Phase B)
 // =============================================================================
 // Tests syncFreeradiusTables attribute emission for:
 //   item 10: Session-Timeout, Idle-Timeout in radgroupreply

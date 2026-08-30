@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — TicketDetail work-order-assignee source test
+// VigaBSS 5.0 — TicketDetail work-order-assignee source test
 // =============================================================================
 // The "Create Work Order" panel's assignee <select> used to be populated from
 // the page's generic GET /users list (fetched for ticket reassignment /

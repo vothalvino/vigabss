@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Section 15 Route Tests (Reporting & Analytics)
+// VigaBSS 5.0 — Section 15 Route Tests (Reporting & Analytics)
 // Covers: /reports (new §15 endpoints), /scheduled-reports, /dashboard-widgets,
 //         /custom-reports (including execute)
 // =============================================================================

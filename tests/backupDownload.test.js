@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Backup Download Endpoint Tests
+// VigaBSS 5.0 — Backup Download Endpoint Tests
 // =============================================================================
 // GET /backup-settings/download/:filename serves a file that IS the entire
 // database, so this suite is mostly adversarial: path traversal in every

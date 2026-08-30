@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Disaster-Recovery Drill Status
+// VigaBSS 5.0 — Disaster-Recovery Drill Status
 // =============================================================================
 // Admin page at /dr-drill. Read-only view of the latest automated DR drill
 // result via GET /dr-drill/status: when it last ran, whether it passed, how

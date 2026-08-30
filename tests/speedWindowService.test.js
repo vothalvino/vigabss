@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Speed Window Service Tests (§10.2)
+// VigaBSS 5.0 — Speed Window Service Tests (§10.2)
 // =============================================================================
 // applySpeedWindows converges radgroupreply (persisted applied state) to the
 // window in force and CoAs live sessions ONLY on transitions, carrying the

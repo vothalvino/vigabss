@@ -1,6 +1,6 @@
 # FreeRADIUS Integration Guide
 
-FireISP 5.0 uses the `radius` database table as the authentication and authorization source for FreeRADIUS. This guide explains how to connect FreeRADIUS to the FireISP database.
+VigaBSS 5.0 uses the `radius` database table as the authentication and authorization source for FreeRADIUS. This guide explains how to connect FreeRADIUS to the VigaBSS database.
 
 ---
 
@@ -18,7 +18,7 @@ FireISP 5.0 uses the `radius` database table as the authentication and authoriza
 
 ## Overview
 
-FireISP manages RADIUS subscriber accounts in the `radius` table. Each row represents a PPPoE subscriber with:
+VigaBSS manages RADIUS subscriber accounts in the `radius` table. Each row represents a PPPoE subscriber with:
 
 | Column | Purpose |
 |--------|---------|
@@ -33,7 +33,7 @@ FireISP manages RADIUS subscriber accounts in the `radius` table. Each row repre
 | `status` | `active`, `suspended`, `disabled` — controls auth acceptance |
 
 > **Automatic provisioning.** When a contract is created with a PPPoE connection
-> type (`pppoe` or `pppoe_dual`), FireISP automatically generates a `username`
+> type (`pppoe` or `pppoe_dual`), VigaBSS automatically generates a `username`
 > and a recoverable cleartext `password`, inserts the matching `radius` row, and
 > returns the credentials in the create response (`data.provisioning.pppoe`).
 > The password is stored in cleartext — required for PAP/CHAP `Cleartext-Password`
@@ -49,7 +49,7 @@ FireISP manages RADIUS subscriber accounts in the `radius` table. Each row repre
 ## Prerequisites
 
 - FreeRADIUS 3.x installed (`apt install freeradius freeradius-mysql`)
-- MySQL 8.4+ with the FireISP `radius` table populated
+- MySQL 8.4+ with the VigaBSS `radius` table populated
 - Network connectivity between FreeRADIUS and the MySQL server
 
 ---
@@ -70,12 +70,12 @@ sql {
     driver = "rlm_sql_mysql"
     dialect = "mysql"
 
-    server   = "127.0.0.1"      # FireISP DB host
+    server   = "127.0.0.1"      # VigaBSS DB host
     port     = 3306
     login    = "radius_user"     # Dedicated read-only DB user recommended
     password = "radius_password"
 
-    radius_db = "fireisp"        # FireISP database name
+    radius_db = "fireisp"        # VigaBSS database name
 
     # Connection pooling
     pool {
@@ -92,7 +92,7 @@ sql {
     read_clients = yes
     client_table = "nas"
 
-    # Group queries are not used — FireISP handles groups via contracts/plans
+    # Group queries are not used — VigaBSS handles groups via contracts/plans
     group_attribute = ""
 }
 ```
@@ -265,7 +265,7 @@ SELECT * FROM connection_logs ORDER BY event_at DESC LIMIT 10;
 
 ## CoA / Disconnect Messages
 
-FireISP sends RADIUS Change-of-Authorization (CoA) and Disconnect messages via UDP when suspending or restoring a client's service. This is handled in `src/services/suspensionService.js`.
+VigaBSS sends RADIUS Change-of-Authorization (CoA) and Disconnect messages via UDP when suspending or restoring a client's service. This is handled in `src/services/suspensionService.js`.
 
 ### How it works
 

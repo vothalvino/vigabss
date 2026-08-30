@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — User Tunnel Service (§6b / §6e)
+// VigaBSS 5.0 — User Tunnel Service (§6b / §6e)
 // =============================================================================
 // Orchestrates the full lifecycle of user-access WireGuard peers:
 //   createPeer   — generate keypair, allocate IP, write DB, sync hub
@@ -61,7 +61,7 @@ function buildConfig(peer, privateKey, subnets, presharedKey = null) {
     lines.push(`PresharedKey        = ${presharedKey}`);
   }
 
-  // AllowedIPs: full-tunnel routes ALL traffic through FireISP (default for new peers);
+  // AllowedIPs: full-tunnel routes ALL traffic through VigaBSS (default for new peers);
   // split-tunnel routes only the scoped device subnets (legacy / explicit opt-out).
   // The authoritative ACL is the nftables FORWARD chain — AllowedIPs in full-tunnel
   // mode is a static "install once and never re-scan" client config.

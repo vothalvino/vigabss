@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Ticket Escalation Model
+// VigaBSS 5.0 — Ticket Escalation Model
 // =============================================================================
 // Escalation chain for unresolved tickets (§1.3 Interaction Tracking). Stale
 // tickets are auto-escalated by the `auto_escalate_tickets` scheduled task.

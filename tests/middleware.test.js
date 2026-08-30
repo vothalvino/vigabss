@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Middleware Tests
+// VigaBSS 5.0 — Middleware Tests
 // =============================================================================
 
 const { validate } = require('../src/middleware/validate');

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Bulk Import Controller
+// VigaBSS 5.0 — Bulk Import Controller
 // =============================================================================
 // CSV bulk import for clients, devices, contracts, invoices, and payments.
 // Supports two modes:

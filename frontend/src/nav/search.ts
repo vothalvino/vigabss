@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Command-palette search over the nav registry ("Faro" nav)
+// VigaBSS 5.0 — Command-palette search over the nav registry ("Faro" nav)
 // =============================================================================
 // Pure functions (unit-tested in src/test/navSearch.test.ts). The palette
 // indexes exactly what the user's role/locale can see — the same canSee()

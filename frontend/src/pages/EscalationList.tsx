@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Ticket Escalations — §1.3
+// VigaBSS 5.0 — Ticket Escalations — §1.3
 // =============================================================================
 // Escalation management for unresolved tickets: candidate queue (tickets open
 // too long with no escalation), escalation list with acknowledge / resolve

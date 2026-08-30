@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Tax Reports (§2.2B)
+// VigaBSS 5.0 — Tax Reports (§2.2B)
 // =============================================================================
 // Export billing records for a date range:
 //   GET /billing/tax-reports?from=&to=&type=invoices|payments|credit_notes&format=csv|json

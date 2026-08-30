@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — a new fiscal document may not contradict the resolved tax
+// VigaBSS 5.0 — a new fiscal document may not contradict the resolved tax
 // =============================================================================
 // Two directions, both of which put a false statement in front of SAT on a
 // document that cannot be un-sent:

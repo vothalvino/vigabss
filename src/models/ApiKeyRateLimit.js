@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — ApiKeyRateLimit Model
+// VigaBSS 5.0 — ApiKeyRateLimit Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

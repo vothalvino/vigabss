@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP UI — Sparkline
+// VigaBSS UI — Sparkline
 // =============================================================================
 // A minimal inline SVG trend line. Originally authored inside the Operations
 // Console widgets (frontend/src/pages/operations-console/consoleWidgets.tsx)

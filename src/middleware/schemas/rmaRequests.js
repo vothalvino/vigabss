@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RMA Request Validation Schemas
+// VigaBSS 5.0 — RMA Request Validation Schemas
 // =============================================================================
 
 const createRmaRequest = {

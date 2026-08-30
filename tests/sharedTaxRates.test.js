@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — shared (NULL-org) tax rates are visible and read-only (j42)
+// VigaBSS 5.0 — shared (NULL-org) tax rates are visible and read-only (j42)
 // =============================================================================
 // Migration 121 seeds four rates with organization_id NULL ('applies to all
 // tenants'). The resolver's explicit-id branch admits them (#548), but the

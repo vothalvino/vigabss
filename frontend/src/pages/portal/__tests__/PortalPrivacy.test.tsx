@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Portal Privacy Notice page tests (LFPDPPP, j25)
+// VigaBSS 5.0 — Portal Privacy Notice page tests (LFPDPPP, j25)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';

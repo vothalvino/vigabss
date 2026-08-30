@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Settings Validation Schemas
+// VigaBSS 5.0 — Settings Validation Schemas
 // =============================================================================
 
 const updateSetting = {

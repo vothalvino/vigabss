@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Plan Validation Schemas
+// VigaBSS 5.0 — Payment Plan Validation Schemas
 // =============================================================================
 
 const createPaymentPlan = {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Development Seed Script
+// VigaBSS 5.0 — Development Seed Script
 // =============================================================================
 // Inserts sample data for development/testing: an organization, admin user,
 // a few clients, plans, and contracts. Safe to re-run — uses INSERT IGNORE.
@@ -140,7 +140,7 @@ async function seed() {
 
 // Run when invoked directly
 if (require.main === module) {
-  logger.info('FireISP 5.0 — Seeding development data...');
+  logger.info('VigaBSS 5.0 — Seeding development data...');
   seed()
     .then(() => {
       logger.info('Done.');

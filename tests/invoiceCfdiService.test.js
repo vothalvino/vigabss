@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Invoice → CFDI conversion ("stamp later") tests
+// VigaBSS 5.0 — Invoice → CFDI conversion ("stamp later") tests
 // =============================================================================
 // stampInvoice: fiscal preconditions, PUE/PPD derivation, SAT-code defaults,
 // per-line IVA with last-line rounding reconciliation, atomic folio, and the

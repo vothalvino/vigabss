@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Analytics Dashboard Page
+// VigaBSS 5.0 — Analytics Dashboard Page
 // =============================================================================
 // Route: /analytics-dashboard
 // Renders a CSS grid of dashboard widgets fetched from GET /api/v1/dashboard-widgets.

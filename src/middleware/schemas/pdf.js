@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PDF Export Validation Schemas
+// VigaBSS 5.0 — PDF Export Validation Schemas
 // =============================================================================
 // PDF endpoints take an :id route parameter. These schemas document the
 // routes for the OpenAPI spec.

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WebAuthnCredential Model
+// VigaBSS 5.0 — WebAuthnCredential Model
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

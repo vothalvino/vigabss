@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — QueueTreeNode Validation Schemas
+// VigaBSS 5.0 — QueueTreeNode Validation Schemas
 // =============================================================================
 
 const createQueueTreeNode = {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FollowUpReminderList page tests (§1.3)
+// VigaBSS 5.0 — FollowUpReminderList page tests (§1.3)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';

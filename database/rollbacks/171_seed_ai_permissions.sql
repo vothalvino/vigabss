@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 171: Remove AI Reply Assistant permissions
+-- VigaBSS 5.0 — Rollback 171: Remove AI Reply Assistant permissions
 -- =============================================================================
 -- Reverses migration 171.  Removes the eight exact ai.* permission slugs the
 -- migration seeded and any role_permissions rows referencing them.  Other

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// FireISP 5.0 — the credit-note list says whether a note is already stamped (j6)
+// VigaBSS 5.0 — the credit-note list says whether a note is already stamped (j6)
 // =============================================================================
 // GET /credit-notes returned unaliased credit_notes columns and nothing else,
 // so the UI could not tell a stamped note from an unstamped one: it kept

@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 161: Drop portal_refresh_tokens table
+-- VigaBSS 5.0 — Rollback 161: Drop portal_refresh_tokens table
 -- =============================================================================
 -- Reverses migration 161.  No other table references portal_refresh_tokens.
 -- =============================================================================

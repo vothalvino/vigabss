@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment → auto-reconnect (POST /payments/:id/allocate)
+// VigaBSS 5.0 — Payment → auto-reconnect (POST /payments/:id/allocate)
 // =============================================================================
 // The worst symptom of the suspension_logs column drift: allocating a payment
 // that fully pays a suspended contract's invoice marked the invoice PAID and

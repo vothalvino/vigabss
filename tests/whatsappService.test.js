@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WhatsApp identity service + webhook route tests
+// VigaBSS 5.0 — WhatsApp identity service + webhook route tests
 // =============================================================================
 
 const crypto = require('crypto');

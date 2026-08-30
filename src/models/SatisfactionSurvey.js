@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Satisfaction Survey Model
+// VigaBSS 5.0 — Satisfaction Survey Model
 // =============================================================================
 // NPS / CSAT surveys (§1.3 Interaction Tracking). CSAT surveys are dispatched
 // automatically for resolved tickets by the `dispatch_satisfaction_surveys`

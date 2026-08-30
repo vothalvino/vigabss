@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — line-item pricing resolution (flexible generate paths)
+// VigaBSS 5.0 — line-item pricing resolution (flexible generate paths)
 // =============================================================================
 
 const { ValidationError } = require('./errors');
@@ -10,7 +10,7 @@ const { ValidationError } = require('./errors');
  * other). Accepts either `unit_price` (canonical) or the sibling-endpoint
  * shape `amount` (quote items, one-off invoices) — previously a supplied
  * `amount` without `unit_price` was silently ignored and produced a
- * legitimate-looking 0.00 line (request-shape drift, the classic FireISP bug
+ * legitimate-looking 0.00 line (request-shape drift, the classic VigaBSS bug
  * class), and a zero-value line could be created with no signal at all.
  *
  * Rules: `unit_price` wins when both are present, but they must then agree

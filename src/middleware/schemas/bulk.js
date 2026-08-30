@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Bulk Operations Validation Schemas
+// VigaBSS 5.0 — Bulk Operations Validation Schemas
 // =============================================================================
 
 // POST /bulk/invoices/generate — contract_ids validated manually in route

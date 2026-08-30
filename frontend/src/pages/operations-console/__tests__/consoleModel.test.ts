@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP Operations Console — model logic tests
+// VigaBSS Operations Console — model logic tests
 // =============================================================================
 import { describe, it, expect } from 'vitest';
 import {

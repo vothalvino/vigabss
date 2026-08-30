@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP rate transform helper tests
+// VigaBSS 5.0 — SNMP rate transform helper tests
 // =============================================================================
 import { describe, it, expect } from 'vitest';
 import { deltaToRate, seriesToRates, currentRate, fmtBps, fmtBpsParts, bucketedRates, type OctetRow } from './rateTransform';

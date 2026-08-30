@@ -1,6 +1,6 @@
 -- Migration: 120_seed_default_settings
 -- Description: Populates the settings table with sensible defaults for a new
---              FireISP installation.  The application layer reads these values
+--              VigaBSS installation.  The application layer reads these values
 --              on startup; without them it must either hard-code its own
 --              defaults or fail to boot when a required key is missing.
 --

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# FireISP 5.0 — Test Runner
+# VigaBSS 5.0 — Test Runner
 # =============================================================================
 # Runs all SQL test files against a MySQL database.
 #
@@ -71,7 +71,7 @@ TEST_FILES=(
 
 # ---- Run tests --------------------------------------------------------------
 echo "============================================="
-echo " FireISP 5.0 — Database Test Suite"
+echo " VigaBSS 5.0 — Database Test Suite"
 echo "============================================="
 echo " Host:     ${MYSQL_HOST}:${MYSQL_PORT}"
 echo " Database: ${MYSQL_DATABASE}"

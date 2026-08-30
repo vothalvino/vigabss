@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Regulatory Compliance Routes (§16)
+// VigaBSS 5.0 — Regulatory Compliance Routes (§16)
 // Covers: subscriber_consents, dsar_requests, identity_verification_records,
 //         gov_data_requests
 // =============================================================================

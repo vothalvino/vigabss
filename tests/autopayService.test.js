@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Autopay enrollment tests
+// VigaBSS 5.0 — Autopay enrollment tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));

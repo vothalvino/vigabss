@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Feature Flag Middleware Tests
+// VigaBSS 5.0 — Feature Flag Middleware Tests
 // =============================================================================
 
 const config = require('../src/config');

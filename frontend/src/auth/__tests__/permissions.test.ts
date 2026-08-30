@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — permissions helper tests
+// VigaBSS 5.0 — permissions helper tests
 // =============================================================================
 import { describe, it, expect } from 'vitest';
 import { can } from '../permissions';

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Permission seed coverage (Pattern G regression guard)
+// VigaBSS 5.0 — Permission seed coverage (Pattern G regression guard)
 // =============================================================================
 // Every slug passed to requirePermission() must have a `permissions` row seeded
 // by a migration. rbac.js resolves permissions by exact-name lookup against

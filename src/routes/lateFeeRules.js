@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Late Fee Rules Routes
+// VigaBSS 5.0 — Late Fee Rules Routes
 // =============================================================================
 // GET    /late-fee-rules           — list rules
 // POST   /late-fee-rules           — create rule

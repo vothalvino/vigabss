@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Regulatory Compliance Page (Section 16)
+// VigaBSS 5.0 — Regulatory Compliance Page (Section 16)
 // =============================================================================
 // Multi-tab page covering Mexico regulatory compliance:
 //   1. Consent Management  — subscriber ARCO consent records

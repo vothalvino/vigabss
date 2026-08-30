@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Validation schemas: Device Polling Configs (§6.4)
+// VigaBSS 5.0 — Validation schemas: Device Polling Configs (§6.4)
 // =============================================================================
 
 const createDevicePollingConfig = {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — PAC environment scoping
+// VigaBSS 5.0 — PAC environment scoping
 // =============================================================================
 // Stamping and cancellation use ONLY the PAC rows matching the org's fiscal
 // environment (organization_mx_profiles.pac_environment). Sandbox and production

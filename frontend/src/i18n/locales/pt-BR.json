@@ -43,7 +43,7 @@
     "change": "Alterar"
   },
   "login": {
-    "title": "🔥 FireISP 5.0",
+    "title": "🔥 VigaBSS 5.0",
     "subtitle": "Entre para continuar",
     "emailLabel": "E-mail",
     "passwordLabel": "Senha",
@@ -323,18 +323,18 @@
     "technicianMap": "Mapa de técnicos"
   },
   "layout": {
-    "brandName": "🔥 FireISP",
+    "brandName": "🔥 VigaBSS",
     "openNav": "Abrir navegação",
     "closeNav": "Fechar navegação",
     "orgSwitcherLabel": "Organização ativa",
     "switchOrgFailed": "Falha ao trocar de organização"
   },
   "portalLayout": {
-    "brandName": "🔥 FireISP — Minha conta",
+    "brandName": "🔥 VigaBSS — Minha conta",
     "navHome": "🏠 Início",
     "navInvoices": "🧾 Faturas",
     "navSupport": "🎫 Suporte",
-    "footer": "© {{year}} FireISP",
+    "footer": "© {{year}} VigaBSS",
     "privacyBanner": "Revise nosso aviso de privacidade.",
     "privacyBannerLink": "Revisar e aceitar",
     "privacyLink": "Aviso de privacidade"
@@ -4240,7 +4240,7 @@
   },
   "wgTunnels": {
     "fullTunnelLabel": "Túnel completo (rotear todo o tráfego pela VPN)",
-    "fullTunnelHint": "Quando ativado, todo o tráfego de internet do dispositivo é roteado pelo FireISP. Desative para acesso dividido apenas às LANs do dispositivo.",
+    "fullTunnelHint": "Quando ativado, todo o tráfego de internet do dispositivo é roteado pelo VigaBSS. Desative para acesso dividido apenas às LANs do dispositivo.",
     "title": "Meus Túneis VPN",
     "subtitle": "Túneis WireGuard de acesso para seus dispositivos.",
     "addPeer": "Adicionar Dispositivo",
@@ -4369,12 +4369,12 @@
       "label": "Modo de acesso",
       "direct": "Direto",
       "nated": "Atrás de NAT",
-      "hint": "Como o FireISP se conecta ao dispositivo: Direto = IP roteável; Atrás de NAT = acessível apenas pelo túnel WireGuard.",
+      "hint": "Como o VigaBSS se conecta ao dispositivo: Direto = IP roteável; Atrás de NAT = acessível apenas pelo túnel WireGuard.",
       "immutable": "O modo de acesso não pode ser alterado após o registro — exclua e recrie o NAS para mudar."
     },
     "ipAddressLabel": "Endereço IP (IPv4)",
     "ipAddressPlaceholder": "ex.: 10.0.0.1",
-    "natedHint": "O FireISP atribuirá um endereço de túnel WireGuard como IP do dispositivo. Após salvar, abra a aba WG, copie a configuração bootstrap, cole-a no roteador e execute Seed / Test."
+    "natedHint": "O VigaBSS atribuirá um endereço de túnel WireGuard como IP do dispositivo. Após salvar, abra a aba WG, copie a configuração bootstrap, cole-a no roteador e execute Seed / Test."
   },
   "serviceOrders": {
     "title": "Ordens de servico",

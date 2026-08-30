@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — InventoryManagement page tests (§14.2 — Inventory Phase 1)
+// VigaBSS 5.0 — InventoryManagement page tests (§14.2 — Inventory Phase 1)
 // =============================================================================
 // Regression coverage for two crash/silent-hide bugs fixed in this PR:
 //   1. The Purchase Orders tab read item.total_amount (schema column is

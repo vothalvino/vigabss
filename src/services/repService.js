@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — REP (Complemento de Pago) automation
+// VigaBSS 5.0 — REP (Complemento de Pago) automation
 // =============================================================================
 // SAT rule: every payment received against a PPD invoice CFDI must be reported
 // with a Complemento de Pago (tipo-P CFDI, "REP"), due by the 5th of the month

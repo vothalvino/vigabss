@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Data Security Routes (§17)
+// VigaBSS 5.0 — Data Security Routes (§17)
 // Covers: encryption_key_metadata, data_masking_rules, secure_deletion_log,
 //         TLS configuration docs
 // =============================================================================
@@ -238,7 +238,7 @@ router.get('/tls-config', async (req, res, next) => {
           include_subdomains: true,
           preload: false,
         },
-        notes: 'FireISP enforces TLSv1.2+ for all API endpoints. TLSv1.0 and TLSv1.1 are disabled.',
+        notes: 'VigaBSS enforces TLSv1.2+ for all API endpoints. TLSv1.0 and TLSv1.1 are disabled.',
       },
     });
   } catch (err) {

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Chargebacks (§2.5 Billing+)
+// VigaBSS 5.0 — Chargebacks (§2.5 Billing+)
 // =============================================================================
 // Page for chargeback management:
 //   • Table: ID, Payment ID, Gateway, Gateway Dispute ID, Amount, Currency,

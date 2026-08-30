@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Session hardening tests
+// VigaBSS 5.0 — Session hardening tests
 // =============================================================================
 // Guards the fixes for the "constantly logged out" defect:
 //  1. Session-keepalive endpoints (/auth/me, /auth/refresh, /auth/logout,

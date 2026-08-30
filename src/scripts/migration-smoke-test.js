@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Migration Smoke Test
+// VigaBSS 5.0 — Migration Smoke Test
 // =============================================================================
 // Validates that all migrations were applied successfully against an empty
 // MySQL 8 database and that the resulting schema matches schema.sql.
@@ -318,7 +318,7 @@ async function runSmokeTest() {
 // Entry point
 // ---------------------------------------------------------------------------
 if (require.main === module) {
-  logger.info('FireISP 5.0 — Migration smoke test');
+  logger.info('VigaBSS 5.0 — Migration smoke test');
   runSmokeTest()
     .then(async passed => {
       await db.close();

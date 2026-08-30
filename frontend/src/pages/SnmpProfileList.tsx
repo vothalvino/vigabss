@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — SNMP Profile Viewer
+// VigaBSS 5.0 — SNMP Profile Viewer
 // =============================================================================
 // Read-only page at /snmp-profiles. Lists the SNMP polling profiles that map
 // device manufacturers/models to polling settings and OID sets used by the

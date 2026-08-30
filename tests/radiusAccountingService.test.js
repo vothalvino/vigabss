@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RADIUS Accounting Service Tests
+// VigaBSS 5.0 — RADIUS Accounting Service Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

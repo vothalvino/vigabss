@@ -1,10 +1,10 @@
 // =============================================================================
-// FireISP 5.0 — SSRF guard for tenant-configurable outbound URLs
+// VigaBSS 5.0 — SSRF guard for tenant-configurable outbound URLs
 // =============================================================================
 // pac_providers.api_url is written by an org-scoped tenant admin and later
 // used as the target of server-side POSTs (PAC stamping/cancel). Without a
 // guard a tenant could point it at the cloud metadata endpoint or an internal
-// service and make the FireISP host issue the request on their behalf — a
+// service and make the VigaBSS host issue the request on their behalf — a
 // cross-tenant SSRF (IAM-credential disclosure on IMDSv1, internal port
 // probing), not mere self-harm. Validate on write: https only, and no
 // private/loopback/link-local/metadata destination — resolving the hostname

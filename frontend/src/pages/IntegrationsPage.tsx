@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Integrations Page (Section 20)
+// VigaBSS 5.0 — Integrations Page (Section 20)
 // =============================================================================
 // Multi-tab page covering §20.2 Third-Party Integration Framework:
 //   1. Providers    — read-only catalog of supported integration providers

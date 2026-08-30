@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE Inventory Page (§8.4 / Inventory Phase 3, migration 391)
+// VigaBSS 5.0 — CPE Inventory Page (§8.4 / Inventory Phase 3, migration 391)
 // =============================================================================
 // Tabbed page:
 //   Tab 1: Lifecycle — current state, transition form, history table

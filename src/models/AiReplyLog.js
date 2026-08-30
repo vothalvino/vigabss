@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AiReplyLog Model
+// VigaBSS 5.0 — AiReplyLog Model
 // =============================================================================
 // Immutable audit trail for every AI draft/send action. Records the full
 // context snapshot, prompt hash, token usage, cost, and final action taken by

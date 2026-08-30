@@ -1,6 +1,6 @@
 # FireRelay — Architecture Specification
 
-FireISP 5.0's built-in multi-node clustering system.
+VigaBSS 5.0's built-in multi-node clustering system.
 
 ---
 
@@ -34,9 +34,9 @@ FireISP 5.0's built-in multi-node clustering system.
 
 ## 1. Overview
 
-FireRelay is FireISP's built-in node relay system. It allows multiple FireISP servers to work together as one unified system, all controlled from a single web dashboard.
+FireRelay is VigaBSS's built-in node relay system. It allows multiple VigaBSS servers to work together as one unified system, all controlled from a single web dashboard.
 
-**The core principle:** Every FireISP installation ships with FireRelay code already present. By default it sleeps in `standalone` mode — a single server acts as though FireRelay does not exist, with zero performance overhead. When a second server is needed, the operator flips a single `.env` variable on the first node to `master`, stands up a new machine with the same codebase pointing back to the master, and the cluster is live.
+**The core principle:** Every VigaBSS installation ships with FireRelay code already present. By default it sleeps in `standalone` mode — a single server acts as though FireRelay does not exist, with zero performance overhead. When a second server is needed, the operator flips a single `.env` variable on the first node to `master`, stands up a new machine with the same codebase pointing back to the master, and the cluster is live.
 
 FireRelay is designed for **capacity-based horizontal scaling**. When a node reaches its client or device limits, a new node is added and the system continues operating seamlessly. No data migration is required; existing clients stay on the node that owns them.
 
@@ -48,7 +48,7 @@ FireRelay operates in exactly one of three modes, controlled by the environment 
 
 ### 2.1 `standalone` (default)
 
-Every FireISP installation starts here.
+Every VigaBSS installation starts here.
 
 - A single server handles all requests locally.
 - FireRelay is present in the codebase but entirely inactive — requests pass straight through to the local application.
@@ -61,7 +61,7 @@ Switch to `master` only when you need to add a second server.
 
 The first node becomes the central relay point for the cluster.
 
-- Continues to run its own local FireISP instance (handles its own clients, devices, SNMP polling, invoices, etc.).
+- Continues to run its own local VigaBSS instance (handles its own clients, devices, SNMP polling, invoices, etc.).
 - Maintains a **node registry** — a lightweight lookup of all worker nodes (name, API URL, current status, capacity metrics).
 - Maintains a **client routing table** — maps every `client_id` to the node that owns it.
 - Routes incoming requests to the correct node based on the routing table.
@@ -74,7 +74,7 @@ The first node becomes the central relay point for the cluster.
 All nodes beyond the first run as workers.
 
 - Handles only its own local data (clients, devices, SNMP polling, scheduled tasks, etc.).
-- Exposes the same API endpoints as any FireISP node, plus a dedicated `GET /api/firerelay/health` endpoint.
+- Exposes the same API endpoints as any VigaBSS node, plus a dedicated `GET /api/firerelay/health` endpoint.
 - Reports health and capacity metrics to the master.
 - Does **not** know about other workers — it only knows about the master.
 - Runs the exact same codebase as the master node. The only difference is the `.env` configuration.
@@ -87,7 +87,7 @@ All nodes beyond the first run as workers.
 
 ```
 ┌─────────────────────────────────────────┐
-│           FireISP Node (standalone)     │
+│           VigaBSS Node (standalone)     │
 │                                         │
 │  ┌─────────────────────────────────┐   │
 │  │  FireRelay Middleware           │   │
@@ -118,7 +118,7 @@ All nodes beyond the first run as workers.
                            │
                            ▼
 ┌──────────────────────────────────────────┐
-│        FireISP Node 1  (MASTER)          │
+│        VigaBSS Node 1  (MASTER)          │
 │                                          │
 │  ┌────────────────────────────────────┐  │
 │  │  FireRelay Middleware              │  │
@@ -291,13 +291,13 @@ The master maintains two lightweight lookup structures in its own database:
 | `client_id` | BIGINT | The client's ID |
 | `node_id` | VARCHAR | Which node owns this client |
 
-These two tables are the only FireRelay-specific additions to the master's database. All other tables are standard FireISP tables.
+These two tables are the only FireRelay-specific additions to the master's database. All other tables are standard VigaBSS tables.
 
 ### 4.4 Same Codebase Everywhere
 
-Every node — master and workers — runs the exact same FireISP application code from the same repository. There is no "master build" or "worker build." The only difference between nodes is the `.env` configuration file. This means:
+Every node — master and workers — runs the exact same VigaBSS application code from the same repository. There is no "master build" or "worker build." The only difference between nodes is the `.env` configuration file. This means:
 
-- Deploying a new worker is identical to deploying any FireISP instance.
+- Deploying a new worker is identical to deploying any VigaBSS instance.
 - There is no version mismatch problem to manage.
 - Debugging is straightforward — the same code runs everywhere.
 - Rolling updates can be applied node by node.
@@ -550,7 +550,7 @@ FireRelay becomes relevant at the 30K-client threshold. Below that, a single wel
 
 ## 8. Implementation Priority
 
-FireRelay is **Step 5** in the FireISP 5.0 development roadmap. It must not be built before the core application exists — there is nothing to relay without it.
+FireRelay is **Step 5** in the VigaBSS 5.0 development roadmap. It must not be built before the core application exists — there is nothing to relay without it.
 
 | Step | What | Status |
 |------|------|--------|
@@ -564,5 +564,5 @@ FireRelay is **Step 5** in the FireISP 5.0 development roadmap. It must not be b
 
 ---
 
-*Document created: 2025 — FireISP 5.0 project.*
+*Document created: 2025 — VigaBSS 5.0 project.*
 *Updated: 2026 — All steps complete. FireRelay implemented.*

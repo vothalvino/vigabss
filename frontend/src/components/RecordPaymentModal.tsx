@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Record Payment Modal (shared)
+// VigaBSS 5.0 — Record Payment Modal (shared)
 // =============================================================================
 // The single "record a payment" flow used by ClientDetail, InvoiceDetail, and
 // PaymentList — see PR brief "payment waterfall". Three entry points, one

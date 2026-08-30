@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Internationalization (i18n) Utility
+// VigaBSS 5.0 — Internationalization (i18n) Utility
 // =============================================================================
 // Lightweight translation layer. Loads locale JSON files from src/locales/.
 // Usage:

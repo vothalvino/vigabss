@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WebSocket Hub
+// VigaBSS 5.0 — WebSocket Hub
 // =============================================================================
 // Real-time push hub for browser clients.  Runs at path /ws on the same HTTP
 // server, separate from the FireRelay agent tunnel (/ws/firerelay).

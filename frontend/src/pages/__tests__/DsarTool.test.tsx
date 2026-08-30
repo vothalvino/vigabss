@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DsarTool page tests
+// VigaBSS 5.0 — DsarTool page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';

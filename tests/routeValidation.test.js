@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Route Validation Integration Tests
+// VigaBSS 5.0 — Route Validation Integration Tests
 // =============================================================================
 // Tests that validation middleware properly rejects invalid input on
 // all core routes. Uses supertest against the real Express app with

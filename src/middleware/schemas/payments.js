@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Payment Validation Schemas
+// VigaBSS 5.0 — Payment Validation Schemas
 // =============================================================================
 
 // Must match the DB `payments.payment_method` ENUM exactly (migrations 012,

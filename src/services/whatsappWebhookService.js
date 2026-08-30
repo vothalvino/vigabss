@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WhatsApp inbound webhook verification + parsing
+// VigaBSS 5.0 — WhatsApp inbound webhook verification + parsing
 // =============================================================================
 // Provider-agnostic seam for the two WhatsApp inbound transports:
 //   meta   — Meta WhatsApp Cloud API. JSON body, X-Hub-Signature-256 =

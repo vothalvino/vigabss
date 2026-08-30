@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Suspension Service: Soft Suspend & Exemption Tests
+// VigaBSS 5.0 — Suspension Service: Soft Suspend & Exemption Tests
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({

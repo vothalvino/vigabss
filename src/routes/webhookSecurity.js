@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Webhook Security Routes (§17)
+// VigaBSS 5.0 — Webhook Security Routes (§17)
 // Covers: webhook signing verification, delivery logs
 // =============================================================================
 
@@ -24,17 +24,17 @@ router.get('/verify-signing', async (req, res, next) => {
     res.json({
       data: {
         algorithm: 'HMAC-SHA256',
-        header_name: 'X-FireISP-Signature',
+        header_name: 'X-VigaBSS-Signature',
         signature_format: 'sha256=<hex-digest>',
-        description: 'FireISP signs all outbound webhook payloads using HMAC-SHA256. Verify the X-FireISP-Signature header against your webhook secret to authenticate the request.',
+        description: 'VigaBSS signs all outbound webhook payloads using HMAC-SHA256. Verify the X-VigaBSS-Signature header against your webhook secret to authenticate the request.',
         verification_steps: [
-          '1. Extract the signature from the X-FireISP-Signature header (format: sha256=<hex>)',
+          '1. Extract the signature from the X-VigaBSS-Signature header (format: sha256=<hex>)',
           '2. Compute HMAC-SHA256 of the raw request body using your webhook secret',
           '3. Use a timing-safe comparison (e.g., crypto.timingSafeEqual) to compare the computed digest with the received signature',
           '4. If they match, the webhook is authentic',
         ],
         example: {
-          header: 'X-FireISP-Signature: sha256=abc123...',
+          header: 'X-VigaBSS-Signature: sha256=abc123...',
           node_snippet: "const sig = crypto.createHmac('sha256', secret).update(rawBody).digest('hex'); const valid = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(received));",
         },
         status: 'active',

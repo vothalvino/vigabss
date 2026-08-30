@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — OTDR Test Result Validation Schemas (§7.4)
+// VigaBSS 5.0 — OTDR Test Result Validation Schemas (§7.4)
 // =============================================================================
 
 const TEST_TYPES = ['manual', 'scheduled', 'fault_locate', 'baseline', 'acceptance'];

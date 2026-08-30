@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 165: Drop SSO configuration tables
+-- VigaBSS 5.0 — Rollback 165: Drop SSO configuration tables
 -- =============================================================================
 -- Reverses migration 165.  Tables are dropped in reverse-FK order:
 -- organization_sso_group_mappings references organization_sso_configs, so it

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Config Backup Viewer
+// VigaBSS 5.0 — Device Config Backup Viewer
 // =============================================================================
 // Read-only page at /device-config-backups. Lists captured device configuration
 // snapshots (per device, versioned) with their format, size, checksum and how

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — WCAG 2.1 AA accessibility audit
+// VigaBSS 5.0 — WCAG 2.1 AA accessibility audit
 // Runs axe-core on every major page/component; color-contrast is disabled
 // because jsdom cannot compute computed CSS styles.
 // =============================================================================

@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// FireISP 5.0 — Work Orders (§12)
+// VigaBSS 5.0 — Work Orders (§12)
 // =============================================================================
 // List, create, and manage field work orders.  Supports status transitions
 // (dispatch → start → complete/cancel) and materials sub-resource.

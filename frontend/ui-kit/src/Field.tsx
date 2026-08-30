@@ -3,7 +3,7 @@ import React, { useState, useId } from 'react';
 /**
  * Labeled form field wrapping a native <input>. Handles focus ring,
  * error state (red border + message), hint text, required marker,
- * and disabled styling — all driven by FireISP design tokens.
+ * and disabled styling — all driven by VigaBSS design tokens.
  */
 export interface FieldProps {
   /** Visible label shown above the input. */

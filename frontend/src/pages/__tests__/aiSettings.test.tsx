@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — AIAssistantSettings page tests (P1 §6.4)
+// VigaBSS 5.0 — AIAssistantSettings page tests (P1 §6.4)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';

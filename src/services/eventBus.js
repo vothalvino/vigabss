@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Event Bus
+// VigaBSS 5.0 — Event Bus
 // =============================================================================
 // Simple in-process pub/sub event bus for triggering notifications and
 // side-effects on business events (invoice created, payment received, etc.).

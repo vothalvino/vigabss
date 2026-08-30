@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Credit Note currency defaulting (PR "balance-computed-currency-org")
+// VigaBSS 5.0 — Credit Note currency defaulting (PR "balance-computed-currency-org")
 // =============================================================================
 // POST /api/v1/credit-notes used to leave `currency` unset when the caller
 // omitted it, letting the DB column default ('USD') silently win regardless

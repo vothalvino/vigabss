@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CWMP XML Parser/Builder (§8.1/§8.3)
+// VigaBSS 5.0 — CWMP XML Parser/Builder (§8.1/§8.3)
 // =============================================================================
 // Hand-rolled CWMP/SOAP XML subset. No external XML library.
 // Handles: Inform, GetParameterValues/Names/Response, SetParameterValues/Response,

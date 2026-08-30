@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — UNIQUE Constraint Tests
+-- VigaBSS 5.0 — UNIQUE Constraint Tests
 -- =============================================================================
 -- Verifies that UNIQUE constraints prevent duplicate entries in key columns.
 -- =============================================================================

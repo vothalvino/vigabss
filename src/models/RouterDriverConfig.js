@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RouterDriverConfig Model (§18.3)
+// VigaBSS 5.0 — RouterDriverConfig Model (§18.3)
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Service Order List (workflow) — §1.2
+// VigaBSS 5.0 — Service Order List (workflow) — §1.2
 // =============================================================================
 // Simplified service order workflow (migration 380): new → in_process → done,
 // or cancelled (reachable from new/in_process).

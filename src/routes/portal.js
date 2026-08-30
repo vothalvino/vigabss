@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Self-Service Portal Routes
+// VigaBSS 5.0 — Client Self-Service Portal Routes
 // =============================================================================
 // All routes are prefixed /api/v1/portal.
 //

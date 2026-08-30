@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Customer Lifecycle Service
+// VigaBSS 5.0 — Customer Lifecycle Service
 // =============================================================================
 // Implements isp-platform-features.md §1.2 "Customer Lifecycle":
 //   • convertLead          — materialise a won lead into a client record

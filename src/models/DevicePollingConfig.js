@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Polling Config Model (§6.4)
+// VigaBSS 5.0 — Device Polling Config Model (§6.4)
 // =============================================================================
 
 const BaseModel = require('./BaseModel');

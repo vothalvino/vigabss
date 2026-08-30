@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Purchase Order Detail (§14.2 — Inventory Phase 1)
+// VigaBSS 5.0 — Purchase Order Detail (§14.2 — Inventory Phase 1)
 // =============================================================================
 // Shows a single purchase order at /purchase-orders/:id, mirroring
 // QuoteDetail's structure:

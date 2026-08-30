@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay Configuration
+// VigaBSS 5.0 — FireRelay Configuration
 // =============================================================================
 // Reads FIRERELAY_* environment variables and exports a single config object.
 // All values have safe defaults — standalone mode requires no configuration.

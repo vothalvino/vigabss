@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — DarkModeContext tests
+// VigaBSS 5.0 — DarkModeContext tests
 // =============================================================================
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';

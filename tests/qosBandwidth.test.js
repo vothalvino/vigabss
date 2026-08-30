@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — QoS Bandwidth & Rate Limiting API Tests (§10.1 + §10.2)
+// VigaBSS 5.0 — QoS Bandwidth & Rate Limiting API Tests (§10.1 + §10.2)
 // =============================================================================
 'use strict';
 
@@ -161,7 +161,7 @@ describe('GET /api/queue-tree-nodes/export/config', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('script');
     expect(res.body.data).toHaveProperty('node_count', 1);
-    expect(res.body.data.script).toContain('FireISP');
+    expect(res.body.data.script).toContain('VigaBSS');
   });
 });
 
@@ -273,7 +273,7 @@ describe('GET /api/protocol-shaping-rules/export/config', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('script');
     expect(res.body.data).toHaveProperty('rule_count', 1);
-    expect(res.body.data.script).toContain('FireISP');
+    expect(res.body.data.script).toContain('VigaBSS');
   });
 });
 

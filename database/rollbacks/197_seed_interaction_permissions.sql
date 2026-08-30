@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 197: Remove Interaction Tracking permissions
+-- VigaBSS 5.0 — Rollback 197: Remove Interaction Tracking permissions
 -- =============================================================================
 -- Reverses migration 197. role_permissions rows are removed first to satisfy
 -- the FK, then the permission definitions themselves.

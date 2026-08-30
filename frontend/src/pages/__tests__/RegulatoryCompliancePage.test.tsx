@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — RegulatoryCompliancePage tests (§16)
+// VigaBSS 5.0 — RegulatoryCompliancePage tests (§16)
 // =============================================================================
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';

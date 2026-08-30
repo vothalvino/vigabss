@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 157: Remove IFT-format columns from
+-- VigaBSS 5.0 — Rollback 157: Remove IFT-format columns from
 --                             ift_statistical_reports
 -- =============================================================================
 -- Reverses migration 157.  Drops the foreign key, the index, and the five

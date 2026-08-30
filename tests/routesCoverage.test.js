@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Additional Route Coverage Tests
+// VigaBSS 5.0 — Additional Route Coverage Tests
 // =============================================================================
 // Tests for routes that are not yet covered by existing integration tests:
 // bulk, metrics, alerts, roles, facturasPublicas, satCatalogs, events,
@@ -1942,7 +1942,7 @@ describe('Two-Factor Auth Routes — /api/2fa', () => {
       mockAuthUser();
       twoFactorService.generateSecret.mockResolvedValue({
         secret: 'JBSWY3DPEHPK3PXP',
-        otpauth_url: 'otpauth://totp/FireISP:test@example.com?secret=JBSWY3DPEHPK3PXP',
+        otpauth_url: 'otpauth://totp/VigaBSS:test@example.com?secret=JBSWY3DPEHPK3PXP',
       });
 
       const res = await request(app)

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Monitoring Alerts & Notifications Engine
+// VigaBSS 5.0 — Monitoring Alerts & Notifications Engine
 // =============================================================================
 // Evaluates alert rules against SNMP metrics and network health data.
 // Triggers notifications when thresholds are breached.

@@ -1,7 +1,7 @@
 'use strict';
 
 // =============================================================================
-// FireISP 5.0 — DHCP Server + Static Reservation Validation Schemas
+// VigaBSS 5.0 — DHCP Server + Static Reservation Validation Schemas
 // =============================================================================
 
 const createDhcpServer = {

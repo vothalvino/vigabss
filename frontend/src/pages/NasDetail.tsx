@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — NAS Detail
+// VigaBSS 5.0 — NAS Detail
 // =============================================================================
 // Route: /nas/:id
 // Data: GET /nas/{id} via REST api client
@@ -491,7 +491,7 @@ export function NasDetail() {
                   {/* Key-value details */}
                   <div style={styles.infoGrid}>
                     <InfoRow label={t('nasDetail.tunnel.tunnelIp')}      value={wgTunnel.tunnel_address}   mono />
-                    <InfoRow label="FireISP Hub IP"                     value={serverTunnelIp}            mono />
+                    <InfoRow label="VigaBSS Hub IP"                     value={serverTunnelIp}            mono />
                     <InfoRow label={t('nasDetail.tunnel.configMethod')}    value={wgTunnel.nas_config_method} />
                     <InfoRow label={t('nasDetail.tunnel.serverPublicKey')} value={serverPublicKey}            mono />
                     <InfoRow label={t('nasDetail.tunnel.endpoint')}        value={serverEndpoint}            mono />

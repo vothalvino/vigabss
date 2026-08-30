@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 175: Revert invoices table fixes
+-- VigaBSS 5.0 — Rollback 175: Revert invoices table fixes
 -- =============================================================================
 -- Reverses migration 175 by dropping the organization_id FK/indexes and the
 -- organization_id and issued_at columns, and restoring issue_date and the

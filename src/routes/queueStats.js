@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Queue Stats Route
+// VigaBSS 5.0 — Queue Stats Route
 // =============================================================================
 // GET /api/v1/queue-stats  — returns waiting/active/completed/failed/delayed
 // counts for each named BullMQ queue (or "in-process" mode indicator).

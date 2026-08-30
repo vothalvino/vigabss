@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — IP Assignment Validation Schemas
+// VigaBSS 5.0 — IP Assignment Validation Schemas
 // =============================================================================
 
 const createIpAssignment = {

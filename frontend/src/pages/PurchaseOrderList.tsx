@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Purchase Order Management (§14.2 — Inventory Phase 1)
+// VigaBSS 5.0 — Purchase Order Management (§14.2 — Inventory Phase 1)
 // =============================================================================
 // Page at /purchase-orders. Lists purchase orders with:
 //   • Status filter

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Connection Log Viewer
+// VigaBSS 5.0 — Connection Log Viewer
 // =============================================================================
 // Read-only analytics page at /connection-logs. Lists RADIUS accounting events
 // (session start / interim-update / stop) with the assigned IP, byte counters

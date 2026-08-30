@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Email Templates
+// VigaBSS 5.0 — Email Templates
 // =============================================================================
 // HTML email template builders for transactional emails.
 // Each function returns { subject, html } ready for nodemailer.
@@ -17,7 +17,7 @@ function baseLayout(content, footerText) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FireISP</title>
+  <title>VigaBSS</title>
   <style>
     body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f6f9; color: #2c3e50; }
     .wrapper { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -46,7 +46,7 @@ function baseLayout(content, footerText) {
       ${content}
     </div>
     <div class="footer">
-      ${footerText || 'Powered by FireISP 5.0'}
+      ${footerText || 'Powered by VigaBSS 5.0'}
     </div>
   </div>
 </body>
@@ -64,7 +64,7 @@ function welcomeEmail(vars) {
   // use the RAW vars.* values: a subject header is plain text, never rendered
   // as HTML, so escaping it would show literal "&amp;" etc. to the recipient.
   const clientName = escapeHtml(vars.clientName || 'Valued Customer');
-  const orgName = escapeHtml(vars.orgName || 'FireISP');
+  const orgName = escapeHtml(vars.orgName || 'VigaBSS');
   const content = `
     <div class="header">
       <h1>Welcome to ${orgName}</h1>
@@ -80,7 +80,7 @@ function welcomeEmail(vars) {
     <p class="meta">Best regards,<br>${orgName} Team</p>`;
 
   return {
-    subject: `Welcome to ${vars.orgName || 'FireISP'} — Account Created`,
+    subject: `Welcome to ${vars.orgName || 'VigaBSS'} — Account Created`,
     html: baseLayout(content),
   };
 }
@@ -101,7 +101,7 @@ function invoiceEmail(vars) {
   // caller, and currency is a config/UI-selected ISO 4217 code, never
   // free-form user text.
   const clientName = escapeHtml(vars.clientName || 'Customer');
-  const orgName = escapeHtml(vars.orgName || 'FireISP');
+  const orgName = escapeHtml(vars.orgName || 'VigaBSS');
   const invoiceNumber = vars.invoiceNumber ? escapeHtml(vars.invoiceNumber) : '';
   const itemsHtml = (items || []).map(i =>
     `<tr><td>${escapeHtml(i.description || '')}</td><td style="text-align:right">${currency || 'MXN'} ${parseFloat(i.amount || 0).toFixed(2)}</td></tr>`,
@@ -146,7 +146,7 @@ function paymentReceiptEmail(vars) {
   // oxxo/spei/codi/...); amount/currency/paymentDate are numeric/formatted/
   // config-selected — those three stay raw.
   const clientName = escapeHtml(vars.clientName || 'Customer');
-  const orgName = escapeHtml(vars.orgName || 'FireISP');
+  const orgName = escapeHtml(vars.orgName || 'VigaBSS');
   const reference = vars.reference ? escapeHtml(vars.reference) : '';
   const invoiceNumber = vars.invoiceNumber ? escapeHtml(vars.invoiceNumber) : '';
   const content = `
@@ -238,7 +238,7 @@ function suspensionWarningEmail(vars) {
   // above for why invoiceNumber specifically is NOT safe to leave raw despite
   // looking like a system-generated sequence value.
   const clientName = escapeHtml(vars.clientName || 'Customer');
-  const orgName = escapeHtml(vars.orgName || 'FireISP');
+  const orgName = escapeHtml(vars.orgName || 'VigaBSS');
   const invoiceNumber = vars.invoiceNumber ? escapeHtml(vars.invoiceNumber) : '';
   const content = `
     <div class="header">
@@ -275,7 +275,7 @@ function suspensionWarningEmail(vars) {
 function serviceSuspendedEmail(vars) {
   const { contractId, total, currency, portalUrl } = vars;
   const clientName = escapeHtml(vars.clientName || 'Customer');
-  const orgName = escapeHtml(vars.orgName || 'FireISP');
+  const orgName = escapeHtml(vars.orgName || 'VigaBSS');
   const content = `
     <div class="header">
       <h1>Service Suspended</h1>
@@ -307,7 +307,7 @@ function outageNotificationEmail(vars) {
   // 'critical'), a closed vocabulary enforced at the DB layer, not free text,
   // and it's only ever compared/uppercased here, never used to build markup.
   const clientName = escapeHtml(vars.clientName || 'Customer');
-  const orgName = escapeHtml(vars.orgName || 'FireISP');
+  const orgName = escapeHtml(vars.orgName || 'VigaBSS');
   const outageTitle = escapeHtml(vars.outageTitle || 'Service Disruption');
   const affectedArea = vars.affectedArea ? escapeHtml(vars.affectedArea) : '';
   const severityBadge = severity === 'critical' ? 'badge-danger' : severity === 'major' ? 'badge-warning' : 'badge-success';
@@ -330,7 +330,7 @@ function outageNotificationEmail(vars) {
     <p class="meta">${orgName}</p>`;
 
   return {
-    subject: `Service Outage: ${vars.outageTitle || 'Disruption'} — ${vars.orgName || 'FireISP'}`,
+    subject: `Service Outage: ${vars.outageTitle || 'Disruption'} — ${vars.orgName || 'VigaBSS'}`,
     html: baseLayout(content),
   };
 }
@@ -348,7 +348,7 @@ function outageNotificationEmail(vars) {
  */
 function customMessageEmail({ recipientName, bodyText, orgName }) {
   const name = escapeHtml(recipientName || 'Customer');
-  const org = escapeHtml(orgName || 'FireISP');
+  const org = escapeHtml(orgName || 'VigaBSS');
   const escapedBody = escapeHtml(bodyText || '').replace(/\n/g, '<br>');
   const content = `
     <p>Hello <strong>${name}</strong>,</p>

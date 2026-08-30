@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Warehouse Management
+// VigaBSS 5.0 — Warehouse Management
 // =============================================================================
 // Page at /warehouses. Shows all warehouses for the org with:
 //   • Filtering by status

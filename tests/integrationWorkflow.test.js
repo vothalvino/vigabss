@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Integration Workflow Tests
+// VigaBSS 5.0 — Integration Workflow Tests
 // =============================================================================
 // End-to-end workflow tests simulating the full billing → CFDI → suspension cycle.
 // =============================================================================

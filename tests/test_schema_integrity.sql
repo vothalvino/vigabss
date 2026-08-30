@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Schema Integrity Tests
+-- VigaBSS 5.0 — Schema Integrity Tests
 -- =============================================================================
 -- Verifies that all expected tables, triggers, and indexes exist after applying
 -- the schema.  This catches accidental drops, renames, or migration ordering

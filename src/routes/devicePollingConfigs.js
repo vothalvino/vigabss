@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Device Polling Config Routes (§6.4)
+// VigaBSS 5.0 — Device Polling Config Routes (§6.4)
 // =============================================================================
 //
 // GET    /device-polling-configs              — list (polling_configs.view)

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Billing Validation Schemas
+// VigaBSS 5.0 — Billing Validation Schemas
 // =============================================================================
 
 const generatePeriod = {

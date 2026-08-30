@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Coverage Zone Routes
+// VigaBSS 5.0 — Coverage Zone Routes
 // =============================================================================
 // The boundary column is a MySQL POLYGON (SRID 4326). This router uses
 // coverageZoneService to transparently convert between GeoJSON (used by the

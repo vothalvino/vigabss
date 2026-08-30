@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Suspension Rule Validation Schemas
+// VigaBSS 5.0 — Suspension Rule Validation Schemas
 // =============================================================================
 
 // Field names match database/schema.sql's suspension_rules columns exactly —

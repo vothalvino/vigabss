@@ -8,7 +8,7 @@ RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY frontend/package.json ./frontend/
-RUN pnpm install --frozen-lockfile --filter fireisp-frontend
+RUN pnpm install --frozen-lockfile --filter vigabss-frontend
 
 COPY frontend/ ./frontend/
 COPY docs/openapi.json ./docs/openapi.json
@@ -25,7 +25,7 @@ COPY docs/openapi.json ./docs/openapi.json
 # actually at risk.
 ARG FRONTEND_BUILD_HEAP_MB=2048
 RUN NODE_OPTIONS="--max-old-space-size=${FRONTEND_BUILD_HEAP_MB}" \
-    pnpm --filter fireisp-frontend run build
+    pnpm --filter vigabss-frontend run build
 
 # ── Stage 2: production API server ────────────────────────────────────────────
 FROM node:24-bookworm-slim

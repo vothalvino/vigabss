@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Tax Rate Validation Schemas
+// VigaBSS 5.0 — Tax Rate Validation Schemas
 // =============================================================================
 
 const STATUSES = ['active', 'inactive'];

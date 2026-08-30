@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — FireRelay Agent (Remote POP Process)
+// VigaBSS 5.0 — FireRelay Agent (Remote POP Process)
 // =============================================================================
 // Maintains an outbound WebSocket connection to the master tunnel endpoint,
 // authenticates with node_id + shared secret, receives command messages, runs

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Security Admin Routes (§17)
+// VigaBSS 5.0 — Security Admin Routes (§17)
 // Covers: webauthn_credentials, admin_ip_allowlist, password_policies,
 //         api_key_rate_limits
 // =============================================================================

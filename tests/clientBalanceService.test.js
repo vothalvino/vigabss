@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Client Balance Service Tests
+// VigaBSS 5.0 — Client Balance Service Tests
 // =============================================================================
 // computeClientBalance() is the SINGLE source for the "Account Balance" figure
 // shown everywhere (GraphQL Client.balance, the AI support billing module, the

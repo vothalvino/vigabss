@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — My WireGuard Tunnels (self-service)
+// VigaBSS 5.0 — My WireGuard Tunnels (self-service)
 // =============================================================================
 // Any authenticated user with wireguard.peers.* permissions can:
 //   • View their own peers (table: name, tunnel IP, scope count, last handshake)

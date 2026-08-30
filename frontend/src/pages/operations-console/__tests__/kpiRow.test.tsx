@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP Operations Console — KPI tile visibility + deep links
+// VigaBSS Operations Console — KPI tile visibility + deep links
 // =============================================================================
 // Active Clients is admin-only; Overdue is admin/billing; Devices Online and
 // Open Tickets are clickable for everyone who sees the console.

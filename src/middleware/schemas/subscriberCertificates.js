@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Subscriber Certificate Validation Schemas
+// VigaBSS 5.0 — Subscriber Certificate Validation Schemas
 // =============================================================================
 
 const createSubscriberCertificate = {

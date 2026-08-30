@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Numbering Management Routes (§16.4)
+// VigaBSS 5.0 — Numbering Management Routes (§16.4)
 // Covers: phone_number_inventory, number_portability_records, numbering_blocks
 // =============================================================================
 

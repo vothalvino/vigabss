@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — TopologyMapPage tests (§13)
+// VigaBSS 5.0 — TopologyMapPage tests (§13)
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';

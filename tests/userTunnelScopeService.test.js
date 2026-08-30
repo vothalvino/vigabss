@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — userTunnelScopeService tests (§9 Part 2)
+// VigaBSS 5.0 — userTunnelScopeService tests (§9 Part 2)
 // =============================================================================
 // Covers getScopedSubnets():
 //   - admin/owner → all live routed_subnets in the org (via nas_wg_tunnels)

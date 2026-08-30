@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — CPE undo-install (Inventory follow-up, migration 392)
+// VigaBSS 5.0 — CPE undo-install (Inventory follow-up, migration 392)
 // =============================================================================
 // Shared by every place an assigned/active unit renders an "Undo install"
 // action (see components/UndoInstallButton.tsx) — ServiceOrderList.tsx's

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Prometheus Metrics Validation Schemas
+// VigaBSS 5.0 — Prometheus Metrics Validation Schemas
 // =============================================================================
 // The /metrics endpoint is parameter-free but we declare a schema for the
 // OpenAPI spec to document its existence.

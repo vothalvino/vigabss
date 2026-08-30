@@ -1,8 +1,8 @@
-# FireISP 5.0 — RBAC Permission Matrix
+# VigaBSS 5.0 — RBAC Permission Matrix
 
 > Extracted from `database/migrations/119_seed_default_roles_and_permissions.sql`.
 >
-> FireISP uses dot-notation permission slugs (`module.action`) enforced via `requirePermission()` middleware on API routes.
+> VigaBSS uses dot-notation permission slugs (`module.action`) enforced via `requirePermission()` middleware on API routes.
 
 ## System Roles
 

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Per-Organization, Per-Function Email (SMTP) Settings Service
+// VigaBSS 5.0 — Per-Organization, Per-Function Email (SMTP) Settings Service
 // =============================================================================
 // Thin service layer between the email-settings routes and
 // src/models/EmailSettings.js. Since migration 407 an org holds one identity
@@ -50,16 +50,16 @@ async function testEmailSettings(orgId, emailFunction, to) {
     <div class="header">
       <h1>Test Email</h1>
     </div>
-    <p>This is a test message sent from your FireISP <strong>${fn}</strong> email settings.</p>
+    <p>This is a test message sent from your VigaBSS <strong>${fn}</strong> email settings.</p>
     <p class="meta">If you received this, your outbound email configuration for the ${fn} function is working correctly.</p>`;
 
   const result = await emailTransport.sendEmail({
     organizationId: orgId,
     emailFunction: fn,
     to,
-    subject: `FireISP — Test Email (${fn})`,
+    subject: `VigaBSS — Test Email (${fn})`,
     html: baseLayout(content),
-    text: `This is a test message sent from your FireISP ${fn} email settings. If you received this, your outbound email configuration for the ${fn} function is working correctly.`,
+    text: `This is a test message sent from your VigaBSS ${fn} email settings. If you received this, your outbound email configuration for the ${fn} function is working correctly.`,
   });
 
   await EmailSettings.recordTestResult(orgId, fn, {

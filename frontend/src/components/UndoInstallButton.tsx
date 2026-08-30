@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Undo Install button (Inventory follow-up, migration 392)
+// VigaBSS 5.0 — Undo Install button (Inventory follow-up, migration 392)
 // =============================================================================
 // A small action + confirm-with-notes modal for reversing a mistaken install
 // on a still-live contract. Shared by every place an assigned/active unit

@@ -1,5 +1,5 @@
 -- =============================================================================
--- FireISP 5.0 — Rollback 158: Remove devices.firerelay_node_id and the
+-- VigaBSS 5.0 — Rollback 158: Remove devices.firerelay_node_id and the
 --                             config_backup_pull scheduled task
 -- =============================================================================
 -- Reverses migration 158.  Drops the idx_devices_firerelay_node_id index and

@@ -1,10 +1,10 @@
 // =============================================================================
-// FireISP 5.0 — Subscriber Certificate List
+// VigaBSS 5.0 — Subscriber Certificate List
 // =============================================================================
 // Page at /subscriber-certificates. Lists EAP-TLS subscriber certificates
-// registered in FireISP (§3.1 item 6).
+// registered in VigaBSS (§3.1 item 6).
 //
-// NOTE: FireISP is a metadata registry only — it does NOT generate or sign
+// NOTE: VigaBSS is a metadata registry only — it does NOT generate or sign
 // certificates. Certificates are issued by an external CA (easy-rsa, step-ca,
 // HashiCorp Vault PKI, or a commercial CA). Only metadata (CN, serial,
 // fingerprint, validity dates) is stored here.
@@ -180,7 +180,7 @@ function IssueForm({ onClose, onSuccess }: IssueFormProps) {
       <div style={s.dialog}>
         <h3 style={s.dialogTitle}>Register Certificate</h3>
         <p style={s.note}>
-          FireISP is a metadata registry only — it does not generate or sign certificates.
+          VigaBSS is a metadata registry only — it does not generate or sign certificates.
           Issue the certificate from your CA (easy-rsa, step-ca, etc.) and paste the
           metadata below.
         </p>
@@ -256,7 +256,7 @@ export function SubscriberCertificateList() {
       </div>
 
       <p style={s.subtitle}>
-        EAP-TLS subscriber certificate registry. FireISP stores certificate metadata only —
+        EAP-TLS subscriber certificate registry. VigaBSS stores certificate metadata only —
         certificates are issued and signed by your external CA.
       </p>
 

@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Input Validation Middleware
+// VigaBSS 5.0 — Input Validation Middleware
 // =============================================================================
 
 const { ValidationError } = require('../utils/errors');

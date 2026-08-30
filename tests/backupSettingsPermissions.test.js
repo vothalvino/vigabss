@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Backup Settings RBAC enforcement (real auth + rbac, no mocks)
+// VigaBSS 5.0 — Backup Settings RBAC enforcement (real auth + rbac, no mocks)
 // =============================================================================
 // Verifies the migration 404 permission grant matrix end-to-end through the
 // REAL authenticate/rbac middleware chain (not the bypassed mock used by

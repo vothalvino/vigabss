@@ -1,5 +1,5 @@
 // =============================================================================
-// FireISP 5.0 — Tenant Database Isolation Service
+// VigaBSS 5.0 — Tenant Database Isolation Service
 // =============================================================================
 
 const OrganizationDatabaseConfig = require('../models/OrganizationDatabaseConfig');
