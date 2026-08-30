@@ -14,8 +14,8 @@ Thank you for your interest in contributing to VigaBSS! This guide will help you
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/fireisp5.0.git
-cd fireisp5.0
+git clone https://github.com/your-org/vigabss.git
+cd vigabss
 
 # Install dependencies
 npm ci
@@ -43,7 +43,7 @@ npm run lint
 ### Project Structure
 
 ```
-fireisp5.0/
+vigabss/
 ├── database/           # SQL schema and migrations
 │   ├── schema.sql      # Full schema (for fresh installs)
 │   └── migrations/     # Numbered migration files (150+)

@@ -245,7 +245,7 @@ services:
     # To build locally instead (dev boxes, air-gapped installs, testing an
     # unmerged commit), add the override that restores the build block:
     #   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml --env-file .env.prod up -d --build
-    image: ${FIREISP_IMAGE:-ghcr.io/vothalvino/fireisp5.0:latest}
+    image: ${FIREISP_IMAGE:-ghcr.io/vothalvino/vigabss:latest}
     restart: unless-stopped
     # Least privilege: no `user` override means the image's non-root `fireisp`
     # user runs the web/API application with no added Linux capabilities.
@@ -335,7 +335,7 @@ services:
   # DB, Redis, JWT, or encryption secrets and accepts only named WireGuard
   # operations over a Unix socket mounted solely into these two containers.
   wireguard-helper:
-    image: ${FIREISP_IMAGE:-ghcr.io/vothalvino/fireisp5.0:latest}
+    image: ${FIREISP_IMAGE:-ghcr.io/vothalvino/vigabss:latest}
     restart: unless-stopped
     user: "0:0"
     cap_drop:

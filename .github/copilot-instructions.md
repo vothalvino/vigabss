@@ -30,14 +30,14 @@
 	- Run focused tests for touched modules when available, then full suite for final verification.
 
 - Frontend changes (pages, components, hooks, i18n, API client usage):
-	- Run: `pnpm --filter fireisp-frontend lint`
-	- Run: `pnpm --filter fireisp-frontend test`
-	- For release-critical UI/API changes, also run: `pnpm --filter fireisp-frontend build`
+	- Run: `pnpm --filter vigabss-frontend lint`
+	- Run: `pnpm --filter vigabss-frontend test`
+	- For release-critical UI/API changes, also run: `pnpm --filter vigabss-frontend build`
 	- CRITICAL: Never bypass the build check. Copilot must verify that all static pages, navigation menus, and GUI components compile successfully without TypeScript or linter errors.
   - If any UI component or button breaks the build, Copilot must fix the type/import mismatches entirely before pushing code.
 
 - End-to-end flow changes (signup, client lifecycle, contract, invoice, payment, suspension/reactivation, portal critical paths):
-	- Run: `pnpm --filter fireisp-e2e test`
+	- Run: `pnpm --filter vigabss-e2e test`
 	- If e2e environment is unavailable, record blocker and list exact unverified flows.
 
 ## Evidence and Reporting Rules

@@ -7,7 +7,7 @@ Open source ISP management software for customer operations, billing, network ma
 Deploy VigaBSS 5.0 on any Linux server with Docker in a single command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vothalvino/fireisp5.0/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
 ```
 
 The installer will prompt for your domain name and email, then automatically:
@@ -25,7 +25,7 @@ The installer will prompt for your domain name and email, then automatically:
 Pass variables before the pipe to skip interactive prompts:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vothalvino/fireisp5.0/main/install.sh \
+curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh \
   | DOMAIN=isp.example.com EMAIL=admin@example.com bash
 ```
 
@@ -107,7 +107,7 @@ All generated credentials are saved to `/opt/fireisp/.env.prod` (mode `600`).
 ## Project Structure
 
 ```
-fireisp5.0/
+vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 360 tables + column additions)
 │   └── migrations/          # Individual numbered migration files (001–462)
@@ -1364,8 +1364,8 @@ See the [`docs/`](docs/) directory for detailed guides on the central [legal and
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/vothalvino/fireisp5.0.git
-cd fireisp5.0
+git clone https://github.com/vothalvino/vigabss.git
+cd vigabss
 
 # 2. Enable the expected package manager
 corepack enable

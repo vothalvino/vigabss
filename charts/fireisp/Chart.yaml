@@ -9,9 +9,9 @@ keywords:
   - billing
   - radius
   - mikrotik
-home: https://github.com/vothalvino/fireisp5.0
+home: https://github.com/vothalvino/vigabss
 sources:
-  - https://github.com/vothalvino/fireisp5.0
+  - https://github.com/vothalvino/vigabss
 maintainers:
   - name: VigaBSS
-    url: https://github.com/vothalvino/fireisp5.0
+    url: https://github.com/vothalvino/vigabss

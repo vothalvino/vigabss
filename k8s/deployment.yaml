@@ -34,7 +34,7 @@ spec:
         - name: database-migrate
           # Replace this token in BOTH containers with one full commit SHA that
           # main CI has published. Leaving it unchanged fails closed on pull.
-          image: ghcr.io/vothalvino/fireisp5.0:REPLACE_WITH_FULL_COMMIT_SHA
+          image: ghcr.io/vothalvino/vigabss:REPLACE_WITH_FULL_COMMIT_SHA
           imagePullPolicy: IfNotPresent
           command: ['node', 'src/scripts/migrate.js']
           envFrom:
@@ -65,12 +65,12 @@ spec:
               mountPath: /tmp
       containers:
         - name: fireisp
-          # ghcr.io/vothalvino/fireisp5.0 is what CI actually publishes and
+          # ghcr.io/vothalvino/vigabss is what CI actually publishes and
           # what cosign-policy.yaml verifies. `fireisp/fireisp` resolved to
           # docker.io/fireisp/fireisp — a namespace this project does not
           # control, so a squatter there would have been pulled and run, and
           # the signature policy would never have matched the running image.
-          image: ghcr.io/vothalvino/fireisp5.0:REPLACE_WITH_FULL_COMMIT_SHA
+          image: ghcr.io/vothalvino/vigabss:REPLACE_WITH_FULL_COMMIT_SHA
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

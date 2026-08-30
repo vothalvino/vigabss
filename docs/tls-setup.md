@@ -165,7 +165,7 @@ process it enables host-nginx mode automatically.  You can also force it:
 
 ```bash
 USE_HOST_NGINX=1 DOMAIN=isp.example.com EMAIL=admin@example.com \
-  curl -fsSL https://raw.githubusercontent.com/vothalvino/fireisp5.0/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
 ```
 
 ### Manual setup

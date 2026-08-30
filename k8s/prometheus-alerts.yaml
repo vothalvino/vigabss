@@ -58,7 +58,7 @@ spec:
               which is more than 14.4× the 0.1% error budget.
               At this rate the monthly error budget will be exhausted in under 2 hours.
               Check application logs and recent deployments immediately.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md#sev1-scenarios"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md#sev1-scenarios"
 
         # Slow-burn: fires when 6 h burn rate > 6× budget AND 30 min > 6×
         # → error budget exhausted in < 5 days
@@ -79,7 +79,7 @@ spec:
               The API 6-hour error rate is {{ $value | humanizePercentage }},
               which is 6× the 0.1% error budget.
               Acknowledge and investigate within 1 hour.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
         # Long-burn: fires when 24 h burn rate > 3× budget AND 6 h > 3×
         # → error budget exhausted in < 10 days
@@ -100,7 +100,7 @@ spec:
               The API 24-hour error rate is {{ $value | humanizePercentage }},
               which is 3× the 0.1% error budget.
               Review within 4 hours and create a tracking issue.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
     # -------------------------------------------------------------------------
     # Recording rules for SLO-1 (computed over multiple windows)
@@ -159,7 +159,7 @@ spec:
               The API GET p99 latency is {{ $value | humanizeDuration }},
               which exceeds the 500 ms SLO target.
               Investigate DB latency, connection pool exhaustion, and recent deploys.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
         - alert: VigaBSS_API_HighLatency_SlowBurn
           expr: |
@@ -176,7 +176,7 @@ spec:
             description: >
               The API GET p99 latency has exceeded 500 ms for 30 minutes.
               Review recent traffic and DB health.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
     # -------------------------------------------------------------------------
     # SLO-3 — RADIUS Authentication Success Rate (target: ≥ 99.95%)
@@ -202,7 +202,7 @@ spec:
               below the 99.5% warning threshold.
               Clients may be unable to connect. Check FreeRADIUS, NAS connectivity,
               and database reachability from the RADIUS host.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md#radius-debugging"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md#radius-debugging"
 
         - alert: VigaBSS_RADIUS_AuthFailureSustained
           expr: |
@@ -221,7 +221,7 @@ spec:
               The 1-hour RADIUS accept rate is {{ $value | humanizePercentage }},
               below the 99.95% SLO-3 target.
               Investigate rejected authentications in FreeRADIUS logs.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md#radius-debugging"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md#radius-debugging"
 
     # -------------------------------------------------------------------------
     # General operational alerts (not SLO-gated but operationally important)
@@ -268,4 +268,4 @@ spec:
             description: >
               The last successful database backup was more than 25 hours ago.
               Check the backup cron job and storage destination.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/backup-restore.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/backup-restore.md"

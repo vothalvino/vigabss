@@ -36,9 +36,9 @@ describe('the production compose file pulls the app image', () => {
 
   it('points at the registry the cosign policies verify', () => {
     // k8s/cosign-policy.yaml and charts/.../cosign-policy.yaml both glob
-    // ghcr.io/vothalvino/fireisp5.0:* — an image published anywhere else would
+    // ghcr.io/vothalvino/vigabss:* — an image published anywhere else would
     // deploy fine and then fail signature verification in cluster installs.
-    expect(prod.services.app.image).toContain('ghcr.io/vothalvino/fireisp5.0');
+    expect(prod.services.app.image).toContain('ghcr.io/vothalvino/vigabss');
   });
 
   it('lets the tag be pinned, and defaults to latest when it is not', () => {
@@ -602,9 +602,9 @@ describe('k8s and Helm point at the image that is actually published', () => {
   // These defaulted to `fireisp/fireisp`, which resolves to
   // docker.io/fireisp/fireisp — a namespace this project does not control, so a
   // squatter there would have been pulled and run. Worse, the cosign policies
-  // shipped alongside glob ghcr.io/vothalvino/fireisp5.0:*, so they never
+  // shipped alongside glob ghcr.io/vothalvino/vigabss:*, so they never
   // matched the deployed image and the signature check bought nothing.
-  const REGISTRY = 'ghcr.io/vothalvino/fireisp5.0';
+  const REGISTRY = 'ghcr.io/vothalvino/vigabss';
 
   it('the k8s Deployment uses the published image', () => {
     const dep = yaml.load(read('k8s/deployment.yaml'));

@@ -43,7 +43,7 @@
 const logger = require('../utils/logger').child({ service: 'updateCheck' });
 
 const ENV_FLAG = 'FIREISP_UPDATE_CHECK';
-const REPO = process.env.FIREISP_UPDATE_REPO || 'vothalvino/fireisp5.0';
+const REPO = process.env.FIREISP_UPDATE_REPO || 'vothalvino/vigabss';
 const API = `https://api.github.com/repos/${REPO}/commits/main`;
 
 // TWO DIFFERENT CADENCES, and conflating them made this feature useless.

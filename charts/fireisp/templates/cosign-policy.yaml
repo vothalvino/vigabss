@@ -13,14 +13,14 @@ metadata:
     {{- include "fireisp.labels" . | nindent 4 }}
 spec:
   images:
-    - glob: "ghcr.io/vothalvino/fireisp5.0:*"
+    - glob: "ghcr.io/vothalvino/vigabss:*"
   authorities:
     - name: keyless-github-actions
       keyless:
         url: https://fulcio.sigstore.dev
         identities:
           - issuer: https://token.actions.githubusercontent.com
-            subjectRegExp: "^https://github.com/vothalvino/fireisp5.0/.github/workflows/ci.yml@refs/heads/main$"
+            subjectRegExp: "^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/heads/main$"
       ctlog:
         url: https://rekor.sigstore.dev
 {{- end }}

@@ -27,7 +27,7 @@ This guide covers deploying VigaBSS 5.0 in production environments. Choose the d
 The fastest way to deploy VigaBSS 5.0 on a fresh Ubuntu/Debian server:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vothalvino/fireisp5.0/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
 ```
 
 The script will interactively prompt for your domain name and email address, then:
@@ -46,7 +46,7 @@ The script will interactively prompt for your domain name and email address, the
 Pass all required values as environment variables to skip prompts:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vothalvino/fireisp5.0/main/install.sh \
+curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh \
   | DOMAIN=isp.example.com EMAIL=admin@example.com bash
 ```
 
@@ -147,7 +147,7 @@ For a non-standard install path, set `FIREISP_DIR` inside a root shell
 #### Nothing is compiled on the server
 
 CI builds the image, scans it with Trivy, and publishes it to
-`ghcr.io/vothalvino/fireisp5.0` — see `.github/workflows/ci.yml` → `container-scan`.
+`ghcr.io/vothalvino/vigabss` — see `.github/workflows/ci.yml` → `container-scan`.
 `redeploy` pulls that image. **The production host never runs a compiler.**
 
 This is not a nicety. The in-image frontend build (`gen:api` + a whole-program
@@ -462,7 +462,7 @@ visibility is set, `docker compose pull` on the server fails with
 Pick one:
 
 **Public image (simplest).** On GitHub → your profile → **Packages** →
-`fireisp5.0` → **Package settings** → **Change visibility** → Public. The
+`vigabss` → **Package settings** → **Change visibility** → Public. The
 repository is already public and `.dockerignore` excludes `.env*`, so the image
 contains nothing the source tree doesn't. Servers then pull anonymously with no
 credentials to manage or rotate.
@@ -1734,7 +1734,7 @@ Service, Ingress, HPA, PDB, PVC, PrometheusRule, and ClusterImagePolicy).
 
 ```bash
 # Add the chart repo (GitHub Pages — populated by chart-releaser CI)
-helm repo add fireisp https://vothalvino.github.io/fireisp5.0
+helm repo add fireisp https://vothalvino.github.io/vigabss
 helm repo update
 
 # Generate the install values into a file — never pass secrets with --set
@@ -1783,7 +1783,7 @@ Create a `my-values.yaml` that overrides only what you need:
 replicaCount: 3
 
 image:
-  repository: ghcr.io/vothalvino/fireisp5.0
+  repository: ghcr.io/vothalvino/vigabss
   tag: "5.0.0"
 
 ingress:
@@ -1875,7 +1875,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/vothalvino/fireisp5.0
+    repoURL: https://github.com/vothalvino/vigabss
     targetRevision: main          # or a tag, e.g. v5.0.0
     path: charts/fireisp
     helm:
@@ -1969,12 +1969,12 @@ The CI pipeline (`.github/workflows/ci.yml`) includes a `helm-release` job
 that runs on every push of a version tag (`v*.*.*`):
 
 1. Builds and scans both application architectures, then publishes the
-   immutable `ghcr.io/vothalvino/fireisp5.0:X.Y.Z` image.
+   immutable `ghcr.io/vothalvino/vigabss:X.Y.Z` image.
 2. Verifies the git tag, chart `version`, and chart `appVersion` are identical.
 3. Packages the chart and uploads it to the `gh-pages` branch via
    [`helm/chart-releaser-action`](https://github.com/helm/chart-releaser-action).
 4. The updated `index.yaml` is served at
-   `https://vothalvino.github.io/fireisp5.0` and is immediately available
+   `https://vothalvino.github.io/vigabss` and is immediately available
    to `helm repo update`.
 
 The chart is never released unless its default image has already been
