@@ -11,7 +11,7 @@
 #
 # This policy requires every image in the fireisp/* path to carry a valid
 # keyless (Fulcio-issued) signature issued by the GitHub Actions OIDC identity
-# for the vothalvino/fireisp5.0 repository. The Rekor transparency log entry
+# for the vothalvino/vigabss repository. The Rekor transparency log entry
 # is also verified automatically by the policy controller.
 #
 # Rotate: If you move to a registry-specific key, replace the `keyless`
@@ -25,11 +25,11 @@ spec:
   images:
     # Restrict to images published from this repository's registry path.
     # Update this glob when you push to a specific registry, e.g.:
-    #   ghcr.io/vothalvino/fireisp5.0:*
+    #   ghcr.io/vothalvino/vigabss:*
     # The current pattern requires all matching images to originate from
     # ghcr.io (GitHub Container Registry) — adjust if you use Docker Hub
     # or another registry.
-    - glob: "ghcr.io/vothalvino/fireisp5.0:*"
+    - glob: "ghcr.io/vothalvino/vigabss:*"
   authorities:
     - name: keyless-github-actions
       keyless:
@@ -39,6 +39,6 @@ spec:
         url: https://fulcio.sigstore.dev
         identities:
           - issuer: https://token.actions.githubusercontent.com
-            subjectRegExp: "^https://github.com/vothalvino/fireisp5.0/.github/workflows/ci.yml@refs/heads/main$"
+            subjectRegExp: "^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/heads/main$"
       ctlog:
         url: https://rekor.sigstore.dev

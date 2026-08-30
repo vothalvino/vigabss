@@ -4,7 +4,7 @@
 # =============================================================================
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/vothalvino/fireisp5.0/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh | bash
 #
 # With options (pass as environment variables before piping):
 #   curl -fsSL .../install.sh | DOMAIN=isp.example.com EMAIL=admin@example.com bash
@@ -28,7 +28,7 @@
 
 set -euo pipefail
 
-REPO_URL="https://github.com/vothalvino/fireisp5.0.git"
+REPO_URL="https://github.com/vothalvino/vigabss.git"
 FIREISP_VERSION="5.0"
 INSTALL_DIR="${INSTALL_DIR:-/opt/fireisp}"
 ENV_FILE="$INSTALL_DIR/.env.prod"
@@ -922,7 +922,7 @@ if [[ "$_ARCH" == "x86_64" || "$_ARCH" == "amd64" || "$_ARCH" == "aarch64" || "$
     warn "If the error above says 'denied' or 'unauthorized', the GitHub package"
     warn "is private — GitHub makes container packages private by DEFAULT, even"
     warn "for a public repository. Either make it public:"
-    warn "  GitHub → Packages → fireisp5.0 → Package settings → Change visibility"
+    warn "  GitHub → Packages → vigabss → Package settings → Change visibility"
     warn "or authenticate this host:"
     warn "  echo \"\$GHCR_PAT\" | docker login ghcr.io -u <github-username> --password-stdin"
     warn ""

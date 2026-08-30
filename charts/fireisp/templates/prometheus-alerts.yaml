@@ -35,7 +35,7 @@ spec:
               The API 5-minute error rate is {{ "{{" }} $value | humanizePercentage {{ "}}" }},
               more than 14.4× the 0.1% error budget.
               At this rate the monthly budget will be exhausted in under 2 hours.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md#sev1-scenarios"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md#sev1-scenarios"
 
         - alert: VigaBSS_API_HighErrorRate_SlowBurn
           expr: |
@@ -53,7 +53,7 @@ spec:
             description: >
               The API 6-hour error rate is {{ "{{" }} $value | humanizePercentage {{ "}}" }},
               which is 6× the 0.1% error budget. Acknowledge and investigate within 1 hour.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
         - alert: VigaBSS_API_HighErrorRate_LongBurn
           expr: |
@@ -71,7 +71,7 @@ spec:
             description: >
               The API 24-hour error rate is {{ "{{" }} $value | humanizePercentage {{ "}}" }},
               which is 3× the 0.1% error budget. Review within 4 hours.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
     # Recording rules for SLO-1
     - name: fireisp.slo1.recording
@@ -122,7 +122,7 @@ spec:
             description: >
               The API GET p99 latency is {{ "{{" }} $value | humanizeDuration {{ "}}" }},
               exceeding the 500 ms SLO target.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
         - alert: VigaBSS_API_HighLatency_SlowBurn
           expr: |
@@ -138,7 +138,7 @@ spec:
             summary: "VigaBSS API p99 latency elevated > 500 ms for 30 min (SLO-2)"
             description: >
               The API GET p99 latency has exceeded 500 ms for 30 minutes.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
     # -------------------------------------------------------------------------
     # SLO-3 — RADIUS Authentication Success Rate (target: ≥ 99.95%)
@@ -162,7 +162,7 @@ spec:
               RADIUS accept rate is {{ "{{" }} $value | humanizePercentage {{ "}}" }},
               below the 99.5% spike threshold (critical tier; SLO-3 target is 99.95%).
               Clients may be unable to connect. Check FreeRADIUS and NAS connectivity.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md#radius-debugging"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md#radius-debugging"
 
         - alert: VigaBSS_RADIUS_AuthFailureSustained
           expr: |
@@ -180,7 +180,7 @@ spec:
             description: >
               The 1-hour RADIUS accept rate is {{ "{{" }} $value | humanizePercentage {{ "}}" }},
               below the 99.95% SLO-3 target.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/runbook.md#radius-debugging"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md#radius-debugging"
 
     # -------------------------------------------------------------------------
     # Operational alerts
@@ -222,5 +222,5 @@ spec:
             summary: "VigaBSS database backup is overdue (> 25 hours)"
             description: >
               The last successful database backup was more than 25 hours ago.
-            runbook: "https://github.com/vothalvino/fireisp5.0/blob/main/docs/backup-restore.md"
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/backup-restore.md"
 {{- end }}

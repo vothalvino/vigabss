@@ -14,7 +14,7 @@ env:
   # The published image. Production pulls this instead of building on the box —
   # see docs/deployment.md. Must stay lowercase (registries reject uppercase)
   # and must match the cosign policy globs in k8s/ and charts/.
-  RELEASE_IMAGE: ghcr.io/vothalvino/fireisp5.0
+  RELEASE_IMAGE: ghcr.io/vothalvino/vigabss
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   # Silence DEP0040 (punycode) and DEP0169 (url.parse): both come from
   # transitive dependencies (uri-js, tr46, openid-client) that we don't control.
@@ -510,10 +510,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run frontend tests
-        run: pnpm --filter fireisp-frontend test
+        run: pnpm --filter vigabss-frontend test
 
       - name: Run frontend type-check
-        run: pnpm --filter fireisp-frontend run lint
+        run: pnpm --filter vigabss-frontend run lint
 
   e2e:
     # Runs on PRs as well as main pushes — deliberately unlike lint-and-test and
@@ -545,7 +545,7 @@ jobs:
         run: |
           # Remove needrestart to prevent interactive prompts on Ubuntu 24.04+
           sudo apt-get remove -y needrestart || true
-          pnpm --filter fireisp-e2e exec playwright install --with-deps chromium
+          pnpm --filter vigabss-e2e exec playwright install --with-deps chromium
 
       - name: Start MySQL
         run: |
@@ -584,7 +584,7 @@ jobs:
           pnpm run seed
 
       - name: Build frontend bundle
-        run: pnpm --filter fireisp-frontend build
+        run: pnpm --filter vigabss-frontend build
 
       - name: Start backend server
         env:
@@ -619,7 +619,7 @@ jobs:
           CI: 'true'
           # Must match the value given to the seed step above.
           ADMIN_PASSWORD: e2e-admin-password-not-for-production
-        run: pnpm --filter fireisp-e2e test
+        run: pnpm --filter vigabss-e2e test
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v6

@@ -8,7 +8,7 @@ image:
   ## What CI publishes, and what templates/cosign-policy.yaml verifies.
   ## The old default (fireisp/fireisp) resolved to Docker Hub, a namespace
   ## this project does not control, and never matched the signature policy.
-  repository: ghcr.io/vothalvino/fireisp5.0
+  repository: ghcr.io/vothalvino/vigabss
   ## Required for installs from the source tree: use a full commit SHA published
   ## by main CI. The version-tag workflow injects its verified X.Y.Z image into
   ## the packaged release chart only after that image exists.

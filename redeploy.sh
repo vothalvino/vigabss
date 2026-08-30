@@ -53,7 +53,7 @@ APP_DIR="${FIREISP_DIR:-/opt/fireisp}"
 COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
 HOST_NGINX_COMPOSE_FILE="$APP_DIR/docker-compose.host-nginx.yml"
 ENV_FILE="$APP_DIR/.env.prod"
-REGISTRY_IMAGE="${FIREISP_REGISTRY_IMAGE:-ghcr.io/vothalvino/fireisp5.0}"
+REGISTRY_IMAGE="${FIREISP_REGISTRY_IMAGE:-ghcr.io/vothalvino/vigabss}"
 # How many superseded images to keep on disk for rollback. Everything older is
 # removed after a successful deploy — see "Reclaiming" at the end.
 KEEP_IMAGES="${FIREISP_IMAGE_KEEP:-3}"
@@ -581,7 +581,7 @@ EOF
      BUILDING when Docker Hub is unreachable, so a green tick is not proof an
      image exists -- open the run and look for "Container scan SKIPPED".
 
-         https://github.com/vothalvino/fireisp5.0/actions
+         https://github.com/vothalvino/vigabss/actions
 
      Wait longer, or deploy the last commit that does have an image:
 
@@ -591,7 +591,7 @@ EOF
   2. The ghcr package is private and this host is not logged in. GitHub makes
      container packages private by DEFAULT even for a public repository, so
      this bites once on a new install and never again. Make the package public
-     (GitHub -> Packages -> fireisp5.0 -> Package settings -> Change
+     (GitHub -> Packages -> vigabss -> Package settings -> Change
      visibility), or authenticate:
 
          echo "\$GHCR_PAT" | docker login ghcr.io -u <github-username> --password-stdin
