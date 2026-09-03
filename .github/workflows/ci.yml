@@ -748,28 +748,36 @@ jobs:
           path: sbom.spdx.json
           retention-days: 90
 
-      - name: Scan image with Trivy (PR report)
-        if: github.event_name == 'pull_request' && steps.warm.outcome == 'success'
+      # SARIF must remain non-blocking and include every severity so GitHub's
+      # Security tab keeps the complete report. trivy-action deliberately
+      # ignores the severity filter for SARIF unless
+      # limit-severities-for-sarif is enabled, so this cannot also serve as the
+      # HIGH/CRITICAL release gate.
+      - name: Scan image with Trivy (SARIF report)
+        if: steps.warm.outcome == 'success'
         uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
           format: sarif
           output: trivy-results.sarif
           version: v0.71.1
-          severity: HIGH,CRITICAL
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
           exit-code: 0
           vuln-type: os,library
           ignore-unfixed: true
           trivyignores: .trivyignore
 
+      # Keep the policy gate separate from SARIF output. Table format respects
+      # the requested severities, so MEDIUM findings remain visible above but
+      # only a fixable HIGH/CRITICAL vulnerability blocks a PR or publication.
       - name: Scan image with Trivy (blocking)
-        if: github.event_name != 'pull_request' && steps.warm.outcome == 'success'
+        if: steps.warm.outcome == 'success'
         uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
-          format: sarif
-          output: trivy-results.sarif
+          format: table
           version: v0.71.1
+          scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: 1
           vuln-type: os,library
