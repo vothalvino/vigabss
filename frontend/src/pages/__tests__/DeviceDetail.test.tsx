@@ -739,6 +739,8 @@ describe('DeviceDetail — SNMP Metrics tab', () => {
         id: 901, polled_at: '2026-07-16T10:00:00.000Z', interface_id: null,
         cpu_usage: 42, memory_usage: 55.4, signal_strength: -62, latency_ms: 12.3, uptime_ticks: 123456,
         temperature_c: 38.5, voltage_mv: 12000, fan_speed_rpm: 3200, ups_battery_pct: null,
+        noise_floor_dbm: -92.5, air_util_pct: 31.5, gps_sync_status: 1, snr_db: 28.25,
+        ccq_pct: 96.5, tx_rate_mbps: 433.25, rx_rate_mbps: 390.5,
       },
     ];
 
@@ -755,7 +757,7 @@ describe('DeviceDetail — SNMP Metrics tab', () => {
       expect(screen.getByRole('button', { name: /All readings/ })).toBeInTheDocument();
     });
 
-    it('expanding shows every non-null column (temperature, voltage, fan speed, interface errors/discards) with units — nothing lost from the old raw dump', async () => {
+    it('expanding shows every non-null environmental, interface, and RF column with units or status', async () => {
       mockApiGet.mockImplementation((path: string) => {
         if (path === '/devices/{id}') return Promise.resolve({ data: { data: device }, error: undefined });
         if (path === '/devices/{id}/snmp-metrics') return Promise.resolve({ data: { data: mixedRows }, error: undefined });
@@ -772,6 +774,15 @@ describe('DeviceDetail — SNMP Metrics tab', () => {
       expect(screen.getByText('3200 RPM')).toBeInTheDocument();
       expect(screen.getByText('if_in_errors')).toBeInTheDocument();
       expect(screen.getByText('if_in_discards')).toBeInTheDocument();
+      expect(screen.getByText('noise_floor_dbm')).toBeInTheDocument();
+      expect(screen.getByText('-92.5 dBm')).toBeInTheDocument();
+      expect(screen.getByText('31.5 %')).toBeInTheDocument();
+      expect(screen.getByText('gps_sync_status')).toBeInTheDocument();
+      expect(screen.getByText('Synced')).toBeInTheDocument();
+      expect(screen.getByText('28.25 dB')).toBeInTheDocument();
+      expect(screen.getByText('96.5 %')).toBeInTheDocument();
+      expect(screen.getByText('433.25 Mbps')).toBeInTheDocument();
+      expect(screen.getByText('390.5 Mbps')).toBeInTheDocument();
       // A column that's null on EVERY row (ups_battery_pct here) is dropped
       // entirely rather than cluttering the table with a wall of "—".
       expect(screen.queryByText('ups_battery_pct')).not.toBeInTheDocument();

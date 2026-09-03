@@ -53,6 +53,13 @@ const sampleMetricRow = {
   avg_if_out_errors: 0,
   avg_if_in_discards: 0,
   avg_if_out_discards: 0,
+  noise_floor_dbm: -92,
+  air_util_pct: 31,
+  gps_sync_status: 1,
+  snr_db: 28,
+  ccq_pct: 96,
+  tx_rate_mbps: 433.25,
+  rx_rate_mbps: 390.5,
   sample_count: 12,
 };
 
@@ -340,6 +347,44 @@ describe('SNMP Metrics extended routes (§6.2/6.3)', () => {
     );
     expect(rawCall).toBeDefined();
     expect(rawCall[0]).toMatch(/uptime_ticks/);
+  });
+
+  test.each([
+    ['raw', 'snmp_metrics', false],
+    ['1hr', 'snmp_metrics_1hr', true],
+    ['1day', 'snmp_metrics_1day', true],
+  ])('GET /api/v1/snmp-metrics %s exposes every wireless RF metric under canonical keys', async (resolution, table, aggregated) => {
+    const res = await request(app)
+      .get(`/api/v1/snmp-metrics?device_id=5&resolution=${resolution}`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('X-Org-Id', '10');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0]).toEqual(expect.objectContaining({
+      noise_floor_dbm: -92,
+      air_util_pct: 31,
+      gps_sync_status: 1,
+      snr_db: 28,
+      ccq_pct: 96,
+      tx_rate_mbps: 433.25,
+      rx_rate_mbps: 390.5,
+    }));
+
+    const metricCall = db.query.mock.calls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes(`FROM ${table}`) &&
+      (resolution !== 'raw' || sql.includes('polled_at AS ts')));
+    expect(metricCall).toBeDefined();
+    const [sql] = metricCall;
+    for (const metric of [
+      'noise_floor_dbm', 'air_util_pct', 'gps_sync_status', 'snr_db',
+      'ccq_pct', 'tx_rate_mbps', 'rx_rate_mbps',
+    ]) {
+      if (aggregated) {
+        expect(sql).toContain(`avg_${metric} AS ${metric}`);
+      } else {
+        expect(sql).toMatch(new RegExp(`\\b${metric}\\b`));
+      }
+    }
   });
 
   // ---------------------------------------------------------------------

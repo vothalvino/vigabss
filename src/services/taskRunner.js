@@ -258,7 +258,7 @@ async function runTask(taskName, organizationId = null) {
     case 'csd_expiry_monitor':
       return runCsdExpiryCheck(organizationId);
     case 'alert_evaluation':
-      return alertService.evaluateAlerts(organizationId);
+      return runAlertEvaluation(organizationId);
     // Migration 400: closes out maintenance_windows past their ends_at. Seeded
     // org-wide (organization_id NULL), so organizationId is normally null and
     // every org is swept in one pass — expireMaintenanceWindows() itself
@@ -674,6 +674,79 @@ async function runAutoSuspend(organizationId) {
   const { warnings_sent } = await runSuspensionWarnings(organizationId);
 
   return { contracts_suspended: suspended, warnings_sent };
+}
+
+/**
+ * Evaluate alert rules in their owning database scope.
+ *
+ * The seeded alert_evaluation task is install-wide (`organization_id = NULL`).
+ * A NULL predicate against alert_rules matches nothing, so the cron used to
+ * report success every five minutes without evaluating a single rule. Global
+ * execution now discovers active organizations on the primary database,
+ * excludes isolated tenants from primary reads, and enters each isolated
+ * tenant's database context explicitly. One failed tenant does not prevent the
+ * remaining organizations from being checked.
+ */
+async function runAlertEvaluation(organizationId = null) {
+  const withPrimary = callback => (
+    typeof db.withPrimaryContext === 'function' ? db.withPrimaryContext(callback) : callback()
+  );
+  const withTenant = (orgId, callback) => (
+    typeof db.withTenantContext === 'function' ? db.withTenantContext(orgId, callback) : callback()
+  );
+
+  if (organizationId !== null && organizationId !== undefined) {
+    return withTenant(Number(organizationId), () => alertService.evaluateAlerts(Number(organizationId)));
+  }
+
+  const [organizations] = await withPrimary(() => db.query(
+    `SELECT o.id,
+            CASE WHEN odc.isolation_mode = 'isolated' THEN 'isolated' ELSE 'shared' END AS database_scope
+       FROM organizations o
+       LEFT JOIN organization_database_configs odc ON odc.organization_id = o.id
+      WHERE o.status = 'active' AND o.deleted_at IS NULL
+      ORDER BY o.id`,
+  ));
+
+  const summary = {
+    organizations_total: organizations.length,
+    organizations_succeeded: 0,
+    organizations_failed: 0,
+    evaluated: 0,
+    triggered: 0,
+    suppressed: 0,
+    alerts: [],
+    failures: [],
+  };
+
+  for (const organization of organizations) {
+    const orgId = Number(organization.id);
+    try {
+      const evaluate = () => alertService.evaluateAlerts(orgId);
+      const result = organization.database_scope === 'isolated'
+        ? await withTenant(orgId, evaluate)
+        : await withPrimary(evaluate);
+      summary.organizations_succeeded += 1;
+      summary.evaluated += Number(result?.evaluated || 0);
+      summary.triggered += Number(result?.triggered || 0);
+      summary.suppressed += Number(result?.suppressed || 0);
+      if (Array.isArray(result?.alerts)) {
+        summary.alerts.push(...result.alerts.map(alert => ({ organization_id: orgId, ...alert })));
+      }
+    } catch (err) {
+      summary.organizations_failed += 1;
+      summary.failures.push({ organization_id: orgId, error: err.message });
+      logger.warn({ err, organizationId: orgId }, 'Alert evaluation failed for organization; continuing');
+    }
+  }
+
+  if (summary.organizations_total > 0 && summary.organizations_succeeded === 0) {
+    const err = new Error('Alert evaluation failed for every active organization');
+    err.failures = summary.failures;
+    throw err;
+  }
+
+  return summary;
 }
 
 /**

@@ -17670,11 +17670,12 @@
           }
         ],
         "requestBody": {
-          "description": "alerts_createRule",
+          "description": "Create alert rule",
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "$ref": "#/components/schemas/alerts_createRule"
               }
             }
           }
@@ -17686,6 +17687,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid metric, operator, threshold, or rule fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -17716,11 +17744,12 @@
           }
         ],
         "requestBody": {
-          "description": "alerts_updateRule",
+          "description": "Update alert rule",
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "$ref": "#/components/schemas/alerts_updateRule"
               }
             }
           }
@@ -17732,6 +17761,60 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Alert rule not found in the caller organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid metric, operator, threshold, or rule fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -17821,6 +17904,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Alert event not found in the caller organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -33525,11 +33635,116 @@
         ],
         "responses": {
           "200": {
-            "description": "SnmpMetricsResponse",
+            "description": "Tenant-scoped SNMP time series with a resolution-independent metric shape.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SnmpMetricRow"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "device_id",
+                        "resolution",
+                        "lookback_hours",
+                        "interfaces",
+                        "truncated"
+                      ],
+                      "properties": {
+                        "device_id": {
+                          "type": "integer"
+                        },
+                        "resolution": {
+                          "type": "string",
+                          "enum": [
+                            "raw",
+                            "1hr",
+                            "1day"
+                          ]
+                        },
+                        "lookback_hours": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 8760
+                        },
+                        "interfaces": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "truncated": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Device not found in the caller organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or missing device_id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -58585,22 +58800,66 @@
             "type": "string"
           },
           "metric": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "cpu_usage",
+              "memory_usage",
+              "signal_strength",
+              "latency_ms",
+              "packet_loss",
+              "uptime",
+              "if_in_octets",
+              "if_out_octets",
+              "voltage_mv",
+              "temperature_c",
+              "fan_speed_rpm",
+              "if_in_discards",
+              "if_out_discards",
+              "sfp_tx_power_dbm",
+              "sfp_rx_power_dbm",
+              "sfp_temperature_c",
+              "ups_battery_pct",
+              "ups_runtime_min",
+              "poe_power_mw",
+              "humidity_pct",
+              "noise_floor_dbm",
+              "air_util_pct",
+              "gps_sync_status",
+              "snr_db",
+              "ccq_pct",
+              "tx_rate_mbps",
+              "rx_rate_mbps"
+            ]
           },
           "operator": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              ">",
+              ">=",
+              "<",
+              "<=",
+              "=="
+            ]
           },
           "threshold": {
             "type": "number"
           },
           "device_id": {
-            "type": "number"
+            "type": "number",
+            "minimum": 1
           },
           "duration_minutes": {
-            "type": "number"
+            "type": "number",
+            "minimum": 1
           },
           "severity": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "major",
+              "critical"
+            ]
           },
           "auto_create_outage": {
             "type": "boolean"
@@ -58630,22 +58889,66 @@
             "type": "string"
           },
           "metric": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "cpu_usage",
+              "memory_usage",
+              "signal_strength",
+              "latency_ms",
+              "packet_loss",
+              "uptime",
+              "if_in_octets",
+              "if_out_octets",
+              "voltage_mv",
+              "temperature_c",
+              "fan_speed_rpm",
+              "if_in_discards",
+              "if_out_discards",
+              "sfp_tx_power_dbm",
+              "sfp_rx_power_dbm",
+              "sfp_temperature_c",
+              "ups_battery_pct",
+              "ups_runtime_min",
+              "poe_power_mw",
+              "humidity_pct",
+              "noise_floor_dbm",
+              "air_util_pct",
+              "gps_sync_status",
+              "snr_db",
+              "ccq_pct",
+              "tx_rate_mbps",
+              "rx_rate_mbps"
+            ]
           },
           "operator": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              ">",
+              ">=",
+              "<",
+              "<=",
+              "=="
+            ]
           },
           "threshold": {
             "type": "number"
           },
           "device_id": {
-            "type": "number"
+            "type": "number",
+            "minimum": 1
           },
           "duration_minutes": {
-            "type": "number"
+            "type": "number",
+            "minimum": 1
           },
           "severity": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "major",
+              "critical"
+            ]
           },
           "auto_create_outage": {
             "type": "boolean"
@@ -81147,6 +81450,285 @@
         "properties": {
           "acknowledged": {
             "type": "boolean"
+          }
+        }
+      },
+      "SnmpMetricRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ts",
+          "interface_id",
+          "if_in_octets",
+          "if_out_octets",
+          "if_in_errors",
+          "if_out_errors",
+          "if_in_discards",
+          "if_out_discards",
+          "cpu_usage",
+          "memory_usage",
+          "signal_strength",
+          "latency_ms",
+          "noise_floor_dbm",
+          "air_util_pct",
+          "gps_sync_status",
+          "snr_db",
+          "ccq_pct",
+          "tx_rate_mbps",
+          "rx_rate_mbps"
+        ],
+        "properties": {
+          "ts": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "interface_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "if_in_octets": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "Cumulative inbound octets; Counter64-capable profiles may return this as a decimal string."
+          },
+          "if_out_octets": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "Cumulative outbound octets; Counter64-capable profiles may return this as a decimal string."
+          },
+          "if_in_errors": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "if_out_errors": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "if_in_discards": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "if_out_discards": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "cpu_usage": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "memory_usage": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "signal_strength": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "Received signal level in dBm."
+          },
+          "latency_ms": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "voltage_mv": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "temperature_c": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "fan_speed_rpm": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sfp_tx_power_dbm": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sfp_rx_power_dbm": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sfp_temperature_c": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "ups_battery_pct": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "ups_runtime_min": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "poe_power_mw": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "humidity_pct": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "noise_floor_dbm": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "RF noise floor in dBm."
+          },
+          "air_util_pct": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "Airtime utilization percentage."
+          },
+          "gps_sync_status": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "Raw samples are device status values; rollups expose the bucket average/sync ratio."
+          },
+          "snr_db": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "Signal-to-noise ratio in dB."
+          },
+          "ccq_pct": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "Client connection quality percentage."
+          },
+          "tx_rate_mbps": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "Wireless transmit rate in Mbps."
+          },
+          "rx_rate_mbps": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "Wireless receive rate in Mbps."
+          },
+          "uptime_ticks": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ],
+            "description": "SNMP TimeTicks in hundredths of a second; raw resolution only."
+          },
+          "min_latency_ms": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "max_latency_ms": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "min_cpu_usage": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "max_cpu_usage": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sample_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
           }
         }
       },

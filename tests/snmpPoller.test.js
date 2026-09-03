@@ -14,6 +14,7 @@ jest.mock('net-snmp', () => ({
   Version1: 0,
   Version2c: 1,
   Version3: 3,
+  ObjectType: { OctetString: 4, Counter64: 70 },
   SecurityLevel: { noAuthNoPriv: 1, authNoPriv: 2, authPriv: 3 },
   AuthProtocols:  { none: 1, md5: 2, sha: 3, sha224: 4, sha256: 5, sha384: 6, sha512: 7 },
   PrivProtocols:  { none: 1, des: 2, aes: 4, aes256b: 6, aes256r: 8 },
@@ -168,6 +169,41 @@ describe('snmpPoller', () => {
       expect(insertSql).toContain('uptime_ticks');
       // Placeholder count must match the params array length.
       expect((insertSql.match(/\?/g) || []).length).toBe(insertParams.length);
+    });
+
+    test('persists a typed IF-X Counter64 value in the interface row', async () => {
+      const device = {
+        id: 4, ip_address: '10.0.0.4', snmp_community: 'public',
+        snmp_version: 'v2c', snmp_port: 161, snmp_profile_id: 3,
+      };
+      db.query
+        .mockResolvedValueOnce([[
+          {
+            id: 1, oid: '1.3.6.1.2.1.31.1.1.1.6', metric_column: 'if_in_octets',
+            label: 'ifHCInOctets', oid_type: 'counter64', is_per_interface: true,
+            aggregate: false, transform: null,
+          },
+        ]])
+        .mockResolvedValueOnce([]);
+
+      mockSession.subtree.mockImplementation((_oid, feedCb, doneCb) => {
+        feedCb([{
+          oid: '1.3.6.1.2.1.31.1.1.1.6.7',
+          type: snmp.ObjectType.Counter64,
+          value: Buffer.from('0000000123456789', 'hex'),
+        }]);
+        doneCb(null);
+      });
+
+      await snmpPoller.pollDevice(device);
+
+      const insertCall = db.query.mock.calls.find(([sql]) =>
+        typeof sql === 'string' && sql.includes('INSERT INTO snmp_metrics'));
+      expect(insertCall).toBeDefined();
+      const [, params] = insertCall;
+      expect(params[0]).toBe(4);
+      expect(params[1]).toBe('7');
+      expect(params[2]).toBe(0x123456789);
     });
   });
 
@@ -604,6 +640,38 @@ describe('snmpPoller', () => {
     test('passes through when there is no transform expression', () => {
       expect(snmpPoller.applyTransform(15, null)).toBe(15);
       expect(snmpPoller.applyTransform(15, undefined)).toBe(15);
+    });
+  });
+
+  // =========================================================================
+  // Counter64 decoding — required by IF-MIB ifHCInOctets/ifHCOutOctets
+  // =========================================================================
+  describe('extractNumericValue() — Counter64 buffers', () => {
+    test('decodes an unsigned big-endian Counter64 exactly', () => {
+      expect(snmpPoller.extractNumericValue({ type: snmp.ObjectType.Counter64, value: Buffer.from('0000000123456789', 'hex') }))
+        .toBe(0x123456789);
+    });
+
+    test('keeps the largest exactly representable Counter64', () => {
+      expect(snmpPoller.extractNumericValue({ type: snmp.ObjectType.Counter64, value: Buffer.from('001fffffffffffff', 'hex') }))
+        .toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    test('rejects a Counter64 that would lose integer precision', () => {
+      expect(snmpPoller.extractNumericValue({ type: snmp.ObjectType.Counter64, value: Buffer.from('0020000000000000', 'hex') }))
+        .toBeNull();
+    });
+
+    test('rejects empty and over-wide buffers', () => {
+      expect(snmpPoller.extractNumericValue({ type: snmp.ObjectType.Counter64, value: Buffer.alloc(0) })).toBeNull();
+      expect(snmpPoller.extractNumericValue({ type: snmp.ObjectType.Counter64, value: Buffer.alloc(9) })).toBeNull();
+    });
+
+    test('does not reinterpret arbitrary OctetString buffers as counters', () => {
+      expect(snmpPoller.extractNumericValue({
+        type: snmp.ObjectType.OctetString,
+        value: Buffer.from('1234'),
+      })).toBeNull();
     });
   });
 

@@ -59,7 +59,10 @@ router.post('/rules', requirePermission('devices.create'), validate(alertSchemas
         req.body.notification_channels ? JSON.stringify(req.body.notification_channels) : null,
         req.body.is_enabled !== false],
     );
-    const [rows] = await db.query('SELECT * FROM alert_rules WHERE id = ?', [result.insertId]);
+    const [rows] = await db.query(
+      'SELECT * FROM alert_rules WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [result.insertId, req.orgId],
+    );
     res.status(201).json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -88,11 +91,17 @@ router.put('/rules/:id', requirePermission('devices.update'), validate(alertSche
     }
 
     params.push(req.params.id, req.orgId);
-    await db.query(
+    const [result] = await db.query(
       `UPDATE alert_rules SET ${fields.join(', ')} WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`,
       params,
     );
-    const [rows] = await db.query('SELECT * FROM alert_rules WHERE id = ? AND deleted_at IS NULL', [req.params.id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: { message: 'Alert rule not found' } });
+    }
+    const [rows] = await db.query(
+      'SELECT * FROM alert_rules WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.id, req.orgId],
+    );
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -125,7 +134,10 @@ router.get('/events', requirePermission('devices.view'), async (req, res, next) 
 // POST /api/alerts/events/:id/acknowledge — Acknowledge an alert
 router.post('/events/:id/acknowledge', requirePermission('devices.update'), async (req, res, next) => {
   try {
-    await alertService.acknowledgeAlert(req.params.id, req.user.id);
+    const acknowledged = await alertService.acknowledgeAlert(req.orgId, req.params.id, req.user.id);
+    if (!acknowledged) {
+      return res.status(404).json({ error: { message: 'Alert event not found' } });
+    }
     res.json({ data: { acknowledged: true } });
   } catch (err) { next(err); }
 });

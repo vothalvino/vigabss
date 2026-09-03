@@ -97,8 +97,19 @@ interface EmailSettingsData {
 // ---------------------------------------------------------------------------
 
 const API_BASE = '/api/v1';
-const METRICS = ['bandwidth_in', 'bandwidth_out', 'cpu', 'memory', 'signal', 'latency', 'uptime'];
-const OPERATORS = ['>', '>=', '<', '<=', '='];
+// Canonical alert-safe backend metric names. Raw if_*_octets are intentionally
+// omitted: they are cumulative counter positions, not throughput, and a
+// threshold against them becomes permanently breached after the first crossing.
+const METRICS = [
+  'cpu_usage', 'memory_usage',
+  'signal_strength', 'noise_floor_dbm', 'snr_db', 'ccq_pct',
+  'air_util_pct', 'tx_rate_mbps', 'rx_rate_mbps', 'gps_sync_status',
+  'latency_ms', 'packet_loss', 'uptime', 'temperature_c', 'voltage_mv',
+  'fan_speed_rpm',
+  'sfp_tx_power_dbm', 'sfp_rx_power_dbm', 'sfp_temperature_c',
+  'ups_battery_pct', 'ups_runtime_min', 'poe_power_mw', 'humidity_pct',
+];
+const OPERATORS = ['>', '>=', '<', '<=', '=='];
 // Must match the alert_rules.severity DB enum (migration 134): info/warning/major/critical.
 const SEVERITIES = ['critical', 'major', 'warning', 'info'];
 const PROVIDERS = ['stripe', 'conekta', 'openpay', 'mercadopago', 'paypal', 'manual', 'other'];
@@ -287,8 +298,8 @@ function OrgConfigTab() {
 // ---------------------------------------------------------------------------
 
 const EMPTY_RULE = {
-  name: '', description: '', metric: 'bandwidth_in', operator: '>',
-  threshold: '0', device_id: '', duration_minutes: '5', severity: 'major',
+  name: '', description: '', metric: 'cpu_usage', operator: '>',
+  threshold: '90', device_id: '', duration_minutes: '5', severity: 'major',
   auto_create_outage: false, is_enabled: true,
 };
 

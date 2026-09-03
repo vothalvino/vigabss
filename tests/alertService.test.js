@@ -34,6 +34,7 @@ describe('alertService', () => {
       }]]);
 
       const rule = {
+        organization_id: 1,
         metric: 'cpu_usage',
         operator: '>',
         threshold: 90,
@@ -56,6 +57,7 @@ describe('alertService', () => {
       }]]);
 
       const rule = {
+        organization_id: 1,
         metric: 'cpu_usage',
         operator: '>',
         threshold: 90,
@@ -75,6 +77,7 @@ describe('alertService', () => {
       }]]);
 
       const rule = {
+        organization_id: 1,
         metric: 'uptime',
         operator: '<',
         threshold: 95,
@@ -85,6 +88,27 @@ describe('alertService', () => {
       const result = await alertService.checkRule(rule);
       expect(result).not.toBeNull();
       expect(result.current_value).toBe(80.0);
+      const [sql, params] = db.query.mock.calls[0];
+      expect(sql).toContain('organization_id = ?');
+      expect(params).toEqual([1, 1]);
+    });
+
+    test('scopes packet-loss snapshots to the rule organization', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+
+      await alertService.checkRule({
+        organization_id: 9,
+        metric: 'packet_loss',
+        operator: '>',
+        threshold: 5,
+        device_id: 12,
+        duration_minutes: 5,
+      });
+
+      const [sql, params] = db.query.mock.calls[0];
+      expect(sql).toContain('organization_id = ?');
+      expect(sql).toContain('device_id = ?');
+      expect(params).toEqual([1, 9, 12]);
     });
 
     test('returns null for unknown metric', async () => {
@@ -101,6 +125,7 @@ describe('alertService', () => {
       }]]);
 
       const rule = {
+        organization_id: 1,
         metric: 'latency_ms',
         operator: '>=',
         threshold: 150,
@@ -123,6 +148,7 @@ describe('alertService', () => {
       }]]);
 
       const rule = {
+        organization_id: 1,
         metric: 'if_in_octets',
         operator: '>',
         threshold: 100000000,
@@ -145,6 +171,7 @@ describe('alertService', () => {
       }]]);
 
       const rule = {
+        organization_id: 1,
         metric: 'if_out_octets',
         operator: '>=',
         threshold: 90000000,
@@ -166,6 +193,7 @@ describe('alertService', () => {
       }]]);
 
       const rule = {
+        organization_id: 1,
         metric: 'if_in_octets',
         operator: '>',
         threshold: 100000000,
@@ -175,6 +203,49 @@ describe('alertService', () => {
 
       const result = await alertService.checkRule(rule);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('checkRule() — wireless/RF metrics and tenant scope', () => {
+    test.each([
+      'noise_floor_dbm',
+      'air_util_pct',
+      'gps_sync_status',
+      'snr_db',
+      'ccq_pct',
+      'tx_rate_mbps',
+      'rx_rate_mbps',
+    ])('evaluates the canonical %s SNMP column', async (metric) => {
+      db.query.mockResolvedValueOnce([[{
+        device_id: 15,
+        avg_value: 42,
+        max_value: 45,
+      }]]);
+
+      const result = await alertService.checkRule({
+        organization_id: 7,
+        metric,
+        operator: '>',
+        threshold: 10,
+        device_id: null,
+        duration_minutes: 5,
+      });
+
+      expect(result).toEqual(expect.objectContaining({ device_id: 15, metric }));
+      const [sql, params] = db.query.mock.calls[0];
+      expect(sql).toContain(`sm.\`${metric}\``);
+      expect(sql).toContain('JOIN devices d ON d.id = sm.device_id');
+      expect(sql).toContain('d.organization_id = ?');
+      expect(params).toEqual([5, 7]);
+    });
+
+    test('refuses to evaluate a rule with no tenant identity', async () => {
+      const result = await alertService.checkRule({
+        metric: 'snr_db', operator: '<', threshold: 15, duration_minutes: 5,
+      });
+
+      expect(result).toBeNull();
+      expect(db.query).not.toHaveBeenCalled();
     });
   });
 
@@ -309,6 +380,7 @@ describe('alertService', () => {
       expect(result.evaluated).toBe(1);
       expect(result.triggered).toBe(1);
       expect(result.alerts[0].metric).toBe('cpu_usage');
+      expect(db.query.mock.calls[0][0]).toContain('deleted_at IS NULL');
     });
 
     test('handles no rules', async () => {
@@ -425,13 +497,19 @@ describe('alertService', () => {
   });
 
   describe('acknowledgeAlert()', () => {
-    test('updates alert status', async () => {
+    test('updates alert status only inside the owning organization', async () => {
       db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
-      await alertService.acknowledgeAlert(1, 5);
+      await expect(alertService.acknowledgeAlert(7, 1, 5)).resolves.toBe(true);
       expect(db.query).toHaveBeenCalledWith(
         expect.stringContaining('acknowledged'),
-        ['acknowledged', 5, 1],
+        ['acknowledged', 5, 1, 7],
       );
+      expect(db.query.mock.calls[0][0]).toContain('organization_id = ?');
+    });
+
+    test('reports no acknowledgement when the event is absent from the organization', async () => {
+      db.query.mockResolvedValueOnce([{ affectedRows: 0 }]);
+      await expect(alertService.acknowledgeAlert(7, 99, 5)).resolves.toBe(false);
     });
   });
 });
