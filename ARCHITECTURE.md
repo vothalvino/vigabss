@@ -270,6 +270,42 @@ documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;
 do not replace those with process-local state.
 
+### SNMP polling and metric history
+
+SNMP polling is profile-driven but deliberately not auto-matched at runtime.
+Only devices with `snmp_enabled = TRUE`, an address, and an explicit
+`devices.snmp_profile_id` enter the polling loop. `snmp_profile_oids` maps each
+active scalar, table, or averaged-table object to an allowlisted
+`snmp_metrics` column. IF-X-MIB Counter64 values arrive from `net-snmp` as
+big-endian buffers; the poller converts only values that remain exactly
+representable as JavaScript integers and records a gap rather than an
+imprecise counter otherwise.
+
+The metric pipeline is:
+
+```text
+assigned device + profile OIDs
+          |
+      SNMP poller
+          |
+    snmp_metrics (raw)
+          |
+   1hr -> 1day -> 1month rollups
+          |
+history API/UI and tenant-scoped alert evaluation
+```
+
+Raw, hourly, and daily history expose the same canonical RF keys
+(`signal_strength`, `noise_floor_dbm`, `air_util_pct`, `gps_sync_status`,
+`snr_db`, `ccq_pct`, `tx_rate_mbps`, and `rx_rate_mbps`); unavailable vendor
+objects remain `NULL`. Rollup procedures must populate every matching
+avg/min/max column, including `if_oper_status`, at all three tiers. Alert SQL
+must join raw metrics to the owning device and bind `organization_id`; a
+device-less rule is organization-wide, never installation-wide. The global
+five-minute alert task fans out over active shared-database organizations and
+enters each isolated tenant database explicitly; it must never query rules with
+`organization_id = NULL` and report a false-success no-op.
+
 ## REST/OpenAPI contract
 
 The REST contract has a manual source and two generated consumers:

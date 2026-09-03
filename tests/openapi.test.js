@@ -83,6 +83,31 @@ describe('OpenAPI spec generation', () => {
     expect(Object.keys(spec.components.schemas).length).toBeGreaterThan(0);
   });
 
+  test('documents canonical RF history fields and alert rule enums', () => {
+    const spec = generateSpec();
+    const metricProperties = spec.components.schemas.SnmpMetricRow.properties;
+    for (const field of [
+      'noise_floor_dbm', 'air_util_pct', 'gps_sync_status', 'snr_db',
+      'ccq_pct', 'tx_rate_mbps', 'rx_rate_mbps',
+    ]) {
+      expect(metricProperties[field]).toBeDefined();
+    }
+
+    const historyResponse = spec.paths['/snmp-metrics'].get.responses[200]
+      .content['application/json'].schema;
+    expect(historyResponse.properties.data.items).toEqual({ $ref: '#/components/schemas/SnmpMetricRow' });
+
+    expect(spec.components.schemas.alerts_createRule.properties.metric.enum)
+      .toEqual(expect.arrayContaining(['signal_strength', 'noise_floor_dbm', 'snr_db', 'tx_rate_mbps']));
+    expect(spec.components.schemas.alerts_createRule.properties.operator.enum)
+      .toEqual(['>', '>=', '<', '<=', '==']);
+    expect(spec.paths['/alerts/rules'].post.requestBody.content['application/json'].schema)
+      .toEqual({ $ref: '#/components/schemas/alerts_createRule' });
+    expect(spec.paths['/alerts/rules/{id}'].put.requestBody.content['application/json'].schema)
+      .toEqual({ $ref: '#/components/schemas/alerts_updateRule' });
+    expect(spec.paths['/alerts/rules/{id}'].put.responses[404]).toBeDefined();
+  });
+
   test('documents semantic release and main-build status separately', () => {
     const spec = generateSpec();
     const systemVersion = spec.components.schemas.SystemVersion;

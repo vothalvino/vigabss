@@ -6,7 +6,8 @@ jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   execute: jest.fn(),
   getConnection: jest.fn(),
-  withPrimaryContext: (callback) => callback(),
+  withPrimaryContext: jest.fn(callback => callback()),
+  withTenantContext: jest.fn((_organizationId, callback) => callback()),
   close: jest.fn(),
   pool: { end: jest.fn() },
   baseConnectionConfig: { database: 'fireisp_test' },
@@ -123,6 +124,7 @@ const retentionService = require('../src/services/retentionService');
 const webhookService = require('../src/services/webhookService');
 const trapForwardingService = require('../src/services/trapForwardingService');
 const pppoeEventCollector = require('../src/services/pppoeEventCollector');
+const alertService = require('../src/services/alertService');
 const taskRunner = require('../src/services/taskRunner');
 
 function mockAdvisoryConnection({ acquired = 1, released = 1, releaseError = null } = {}) {
@@ -143,6 +145,8 @@ function mockAdvisoryConnection({ acquired = 1, released = 1, releaseError = nul
 describe('taskRunner', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    db.withPrimaryContext.mockImplementation(callback => callback());
+    db.withTenantContext.mockImplementation((_organizationId, callback) => callback());
     radiusService.syncAllAccounts.mockResolvedValue({ synced: 0, total: 0 });
     emailTransport.sendEmail.mockResolvedValue({});
     snmpTrapReceiver.stop.mockResolvedValue({ state: 'stopped', ready: false });
@@ -344,6 +348,44 @@ describe('taskRunner', () => {
       // Real return value from the aggregator, not a message.
       expect(result).toHaveProperty('snapshot_date');
       expect(result).toHaveProperty('devices', 0);
+    });
+
+    test('alert_evaluation fans the seeded global task out across active shared and isolated tenants', async () => {
+      db.query.mockResolvedValueOnce([[
+        { id: 11, database_scope: 'shared' },
+        { id: 22, database_scope: 'isolated' },
+      ]]);
+      alertService.evaluateAlerts
+        .mockResolvedValueOnce({ evaluated: 2, triggered: 1, suppressed: 0, alerts: [{ rule_id: 1 }] })
+        .mockResolvedValueOnce({ evaluated: 3, triggered: 0, suppressed: 1, alerts: [] });
+
+      const result = await taskRunner.runTask('alert_evaluation');
+
+      expect(alertService.evaluateAlerts.mock.calls).toEqual([[11], [22]]);
+      expect(db.withPrimaryContext).toHaveBeenCalled();
+      expect(db.withTenantContext).toHaveBeenCalledTimes(1);
+      expect(db.withTenantContext).toHaveBeenCalledWith(22, expect.any(Function));
+      expect(result).toEqual(expect.objectContaining({
+        organizations_total: 2,
+        organizations_succeeded: 2,
+        organizations_failed: 0,
+        evaluated: 5,
+        triggered: 1,
+        suppressed: 1,
+      }));
+      expect(result.alerts[0]).toEqual(expect.objectContaining({ organization_id: 11, rule_id: 1 }));
+    });
+
+    test('alert_evaluation keeps an explicit organization scoped and never queries an install-wide NULL rule set', async () => {
+      alertService.evaluateAlerts.mockResolvedValueOnce({ evaluated: 1, triggered: 0, suppressed: 0, alerts: [] });
+
+      const result = await taskRunner.runTask('alert_evaluation', 42);
+
+      expect(alertService.evaluateAlerts).toHaveBeenCalledWith(42);
+      expect(db.withTenantContext).toHaveBeenCalledWith(42, expect.any(Function));
+      expect(db.withPrimaryContext).not.toHaveBeenCalled();
+      expect(db.query).not.toHaveBeenCalled();
+      expect(result.evaluated).toBe(1);
     });
 
     test('dispatches csd_expiry_monitor task', async () => {
