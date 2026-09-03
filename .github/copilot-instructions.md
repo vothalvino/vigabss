@@ -1,13 +1,20 @@
 # Repository Custom Instructions
 
+## Canonical Repository Context
+- Before planning, editing, testing, or reviewing code, read root `AGENTS.md`
+  and `ARCHITECTURE.md` in full.
+- `ARCHITECTURE.md` is the shared source of truth for system boundaries,
+  contracts, and validation. This file adds Copilot-specific policy only; if a
+  project-context shorthand here drifts, verify the code and update the root
+  architecture document rather than duplicating the correction here.
+
 ## Reasoning & Effort
 - Always use "High" reasoning effort for architectural changes.
 - Before suggesting code, perform a reasoning step to check for breaking changes in the RADIUS or Docker configurations.
 
 ## Project Context
-- This is a Ubuntu-based ISP management software.
-- Hardware stack includes MikroTik (Queue Trees, CoA), Ruijie, and Ubiquiti.
-- Database is MySQL/MariaDB for Traccar and billing.
+- Use `ARCHITECTURE.md` for the current platform, hardware-integration, storage,
+  and deployment context. Do not maintain a second stack summary here.
 
 ## Definition of Done (Mandatory)
 - Every checklist item is only considered done after required tests pass for all impacted layers: database, backend, frontend, and e2e (when flow-impacting).

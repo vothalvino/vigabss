@@ -1,108 +1,32 @@
-# CLAUDE.md — VigaBSS 0.1.0-alpha.1
+# Claude Repository Entry Point
 
-VigaBSS 0.1.0-alpha.1 is an open-source ISP management platform (Mexico-focused): customer operations, billing + CFDI, RADIUS/NAS network management, FTTH/wireless, ticketing/NOC, compliance (IFT), automation, reseller support, and a subscriber self-service portal. Express 5 backend + React/Vite frontend + MySQL, deployed with Docker/k8s.
+This file contains Claude-specific loading instructions only. Shared agent
+behavior belongs in `AGENTS.md`; shared technical truth belongs in
+`ARCHITECTURE.md`.
 
-## Who you are in this repo
+## Required reading
 
-You are **the coder** — and you are also **every user of the product**. VigaBSS has no QA team; you are it. Whenever you build, change, or review anything, put on the hat of each ISP role that touches that feature and walk their workflow end-to-end (nav → page → API call → permission → handler → response → render):
+Before planning, editing, testing, or reviewing repository work:
 
-- **Admin** — org settings, users/roles, security, integrations, NAS/device onboarding
-- **Manager** — dashboards, reports, approvals, CRM/leads, campaigns
-- **Technician** — work orders, tickets, GPS tracking, diagnostics, ONU provisioning, materials
-- **Support** — tickets, client interactions, communications, DND prefs (note: `support` exists only as legacy `users.role`, no org-membership role — it relies on the `getPermissions` fallback)
-- **Billing** — invoices, payments, CFDI stamping, credit notes, disputes, reconciliation
-- **Readonly** — must see everything, change nothing, and never crash on a page
-- **Reseller** — scoped to their own clients (`reseller_id` scoping, not hard isolation)
-- **Subscriber** — the client portal: invoices, payments, usage, tickets
+1. Read `AGENTS.md` in full.
+2. Read `ARCHITECTURE.md` in full.
+3. Read `.claude/agent-memory/fullstack-autonomous-engineer/MEMORY.md`, then the
+   linked notes relevant to the task.
 
-While working on anything, if you notice something **bugged or incomplete** for one of these personas — a button that will 403, a field that renders `undefined`, a stub that fakes success, a permission with no UI, a flow that dies halfway — either fix it now or **queue it on the jobdesk** (`~/Documents/Claude/jobdesk`, off-repo), and tell the user either way. Do this even when it's outside the current task. Historically the platform's worst bugs were exactly these silent end-to-end breaks. Older point-in-time audits live in `~/Documents/Claude/jobdesk/roadmap/` (June 2026 snapshots — **re-verify against current code before citing them**; several entries are already fixed).
+Memory entries and older jobdesk audits are historical evidence, not authority.
+Re-verify them against the current branch before citing or implementing them.
+When a discovery changes a durable system contract, update `ARCHITECTURE.md`;
+do not copy the new fact back into this file.
 
-### The fix-now bar — filing is the exception, not the default
+## Claude-specific workflow
 
-**Fix it in the current run when ALL of these hold:**
-
-1. under ~30 minutes,
-2. needs **no decision from the user** — no product judgement, no allowlist to choose, no "who should receive this",
-3. no migration, no new permission slug, no i18n across three locales,
-4. it touches a file the current change already opens, or a file one import away.
-
-**File it instead when ANY of these hold:** it needs the user's judgement; it needs a migration or a seeded permission; it is large enough to deserve its own review; or fixing it would materially widen a diff that is under review for something else.
-
-Why the bar exists: a board makes deferring frictionless, so "queued" starts to feel like progress when it is really well-organised debt. Before the jobdesk, a finding was fixed or lost — a bad memory system but a good forcing function, because the small stuff got folded into whatever PR was already open. **On 2026-07-26 the count was 8 findings filed mid-work and 0 of them closed**, which is the failure mode this bar prevents.
-
-Two habits that go with it:
-
-- **Report the ratio.** When wrapping up a run, say how many findings were filed versus closed. A run that files five and closes one is moving backwards even if the PR was good.
-- **Keep multi-part jobs honest.** A job shipped in parts still reads `queued` on the board. Note the progress *in the job title area via a note*, and say plainly in chat which parts remain — otherwise a two-thirds-done CRITICAL looks untouched.
-
-## Commands
-
-Backend (repo root):
-```bash
-pnpm install                  # workspace: root + frontend + e2e
-pnpm dev                      # nodemon src/server.js (port from config, default 3000)
-pnpm test                     # jest, 266 suites — mocked DB, no MySQL needed
-pnpm run test:db              # integration tests against real MySQL (needs Docker)
-pnpm lint                     # eslint src/
-pnpm run migrate              # apply database/migrations/*.sql
-pnpm run openapi              # regenerate docs/openapi.json from src/utils/openapi.js
-pnpm run spec:check           # spec drift check (also runs in CI + specDrift.test.js)
-pnpm run sql:check            # INSERT/UPDATE/SELECT columns, ENUM values, GENERATED-column writes, FROM/JOIN table existence vs database/schema.sql (CI + sqlColumnCheck.test.js)
-pnpm run schema:parity        # offline schema.sql <-> migrations parity (no DB needed)
-pnpm run seed                 # seed default data
-```
-
-Frontend (`frontend/`):
-```bash
-pnpm dev                      # vite dev server
-pnpm run lint                 # gen:api + tsc --noEmit  ← run this, not bare tsc
-pnpm run gen:api              # openapi-typescript ../docs/openapi.json → src/api/schema.d.ts
-pnpm test                     # vitest
-pnpm run i18n:check           # locale coverage checker
-```
-
-Requires Node ≥24 and pnpm ≥10 (`packageManager` pin). Pre-commit hooks (husky + lint-staged) run eslint on `src/**` and gen:api + tsc on `frontend/src/**` — commits fail if these fail.
-
-## Architecture
-
-- `src/app.js` — mounts all ~171 route files under `/api/v1`; `src/server.js` boots DB, workers, SNMP trap receiver, WireGuard config
-- `src/routes/*.js` — Express routers: `authenticate` → `orgScope` (sets `req.orgId`) → `requirePermission('slug')` → `validate(schema)` → handler
-- `src/middleware/rbac.js` — permission resolution: legacy `users.role='admin'` **bypasses everything**; otherwise `organization_users` membership role is authoritative, falling back to `users.role` only when the membership permission set is empty (see `User.getPermissions`)
-- `src/models/*` extend `BaseModel` — `SELECT *`, org scoping, soft delete, and a `fillable` whitelist that **silently drops** unknown fields
-- `src/controllers/crudController.js` — generic CRUD used by many routes
-- `src/services/` — ~100 domain services; `src/services/taskRunner.js` dispatches scheduled tasks **by name in a switch**
-- `frontend/src/pages/` — 148 pages, routed in `App.tsx`; nav is registry-driven: `frontend/src/nav/routes.ts` (single source: section/guard/roles/rail-vs-hub-card per route) feeds the accordion sidebar (`Layout.tsx` + `NavSection.tsx`) and the `/billing` `/network` `/admin` hub pages; API via typed `api.GET/POST(...)` (openapi-fetch) or `authedFetch` for raw calls
-- `database/migrations/` — numbered SQL, append-only (next number = highest + 1); `database/schema.sql` is the full-schema mirror; CI validates numbering and README sync
-- `tests/` — jest + supertest; DB fully mocked (`jest.mock('../src/config/database')`), auth via signed JWT + mocked user-lookup query
-- `.claude/agent-memory/fullstack-autonomous-engineer/` — committed per-section build notes (env, testing conventions, OpenAPI pattern, §5–§21 feature notes). Read `MEMORY.md` there first; keep it updated when you learn something durable
-
-## Adding a feature — the full contract chain
-
-Every feature touches this chain; skipping a link produces the classic VigaBSS bug. In order:
-
-1. **Migration**: schema change + **seed every new permission slug and grant it to roles** (`permissions` + `role_permissions`). An unseeded slug = 403 for everyone except legacy admins, silently. Mirror the DDL into `database/schema.sql`, add a `database/rollbacks/NNN_*.sql`, and **bump the migration range in `README.md`** (`001–NNN`) — CI's "README in sync with migrations and schema" check fails otherwise. Guard ALTERs for idempotency with an `INFORMATION_SCHEMA` check inside a stored procedure (see migration 371/374).
-2. **Validation schema** in `src/middleware/schemas/` + model `fillable` — both must list every field the frontend will send.
-3. **Route** with `requirePermission`. If a task is scheduled, **register its name as a `case` in `taskRunner.js`** — seeded tasks with no case never run, silently.
-4. **OpenAPI**: the spec is **hand-written** in `src/utils/openapi.js`. Add the path entry, then `pnpm run openapi`. ⚠️ The spec-drift check only compares the generator to the committed JSON — **it does not know your route exists**, so a forgotten spec entry passes CI while the endpoint stays undocumented and untyped for the frontend.
-5. **Frontend**: `pnpm run gen:api` then build the page; wire route in `App.tsx` **and add a matching entry to the nav registry `frontend/src/nav/routes.ts`** — `navRegistry.test.ts` fails CI if a routed path has no registry home, if its `guard` doesn't mirror the `PrivateRoute` wrapper, or if it's neither a rail row nor on a hub card. `roles` is an audited allowlist: only list roles whose `role_permissions` seeds actually let the page load (a visible row must never 403 — check the grant migrations, and update `navPersonas.test.ts` in lockstep). Add i18n keys to **all three** locales (`en`, `es`, `pt-BR` — see `docs/language-guideline.md`).
-6. **Tests**: backend jest (mock the **backend's** real response shape, never the frontend's expected shape — that masks contract drift), frontend vitest.
-
-## Gotchas that have caused real bugs
-
-- **Column names are the API contract.** `SELECT *` responses are unaliased DB columns. If a frontend interface guesses a different field name, it renders `undefined`/`—`/`NaN` with no error. This was the #1 historical bug class. Check the migration, not your intuition.
-- **This whole bug class is now gated: `pnpm run sql:check`.** Every `INSERT`/`UPDATE` *and* top-level `SELECT` in `src/` is parsed and checked against `database/schema.sql` — column existence, ENUM values, `GENERATED ALWAYS AS (...)` columns (MySQL rejects any explicit value for one), and FROM/JOIN table existence. Dynamic SQL it cannot resolve is skipped and counted, never guessed. `KNOWN_SCHEMA_GAPS`/`KNOWN_MISSING_TABLES` in that script are a ratchet of statements still broken in production that the check cannot fix in code alone — most need a migration (e.g. password reset / email verification have no columns on `users`), but an entry can also point at a follow-up PR when the real fix requires review beyond a mechanical column rename (see the `SWEEP_FOLLOWUP` entries — a peripheral SELECT-column sweep was reverted out of a PR after adversarial review found silent-wrong-data defects, e.g. a cross-tenant leak, hiding behind fixes that "ran" but weren't *right*). Either way: shrink these lists, never grow them without a comment explaining why.
-- **Request-shape drift is silent.** `validate()` ignores undeclared fields and `fillable` drops them — a misnamed form field or mismatched enum is lost or 422s with no client warning. This was bug class #2.
-- **Permission gating in the frontend is PARTIAL — check before assuming either way.** There is no `usePermissions` hook, but there *is* a `can(user, 'slug')` helper (`frontend/src/auth/permissions.ts:74`, backed by the `ROLE_PERMISSIONS` map at :16) and **23 of 154 pages** use it to hide actions. The other ~125 still render every button and let the backend 403. So expect visible-but-forbidden actions on ungated pages, and don't re-implement gating where `can()` is already wired. Rolling it out further is queued, not decided — match the surrounding page rather than adding a third pattern.
-- **`req.orgId`**, not `req.organizationId` (a past typo made every tax-report export return zero rows).
-- Route order matters: literal paths (`/stats`, `/assignable-users`) must be declared **before** `/:id`.
-- Some services are **honest stubs**: §18 script execution, §20 integration test/sync, FTTH live device I/O, non-MikroTik router drivers, parts of the payment gateway. Check whether the UI presents a stub as working before assuming a flow is real — a stub whose UI fakes success is a bug, not a feature.
-- MySQL booleans round-trip as `0/1` — `validate()` coerces; don't "fix" that.
-- ESLint `no-useless-escape` fires on `\-` in regex character classes (see agent-memory note).
-- E2E (`e2e/`, Playwright) and `test:db` need Docker; plain `pnpm test` does not.
-
-## Deploy
-
-- `docker-compose.yml` (dev) / `docker-compose.prod.yml` (prod: MySQL, Redis, app, Nginx) / `docker-compose.test.yml` (integration DB) / `docker-compose.e2e.yml` / `docker-compose.host-nginx.yml`
-- One-command production install: `install.sh` (fresh installs use `/opt/vigabss`, TLS via Let's Encrypt; `/opt/fireisp` remains a legacy-compatible path)
-- `k8s/` + `charts/` for Kubernetes/Helm; `docs/deployment.md`, `docs/backup-restore.md`
-- FireRelay (remote NAS tunneling): `docs/firerelay.md`, `pnpm run firerelay:agent`
+- When orchestrating multi-agent section work, also read
+  `.claude/agent-orchestration-guidelines.md`.
+- The project jobdesk is at `~/Documents/Claude/jobdesk`. Use it only for a
+  finding that meets the deferral rules in `AGENTS.md` and when writing to that
+  external tracker is within the user's authorized task.
+- Older point-in-time audits under the jobdesk's `roadmap/` directory are June
+  2026 snapshots; several findings have since changed or been fixed.
+- If a multi-part job is deferred, record which parts are complete and which
+  remain. In the final report, distinguish findings fixed in the current run
+  from findings filed for later work.
