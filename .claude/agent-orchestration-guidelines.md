@@ -1,6 +1,12 @@
 # Agent Orchestration Guidelines
 ## VigaBSS — 21-section build, multi-stack (DB / Express backend / OpenAPI / React frontend)
 
+> Read root `AGENTS.md` and `ARCHITECTURE.md` first. This file describes a
+> Claude orchestration workflow, not current system architecture. If a command,
+> CI job, or technical assumption here conflicts with the root documents or
+> executable configuration, verify the current tree and use
+> `.github/workflows/ci.yml` as the CI authority.
+
 How the **main agent (orchestrator)** and the **`fullstack-autonomous-engineer` subagent (Sonnet)** divide work on this project. This is a reference doc — it is **not** auto-loaded into context (only a root `CLAUDE.md` or memory files would be), so it costs nothing per turn. Read it when picking up the project.
 
 ---
