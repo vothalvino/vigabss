@@ -838,14 +838,14 @@ function generateSpec() {
       // ---- Alerts ----
       '/alerts/rules': {
         get: { tags: ['Alerts'], summary: 'List alert rules', operationId: 'listAlertRules', security: [{ bearerAuth: [] }], responses: r200('AlertRule[]') },
-        post: { tags: ['Alerts'], summary: 'Create alert rule', operationId: 'createAlertRule', security: [{ bearerAuth: [] }], requestBody: jsonBody('alerts_createRule'), responses: r201('AlertRule') },
+        post: { tags: ['Alerts'], summary: 'Create alert rule', operationId: 'createAlertRule', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ $ref: '#/components/schemas/alerts_createRule' }, 'Create alert rule'), responses: { ...r201('AlertRule'), 422: errorResponse('Invalid metric, operator, threshold, or rule fields') } },
       },
       '/alerts/rules/{id}': {
-        put: { tags: ['Alerts'], summary: 'Update alert rule', operationId: 'updateAlertRule', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('alerts_updateRule'), responses: r200('AlertRule') },
+        put: { tags: ['Alerts'], summary: 'Update alert rule', operationId: 'updateAlertRule', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ $ref: '#/components/schemas/alerts_updateRule' }, 'Update alert rule'), responses: { ...r200('AlertRule'), 404: errorResponse('Alert rule not found in the caller organization'), 422: errorResponse('Invalid metric, operator, threshold, or rule fields') } },
         delete: { tags: ['Alerts'], summary: 'Delete alert rule', operationId: 'deleteAlertRule', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/alerts/events': { get: { tags: ['Alerts'], summary: 'Alert event history', operationId: 'listAlertEvents', security: [{ bearerAuth: [] }], responses: r200('AlertEvent[]') } },
-      '/alerts/events/{id}/acknowledge': { post: { tags: ['Alerts'], summary: 'Acknowledge an alert', operationId: 'acknowledgeAlert', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Status') } },
+      '/alerts/events/{id}/acknowledge': { post: { tags: ['Alerts'], summary: 'Acknowledge an alert', operationId: 'acknowledgeAlert', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('Status'), 404: errorResponse('Alert event not found in the caller organization') } } },
       '/alerts/evaluate': { post: { tags: ['Alerts'], summary: 'Trigger alert evaluation', operationId: 'evaluateAlerts', security: [{ bearerAuth: [] }], responses: r200('Results') } },
       '/alerts/escalation-chains': {
         get:  { tags: ['Alerts'], summary: 'List escalation chains',    operationId: 'listEscalationChains',   security: [{ bearerAuth: [] }], responses: r200('EscalationChain[]') },
@@ -1749,7 +1749,7 @@ function generateSpec() {
 
       // ---- SNMP Metrics §6.2/6.3 ----
       '/snmp-metrics': {
-        get: { tags: ['SNMP Metrics'], summary: 'Time-series metrics for a device', operationId: 'getSnmpMetrics', security: [{ bearerAuth: [] }], parameters: [{ name: 'device_id', in: 'query', required: true, schema: { type: 'integer' } }, { name: 'resolution', in: 'query', schema: { type: 'string', enum: ['raw', '1hr', '1day'], default: '1hr' } }, { name: 'hours', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 8760 } }, { name: 'interface_id', in: 'query', schema: { type: 'string' } }], responses: r200('SnmpMetricsResponse') },
+        get: { tags: ['SNMP Metrics'], summary: 'Time-series metrics for a device', operationId: 'getSnmpMetrics', security: [{ bearerAuth: [] }], parameters: [{ name: 'device_id', in: 'query', required: true, schema: { type: 'integer' } }, { name: 'resolution', in: 'query', schema: { type: 'string', enum: ['raw', '1hr', '1day'], default: '1hr' } }, { name: 'hours', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 8760 } }, { name: 'interface_id', in: 'query', schema: { type: 'string' } }], responses: snmpMetricsResponses() },
       },
       '/snmp-metrics/devices': {
         get: { tags: ['SNMP Metrics'], summary: 'List SNMP-enabled devices', operationId: 'listSnmpDevices', security: [{ bearerAuth: [] }], responses: r200('Device[]') },
@@ -3335,6 +3335,7 @@ function generateSpec() {
         SnmpTrapMetadata: snmpTrapMetadataSchema(),
         SnmpTrapDetail: snmpTrapDetailSchema(),
         SnmpTrapAcknowledgement: snmpTrapAcknowledgementSchema(),
+        SnmpMetricRow: snmpMetricRowSchema(),
         RadiusAccountingRequest: radiusAccountingRequestSchema(),
         RadiusAccountingIngestResult: radiusAccountingIngestResultSchema(),
       },
@@ -4492,6 +4493,95 @@ function pppoeEventIngestResponse() {
 
 function r200(desc) {
   return { 200: { description: desc, content: { 'application/json': { schema: { type: 'object' } } } } };
+}
+
+function snmpMetricValueSchema(description) {
+  return {
+    type: ['number', 'string', 'null'],
+    ...(description ? { description } : {}),
+  };
+}
+
+function snmpMetricRowSchema() {
+  const metric = snmpMetricValueSchema;
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'ts', 'interface_id', 'if_in_octets', 'if_out_octets',
+      'if_in_errors', 'if_out_errors', 'if_in_discards', 'if_out_discards',
+      'cpu_usage', 'memory_usage', 'signal_strength', 'latency_ms',
+      'noise_floor_dbm', 'air_util_pct', 'gps_sync_status', 'snr_db',
+      'ccq_pct', 'tx_rate_mbps', 'rx_rate_mbps',
+    ],
+    properties: {
+      ts: { type: 'string', format: 'date-time' },
+      interface_id: { type: ['string', 'null'] },
+      if_in_octets: metric('Cumulative inbound octets; Counter64-capable profiles may return this as a decimal string.'),
+      if_out_octets: metric('Cumulative outbound octets; Counter64-capable profiles may return this as a decimal string.'),
+      if_in_errors: metric(),
+      if_out_errors: metric(),
+      if_in_discards: metric(),
+      if_out_discards: metric(),
+      cpu_usage: metric(),
+      memory_usage: metric(),
+      signal_strength: metric('Received signal level in dBm.'),
+      latency_ms: metric(),
+      voltage_mv: metric(),
+      temperature_c: metric(),
+      fan_speed_rpm: metric(),
+      sfp_tx_power_dbm: metric(),
+      sfp_rx_power_dbm: metric(),
+      sfp_temperature_c: metric(),
+      ups_battery_pct: metric(),
+      ups_runtime_min: metric(),
+      poe_power_mw: metric(),
+      humidity_pct: metric(),
+      noise_floor_dbm: metric('RF noise floor in dBm.'),
+      air_util_pct: metric('Airtime utilization percentage.'),
+      gps_sync_status: metric('Raw samples are device status values; rollups expose the bucket average/sync ratio.'),
+      snr_db: metric('Signal-to-noise ratio in dB.'),
+      ccq_pct: metric('Client connection quality percentage.'),
+      tx_rate_mbps: metric('Wireless transmit rate in Mbps.'),
+      rx_rate_mbps: metric('Wireless receive rate in Mbps.'),
+      uptime_ticks: metric('SNMP TimeTicks in hundredths of a second; raw resolution only.'),
+      min_latency_ms: metric(),
+      max_latency_ms: metric(),
+      min_cpu_usage: metric(),
+      max_cpu_usage: metric(),
+      sample_count: { type: ['integer', 'null'], minimum: 0 },
+    },
+  };
+}
+
+function snmpMetricsResponses() {
+  return {
+    200: {
+      description: 'Tenant-scoped SNMP time series with a resolution-independent metric shape.',
+      content: { 'application/json': { schema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['data', 'meta'],
+        properties: {
+          data: { type: 'array', items: { $ref: '#/components/schemas/SnmpMetricRow' } },
+          meta: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['device_id', 'resolution', 'lookback_hours', 'interfaces', 'truncated'],
+            properties: {
+              device_id: { type: 'integer' },
+              resolution: { type: 'string', enum: ['raw', '1hr', '1day'] },
+              lookback_hours: { type: 'integer', minimum: 1, maximum: 8760 },
+              interfaces: { type: 'array', items: { type: 'string' } },
+              truncated: { type: 'boolean' },
+            },
+          },
+        },
+      } } },
+    },
+    404: errorResponse('Device not found in the caller organization'),
+    422: errorResponse('Invalid or missing device_id'),
+  };
 }
 
 function systemVersionSchema() {

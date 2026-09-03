@@ -123,11 +123,10 @@ function firstNonNull(rows: SnmpMetric[], key: string): unknown {
   return null;
 }
 
-// Known units for the SNMP columns the "all readings" expandable dump
-// surfaces — environmental/power/error counters the compact 6-field summary
-// above doesn't show (temperature, voltage, fan speed, UPS, PoE, humidity,
-// SFP optics, interface errors/discards). Anything not listed here still
-// renders, just without a unit suffix.
+// Known units/status for the SNMP columns the "all readings" expandable dump
+// surfaces — environmental, power, interface, and wireless RF readings the
+// compact summary above doesn't show. Anything not listed here still renders,
+// just without a unit suffix.
 const SNMP_COLUMN_UNITS: Record<string, string> = {
   cpu_usage: ' %',
   memory_usage: ' %',
@@ -143,10 +142,21 @@ const SNMP_COLUMN_UNITS: Record<string, string> = {
   sfp_tx_power_dbm: ' dBm',
   sfp_rx_power_dbm: ' dBm',
   sfp_temperature_c: ' °C',
+  noise_floor_dbm: ' dBm',
+  air_util_pct: ' %',
+  snr_db: ' dB',
+  ccq_pct: ' %',
+  tx_rate_mbps: ' Mbps',
+  rx_rate_mbps: ' Mbps',
 };
 
-function fmtRawSnmpValue(key: string, value: unknown): string {
+function fmtRawSnmpValue(key: string, value: unknown, t: (key: string) => string): string {
   if (value == null) return '—';
+  if (key === 'gps_sync_status') {
+    const status = Number(value);
+    if (status === 1) return t('snmpMetrics.history.gpsStatus.synced');
+    if (status === 0) return t('snmpMetrics.history.gpsStatus.notSynced');
+  }
   return `${String(value)}${SNMP_COLUMN_UNITS[key] ?? ''}`;
 }
 
@@ -895,10 +905,10 @@ export function DeviceDetail() {
                   // (already shown as its own column) — then keep only the
                   // columns that are non-null on AT LEAST one row, so a column
                   // that's always null on this device doesn't clutter the table
-                  // with a wall of "—". This is the environmental/power/error
-                  // detail (temperature, voltage, fan, UPS, PoE, SFP optics,
-                  // interface errors/discards) that the compact summary above
-                  // doesn't show — nothing is lost, just collapsed by default.
+                  // with a wall of "—". This is the environmental, power,
+                  // interface, and wireless RF detail that the compact summary
+                  // above doesn't show — nothing is lost, just collapsed by
+                  // default.
                   const allKeys = Array.from(
                     new Set(snmpMetrics.flatMap(m => Object.keys(m))),
                   ).filter(k => k !== 'id' && k !== 'polled_at');
@@ -920,7 +930,7 @@ export function DeviceDetail() {
                             <tr key={m.id} style={styles.tr}>
                               <td style={styles.td}>{fmt(m.polled_at)}</td>
                               {nonNullKeys.map(k => (
-                                <td key={k} style={styles.td}>{fmtRawSnmpValue(k, m[k])}</td>
+                                <td key={k} style={styles.td}>{fmtRawSnmpValue(k, m[k], t)}</td>
                               ))}
                             </tr>
                           ))}

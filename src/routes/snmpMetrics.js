@@ -422,6 +422,8 @@ router.get('/', requirePermission('devices.view'), async (req, res, next) => {
                 voltage_mv, temperature_c, fan_speed_rpm,
                 sfp_tx_power_dbm, sfp_rx_power_dbm, sfp_temperature_c,
                 ups_battery_pct, ups_runtime_min, poe_power_mw, humidity_pct,
+                noise_floor_dbm, air_util_pct, gps_sync_status,
+                snr_db, ccq_pct, tx_rate_mbps, rx_rate_mbps,
                 uptime_ticks
          FROM snmp_metrics
          WHERE ${conditions.join(' AND ')}
@@ -490,6 +492,13 @@ router.get('/', requirePermission('devices.view'), async (req, res, next) => {
                 avg_ups_runtime_min AS ups_runtime_min,
                 avg_poe_power_mw AS poe_power_mw,
                 avg_humidity_pct AS humidity_pct,
+                avg_noise_floor_dbm AS noise_floor_dbm,
+                avg_air_util_pct AS air_util_pct,
+                avg_gps_sync_status AS gps_sync_status,
+                avg_snr_db AS snr_db,
+                avg_ccq_pct AS ccq_pct,
+                avg_tx_rate_mbps AS tx_rate_mbps,
+                avg_rx_rate_mbps AS rx_rate_mbps,
                 sample_count
          FROM snmp_metrics_1hr
          WHERE ${conditions.join(' AND ')}
@@ -554,6 +563,13 @@ router.get('/', requirePermission('devices.view'), async (req, res, next) => {
               avg_ups_runtime_min AS ups_runtime_min,
               avg_poe_power_mw AS poe_power_mw,
               avg_humidity_pct AS humidity_pct,
+              avg_noise_floor_dbm AS noise_floor_dbm,
+              avg_air_util_pct AS air_util_pct,
+              avg_gps_sync_status AS gps_sync_status,
+              avg_snr_db AS snr_db,
+              avg_ccq_pct AS ccq_pct,
+              avg_tx_rate_mbps AS tx_rate_mbps,
+              avg_rx_rate_mbps AS rx_rate_mbps,
               sample_count
        FROM snmp_metrics_1day
        WHERE ${conditions.join(' AND ')}

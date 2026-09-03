@@ -177,7 +177,7 @@ describe('alertService extended', () => {
   describe('evaluateAlertsV2', () => {
     it('suppresses alert in maintenance window', async () => {
       db.query
-        .mockResolvedValueOnce([[{ id: 1, name: 'test', metric: 'cpu_usage', operator: '>', threshold: 80, device_id: 5, duration_minutes: 5, is_enabled: true, flap_detection_enabled: 0, auto_create_outage: false, auto_create_ticket: false, escalation_chain_id: null }]])
+        .mockResolvedValueOnce([[{ id: 1, organization_id: 1, name: 'test', metric: 'cpu_usage', operator: '>', threshold: 80, device_id: 5, duration_minutes: 5, is_enabled: true, flap_detection_enabled: 0, auto_create_outage: false, auto_create_ticket: false, escalation_chain_id: null }]])
         .mockResolvedValueOnce([[{ device_id: 5, avg_value: '90', max_value: '95' }]])
         .mockResolvedValueOnce([[{ id: 1 }]]); // maintenance window found
       const result = await alertService.evaluateAlertsV2(1);
@@ -187,7 +187,7 @@ describe('alertService extended', () => {
 
     it('triggers alert normally when no suppression', async () => {
       db.query
-        .mockResolvedValueOnce([[{ id: 1, name: 'test', metric: 'cpu_usage', operator: '>', threshold: 80, device_id: 5, duration_minutes: 5, is_enabled: true, flap_detection_enabled: 0, auto_create_outage: false, auto_create_ticket: false, escalation_chain_id: null }]])
+        .mockResolvedValueOnce([[{ id: 1, organization_id: 1, name: 'test', metric: 'cpu_usage', operator: '>', threshold: 80, device_id: 5, duration_minutes: 5, is_enabled: true, flap_detection_enabled: 0, auto_create_outage: false, auto_create_ticket: false, escalation_chain_id: null }]])
         .mockResolvedValueOnce([[{ device_id: 5, avg_value: '90', max_value: '95' }]])
         .mockResolvedValueOnce([[]])  // no maintenance window
         .mockResolvedValueOnce([[]])  // no suppression
@@ -213,7 +213,7 @@ describe('alertService extended', () => {
       eventBus.on('alert.triggered', (data) => received.push(data));
 
       db.query
-        .mockResolvedValueOnce([[{ id: 1, name: 'test', metric: 'cpu_usage', operator: '>', threshold: 80, device_id: 5, duration_minutes: 5, is_enabled: true, flap_detection_enabled: 0, auto_create_outage: false, auto_create_ticket: false, escalation_chain_id: null }]])
+        .mockResolvedValueOnce([[{ id: 1, organization_id: 1, name: 'test', metric: 'cpu_usage', operator: '>', threshold: 80, device_id: 5, duration_minutes: 5, is_enabled: true, flap_detection_enabled: 0, auto_create_outage: false, auto_create_ticket: false, escalation_chain_id: null }]])
         .mockResolvedValueOnce([[{ device_id: 5, avg_value: '90', max_value: '95' }]])
         .mockResolvedValueOnce([[]])  // no maintenance window
         .mockResolvedValueOnce([[]])  // no correlation suppression
@@ -232,7 +232,7 @@ describe('alertService extended', () => {
       eventBus.on('alert.triggered', (data) => received.push(data));
 
       db.query
-        .mockResolvedValueOnce([[{ id: 1, name: 'test', metric: 'cpu_usage', operator: '>', threshold: 80, device_id: 5, duration_minutes: 5, is_enabled: true, flap_detection_enabled: 0, auto_create_outage: false, auto_create_ticket: false, escalation_chain_id: null }]])
+        .mockResolvedValueOnce([[{ id: 1, organization_id: 1, name: 'test', metric: 'cpu_usage', operator: '>', threshold: 80, device_id: 5, duration_minutes: 5, is_enabled: true, flap_detection_enabled: 0, auto_create_outage: false, auto_create_ticket: false, escalation_chain_id: null }]])
         .mockResolvedValueOnce([[{ device_id: 5, avg_value: '90', max_value: '95' }]])
         .mockResolvedValueOnce([[]])  // no maintenance window
         .mockResolvedValueOnce([[]])  // no correlation suppression

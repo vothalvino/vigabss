@@ -5433,6 +5433,13 @@
         "memory": "Memory (latest)",
         "signal": "Signal (latest)",
         "latency": "Latency (latest)",
+        "noiseFloor": "Noise floor (latest)",
+        "snr": "SNR (latest)",
+        "ccq": "CCQ (latest)",
+        "airUtil": "Airtime utilization (latest)",
+        "txRate": "Tx link rate (latest)",
+        "rxRate": "Rx link rate (latest)",
+        "gpsSync": "GPS sync",
         "uptime": "Uptime",
         "lastPoll": "Last poll",
         "dataPoints": "Data points"
@@ -5442,6 +5449,11 @@
         "cpu": "CPU Usage (%)",
         "memory": "Memory Usage (%)",
         "signal": "Signal Strength (dBm)",
+        "noiseFloor": "Noise Floor (dBm)",
+        "snr": "Signal-to-Noise Ratio (dB)",
+        "rfQuality": "RF Quality (%)",
+        "linkRates": "Wireless Link Rates (Mbps)",
+        "gpsSync": "GPS Sync Availability (%)",
         "latency": "Latency (ms)",
         "errors": "Errors",
         "noData": "No data in selected range"
@@ -5450,7 +5462,17 @@
         "in": "↓ In",
         "out": "↑ Out",
         "inErrors": "↓ In errors",
-        "outErrors": "↑ Out errors"
+        "outErrors": "↑ Out errors",
+        "ccq": "CCQ",
+        "airUtil": "Airtime utilization",
+        "txRate": "Tx rate",
+        "rxRate": "Rx rate",
+        "gpsSync": "GPS sync"
+      },
+      "gpsStatus": {
+        "synced": "Synced",
+        "notSynced": "Not synced",
+        "partial": "{{percent}}% synced during period"
       },
       "switchPorts": {
         "title": "Switch Port Status",

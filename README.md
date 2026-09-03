@@ -124,7 +124,7 @@ working. New documentation uses the VigaBSS names.
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 360 tables + column additions)
-│   └── migrations/          # Individual numbered migration files (001–462)
+│   └── migrations/          # Individual numbered migration files (001–463)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -698,6 +698,8 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 
 > **Migration 461 — GUI-controlled WireGuard activation:** Moves the installation-wide hub switch into the operator-only Settings page. The public app remains non-root and delegates kernel networking to an isolated helper with only `NET_ADMIN`; a one-time compatibility sentinel preserves an existing deployment's enabled/disabled behavior.
 
+> **Migration 463 — Mimosa PTP SNMP monitoring:** Replaces the inaccurate catch-all Mimosa template with separate system profiles for B-series PTP radios (1.x firmware/MIB branch) and C5c radios in PTP mode (2.x branch). Existing assignments to the global legacy profile are preserved by renaming it in place; tenant-owned profiles with the same name are untouched. The profiles use Mimosa's current B5/C5 product MIB for temperature, total received signal, chain-1 noise/SNR, and short-window Tx/Rx throughput plus IF-MIB/IF-X-MIB interface health and 64-bit octet counters. Chain 1 is explicit because an unfiltered all-chain average can include the MIB's invalid-chain sentinel. The poller now decodes exactly representable Counter64 values, the RF fields flow through raw/hourly/daily history and alert evaluation, and all RF plus interface-status columns are populated through hourly, daily, and monthly rollups. Exact deployed C5c PTP firmware still requires a live walk; CCQ, airtime, and GPS objects are deliberately not guessed.
+
 > **Migrations 235–236 — §4.1 PPPoE Management Phase A (Pool Enhancements, Permissions):**
 > `235_ip_pools_pppoe_enhancements.sql` adds five guarded columns to `ip_pools`: `nas_id` (FK→nas, for NAS-pool binding), `service_type` ENUM, `default_prefix_len` (IPv6 PD), `excluded_ranges` TEXT, and `last_alerted_threshold` TINYINT (utilization crossing tracker). `236_seed_pppoe_management_permissions.sql` seeds five RBAC permissions (`ip_pools.assign`, `ip_pools.utilization`, `ip_pools.binding_report`, `connection_logs.summary`, `radius.batch_disconnect`) with role assignments, and registers the `check_pool_utilization` hourly scheduled task.
 
@@ -1258,26 +1260,11 @@ The SNMP OID profile system lets you customize which OIDs are polled for each de
 
 #### How Profiles Work
 
-Each `snmp_profiles` row is a named polling template that the poller selects for a device. Once a profile is selected, the poller walks every OID listed in `snmp_profile_oids` for that profile and stores each result in the corresponding `snmp_metrics` wide-table column (`metric_column`).
+Each `snmp_profiles` row is a named polling template. A device is polled only when SNMP is enabled and `devices.snmp_profile_id` explicitly references a profile. The poller walks every active OID listed in `snmp_profile_oids` for that profile and stores each result in the corresponding `snmp_metrics` wide-table column (`metric_column`).
 
-#### Profile Resolution Order
+#### Profile Assignment
 
-For every device where `snmp_enabled = TRUE`, the poller resolves its profile as follows:
-
-1. **Explicit override** — if `devices.snmp_profile_id IS NOT NULL`, use that profile directly.
-2. **Auto-match** — otherwise query `snmp_profiles` for the best match:
-   ```sql
-   SELECT * FROM snmp_profiles
-   WHERE (manufacturer  = device.manufacturer  OR manufacturer  IS NULL)
-     AND (device.model LIKE model_pattern       OR model_pattern IS NULL)
-     AND (device_type   = device.type           OR device_type   IS NULL)
-     AND status = 'active'
-   ORDER BY manufacturer DESC, model_pattern DESC, device_type DESC
-   LIMIT 1;
-   ```
-   More-specific matches (manufacturer + model_pattern + device_type) rank higher than wildcard rows.
-3. **Default fallback** — if no profile matches, select the profile with `is_default = TRUE` and `status = 'active'`.
-4. **Walk OIDs** — fetch all `snmp_profile_oids` rows for the resolved profile and poll each OID, storing results into `snmp_metrics` using the `metric_column` mapping.
+For every device where `snmp_enabled = TRUE`, set a profile explicitly in the Device Map create/edit dialog. A blank profile means **not polled**, even when a matching manufacturer/model or a default profile exists. Device discovery may suggest a profile while onboarding a discovered device, but the regular polling loop does not auto-match or fall back at runtime. This explicit assignment keeps a firmware-specific OID template from being applied to the wrong radio family.
 
 #### Pre-Seeded Profiles
 
@@ -1287,6 +1274,16 @@ For every device where `snmp_enabled = TRUE`, the poller resolves its profile as
 | **Ubiquiti airOS** | `Ubiquiti` | Enterprise `1.3.6.1.4.1.41112.*` OIDs for signal strength, CPU, memory |
 | **MikroTik RouterOS** | `MikroTik` | Enterprise `1.3.6.1.4.1.14988.*` OID for wireless signal + HOST-RESOURCES-MIB |
 | **Cambium Networks** | `Cambium` | Enterprise `1.3.6.1.4.1.161.*` OIDs for RSSI and CPU |
+| **Mimosa B-series PTP** | `Mimosa` | B5/C5 product-MIB temperature, total Rx power, chain-1 noise/SNR, five-second Tx/Rx throughput + IF-MIB/IF-X-MIB |
+| **Mimosa C5c PTP** | `Mimosa` | B5/C5 product-MIB total Rx power, chain-1 noise/SNR, temperature, five-second Tx/Rx throughput + IF-MIB/IF-X-MIB |
+
+#### Mimosa PTP Setup and Verification
+
+1. On both ends of the link, enable read-only SNMPv2c and restrict UDP/161 access to the poller network.
+2. In the Device Map editor, enable SNMP, enter the community and port, and explicitly select **Mimosa B-series PTP** or **Mimosa C5c PTP** to match the installed firmware family.
+3. Before relying on alerts, verify the live agent from the poller host. At minimum, walk `1.3.6.1.2.1.1.3`, `1.3.6.1.2.1.31.1.1.1`, and `1.3.6.1.4.1.43356.2.1.2`; then confirm fresh readings on the SNMP Metrics page.
+
+Mimosa's [current SNMP download page](https://client.help.mimosa.co/snmp-mib-downloads-client) identifies this as the B5 and C5 product MIB, and a C5c-specific field template corroborates the instances. Still confirm signal, noise, and SNR against the exact deployed PTP firmware before making them alert-critical. The profile deliberately records chain 1 instead of pretending an unfiltered multi-chain average is valid. CCQ, airtime utilization, and GPS sync remain empty because no trustworthy C5c PTP mappings were found; do not invent them solely because the enterprise prefix matches.
 
 #### Adding a New Vendor Profile
 
@@ -1305,7 +1302,7 @@ VALUES
     (LAST_INSERT_ID(), '1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4', 'cpu_usage', 'Huawei CPU (%)', 'gauge', FALSE, 30);
 ```
 
-The next poll cycle will automatically use the new profile for all Huawei OLT devices.
+Assign the new profile to each intended Huawei OLT device; the next poll cycle will then use it.
 
 ### Inventory / Warehouse
 

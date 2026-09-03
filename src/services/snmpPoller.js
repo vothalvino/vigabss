@@ -71,8 +71,9 @@ const VALID_METRIC_COLUMNS = new Set([
 const METRIC_COLUMN_BOUNDS = {
   // BIGINT, signed 64-bit (schema.sql:1557-1560,1569-1570,1588). JS doubles
   // only carry 53 bits of integer precision, so the practical ceiling is
-  // Number.MAX_SAFE_INTEGER rather than the true BIGINT max — real counters
-  // never approach either before wrapping in SNMP itself.
+  // Number.MAX_SAFE_INTEGER rather than the true BIGINT max. Counter64 can
+  // eventually exceed this on a long-lived busy interface; those samples are
+  // rejected below instead of being rounded into a false delta.
   if_in_octets:       { min: 0, max: Number.MAX_SAFE_INTEGER },
   if_out_octets:      { min: 0, max: Number.MAX_SAFE_INTEGER },
   if_in_errors:       { min: 0, max: Number.MAX_SAFE_INTEGER },
@@ -751,7 +752,28 @@ function snmpSubtree(session, oid) {
 function extractNumericValue(varbind) {
   const raw = varbind.value;
   if (typeof raw === 'number') return raw;
-  if (Buffer.isBuffer(raw)) return null;
+  // net-snmp intentionally returns Counter64 values as an opaque, unsigned
+  // big-endian Buffer because JavaScript Numbers cannot represent every
+  // uint64 exactly.  IF-MIB ifHC* counters use this representation; dropping
+  // Buffers here made every high-capacity interface counter silently NULL.
+  // Convert only while the value is still exactly representable.  Once a
+  // long-lived device exceeds Number.MAX_SAFE_INTEGER, keeping an imprecise
+  // counter would manufacture bogus rate deltas, so the honest result is a
+  // gap until that device's counter resets.
+  if (Buffer.isBuffer(raw)) {
+    // OctetString and Opaque values are Buffers too. Decoding those bytes as
+    // an integer would turn unrelated text/blob OIDs into fake telemetry.
+    if (varbind.type !== snmp.ObjectType.Counter64) return null;
+    if (raw.length === 0 || raw.length > 8) return null;
+
+    let value = 0n;
+    for (const byte of raw.values()) {
+      value = (value << 8n) | BigInt(byte);
+    }
+
+    if (value > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+    return Number(value);
+  }
   const num = Number(raw);
   return Number.isFinite(num) ? num : null;
 }
@@ -801,5 +823,6 @@ module.exports = {
   sanitizeMetrics,
   collectTableAverage,
   collectHrMemoryPercent,
+  extractNumericValue,
   METRIC_COLUMN_BOUNDS,
 };

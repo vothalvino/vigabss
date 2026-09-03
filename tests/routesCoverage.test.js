@@ -382,15 +382,37 @@ describe('Alert Routes — /api/alerts', () => {
       mockAuthUser();
       db.query
         .mockResolvedValueOnce([{ insertId: 10 }])
-        .mockResolvedValueOnce([[{ id: 10, name: 'High CPU', metric: 'cpu_percent' }]]);
+        .mockResolvedValueOnce([[{ id: 10, name: 'High CPU', metric: 'cpu_usage' }]]);
 
       const res = await request(app)
         .post('/api/alerts/rules')
         .set('Authorization', `Bearer ${authToken}`)
-        .send({ name: 'High CPU', metric: 'cpu_percent', threshold: 90 });
+        .send({ name: 'High CPU', metric: 'cpu_usage', threshold: 90 });
 
       expect(res.status).toBe(201);
       expect(res.body.data.id).toBe(10);
+    });
+
+    test('accepts an RF metric and rejects unsupported metric aliases', async () => {
+      mockAuthUser();
+      db.query
+        .mockResolvedValueOnce([{ insertId: 11 }])
+        .mockResolvedValueOnce([[{ id: 11, name: 'Low SNR', metric: 'snr_db' }]]);
+
+      const accepted = await request(app)
+        .post('/api/alerts/rules')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Low SNR', metric: 'snr_db', operator: '<', threshold: 15 });
+
+      expect(accepted.status).toBe(201);
+
+      mockAuthUser();
+      const rejected = await request(app)
+        .post('/api/alerts/rules')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Old alias', metric: 'cpu', threshold: 90 });
+
+      expect(rejected.status).toBe(422);
     });
   });
 
@@ -407,6 +429,29 @@ describe('Alert Routes — /api/alerts', () => {
         .send({ name: 'Updated' });
 
       expect(res.status).toBe(200);
+      const readback = db.query.mock.calls.find(([sql]) =>
+        typeof sql === 'string' && sql.includes('SELECT * FROM alert_rules WHERE id = ?'));
+      expect(readback).toEqual([
+        expect.stringContaining('organization_id = ?'),
+        ['1', 1],
+      ]);
+    });
+
+    test('returns 404 without cross-tenant readback when the scoped update changes no row', async () => {
+      mockAuthUser();
+      db.query.mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+      const res = await request(app)
+        .put('/api/alerts/rules/999')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'Foreign rule' });
+
+      expect(res.status).toBe(404);
+      expect(db.query).toHaveBeenCalledTimes(1);
+      expect(db.query.mock.calls[0]).toEqual([
+        expect.stringContaining('organization_id = ?'),
+        ['Foreign rule', '999', 1],
+      ]);
     });
 
     test('returns 400 when no fields to update', async () => {
@@ -474,6 +519,18 @@ describe('Alert Routes — /api/alerts', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.acknowledged).toBe(true);
+      expect(alertService.acknowledgeAlert).toHaveBeenCalledWith(1, '1', 1);
+    });
+
+    test('returns 404 when the event is outside the active organization', async () => {
+      mockAuthUser();
+      alertService.acknowledgeAlert.mockResolvedValue(false);
+
+      const res = await request(app)
+        .post('/api/alerts/events/999/acknowledge')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(404);
     });
   });
 

@@ -5433,6 +5433,13 @@
         "memory": "Memória (mais recente)",
         "signal": "Sinal (mais recente)",
         "latency": "Latência (mais recente)",
+        "noiseFloor": "Piso de ruído (mais recente)",
+        "snr": "SNR (mais recente)",
+        "ccq": "CCQ (mais recente)",
+        "airUtil": "Uso do tempo de transmissão (mais recente)",
+        "txRate": "Taxa do enlace Tx (mais recente)",
+        "rxRate": "Taxa do enlace Rx (mais recente)",
+        "gpsSync": "Sincronização GPS",
         "uptime": "Atividade",
         "lastPoll": "Última consulta",
         "dataPoints": "Pontos de dados"
@@ -5442,6 +5449,11 @@
         "cpu": "Uso de CPU (%)",
         "memory": "Uso de Memória (%)",
         "signal": "Intensidade do Sinal (dBm)",
+        "noiseFloor": "Piso de Ruído (dBm)",
+        "snr": "Relação Sinal-Ruído (dB)",
+        "rfQuality": "Qualidade de RF (%)",
+        "linkRates": "Taxas do Enlace Sem Fio (Mbps)",
+        "gpsSync": "Disponibilidade de Sincronização GPS (%)",
         "latency": "Latência (ms)",
         "errors": "Erros",
         "noData": "Sem dados no período selecionado"
@@ -5450,7 +5462,17 @@
         "in": "↓ Entrada",
         "out": "↑ Saída",
         "inErrors": "↓ Erros de entrada",
-        "outErrors": "↑ Erros de saída"
+        "outErrors": "↑ Erros de saída",
+        "ccq": "CCQ",
+        "airUtil": "Uso do tempo de transmissão",
+        "txRate": "Taxa Tx",
+        "rxRate": "Taxa Rx",
+        "gpsSync": "Sincronização GPS"
+      },
+      "gpsStatus": {
+        "synced": "Sincronizado",
+        "notSynced": "Não sincronizado",
+        "partial": "Sincronizado em {{percent}}% do período"
       },
       "switchPorts": {
         "title": "Status das Portas do Switch",

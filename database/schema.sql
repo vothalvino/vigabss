@@ -844,7 +844,7 @@ CREATE TABLE IF NOT EXISTS devices (
     snmp_version  ENUM('v1','v2c','v3') NULL DEFAULT 'v2c' COMMENT 'SNMP protocol version',
     snmp_port     SMALLINT UNSIGNED NULL DEFAULT 161 COMMENT 'SNMP UDP port',
     snmp_profile_id BIGINT UNSIGNED NULL
-                                       COMMENT 'Explicit SNMP profile override; NULL = auto-match by manufacturer/model/type',
+                                       COMMENT 'Explicit SNMP polling profile; NULL devices are not polled by the current workers',
     snmp_v3_security_name VARCHAR(255) NULL COMMENT 'SNMPv3 security name (USM user) — migration 250',
     snmp_v3_auth_protocol ENUM('none','md5','sha','sha256','sha512') NULL DEFAULT 'sha' COMMENT 'SNMPv3 authentication protocol — migration 250',
     snmp_v3_auth_key_encrypted VARCHAR(512) NULL COMMENT 'SNMPv3 auth passphrase — encrypted at app layer — migration 250',
@@ -2008,26 +2008,27 @@ CREATE TABLE IF NOT EXISTS snmp_rollup_state (
 
 INSERT IGNORE INTO snmp_rollup_state (rollup_name, last_processed) VALUES
     ('1hr',  NULL),
-    ('1day', NULL);
+    ('1day', NULL),
+    ('1month', NULL);
 
 -- ---------------------------------------------------------------------------
 -- Table: snmp_profiles
--- Purpose: Named SNMP polling templates matched by manufacturer/model/device_type.
---          The poller selects a profile per device and walks only the OIDs
---          defined in snmp_profile_oids for that profile.
+-- Purpose: Named SNMP polling templates assigned explicitly through
+--          devices.snmp_profile_id. Manufacturer/model/type fields are
+--          operator-facing compatibility metadata, not runtime auto-matching.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS snmp_profiles (
     id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     organization_id BIGINT UNSIGNED NULL   COMMENT 'Owning org. NULL = a system profile (is_system=1) or an unattributed legacy row, adoptable on write (migration 440)',
     is_system     BOOLEAN         NOT NULL DEFAULT FALSE COMMENT 'Ships with VigaBSS: visible to every tenant, editable by none (migration 440)',
     name          VARCHAR(100)    NOT NULL COMMENT 'Profile name e.g. Ubiquiti airOS, MikroTik RouterOS',
-    manufacturer  VARCHAR(100)    NULL     COMMENT 'Match devices.manufacturer (NULL = any)',
-    model_pattern VARCHAR(100)    NULL     COMMENT 'SQL LIKE pattern to match devices.model (NULL = any)',
+    manufacturer  VARCHAR(100)    NULL     COMMENT 'Advisory devices.manufacturer compatibility metadata (NULL = any)',
+    model_pattern VARCHAR(100)    NULL     COMMENT 'Advisory SQL LIKE pattern for compatible devices.model values (NULL = any)',
     device_type   ENUM('outdoor_cpe','indoor_cpe','ptp','ptmp_ap','olt','router','switch','onu','other') NULL
-                                           COMMENT 'Match devices.type (NULL = any)',
+                                           COMMENT 'Advisory compatible devices.type (NULL = any)',
     snmp_version  ENUM('v1','v2c','v3') NULL DEFAULT 'v2c' COMMENT 'Preferred SNMP version for this profile',
     poll_interval_sec INT UNSIGNED NOT NULL DEFAULT 300 COMMENT 'Poll interval in seconds (default 5 min)',
-    is_default    BOOLEAN         NOT NULL DEFAULT FALSE COMMENT 'Fallback profile when no manufacturer/model match',
+    is_default    BOOLEAN         NOT NULL DEFAULT FALSE COMMENT 'Legacy default metadata; current pollers require explicit assignment',
     description   TEXT            NULL,
     status        ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
     created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -2306,7 +2307,7 @@ VALUES
         'Generic IF-MIB',
         NULL, NULL, NULL,
         'v2c', 300, TRUE,
-        'Default fallback profile using standard IF-MIB (RFC 2863) and HOST-RESOURCES-MIB (RFC 2790) OIDs. Applied to any device that does not match a more specific profile.'
+        'General-purpose profile using standard IF-MIB (RFC 2863) and HOST-RESOURCES-MIB (RFC 2790) OIDs. Assign explicitly to compatible devices.'
     ),
     (
         'Ubiquiti airOS',
@@ -2443,59 +2444,128 @@ WHERE p.name = 'Cambium Networks';
 -- ---------------------------------------------------------------------------
 -- Seed: §9.1 new vendor snmp_profiles — Mimosa, Tarana, Radwin, Siklu
 -- ---------------------------------------------------------------------------
-INSERT IGNORE INTO snmp_profiles
-    (name, manufacturer, model_pattern, device_type, snmp_version, poll_interval_sec, is_default, description)
-VALUES
-    (
-        'Mimosa Networks',
-        'Mimosa', 'A[2-9]|B[2-9]|C[2-9]', NULL,
-        'v2c', 60, FALSE,
-        'Mimosa Networks A/B/C-series wireless backhaul and PTMP access points. '
-        'Uses Mimosa enterprise MIB (OID prefix 1.3.6.1.4.1.43356) for signal, '
-        'noise floor, CCQ, air utilization, and modulation rates.'
-    ),
-    (
-        'Tarana Wireless',
-        'Tarana', 'G1|G1A|G1B', NULL,
-        'v2c', 60, FALSE,
-        'Tarana Wireless G1 fixed wireless access system. '
-        'Uses Tarana enterprise MIB (OID prefix 1.3.6.1.4.1.50536) for DL/UL signal, '
-        'noise floor, SNR, and GPS sync status.'
-    ),
-    (
-        'Radwin',
-        'Radwin', '2000|5000|JET', NULL,
-        'v2c', 60, FALSE,
-        'Radwin 2000/5000 series PTP/PTMP wireless broadband systems. '
-        'Uses Radwin enterprise MIB (OID prefix 1.3.6.1.4.1.4329) for signal, '
-        'modulation, airtime utilization, and Tx power.'
-    ),
-    (
-        'Siklu',
-        'Siklu', 'EH-[0-9]|BreezeULTRA|MultiHaul', NULL,
-        'v2c', 60, FALSE,
-        'Siklu E-band / V-band mmWave wireless links. '
-        'Uses Siklu enterprise MIB (OID prefix 1.3.6.1.4.1.31926) for RSL, '
-        'TSL, SNR, modulation, and link budget metrics.'
-    );
+-- organization_id is NULL for global system profiles, so MySQL's UNIQUE key
+-- cannot deduplicate them (NULL values compare as distinct). Use an explicit,
+-- system-scoped NOT EXISTS guard for every row instead of INSERT IGNORE.
+INSERT INTO snmp_profiles
+    (organization_id, is_system, name, manufacturer, model_pattern, device_type,
+     snmp_version, poll_interval_sec, is_default, description)
+SELECT NULL, TRUE, 'Mimosa B-series PTP', 'Mimosa', 'B%', 'ptp',
+       'v2c', 60, FALSE,
+       'Mimosa B-series point-to-point backhaul radios on the 1.x firmware family. Uses the official B5 and C5 product MIB Rev 3.00 plus IF-MIB/IF-X-MIB.'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM snmp_profiles
+    WHERE organization_id IS NULL AND is_system = TRUE
+      AND name = 'Mimosa B-series PTP' AND deleted_at IS NULL
+);
 
--- Mimosa Networks OIDs
+INSERT INTO snmp_profiles
+    (organization_id, is_system, name, manufacturer, model_pattern, device_type,
+     snmp_version, poll_interval_sec, is_default, description)
+SELECT NULL, TRUE, 'Mimosa C5c PTP', 'Mimosa', '%C5c%', 'ptp',
+       'v2c', 60, FALSE,
+       'Mimosa C5c radios operating in point-to-point/backhaul mode on the 2.x firmware family. Uses the official B5 and C5 product MIB Rev 3.00 plus IF-MIB/IF-X-MIB.'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM snmp_profiles
+    WHERE organization_id IS NULL AND is_system = TRUE
+      AND name = 'Mimosa C5c PTP' AND deleted_at IS NULL
+);
+
+INSERT INTO snmp_profiles
+    (organization_id, is_system, name, manufacturer, model_pattern, device_type,
+     snmp_version, poll_interval_sec, is_default, description)
+SELECT NULL, TRUE, 'Tarana Wireless', 'Tarana', 'G1|G1A|G1B', NULL,
+       'v2c', 60, FALSE,
+       'Tarana Wireless G1 fixed wireless access system. Uses Tarana enterprise MIB (OID prefix 1.3.6.1.4.1.50536) for DL/UL signal, noise floor, SNR, and GPS sync status.'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM snmp_profiles
+    WHERE organization_id IS NULL AND is_system = TRUE
+      AND name = 'Tarana Wireless' AND deleted_at IS NULL
+);
+
+INSERT INTO snmp_profiles
+    (organization_id, is_system, name, manufacturer, model_pattern, device_type,
+     snmp_version, poll_interval_sec, is_default, description)
+SELECT NULL, TRUE, 'Radwin', 'Radwin', '2000|5000|JET', NULL,
+       'v2c', 60, FALSE,
+       'Radwin 2000/5000 series PTP/PTMP wireless broadband systems. Uses Radwin enterprise MIB (OID prefix 1.3.6.1.4.1.4329) for signal, modulation, airtime utilization, and Tx power.'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM snmp_profiles
+    WHERE organization_id IS NULL AND is_system = TRUE
+      AND name = 'Radwin' AND deleted_at IS NULL
+);
+
+INSERT INTO snmp_profiles
+    (organization_id, is_system, name, manufacturer, model_pattern, device_type,
+     snmp_version, poll_interval_sec, is_default, description)
+SELECT NULL, TRUE, 'Siklu', 'Siklu', 'EH-[0-9]|BreezeULTRA|MultiHaul', NULL,
+       'v2c', 60, FALSE,
+       'Siklu E-band / V-band mmWave wireless links. Uses Siklu enterprise MIB (OID prefix 1.3.6.1.4.1.31926) for RSL, TSL, SNR, modulation, and link budget metrics.'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM snmp_profiles
+    WHERE organization_id IS NULL AND is_system = TRUE
+      AND name = 'Siklu' AND deleted_at IS NULL
+);
+
+-- Mimosa B-series PTP OIDs. The IF-X-MIB Counter64 objects replace the old
+-- 32-bit ifInOctets/ifOutOctets seeds so only one source writes each metric.
 INSERT IGNORE INTO snmp_profile_oids
-    (profile_id, oid, metric_column, label, oid_type, is_per_interface, transform, sort_order)
-SELECT p.id, o.oid, o.metric_column, o.label, o.oid_type, o.is_per_interface, o.transform, o.sort_order
+    (profile_id, oid, metric_column, label, oid_type, is_per_interface, aggregate, transform, sort_order)
+SELECT p.id, o.oid, o.metric_column, o.label, o.oid_type, o.is_per_interface, FALSE, o.transform, o.sort_order
 FROM snmp_profiles p
 JOIN (
-    SELECT '1.3.6.1.2.1.2.2.1.10'         AS oid, 'if_in_octets'    AS metric_column, 'Inbound Octets'              AS label, 'counter' AS oid_type, TRUE  AS is_per_interface, NULL AS transform, 10 AS sort_order UNION ALL
-    SELECT '1.3.6.1.2.1.2.2.1.16',               'if_out_octets',                    'Outbound Octets',             'counter', TRUE,  NULL, 20 UNION ALL
-    SELECT '1.3.6.1.4.1.43356.2.1.1.1.1',        'cpu_usage',                        'Mimosa CPU (%)',              'gauge',   FALSE, NULL, 50 UNION ALL
-    SELECT '1.3.6.1.4.1.43356.2.1.2.1.1.1',      'signal_strength',                  'Mimosa Rx Signal (dBm)',      'gauge',   FALSE, NULL, 60 UNION ALL
-    SELECT '1.3.6.1.4.1.43356.2.1.2.1.1.2',      'noise_floor_dbm',                  'Mimosa Noise Floor (dBm)',    'gauge',   FALSE, NULL, 70 UNION ALL
-    SELECT '1.3.6.1.4.1.43356.2.1.2.1.1.4',      'snr_db',                           'Mimosa SNR (dB)',             'gauge',   FALSE, NULL, 80 UNION ALL
-    SELECT '1.3.6.1.4.1.43356.2.1.2.1.1.7',      'air_util_pct',                     'Mimosa Airtime Util (%)',     'gauge',   FALSE, NULL, 90 UNION ALL
-    SELECT '1.3.6.1.4.1.43356.2.1.2.1.1.10',     'tx_rate_mbps',                     'Mimosa DL Rate (Mbps)',       'gauge',   FALSE, NULL, 100 UNION ALL
-    SELECT '1.3.6.1.4.1.43356.2.1.2.1.1.11',     'rx_rate_mbps',                     'Mimosa UL Rate (Mbps)',       'gauge',   FALSE, NULL, 110
+    SELECT '1.3.6.1.2.1.1.3.0'                    AS oid, 'uptime_ticks'       AS metric_column, 'System Uptime (sysUpTime)'       AS label, 'timeticks' AS oid_type, FALSE AS is_per_interface, NULL AS transform,          5 AS sort_order UNION ALL
+    SELECT '1.3.6.1.2.1.31.1.1.1.6',                      'if_in_octets',                         'ifHCInOctets (64-bit)',                     'counter64',          TRUE,                      NULL,                      10 UNION ALL
+    SELECT '1.3.6.1.2.1.31.1.1.1.10',                     'if_out_octets',                        'ifHCOutOctets (64-bit)',                    'counter64',          TRUE,                      NULL,                      20 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.14',                        'if_in_errors',                         'ifInErrors',                               'counter',            TRUE,                      NULL,                      30 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.20',                        'if_out_errors',                        'ifOutErrors',                              'counter',            TRUE,                      NULL,                      40 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.13',                        'if_in_discards',                       'ifInDiscards',                             'counter',            TRUE,                      NULL,                      50 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.19',                        'if_out_discards',                      'ifOutDiscards',                            'counter',            TRUE,                      NULL,                      60 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.8',                         'if_oper_status',                       'ifOperStatus (1=up 2=down)',               'gauge',              TRUE,                      NULL,                      70 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.1.8.0',               'temperature_c',                        'Mimosa Internal Temperature (C)',          'gauge',              FALSE,                     'value / 10',              80 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.6.6.0',               'signal_strength',                      'Mimosa Total Rx Power (dBm)',              'gauge',              FALSE,                     'value / 10',              90 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.6.1.1.4.1',           'noise_floor_dbm',                      'Mimosa RF Chain 1 Noise (dBm)',            'gauge',              FALSE,                     'value / 10',             100 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.6.1.1.5.1',           'snr_db',                               'Mimosa RF Chain 1 SNR (dB)',               'gauge',              FALSE,                     'value / 10',             110 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.7.1.0',               'tx_rate_mbps',                         'Mimosa 5-second Tx Throughput (Mbps)',     'gauge',              FALSE,                     'value / 100000',         120 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.7.2.0',               'rx_rate_mbps',                         'Mimosa 5-second Rx Throughput (Mbps)',     'gauge',              FALSE,                     'value / 100000',         130
 ) o
-WHERE p.name = 'Mimosa Networks';
+WHERE p.name = 'Mimosa B-series PTP'
+  AND p.organization_id IS NULL
+  AND p.is_system = TRUE
+  AND p.deleted_at IS NULL;
+
+-- Mimosa C5c in PTP mode uses a separate 2.x firmware family. The RF rows
+-- below use official B5/C5 product-MIB semantics and field-verified C5c chain-1
+-- instances; unsupported CPU/CCQ/airtime/GPS guesses are intentionally absent.
+INSERT IGNORE INTO snmp_profile_oids
+    (profile_id, oid, metric_column, label, oid_type, is_per_interface, aggregate, transform, sort_order)
+SELECT p.id, o.oid, o.metric_column, o.label, o.oid_type, o.is_per_interface, o.aggregate, o.transform, o.sort_order
+FROM snmp_profiles p
+JOIN (
+    SELECT '1.3.6.1.2.1.1.3.0'                    AS oid, 'uptime_ticks'       AS metric_column, 'System Uptime (sysUpTime)'       AS label, 'timeticks' AS oid_type, FALSE AS is_per_interface, FALSE AS aggregate, NULL AS transform,          5 AS sort_order UNION ALL
+    SELECT '1.3.6.1.2.1.31.1.1.1.6',                      'if_in_octets',                         'ifHCInOctets (64-bit)',                     'counter64',          TRUE,                      FALSE,              NULL,                      10 UNION ALL
+    SELECT '1.3.6.1.2.1.31.1.1.1.10',                     'if_out_octets',                        'ifHCOutOctets (64-bit)',                    'counter64',          TRUE,                      FALSE,              NULL,                      20 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.14',                        'if_in_errors',                         'ifInErrors',                               'counter',            TRUE,                      FALSE,              NULL,                      30 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.20',                        'if_out_errors',                        'ifOutErrors',                              'counter',            TRUE,                      FALSE,              NULL,                      40 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.13',                        'if_in_discards',                       'ifInDiscards',                             'counter',            TRUE,                      FALSE,              NULL,                      50 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.19',                        'if_out_discards',                      'ifOutDiscards',                            'counter',            TRUE,                      FALSE,              NULL,                      60 UNION ALL
+    SELECT '1.3.6.1.2.1.2.2.1.8',                         'if_oper_status',                       'ifOperStatus (1=up 2=down)',               'gauge',              TRUE,                      FALSE,              NULL,                      70 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.1.8.0',               'temperature_c',                        'Mimosa Internal Temperature (C)',          'gauge',              FALSE,                     FALSE,              'value / 10',              80 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.6.6.0',               'signal_strength',                      'Mimosa Total Rx Power (dBm)',              'gauge',              FALSE,                     FALSE,              'value / 10',              90 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.6.1.1.4.1',           'noise_floor_dbm',                      'Mimosa RF Chain 1 Noise (dBm)',            'gauge',              FALSE,                     FALSE,              'value / 10',             100 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.6.1.1.5.1',           'snr_db',                               'Mimosa RF Chain 1 SNR (dB)',               'gauge',              FALSE,                     FALSE,              'value / 10',             110 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.7.1.0',               'tx_rate_mbps',                         'Mimosa 5-second Tx Throughput (Mbps)',     'gauge',              FALSE,                     FALSE,              'value / 100000',         120 UNION ALL
+    SELECT '1.3.6.1.4.1.43356.2.1.2.7.2.0',               'rx_rate_mbps',                         'Mimosa 5-second Rx Throughput (Mbps)',     'gauge',              FALSE,                     FALSE,              'value / 100000',         130
+) o
+WHERE p.name = 'Mimosa C5c PTP'
+  AND p.organization_id IS NULL
+  AND p.is_system = TRUE
+  AND p.deleted_at IS NULL;
 
 -- Tarana Wireless OIDs
 INSERT IGNORE INTO snmp_profile_oids
@@ -2567,21 +2637,6 @@ SELECT
     140
 FROM snmp_profiles p
 WHERE p.name = 'Ubiquiti airOS';
-
--- Mimosa Networks — mimosaGpsSync
-INSERT IGNORE INTO snmp_profile_oids
-    (profile_id, oid, metric_column, label, oid_type, is_per_interface, transform, sort_order)
-SELECT
-    p.id,
-    '1.3.6.1.4.1.43356.2.1.2.1.1.8',
-    'gps_sync_status',
-    'Mimosa GPS Sync (1=synced)',
-    'gauge',
-    FALSE,
-    NULL,
-    115
-FROM snmp_profiles p
-WHERE p.name = 'Mimosa Networks';
 
 -- Standard MIB-II sysUpTime — device uptime for every profile (migration 372).
 -- Migration 398 re-applies this same idempotent NOT-EXISTS-guarded backfill so
@@ -2697,9 +2752,9 @@ PARTITION BY RANGE (UNIX_TIMESTAMP(event_at)) (
 -- MySQL equivalents of TimescaleDB continuous aggregates and retention policies.
 -- Requires:  SET GLOBAL event_scheduler = ON;  (in my.cnf or at runtime)
 --
--- Rollup flow : snmp_metrics (raw 5-min) -> snmp_metrics_1hr -> snmp_metrics_1day
--- Retention   : raw kept 90 days (DROP PARTITION), hourly kept 1 year (batch
---               DELETE), daily kept indefinitely (3+ years)
+-- Rollup flow : raw 5-min -> hourly -> daily -> monthly
+-- Retention   : raw kept 90 days (DROP PARTITION), hourly 7 days, daily
+--               90 days, monthly 3 years (batch DELETE for aggregate tiers)
 -- =============================================================================
 
 DROP PROCEDURE IF EXISTS connection_logs_maintain_partitions;
@@ -2749,6 +2804,14 @@ proc: BEGIN
          avg_ups_runtime_min,    min_ups_runtime_min,     max_ups_runtime_min,
          avg_poe_power_mw,       min_poe_power_mw,        max_poe_power_mw,
          avg_humidity_pct,       min_humidity_pct,        max_humidity_pct,
+         avg_if_oper_status,     min_if_oper_status,      max_if_oper_status,
+         avg_noise_floor_dbm,    min_noise_floor_dbm,     max_noise_floor_dbm,
+         avg_air_util_pct,       min_air_util_pct,        max_air_util_pct,
+         avg_gps_sync_status,    min_gps_sync_status,     max_gps_sync_status,
+         avg_snr_db,             min_snr_db,              max_snr_db,
+         avg_ccq_pct,            min_ccq_pct,             max_ccq_pct,
+         avg_tx_rate_mbps,       min_tx_rate_mbps,        max_tx_rate_mbps,
+         avg_rx_rate_mbps,       min_rx_rate_mbps,        max_rx_rate_mbps,
          sample_count)
     SELECT
         device_id,
@@ -2774,6 +2837,14 @@ proc: BEGIN
         AVG(ups_runtime_min),    MIN(ups_runtime_min),     MAX(ups_runtime_min),
         AVG(poe_power_mw),       MIN(poe_power_mw),        MAX(poe_power_mw),
         AVG(humidity_pct),       MIN(humidity_pct),        MAX(humidity_pct),
+        AVG(if_oper_status),     MIN(if_oper_status),      MAX(if_oper_status),
+        AVG(noise_floor_dbm),    MIN(noise_floor_dbm),     MAX(noise_floor_dbm),
+        AVG(air_util_pct),       MIN(air_util_pct),        MAX(air_util_pct),
+        AVG(gps_sync_status),    MIN(gps_sync_status),     MAX(gps_sync_status),
+        AVG(snr_db),             MIN(snr_db),              MAX(snr_db),
+        AVG(ccq_pct),            MIN(ccq_pct),             MAX(ccq_pct),
+        AVG(tx_rate_mbps),       MIN(tx_rate_mbps),        MAX(tx_rate_mbps),
+        AVG(rx_rate_mbps),       MIN(rx_rate_mbps),        MAX(rx_rate_mbps),
         COUNT(*)
     FROM snmp_metrics
     WHERE polled_at >  v_from_ts
@@ -2843,6 +2914,30 @@ proc: BEGIN
         avg_humidity_pct       = VALUES(avg_humidity_pct),
         min_humidity_pct       = VALUES(min_humidity_pct),
         max_humidity_pct       = VALUES(max_humidity_pct),
+        avg_if_oper_status     = VALUES(avg_if_oper_status),
+        min_if_oper_status     = VALUES(min_if_oper_status),
+        max_if_oper_status     = VALUES(max_if_oper_status),
+        avg_noise_floor_dbm    = VALUES(avg_noise_floor_dbm),
+        min_noise_floor_dbm    = VALUES(min_noise_floor_dbm),
+        max_noise_floor_dbm    = VALUES(max_noise_floor_dbm),
+        avg_air_util_pct       = VALUES(avg_air_util_pct),
+        min_air_util_pct       = VALUES(min_air_util_pct),
+        max_air_util_pct       = VALUES(max_air_util_pct),
+        avg_gps_sync_status    = VALUES(avg_gps_sync_status),
+        min_gps_sync_status    = VALUES(min_gps_sync_status),
+        max_gps_sync_status    = VALUES(max_gps_sync_status),
+        avg_snr_db             = VALUES(avg_snr_db),
+        min_snr_db             = VALUES(min_snr_db),
+        max_snr_db             = VALUES(max_snr_db),
+        avg_ccq_pct            = VALUES(avg_ccq_pct),
+        min_ccq_pct            = VALUES(min_ccq_pct),
+        max_ccq_pct            = VALUES(max_ccq_pct),
+        avg_tx_rate_mbps       = VALUES(avg_tx_rate_mbps),
+        min_tx_rate_mbps       = VALUES(min_tx_rate_mbps),
+        max_tx_rate_mbps       = VALUES(max_tx_rate_mbps),
+        avg_rx_rate_mbps       = VALUES(avg_rx_rate_mbps),
+        min_rx_rate_mbps       = VALUES(min_rx_rate_mbps),
+        max_rx_rate_mbps       = VALUES(max_rx_rate_mbps),
         sample_count           = VALUES(sample_count);
 
     UPDATE snmp_rollup_state
@@ -2893,6 +2988,14 @@ proc: BEGIN
          avg_ups_runtime_min,    min_ups_runtime_min,     max_ups_runtime_min,
          avg_poe_power_mw,       min_poe_power_mw,        max_poe_power_mw,
          avg_humidity_pct,       min_humidity_pct,        max_humidity_pct,
+         avg_if_oper_status,     min_if_oper_status,      max_if_oper_status,
+         avg_noise_floor_dbm,    min_noise_floor_dbm,     max_noise_floor_dbm,
+         avg_air_util_pct,       min_air_util_pct,        max_air_util_pct,
+         avg_gps_sync_status,    min_gps_sync_status,     max_gps_sync_status,
+         avg_snr_db,             min_snr_db,              max_snr_db,
+         avg_ccq_pct,            min_ccq_pct,             max_ccq_pct,
+         avg_tx_rate_mbps,       min_tx_rate_mbps,        max_tx_rate_mbps,
+         avg_rx_rate_mbps,       min_rx_rate_mbps,        max_rx_rate_mbps,
          sample_count)
     SELECT
         device_id,
@@ -2918,6 +3021,14 @@ proc: BEGIN
         AVG(avg_ups_runtime_min),    MIN(min_ups_runtime_min),     MAX(max_ups_runtime_min),
         AVG(avg_poe_power_mw),       MIN(min_poe_power_mw),        MAX(max_poe_power_mw),
         AVG(avg_humidity_pct),       MIN(min_humidity_pct),        MAX(max_humidity_pct),
+        AVG(avg_if_oper_status),     MIN(min_if_oper_status),      MAX(max_if_oper_status),
+        AVG(avg_noise_floor_dbm),    MIN(min_noise_floor_dbm),     MAX(max_noise_floor_dbm),
+        AVG(avg_air_util_pct),       MIN(min_air_util_pct),        MAX(max_air_util_pct),
+        AVG(avg_gps_sync_status),    MIN(min_gps_sync_status),     MAX(max_gps_sync_status),
+        AVG(avg_snr_db),             MIN(min_snr_db),              MAX(max_snr_db),
+        AVG(avg_ccq_pct),            MIN(min_ccq_pct),             MAX(max_ccq_pct),
+        AVG(avg_tx_rate_mbps),       MIN(min_tx_rate_mbps),        MAX(max_tx_rate_mbps),
+        AVG(avg_rx_rate_mbps),       MIN(min_rx_rate_mbps),        MAX(max_rx_rate_mbps),
         SUM(sample_count)
     FROM snmp_metrics_1hr
     WHERE period_start >= v_from_date
@@ -2984,6 +3095,30 @@ proc: BEGIN
         avg_humidity_pct       = VALUES(avg_humidity_pct),
         min_humidity_pct       = VALUES(min_humidity_pct),
         max_humidity_pct       = VALUES(max_humidity_pct),
+        avg_if_oper_status     = VALUES(avg_if_oper_status),
+        min_if_oper_status     = VALUES(min_if_oper_status),
+        max_if_oper_status     = VALUES(max_if_oper_status),
+        avg_noise_floor_dbm    = VALUES(avg_noise_floor_dbm),
+        min_noise_floor_dbm    = VALUES(min_noise_floor_dbm),
+        max_noise_floor_dbm    = VALUES(max_noise_floor_dbm),
+        avg_air_util_pct       = VALUES(avg_air_util_pct),
+        min_air_util_pct       = VALUES(min_air_util_pct),
+        max_air_util_pct       = VALUES(max_air_util_pct),
+        avg_gps_sync_status    = VALUES(avg_gps_sync_status),
+        min_gps_sync_status    = VALUES(min_gps_sync_status),
+        max_gps_sync_status    = VALUES(max_gps_sync_status),
+        avg_snr_db             = VALUES(avg_snr_db),
+        min_snr_db             = VALUES(min_snr_db),
+        max_snr_db             = VALUES(max_snr_db),
+        avg_ccq_pct            = VALUES(avg_ccq_pct),
+        min_ccq_pct            = VALUES(min_ccq_pct),
+        max_ccq_pct            = VALUES(max_ccq_pct),
+        avg_tx_rate_mbps       = VALUES(avg_tx_rate_mbps),
+        min_tx_rate_mbps       = VALUES(min_tx_rate_mbps),
+        max_tx_rate_mbps       = VALUES(max_tx_rate_mbps),
+        avg_rx_rate_mbps       = VALUES(avg_rx_rate_mbps),
+        min_rx_rate_mbps       = VALUES(min_rx_rate_mbps),
+        max_rx_rate_mbps       = VALUES(max_rx_rate_mbps),
         sample_count           = VALUES(sample_count);
 
     UPDATE snmp_rollup_state
@@ -2992,9 +3127,190 @@ proc: BEGIN
 END$$
 
 -- ---------------------------------------------------------------------------
+-- Procedure: snmp_rollup_to_1month
+-- Purpose:   Aggregate daily rows into complete monthly rows. The source
+--            daily tier is retained for 90 days; monthly rows retain 3 years.
+-- ---------------------------------------------------------------------------
+CREATE PROCEDURE IF NOT EXISTS snmp_rollup_to_1month()
+proc: BEGIN
+    DECLARE v_from_date DATE;
+    DECLARE v_to_date   DATE;
+
+    SELECT COALESCE(DATE(last_processed), DATE_SUB(CURDATE(), INTERVAL 3 YEAR))
+    INTO v_from_date
+    FROM snmp_rollup_state
+    WHERE rollup_name = '1month';
+
+    SET v_to_date = DATE_FORMAT(CURDATE(), '%Y-%m-01');
+
+    IF v_from_date >= v_to_date THEN
+        LEAVE proc;
+    END IF;
+
+    INSERT INTO snmp_metrics_1month
+        (device_id, interface_id, period_start,
+         avg_if_in_octets,       min_if_in_octets,       max_if_in_octets,
+         avg_if_out_octets,      min_if_out_octets,      max_if_out_octets,
+         avg_if_in_errors,       min_if_in_errors,       max_if_in_errors,
+         avg_if_out_errors,      min_if_out_errors,      max_if_out_errors,
+         avg_cpu_usage,          min_cpu_usage,          max_cpu_usage,
+         avg_memory_usage,       min_memory_usage,       max_memory_usage,
+         avg_signal_strength,    min_signal_strength,    max_signal_strength,
+         avg_latency_ms,         min_latency_ms,         max_latency_ms,
+         avg_voltage_mv,         min_voltage_mv,         max_voltage_mv,
+         avg_temperature_c,      min_temperature_c,      max_temperature_c,
+         avg_fan_speed_rpm,      min_fan_speed_rpm,      max_fan_speed_rpm,
+         avg_if_in_discards,     min_if_in_discards,     max_if_in_discards,
+         avg_if_out_discards,    min_if_out_discards,    max_if_out_discards,
+         avg_sfp_tx_power_dbm,   min_sfp_tx_power_dbm,   max_sfp_tx_power_dbm,
+         avg_sfp_rx_power_dbm,   min_sfp_rx_power_dbm,   max_sfp_rx_power_dbm,
+         avg_sfp_temperature_c,  min_sfp_temperature_c,  max_sfp_temperature_c,
+         avg_ups_battery_pct,    min_ups_battery_pct,    max_ups_battery_pct,
+         avg_ups_runtime_min,    min_ups_runtime_min,    max_ups_runtime_min,
+         avg_poe_power_mw,       min_poe_power_mw,       max_poe_power_mw,
+         avg_humidity_pct,       min_humidity_pct,       max_humidity_pct,
+         avg_if_oper_status,     min_if_oper_status,      max_if_oper_status,
+         avg_noise_floor_dbm,    min_noise_floor_dbm,     max_noise_floor_dbm,
+         avg_air_util_pct,       min_air_util_pct,        max_air_util_pct,
+         avg_gps_sync_status,    min_gps_sync_status,     max_gps_sync_status,
+         avg_snr_db,             min_snr_db,              max_snr_db,
+         avg_ccq_pct,            min_ccq_pct,             max_ccq_pct,
+         avg_tx_rate_mbps,       min_tx_rate_mbps,        max_tx_rate_mbps,
+         avg_rx_rate_mbps,       min_rx_rate_mbps,        max_rx_rate_mbps,
+         sample_count)
+    SELECT
+        device_id,
+        interface_id,
+        DATE_FORMAT(period_start, '%Y-%m-01') AS period_start,
+        AVG(avg_if_in_octets),       MIN(min_if_in_octets),       MAX(max_if_in_octets),
+        AVG(avg_if_out_octets),      MIN(min_if_out_octets),      MAX(max_if_out_octets),
+        AVG(avg_if_in_errors),       MIN(min_if_in_errors),       MAX(max_if_in_errors),
+        AVG(avg_if_out_errors),      MIN(min_if_out_errors),      MAX(max_if_out_errors),
+        AVG(avg_cpu_usage),          MIN(min_cpu_usage),          MAX(max_cpu_usage),
+        AVG(avg_memory_usage),       MIN(min_memory_usage),       MAX(max_memory_usage),
+        AVG(avg_signal_strength),    MIN(min_signal_strength),    MAX(max_signal_strength),
+        AVG(avg_latency_ms),         MIN(min_latency_ms),         MAX(max_latency_ms),
+        AVG(avg_voltage_mv),         MIN(min_voltage_mv),         MAX(max_voltage_mv),
+        AVG(avg_temperature_c),      MIN(min_temperature_c),      MAX(max_temperature_c),
+        AVG(avg_fan_speed_rpm),      MIN(min_fan_speed_rpm),      MAX(max_fan_speed_rpm),
+        AVG(avg_if_in_discards),     MIN(min_if_in_discards),     MAX(max_if_in_discards),
+        AVG(avg_if_out_discards),    MIN(min_if_out_discards),    MAX(max_if_out_discards),
+        AVG(avg_sfp_tx_power_dbm),   MIN(min_sfp_tx_power_dbm),   MAX(max_sfp_tx_power_dbm),
+        AVG(avg_sfp_rx_power_dbm),   MIN(min_sfp_rx_power_dbm),   MAX(max_sfp_rx_power_dbm),
+        AVG(avg_sfp_temperature_c),  MIN(min_sfp_temperature_c),  MAX(max_sfp_temperature_c),
+        AVG(avg_ups_battery_pct),    MIN(min_ups_battery_pct),    MAX(max_ups_battery_pct),
+        AVG(avg_ups_runtime_min),    MIN(min_ups_runtime_min),    MAX(max_ups_runtime_min),
+        AVG(avg_poe_power_mw),       MIN(min_poe_power_mw),       MAX(max_poe_power_mw),
+        AVG(avg_humidity_pct),       MIN(min_humidity_pct),       MAX(max_humidity_pct),
+        AVG(avg_if_oper_status),     MIN(min_if_oper_status),      MAX(max_if_oper_status),
+        AVG(avg_noise_floor_dbm),    MIN(min_noise_floor_dbm),     MAX(max_noise_floor_dbm),
+        AVG(avg_air_util_pct),       MIN(min_air_util_pct),        MAX(max_air_util_pct),
+        AVG(avg_gps_sync_status),    MIN(min_gps_sync_status),     MAX(max_gps_sync_status),
+        AVG(avg_snr_db),             MIN(min_snr_db),              MAX(max_snr_db),
+        AVG(avg_ccq_pct),            MIN(min_ccq_pct),             MAX(max_ccq_pct),
+        AVG(avg_tx_rate_mbps),       MIN(min_tx_rate_mbps),        MAX(max_tx_rate_mbps),
+        AVG(avg_rx_rate_mbps),       MIN(min_rx_rate_mbps),        MAX(max_rx_rate_mbps),
+        SUM(sample_count)
+    FROM snmp_metrics_1day
+    WHERE period_start >= v_from_date
+      AND period_start <  v_to_date
+    GROUP BY device_id, interface_id, DATE_FORMAT(period_start, '%Y-%m-01')
+    ON DUPLICATE KEY UPDATE
+        avg_if_in_octets       = VALUES(avg_if_in_octets),
+        min_if_in_octets       = VALUES(min_if_in_octets),
+        max_if_in_octets       = VALUES(max_if_in_octets),
+        avg_if_out_octets      = VALUES(avg_if_out_octets),
+        min_if_out_octets      = VALUES(min_if_out_octets),
+        max_if_out_octets      = VALUES(max_if_out_octets),
+        avg_if_in_errors       = VALUES(avg_if_in_errors),
+        min_if_in_errors       = VALUES(min_if_in_errors),
+        max_if_in_errors       = VALUES(max_if_in_errors),
+        avg_if_out_errors      = VALUES(avg_if_out_errors),
+        min_if_out_errors      = VALUES(min_if_out_errors),
+        max_if_out_errors      = VALUES(max_if_out_errors),
+        avg_cpu_usage          = VALUES(avg_cpu_usage),
+        min_cpu_usage          = VALUES(min_cpu_usage),
+        max_cpu_usage          = VALUES(max_cpu_usage),
+        avg_memory_usage       = VALUES(avg_memory_usage),
+        min_memory_usage       = VALUES(min_memory_usage),
+        max_memory_usage       = VALUES(max_memory_usage),
+        avg_signal_strength    = VALUES(avg_signal_strength),
+        min_signal_strength    = VALUES(min_signal_strength),
+        max_signal_strength    = VALUES(max_signal_strength),
+        avg_latency_ms         = VALUES(avg_latency_ms),
+        min_latency_ms         = VALUES(min_latency_ms),
+        max_latency_ms         = VALUES(max_latency_ms),
+        avg_voltage_mv         = VALUES(avg_voltage_mv),
+        min_voltage_mv         = VALUES(min_voltage_mv),
+        max_voltage_mv         = VALUES(max_voltage_mv),
+        avg_temperature_c      = VALUES(avg_temperature_c),
+        min_temperature_c      = VALUES(min_temperature_c),
+        max_temperature_c      = VALUES(max_temperature_c),
+        avg_fan_speed_rpm      = VALUES(avg_fan_speed_rpm),
+        min_fan_speed_rpm      = VALUES(min_fan_speed_rpm),
+        max_fan_speed_rpm      = VALUES(max_fan_speed_rpm),
+        avg_if_in_discards     = VALUES(avg_if_in_discards),
+        min_if_in_discards     = VALUES(min_if_in_discards),
+        max_if_in_discards     = VALUES(max_if_in_discards),
+        avg_if_out_discards    = VALUES(avg_if_out_discards),
+        min_if_out_discards    = VALUES(min_if_out_discards),
+        max_if_out_discards    = VALUES(max_if_out_discards),
+        avg_sfp_tx_power_dbm   = VALUES(avg_sfp_tx_power_dbm),
+        min_sfp_tx_power_dbm   = VALUES(min_sfp_tx_power_dbm),
+        max_sfp_tx_power_dbm   = VALUES(max_sfp_tx_power_dbm),
+        avg_sfp_rx_power_dbm   = VALUES(avg_sfp_rx_power_dbm),
+        min_sfp_rx_power_dbm   = VALUES(min_sfp_rx_power_dbm),
+        max_sfp_rx_power_dbm   = VALUES(max_sfp_rx_power_dbm),
+        avg_sfp_temperature_c  = VALUES(avg_sfp_temperature_c),
+        min_sfp_temperature_c  = VALUES(min_sfp_temperature_c),
+        max_sfp_temperature_c  = VALUES(max_sfp_temperature_c),
+        avg_ups_battery_pct    = VALUES(avg_ups_battery_pct),
+        min_ups_battery_pct    = VALUES(min_ups_battery_pct),
+        max_ups_battery_pct    = VALUES(max_ups_battery_pct),
+        avg_ups_runtime_min    = VALUES(avg_ups_runtime_min),
+        min_ups_runtime_min    = VALUES(min_ups_runtime_min),
+        max_ups_runtime_min    = VALUES(max_ups_runtime_min),
+        avg_poe_power_mw       = VALUES(avg_poe_power_mw),
+        min_poe_power_mw       = VALUES(min_poe_power_mw),
+        max_poe_power_mw       = VALUES(max_poe_power_mw),
+        avg_humidity_pct       = VALUES(avg_humidity_pct),
+        min_humidity_pct       = VALUES(min_humidity_pct),
+        max_humidity_pct       = VALUES(max_humidity_pct),
+        avg_if_oper_status     = VALUES(avg_if_oper_status),
+        min_if_oper_status     = VALUES(min_if_oper_status),
+        max_if_oper_status     = VALUES(max_if_oper_status),
+        avg_noise_floor_dbm    = VALUES(avg_noise_floor_dbm),
+        min_noise_floor_dbm    = VALUES(min_noise_floor_dbm),
+        max_noise_floor_dbm    = VALUES(max_noise_floor_dbm),
+        avg_air_util_pct       = VALUES(avg_air_util_pct),
+        min_air_util_pct       = VALUES(min_air_util_pct),
+        max_air_util_pct       = VALUES(max_air_util_pct),
+        avg_gps_sync_status    = VALUES(avg_gps_sync_status),
+        min_gps_sync_status    = VALUES(min_gps_sync_status),
+        max_gps_sync_status    = VALUES(max_gps_sync_status),
+        avg_snr_db             = VALUES(avg_snr_db),
+        min_snr_db             = VALUES(min_snr_db),
+        max_snr_db             = VALUES(max_snr_db),
+        avg_ccq_pct            = VALUES(avg_ccq_pct),
+        min_ccq_pct            = VALUES(min_ccq_pct),
+        max_ccq_pct            = VALUES(max_ccq_pct),
+        avg_tx_rate_mbps       = VALUES(avg_tx_rate_mbps),
+        min_tx_rate_mbps       = VALUES(min_tx_rate_mbps),
+        max_tx_rate_mbps       = VALUES(max_tx_rate_mbps),
+        avg_rx_rate_mbps       = VALUES(avg_rx_rate_mbps),
+        min_rx_rate_mbps       = VALUES(min_rx_rate_mbps),
+        max_rx_rate_mbps       = VALUES(max_rx_rate_mbps),
+        sample_count           = VALUES(sample_count);
+
+    UPDATE snmp_rollup_state
+    SET last_processed = TIMESTAMP(v_to_date)
+    WHERE rollup_name  = '1month';
+END$$
+
+-- ---------------------------------------------------------------------------
 -- Procedure: snmp_apply_retention
--- Purpose:   Purge hourly rows older than 1 year via batch DELETE.
---            Daily rows are kept indefinitely (3+ years).
+-- Purpose:   Purge hourly rows after 7 days, daily rows after 90 days, and
+--            monthly rows after 3 years via bounded batch DELETEs.
 --            Raw snmp_metrics retention is handled by snmp_maintain_partitions()
 --            using instant DROP PARTITION.
 -- ---------------------------------------------------------------------------
@@ -3002,9 +3318,26 @@ CREATE PROCEDURE IF NOT EXISTS snmp_apply_retention()
 BEGIN
     DECLARE rows_deleted INT DEFAULT 1;
 
+    SET rows_deleted = 1;
     WHILE rows_deleted > 0 DO
         DELETE FROM snmp_metrics_1hr
-        WHERE period_start < DATE_SUB(NOW(), INTERVAL 1 YEAR)
+        WHERE period_start < DATE_SUB(NOW(), INTERVAL 7 DAY)
+        LIMIT 10000;
+        SET rows_deleted = ROW_COUNT();
+    END WHILE;
+
+    SET rows_deleted = 1;
+    WHILE rows_deleted > 0 DO
+        DELETE FROM snmp_metrics_1day
+        WHERE period_start < DATE_SUB(CURDATE(), INTERVAL 90 DAY)
+        LIMIT 10000;
+        SET rows_deleted = ROW_COUNT();
+    END WHILE;
+
+    SET rows_deleted = 1;
+    WHILE rows_deleted > 0 DO
+        DELETE FROM snmp_metrics_1month
+        WHERE period_start < DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
         LIMIT 10000;
         SET rows_deleted = ROW_COUNT();
     END WHILE;
@@ -3104,12 +3437,20 @@ CREATE EVENT IF NOT EXISTS evt_snmp_rollup_1day
     COMMENT 'Aggregate hourly SNMP rows into snmp_metrics_1day once per day'
     DO CALL snmp_rollup_to_1day();
 
--- Run retention purge once per day at 02:00 (hourly data only)
+-- Run complete-month rollup once per day at 01:00
+CREATE EVENT IF NOT EXISTS evt_snmp_rollup_1month
+    ON SCHEDULE EVERY 1 DAY
+    STARTS (CURRENT_DATE + INTERVAL 1 DAY + INTERVAL 1 HOUR)
+    ON COMPLETION PRESERVE
+    COMMENT 'Aggregate daily SNMP rows into snmp_metrics_1month once per day'
+    DO CALL snmp_rollup_to_1month();
+
+-- Run retention purge once per day at 02:00
 CREATE EVENT IF NOT EXISTS evt_snmp_retention
     ON SCHEDULE EVERY 1 DAY
     STARTS (CURRENT_DATE + INTERVAL 1 DAY + INTERVAL 2 HOUR)
     ON COMPLETION PRESERVE
-    COMMENT 'Purge hourly SNMP data older than 1 year'
+    COMMENT 'Purge SNMP data: 1hr>7d, 1day>90d, 1month>3yr'
     DO CALL snmp_apply_retention();
 
 -- Run partition maintenance daily at 03:00
@@ -6850,7 +7191,7 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     organization_id   BIGINT UNSIGNED NOT NULL,
     name              VARCHAR(200)    NOT NULL,
     description       TEXT            NULL,
-    metric            VARCHAR(50)     NOT NULL COMMENT 'cpu_usage, memory_usage, signal_strength, latency_ms, packet_loss, uptime, if_in_octets, if_out_octets',
+    metric            VARCHAR(50)     NOT NULL COMMENT 'Canonical snmp_metrics or network-health metric column (including RF metrics)',
     operator          VARCHAR(5)      NOT NULL DEFAULT '>' COMMENT '>, >=, <, <=, ==',
     threshold         DECIMAL(10, 2)  NOT NULL,
     device_id         BIGINT UNSIGNED NULL COMMENT 'NULL = all devices',

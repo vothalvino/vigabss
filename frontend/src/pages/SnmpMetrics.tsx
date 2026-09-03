@@ -50,6 +50,13 @@ interface MetricRow {
   memory_usage: number | string | null;
   signal_strength: number | string | null;
   latency_ms: number | string | null;
+  noise_floor_dbm: number | string | null;
+  air_util_pct: number | string | null;
+  gps_sync_status: number | string | null;
+  snr_db: number | string | null;
+  ccq_pct: number | string | null;
+  tx_rate_mbps: number | string | null;
+  rx_rate_mbps: number | string | null;
   uptime_ticks?: number | string | null;
   min_latency_ms?: number | null;
   max_latency_ms?: number | null;
@@ -158,6 +165,32 @@ function fmtBytes(val: number | string | null): string {
   if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(2)} MB`;
   return `${(n / 1024 ** 3).toFixed(3)} GB`;
+}
+
+function fmtDb(val: number | string | null): string {
+  if (val == null) return '—';
+  const n = Number(val);
+  if (!Number.isFinite(n)) return '—';
+  return `${n.toFixed(1)} dB`;
+}
+
+function fmtMbps(val: number | string | null): string {
+  if (val == null) return '—';
+  const n = Number(val);
+  if (!Number.isFinite(n)) return '—';
+  return `${n.toFixed(1)} Mbps`;
+}
+
+function fmtGpsSync(val: number | string | null, t: TFn): string {
+  if (val == null) return '—';
+  const n = Number(val);
+  if (!Number.isFinite(n)) return '—';
+  if (n === 1) return t('snmpMetrics.history.gpsStatus.synced');
+  if (n === 0) return t('snmpMetrics.history.gpsStatus.notSynced');
+  if (n > 0 && n < 1) {
+    return t('snmpMetrics.history.gpsStatus.partial', { percent: Math.round(n * 100) });
+  }
+  return String(n);
 }
 
 function fmtTimestamp(ts: string, resolution: string): string {
@@ -774,6 +807,16 @@ function DeviceHistoryView({
   const memUsage = useMemo(() => deviceRows.map(r => r.memory_usage  != null ? Number(r.memory_usage)  : null), [deviceRows]);
   const signal   = useMemo(() => deviceRows.map(r => r.signal_strength != null ? Number(r.signal_strength) : null), [deviceRows]);
   const latency  = useMemo(() => deviceRows.map(r => r.latency_ms    != null ? Number(r.latency_ms)    : null), [deviceRows]);
+  const noiseFloor = useMemo(() => deviceRows.map(r => r.noise_floor_dbm != null ? Number(r.noise_floor_dbm) : null), [deviceRows]);
+  const airUtil = useMemo(() => deviceRows.map(r => r.air_util_pct != null ? Number(r.air_util_pct) : null), [deviceRows]);
+  const gpsSync = useMemo(() => deviceRows.map(r => r.gps_sync_status != null ? Number(r.gps_sync_status) : null), [deviceRows]);
+  const snr = useMemo(() => deviceRows.map(r => r.snr_db != null ? Number(r.snr_db) : null), [deviceRows]);
+  const ccq = useMemo(() => deviceRows.map(r => r.ccq_pct != null ? Number(r.ccq_pct) : null), [deviceRows]);
+  const txRate = useMemo(() => deviceRows.map(r => r.tx_rate_mbps != null ? Number(r.tx_rate_mbps) : null), [deviceRows]);
+  const rxRate = useMemo(() => deviceRows.map(r => r.rx_rate_mbps != null ? Number(r.rx_rate_mbps) : null), [deviceRows]);
+  // Raw rows store GPS as 0/1; hourly/daily rows expose the average under the
+  // same canonical key, which is the fraction of the bucket spent in sync.
+  const gpsSyncPct = useMemo(() => gpsSync.map(v => v == null ? null : Math.max(0, Math.min(100, v * 100))), [gpsSync]);
 
   // Throughput:
   //  - Single interface picked: one row per timestamp already, no
@@ -817,6 +860,13 @@ function DeviceHistoryView({
   const latestMem    = latestVal(memUsage) ?? (fleetDevice?.latest?.memory_usage != null ? Number(fleetDevice.latest.memory_usage) : null);
   const latestSignal = latestVal(signal); // no fleet-level equivalent exists
   const latestLat    = latestVal(latency); // no fleet-level equivalent exists
+  const latestNoiseFloor = latestVal(noiseFloor);
+  const latestAirUtil = latestVal(airUtil);
+  const latestGpsSync = latestVal(gpsSync);
+  const latestSnr = latestVal(snr);
+  const latestCcq = latestVal(ccq);
+  const latestTxRate = latestVal(txRate);
+  const latestRxRate = latestVal(rxRate);
 
   // uptime_ticks only exists on the raw-resolution device-level rows;
   // rollups (and single-interface mode, which has no device-level rows at
@@ -831,6 +881,13 @@ function DeviceHistoryView({
   const hasMem        = memUsage.some(v => v != null);
   const hasSignal     = signal.some(v => v != null);
   const hasLatency    = latency.some(v => v != null);
+  const hasNoiseFloor = noiseFloor.some(v => v != null);
+  const hasAirUtil    = airUtil.some(v => v != null);
+  const hasGpsSync    = gpsSync.some(v => v != null);
+  const hasSnr        = snr.some(v => v != null);
+  const hasCcq        = ccq.some(v => v != null);
+  const hasTxRate     = txRate.some(v => v != null);
+  const hasRxRate     = rxRate.some(v => v != null);
   const hasErrors     = isSpecificInterface && (inErrors.some(v => v != null) || outErrors.some(v => v != null));
   const hasAnyData    = rows.length > 0;
 
@@ -916,6 +973,27 @@ function DeviceHistoryView({
               <SummaryTile label={t('snmpMetrics.history.summary.memory')} value={fmtPct(latestMem)} danger={latestMem != null && latestMem > 90} />
               <SummaryTile label={t('snmpMetrics.history.summary.signal')} value={fmtSignal(latestSignal)} />
               <SummaryTile label={t('snmpMetrics.history.summary.latency')} value={fmtLatency(latestLat)} />
+              {latestNoiseFloor != null && (
+                <SummaryTile label={t('snmpMetrics.history.summary.noiseFloor')} value={fmtSignal(latestNoiseFloor)} />
+              )}
+              {latestSnr != null && (
+                <SummaryTile label={t('snmpMetrics.history.summary.snr')} value={fmtDb(latestSnr)} />
+              )}
+              {latestCcq != null && (
+                <SummaryTile label={t('snmpMetrics.history.summary.ccq')} value={fmtPct(latestCcq)} />
+              )}
+              {latestAirUtil != null && (
+                <SummaryTile label={t('snmpMetrics.history.summary.airUtil')} value={fmtPct(latestAirUtil)} />
+              )}
+              {latestTxRate != null && (
+                <SummaryTile label={t('snmpMetrics.history.summary.txRate')} value={fmtMbps(latestTxRate)} />
+              )}
+              {latestRxRate != null && (
+                <SummaryTile label={t('snmpMetrics.history.summary.rxRate')} value={fmtMbps(latestRxRate)} />
+              )}
+              {latestGpsSync != null && (
+                <SummaryTile label={t('snmpMetrics.history.summary.gpsSync')} value={fmtGpsSync(latestGpsSync, t)} />
+              )}
               {uptimeTicks != null && (
                 <SummaryTile label={t('snmpMetrics.history.summary.uptime')} value={fmtUptimeTicks(uptimeTicks)} />
               )}
@@ -986,6 +1064,69 @@ function DeviceHistoryView({
                   height={140}
                   emptyLabel={t('snmpMetrics.history.charts.noData')}
                   series={[{ key: 'sig', values: signal, color: '#f39c12', label: t('snmpMetrics.history.charts.signal'), formatValue: fmtSignal }]}
+                />
+              )}
+
+              {hasNoiseFloor && (
+                <LineChart
+                  title={t('snmpMetrics.history.charts.noiseFloor')}
+                  timestamps={deviceTimestamps}
+                  resolution={range.resolution}
+                  height={140}
+                  emptyLabel={t('snmpMetrics.history.charts.noData')}
+                  series={[{ key: 'noise', values: noiseFloor, color: '#8e44ad', label: t('snmpMetrics.history.charts.noiseFloor'), formatValue: fmtSignal }]}
+                />
+              )}
+
+              {hasSnr && (
+                <LineChart
+                  title={t('snmpMetrics.history.charts.snr')}
+                  timestamps={deviceTimestamps}
+                  resolution={range.resolution}
+                  height={140}
+                  emptyLabel={t('snmpMetrics.history.charts.noData')}
+                  series={[{ key: 'snr', values: snr, color: '#27ae60', label: t('snmpMetrics.history.charts.snr'), formatValue: fmtDb }]}
+                />
+              )}
+
+              {(hasCcq || hasAirUtil) && (
+                <LineChart
+                  title={t('snmpMetrics.history.charts.rfQuality')}
+                  timestamps={deviceTimestamps}
+                  resolution={range.resolution}
+                  yUnit="pct"
+                  height={140}
+                  emptyLabel={t('snmpMetrics.history.charts.noData')}
+                  series={[
+                    { key: 'ccq', values: ccq, color: '#2980b9', label: t('snmpMetrics.history.legend.ccq'), formatValue: fmtPct },
+                    { key: 'airUtil', values: airUtil, color: '#d35400', label: t('snmpMetrics.history.legend.airUtil'), formatValue: fmtPct },
+                  ]}
+                />
+              )}
+
+              {(hasTxRate || hasRxRate) && (
+                <LineChart
+                  title={t('snmpMetrics.history.charts.linkRates')}
+                  timestamps={deviceTimestamps}
+                  resolution={range.resolution}
+                  height={140}
+                  emptyLabel={t('snmpMetrics.history.charts.noData')}
+                  series={[
+                    { key: 'txRate', values: txRate, color: 'var(--viz-out)', label: t('snmpMetrics.history.legend.txRate'), formatValue: fmtMbps },
+                    { key: 'rxRate', values: rxRate, color: 'var(--viz-in)', label: t('snmpMetrics.history.legend.rxRate'), formatValue: fmtMbps },
+                  ]}
+                />
+              )}
+
+              {hasGpsSync && (
+                <LineChart
+                  title={t('snmpMetrics.history.charts.gpsSync')}
+                  timestamps={deviceTimestamps}
+                  resolution={range.resolution}
+                  yUnit="pct"
+                  height={140}
+                  emptyLabel={t('snmpMetrics.history.charts.noData')}
+                  series={[{ key: 'gpsSync', values: gpsSyncPct, color: '#16a085', label: t('snmpMetrics.history.legend.gpsSync'), formatValue: fmtPct }]}
                 />
               )}
 

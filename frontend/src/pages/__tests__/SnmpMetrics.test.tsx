@@ -82,6 +82,29 @@ function metricsResponseFor(deviceId: number) {
   };
 }
 
+function rfMetricsResponseFor(deviceId: number) {
+  return {
+    data: [
+      {
+        ts: '2026-07-16T10:00:00.000Z', interface_id: '',
+        if_in_octets: null, if_out_octets: null, if_in_errors: null, if_out_errors: null,
+        cpu_usage: null, memory_usage: null, signal_strength: -61, latency_ms: null,
+        noise_floor_dbm: -94, air_util_pct: 25, gps_sync_status: 1,
+        snr_db: 25, ccq_pct: 93, tx_rate_mbps: 400, rx_rate_mbps: 350,
+      },
+      {
+        ts: '2026-07-16T11:00:00.000Z', interface_id: '',
+        if_in_octets: null, if_out_octets: null, if_in_errors: null, if_out_errors: null,
+        cpu_usage: null, memory_usage: null, signal_strength: -60, latency_ms: null,
+        // mysql2 returns DECIMAL rollups as strings; the page must normalize them.
+        noise_floor_dbm: '-92.5', air_util_pct: '31.5', gps_sync_status: '0.75',
+        snr_db: '28.25', ccq_pct: '96.5', tx_rate_mbps: '433.25', rx_rate_mbps: '390.5',
+      },
+    ],
+    meta: { device_id: deviceId, resolution: '1hr', lookback_hours: 168, interfaces: [] },
+  };
+}
+
 function mockDefaultFetch() {
   mockFetch.mockImplementation((url: string) => {
     if (url.includes('/snmp-metrics/fleet')) {
@@ -215,6 +238,31 @@ describe('SnmpMetrics — device history (level 2, deep-linked)', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: /Core-Router-01/ })).toBeInTheDocument());
     expect(screen.getByRole('button', { name: '← All devices' })).toBeInTheDocument();
     expect(screen.getByText('CPU Usage (%)')).toBeInTheDocument();
+  });
+
+  it('renders all wireless RF histories and their latest values with correct units/status', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/snmp-metrics/fleet')) return Promise.resolve(okResponse(fleetResponse));
+      if (url.includes('/snmp-metrics?')) return Promise.resolve(okResponse(rfMetricsResponseFor(5)));
+      return Promise.resolve(okResponse({ data: [] }));
+    });
+
+    renderPage('/snmp-metrics?device_id=5');
+
+    await waitFor(() => expect(screen.getByText('Noise Floor (dBm)')).toBeInTheDocument());
+    expect(screen.getByText('Signal-to-Noise Ratio (dB)')).toBeInTheDocument();
+    expect(screen.getByText('RF Quality (%)')).toBeInTheDocument();
+    expect(screen.getByText('Wireless Link Rates (Mbps)')).toBeInTheDocument();
+    expect(screen.getByText('GPS Sync Availability (%)')).toBeInTheDocument();
+
+    // Every canonical RF field is also visible as a latest-value summary.
+    expect(screen.getByText('-92.5 dBm')).toBeInTheDocument();
+    expect(screen.getByText('31.5 %')).toBeInTheDocument();
+    expect(screen.getByText('75% synced during period')).toBeInTheDocument();
+    expect(screen.getByText('28.3 dB')).toBeInTheDocument();
+    expect(screen.getByText('96.5 %')).toBeInTheDocument();
+    expect(screen.getByText('433.3 Mbps')).toBeInTheDocument();
+    expect(screen.getByText('390.5 Mbps')).toBeInTheDocument();
   });
 
   it('shows an explicit not-found state for a device_id that is unknown/foreign, never a silent empty page', async () => {

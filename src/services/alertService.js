@@ -32,6 +32,13 @@ const ALLOWED_METRICS = new Set([
   'ups_runtime_min',
   'poe_power_mw',
   'humidity_pct',
+  'noise_floor_dbm',
+  'air_util_pct',
+  'gps_sync_status',
+  'snr_db',
+  'ccq_pct',
+  'tx_rate_mbps',
+  'rx_rate_mbps',
 ]);
 
 // Metrics stored directly in snmp_metrics (used to build safe queries).
@@ -54,6 +61,13 @@ const SNMP_METRICS = new Set([
   'ups_runtime_min',
   'poe_power_mw',
   'humidity_pct',
+  'noise_floor_dbm',
+  'air_util_pct',
+  'gps_sync_status',
+  'snr_db',
+  'ccq_pct',
+  'tx_rate_mbps',
+  'rx_rate_mbps',
 ]);
 
 /**
@@ -89,7 +103,7 @@ async function getActiveAlerts(organizationId) {
  */
 async function evaluateAlerts(organizationId) {
   const [rules] = await db.query(
-    'SELECT * FROM alert_rules WHERE organization_id = ? AND is_enabled = TRUE',
+    'SELECT * FROM alert_rules WHERE organization_id = ? AND is_enabled = TRUE AND deleted_at IS NULL',
     [organizationId],
   );
 
@@ -98,7 +112,9 @@ async function evaluateAlerts(organizationId) {
 
   for (const rule of rules) {
     try {
-      const breached = await checkRule(rule);
+      // The evaluator argument is the authoritative tenant boundary. Override
+      // rather than trusting a projected/mocked row to carry the same value.
+      const breached = await checkRule({ ...rule, organization_id: organizationId });
       if (breached) {
         // Maintenance windows apply on the scheduled/cron path too — this is
         // the path taskRunner actually runs; previously only the manual
@@ -150,10 +166,18 @@ async function evaluateAlerts(organizationId) {
  * Check a single alert rule against current metrics.
  */
 async function checkRule(rule) {
-  const { metric, operator, threshold, device_id, duration_minutes } = rule;
+  const { metric, operator, threshold, device_id, duration_minutes, organization_id } = rule;
 
   // Reject metrics not in the whitelist to prevent SQL injection
   if (!ALLOWED_METRICS.has(metric)) {
+    return null;
+  }
+
+  // Every supported metric source is tenant-owned. A rule loaded by either
+  // evaluator always carries organization_id; refusing an incomplete rule is
+  // safer than evaluating it install-wide if checkRule() is called directly.
+  if (!organization_id) {
+    logger.warn({ ruleId: rule.id, metric }, 'Alert rule has no organization_id; skipping evaluation');
     return null;
   }
 
@@ -164,26 +188,30 @@ async function checkRule(rule) {
   if (SNMP_METRICS.has(metric)) {
     // SNMP metric check (includes bandwidth counters if_in_octets / if_out_octets)
     sql = `
-      SELECT device_id, AVG(\`${metric}\`) AS avg_value, MAX(\`${metric}\`) AS max_value
-      FROM snmp_metrics
-      WHERE polled_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+      SELECT sm.device_id, AVG(sm.\`${metric}\`) AS avg_value, MAX(sm.\`${metric}\`) AS max_value
+      FROM snmp_metrics sm
+      JOIN devices d ON d.id = sm.device_id
+      WHERE sm.polled_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+        AND d.organization_id = ?
+        AND d.deleted_at IS NULL
     `;
-    params = [duration_minutes || 5];
+    params = [duration_minutes || 5, organization_id];
 
     if (device_id) {
-      sql += ' AND device_id = ?';
+      sql += ' AND sm.device_id = ?';
       params.push(device_id);
     }
 
-    sql += ' GROUP BY device_id';
+    sql += ' GROUP BY sm.device_id';
   } else if (metric === 'packet_loss') {
     // Network health snapshot
     sql = `
       SELECT device_id, AVG(packet_loss_pct) AS avg_value, MAX(packet_loss_pct) AS max_value
       FROM network_health_snapshots
       WHERE snapshot_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+        AND organization_id = ?
     `;
-    params = [1];
+    params = [1, organization_id];
 
     if (device_id) {
       sql += ' AND device_id = ?';
@@ -196,8 +224,9 @@ async function checkRule(rule) {
       SELECT device_id, AVG(uptime_pct) AS avg_value, MIN(uptime_pct) AS max_value
       FROM network_health_snapshots
       WHERE snapshot_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+        AND organization_id = ?
     `;
-    params = [1];
+    params = [1, organization_id];
 
     if (device_id) {
       sql += ' AND device_id = ?';
@@ -427,11 +456,14 @@ async function getAlertHistory(organizationId, { page = 1, limit = 50 } = {}) {
 /**
  * Acknowledge an alert event.
  */
-async function acknowledgeAlert(alertEventId, userId) {
-  await db.query(
-    'UPDATE alert_events SET status = ?, acknowledged_by = ?, acknowledged_at = NOW() WHERE id = ?',
-    ['acknowledged', userId, alertEventId],
+async function acknowledgeAlert(organizationId, alertEventId, userId) {
+  const [result] = await db.query(
+    `UPDATE alert_events
+        SET status = ?, acknowledged_by = ?, acknowledged_at = NOW()
+      WHERE id = ? AND organization_id = ?`,
+    ['acknowledged', userId, alertEventId, organizationId],
   );
+  return result.affectedRows > 0;
 }
 
 /**
@@ -599,7 +631,7 @@ async function triggerEscalation(alertEventId, escalationChainId, stepNumber) {
  */
 async function evaluateAlertsV2(organizationId) {
   const [rules] = await db.query(
-    'SELECT * FROM alert_rules WHERE organization_id = ? AND is_enabled = TRUE',
+    'SELECT * FROM alert_rules WHERE organization_id = ? AND is_enabled = TRUE AND deleted_at IS NULL',
     [organizationId],
   );
 
@@ -608,7 +640,8 @@ async function evaluateAlertsV2(organizationId) {
 
   for (const rule of rules) {
     try {
-      const breached = await checkRule(rule);
+      // Keep v2 on the same authoritative tenant boundary as the base path.
+      const breached = await checkRule({ ...rule, organization_id: organizationId });
       if (!breached) continue;
 
       // Maintenance window check
