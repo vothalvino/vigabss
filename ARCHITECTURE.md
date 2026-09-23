@@ -557,6 +557,8 @@ verify each one's upgrade and interoperability contract first.
 - `docs/openapi.json` — generated REST artifact, not the authoring source.
 - `docs/architecture.md` — compatibility link to this canonical root document;
   it must not become a second architecture source.
+- [Modular regional architecture plan](docs/modular-regional-architecture-plan.md)
+  — proposed modularization and regional network services; not current runtime behavior.
 - `isp-platform-features.md` — product/feature scope; verify completion claims
   against current code.
 - `.claude/agent-memory/fullstack-autonomous-engineer/MEMORY.md` — index of
