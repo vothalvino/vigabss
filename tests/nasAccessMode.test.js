@@ -27,6 +27,9 @@ jest.mock('../src/models/Nas');
 jest.mock('../src/models/User');
 jest.mock('../src/services/wgProvisioningService');
 jest.mock('../src/services/wireguardServerService');
+// Must be mocked at file scope (before app.js loads the NAS router) so no test
+// ever opens a real RouterOS API socket.
+jest.mock('../src/services/routerProvisioningService');
 
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
@@ -36,6 +39,7 @@ const User = require('../src/models/User');
 const Nas = require('../src/models/Nas');
 const wgProvisioningService = require('../src/services/wgProvisioningService');
 const wireguardServerService = require('../src/services/wireguardServerService');
+const routerProvisioningService = require('../src/services/routerProvisioningService');
 const app = require('../src/app');
 
 // ---------------------------------------------------------------------------
@@ -291,26 +295,31 @@ describe('POST /api/nas/:id/test-connection — nated with no tunnel', () => {
     expect(res.status).toBe(422);
     expect(res.body.error?.message).toMatch(/WireGuard tunnel/i);
     expect(res.body.error?.message).toMatch(/bootstrap/i);
+    // The pre-flight must stop the request before any RouterOS call.
+    expect(routerProvisioningService.testConnection).not.toHaveBeenCalled();
   });
 
   test('(d2) direct NAS with no tunnel row → no pre-flight check, proceeds normally', async () => {
-    const routerProvisioningService = require('../src/services/routerProvisioningService');
-    jest.mock('../src/services/routerProvisioningService');
     routerProvisioningService.testConnection.mockResolvedValue({
       ok: true, host: '10.1.0.1', port: 8728, tls: false, version: '7.0', boardName: 'RB', identity: 'test',
     });
 
     mockAdminUser();
     Nas.findByIdOrFail.mockResolvedValue({ ...mockDirectNas });
-    // db.query NOT called for direct-mode NAS (no tunnel pre-flight check)
 
     const res = await request(app)
       .post('/api/nas/10/test-connection')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1');
 
-    // Should not be 422 (no tunnel pre-flight for direct mode)
-    expect(res.status).not.toBe(422);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ ok: true, host: '10.1.0.1' });
+    // No tunnel pre-flight lookup for direct mode.
+    const tunnelLookups = db.query.mock.calls.filter(([sql]) => String(sql).includes('nas_wg_tunnels'));
+    expect(tunnelLookups).toHaveLength(0);
+    expect(routerProvisioningService.testConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 10, access_mode: 'direct' }),
+    );
   });
 });
 
