@@ -47,9 +47,23 @@ describe('PAC failover', () => {
     const b = pac({ priority: 20, api_url: liveBase() });
     wire([p, b]);
     handler = (req, res) => okIssue(res);
-    const res = await cfdiService.stamp(9);
-    expect(res).toMatchObject({ uuid: 'BK-UUID-1', status: 'vigente', provider: 'sw_sapien' });
-  }, 20000);
+    // Record the per-provider retry backoff (2s, 4s) and resolve it immediately
+    // instead of sleeping ~6s of real time; any other timer runs normally.
+    const realSetTimeout = global.setTimeout;
+    const delays = [];
+    const spy = jest.spyOn(global, 'setTimeout').mockImplementation((fn, ms, ...args) => {
+      if (ms === 2000 || ms === 4000) { delays.push(ms); return realSetTimeout(fn, 0, ...args); }
+      return realSetTimeout(fn, ms, ...args);
+    });
+    try {
+      const res = await cfdiService.stamp(9);
+      expect(res).toMatchObject({ uuid: 'BK-UUID-1', status: 'vigente', provider: 'sw_sapien' });
+      // The primary got all 3 attempts (two backoffs) before failing over.
+      expect(delays).toEqual([2000, 4000]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 
   test('primary TIMEOUT does NOT fail over (double-stamp safety)', async () => {
     let hitBackup = false;
