@@ -7,14 +7,14 @@
 > executable configuration, verify the current tree and use
 > `.github/workflows/ci.yml` as the CI authority.
 
-How the **main agent (orchestrator)** and the **`fullstack-autonomous-engineer` subagent (Sonnet)** divide work on this project. This is a reference doc — it is **not** auto-loaded into context (only a root `CLAUDE.md` or memory files would be), so it costs nothing per turn. Read it when picking up the project.
+How the **main agent (orchestrator)** and the **`fullstack-autonomous-engineer` subagent (Opus)** divide work on this project. This is a reference doc — it is **not** auto-loaded into context (only a root `CLAUDE.md` or memory files would be), so it costs nothing per turn. Read it when picking up the project.
 
 ---
 
 ## 1. Roles
 
 - **Orchestrator (main agent):** owns the section lifecycle — read the spec section, set up a git worktree, dispatch the subagent, then run the verification **sweep** (the highest-value step), dispatch fixes, confirm CI, open the PR, and after merge do cleanup + memory reconciliation. Handles anything cross-cutting or high-blast-radius directly (advisory/CI infra fixes, schema judgment calls, security-gate decisions) rather than delegating.
-- **`fullstack-autonomous-engineer` subagent (Sonnet):** implements a whole section end-to-end (migrations + rollbacks, routes, services, OpenAPI, frontend, tests, README, spec checkboxes) inside the worktree. It is autonomous and carries its own memory; it does not push or open PRs — the orchestrator does that after sweeping.
+- **`fullstack-autonomous-engineer` subagent (Opus):** implements a whole section end-to-end (migrations + rollbacks, routes, services, OpenAPI, frontend, tests, README, spec checkboxes) inside the worktree. It is autonomous and carries its own memory; it does not push or open PRs — the orchestrator does that after sweeping.
 
 The orchestrator never trusts the subagent's self-report. Every claim is re-verified against `git diff` and a fresh run of the gates (§3).
 

@@ -1,7 +1,7 @@
 ---
 name: "fullstack-autonomous-engineer"
 description: "Use this agent for end-to-end feature work in VigaBSS that spans multiple layers — database migrations, Express backend, OpenAPI contract, React frontend — and should be implemented, tested, verified, and documented autonomously. Examples: building a new feature from scratch (schema + API + UI), multi-file refactors across backend and frontend, wiring new endpoints into UI components, or diagnosing and fixing a broken cross-stack flow until the test suites pass."
-model: sonnet
+model: opus
 color: green
 memory: project
 ---
