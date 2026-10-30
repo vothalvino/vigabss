@@ -235,10 +235,24 @@ describe('Payment Webhooks & Idempotency', () => {
         expect(db.query).toHaveBeenCalledTimes(1);
       });
 
+      // A 'manual' gateway no longer records a "charge" as succeeded (WHK-01),
+      // so these idempotency checks run against a stubbed Stripe call.
+      function stubStripeSucceeded() {
+        const https = require('https');
+        const EventEmitter = require('events');
+        const mockReq = new EventEmitter(); mockReq.write = jest.fn(); mockReq.end = jest.fn(); mockReq.destroy = jest.fn();
+        const mockRes = new EventEmitter(); mockRes.statusCode = 200;
+        return jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
+          process.nextTick(() => { cb(mockRes); mockRes.emit('data', JSON.stringify({ id: 'pi_1', status: 'succeeded' })); mockRes.emit('end'); });
+          return mockReq;
+        });
+      }
+
       test('processes normally when key is new', async () => {
+        const spy = stubStripeSucceeded();
         db.query
           .mockResolvedValueOnce([[]])                  // checkIdempotencyKey — not found
-          .mockResolvedValueOnce([[ { id: 1, provider: 'manual', status: 'active' }]])  // getActiveGateway
+          .mockResolvedValueOnce([[ { id: 1, provider: 'stripe', status: 'active', secret_key_encrypted: 'sk' }]])  // getActiveGateway
           .mockResolvedValueOnce([{ insertId: 200 }])   // INSERT transaction
           .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE succeeded
           .mockResolvedValueOnce([{ affectedRows: 1 }]); // storeIdempotencyKey
@@ -251,10 +265,12 @@ describe('Payment Webhooks & Idempotency', () => {
         expect(result.status).toBe('succeeded');
         expect(result.transaction_id).toBe(200);
         expect(result.idempotent_replay).toBeUndefined();
+        spy.mockRestore();
       });
 
       test('charge without idempotency key works normally', async () => {
-        const gw = { id: 1, provider: 'manual', status: 'active' };
+        const spy = stubStripeSucceeded();
+        const gw = { id: 1, provider: 'stripe', status: 'active', secret_key_encrypted: 'sk' };
         db.query
           .mockResolvedValueOnce([[gw]])           // getActiveGateway
           .mockResolvedValueOnce([{ insertId: 300 }])  // INSERT transaction
@@ -266,6 +282,7 @@ describe('Payment Webhooks & Idempotency', () => {
 
         expect(result.status).toBe('succeeded');
         expect(result.transaction_id).toBe(300);
+        spy.mockRestore();
       });
 
       test('handles cached response_body as parsed object', async () => {
