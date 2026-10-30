@@ -45,7 +45,9 @@ async function portalAuthenticate(req, _res, next) {
 
     req.client = {
       id: client.id,
-      organizationId: client.organization_id,
+      // Never undefined: NULL (single-tenant) is a real, null-safe-comparable
+      // org value; services refuse an undefined org (utils/requireOrgId.js).
+      organizationId: client.organization_id ?? null,
       name: client.name,
       email: client.email,
     };

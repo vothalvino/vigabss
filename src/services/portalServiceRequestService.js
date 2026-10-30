@@ -14,7 +14,14 @@ const crypto = require('crypto');
 const db = require('../config/database');
 const { calculateProration } = require('./billingService');
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const { requireOrgId } = require('../utils/requireOrgId');
 const logger = require('../utils/logger').child({ service: 'portalServiceRequest' });
+
+// Tenant binding: a client_id match alone is not a tenant boundary
+// (ARCHITECTURE.md). Every subscriber-facing query here also binds the portal
+// client's organization with the null-safe `<=>` (single-tenant installs store
+// NULL organization IDs), and helpers refuse an `undefined` org via
+// requireOrgId so a forgotten argument fails loudly instead of unscoping.
 
 // ---------------------------------------------------------------------------
 // Create a new service request
@@ -29,15 +36,16 @@ const logger = require('../utils/logger').child({ service: 'portalServiceRequest
  * @returns {Promise<object>} The created request row
  */
 async function createRequest({ clientId, organizationId, requestType, payload = {} }) {
-  // Resolve the client's active contract
+  requireOrgId(organizationId, 'portalServiceRequestService.createRequest');
+  // Resolve the client's active contract — in the client's own organization.
   const [contracts] = await db.query(
     `SELECT c.id, c.plan_id, c.status, c.start_date,
             p.name AS plan_name, p.price, p.billing_cycle
      FROM contracts c
      JOIN plans p ON p.id = c.plan_id
-     WHERE c.client_id = ? AND c.status = 'active' AND c.deleted_at IS NULL
+     WHERE c.client_id = ? AND c.organization_id <=> ? AND c.status = 'active' AND c.deleted_at IS NULL
      LIMIT 1`,
-    [clientId],
+    [clientId, organizationId],
   );
   const contract = contracts[0] || null;
 
@@ -51,9 +59,14 @@ async function createRequest({ clientId, organizationId, requestType, payload = 
     if (!new_plan_id) throw new ValidationError('new_plan_id is required for plan_upgrade');
     if (!contract) throw new ValidationError('No active contract found for this client');
 
+    // The target plan must be this organization's own or a global
+    // (organization_id IS NULL) plan — the same selectability rule as
+    // services/planAvailability.js. A foreign plan reads as missing; approval
+    // later copies payload.new_plan_id onto the contract verbatim.
     const [plans] = await db.query(
-      'SELECT id, name, price FROM plans WHERE id = ? AND deleted_at IS NULL',
-      [new_plan_id],
+      `SELECT id, name, price FROM plans
+       WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL) AND deleted_at IS NULL`,
+      [new_plan_id, organizationId],
     );
     if (!plans[0]) throw new NotFoundError('Plan');
     if (plans[0].id === contract.plan_id) {
@@ -134,12 +147,13 @@ async function createRequest({ clientId, organizationId, requestType, payload = 
 // Get requests for a client
 // ---------------------------------------------------------------------------
 
-async function listRequests(clientId, { page = 1, limit = 20, requestType } = {}) {
+async function listRequests(clientId, organizationId, { page = 1, limit = 20, requestType } = {}) {
+  requireOrgId(organizationId, 'portalServiceRequestService.listRequests');
   const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const safeOffset = (safePage - 1) * safeLimit;
-  let where = 'WHERE client_id = ? AND deleted_at IS NULL';
-  const params = [clientId];
+  let where = 'WHERE client_id = ? AND organization_id <=> ? AND deleted_at IS NULL';
+  const params = [clientId, organizationId];
 
   if (requestType) {
     where += ' AND request_type = ?';
@@ -166,20 +180,24 @@ async function listRequests(clientId, { page = 1, limit = 20, requestType } = {}
 // Cancel a pending request (client-side)
 // ---------------------------------------------------------------------------
 
-async function cancelRequest(requestId, clientId) {
+async function cancelRequest(requestId, clientId, organizationId) {
+  requireOrgId(organizationId, 'portalServiceRequestService.cancelRequest');
   const [rows] = await db.query(
-    'SELECT id, status FROM portal_service_requests WHERE id = ? AND client_id = ? AND deleted_at IS NULL',
-    [requestId, clientId],
+    `SELECT id, status FROM portal_service_requests
+     WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL`,
+    [requestId, clientId, organizationId],
   );
   if (!rows[0]) throw new NotFoundError('Service request');
   if (rows[0].status !== 'pending') {
     throw new ValidationError('Only pending requests can be cancelled');
   }
+  // The write repeats the ownership and pending predicates so it can never
+  // touch a row other than the one just checked.
   await db.query(
     `UPDATE portal_service_requests
      SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
-     WHERE id = ?`,
-    [requestId],
+     WHERE id = ? AND client_id = ? AND organization_id <=> ? AND status = 'pending'`,
+    [requestId, clientId, organizationId],
   );
   return { id: requestId, status: 'cancelled' };
 }
@@ -222,11 +240,14 @@ async function applyPppoePasswordChange(requestId) {
  * { queued } — false when the contract has no managed CPE device (the caller
  * then leaves the change for manual fulfillment).
  */
-async function queueWifiPasswordCpeTask({ contractId, newPassword, createdBy = null }) {
+async function queueWifiPasswordCpeTask({ organizationId, contractId, newPassword, createdBy = null }) {
+  requireOrgId(organizationId, 'portalServiceRequestService.queueWifiPasswordCpeTask');
   if (!contractId || !newPassword) return { queued: false };
+  // Only a CPE in the request's own organization may receive the new PSK.
   const [cpeRows] = await db.query(
-    'SELECT id, organization_id FROM cpe_devices WHERE contract_id = ? AND deleted_at IS NULL LIMIT 1',
-    [contractId],
+    `SELECT id, organization_id FROM cpe_devices
+     WHERE contract_id = ? AND organization_id <=> ? AND deleted_at IS NULL LIMIT 1`,
+    [contractId, organizationId],
   );
   if (!cpeRows[0]) return { queued: false };
   const CpeTask = require('../models/CpeTask');
@@ -367,6 +388,7 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
     // Queue a CPE set-parameter task for the Wi-Fi password if we can resolve the
     // device; if no CPE device is found, leave as approved for manual fulfillment.
     const { queued } = await queueWifiPasswordCpeTask({
+      organizationId,
       contractId: req.contract_id,
       newPassword: payload.new_password || null,
       createdBy: approvedByUserId,
@@ -449,10 +471,13 @@ async function upsertPushSubscription({
   notifyBilling,
   notifyTicket,
 }) {
-  // Check if this endpoint already exists for this client
+  requireOrgId(organizationId, 'portalServiceRequestService.upsertPushSubscription');
+  // Check if this endpoint already exists for this client in its own org; a
+  // foreign-org row naming the same client_id is never updated in place.
   const [existing] = await db.query(
-    'SELECT id FROM portal_push_subscriptions WHERE client_id = ? AND endpoint = ? AND deleted_at IS NULL',
-    [clientId, endpoint],
+    `SELECT id FROM portal_push_subscriptions
+     WHERE client_id = ? AND organization_id <=> ? AND endpoint = ? AND deleted_at IS NULL`,
+    [clientId, organizationId, endpoint],
   );
 
   if (existing[0]) {
@@ -503,12 +528,13 @@ async function upsertPushSubscription({
   return { id: result.insertId, updated: false };
 }
 
-async function deletePushSubscription(clientId, endpoint) {
+async function deletePushSubscription(clientId, organizationId, endpoint) {
+  requireOrgId(organizationId, 'portalServiceRequestService.deletePushSubscription');
   await db.query(
     `UPDATE portal_push_subscriptions
      SET deleted_at = NOW()
-     WHERE client_id = ? AND endpoint = ? AND deleted_at IS NULL`,
-    [clientId, endpoint],
+     WHERE client_id = ? AND organization_id <=> ? AND endpoint = ? AND deleted_at IS NULL`,
+    [clientId, organizationId, endpoint],
   );
 }
 

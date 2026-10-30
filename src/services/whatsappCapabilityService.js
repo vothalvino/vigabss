@@ -6,6 +6,12 @@
 // the active-contract/plan query, invoices, and client-level ticket creation.
 // All functions are read-only except the two ticket creators (a support ticket
 // is low-risk and is the client's own record).
+//
+// Tenant binding: orgId is the organization of the resolved WhatsApp link (the
+// bound client's org), never an inbound payload value. Every client-keyed query
+// binds it null-safely (`organization_id <=> ?`) because a client_id match
+// alone is not a tenant boundary (ARCHITECTURE.md); helpers refuse an
+// undefined orgId via requireOrgId.
 // =============================================================================
 
 const crypto = require('crypto');
@@ -13,6 +19,7 @@ const db = require('../config/database');
 const { computeClientBalance } = require('./clientBalanceService');
 const portalServiceRequests = require('./portalServiceRequestService');
 const logger = require('../utils/logger');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 function money(n) {
   return Math.abs(Number(n) || 0).toFixed(2);
@@ -27,7 +34,8 @@ function ymd(d) {
  * Active contracts for a client, with a human label for the multi-service picker.
  * @returns {Promise<Array<{id:number, status:string, planName:string, down:number, up:number, label:string}>>}
  */
-async function getActiveContracts(clientId) {
+async function getActiveContracts(orgId, clientId) {
+  requireOrgId(orgId, 'whatsappCapabilityService.getActiveContracts');
   const [rows] = await db.query(
     `SELECT c.id, c.status, c.connection_type,
             p.name AS plan_name, p.download_speed_mbps AS down, p.upload_speed_mbps AS up,
@@ -35,9 +43,9 @@ async function getActiveContracts(clientId) {
        FROM contracts c
        JOIN plans p ON p.id = c.plan_id
        LEFT JOIN sites s ON s.id = c.site_id
-      WHERE c.client_id = ? AND c.status = 'active' AND c.deleted_at IS NULL
+      WHERE c.client_id = ? AND c.organization_id <=> ? AND c.status = 'active' AND c.deleted_at IS NULL
       ORDER BY c.id`,
-    [clientId],
+    [clientId, orgId],
   );
   return rows.map((r) => ({
     id: r.id,
@@ -51,11 +59,12 @@ async function getActiveContracts(clientId) {
 
 /** Balance + next due date. */
 async function balanceText(orgId, clientId) {
+  requireOrgId(orgId, 'whatsappCapabilityService.balanceText');
   const { balance, currency } = await computeClientBalance(orgId, clientId);
   const [[{ next_due }]] = await db.query(
     `SELECT MIN(due_date) AS next_due FROM invoices
-      WHERE client_id = ? AND status IN ('issued', 'overdue') AND deleted_at IS NULL`,
-    [clientId],
+      WHERE client_id = ? AND organization_id <=> ? AND status IN ('issued', 'overdue') AND deleted_at IS NULL`,
+    [clientId, orgId],
   );
   if (Number(balance) > 0.005) {
     const due = next_due ? ` Your next payment is due ${ymd(next_due)}.` : '';
@@ -135,8 +144,8 @@ async function payNowUrl({ orgId, clientId, invoice }) {
 }
 
 /** Plan(s) + service status. */
-async function planText(clientId) {
-  const contracts = await getActiveContracts(clientId);
+async function planText(orgId, clientId) {
+  const contracts = await getActiveContracts(orgId, clientId);
   if (contracts.length === 0) {
     return "You don't have an active service on file. If that's unexpected, reply 4 to report it.";
   }
@@ -148,14 +157,15 @@ async function planText(clientId) {
 }
 
 /** Recent invoices + their payment status. */
-async function invoicesText(clientId) {
+async function invoicesText(orgId, clientId) {
+  requireOrgId(orgId, 'whatsappCapabilityService.invoicesText');
   const [rows] = await db.query(
     `SELECT invoice_number, total, status, due_date
        FROM invoices
-      WHERE client_id = ? AND deleted_at IS NULL
+      WHERE client_id = ? AND organization_id <=> ? AND deleted_at IS NULL
       ORDER BY created_at DESC
       LIMIT 3`,
-    [clientId],
+    [clientId, orgId],
   );
   if (rows.length === 0) return 'You have no invoices on file yet.';
   const lines = rows.map((r) => {
@@ -181,12 +191,13 @@ async function createProblemTicket({ orgId, clientId, description, contract }) {
 }
 
 /** Count WhatsApp-originated tickets a client opened recently (anti ticket-flood). */
-async function recentWhatsappTicketCount(clientId, minutes = 60) {
+async function recentWhatsappTicketCount(orgId, clientId, minutes = 60) {
+  requireOrgId(orgId, 'whatsappCapabilityService.recentWhatsappTicketCount');
   const [rows] = await db.query(
     `SELECT COUNT(*) AS n FROM tickets
-      WHERE client_id = ? AND subject LIKE 'WhatsApp:%'
+      WHERE client_id = ? AND organization_id <=> ? AND subject LIKE 'WhatsApp:%'
         AND created_at > (NOW() - INTERVAL ? MINUTE)`,
-    [clientId, minutes],
+    [clientId, orgId, minutes],
   );
   return rows[0]?.n || 0;
 }
@@ -221,12 +232,15 @@ function generateWifiPassword() {
   return pw;
 }
 
-/** Confirm the chosen contract still belongs to this client + is active (TOCTOU guard). */
-async function contractStillOwned(clientId, contractId) {
+/** Confirm the chosen contract still belongs to this client + org and is active (TOCTOU guard). */
+async function contractStillOwned(orgId, clientId, contractId) {
+  requireOrgId(orgId, 'whatsappCapabilityService.contractStillOwned');
   if (!contractId) return true; // no contract targeted (client-level)
   const [rows] = await db.query(
-    "SELECT id FROM contracts WHERE id = ? AND client_id = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1",
-    [contractId, clientId],
+    `SELECT id FROM contracts
+      WHERE id = ? AND client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
+      LIMIT 1`,
+    [contractId, clientId, orgId],
   );
   return rows.length > 0;
 }
@@ -265,10 +279,13 @@ async function sendWifiPasswordEmail({ orgId, clientId, client, password }) {
  */
 async function resetWifiPassword({ orgId, clientId, contract }) {
   const contractId = contract && contract.id ? contract.id : null;
-  if (!(await contractStillOwned(clientId, contractId))) {
+  if (!(await contractStillOwned(orgId, clientId, contractId))) {
     return { ok: false, reason: 'contract_gone' };
   }
-  const [crows] = await db.query('SELECT name, email FROM clients WHERE id = ? LIMIT 1', [clientId]);
+  const [crows] = await db.query(
+    'SELECT name, email FROM clients WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL LIMIT 1',
+    [clientId, orgId],
+  );
   const client = crows[0];
   if (!client || !client.email) return { ok: false, reason: 'no_email' };
 
@@ -285,7 +302,9 @@ async function resetWifiPassword({ orgId, clientId, contract }) {
   const sent = await sendWifiPasswordEmail({ orgId, clientId, client, password: newPassword });
   if (!sent) return { ok: false, reason: 'email_failed', requestId };
 
-  const { queued } = await portalServiceRequests.queueWifiPasswordCpeTask({ contractId, newPassword, createdBy: null });
+  const { queued } = await portalServiceRequests.queueWifiPasswordCpeTask({
+    organizationId: orgId, contractId, newPassword, createdBy: null,
+  });
   if (queued) {
     await db.query(
       `UPDATE portal_service_requests
@@ -298,12 +317,13 @@ async function resetWifiPassword({ orgId, clientId, contract }) {
 }
 
 /** Count a client's recent service-requests of a type (anti request-flood). */
-async function recentServiceRequestCount(clientId, requestType, minutes = 60) {
+async function recentServiceRequestCount(orgId, clientId, requestType, minutes = 60) {
+  requireOrgId(orgId, 'whatsappCapabilityService.recentServiceRequestCount');
   const [rows] = await db.query(
     `SELECT COUNT(*) AS n FROM portal_service_requests
-      WHERE client_id = ? AND request_type = ? AND deleted_at IS NULL
+      WHERE client_id = ? AND organization_id <=> ? AND request_type = ? AND deleted_at IS NULL
         AND created_at > (NOW() - INTERVAL ? MINUTE)`,
-    [clientId, requestType, minutes],
+    [clientId, orgId, requestType, minutes],
   );
   return rows[0]?.n || 0;
 }
@@ -312,7 +332,7 @@ async function recentServiceRequestCount(clientId, requestType, minutes = 60) {
 async function scheduleVisit({ orgId, clientId, contract, preferredDate, slot, notes }) {
   let contractId = contract && contract.id ? contract.id : null;
   // Re-validate ownership (TOCTOU); if the contract was reassigned, file client-level.
-  if (contractId && !(await contractStillOwned(clientId, contractId))) contractId = null;
+  if (contractId && !(await contractStillOwned(orgId, clientId, contractId))) contractId = null;
   const [ins] = await db.query(
     `INSERT INTO portal_service_requests
        (organization_id, client_id, contract_id, request_type, status, payload)

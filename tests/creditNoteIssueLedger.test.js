@@ -8,6 +8,11 @@
 //   * a note created directly as issued/applied still posts at creation;
 //   * a posted note cannot return to draft and cancelled is terminal;
 //   * adding a line to a draft moves its header subtotal/tax/total.
+// Extended by migration 466 to the full invariant (net credit == total while
+// issued/applied, 0 while draft/cancelled/soft-deleted):
+//   * cancel and soft-delete append one reversal debit, under the row lock;
+//   * restore re-posts a posted note; a total change posts the delta;
+//   * a live CFDI blocks cancel/delete/total change and nothing moves.
 //
 // The fake below keeps rows in two organizations, applies the SET clauses the
 // code really sends, and gives every pooled connection a real per-row
@@ -83,6 +88,15 @@ function freshTables() {
     ],
     credit_note_items: [],
     cfdi_documents: [],
+    clients: [
+      { id: 10, organization_id: ORG_A, deleted_at: null },
+      { id: 11, organization_id: ORG_A, deleted_at: null },
+      { id: 20, organization_id: ORG_B, deleted_at: null },
+    ],
+    invoices: [
+      { id: 900, organization_id: ORG_A, deleted_at: null },
+      { id: 901, organization_id: ORG_B, deleted_at: null },
+    ],
   };
 }
 
@@ -183,6 +197,9 @@ function fakeQuery(sql, params = []) {
       if (rhs === '?') return { col, kind: 'set', val: params[p++] };
       if (new RegExp(`^\`?${col}\`?\\s*\\+\\s*\\?$`).test(rhs)) return { col, kind: 'add', val: params[p++] };
       if (/^'.*'$/.test(rhs)) return { col, kind: 'set', val: rhs.slice(1, -1) };
+      // Soft-delete / restore: deleted_at = NOW() / deleted_at = NULL.
+      if (/^NULL$/i.test(rhs)) return { col, kind: 'set', val: null };
+      if (/^NOW\(\)$/i.test(rhs)) return { col, kind: 'set', val: '2026-10-29 12:00:00' };
       return { col, kind: 'set', val: rhs };
     });
     const hit = matchWhere(T[table] || [], sql, params, p);
@@ -239,7 +256,7 @@ beforeEach(() => {
   nextId = 9000;
   locks.clear();
   jest.spyOn(User, 'getPermissions').mockImplementation(async () => [
-    'credit_notes.view', 'credit_notes.create', 'credit_notes.update',
+    'credit_notes.view', 'credit_notes.create', 'credit_notes.update', 'credit_notes.delete',
   ]);
   db.query.mockImplementation(async (sql, params) => { await tick(); return fakeQuery(sql, params); });
   db.getConnection.mockImplementation(async () => makeConn());
@@ -270,6 +287,41 @@ describe('creation', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ entry_type: 'credit', organization_id: ORG_A, client_id: 10, currency: 'MXN' });
     expect(Number(rows[0].amount)).toBe(116);
+  });
+});
+
+describe('cross-organization references', () => {
+  test('creating a note for another organization\'s client is 422 and writes nothing', async () => {
+    const before = T.credit_notes.length;
+    const res = await staff('post', '/api/v1/credit-notes').send({
+      client_id: 20, reason: 'billing_error', total: 116, currency: 'MXN', status: 'issued',
+    });
+    expect(res.status).toBe(422);
+    expect(T.credit_notes).toHaveLength(before);
+    expect(T.client_balance_ledger.some(l => same(l.client_id, 20))).toBe(false);
+  });
+
+  test('creating a note against another organization\'s invoice is 422', async () => {
+    const before = T.credit_notes.length;
+    const res = await staff('post', '/api/v1/credit-notes').send({
+      client_id: 10, invoice_id: 901, reason: 'billing_error', total: 116, currency: 'MXN',
+    });
+    expect(res.status).toBe(422);
+    expect(T.credit_notes).toHaveLength(before);
+  });
+
+  test('re-pointing a posted note at another organization\'s client is 422 and the credit stays put', async () => {
+    const res = await staff('put', '/api/v1/credit-notes/702').send({ client_id: 20 });
+    expect(res.status).toBe(422);
+    expect(cn(702).client_id).toBe(10);
+    expect(ledgerFor(702)).toHaveLength(1);
+  });
+
+  test('an own-org invoice is accepted', async () => {
+    const res = await staff('post', '/api/v1/credit-notes').send({
+      client_id: 10, invoice_id: 900, reason: 'billing_error', total: 116, currency: 'MXN',
+    });
+    expect(res.status).toBe(201);
   });
 });
 
@@ -353,5 +405,190 @@ describe('POST /credit-notes/:id/items re-totals the draft header', () => {
     expect(res.body.error.code).toBe('CREDIT_NOTE_NOT_DRAFT');
     expect(cn(702)).toMatchObject({ subtotal: '100.00', total: '116.00' });
     expect(T.credit_note_items).toEqual([]);
+  });
+});
+
+// =============================================================================
+// The full invariant (migration 466): net ledger credit == total while the
+// note is issued/applied, == 0 while it is draft, cancelled or soft-deleted.
+// =============================================================================
+const netCredit = id => Math.round(-ledgerFor(id).reduce((s, l) => s + signed(l), 0) * 100) / 100 + 0;
+const liveCfdi = (creditNoteId, satStatus = 'vigente') => T.cfdi_documents.push({
+  id: 5000 + creditNoteId, organization_id: ORG_A, credit_note_id: creditNoteId, uuid: 'U-1', sat_status: satStatus,
+});
+
+describe('cancelling a posted note (PUT -> cancelled)', () => {
+  test('appends one reversal debit; re-saving the cancelled note posts nothing more', async () => {
+    const res = await staff('put', '/api/v1/credit-notes/702').send({ status: 'cancelled' });
+    expect(res.status).toBe(200);
+    expect(cn(702).status).toBe('cancelled');
+    const rows = ledgerFor(702);
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toMatchObject({
+      entry_type: 'debit', organization_id: ORG_A, client_id: 10, currency: 'MXN', reference_type: 'credit_note',
+    });
+    expect(Number(rows[1].amount)).toBe(116);
+    expect(rows[1].description).toMatch(/^Reversal: Credit Note CN-A-702/);
+    expect(netCredit(702)).toBe(0);
+
+    expect((await staff('put', '/api/v1/credit-notes/702').send({ status: 'cancelled', notes: 'again' })).status).toBe(200);
+    expect(ledgerFor(702)).toHaveLength(2);
+  });
+
+  test('two concurrent cancels reverse once', async () => {
+    const [a, b] = await Promise.all([
+      staff('put', '/api/v1/credit-notes/702').send({ status: 'cancelled' }),
+      staff('put', '/api/v1/credit-notes/702').send({ status: 'cancelled' }),
+    ]);
+    expect([a.status, b.status]).toEqual([200, 200]);
+    expect(ledgerFor(702)).toHaveLength(2);
+    expect(netCredit(702)).toBe(0);
+  });
+
+  test('an applied note is reversed too', async () => {
+    expect((await staff('put', '/api/v1/credit-notes/702').send({ status: 'applied' })).status).toBe(200);
+    expect((await staff('put', '/api/v1/credit-notes/702').send({ status: 'cancelled' })).status).toBe(200);
+    expect(netCredit(702)).toBe(0);
+    expect(ledgerFor(702)).toHaveLength(2);
+  });
+
+  test('cancelling a draft posts nothing', async () => {
+    const res = await staff('put', '/api/v1/credit-notes/700').send({ status: 'cancelled' });
+    expect(res.status).toBe(200);
+    expect(cn(700).status).toBe('cancelled');
+    expect(ledgerFor(700)).toEqual([]);
+  });
+
+  test('a note whose CFDI de Egreso is live cannot be cancelled, and nothing is reversed', async () => {
+    liveCfdi(702);
+    const res = await staff('put', '/api/v1/credit-notes/702').send({ status: 'cancelled' });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('CFDI_STAMPED');
+    expect(cn(702).status).toBe('issued');
+    expect(ledgerFor(702)).toHaveLength(1);
+    expect(netCredit(702)).toBe(116);
+  });
+
+  test('another organization\'s posted note is 404 and its ledger is untouched', async () => {
+    T.credit_notes.push(note({ id: 801, organization_id: ORG_B, client_id: 20, status: 'issued' }));
+    T.client_balance_ledger.push({ id: 3, organization_id: ORG_B, client_id: 20, entry_type: 'credit', amount: '116.00', debit: '0.00', credit: '0.00', currency: 'MXN', reference_type: 'credit_note', reference_id: 801 });
+    expect((await staff('put', '/api/v1/credit-notes/801').send({ status: 'cancelled' })).status).toBe(404);
+    expect((await staff('delete', '/api/v1/credit-notes/801')).status).toBe(404);
+    expect(cn(801).status).toBe('issued');
+    expect(cn(801).deleted_at).toBeNull();
+    expect(ledgerFor(801)).toHaveLength(1);
+  });
+});
+
+describe('soft-deleting and restoring', () => {
+  test('deleting a posted note reverses its credit once; a second delete is 404 and posts nothing', async () => {
+    const res = await staff('delete', '/api/v1/credit-notes/702');
+    expect(res.status).toBe(204);
+    expect(cn(702).deleted_at).not.toBeNull();
+    const rows = ledgerFor(702);
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toMatchObject({ entry_type: 'debit', organization_id: ORG_A, client_id: 10 });
+    expect(rows[1].description).toMatch(/^Reversal: .*deleted/);
+    expect(netCredit(702)).toBe(0);
+
+    expect((await staff('delete', '/api/v1/credit-notes/702')).status).toBe(404);
+    expect(ledgerFor(702)).toHaveLength(2);
+  });
+
+  test('two concurrent deletes reverse once', async () => {
+    const results = await Promise.all([
+      staff('delete', '/api/v1/credit-notes/702'),
+      staff('delete', '/api/v1/credit-notes/702'),
+    ]);
+    expect(results.map(r => r.status).sort()).toEqual([204, 404]);
+    expect(ledgerFor(702)).toHaveLength(2);
+    expect(netCredit(702)).toBe(0);
+  });
+
+  test('deleting a draft posts nothing', async () => {
+    expect((await staff('delete', '/api/v1/credit-notes/700')).status).toBe(204);
+    expect(ledgerFor(700)).toEqual([]);
+  });
+
+  test('a note with a live CFDI is not deleted and keeps its credit', async () => {
+    liveCfdi(702);
+    const res = await staff('delete', '/api/v1/credit-notes/702');
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('CFDI_STAMPED');
+    expect(cn(702).deleted_at).toBeNull();
+    expect(netCredit(702)).toBe(116);
+  });
+
+  test('restoring a deleted posted note re-posts its total, once', async () => {
+    expect((await staff('delete', '/api/v1/credit-notes/702')).status).toBe(204);
+    const res = await staff('post', '/api/v1/credit-notes/702/restore');
+    expect(res.status).toBe(200);
+    expect(cn(702).deleted_at).toBeNull();
+    expect(netCredit(702)).toBe(116);
+    expect(ledgerFor(702)).toHaveLength(3);
+    expect(ledgerFor(702)[2]).toMatchObject({ entry_type: 'credit' });
+
+    // A second restore finds nothing deleted (404) and posts nothing.
+    expect((await staff('post', '/api/v1/credit-notes/702/restore')).status).toBe(404);
+    expect(ledgerFor(702)).toHaveLength(3);
+  });
+
+  test('restoring a deleted cancelled or draft note posts nothing', async () => {
+    expect((await staff('delete', '/api/v1/credit-notes/703')).status).toBe(204);
+    expect((await staff('post', '/api/v1/credit-notes/703/restore')).status).toBe(200);
+    expect(ledgerFor(703)).toEqual([]);
+
+    expect((await staff('delete', '/api/v1/credit-notes/700')).status).toBe(204);
+    expect((await staff('post', '/api/v1/credit-notes/700/restore')).status).toBe(200);
+    expect(ledgerFor(700)).toEqual([]);
+  });
+});
+
+describe('changing a posted note', () => {
+  test('a total change on an issued note posts the difference (up, then down)', async () => {
+    const up = await staff('put', '/api/v1/credit-notes/702').send({ subtotal: 200, tax_amount: 32, total: 232 });
+    expect(up.status).toBe(200);
+    expect(ledgerFor(702)).toHaveLength(2);
+    expect(ledgerFor(702)[1]).toMatchObject({ entry_type: 'credit' });
+    expect(Number(ledgerFor(702)[1].amount)).toBe(116);
+    expect(netCredit(702)).toBe(232);
+
+    const down = await staff('put', '/api/v1/credit-notes/702').send({ subtotal: 50, tax_amount: 8, total: 58 });
+    expect(down.status).toBe(200);
+    expect(ledgerFor(702)[2]).toMatchObject({ entry_type: 'debit' });
+    expect(Number(ledgerFor(702)[2].amount)).toBe(174);
+    expect(ledgerFor(702)[2].description).toMatch(/^Adjustment: /);
+    expect(netCredit(702)).toBe(58);
+
+    // Cancelling afterwards reverses the CURRENT net, never more.
+    expect((await staff('put', '/api/v1/credit-notes/702').send({ status: 'cancelled' })).status).toBe(200);
+    expect(netCredit(702)).toBe(0);
+  });
+
+  test('a stamped note\'s total cannot change, so its ledger does not move', async () => {
+    liveCfdi(702);
+    const res = await staff('put', '/api/v1/credit-notes/702').send({ subtotal: 200, tax_amount: 32, total: 232 });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('CFDI_STAMPED');
+    expect(ledgerFor(702)).toHaveLength(1);
+  });
+
+  test('re-pointing a posted note at another client moves the credit, it never stands twice', async () => {
+    const res = await staff('put', '/api/v1/credit-notes/702').send({ client_id: 11 });
+    expect(res.status).toBe(200);
+    const onOld = ledgerFor(702).filter(l => same(l.client_id, 10));
+    const onNew = ledgerFor(702).filter(l => same(l.client_id, 11));
+    expect(onOld.reduce((s, l) => s + signed(l), 0)).toBe(0);
+    expect(onNew).toHaveLength(1);
+    expect(onNew[0]).toMatchObject({ entry_type: 'credit', organization_id: ORG_A });
+    expect(Number(onNew[0].amount)).toBe(116);
+  });
+
+  test('an issued legacy note with no ledger row is topped up on its next write, once', async () => {
+    T.credit_notes.push(note({ id: 704, credit_note_number: 'RCN-1-1', status: 'issued' }));
+    expect((await staff('put', '/api/v1/credit-notes/704').send({ notes: 'touch' })).status).toBe(200);
+    expect(netCredit(704)).toBe(116);
+    expect((await staff('put', '/api/v1/credit-notes/704').send({ notes: 'touch again' })).status).toBe(200);
+    expect(ledgerFor(704)).toHaveLength(1);
   });
 });
