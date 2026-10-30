@@ -190,10 +190,16 @@ shared primary database.
 - Passing `organizationId = null` to a service does not reset database routing;
   use the explicit primary context for global work.
 - A tenant-owned row that references another tenant-owned row (`client_id`,
-  `contract_id`, ...) must verify that reference in `req.orgId` on create,
-  update, and any derivation step (for example quote -> invoice conversion);
-  reject a foreign or missing reference with a 422 `ValidationError`. See
-  `assertServiceOrderFks` and `assertQuoteFks` in `src/routes/`.
+  `contract_id`, `assigned_to`, a related or merge-source id, ...) must verify
+  that reference in `req.orgId` on create, update, and any derivation step (for
+  example quote -> invoice conversion); reject a foreign or missing reference
+  with a 422 `ValidationError`. See `assertServiceOrderFks`, `assertQuoteFks`
+  and `assertTicketFks` in `src/routes/`.
+- Child tables without their own `organization_id` (for example
+  `ticket_comments`, `ticket_relations`, `ticket_time_logs`) are scoped only
+  through their parent: load the parent by id **and** `req.orgId` before any
+  child read or write, and 404 on a miss (tickets: `requireOwnedTicket` in
+  `src/routes/tickets.js`).
 - Subscriber-portal queries must bind `req.client.organizationId` as well as
   `req.client.id`, using null-safe `organization_id <=> ?` because single-tenant
   installs may store NULL organization IDs. A `client_id` match alone is not a

@@ -60,3 +60,10 @@ afterward — they're untracked but git still lists them under `??` (a
 symlink doesn't match a `node_modules/`-with-trailing-slash gitignore
 pattern the same way a real directory does), so leaving them risks an
 accidental `git add -A`.
+
+**Full-suite noise seen in worktrees (2026-10-29):** `tests/trapForwardingOpenapi.test.js`
+shells out to `pnpm --dir frontend run gen:api` and fails with
+`openapi-typescript: not found` for the same reason (environment, not code).
+`tests/pacProviders.test.js` "POST never leaks credentials" flaked once (422)
+under the parallel full run and passed 3/3 when run alone — rerun it before
+treating it as a regression.

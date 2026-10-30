@@ -556,8 +556,11 @@ router.get('/tickets', async (req, res, next) => {
     const offset = (page - 1) * limit;
     const status = req.query.status;
 
-    let whereClause = 'WHERE client_id = ? AND deleted_at IS NULL';
-    const params = [req.client.id];
+    // Bound to the portal client's organization as well as client_id: a staff
+    // ticket created in another org against this client_id (TNB-06) must not
+    // surface here. <=> keeps an unattributed (NULL-org) client working.
+    let whereClause = 'WHERE client_id = ? AND organization_id <=> ? AND deleted_at IS NULL';
+    const params = [req.client.id, req.client.organizationId];
 
     if (status) {
       whereClause += ' AND status = ?';
@@ -605,8 +608,8 @@ router.post('/tickets', validate(createTicketSchema), async (req, res, next) => 
     );
 
     const [rows] = await db.query(
-      'SELECT id, subject, priority, category, status, created_at FROM tickets WHERE id = ?',
-      [result.insertId],
+      'SELECT id, subject, priority, category, status, created_at FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ?',
+      [result.insertId, req.client.id, req.client.organizationId],
     );
 
     res.status(201).json({ data: rows[0] });
@@ -621,8 +624,8 @@ router.get('/tickets/:id', async (req, res, next) => {
     const [rows] = await db.query(
       `SELECT id, subject, description, priority, category, status, created_at, updated_at
        FROM tickets
-       WHERE id = ? AND client_id = ? AND deleted_at IS NULL`,
-      [req.params.id, req.client.id],
+       WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL`,
+      [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!rows[0]) throw new NotFoundError('Ticket');
 
@@ -644,8 +647,8 @@ router.get('/tickets/:id', async (req, res, next) => {
 router.post('/tickets/:id/comments', validate(createCommentSchema), async (req, res, next) => {
   try {
     const [ticketRows] = await db.query(
-      'SELECT id FROM tickets WHERE id = ? AND client_id = ? AND deleted_at IS NULL',
-      [req.params.id, req.client.id],
+      'SELECT id FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!ticketRows[0]) throw new NotFoundError('Ticket');
 
