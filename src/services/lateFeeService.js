@@ -125,6 +125,8 @@ async function applyLateFees(organizationId) {
        AND i.status IN ('issued', 'overdue')
        AND i.due_date < CURDATE()
        AND i.deleted_at IS NULL
+       -- No late fees on an archived client's invoices (DAL-03).
+       AND cl.deleted_at IS NULL
        -- Never mutate an invoice that already carries a live CFDI: adding a
        -- line item + changing totals would desync it from the stamped, filed
        -- document. Such invoices need a separate charge (nota de cargo), not

@@ -407,6 +407,8 @@ async function processRecurringCharges(organizationId) {
     SELECT rp.id
     FROM recurring_payment_profiles rp
     JOIN payment_gateways pg ON pg.id = rp.payment_gateway_id
+    -- Never charge an archived client's card (DAL-03).
+    JOIN clients cl ON cl.id = rp.client_id AND cl.deleted_at IS NULL
     WHERE rp.status = 'active' AND rp.is_default = TRUE AND rp.deleted_at IS NULL
       AND pg.status = 'active' AND pg.deleted_at IS NULL ${orgFilter}
   `, params);

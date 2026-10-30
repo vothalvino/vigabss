@@ -589,6 +589,7 @@
     },
     "restore": "Restaurar",
     "archive": "Arquivar",
+    "archiveRequirements": "Um cliente só pode ser arquivado quando seus contratos estiverem cancelados ou encerrados, suas faturas quitadas e o pagamento automático desativado.",
     "archiving": "Arquivando…",
     "view": "Ver →",
     "noClients": "Nenhum cliente encontrado.",

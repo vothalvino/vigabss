@@ -589,6 +589,7 @@
     },
     "restore": "Restore",
     "archive": "Archive",
+    "archiveRequirements": "A client can only be archived once its contracts are cancelled or terminated, its invoices are settled and autopay is off.",
     "archiving": "Archiving…",
     "view": "View →",
     "noClients": "No clients found.",

@@ -454,7 +454,9 @@ async function runAutoInvoice(organizationId) {
     `SELECT c.*, p.name AS plan_name, p.price AS plan_price, p.currency AS plan_currency
      FROM contracts c
      JOIN plans p ON p.id = c.plan_id
-     WHERE c.status = 'active' ${orgFilter}`,
+     -- Never bill an archived client or a deleted contract (DAL-03).
+     JOIN clients cl ON cl.id = c.client_id AND cl.deleted_at IS NULL
+     WHERE c.status = 'active' AND c.deleted_at IS NULL ${orgFilter}`,
     params,
   );
 

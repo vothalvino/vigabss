@@ -589,6 +589,7 @@
     },
     "restore": "Restaurar",
     "archive": "Archivar",
+    "archiveRequirements": "Un cliente solo puede archivarse cuando sus contratos estén cancelados o terminados, sus facturas estén saldadas y el pago automático esté desactivado.",
     "archiving": "Archivando…",
     "view": "Ver →",
     "noClients": "No se encontraron clientes.",

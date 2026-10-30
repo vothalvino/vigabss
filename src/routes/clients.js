@@ -69,9 +69,56 @@ async function assertMayChangeTaxExemption(old, req) {
   }
 }
 
+// DAL-03: archiving (soft-deleting) a client used to leave everything running:
+// contracts kept their service and kept being invoiced, autopay kept charging
+// the saved card and late fees kept accruing — while the client was locked
+// out of the portal and its notices were suppressed. Refuse the archive until
+// service is ended, the balance is settled and autopay is off, the same way a
+// live contract cannot be deleted.
+async function assertClientCanBeArchived(client, req, exec) {
+  const [[contracts]] = await exec(
+    `SELECT COUNT(*) AS n FROM contracts
+      WHERE client_id = ? AND organization_id <=> ? AND deleted_at IS NULL
+        AND status IN ('pending', 'active', 'suspended')`,
+    [client.id, req.orgId],
+  );
+  const [[invoices]] = await exec(
+    `SELECT COUNT(*) AS n FROM invoices i
+      WHERE i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL
+        AND i.status IN ('issued', 'sent', 'overdue')
+        AND i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
+                                 WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0) > 0.005`,
+    [client.id, req.orgId],
+  );
+  const [[profiles]] = await exec(
+    `SELECT COUNT(*) AS n FROM recurring_payment_profiles
+      WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL`,
+    [client.id, req.orgId],
+  );
+  const blockers = [];
+  if (Number(contracts.n) > 0) {
+    blockers.push({ field: 'contracts', message: `${contracts.n} contract(s) are pending, active or suspended — cancel or terminate them first` });
+  }
+  if (Number(invoices.n) > 0) {
+    blockers.push({ field: 'invoices', message: `${invoices.n} invoice(s) still have a balance due — settle, credit or void them first` });
+  }
+  if (Number(profiles.n) > 0) {
+    blockers.push({ field: 'recurring_payment_profiles', message: 'Autopay is active — remove the saved payment method first' });
+  }
+  if (blockers.length) {
+    const err = new AppError(
+      'This client cannot be archived while it has live service, money owed or active autopay.',
+      422, 'CLIENT_HAS_OPEN_ACCOUNT',
+    );
+    err.details = blockers;
+    throw err;
+  }
+}
+
 const ctrl = crudController(Client, {
   cacheResource: 'clients',
   beforeUpdate: assertMayChangeTaxExemption,
+  beforeDelete: assertClientCanBeArchived,
 });
 
 router.use(authenticate);
