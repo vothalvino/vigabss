@@ -110,7 +110,7 @@ describe('phraseLibraryService.search()', () => {
     const result = await search(1, 'es-MX', 'internet down', 2);
 
     expect(result).toEqual(['Thank you for contacting us', 'We are here to help']);
-    expect(mockEmbed).toHaveBeenCalledWith('internet down', 7);
+    expect(mockEmbed).toHaveBeenCalledWith('internet down', 7, { orgId: 1 });
     expect(mockQueryDocs).toHaveBeenCalledWith(
       expect.objectContaining({ collection: 'phrases_1_es-MX', queryEmbedding: [0.1, 0.2, 0.3], k: 2 }),
     );

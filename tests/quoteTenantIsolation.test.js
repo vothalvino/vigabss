@@ -325,6 +325,23 @@ describe('portal /invoices — scoped to the subscriber\'s own organization', ()
     expect(db.query.mock.calls.some(([sql]) => /FROM cfdi_documents/.test(sql))).toBe(false);
   });
 
+  it('GET /portal/invoices/:id/cfdi never serves another org\'s CFDI that names this invoice id (BIL-10)', async () => {
+    tables.cfdi_documents = [
+      // A re-pointed org-A CFDI naming org B's invoice 801.
+      { id: 60, organization_id: ORG_A, invoice_id: 801, sat_status: 'vigente', uuid: 'U-A', signed_xml: '<a-foreign/>' },
+    ];
+    const foreign = await request(app).get('/api/v1/portal/invoices/801/cfdi').set('Authorization', victim());
+    expect(foreign.status).toBe(404);
+    expect(foreign.text).not.toMatch(/a-foreign/);
+
+    tables.cfdi_documents.push(
+      { id: 61, organization_id: ORG_B, invoice_id: 801, sat_status: 'vigente', uuid: 'U-B', signed_xml: '<b-own/>' },
+    );
+    const own = await request(app).get('/api/v1/portal/invoices/801/cfdi').set('Authorization', victim());
+    expect(own.status).toBe(200);
+    expect(own.text).toBe('<b-own/>');
+  });
+
   it('still serves a single-tenant install where client and invoice organization_id are NULL', async () => {
     const res = await request(app)
       .get('/api/v1/portal/invoices')

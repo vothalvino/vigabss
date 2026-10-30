@@ -105,7 +105,19 @@ describe('POST /api/bulk/invoices/generate', () => {
 
   test('valid contract_ids → 200', async () => {
     mockAuthUser();
-    db.query.mockResolvedValue([{ affectedRows: 1 }]);
+    // `success` now counts invoices actually created (TNA-12), so the fixture
+    // must answer the org-scoped contract lookup and the generation calls —
+    // previously any id "succeeded" whether or not anything was billed.
+    const billingService = require('../src/services/billingService');
+    db.query.mockImplementation(async (sql, params) => (
+      /FROM contracts/.test(sql)
+        ? [[{ id: params[0], organization_id: 1, client_id: 5, status: 'active', plan_name: 'Home', plan_price: '100.00' }]]
+        : [[]]
+    ));
+    const period = jest.spyOn(billingService, 'generateBillingPeriod')
+      .mockResolvedValue({ id: 1, status: 'pending', scheduled_at: new Date(Date.now() - 1000) });
+    const invoice = jest.spyOn(billingService, 'generateInvoice')
+      .mockImplementation(async (_p, contract) => ({ id: 100 + contract.id }));
 
     const res = await request(app)
       .post('/api/bulk/invoices/generate')
@@ -114,6 +126,9 @@ describe('POST /api/bulk/invoices/generate', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.success).toBe(3);
+    expect(res.body.data.invoice_ids).toEqual([101, 102, 103]);
+    period.mockRestore();
+    invoice.mockRestore();
   });
 
   test('rejects >500 contracts → 400', async () => {

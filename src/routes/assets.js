@@ -12,9 +12,25 @@ const { validate } = require('../middleware/validate');
 const { createAsset, updateAsset, assignAsset, disposeAsset, scanAsset } = require('../middleware/schemas/assets');
 const svc = require('../services/assetService');
 const db = require('../config/database');
+const { assertOwnedReferences, ownedReferences } = require('../utils/ownedReferences');
+
+// An asset's inventory/warehouse/vendor/PO links and an assignment's
+// client/device must belong to the caller's org: the FKs only prove the row
+// exists, and the assignment history joins the referenced client's name and
+// email straight back to the caller (TNA-09/TNB-12).
+const ASSET_REFS = {
+  inventory_item_id: 'inventory_items',
+  warehouse_id: 'warehouses',
+  vendor_id: 'vendors',
+  purchase_order_id: 'purchase_orders',
+};
+const ASSIGNMENT_REFS = { client_id: 'clients', device_id: 'devices' };
 
 const router = Router();
-const ctrl = crudController(Asset);
+const ctrl = crudController(Asset, {
+  beforeCreate: (req) => assertOwnedReferences(req.body, req.orgId, ASSET_REFS),
+  beforeUpdate: (_old, req) => assertOwnedReferences(req.body, req.orgId, ASSET_REFS),
+});
 
 router.use(authenticate);
 router.use(orgScope);
@@ -104,7 +120,7 @@ router.get('/:id/rma', requirePermission('assets.view'), async (req, res, next) 
 });
 
 // POST /assets/:id/assign
-router.post('/:id/assign', requirePermission('assets.assign'), validate(assignAsset), async (req, res, next) => {
+router.post('/:id/assign', requirePermission('assets.assign'), validate(assignAsset), ownedReferences(ASSIGNMENT_REFS), async (req, res, next) => {
   try {
     const asset = await Asset.findById(parseInt(req.params.id, 10), req.orgId);
     if (!asset) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Asset not found' } });
@@ -117,8 +133,8 @@ router.post('/:id/assign', requirePermission('assets.assign'), validate(assignAs
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [asset.id, req.orgId, client_id || null, device_id || null, port_name || null, req.user?.id || null, notes || null],
     );
-    await db.query('UPDATE assets SET lifecycle_status = ? WHERE id = ?', ['assigned', asset.id]);
-    const [rows] = await db.query('SELECT * FROM asset_assignments WHERE id = ?', [result.insertId]);
+    await db.query('UPDATE assets SET lifecycle_status = ? WHERE id = ? AND organization_id <=> ?', ['assigned', asset.id, req.orgId]);
+    const [rows] = await db.query('SELECT * FROM asset_assignments WHERE id = ? AND organization_id <=> ?', [result.insertId, req.orgId]);
     res.status(201).json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -137,14 +153,14 @@ router.post('/:id/unassign', requirePermission('assets.assign'), async (req, res
        LIMIT 1`,
       [req.user?.id || null, asset.id, req.orgId],
     );
-    await db.query('UPDATE assets SET lifecycle_status = ? WHERE id = ?', ['in_stock', asset.id]);
+    await db.query('UPDATE assets SET lifecycle_status = ? WHERE id = ? AND organization_id <=> ?', ['in_stock', asset.id, req.orgId]);
     const updated = await Asset.findById(asset.id, req.orgId);
     res.json({ data: updated });
   } catch (err) { next(err); }
 });
 
 // POST /assets/:id/swap — swap asset to a new assignment (unassign current, assign new)
-router.post('/:id/swap', requirePermission('assets.assign'), validate(assignAsset), async (req, res, next) => {
+router.post('/:id/swap', requirePermission('assets.assign'), validate(assignAsset), ownedReferences(ASSIGNMENT_REFS), async (req, res, next) => {
   try {
     const asset = await Asset.findById(parseInt(req.params.id, 10), req.orgId);
     if (!asset) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Asset not found' } });
@@ -162,8 +178,8 @@ router.post('/:id/swap', requirePermission('assets.assign'), validate(assignAsse
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [asset.id, req.orgId, client_id || null, device_id || null, port_name || null, req.user?.id || null, notes || null],
     );
-    await db.query('UPDATE assets SET lifecycle_status = ? WHERE id = ?', ['assigned', asset.id]);
-    const [rows] = await db.query('SELECT * FROM asset_assignments WHERE id = ?', [result.insertId]);
+    await db.query('UPDATE assets SET lifecycle_status = ? WHERE id = ? AND organization_id <=> ?', ['assigned', asset.id, req.orgId]);
+    const [rows] = await db.query('SELECT * FROM asset_assignments WHERE id = ? AND organization_id <=> ?', [result.insertId, req.orgId]);
     res.status(201).json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -178,8 +194,8 @@ router.post('/:id/dispose', requirePermission('assets.dispose'), validate(dispos
     }
     const { disposal_reason, disposal_notes } = req.body;
     await db.query(
-      'UPDATE assets SET lifecycle_status = ?, disposed_at = NOW(), disposal_reason = ?, disposal_notes = ? WHERE id = ?',
-      ['disposed', disposal_reason, disposal_notes || null, asset.id],
+      'UPDATE assets SET lifecycle_status = ?, disposed_at = NOW(), disposal_reason = ?, disposal_notes = ? WHERE id = ? AND organization_id <=> ?',
+      ['disposed', disposal_reason, disposal_notes || null, asset.id, req.orgId],
     );
     const updated = await Asset.findById(asset.id, req.orgId);
     res.json({ data: updated });

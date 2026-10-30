@@ -14,6 +14,24 @@
 
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'scriptingService' });
+const { ValidationError } = require('../utils/errors');
+const { requireOrgId } = require('../utils/requireOrgId');
+
+/**
+ * A script may only be bound to a scheduled task of the organization that
+ * owns the script (organization_id <=> ownerOrgId, so a NULL-org community
+ * script binds only to a global task).
+ */
+async function assertOwnedScheduledTask(taskId, ownerOrgId) {
+  if (taskId === undefined || taskId === null) return;
+  const [rows] = await db.query(
+    'SELECT id FROM scheduled_tasks WHERE id = ? AND organization_id <=> ? LIMIT 1',
+    [taskId, ownerOrgId],
+  );
+  if (!rows.length) {
+    throw new ValidationError('scheduled_task_id does not belong to this organization');
+  }
+}
 
 /**
  * List scripts visible to an organization.
@@ -44,6 +62,8 @@ async function listScripts(organizationId, { page = 1, limit = 50, language, is_
  * Create a new script. Only admins should call this (enforced by route RBAC).
  */
 async function createScript(organizationId, data, userId) {
+  requireOrgId(organizationId, 'scriptingService.createScript');
+  await assertOwnedScheduledTask(data.scheduled_task_id, organizationId);
   const [result] = await db.query(
     `INSERT INTO automation_scripts
        (organization_id, name, description, language, script_body, version,
@@ -60,13 +80,24 @@ async function createScript(organizationId, data, userId) {
 
 /**
  * Update a script body — bumps version number.
+ *
+ * Owner-only (ASY-07): sharing a script lets other tenants READ and run it,
+ * never rewrite or unshare it. Another org's script — shared or not — is
+ * "not found" (null → 404). Community scripts (organization_id IS NULL) are
+ * installation-managed and editable only when `opts.allowCommunity` is set,
+ * which the route grants to the install operator alone.
  */
-async function updateScript(scriptId, organizationId, data) {
+async function updateScript(scriptId, organizationId, data, { allowCommunity = false } = {}) {
+  requireOrgId(organizationId, 'scriptingService.updateScript');
   const [existing] = await db.query(
-    'SELECT * FROM automation_scripts WHERE id = ? AND (organization_id = ? OR is_shared = 1) AND deleted_at IS NULL',
-    [scriptId, organizationId],
+    `SELECT * FROM automation_scripts
+      WHERE id = ? AND (organization_id = ? OR (? = 1 AND organization_id IS NULL))
+        AND deleted_at IS NULL`,
+    [scriptId, organizationId, allowCommunity ? 1 : 0],
   );
   if (!existing.length) return null;
+  const ownerOrgId = existing[0].organization_id;
+  await assertOwnedScheduledTask(data.scheduled_task_id, ownerOrgId);
 
   const fields = [];
   const params = [];
@@ -82,9 +113,16 @@ async function updateScript(scriptId, organizationId, data) {
   }
   if (!fields.length) return existing[0];
 
-  params.push(scriptId);
-  await db.query(`UPDATE automation_scripts SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ?`, params);
-  const [rows] = await db.query('SELECT * FROM automation_scripts WHERE id = ?', [scriptId]);
+  params.push(scriptId, ownerOrgId);
+  await db.query(
+    `UPDATE automation_scripts SET ${fields.join(', ')}, updated_at = NOW()
+      WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL`,
+    params,
+  );
+  const [rows] = await db.query(
+    'SELECT * FROM automation_scripts WHERE id = ? AND organization_id <=> ?',
+    [scriptId, ownerOrgId],
+  );
   return rows[0];
 }
 

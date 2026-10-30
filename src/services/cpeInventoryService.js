@@ -11,6 +11,8 @@
 'use strict';
 
 const db = require('../config/database');
+const { requireOrgId } = require('../utils/requireOrgId');
+const { NotFoundError } = require('../utils/errors');
 const { resolveOrCreateStockRow } = require('./inventoryDrawdownService');
 const logger = require('../utils/logger').child({ service: 'cpeInventoryService' });
 
@@ -69,12 +71,18 @@ function assertTransitionAllowed(fromState, toState) {
  */
 async function transitionLifecycleState(cpeDeviceId, toState, opts = {}) {
   const conn = opts.connection || db;
-  const { orgId = null, performedBy = null, reason = null, swapInDeviceId = null, swapOutDeviceId = null } = opts;
+  const { performedBy = null, reason = null, swapInDeviceId = null, swapOutDeviceId = null } = opts;
+  // Every caller passes the acting organization (null is legal: legacy
+  // single-tenant). The load and the UPDATE are bound to it (own or
+  // unattributed NULL-org unit, the rule the install/undo/pickup flows use),
+  // so a caller can never move another tenant's unit (RTE-01).
+  const orgId = requireOrgId(opts.orgId, 'cpeInventoryService.transitionLifecycleState');
 
   // Load current state
   const [rows] = await conn.query(
-    'SELECT id, lifecycle_state, organization_id FROM cpe_devices WHERE id = ? AND deleted_at IS NULL',
-    [cpeDeviceId],
+    `SELECT id, lifecycle_state, organization_id FROM cpe_devices
+      WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL) AND deleted_at IS NULL`,
+    [cpeDeviceId, orgId],
   );
   if (!rows.length) {
     throw Object.assign(new Error('CPE device not found'), { status: 404, code: 'NOT_FOUND' });
@@ -85,8 +93,8 @@ async function transitionLifecycleState(cpeDeviceId, toState, opts = {}) {
   assertTransitionAllowed(fromState, toState);
 
   await conn.query(
-    'UPDATE cpe_devices SET lifecycle_state = ? WHERE id = ?',
-    [toState, cpeDeviceId],
+    'UPDATE cpe_devices SET lifecycle_state = ? WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL)',
+    [toState, cpeDeviceId, orgId],
   );
 
   // Record in history
@@ -196,7 +204,7 @@ async function _linkSubscriber(cpeDeviceId, subscriberId, orgId) {
     const [rows] = await db.query('SELECT lifecycle_state FROM cpe_devices WHERE id = ?', [cpeDeviceId]);
     if (rows.length && rows[0].lifecycle_state === 'in_stock') {
       await transitionLifecycleState(cpeDeviceId, 'assigned', {
-        orgId,
+        orgId: orgId ?? null,
         reason: 'auto-linked to subscriber on Inform',
       });
     }
@@ -287,36 +295,60 @@ async function bridgeUnitToDevice(execute, unit, { orgId, clientId, contractId }
       `${itemName || 'CPE'} — ${unit.serial_number}`, deviceType,
       unit.manufacturer || null, unit.product_class || null, unit.serial_number],
   );
-  await execute('UPDATE cpe_devices SET device_id = ? WHERE id = ?', [devIns.insertId, unit.id]);
+  await execute(
+    'UPDATE cpe_devices SET device_id = ? WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL)',
+    [devIns.insertId, unit.id, orgId ?? null],
+  );
   return devIns.insertId;
 }
 
-/** Soft-delete the bridged devices row when a unit leaves its contract. */
-async function unbridgeUnit(execute, unit) {
+/**
+ * Soft-delete the bridged devices row when a unit leaves its contract.
+ * With `orgId`, both writes are bound to that organization (own or
+ * unattributed NULL-org rows) as defense in depth for callers that act on a
+ * caller-supplied unit id.
+ */
+async function unbridgeUnit(execute, unit, orgId) {
   if (!unit.device_id) return;
-  await execute('UPDATE devices SET deleted_at = NOW() WHERE id = ?', [unit.device_id]);
-  await execute('UPDATE cpe_devices SET device_id = NULL WHERE id = ?', [unit.id]);
+  if (orgId === undefined) {
+    await execute('UPDATE devices SET deleted_at = NOW() WHERE id = ?', [unit.device_id]);
+    await execute('UPDATE cpe_devices SET device_id = NULL WHERE id = ?', [unit.id]);
+    return;
+  }
+  await execute(
+    'UPDATE devices SET deleted_at = NOW() WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL)',
+    [unit.device_id, orgId],
+  );
+  await execute(
+    'UPDATE cpe_devices SET device_id = NULL WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL)',
+    [unit.id, orgId],
+  );
 }
 
 async function swapDevice(opts) {
-  const { oldDeviceId, newDeviceId, orgId, performedBy, reason = 'CPE swap' } = opts;
+  const { oldDeviceId, newDeviceId, performedBy, reason = 'CPE swap' } = opts;
+  const orgId = requireOrgId(opts.orgId, 'cpeInventoryService.swapDevice');
 
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
 
-    // Load both devices
+    // Load and lock both units IN THE CALLER'S ORGANIZATION (RTE-01). Both
+    // used to load by id alone, so a tenant could swap another tenant's
+    // units: move their subscriber/contract/ownership, soft-delete their
+    // bridged devices row and read both full rows back. Binding both to the
+    // same orgId also guarantees the two units share an organization.
     const [[oldDevRows]] = await conn.query(
-      'SELECT * FROM cpe_devices WHERE id = ? AND deleted_at IS NULL',
-      [oldDeviceId],
+      'SELECT * FROM cpe_devices WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL FOR UPDATE',
+      [oldDeviceId, orgId],
     );
-    if (!oldDevRows) throw Object.assign(new Error('Old CPE device not found'), { status: 404 });
+    if (!oldDevRows) throw new NotFoundError('Old CPE device');
 
     const [[newDevRows]] = await conn.query(
-      'SELECT * FROM cpe_devices WHERE id = ? AND deleted_at IS NULL',
-      [newDeviceId],
+      'SELECT * FROM cpe_devices WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL FOR UPDATE',
+      [newDeviceId, orgId],
     );
-    if (!newDevRows) throw Object.assign(new Error('New CPE device not found'), { status: 404 });
+    if (!newDevRows) throw new NotFoundError('New CPE device');
 
     // Old device must be active or assigned
     if (!['active', 'assigned'].includes(oldDevRows.lifecycle_state)) {
@@ -357,7 +389,7 @@ async function swapDevice(opts) {
     // Bridge follows the assignment: the swapped-out unit loses its devices
     // row, the swap-in gains one on the same contract/client.
     const swapExec = conn.query.bind(conn);
-    await unbridgeUnit(swapExec, oldDevRows);
+    await unbridgeUnit(swapExec, oldDevRows, orgId);
     await bridgeUnitToDevice(swapExec, newDevRows, {
       orgId, clientId: oldDevRows.subscriber_id, contractId: oldDevRows.contract_id,
     });

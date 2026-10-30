@@ -2,7 +2,9 @@
 // VigaBSS 5.0 — Auth Context
 // =============================================================================
 // Manages:
-//   • Login  — POST /auth/login → store access token in memory, refresh in localStorage
+//   • Login  — POST /auth/login → store access token in memory, refresh in localStorage.
+//              An account with TOTP 2FA gets a challenge instead of a session;
+//              completeMfaLogin() → POST /auth/login/2fa finishes it.
 //   • Logout — POST /auth/logout → clear tokens
 //   • me()   — GET /auth/me → hydrate user profile + roles on mount
 //   • Silent refresh is handled transparently by the API client middleware
@@ -78,8 +80,16 @@ interface AuthState {
   initialized: boolean;
 }
 
+/** Outcome of the password step. `mfa_required` carries the short-lived
+ *  challenge token that completeMfaLogin() exchanges for the session. */
+export type LoginResult =
+  | { status: 'authenticated' }
+  | { status: 'mfa_required'; mfaToken: string };
+
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string, totpCode?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  /** Second step of a 2FA login (password or SSO): challenge + TOTP/backup code. */
+  completeMfaLogin: (mfaToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   /** Call after an external token change (e.g., impersonation) to re-hydrate user.
    *  Resolves true when the profile was refreshed, false on failure. */
@@ -103,6 +113,17 @@ interface LoginResponse {
   refreshToken: string;
   expiresIn: number;
   user: AuthUser;
+}
+
+interface MfaChallengeResponse {
+  mfa_required: true;
+  mfa_token: string;
+  expires_in: number;
+}
+
+async function readAuthError(res: Response, fallback: string): Promise<Error> {
+  const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+  return new Error(err.error?.message ?? fallback);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -283,35 +304,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, [queryClient]);
 
-  const login = useCallback(
-    async (email: string, password: string, totpCode?: string) => {
-      const body: Record<string, unknown> = { email, password };
-      if (totpCode) body.totpCode = totpCode;
-
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as {
-          error?: { message?: string };
-        };
-        throw new Error(err.error?.message ?? 'Login failed');
-      }
-
-      const json = (await res.json()) as { data: LoginResponse };
+  const establishSession = useCallback(
+    (data: LoginResponse) => {
       // A successful login is a hard cache boundary, even when another user
       // signs in without reloading the SPA on a shared workstation.
       queryClient.clear();
       // Access token kept in memory; refresh token is managed as an httpOnly
       // cookie by the server — no localStorage write needed.
-      tokenStore.setAccess(json.data.accessToken);
+      tokenStore.setAccess(data.accessToken);
 
-      setState({ user: json.data.user, loading: false, initialized: true });
+      setState({ user: data.user, loading: false, initialized: true });
     },
     [queryClient],
+  );
+
+  const login = useCallback(
+    async (email: string, password: string): Promise<LoginResult> => {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) throw await readAuthError(res, 'Login failed');
+
+      const json = (await res.json()) as { data: LoginResponse | MfaChallengeResponse };
+      if ('mfa_required' in json.data && json.data.mfa_required) {
+        // Password accepted, second factor pending: no session exists yet.
+        return { status: 'mfa_required', mfaToken: json.data.mfa_token };
+      }
+      establishSession(json.data as LoginResponse);
+      return { status: 'authenticated' };
+    },
+    [establishSession],
+  );
+
+  const completeMfaLogin = useCallback(
+    async (mfaToken: string, code: string) => {
+      const res = await fetch('/api/v1/auth/login/2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mfa_token: mfaToken, code }),
+      });
+
+      if (!res.ok) throw await readAuthError(res, 'Verification failed');
+
+      const json = (await res.json()) as { data: LoginResponse };
+      establishSession(json.data);
+    },
+    [establishSession],
   );
 
   const logout = useCallback(async () => {
@@ -408,8 +449,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, login, logout, refresh: hydrateUser, switchOrganization }),
-    [state, login, logout, hydrateUser, switchOrganization],
+    () => ({ ...state, login, completeMfaLogin, logout, refresh: hydrateUser, switchOrganization }),
+    [state, login, completeMfaLogin, logout, hydrateUser, switchOrganization],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

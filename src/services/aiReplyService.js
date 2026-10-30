@@ -127,7 +127,7 @@ function _rehydratePii(text, mapping) {
  * @param {string} locale
  * @returns {Promise<{category:string, priority:string, language:string, confidence:number}>}
  */
-async function _classifyMessage(providerId, text, locale) {
+async function _classifyMessage(providerId, text, locale, orgId) {
   const messages = [
     {
       role: 'system',
@@ -143,7 +143,7 @@ Respond with only valid JSON — no markdown fences, no extra text.`,
   ];
 
   try {
-    const result  = await llmProviderService.chat({ providerId, messages, jsonSchema: { type: 'object' } });
+    const result  = await llmProviderService.chat({ providerId, messages, jsonSchema: { type: 'object' }, orgId });
     const parsed  = result.json || {};
     return {
       category:   typeof parsed.category === 'string'   ? parsed.category   : 'general',
@@ -437,7 +437,7 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
   const mode       = policy.mode            || 'draft_only';
 
   // ── Step 2: Classify ────────────────────────────────────────────────────────
-  const classification = await _classifyMessage(providerId, inboundText, locale);
+  const classification = await _classifyMessage(providerId, inboundText, locale, orgId);
 
   // ── Step 3: Build context ───────────────────────────────────────────────────
   const [topologyCtx, healthSnapshot] = await Promise.all([
@@ -497,7 +497,7 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
   for (let attempt = 0; attempt < MAX_GENERATE_ATTEMPTS; attempt++) {
     let llmResult;
     try {
-      llmResult = await llmProviderService.chat({ providerId, messages: retryMessages });
+      llmResult = await llmProviderService.chat({ providerId, messages: retryMessages, orgId });
     } catch (err) {
       lastErrors = [err.message];
       logger.warn({ attempt: attempt + 1, err: err.message }, 'aiReplyService: LLM call failed');

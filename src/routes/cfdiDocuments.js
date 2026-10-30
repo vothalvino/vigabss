@@ -11,12 +11,32 @@ const { requireMxLocale } = require('../middleware/orgLocale');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createCfdiDocument, updateCfdiDocument, cancelCfdiDocument } = require('../middleware/schemas/cfdiDocuments');
-const { NotFoundError } = require('../utils/errors');
+const { AppError, NotFoundError } = require('../utils/errors');
 const cfdiService = require('../services/cfdiService');
 const db = require('../config/database');
 
 const router = Router();
-const ctrl = crudController(CfdiDocument);
+// PUT /:id is a DRAFT-only edit (BIL-10). It used to run ctrl.update with no
+// hook and no strip, and the polymorphic link ids are fillable — so a caller
+// could re-point a stamped (vigente) CFDI at another invoice (any tenant's:
+// assertLinkedRecordsOwned ran on POST only), then void the original invoice,
+// which voidInvoiceById treats as unstamped once no CFDI names it. Now:
+//   * validate(..., { strip: true }) drops every undeclared key, so the link
+//     ids and amounts never reach the generic update at all;
+//   * a document that is not 'draft' is filed (or being cancelled) at SAT and
+//     is refused outright, under the row lock (transactionalWrites).
+// The DB trigger (migrations 148 + 469) backs this up for every non-draft row.
+const ctrl = crudController(CfdiDocument, {
+  transactionalWrites: true,
+  beforeUpdate: async (old) => {
+    if (old.sat_status !== 'draft') {
+      throw new AppError(
+        `Only a draft CFDI can be edited (this one is ${old.sat_status}); cancel or substitute it instead.`,
+        422, 'CFDI_NOT_DRAFT',
+      );
+    }
+  },
+});
 
 router.use(authenticate);
 router.use(orgScope);
@@ -53,7 +73,7 @@ async function assertLinkedRecordsOwned(req, _res, next) {
 router.get('/', requirePermission('cfdi_documents.view'), ctrl.list);
 router.get('/:id', requirePermission('cfdi_documents.view'), ctrl.get);
 router.post('/', requirePermission('cfdi_documents.create'), validate(createCfdiDocument), assertLinkedRecordsOwned, ctrl.create);
-router.put('/:id', requirePermission('cfdi_documents.update'), validate(updateCfdiDocument), ctrl.update);
+router.put('/:id', requirePermission('cfdi_documents.update'), validate(updateCfdiDocument, { strip: true }), ctrl.update);
 
 // Get CFDI conceptos
 router.get('/:id/conceptos', requirePermission('cfdi_documents.view'), async (req, res, next) => {

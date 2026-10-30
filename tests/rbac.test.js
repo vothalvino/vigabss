@@ -342,6 +342,28 @@ describe('requireRole middleware', () => {
     );
   });
 
+  test('denies a scope-limited API token even when its owner holds the role', async () => {
+    User.getOrgRole.mockResolvedValue('admin');
+    const { req, res, next } = mockReqRes({
+      id: 1, organizationId: 1, apiTokenId: 9, scopes: ['clients:read'], scopesSqlNull: false,
+    });
+    const mw = requireRole('owner', 'admin');
+    await mw(req, res, next);
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 403 }),
+    );
+  });
+
+  test('allows the legacy unrestricted API token when its owner holds the role', async () => {
+    User.getOrgRole.mockResolvedValue('admin');
+    const { req, res, next } = mockReqRes({
+      id: 1, organizationId: 1, apiTokenId: 9, scopes: null, scopesSqlNull: true,
+    });
+    const mw = requireRole('owner', 'admin');
+    await mw(req, res, next);
+    expect(next).toHaveBeenCalledWith();
+  });
+
   test('passes database errors to next()', async () => {
     User.getOrgRole.mockRejectedValue(new Error('DB error'));
     const { req, res, next } = mockReqRes({ id: 1, organizationId: 1 });

@@ -91,6 +91,30 @@ Content-Type: application/json
 }
 ```
 
+### Two-factor (TOTP) accounts
+
+When the account has TOTP two-factor authentication enabled, `POST /auth/login`
+does not create a session or set cookies. It returns a challenge that is valid
+for 5 minutes:
+
+```json
+{ "data": { "mfa_required": true, "mfa_token": "eyJhbGciOi...", "expires_in": 300 } }
+```
+
+Complete the login with a 6-digit code from the authenticator app or one of the
+`XXXX-XXXX` backup codes. The response is the same as a one-step login:
+
+```http
+POST /api/v1/auth/login/2fa
+Content-Type: application/json
+
+{ "mfa_token": "eyJhbGciOi...", "code": "123456" }
+```
+
+The challenge token is not an access token and is rejected everywhere else.
+Each TOTP code and backup code works once, and wrong codes count towards the
+same account lockout as wrong passwords. API keys cannot call `/2fa/*`.
+
 ### Using the Token
 
 Include the access token (JWT) in the `Authorization` header:

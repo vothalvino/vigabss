@@ -2,15 +2,22 @@
 // VigaBSS 5.0 — Login Page
 // =============================================================================
 
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/auth/AuthContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { BrandLockup } from '@/components/BrandLockup';
 
+/** An SSO callback for a 2FA account lands on /login#mfa_token=… */
+function readSsoChallenge(hash: string): string | null {
+  if (!hash || hash.length < 2) return null;
+  const token = new URLSearchParams(hash.slice(1)).get('mfa_token');
+  return token && token.length > 0 ? token : null;
+}
+
 export function Login() {
-  const { login } = useAuth();
+  const { login, completeMfaLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
@@ -21,7 +28,16 @@ export function Login() {
   const [totpCode, setTotpCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [needsTotp, setNeedsTotp] = useState(false);
+  // Set once the password (or SSO) step has been accepted: the server returned
+  // a short-lived challenge and no session exists until the code is verified.
+  const [mfaToken, setMfaToken] = useState<string | null>(() => readSsoChallenge(location.hash));
+
+  useEffect(() => {
+    // Drop the challenge from the address bar/history once it is in memory.
+    if (readSsoChallenge(location.hash)) {
+      navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: location.state });
+    }
+  }, [location.hash, location.pathname, location.search, location.state, navigate]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -29,20 +45,30 @@ export function Login() {
     setLoading(true);
 
     try {
-      await login(email, password, needsTotp ? totpCode : undefined);
+      if (mfaToken) {
+        await completeMfaLogin(mfaToken, totpCode.trim());
+        navigate(from, { replace: true });
+        return;
+      }
+      const result = await login(email, password);
+      if (result.status === 'mfa_required') {
+        setMfaToken(result.mfaToken);
+        setTotpCode('');
+        return;
+      }
       navigate(from, { replace: true });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      // If the server says TOTP is required, show the TOTP field.
-      if (msg.toLowerCase().includes('totp') || msg.toLowerCase().includes('two-factor')) {
-        setNeedsTotp(true);
-        setError(t('login.totpPrompt'));
-      } else {
-        setError(msg);
-      }
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
+  }
+
+  function backToPassword() {
+    setMfaToken(null);
+    setTotpCode('');
+    setPassword('');
+    setError(null);
   }
 
   return (
@@ -52,56 +78,63 @@ export function Login() {
       </div>
       <form style={styles.card} onSubmit={handleSubmit}>
         <h1 style={styles.title}><BrandLockup size="hero" showVersion /></h1>
-        <p style={styles.subtitle}>{t('login.subtitle')}</p>
+        <p style={styles.subtitle}>{mfaToken ? t('login.totpPrompt') : t('login.subtitle')}</p>
 
-        {error && <div style={styles.error}>{error}</div>}
+        {error && <div style={styles.error} role="alert">{error}</div>}
 
-        <label style={styles.label}>
-          {t('login.emailLabel')}
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            style={styles.input}
-          />
-        </label>
-
-        <label style={styles.label}>
-          {t('login.passwordLabel')}
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            style={styles.input}
-          />
-        </label>
-
-        {needsTotp && (
+        {mfaToken ? (
           <label style={styles.label}>
             {t('login.totpLabel')}
             <input
               type="text"
-              inputMode="numeric"
-              maxLength={6}
+              inputMode="text"
+              maxLength={10}
               value={totpCode}
               onChange={e => setTotpCode(e.target.value)}
               required
+              autoFocus
               autoComplete="one-time-code"
               style={styles.input}
               placeholder={t('login.totpPlaceholder')}
             />
           </label>
+        ) : (
+          <>
+            <label style={styles.label}>
+              {t('login.emailLabel')}
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                style={styles.input}
+              />
+            </label>
+
+            <label style={styles.label}>
+              {t('login.passwordLabel')}
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                style={styles.input}
+              />
+            </label>
+          </>
         )}
 
         <button type="submit" disabled={loading} style={styles.button}>
-          {loading ? t('common.signingIn') : t('common.signIn')}
+          {loading ? t('common.signingIn') : (mfaToken ? t('login.totpVerify') : t('common.signIn'))}
         </button>
 
-        <Link to="/forgot-password" style={styles.link}>{t('login.forgotPasswordLink')}</Link>
+        {mfaToken ? (
+          <button type="button" onClick={backToPassword} style={styles.linkButton}>{t('login.totpBack')}</button>
+        ) : (
+          <Link to="/forgot-password" style={styles.link}>{t('login.forgotPasswordLink')}</Link>
+        )}
       </form>
     </div>
   );
@@ -173,5 +206,14 @@ const styles = {
     fontSize: '0.85rem',
     textAlign: 'center' as const,
     textDecoration: 'none',
+  },
+  linkButton: {
+    color: 'var(--accent)',
+    fontSize: '0.85rem',
+    textAlign: 'center' as const,
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
   },
 };

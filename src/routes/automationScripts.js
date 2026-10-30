@@ -11,6 +11,7 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const scriptingService = require('../services/scriptingService');
+const { isInstallOperator } = require('../services/installOperator');
 const db = require('../config/database');
 
 const createScriptSchema = {
@@ -75,7 +76,10 @@ router.post('/', requirePermission('automation_scripts.create'), validate(create
 // PUT /automation-scripts/:id
 router.put('/:id', requirePermission('automation_scripts.update'), validate(updateScriptSchema), async (req, res, next) => {
   try {
-    const script = await scriptingService.updateScript(req.params.id, req.orgId, req.body);
+    // Only the install operator may edit installation-managed community
+    // scripts (organization_id IS NULL); everyone else edits their own only.
+    const allowCommunity = await isInstallOperator(req);
+    const script = await scriptingService.updateScript(req.params.id, req.orgId, req.body, { allowCommunity });
     if (!script) return res.status(404).json({ error: { message: 'Script not found' } });
     res.json({ data: script });
   } catch (err) { next(err); }
@@ -89,7 +93,10 @@ router.delete('/:id', requirePermission('automation_scripts.delete'), async (req
       [req.params.id, req.orgId],
     );
     if (!rows.length) return res.status(404).json({ error: { message: 'Script not found' } });
-    await db.query('UPDATE automation_scripts SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
+    await db.query(
+      'UPDATE automation_scripts SET deleted_at = NOW() WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.id, req.orgId],
+    );
     res.status(204).send();
   } catch (err) { next(err); }
 });

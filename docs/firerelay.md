@@ -293,6 +293,16 @@ The master maintains two lightweight lookup structures in its own database:
 
 These two tables are the only FireRelay-specific additions to the master's database. All other tables are standard VigaBSS tables.
 
+**Who may manage the registry and tunnel.** The registry and the connected
+tunnel agents are installation-wide (neither carries an `organization_id`), so
+`/api/v1/firerelay/nodes*`, `/tunnel/agents`, and `/tunnel/command` are
+restricted to the install operator (`INSTALL_OPERATOR_USER_IDS` or
+`users.is_install_operator`; see `docs/deployment.md`). A tenant admin or
+owner receives `403 INSTALL_OPERATOR_ONLY`, and API tokens are refused on
+these routes. `/tunnel/command` accepts only the methods an agent implements
+(the `handlers` map in `src/services/routerosService.js`); anything else is
+rejected with `422`. Only `/health` uses the cluster relay token instead.
+
 ### 4.4 Same Codebase Everywhere
 
 Every node — master and workers — runs the exact same VigaBSS application code from the same repository. There is no "master build" or "worker build." The only difference between nodes is the `.env` configuration file. This means:

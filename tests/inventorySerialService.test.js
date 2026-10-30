@@ -140,15 +140,16 @@ function route(sql, params, state) {
   }
 
   // --- transitionLifecycleState internal: load current state ---
-  if (s.startsWith('SELECT id, lifecycle_state, organization_id FROM cpe_devices WHERE id = ? AND deleted_at IS NULL')) {
-    const [id] = p;
-    const d = state.devices.find(d => d.id === id);
+  // (RTE-01: bound to the acting org, own or unattributed NULL-org unit)
+  if (s.startsWith('SELECT id, lifecycle_state, organization_id FROM cpe_devices WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL) AND deleted_at IS NULL')) {
+    const [id, orgId] = p;
+    const d = state.devices.find(d => d.id === id && (d.organization_id === orgId || d.organization_id === null));
     return Promise.resolve([d ? [{ id: d.id, lifecycle_state: d.lifecycle_state, organization_id: d.organization_id }] : []]);
   }
   // --- transitionLifecycleState internal: apply state ---
-  if (s.startsWith('UPDATE cpe_devices SET lifecycle_state = ? WHERE id = ?')) {
-    const [toState, id] = p;
-    const d = state.devices.find(d => d.id === id);
+  if (s.startsWith('UPDATE cpe_devices SET lifecycle_state = ? WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL)')) {
+    const [toState, id, orgId] = p;
+    const d = state.devices.find(d => d.id === id && (d.organization_id === orgId || d.organization_id === null));
     if (d) d.lifecycle_state = toState;
     return Promise.resolve([{ affectedRows: d ? 1 : 0 }]);
   }
@@ -328,9 +329,9 @@ function route(sql, params, state) {
     if (d) d._deleted = true;
     return Promise.resolve([{ affectedRows: d ? 1 : 0 }]);
   }
-  if (s.startsWith('UPDATE cpe_devices SET device_id = ? WHERE id = ?')) {
-    const [deviceId, unitId] = p;
-    const u = state.devices.find(d => d.id === unitId);
+  if (s.startsWith('UPDATE cpe_devices SET device_id = ? WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL)')) {
+    const [deviceId, unitId, orgId] = p;
+    const u = state.devices.find(d => d.id === unitId && (d.organization_id === orgId || d.organization_id === null));
     if (u) u.device_id = deviceId;
     return Promise.resolve([{ affectedRows: u ? 1 : 0 }]);
   }

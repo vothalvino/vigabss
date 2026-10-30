@@ -1202,6 +1202,7 @@ describe('Payment Routes — /api/payments', () => {
       // No `currency` in the request — POST /payments now defaults it from
       // Organization.getCurrency(req.orgId) before Payment.create().
       db.query
+        .mockResolvedValueOnce([[{ id: 10 }]])                             // client ownership (TNB-09)
         .mockResolvedValueOnce([[{ currency: 'MXN' }]])                    // Organization.getCurrency
         .mockResolvedValueOnce([{ insertId: 2, affectedRows: 1 }])        // INSERT
         .mockResolvedValueOnce([[{ ...mockPayment, id: 2 }]])              // findById

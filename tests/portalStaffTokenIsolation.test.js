@@ -143,3 +143,26 @@ describe('accessTokens helpers', () => {
     expect(payload).toMatchObject({ sub: COLLIDING_ID, orgId: 1, type: 'portal', aud: 'vigabss-portal' });
   });
 });
+
+// SEC-03: the 2FA login challenge proves "password accepted, second factor
+// pending" and must never authenticate a staff request.
+describe('staff 2FA challenge token on staff surfaces', () => {
+  const { signMfaChallengeToken } = require('../src/utils/accessTokens');
+  const challenge = () => signMfaChallengeToken({ userId: COLLIDING_ID, passwordHash: 'h' });
+
+  test('GET /api/v1/auth/me (Bearer) is 401 and never resolves a staff user', async () => {
+    const res = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${challenge()}`);
+    expect(res.status).toBe(401);
+    expect(usersQueried()).toBe(false);
+  });
+
+  test('GET /api/v1/auth/me (access cookie) is 401', async () => {
+    const res = await request(app).get('/api/v1/auth/me').set('Cookie', `fireisp_access=${challenge()}`);
+    expect(res.status).toBe(401);
+  });
+
+  test('a challenge is not a portal token either', async () => {
+    const res = await request(app).get('/api/v1/portal/dashboard').set('Authorization', `Bearer ${challenge()}`);
+    expect(res.status).toBe(401);
+  });
+});

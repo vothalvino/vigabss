@@ -344,7 +344,7 @@ describe('POST /api/v1/ai/providers/:id/verify', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.ok).toBe(true);
     expect(res.body.data.latency_ms).toBe(450);
-    expect(mockLlmVerify).toHaveBeenCalledWith(1);
+    expect(mockLlmVerify).toHaveBeenCalledWith(1, { orgId: 1 });
   });
 
   it('returns 404 when provider not found', async () => {
