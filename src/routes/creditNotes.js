@@ -5,7 +5,6 @@
 const { Router } = require('express');
 const CreditNote = require('../models/CreditNote');
 const Organization = require('../models/Organization');
-const ClientBalanceLedger = require('../models/ClientBalanceLedger');
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
@@ -15,6 +14,7 @@ const { validate } = require('../middleware/validate');
 const { createCreditNote, updateCreditNote, createCreditNoteItem, stampCreditNote } = require('../middleware/schemas/creditNotes');
 const creditNoteCfdiService = require('../services/creditNoteCfdiService');
 const billingService = require('../services/billingService');
+const creditNoteLedgerService = require('../services/creditNoteLedgerService');
 const { AppError, NotFoundError } = require('../utils/errors');
 const db = require('../config/database');
 
@@ -82,49 +82,24 @@ function sameValue(a, b) {
 // ---------------------------------------------------------------------------
 // Balance-ledger posting
 // ---------------------------------------------------------------------------
-// A credit note stands on the client's account only once it is issued: the
-// statuses below are exactly the ones clientBalanceService counts. A draft is
-// still being prepared and posts NOTHING to client_balance_ledger; the
-// draft -> issued/applied transition posts the note's final total, once.
-const POSTED_STATUSES = new Set(['issued', 'applied']);
-
-const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-
-/**
- * Bring this credit note's net ledger credit to exactly its total.
- *
- * Net-aware rather than a blind INSERT: a draft created before the
- * issue-time contract may still carry its create-time credit (migration 465
- * reverses those, but this keeps a stray one from being doubled). The row
- * lock the caller holds on credit_notes serializes concurrent issues, so the
- * second one sees the first one's entry and posts nothing.
- */
-async function postCreditNoteLedger(exec, note, orgId) {
-  if (!note.client_id) return;
-  const [rows] = await exec(
-    `SELECT COALESCE(SUM(${ClientBalanceLedger.signedAmountSql}), 0) AS net
-       FROM client_balance_ledger
-      WHERE reference_type = 'credit_note' AND reference_id = ?
-        AND client_id = ? AND organization_id <=> ?`,
-    [note.id, note.client_id, orgId],
-  );
-  // Signed sum is positive for debits, so the credit already posted is -net.
-  const alreadyCredited = round2(-(Number(rows?.[0]?.net) || 0));
-  const diff = round2(round2(note.total) - alreadyCredited);
-  if (Math.abs(diff) < 0.005) return;
-  await exec(
-    `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-     VALUES (?, ?, ?, ?, ?, 'credit_note', ?, ?)`,
-    [note.client_id, orgId, diff > 0 ? 'credit' : 'debit', Math.abs(diff), note.currency,
-      note.id, `Credit Note ${note.credit_note_number || note.id}`],
-  );
-}
+// One invariant (src/services/creditNoteLedgerService.js): a note's net ledger
+// credit equals its total while it is issued/applied and is zero while it is
+// draft, cancelled or soft-deleted. Every write path below re-syncs the note to
+// that target inside the transaction and row lock that changes it:
+//   * draft -> issued/applied posts the final total;
+//   * issued/applied -> cancelled, and soft-delete, append a reversal debit;
+//   * a total change on a posted note appends the delta (the CFDI guard below
+//     already freezes the amounts of a stamped note);
+//   * restoring a soft-deleted posted note re-posts it.
+// The sync is net-aware, so a concurrent duplicate (which waits on the row
+// lock and then sees the first request's row) posts nothing.
+const { POSTED_STATUSES } = creditNoteLedgerService;
 
 /**
- * Status changes that would post twice or leave the ledger stranded are
- * refused. A posted (issued/applied) note never goes back to draft — drafts
- * carry no ledger entry and there is no reversal on the way back — and a
- * cancelled note is terminal.
+ * Status changes the lifecycle does not allow are refused. A posted
+ * (issued/applied) note never goes back to draft — a draft is still being
+ * prepared and cannot carry a credit — and a cancelled note is terminal (its
+ * credit has been reversed; issue a new note instead).
  */
 function assertStatusTransition(oldStatus, newStatus) {
   if (newStatus === undefined || newStatus === null || newStatus === oldStatus) return;
@@ -136,8 +111,9 @@ function assertStatusTransition(oldStatus, newStatus) {
   }
 }
 
-// beforeUpdate -> afterUpdate hand-off of the locked row's prior status.
-const priorStatus = new WeakMap();
+// beforeUpdate -> afterUpdate hand-off of the locked row as it was before the
+// update (its status and client decide what the ledger sync must undo).
+const priorRow = new WeakMap();
 
 const router = Router();
 // The update guard merges the incoming partial body over the existing row so a
@@ -150,13 +126,22 @@ const ctrl = crudController(CreditNote, {
   // document already filed with SAT. Credit notes had NO lock at all, so the
   // stamper was not serialized against the editor even in principle.
   transactionalWrites: true,
-  // Issuing posts the ledger credit inside the same transaction and row lock
-  // as the status change, so it commits or rolls back with it.
+  // Every ledger sync (issue, cancel, total change, restore) runs inside the
+  // same transaction and row lock as the change it follows, so it commits or
+  // rolls back with it.
   transactionalAfterHooks: true,
   fatalAfterHooks: true,
   beforeUpdate: async (old, req, exec) => {
     assertStatusTransition(old.status, req.body.status);
-    priorStatus.set(req, old.status);
+    priorRow.set(req, old);
+
+    // Cancelling reverses the note's ledger credit, but a CFDI de Egreso that
+    // is live at SAT still credits the client fiscally. Same guard as delete:
+    // the egreso is cancelled first (POST /cfdi/cancel), then the note.
+    if (req.body.status === 'cancelled' && old.status !== 'cancelled') {
+      await assertNoLiveCfdi(old.id, req.orgId,
+        'Cancel the CFDI at SAT before cancelling this credit note.', exec);
+    }
 
     assertTotalsConsistent({
       subtotal: req.body.subtotal ?? old.subtotal,
@@ -188,12 +173,21 @@ const ctrl = crudController(CreditNote, {
     }
   },
 
-  // draft -> issued/applied: post the final total, exactly once (the
-  // crudController row lock serializes concurrent issues).
+  // Re-sync the ledger to the invariant after every update, under the row
+  // lock: draft -> issued/applied posts the total, -> cancelled reverses it, a
+  // total change on a posted note posts the delta, and anything else is a
+  // no-op. A note re-pointed at another client first has its credit reversed
+  // on the previous client, so it never stands on two accounts.
   afterUpdate: async (record, req, exec) => {
-    if (priorStatus.get(req) === 'draft' && POSTED_STATUSES.has(record.status)) {
-      await postCreditNoteLedger(exec, record, req.orgId);
+    const before = priorRow.get(req);
+    if (before && before.client_id && String(before.client_id) !== String(record.client_id)) {
+      await creditNoteLedgerService.syncCreditNoteLedger(exec, before, req.orgId,
+        { target: 0, label: 'moved to another client' });
     }
+    const label = record.status === 'cancelled' ? 'cancelled'
+      : (before && POSTED_STATUSES.has(before.status) && !sameValue(before.total, record.total)
+        ? 'total changed' : undefined);
+    await creditNoteLedgerService.syncCreditNoteLedger(exec, record, req.orgId, { label });
   },
 
   // Delete and restore were as open as update was — a credit note with a live
@@ -204,10 +198,22 @@ const ctrl = crudController(CreditNote, {
     // whose egreso is vigente at SAT.
     await assertNoLiveCfdi(old.id, req.orgId,
       'Cancel the CFDI before deleting this credit note.', exec);
+    // A soft-deleted note no longer stands on the account: reverse whatever
+    // it has posted, in the same transaction as the soft-delete. The row is
+    // locked, so a concurrent second delete waits, then finds no live row
+    // (404) and posts nothing.
+    await creditNoteLedgerService.syncCreditNoteLedger(exec, old, req.orgId,
+      { target: 0, label: 'deleted' });
   },
   beforeRestore: async (req, exec) => {
     await assertNoLiveCfdi(req.params.id, req.orgId,
       'This credit note has a live CFDI; restoring it would resurrect a row that disagrees with the filed document.', exec);
+  },
+  // Restoring an issued/applied note puts its credit back on the account
+  // (a restored draft or cancelled note stays at zero). Runs on the restore
+  // transaction, after its UPDATE has locked the row.
+  afterRestore: async (record, req, exec) => {
+    await creditNoteLedgerService.syncCreditNoteLedger(exec, record, req.orgId, { label: 'restored' });
   },
 });
 
@@ -298,7 +304,7 @@ router.post('/', requirePermission('credit_notes.create'), validate(createCredit
     // Credit the client balance ledger only for a note created already
     // issued/applied. A draft (the default) posts at its issue transition.
     if (POSTED_STATUSES.has(creditNote.status)) {
-      await postCreditNoteLedger(db.query.bind(db), creditNote, req.orgId);
+      await creditNoteLedgerService.syncCreditNoteLedger(db.query.bind(db), creditNote, req.orgId);
     }
 
     res.status(201).json({ data: creditNote });

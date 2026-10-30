@@ -27,7 +27,8 @@
 // client's standing credit (adversarial review caught exactly this). Drafts
 // (being prepared) and cancelled notes do NOT count — note this is *more*
 // correct than the old ledger, which kept counting a credit note even after
-// cancellation (no compensating entry is ever written).
+// cancellation. Since migration 466 the ledger follows the same rule
+// (creditNoteLedgerService): cancel/soft-delete append a reversal.
 //
 // Positive = owed by the client, negative = the client is in credit — same
 // sign convention the ledger used (postpaid semantics: ClientDetail's own

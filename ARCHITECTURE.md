@@ -305,14 +305,23 @@ A client's headline balance is computed live by
 `src/services/clientBalanceService.js` from invoices, payments, and
 `issued`/`applied` credit notes. `client_balance_ledger` is the history behind
 the Ledger tab, `GET /clients/:id/balance-ledger`, and the statement PDF, and
-it must agree with the headline balance. A credit note posts its ledger credit
-only when it is issued: a draft posts nothing, and the draft -> issued/applied
-change through `PUT /credit-notes/:id` posts the final total once, inside the
-crudController update transaction and row lock. A note created directly as
-issued/applied posts at creation. A posted note cannot return to draft, and
-`cancelled` is terminal. Cancelling a posted note writes no reversal today.
-Ledger history is corrected by appending compensating rows, not by editing old
-ones.
+it must agree with the headline balance. Credit notes follow one invariant,
+owned by `src/services/creditNoteLedgerService.js`: a note's net ledger credit
+equals its total while it is `issued`/`applied` and not soft-deleted, and is
+zero while it is `draft`, `cancelled`, or soft-deleted. Every write path
+re-syncs the note to that target with the shared, net-aware
+`syncCreditNoteLedger` helper on the same transaction that changes the note:
+`PUT /credit-notes/:id` (issue posts the total, cancel appends a reversal, a
+total change on a posted note appends the delta, a client change reverses the
+credit on the previous client), `DELETE` (reversal), and restore (re-post) all
+run inside the crudController row lock, so a concurrent duplicate posts
+nothing; a note created already issued/applied and the refund path
+(`refundRequestService`, `refund_method = credit_note`, in the transaction that
+inserts the note) post at creation. A posted note cannot return to draft,
+`cancelled` is terminal, and cancelling or deleting a note with a live CFDI de
+Egreso is refused until the CFDI is cancelled. `billing_adjustments` is an
+audit record and feeds no balance. Ledger history is corrected by appending
+compensating rows, not by editing old ones.
 
 `pnpm run sql:check` statically checks resolvable SQL in `src/` against
 `database/schema.sql`, including table/column names, ENUM values, and writes to
