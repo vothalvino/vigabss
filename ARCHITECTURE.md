@@ -161,6 +161,20 @@ uses `verifyPortalAccessToken`. Never verify an access JWT with a raw
 `jwt.verify(..., JWT_SECRET)` on a new surface: a `clients.id` must never be
 resolved as a `users.id`.
 
+Staff with TOTP enabled sign in in two steps. `POST /auth/login` (and an SSO
+callback) returns a 5-minute `type: 'mfa'` challenge signed with a third
+derived key; it sets no cookies and creates no session, and
+`verifyStaffAccessToken` rejects it. Only `POST /auth/login/2fa` exchanges it,
+with a single-use TOTP step or backup code, for a session. Any new path that
+mints a staff session must apply `authService.requiresSecondFactor()` first.
+
+SSO (`src/services/ssoService.js`) may only sign in accounts that belong to the
+configuring organization alone, never an install operator or super-admin, and
+links each account to the IdP identity (`user_sso_identities`, bound by
+`organization_id`). The `/sso/:orgId` admin endpoints require `:orgId` to be the
+caller's active organization unless the caller has global access, and refuse
+API tokens.
+
 The Authorization header takes precedence over the browser cookie. The active
 organization is resolved into the authenticated principal and carried as
 `req.user.organizationId`; `orgScope` validates it and exposes `req.orgId`.
