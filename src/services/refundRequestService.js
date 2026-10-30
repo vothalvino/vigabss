@@ -9,11 +9,46 @@ const db = require('../config/database');
 const RefundRequest = require('../models/RefundRequest');
 const eventBus = require('./eventBus');
 const billingAdjustmentService = require('./billingAdjustmentService');
-const { ValidationError } = require('../utils/errors');
+const { ValidationError, NotFoundError } = require('../utils/errors');
 const logger = require('../utils/logger').child({ service: 'refundRequest' });
 const paymentGatewayService = require('./paymentGatewayService');
 const billingService = require('./billingService');
 const Organization = require('../models/Organization');
+
+// ---------------------------------------------------------------------------
+// Reference ownership
+// ---------------------------------------------------------------------------
+
+/**
+ * Verify that the client, invoice and payment transaction a refund request
+ * points at all belong to the caller's organization (and the invoice and
+ * transaction to that client). Without this, a request could name another
+ * tenant's gateway charge and processing would refund it.
+ */
+async function assertReferencesOwned(orgId, { client_id, invoice_id, payment_id }) {
+  const [clients] = await db.query(
+    'SELECT id FROM clients WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL LIMIT 1',
+    [client_id, orgId],
+  );
+  if (!clients[0]) throw new ValidationError('client_id does not reference a client in this organization');
+
+  if (invoice_id) {
+    const [invoices] = await db.query(
+      `SELECT id FROM invoices
+        WHERE id = ? AND organization_id <=> ? AND client_id = ? AND deleted_at IS NULL LIMIT 1`,
+      [invoice_id, orgId, client_id],
+    );
+    if (!invoices[0]) throw new ValidationError('invoice_id does not reference an invoice of this client');
+  }
+
+  if (payment_id) {
+    const [txs] = await db.query(
+      'SELECT id FROM payment_transactions WHERE id = ? AND organization_id <=> ? AND client_id = ? LIMIT 1',
+      [payment_id, orgId, client_id],
+    );
+    if (!txs[0]) throw new ValidationError('payment_id does not reference a payment transaction of this client');
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Create
@@ -28,6 +63,7 @@ const Organization = require('../models/Organization');
  * @returns {Promise<object>} The new refund_requests row
  */
 async function createRequest(orgId, data, requestedByUserId) {
+  await assertReferencesOwned(orgId, data);
   const refundRequest = await RefundRequest.create({
     organization_id: orgId || null,
     client_id: data.client_id,
@@ -47,6 +83,44 @@ async function createRequest(orgId, data, requestedByUserId) {
   });
 
   return refundRequest;
+}
+
+// ---------------------------------------------------------------------------
+// Update
+// ---------------------------------------------------------------------------
+
+const EDITABLE_FIELDS = ['amount', 'reason', 'payment_id', 'invoice_id'];
+
+/**
+ * Edit an open refund request. Only the request fields are editable (never
+ * status, reviewer or processing fields), only before review, and any new
+ * invoice or payment reference must belong to the request's client.
+ *
+ * @param {number|null} orgId
+ * @param {number} id
+ * @param {object} data  - Validated, stripped request body
+ * @returns {Promise<object>} Updated row
+ */
+async function updateRequest(orgId, id, data) {
+  const existing = await RefundRequest.findByIdOrFail(id, orgId);
+  if (!['requested', 'under_review'].includes(existing.status)) {
+    throw new ValidationError(
+      `Cannot edit a refund request with status '${existing.status}'. Must be 'requested' or 'under_review'.`,
+    );
+  }
+
+  const changes = {};
+  for (const field of EDITABLE_FIELDS) {
+    if (data[field] !== undefined) changes[field] = data[field];
+  }
+
+  await assertReferencesOwned(orgId, {
+    client_id: existing.client_id,
+    invoice_id: changes.invoice_id !== undefined ? changes.invoice_id : existing.invoice_id,
+    payment_id: changes.payment_id !== undefined ? changes.payment_id : existing.payment_id,
+  });
+
+  return RefundRequest.update(id, changes, orgId);
 }
 
 // ---------------------------------------------------------------------------
@@ -172,22 +246,60 @@ async function resolveRefundCreditNoteTax(orgId, refund) {
  * @returns {Promise<object>} Updated row
  */
 async function processRequest(orgId, id, { refund_method, gateway_refund_reference: callerGatewayRef }, processedByUserId) {
-  // Allow the gateway refund path to overwrite the caller-supplied reference
-  let gateway_refund_reference = callerGatewayRef || null;
-  const existing = await RefundRequest.findByIdOrFail(id, orgId);
-
-  if (existing.status !== 'approved') {
+  // Atomic claim: approved -> processed. Two concurrent process calls can no
+  // longer both pass a status check and refund twice; the loser gets a 422.
+  const [claim] = await db.query(
+    `UPDATE refund_requests SET status = 'processed', processed_at = NOW()
+      WHERE id = ? AND organization_id <=> ? AND status = 'approved' AND deleted_at IS NULL`,
+    [id, orgId],
+  );
+  if (!claim || claim.affectedRows !== 1) {
+    const current = await RefundRequest.findById(id, orgId);
+    if (!current) throw new NotFoundError('Refund request');
     throw new ValidationError(
-      `Cannot process a refund request with status '${existing.status}'. Must be 'approved'.`,
+      `Cannot process a refund request with status '${current.status}'. Must be 'approved'.`,
     );
   }
+  const existing = await RefundRequest.findByIdOrFail(id, orgId);
+
+  // Until money moves, a failure releases the claim so the request stays
+  // 'approved' and retryable. After a gateway refund succeeds the request must
+  // never return to 'approved', or a retry would refund again.
+  const state = { moneyMoved: false };
+  try {
+    return await completeProcessing(orgId, existing, {
+      refund_method,
+      gateway_refund_reference: callerGatewayRef,
+    }, processedByUserId, state);
+  } catch (err) {
+    if (!state.moneyMoved) {
+      await db.query(
+        `UPDATE refund_requests SET status = 'approved', processed_at = NULL
+          WHERE id = ? AND organization_id <=> ? AND status = 'processed'`,
+        [id, orgId],
+      ).catch((releaseErr) => logger.error({ err: releaseErr, refundRequestId: id }, 'Could not release refund claim'));
+    } else {
+      logger.error({ err, refundRequestId: id }, 'Refund sent to the gateway but local bookkeeping failed; request left processed');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Body of processRequest, run after the request was claimed. Sets
+ * state.moneyMoved once a gateway refund has succeeded.
+ */
+async function completeProcessing(orgId, existing, { refund_method, gateway_refund_reference: callerGatewayRef }, processedByUserId, state) {
+  const id = existing.id;
+  // Allow the gateway refund path to overwrite the caller-supplied reference
+  let gateway_refund_reference = callerGatewayRef || null;
 
   // Fetch client for notification
   let client = null;
   try {
     const [clientRows] = await db.query(
-      'SELECT id, email, name FROM clients WHERE id = ? LIMIT 1',
-      [existing.client_id],
+      'SELECT id, email, name FROM clients WHERE id = ? AND organization_id <=> ? LIMIT 1',
+      [existing.client_id, orgId],
     );
     client = clientRows[0] || null;
   } catch (err) {
@@ -206,7 +318,12 @@ async function processRequest(orgId, id, { refund_method, gateway_refund_referen
 
     let gatewayResult;
     try {
-      gatewayResult = await paymentGatewayService.refund(existing.payment_id);
+      gatewayResult = await paymentGatewayService.refund(existing.payment_id, {
+        orgId,
+        clientId: existing.client_id,
+        amount: existing.amount,
+      });
+      state.moneyMoved = true;
     } catch (err) {
       logger.error({ err, paymentId: existing.payment_id, refundRequestId: id }, 'Gateway refund failed');
       throw err;
@@ -242,14 +359,15 @@ async function processRequest(orgId, id, { refund_method, gateway_refund_referen
     if (existing.payment_id) {
       try {
         const [pmtRows] = await db.query(
-          'SELECT amount, gateway_status FROM payment_transactions WHERE id = ? LIMIT 1',
-          [existing.payment_id],
+          `SELECT amount, gateway_status FROM payment_transactions
+            WHERE id = ? AND organization_id <=> ? AND client_id = ? LIMIT 1`,
+          [existing.payment_id, orgId, existing.client_id],
         );
         const pmt = pmtRows[0];
         if (pmt && parseFloat(existing.amount) >= parseFloat(pmt.amount)) {
           await db.query(
-            "UPDATE payment_transactions SET gateway_status = 'refunded' WHERE id = ?",
-            [existing.payment_id],
+            "UPDATE payment_transactions SET gateway_status = 'refunded' WHERE id = ? AND organization_id <=> ?",
+            [existing.payment_id, orgId],
           );
         }
       } catch (err) {
@@ -289,8 +407,8 @@ async function processRequest(orgId, id, { refund_method, gateway_refund_referen
 
     // Link the credit note back to the refund request
     await db.query(
-      'UPDATE refund_requests SET resulting_credit_note_id = ? WHERE id = ?',
-      [cnResult.insertId, existing.id],
+      'UPDATE refund_requests SET resulting_credit_note_id = ? WHERE id = ? AND organization_id <=> ?',
+      [cnResult.insertId, existing.id, orgId],
     );
   }
 
@@ -326,4 +444,4 @@ async function processRequest(orgId, id, { refund_method, gateway_refund_referen
   return updated;
 }
 
-module.exports = { createRequest, reviewRequest, processRequest };
+module.exports = { createRequest, updateRequest, reviewRequest, processRequest };

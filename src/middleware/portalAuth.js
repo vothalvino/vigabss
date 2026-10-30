@@ -4,15 +4,15 @@
 // Validates a portal JWT token and attaches req.client with:
 //   { id, organizationId, type: 'portal' }
 //
-// Portal tokens carry { type: 'portal' } in the payload. They are explicitly
-// rejected by the staff authenticate() middleware, and staff tokens are
-// rejected here, ensuring full isolation between the two auth surfaces.
+// Portal tokens are signed with a portal-only derived key, carry
+// { type: 'portal', aud: 'vigabss-portal' }, and are rejected by the staff
+// authenticate() middleware and WebSocket hub; staff tokens fail verification
+// here. See src/utils/accessTokens.js.
 // =============================================================================
 
-const jwt = require('jsonwebtoken');
-const config = require('../config');
 const db = require('../config/database');
 const { UnauthorizedError } = require('../utils/errors');
+const { verifyPortalAccessToken } = require('../utils/accessTokens');
 
 /**
  * Require portal authentication.
@@ -28,13 +28,9 @@ async function portalAuthenticate(req, _res, next) {
     const token = header.slice(7);
     let payload;
     try {
-      payload = jwt.verify(token, config.jwt.secret, { algorithms: [config.jwt.algorithm] });
+      payload = verifyPortalAccessToken(token);
     } catch {
       throw new UnauthorizedError('Invalid or expired token');
-    }
-
-    if (payload.type !== 'portal') {
-      throw new UnauthorizedError('Invalid token type');
     }
 
     const [rows] = await db.query(

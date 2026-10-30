@@ -12,7 +12,7 @@ const { URLSearchParams } = require('url');
 const { createCircuitBreaker } = require('../utils/circuitBreaker');
 const { decrypt, isConfigured: isEncryptionConfigured } = require('../utils/encryption');
 const logger = require('../utils/logger');
-const { PaymentGatewayError } = require('../utils/errors');
+const { PaymentGatewayError, ValidationError } = require('../utils/errors');
 
 // Default idempotency key TTL: 24 hours
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -576,14 +576,16 @@ async function chargeConekta(gateway, amount, currency, description, _paymentMet
  * Call the Stripe refunds API for a previously-captured charge or payment intent.
  * @param {object} gateway  - payment_gateways row (with secret_key_encrypted)
  * @param {object} tx       - payment_transactions row
+ * @param {number} amountMinor - amount to refund in minor units (cents)
  * @returns {Promise<{gatewayRefundRef: string}>}
  */
-async function refundStripe(gateway, tx) {
+async function refundStripe(gateway, tx, amountMinor) {
   const https = require('https');
 
   const secretKey = decrypt(gateway.secret_key_encrypted);
   const body = new URLSearchParams({
     payment_intent: tx.gateway_reference_id,
+    amount: String(amountMinor),
   }).toString();
 
   const response = await new Promise((resolve, reject) => {
@@ -620,13 +622,14 @@ async function refundStripe(gateway, tx) {
  * Call the Conekta order refund API for a previously-created order.
  * @param {object} gateway  - payment_gateways row (with secret_key_encrypted)
  * @param {object} tx       - payment_transactions row
+ * @param {number} amountMinor - amount to refund in minor units (cents)
  * @returns {Promise<{gatewayRefundRef: string}>}
  */
-async function refundConekta(gateway, tx) {
+async function refundConekta(gateway, tx, amountMinor) {
   const https = require('https');
 
   const secretKey = decrypt(gateway.secret_key_encrypted);
-  const body = JSON.stringify({ reason: 'requested_by_customer' });
+  const body = JSON.stringify({ reason: 'requested_by_customer', amount: amountMinor });
   const path = `/orders/${tx.gateway_reference_id}/refunds`;
 
   const response = await new Promise((resolve, reject) => {
@@ -663,60 +666,115 @@ async function refundConekta(gateway, tx) {
 }
 
 /**
- * Refund a payment transaction.
+ * Refund a payment transaction in full.
  *
- * For stripe/conekta: calls the processor first, then updates the DB only after
- * the processor confirms success. Both external calls are wrapped in the circuit
- * breaker.
- * For manual: DB-only status flip (no processor call needed).
- * For unimplemented providers: throws PaymentGatewayError.
+ * The transaction is loaded within the caller's organization (and client, when
+ * given), so a transaction id from another tenant is rejected before any
+ * processor call. The requested amount must equal the captured amount: the
+ * bookkeeping reversal (reverseRefund) re-opens the settled invoice and debits
+ * the full amount, so partial gateway refunds are refused rather than silently
+ * refunding everything. The succeeded -> refunded flip is claimed atomically
+ * before the processor call, so concurrent requests cannot refund twice; a
+ * processor failure restores 'succeeded'.
+ *
+ * For stripe/conekta: calls the processor with the explicit amount, wrapped in
+ * the circuit breaker. For manual: DB-only status flip. For unimplemented
+ * providers: throws PaymentGatewayError.
  *
  * @param {number} transactionId
+ * @param {object} opts
+ * @param {number|null} opts.orgId     required; the caller's organization
+ * @param {number} [opts.clientId]     when given, the transaction must belong to it
+ * @param {number|string} [opts.amount] requested amount; defaults to the full amount
  * @returns {Promise<{transaction_id: number, status: string, gateway_refund_reference?: string}>}
  */
-async function refund(transactionId) {
-  // Fetch transaction and join to gateway to get the provider
+async function refund(transactionId, { orgId, clientId, amount } = {}) {
+  if (orgId === undefined) throw new Error('paymentGatewayService.refund: orgId is required');
+
+  // Fetch transaction and join to the same organization's gateway
+  const params = [transactionId, orgId];
+  let clientSql = '';
+  if (clientId !== undefined && clientId !== null) {
+    clientSql = ' AND pt.client_id = ?';
+    params.push(clientId);
+  }
   const [rows] = await db.query(
     `SELECT pt.*, pg.provider, pg.secret_key_encrypted, pg.config_json
      FROM payment_transactions pt
      JOIN payment_gateways pg ON pg.id = pt.payment_gateway_id
-     WHERE pt.id = ?
+                             AND pg.organization_id = pt.organization_id
+     WHERE pt.id = ? AND pt.organization_id <=> ?${clientSql}
      LIMIT 1`,
-    [transactionId],
+    params,
   );
   const tx = rows[0];
 
-  if (!tx) throw new Error('Transaction not found');
-  if (tx.gateway_status !== 'succeeded') throw new Error('Can only refund succeeded transactions');
+  if (!tx) throw new ValidationError('Payment transaction not found for this organization and client');
+  if (tx.gateway_status !== 'succeeded') throw new ValidationError('Can only refund succeeded transactions');
 
-  let gatewayRefundRef = null;
-
-  switch (tx.provider) {
-    case 'stripe': {
-      const refundResult = await paymentCircuitBreaker.call(() => refundStripe(tx, tx));
-      gatewayRefundRef = refundResult.gatewayRefundRef;
-      break;
-    }
-    case 'conekta': {
-      const refundResult = await paymentCircuitBreaker.call(() => refundConekta(tx, tx));
-      gatewayRefundRef = refundResult.gatewayRefundRef;
-      break;
-    }
-    case 'manual':
-      // Offline / manually-recorded payment: DB-only status flip is sufficient.
-      break;
-    default:
-      throw new PaymentGatewayError(
-        `Refunds for provider '${tx.provider}' are not yet supported. ` +
-        'Process the refund directly with the provider and record it manually.',
-      );
+  const capturedMinor = Math.round(parseFloat(tx.amount) * 100);
+  const requestedMinor = amount === undefined || amount === null
+    ? capturedMinor
+    : Math.round(parseFloat(amount) * 100);
+  if (!Number.isFinite(requestedMinor) || requestedMinor <= 0) {
+    throw new ValidationError('Refund amount must be greater than zero');
+  }
+  if (requestedMinor > capturedMinor) {
+    throw new ValidationError('Refund amount exceeds the captured transaction amount');
+  }
+  if (requestedMinor < capturedMinor) {
+    throw new ValidationError(
+      'Partial gateway refunds are not supported yet. Refund the full transaction amount, '
+      + 'or use the credit_balance or manual refund method.',
+    );
   }
 
-  // Only update DB after processor confirms (or for manual, immediately)
-  await db.query(
-    'UPDATE payment_transactions SET gateway_status = ?, gateway_reference_id = COALESCE(?, gateway_reference_id) WHERE id = ?',
-    ['refunded', gatewayRefundRef, transactionId],
+  // Atomic claim: only one caller can move this transaction out of 'succeeded'.
+  const [claim] = await db.query(
+    "UPDATE payment_transactions SET gateway_status = 'refunded' WHERE id = ? AND organization_id <=> ? AND gateway_status = 'succeeded'",
+    [transactionId, orgId],
   );
+  if (!claim || claim.affectedRows !== 1) {
+    throw new ValidationError('Transaction is already being refunded or is no longer refundable');
+  }
+
+  let gatewayRefundRef = null;
+  try {
+    switch (tx.provider) {
+      case 'stripe': {
+        const refundResult = await paymentCircuitBreaker.call(() => refundStripe(tx, tx, requestedMinor));
+        gatewayRefundRef = refundResult.gatewayRefundRef;
+        break;
+      }
+      case 'conekta': {
+        const refundResult = await paymentCircuitBreaker.call(() => refundConekta(tx, tx, requestedMinor));
+        gatewayRefundRef = refundResult.gatewayRefundRef;
+        break;
+      }
+      case 'manual':
+        // Offline / manually-recorded payment: DB-only status flip is sufficient.
+        break;
+      default:
+        throw new PaymentGatewayError(
+          `Refunds for provider '${tx.provider}' are not yet supported. ` +
+          'Process the refund directly with the provider and record it manually.',
+        );
+    }
+  } catch (err) {
+    // No money moved: release the claim so the refund can be retried.
+    await db.query(
+      "UPDATE payment_transactions SET gateway_status = 'succeeded' WHERE id = ? AND organization_id <=> ? AND gateway_status = 'refunded'",
+      [transactionId, orgId],
+    );
+    throw err;
+  }
+
+  if (gatewayRefundRef) {
+    await db.query(
+      'UPDATE payment_transactions SET gateway_reference_id = ? WHERE id = ? AND organization_id <=> ?',
+      [gatewayRefundRef, transactionId, orgId],
+    );
+  }
 
   // Reverse the bookkeeping: re-open the settled invoice + offset the ledger.
   await reverseRefund(transactionId);

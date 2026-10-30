@@ -316,19 +316,63 @@ describe('paymentGatewayService', () => {
   // refund
   // =========================================================================
   describe('refund()', () => {
+    const https = require('https');
+    const EventEmitter = require('events');
+    const encryption = require('../src/utils/encryption');
+
+    // Stub one processor HTTP exchange; returns the spy and the written bodies.
+    function stubProcessor(statusCode, responseBody) {
+      const written = [];
+      const mockReq = new EventEmitter();
+      mockReq.write = jest.fn((chunk) => written.push(String(chunk)));
+      mockReq.end = jest.fn();
+      mockReq.destroy = jest.fn();
+      const mockRes = new EventEmitter();
+      mockRes.statusCode = statusCode;
+      const spy = jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
+        process.nextTick(() => {
+          cb(mockRes);
+          mockRes.emit('data', JSON.stringify(responseBody));
+          mockRes.emit('end');
+        });
+        return mockReq;
+      });
+      const decrypt = jest.spyOn(encryption, 'decrypt').mockReturnValue('sk_test_key');
+      return { spy, written, restore: () => { spy.mockRestore(); decrypt.mockRestore(); } };
+    }
+
+    const sqlCalls = (re) => db.query.mock.calls.filter((c) => re.test(c[0]));
+
     // manual provider — DB-only flip, no processor call
     test('refunds a manual (offline) transaction with DB-only flip', async () => {
-      const tx = { id: 50, gateway_status: 'succeeded', provider: 'manual',
-        gateway_reference_id: 'manual_ref', secret_key_encrypted: null };
+      const tx = { id: 50, gateway_status: 'succeeded', provider: 'manual', amount: '500.00',
+        organization_id: 42, gateway_reference_id: 'manual_ref', secret_key_encrypted: null };
       db.query
         .mockResolvedValueOnce([[tx]])           // JOIN query
-        .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // claim succeeded -> refunded
 
-      const result = await paymentGatewayService.refund(50);
+      const result = await paymentGatewayService.refund(50, { orgId: 42 });
       expect(result.transaction_id).toBe(50);
       expect(result.status).toBe('refunded');
       // No gateway_refund_reference for manual refunds
       expect(result.gateway_refund_reference).toBeUndefined();
+    });
+
+    test('binds the organization, client and same-org gateway in the lookup', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+      await expect(paymentGatewayService.refund(50, { orgId: 42, clientId: 5 }))
+        .rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+      const [sql, params] = db.query.mock.calls[0];
+      expect(sql).toMatch(/pt\.organization_id <=> \?/);
+      expect(sql).toMatch(/pt\.client_id = \?/);
+      expect(sql).toMatch(/pg\.organization_id = pt\.organization_id/);
+      expect(params).toEqual([50, 42, 5]);
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('requires the caller organization', async () => {
+      await expect(paymentGatewayService.refund(50)).rejects.toThrow(/orgId is required/);
+      expect(db.query).not.toHaveBeenCalled();
     });
 
     test('reverses the settled invoice + writes a ledger debit', async () => {
@@ -336,7 +380,7 @@ describe('paymentGatewayService', () => {
         organization_id: 42, amount: '500.00', currency: 'MXN', gateway_reference_id: 'manual_x', secret_key_encrypted: null };
       db.query
         .mockResolvedValueOnce([[tx]])                 // SELECT tx + gateway
-        .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE -> refunded
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // claim -> refunded
       const conn = {
         beginTransaction: jest.fn(), commit: jest.fn(), rollback: jest.fn(), release: jest.fn(),
         execute: jest.fn()
@@ -348,7 +392,7 @@ describe('paymentGatewayService', () => {
       };
       db.getConnection.mockResolvedValue(conn);
 
-      const res = await paymentGatewayService.refund(100);
+      const res = await paymentGatewayService.refund(100, { orgId: 42 });
       expect(res.status).toBe('refunded');
       const revert = conn.execute.mock.calls.find((c) => /UPDATE invoices SET status = 'issued'/.test(c[0]));
       expect(revert).toBeTruthy();
@@ -372,7 +416,7 @@ describe('paymentGatewayService', () => {
           .mockResolvedValueOnce([{ affectedRows: 1 }]), // INSERT ledger debit (no invoice UPDATE)
       };
       db.getConnection.mockResolvedValue(conn);
-      await paymentGatewayService.refund(102);
+      await paymentGatewayService.refund(102, { orgId: 42 });
       expect(conn.execute.mock.calls.find((c) => /UPDATE invoices/.test(c[0]))).toBeFalsy();
       expect(conn.execute.mock.calls.find((c) => /INSERT INTO client_balance_ledger/.test(c[0]))).toBeTruthy();
     });
@@ -386,195 +430,171 @@ describe('paymentGatewayService', () => {
         execute: jest.fn().mockResolvedValueOnce([[tx]]).mockResolvedValueOnce([[]]), // tx, then NO credit
       };
       db.getConnection.mockResolvedValue(conn);
-      await paymentGatewayService.refund(101);
+      await paymentGatewayService.refund(101, { orgId: 42 });
       const anyInsert = conn.execute.mock.calls.find((c) => /INSERT INTO client_balance_ledger/.test(c[0]));
       expect(anyInsert).toBeFalsy();
     });
 
-    test('throws when transaction not found', async () => {
+    test('throws when transaction not found (including another organization\'s id)', async () => {
       db.query.mockResolvedValueOnce([[]]);
-      await expect(paymentGatewayService.refund(999)).rejects.toThrow('Transaction not found');
+      await expect(paymentGatewayService.refund(999, { orgId: 42 })).rejects.toThrow('Payment transaction not found');
     });
 
     test('throws when transaction is not succeeded', async () => {
-      const tx = { id: 51, gateway_status: 'failed', provider: 'manual' };
+      const tx = { id: 51, gateway_status: 'failed', provider: 'manual', amount: '10.00' };
       db.query.mockResolvedValueOnce([[tx]]);
-      await expect(paymentGatewayService.refund(51)).rejects.toThrow('Can only refund succeeded transactions');
+      await expect(paymentGatewayService.refund(51, { orgId: 42 })).rejects.toThrow('Can only refund succeeded transactions');
     });
 
     test('throws when transaction is already refunded', async () => {
-      const tx = { id: 52, gateway_status: 'refunded', provider: 'manual' };
+      const tx = { id: 52, gateway_status: 'refunded', provider: 'manual', amount: '10.00' };
       db.query.mockResolvedValueOnce([[tx]]);
-      await expect(paymentGatewayService.refund(52)).rejects.toThrow('Can only refund succeeded transactions');
+      await expect(paymentGatewayService.refund(52, { orgId: 42 })).rejects.toThrow('Can only refund succeeded transactions');
     });
 
-    test('updates transaction status to refunded in database after manual refund', async () => {
-      const tx = { id: 53, gateway_status: 'succeeded', provider: 'manual',
+    test('claims succeeded -> refunded atomically in the caller organization', async () => {
+      const tx = { id: 53, gateway_status: 'succeeded', provider: 'manual', amount: '10.00',
         gateway_reference_id: 'manual_ref', secret_key_encrypted: null };
       db.query
         .mockResolvedValueOnce([[tx]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
-      await paymentGatewayService.refund(53);
+      await paymentGatewayService.refund(53, { orgId: 42 });
 
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE payment_transactions SET gateway_status'),
-        expect.arrayContaining(['refunded']),
-      );
+      const [claim] = sqlCalls(/UPDATE payment_transactions SET gateway_status = 'refunded'/);
+      expect(claim[0]).toMatch(/gateway_status = 'succeeded'/);
+      expect(claim[1]).toEqual([53, 42]);
+    });
+
+    test('a concurrent refund that loses the claim never reaches the processor', async () => {
+      const tx = { id: 54, gateway_status: 'succeeded', provider: 'stripe', amount: '10.00',
+        gateway_reference_id: 'pi_x', secret_key_encrypted: 'enc' };
+      db.query
+        .mockResolvedValueOnce([[tx]])
+        .mockResolvedValueOnce([{ affectedRows: 0 }]); // someone else claimed it
+      const proc = stubProcessor(200, { id: 're_x' });
+      try {
+        await expect(paymentGatewayService.refund(54, { orgId: 42 })).rejects.toThrow(/already being refunded/);
+        expect(proc.spy).not.toHaveBeenCalled();
+      } finally {
+        proc.restore();
+      }
+    });
+
+    test('refuses a partial gateway refund instead of refunding the full charge', async () => {
+      const tx = { id: 55, gateway_status: 'succeeded', provider: 'stripe', amount: '500.00',
+        gateway_reference_id: 'pi_y', secret_key_encrypted: 'enc' };
+      db.query.mockResolvedValueOnce([[tx]]);
+      const proc = stubProcessor(200, { id: 're_y' });
+      try {
+        await expect(paymentGatewayService.refund(55, { orgId: 42, amount: '100.00' }))
+          .rejects.toThrow(/Partial gateway refunds are not supported/);
+        expect(proc.spy).not.toHaveBeenCalled();
+        expect(db.query).toHaveBeenCalledTimes(1); // no claim
+      } finally {
+        proc.restore();
+      }
+    });
+
+    test('refuses an amount above the captured amount', async () => {
+      const tx = { id: 56, gateway_status: 'succeeded', provider: 'manual', amount: '500.00' };
+      db.query.mockResolvedValueOnce([[tx]]);
+      await expect(paymentGatewayService.refund(56, { orgId: 42, amount: 500.01 }))
+        .rejects.toThrow(/exceeds the captured/);
+      expect(db.query).toHaveBeenCalledTimes(1);
     });
 
     // stripe provider — must call processor before DB update
-    test('calls Stripe refund API and then updates DB for stripe provider', async () => {
-      const https = require('https');
-      const EventEmitter = require('events');
-
+    test('calls Stripe refund API with the explicit amount and then updates DB', async () => {
       const tx = {
-        id: 60, gateway_status: 'succeeded', provider: 'stripe',
+        id: 60, gateway_status: 'succeeded', provider: 'stripe', amount: '500.00',
         gateway_reference_id: 'pi_test_abc', payment_gateway_id: 1,
         secret_key_encrypted: 'enc_stripe_key',
       };
       db.query
-        .mockResolvedValueOnce([[tx]])           // JOIN query
-        .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE after processor
+        .mockResolvedValueOnce([[tx]])                 // JOIN query
+        .mockResolvedValueOnce([{ affectedRows: 1 }])  // claim
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // store refund reference
+      const proc = stubProcessor(200, { id: 're_test_123' });
+      try {
+        const result = await paymentGatewayService.refund(60, { orgId: 42, amount: '500.00' });
 
-      // Mock paymentCircuitBreaker to call through (it is real, but external https is mocked)
-      const mockReq = new EventEmitter();
-      mockReq.write = jest.fn();
-      mockReq.end = jest.fn();
-      mockReq.destroy = jest.fn();
-
-      const mockRes = new EventEmitter();
-      mockRes.statusCode = 200;
-
-      const mockHttpsRequest = jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
-        process.nextTick(() => {
-          cb(mockRes);
-          mockRes.emit('data', JSON.stringify({ id: 're_test_123' }));
-          mockRes.emit('end');
-        });
-        return mockReq;
-      });
-
-      // Also mock decrypt
-      const encryption = require('../src/utils/encryption');
-      const mockDecrypt = jest.spyOn(encryption, 'decrypt').mockReturnValue('sk_test_key');
-
-      const result = await paymentGatewayService.refund(60);
-
-      expect(result.status).toBe('refunded');
-      expect(result.gateway_refund_reference).toBe('re_test_123');
-      // DB update must have happened (after processor)
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE payment_transactions SET gateway_status'),
-        expect.arrayContaining(['refunded', 're_test_123', 60]),
-      );
-      expect(mockHttpsRequest).toHaveBeenCalled();
-
-      mockHttpsRequest.mockRestore();
-      mockDecrypt.mockRestore();
+        expect(result.status).toBe('refunded');
+        expect(result.gateway_refund_reference).toBe('re_test_123');
+        expect(proc.spy).toHaveBeenCalled();
+        const form = new URLSearchParams(proc.written.join(''));
+        expect(form.get('payment_intent')).toBe('pi_test_abc');
+        expect(form.get('amount')).toBe('50000');
+        const [refUpdate] = sqlCalls(/SET gateway_reference_id = \?/);
+        expect(refUpdate[1]).toEqual(['re_test_123', 60, 42]);
+      } finally {
+        proc.restore();
+      }
     });
 
     // conekta provider — must call processor before DB update
-    test('calls Conekta refund API and then updates DB for conekta provider', async () => {
-      const https = require('https');
-      const EventEmitter = require('events');
-
+    test('calls Conekta refund API with the explicit amount and then updates DB', async () => {
       const tx = {
-        id: 70, gateway_status: 'succeeded', provider: 'conekta',
+        id: 70, gateway_status: 'succeeded', provider: 'conekta', amount: '116.50',
         gateway_reference_id: 'ord_test_xyz', payment_gateway_id: 2,
         secret_key_encrypted: 'enc_conekta_key',
       };
       db.query
         .mockResolvedValueOnce([[tx]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
+      const proc = stubProcessor(200, { id: 'ref_conekta_456' });
+      try {
+        const result = await paymentGatewayService.refund(70, { orgId: 42 });
 
-      const mockReq = new EventEmitter();
-      mockReq.write = jest.fn();
-      mockReq.end = jest.fn();
-      mockReq.destroy = jest.fn();
-
-      const mockRes = new EventEmitter();
-      mockRes.statusCode = 200;
-
-      const mockHttpsRequest = jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
-        process.nextTick(() => {
-          cb(mockRes);
-          mockRes.emit('data', JSON.stringify({ id: 'ref_conekta_456' }));
-          mockRes.emit('end');
-        });
-        return mockReq;
-      });
-
-      const encryption = require('../src/utils/encryption');
-      const mockDecrypt = jest.spyOn(encryption, 'decrypt').mockReturnValue('key_conekta');
-
-      const result = await paymentGatewayService.refund(70);
-
-      expect(result.status).toBe('refunded');
-      expect(result.gateway_refund_reference).toBe('ref_conekta_456');
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE payment_transactions SET gateway_status'),
-        expect.arrayContaining(['refunded', 'ref_conekta_456', 70]),
-      );
-      expect(mockHttpsRequest).toHaveBeenCalled();
-
-      mockHttpsRequest.mockRestore();
-      mockDecrypt.mockRestore();
+        expect(result.status).toBe('refunded');
+        expect(result.gateway_refund_reference).toBe('ref_conekta_456');
+        expect(JSON.parse(proc.written.join(''))).toMatchObject({ amount: 11650 });
+        const [refUpdate] = sqlCalls(/SET gateway_reference_id = \?/);
+        expect(refUpdate[1]).toEqual(['ref_conekta_456', 70, 42]);
+      } finally {
+        proc.restore();
+      }
     });
 
     // unimplemented provider — must throw, NOT fake success
-    test('throws for unimplemented provider (openpay) instead of faking refund', async () => {
+    test('throws for unimplemented provider (openpay) and releases the claim', async () => {
       const tx = {
-        id: 80, gateway_status: 'succeeded', provider: 'openpay',
+        id: 80, gateway_status: 'succeeded', provider: 'openpay', amount: '10.00',
         gateway_reference_id: 'openpay_ref', payment_gateway_id: 3,
       };
-      db.query.mockResolvedValueOnce([[tx]]);
+      db.query
+        .mockResolvedValueOnce([[tx]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])  // claim
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // release
 
-      await expect(paymentGatewayService.refund(80))
+      await expect(paymentGatewayService.refund(80, { orgId: 42 }))
         .rejects.toThrow(/openpay.*not yet supported/i);
 
-      // DB update must NOT have been called
-      expect(db.query).toHaveBeenCalledTimes(1);
+      const [release] = sqlCalls(/SET gateway_status = 'succeeded'/);
+      expect(release[1]).toEqual([80, 42]);
+      expect(db.getConnection).not.toHaveBeenCalled(); // no bookkeeping reversal
     });
 
-    test('does NOT update DB when Stripe refund API call fails', async () => {
-      const https = require('https');
-      const EventEmitter = require('events');
-
+    test('restores succeeded and skips bookkeeping when the Stripe refund call fails', async () => {
       const tx = {
-        id: 90, gateway_status: 'succeeded', provider: 'stripe',
+        id: 90, gateway_status: 'succeeded', provider: 'stripe', amount: '10.00',
         gateway_reference_id: 'pi_fail', payment_gateway_id: 1,
         secret_key_encrypted: 'enc_key',
       };
-      db.query.mockResolvedValueOnce([[tx]]);
-
-      const mockReq = new EventEmitter();
-      mockReq.write = jest.fn();
-      mockReq.end = jest.fn();
-      mockReq.destroy = jest.fn();
-
-      const mockRes = new EventEmitter();
-      mockRes.statusCode = 402;
-
-      const mockHttpsRequest = jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
-        process.nextTick(() => {
-          cb(mockRes);
-          mockRes.emit('data', JSON.stringify({ error: { message: 'charge already refunded' } }));
-          mockRes.emit('end');
-        });
-        return mockReq;
-      });
-
-      const encryption = require('../src/utils/encryption');
-      const mockDecrypt = jest.spyOn(encryption, 'decrypt').mockReturnValue('sk_test_key');
-
-      await expect(paymentGatewayService.refund(90)).rejects.toThrow('charge already refunded');
-
-      // Only the JOIN SELECT should have run — no UPDATE
-      expect(db.query).toHaveBeenCalledTimes(1);
-
-      mockHttpsRequest.mockRestore();
-      mockDecrypt.mockRestore();
+      db.query
+        .mockResolvedValueOnce([[tx]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])  // claim
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // release
+      const proc = stubProcessor(402, { error: { message: 'charge already refunded' } });
+      try {
+        await expect(paymentGatewayService.refund(90, { orgId: 42 })).rejects.toThrow('charge already refunded');
+        expect(sqlCalls(/SET gateway_status = 'succeeded'/)).toHaveLength(1);
+        expect(sqlCalls(/SET gateway_reference_id/)).toHaveLength(0);
+        expect(db.getConnection).not.toHaveBeenCalled();
+      } finally {
+        proc.restore();
+      }
     });
   });
 

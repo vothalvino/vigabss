@@ -7,6 +7,7 @@
 
 const PDFDocument = require('pdfkit');
 const db = require('../config/database');
+const { NotFoundError } = require('../utils/errors');
 const cfdiRepresentacionPdf = require('./cfdiRepresentacionPdf');
 const ClientBalanceLedger = require('../models/ClientBalanceLedger');
 const product = require('../product');
@@ -91,6 +92,15 @@ function pdfLabels(locale) {
 
 // Safety-net default only — every caller passes the document's own currency.
 // 'MXN' mirrors Organization.getCurrency's final fallback.
+// Every generator renders tenant documents, so callers must pass the owning
+// organization and the lookup binds it; a foreign or missing id is a 404.
+// Staff routes pass req.orgId (never null). null is accepted only for legacy
+// single-tenant rows whose organization_id is NULL, matched with <=>.
+function requireOrgId(orgId) {
+  if (orgId === undefined) throw new Error('pdfService: orgId is required');
+  return orgId;
+}
+
 function fmt(amount, currency = 'MXN') {
   const num = parseFloat(amount) || 0;
   return `${currency} ${num.toFixed(2)}`;
@@ -156,7 +166,8 @@ function drawTableRow(doc, y, columns, opts = {}) {
  * @param {number} invoiceId
  * @returns {Promise<Buffer>}
  */
-async function generateInvoicePdf(invoiceId, { locale = 'en' } = {}) {
+async function generateInvoicePdf(invoiceId, { locale = 'en', orgId } = {}) {
+  requireOrgId(orgId);
   const L = pdfLabels(locale);
   const [invoices] = await db.query(
     `SELECT i.*, cl.name, cl.email, cl.phone, cl.address, cl.city, cl.state, cl.country,
@@ -164,13 +175,13 @@ async function generateInvoicePdf(invoiceId, { locale = 'en' } = {}) {
             o.address AS org_address, o.city AS org_city, o.state AS org_state, o.country AS org_country,
             o.locale AS org_locale
      FROM invoices i
-     LEFT JOIN clients cl ON cl.id = i.client_id
+     LEFT JOIN clients cl ON cl.id = i.client_id AND cl.organization_id <=> i.organization_id
      LEFT JOIN organizations o ON o.id = i.organization_id
-     WHERE i.id = ?`,
-    [invoiceId],
+     WHERE i.id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL`,
+    [invoiceId, orgId],
   );
   const invoice = invoices[0];
-  if (!invoice) throw new Error('Invoice not found');
+  if (!invoice) throw new NotFoundError('Invoice');
 
   // MX orgs: a STAMPED invoice's PDF is the legal representación impresa,
   // rendered from the sealed XML (the fiscal truth). An unstamped MX invoice
@@ -182,10 +193,10 @@ async function generateInvoicePdf(invoiceId, { locale = 'en' } = {}) {
   if (invoice.org_locale === 'MX') {
     const [cfdis] = await db.query(
       `SELECT signed_xml, sat_status FROM cfdi_documents
-        WHERE invoice_id = ? AND tipo_comprobante = 'I'
+        WHERE invoice_id = ? AND organization_id <=> ? AND tipo_comprobante = 'I'
           AND sat_status IN ('vigente', 'cancel_pending', 'cancelado') AND signed_xml IS NOT NULL
         ORDER BY id DESC LIMIT 1`,
-      [invoiceId],
+      [invoiceId, orgId],
     );
     // Only a TFD-bearing signed_xml is a real stamped CFDI. Simulator/dev
     // stamps store the pre-stamp builder XML (no TimbreFiscalDigital) — those
@@ -357,19 +368,20 @@ async function generateInvoicePdf(invoiceId, { locale = 'en' } = {}) {
 // Credit Note PDF
 // ---------------------------------------------------------------------------
 
-async function generateCreditNotePdf(creditNoteId, { locale = 'en' } = {}) {
+async function generateCreditNotePdf(creditNoteId, { locale = 'en', orgId } = {}) {
+  requireOrgId(orgId);
   const L = pdfLabels(locale);
   const [notes] = await db.query(
     `SELECT cn.*, cl.name, cl.email,
             o.name AS org_name
      FROM credit_notes cn
-     LEFT JOIN clients cl ON cl.id = cn.client_id
+     LEFT JOIN clients cl ON cl.id = cn.client_id AND cl.organization_id <=> cn.organization_id
      LEFT JOIN organizations o ON o.id = cn.organization_id
-     WHERE cn.id = ?`,
-    [creditNoteId],
+     WHERE cn.id = ? AND cn.organization_id <=> ? AND cn.deleted_at IS NULL`,
+    [creditNoteId, orgId],
   );
   const note = notes[0];
-  if (!note) throw new Error('Credit note not found');
+  if (!note) throw new NotFoundError('Credit note');
 
   const [items] = await db.query(
     'SELECT * FROM credit_note_items WHERE credit_note_id = ? ORDER BY id',
@@ -439,19 +451,20 @@ async function generateCreditNotePdf(creditNoteId, { locale = 'en' } = {}) {
 // Quote PDF
 // ---------------------------------------------------------------------------
 
-async function generateQuotePdf(quoteId, { locale = 'en' } = {}) {
+async function generateQuotePdf(quoteId, { locale = 'en', orgId } = {}) {
+  requireOrgId(orgId);
   const L = pdfLabels(locale);
   const [quotes] = await db.query(
     `SELECT q.*, cl.name, cl.email,
             o.name AS org_name
      FROM quotes q
-     LEFT JOIN clients cl ON cl.id = q.client_id
+     LEFT JOIN clients cl ON cl.id = q.client_id AND cl.organization_id <=> q.organization_id
      LEFT JOIN organizations o ON o.id = q.organization_id
-     WHERE q.id = ?`,
-    [quoteId],
+     WHERE q.id = ? AND q.organization_id <=> ? AND q.deleted_at IS NULL`,
+    [quoteId, orgId],
   );
   const quote = quotes[0];
-  if (!quote) throw new Error('Quote not found');
+  if (!quote) throw new NotFoundError('Quote');
 
   const [items] = await db.query(
     'SELECT * FROM quote_items WHERE quote_id = ? ORDER BY id',
@@ -537,17 +550,18 @@ async function generateQuotePdf(quoteId, { locale = 'en' } = {}) {
 // CFDI Representation PDF
 // ---------------------------------------------------------------------------
 
-async function generateCfdiPdf(cfdiDocumentId, { locale = 'en' } = {}) {
+async function generateCfdiPdf(cfdiDocumentId, { locale = 'en', orgId } = {}) {
+  requireOrgId(orgId);
   const L = pdfLabels(locale);
   const [docs] = await db.query(
     `SELECT cd.*, o.name AS org_name
      FROM cfdi_documents cd
      LEFT JOIN organizations o ON o.id = cd.organization_id
-     WHERE cd.id = ?`,
-    [cfdiDocumentId],
+     WHERE cd.id = ? AND cd.organization_id <=> ?`,
+    [cfdiDocumentId, orgId],
   );
   const cfdi = docs[0];
-  if (!cfdi) throw new Error('CFDI document not found');
+  if (!cfdi) throw new NotFoundError('CFDI document');
 
   // Stamped → the legal representación impresa, rendered from the sealed XML.
   // TFD check: simulator/dev stamps store TFD-less builder XML — those get
@@ -680,7 +694,8 @@ async function generateCfdiPdf(cfdiDocumentId, { locale = 'en' } = {}) {
  * @param {{ locale?: string }} options
  * @returns {Promise<Buffer>}
  */
-async function generatePaymentReceiptPdf(paymentId, { locale = 'en' } = {}) {
+async function generatePaymentReceiptPdf(paymentId, { locale = 'en', orgId } = {}) {
+  requireOrgId(orgId);
   const L = pdfLabels(locale);
 
   const [payments] = await db.query(
@@ -690,23 +705,23 @@ async function generatePaymentReceiptPdf(paymentId, { locale = 'en' } = {}) {
             o.address AS org_address, o.city AS org_city, o.state AS org_state,
             o.country AS org_country
      FROM payments p
-     LEFT JOIN clients cl ON cl.id = p.client_id
-     LEFT JOIN organizations o ON o.id = cl.organization_id
-     WHERE p.id = ? AND p.deleted_at IS NULL`,
-    [paymentId],
+     LEFT JOIN clients cl ON cl.id = p.client_id AND cl.organization_id <=> p.organization_id
+     LEFT JOIN organizations o ON o.id = p.organization_id
+     WHERE p.id = ? AND p.organization_id <=> ? AND p.deleted_at IS NULL`,
+    [paymentId, orgId],
   );
   const payment = payments[0];
-  if (!payment) throw new Error('Payment not found');
+  if (!payment) throw new NotFoundError('Payment');
 
   // Fetch allocations with invoice details
   const [allocations] = await db.query(
     `SELECT pa.amount AS allocated_amount, i.invoice_number, i.total AS invoice_total,
             i.currency AS invoice_currency, i.status AS invoice_status
      FROM payment_allocations pa
-     LEFT JOIN invoices i ON i.id = pa.invoice_id
+     LEFT JOIN invoices i ON i.id = pa.invoice_id AND i.organization_id <=> ?
      WHERE pa.payment_id = ? AND pa.deleted_at IS NULL
      ORDER BY pa.id`,
-    [paymentId],
+    [orgId, paymentId],
   );
 
   const currency = payment.currency || 'MXN';
@@ -851,10 +866,11 @@ const LEDGER_DEBIT_TYPES = ['invoice', 'usage_deduction', 'debit'];
  * @param {string} [opts.locale='en']
  * @param {string|null} [opts.from] inclusive period start (YYYY-MM-DD); null = all time
  * @param {string|null} [opts.to]   inclusive period end (YYYY-MM-DD); null = open-ended
- * @param {number|null} [opts.orgId]
+ * @param {number|null} opts.orgId  required; the client must belong to it
  * @returns {Promise<Buffer>}
  */
-async function generateClientLedgerPdf(clientId, { locale = 'en', from = null, to = null, orgId = null } = {}) {
+async function generateClientLedgerPdf(clientId, { locale = 'en', from = null, to = null, orgId } = {}) {
+  requireOrgId(orgId);
   const L = pdfLabels(locale);
 
   const [clients] = await db.query(
@@ -863,11 +879,11 @@ async function generateClientLedgerPdf(clientId, { locale = 'en', from = null, t
             o.address AS org_address, o.city AS org_city, o.state AS org_state, o.country AS org_country
      FROM clients cl
      LEFT JOIN organizations o ON o.id = cl.organization_id
-     WHERE cl.id = ?`,
-    [clientId],
+     WHERE cl.id = ? AND cl.organization_id <=> ? AND cl.deleted_at IS NULL`,
+    [clientId, orgId],
   );
   const client = clients[0];
-  if (!client) throw new Error('Client not found');
+  if (!client) throw new NotFoundError('Client');
 
   // Opening balance: signed sum of everything before the period start. Uses the
   // single source of truth (ClientBalanceLedger.signedAmountSql) so the statement

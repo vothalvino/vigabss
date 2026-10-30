@@ -8,6 +8,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { NotFoundError } = require('../utils/errors');
 const product = require('../product');
 
 // ---------------------------------------------------------------------------
@@ -77,23 +78,25 @@ function fmtDate(date) {
 /**
  * Generate a plain-text thermal receipt for an invoice.
  * @param {number} invoiceId
- * @param {{ width?: number }} options - width: 32 (58mm) or 48 (80mm), default 48
+ * @param {{ width?: number, orgId: number }} options - width: 32 (58mm) or 48 (80mm),
+ *   default 48; orgId (required) is the caller's organization, bound in the lookup
  * @returns {Promise<string>}
  */
-async function generateInvoiceThermalReceipt(invoiceId, { width = 48 } = {}) {
+async function generateInvoiceThermalReceipt(invoiceId, { width = 48, orgId } = {}) {
+  if (orgId === undefined) throw new Error('thermalReceiptService: orgId is required');
   const [invoices] = await db.query(
     `SELECT i.*,
             cl.name AS client_name,
             cl.email AS client_email, cl.phone AS client_phone,
             o.name AS org_name, o.phone AS org_phone, o.email AS org_email
      FROM invoices i
-     LEFT JOIN clients cl ON cl.id = i.client_id
+     LEFT JOIN clients cl ON cl.id = i.client_id AND cl.organization_id <=> i.organization_id
      LEFT JOIN organizations o ON o.id = i.organization_id
-     WHERE i.id = ?`,
-    [invoiceId],
+     WHERE i.id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL`,
+    [invoiceId, orgId],
   );
   const inv = invoices[0];
-  if (!inv) throw new Error('Invoice not found');
+  if (!inv) throw new NotFoundError('Invoice');
 
   const [items] = await db.query(
     'SELECT description, quantity, unit_price, amount FROM invoice_items WHERE invoice_id = ? ORDER BY id',
@@ -151,30 +154,32 @@ async function generateInvoiceThermalReceipt(invoiceId, { width = 48 } = {}) {
 /**
  * Generate a plain-text thermal receipt for a payment.
  * @param {number} paymentId
- * @param {{ width?: number }} options
+ * @param {{ width?: number, orgId: number }} options - orgId (required) is the
+ *   caller's organization, bound in the lookup
  * @returns {Promise<string>}
  */
-async function generatePaymentThermalReceipt(paymentId, { width = 48 } = {}) {
+async function generatePaymentThermalReceipt(paymentId, { width = 48, orgId } = {}) {
+  if (orgId === undefined) throw new Error('thermalReceiptService: orgId is required');
   const [payments] = await db.query(
     `SELECT p.*,
             cl.name AS client_name,
             cl.email AS client_email, cl.phone AS client_phone,
             o.name AS org_name, o.phone AS org_phone, o.email AS org_email
      FROM payments p
-     LEFT JOIN clients cl ON cl.id = p.client_id
-     LEFT JOIN organizations o ON o.id = cl.organization_id
-     WHERE p.id = ? AND p.deleted_at IS NULL`,
-    [paymentId],
+     LEFT JOIN clients cl ON cl.id = p.client_id AND cl.organization_id <=> p.organization_id
+     LEFT JOIN organizations o ON o.id = p.organization_id
+     WHERE p.id = ? AND p.organization_id <=> ? AND p.deleted_at IS NULL`,
+    [paymentId, orgId],
   );
   const pay = payments[0];
-  if (!pay) throw new Error('Payment not found');
+  if (!pay) throw new NotFoundError('Payment');
 
   const [allocs] = await db.query(
     `SELECT pa.amount AS allocated_amount, i.invoice_number
      FROM payment_allocations pa
-     LEFT JOIN invoices i ON i.id = pa.invoice_id
+     LEFT JOIN invoices i ON i.id = pa.invoice_id AND i.organization_id <=> ?
      WHERE pa.payment_id = ? AND pa.deleted_at IS NULL`,
-    [paymentId],
+    [orgId, paymentId],
   );
 
   const lines = [];

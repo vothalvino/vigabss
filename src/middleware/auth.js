@@ -6,11 +6,10 @@
 // =============================================================================
 
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
-const config = require('../config');
 const db = require('../config/database');
 const User = require('../models/User');
 const { resolveOrgPrincipal } = require('../services/orgPrincipalService');
+const { verifyStaffAccessToken } = require('../utils/accessTokens');
 const { UnauthorizedError } = require('../utils/errors');
 
 /**
@@ -159,7 +158,9 @@ async function authenticate(req, _res, next) {
     }
     let payload;
     try {
-      payload = jwt.verify(token, config.jwt.secret, { algorithms: [config.jwt.algorithm] });
+      // Rejects subscriber-portal tokens: a client id must never be resolved
+      // as a staff user id.
+      payload = verifyStaffAccessToken(token);
     } catch (_err) {
       throw new UnauthorizedError('Invalid or expired token');
     }

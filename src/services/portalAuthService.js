@@ -5,17 +5,17 @@
 // Clients are NOT staff users — they authenticate with their email +
 // a portal-specific password stored as a bcrypt hash on the clients table.
 //
-// JWT tokens issued here carry { sub: clientId, type: 'portal' } so they
-// cannot be used against staff-only endpoints, and staff tokens cannot be
-// used against portal endpoints.
+// Access JWTs issued here are signed with a portal-only key and carry
+// { sub: clientId, type: 'portal', aud: 'vigabss-portal' } (see
+// src/utils/accessTokens.js), so they cannot be used against staff endpoints,
+// and staff tokens cannot be used against portal endpoints.
 // =============================================================================
 
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const config = require('../config');
 const db = require('../config/database');
 const { UnauthorizedError, ValidationError } = require('../utils/errors');
+const { signPortalAccessToken } = require('../utils/accessTokens');
 
 const SALT_ROUNDS = 12;
 const MAX_ATTEMPTS = 5;
@@ -95,10 +95,9 @@ async function login({ email, password }) {
   );
 
   // Issue tokens
-  const accessToken = jwt.sign(
-    { sub: client.id, orgId: client.organization_id, type: 'portal' },
-    config.jwt.secret,
-    { expiresIn: ACCESS_SECONDS, algorithm: config.jwt.algorithm },
+  const accessToken = signPortalAccessToken(
+    { clientId: client.id, organizationId: client.organization_id },
+    ACCESS_SECONDS,
   );
 
   const refreshToken = generateRefreshToken();
@@ -153,10 +152,9 @@ async function refreshToken(token) {
     throw new UnauthorizedError('Account is not active');
   }
 
-  const newAccessToken = jwt.sign(
-    { sub: row.client_id, orgId: row.organization_id, type: 'portal' },
-    config.jwt.secret,
-    { expiresIn: ACCESS_SECONDS, algorithm: config.jwt.algorithm },
+  const newAccessToken = signPortalAccessToken(
+    { clientId: row.client_id, organizationId: row.organization_id },
+    ACCESS_SECONDS,
   );
 
   const newRefreshToken = generateRefreshToken();

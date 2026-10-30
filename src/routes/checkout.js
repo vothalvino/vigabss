@@ -38,12 +38,10 @@ router.post('/payment-link', requirePermission('payments.create'), validate(chec
   } catch (err) { next(err); }
 });
 
-// POST /api/checkout/recurring/:id/charge — Charge a recurring profile
-router.post('/recurring/:id/charge', requirePermission('payments.create'), async (req, res, next) => {
-  try {
-    const data = await checkoutService.chargeRecurringProfile(req.params.id);
-    res.json({ data });
-  } catch (err) { next(err); }
-});
+// Recurring-profile charges run only from the scheduler
+// (checkoutService.processRecurringCharges). There is deliberately no HTTP
+// route: the former POST /checkout/recurring/:id/charge loaded the profile by
+// id without an organization check and charged the stored card again on every
+// call.
 
 module.exports = router;

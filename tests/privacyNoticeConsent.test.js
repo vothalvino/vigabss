@@ -25,10 +25,11 @@ jest.mock('../src/config/database', () => ({
 }));
 
 const config = require('../src/config');
+const { signPortalAccessToken } = require('../src/utils/accessTokens');
 const db = require('../src/config/database');
 const app = require('../src/app');
 
-const portalToken = () => jwt.sign({ sub: 9, type: 'portal' }, config.jwt.secret, { expiresIn: '1h' });
+const portalToken = () => signPortalAccessToken({ clientId: 9, organizationId: null }, 3600);
 const staffToken = () => jwt.sign({ sub: 1, email: 'a@b.c', role: 'admin', orgId: 1 }, config.jwt.secret, { expiresIn: '1h' });
 const ADMIN = { id: 1, email: 'a@b.c', role: 'admin', status: 'active', organization_id: 1 };
 

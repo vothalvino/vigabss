@@ -33,7 +33,8 @@ describe('OpenAPI spec generation', () => {
 
     expect(spec.paths['/billing/generate-period']).toBeDefined();
     expect(spec.paths['/billing/generate-invoice']).toBeDefined();
-    expect(spec.paths['/billing/allocate-payment']).toBeDefined();
+    // The unscoped legacy allocator was removed; allocation is /payments/{id}/allocate.
+    expect(spec.paths['/billing/allocate-payment']).toBeUndefined();
     expect(spec.paths['/billing/bulk-generate']).toBeDefined();
   });
 

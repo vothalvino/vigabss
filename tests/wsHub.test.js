@@ -183,6 +183,27 @@ describe('WsHub', () => {
       expect(closeCode).toBe(4003);
     });
 
+    it('rejects a subscriber-portal token (current portal key) with close 4003', async () => {
+      const { signPortalAccessToken } = require('../src/utils/accessTokens');
+      const token = signPortalAccessToken({ clientId: 42, organizationId: 1 }, 3600);
+      const ws = connectWs(port);
+      await waitForOpen(ws);
+      ws.send(JSON.stringify({ type: 'auth', token }));
+      const msg = await waitForMessage(ws, m => m.type === 'auth_fail' || m.type === 'auth_ok');
+      expect(msg.type).toBe('auth_fail');
+      const closeCode = await new Promise(resolve => ws.on('close', (code) => resolve(code)));
+      expect(closeCode).toBe(4003);
+    });
+
+    it('rejects a legacy portal token signed with the staff secret', async () => {
+      const token = jwt.sign({ sub: 42, orgId: 1, type: 'portal' }, TEST_SECRET, { expiresIn: '1h' });
+      const ws = connectWs(port);
+      await waitForOpen(ws);
+      ws.send(JSON.stringify({ type: 'auth', token }));
+      const msg = await waitForMessage(ws, m => m.type === 'auth_fail' || m.type === 'auth_ok');
+      expect(msg.type).toBe('auth_fail');
+    });
+
     it('rejects a JWT missing orgId with auth_fail + close 4004', async () => {
       const token = jwt.sign({ sub: 1 }, TEST_SECRET, { expiresIn: '1h' }); // no orgId
       const ws = connectWs(port);

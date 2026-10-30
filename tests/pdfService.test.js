@@ -99,7 +99,7 @@ describe('PDF Service', () => {
           { id: 1, description: 'Internet 100 Mbps — Apr 2026', quantity: 1, unit_price: 500, amount: 500 },
         ]]);
 
-      const buffer = await pdfService.generateInvoicePdf(1);
+      const buffer = await pdfService.generateInvoicePdf(1, { orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.length).toBeGreaterThan(100);
       // PDF magic bytes
@@ -108,7 +108,7 @@ describe('PDF Service', () => {
 
     it('throws for non-existent invoice', async () => {
       db.query.mockResolvedValueOnce([[]]);
-      await expect(pdfService.generateInvoicePdf(999)).rejects.toThrow('Invoice not found');
+      await expect(pdfService.generateInvoicePdf(999, { orgId: 1 })).rejects.toThrow('Invoice not found');
     });
   });
 
@@ -131,14 +131,14 @@ describe('PDF Service', () => {
           { id: 1, description: 'Partial refund', quantity: 1, amount: 200 },
         ]]);
 
-      const buffer = await pdfService.generateCreditNotePdf(1);
+      const buffer = await pdfService.generateCreditNotePdf(1, { orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
     });
 
     it('throws for non-existent credit note', async () => {
       db.query.mockResolvedValueOnce([[]]);
-      await expect(pdfService.generateCreditNotePdf(999)).rejects.toThrow('Credit note not found');
+      await expect(pdfService.generateCreditNotePdf(999, { orgId: 1 })).rejects.toThrow('Credit note not found');
     });
 
     it('generates a credit note PDF with Spanish locale', async () => {
@@ -159,7 +159,7 @@ describe('PDF Service', () => {
           { id: 1, description: 'Reembolso parcial', quantity: 1, amount: 150 },
         ]]);
 
-      const buffer = await pdfService.generateCreditNotePdf(2, { locale: 'es' });
+      const buffer = await pdfService.generateCreditNotePdf(2, { locale: 'es', orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
     });
@@ -188,14 +188,14 @@ describe('PDF Service', () => {
           { id: 1, description: 'Internet 200 Mbps — Monthly', quantity: 12, unit_price: 83.33, amount: 1000 },
         ]]);
 
-      const buffer = await pdfService.generateQuotePdf(1);
+      const buffer = await pdfService.generateQuotePdf(1, { orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
     });
 
     it('throws for non-existent quote', async () => {
       db.query.mockResolvedValueOnce([[]]);
-      await expect(pdfService.generateQuotePdf(999)).rejects.toThrow('Quote not found');
+      await expect(pdfService.generateQuotePdf(999, { orgId: 1 })).rejects.toThrow('Quote not found');
     });
 
     it('generates a quote PDF with Spanish locale', async () => {
@@ -220,7 +220,7 @@ describe('PDF Service', () => {
           { id: 1, description: 'Internet 500 Mbps — Mensual', quantity: 12, unit_price: 166.67, amount: 2000 },
         ]]);
 
-      const buffer = await pdfService.generateQuotePdf(2, { locale: 'es' });
+      const buffer = await pdfService.generateQuotePdf(2, { locale: 'es', orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
     });
@@ -259,14 +259,14 @@ describe('PDF Service', () => {
           { id: 1, clave_prod_serv: '81161700', descripcion: 'Servicio de internet', cantidad: 1, valor_unitario: 500, importe: 500, objeto_imp: '02' },
         ]]);
 
-      const buffer = await pdfService.generateCfdiPdf(1);
+      const buffer = await pdfService.generateCfdiPdf(1, { orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
     });
 
     it('throws for non-existent CFDI document', async () => {
       db.query.mockResolvedValueOnce([[]]);
-      await expect(pdfService.generateCfdiPdf(999)).rejects.toThrow('CFDI document not found');
+      await expect(pdfService.generateCfdiPdf(999, { orgId: 1 })).rejects.toThrow('CFDI document not found');
     });
 
     it('generates a CFDI PDF with Spanish locale', async () => {
@@ -301,7 +301,7 @@ describe('PDF Service', () => {
           { id: 1, clave_prod_serv: '81161700', descripcion: 'Servicio de internet', cantidad: 1, valor_unitario: 1000, importe: 1000, objeto_imp: '02' },
         ]]);
 
-      const buffer = await pdfService.generateCfdiPdf(2, { locale: 'es' });
+      const buffer = await pdfService.generateCfdiPdf(2, { locale: 'es', orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
     });
@@ -344,7 +344,7 @@ describe('PDF Service', () => {
           { allocated_amount: 580, invoice_number: 'INV-000001', invoice_total: 580, invoice_currency: 'MXN', invoice_status: 'paid' },
         ]]);
 
-      const buffer = await pdfService.generatePaymentReceiptPdf(1);
+      const buffer = await pdfService.generatePaymentReceiptPdf(1, { orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.length).toBeGreaterThan(100);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
@@ -352,7 +352,7 @@ describe('PDF Service', () => {
 
     it('throws for non-existent payment', async () => {
       db.query.mockResolvedValueOnce([[]]);
-      await expect(pdfService.generatePaymentReceiptPdf(999)).rejects.toThrow('Payment not found');
+      await expect(pdfService.generatePaymentReceiptPdf(999, { orgId: 1 })).rejects.toThrow('Payment not found');
     });
 
     it('generates a receipt PDF with Spanish locale', async () => {
@@ -387,7 +387,7 @@ describe('PDF Service', () => {
         }]])
         .mockResolvedValueOnce([[]]);
 
-      const buffer = await pdfService.generatePaymentReceiptPdf(2, { locale: 'es' });
+      const buffer = await pdfService.generatePaymentReceiptPdf(2, { locale: 'es', orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
     });
@@ -424,7 +424,7 @@ describe('PDF Service', () => {
         }]])
         .mockResolvedValueOnce([[]]);
 
-      const buffer = await pdfService.generatePaymentReceiptPdf(3);
+      const buffer = await pdfService.generatePaymentReceiptPdf(3, { orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
     });
@@ -464,7 +464,7 @@ describe('PDF Service', () => {
           { allocated_amount: 700, invoice_number: 'INV-000011', invoice_total: 700, invoice_currency: 'MXN', invoice_status: 'paid' },
         ]]);
 
-      const buffer = await pdfService.generatePaymentReceiptPdf(4);
+      const buffer = await pdfService.generatePaymentReceiptPdf(4, { orgId: 1 });
       expect(Buffer.isBuffer(buffer)).toBe(true);
       expect(buffer.toString('utf8', 0, 5)).toBe('%PDF-');
     });

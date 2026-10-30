@@ -962,7 +962,7 @@ router.get('/invoices/:id/pdf', async (req, res, next) => {
     );
     if (!rows[0]) throw new NotFoundError('Invoice');
 
-    const pdfBuffer = await pdfService.generateInvoicePdf(rows[0].id, { locale: 'es' });
+    const pdfBuffer = await pdfService.generateInvoicePdf(rows[0].id, { locale: 'es', orgId: rows[0].organization_id });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="invoice-${rows[0].invoice_number}.pdf"`);
     res.send(pdfBuffer);

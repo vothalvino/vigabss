@@ -130,8 +130,9 @@ describe('portalAuthService.login()', () => {
     expect(result.client.email).toBe('alice@example.com');
     expect(jwt.sign).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'portal', sub: 1 }),
-      expect.any(String),
-      expect.any(Object),
+      // Portal-only derived key, never the staff JWT_SECRET string.
+      expect.any(Buffer),
+      expect.objectContaining({ audience: 'vigabss-portal' }),
     );
   });
 
