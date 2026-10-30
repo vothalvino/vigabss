@@ -10,6 +10,7 @@
 const db = require('../config/database');
 const billingService = require('../services/billingService');
 const Organization = require('../models/Organization');
+const { requireOrgId } = require('../utils/requireOrgId');
 const provisioningService = require('../services/subscriberProvisioningService');
 const radiusService = require('../services/radiusService');
 const Client = require('../models/Client');
@@ -552,6 +553,16 @@ async function insertInvoiceRow(row, orgId, ctx = {}) {
     [row.client_id, orgId],
   );
   if (!crows[0]) return `client_id ${row.client_id} not found in this organization`;
+  // contract_id decides which contract paying this invoice reconnects, so it
+  // must be one of this client's contracts in this org (BIL-04) — it used to
+  // be bound straight from the CSV.
+  if (row.contract_id) {
+    const [contractRows] = await db.query(
+      'SELECT id FROM contracts WHERE id = ? AND organization_id = ? AND client_id = ? AND deleted_at IS NULL LIMIT 1',
+      [row.contract_id, orgId, row.client_id],
+    );
+    if (!contractRows[0]) return `contract_id ${row.contract_id} not found for this client in this organization`;
+  }
   const clientExempt = crows[0].tax_exempt === 1 || crows[0].tax_exempt === true;
 
   const subtotal = parseFloat(row.subtotal) || 0;
@@ -721,7 +732,18 @@ const VALID_PAYMENT_METHODS = new Set([
  * Insert one payment row from a parsed row object.
  * Returns null on success, or an error message string.
  */
-async function insertPaymentRow(row) {
+//
+// The row is written into the CALLER'S organization (TNA-10). It used to be
+// inserted with no organization_id at all — invisible to every org-scoped list
+// and balance, yet reported as imported — and with client_id/invoice_id checked
+// only by the FK, so another tenant's client was accepted. Now: the client must
+// be live in this org, an invoice_id must be this client's invoice in this org,
+// currency comes from the org (never the column's 'USD' default), recorded_by
+// is the importing user, and the client's balance-ledger credit is written just
+// as POST /payments does. payments.invoice_id stays a reference column only —
+// no payment_allocations row is created, matching POST /payments.
+async function insertPaymentRow(row, orgId, ctx = {}) {
+  requireOrgId(orgId, 'importController.insertPaymentRow');
   if (!row.client_id) return 'client_id is required';
   if (!row.amount) return 'amount is required';
   if (!row.payment_date) return 'payment_date is required';
@@ -734,15 +756,36 @@ async function insertPaymentRow(row) {
   const amount = parseFloat(row.amount);
   if (isNaN(amount) || amount <= 0) return 'amount must be a positive number';
 
-  await db.query(
+  const [clientRows] = await db.query(
+    'SELECT id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL LIMIT 1',
+    [row.client_id, orgId],
+  );
+  if (!clientRows[0]) return `client_id ${row.client_id} not found in this organization`;
+
+  if (row.invoice_id) {
+    const [invoiceRows] = await db.query(
+      'SELECT id FROM invoices WHERE id = ? AND organization_id = ? AND client_id = ? AND deleted_at IS NULL LIMIT 1',
+      [row.invoice_id, orgId, row.client_id],
+    );
+    if (!invoiceRows[0]) return `invoice_id ${row.invoice_id} not found for this client in this organization`;
+  }
+
+  if (ctx.currency === undefined) {
+    ctx.currency = await Organization.getCurrency(orgId);
+  }
+  const currency = ctx.currency;
+
+  const [result] = await db.query(
     `INSERT INTO payments
-       (client_id, invoice_id, amount, payment_date,
-        payment_method, sat_forma_pago, reference_number, clabe, bank_name, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (organization_id, client_id, invoice_id, amount, currency, payment_date,
+        payment_method, sat_forma_pago, reference_number, clabe, bank_name, notes, recorded_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      orgId,
       row.client_id,
       row.invoice_id || null,
       amount,
+      currency,
       row.payment_date,
       method,
       row.sat_forma_pago || null,
@@ -750,8 +793,17 @@ async function insertPaymentRow(row) {
       row.clabe || null,
       row.bank_name || null,
       row.notes || null,
+      ctx.userId ?? null,
     ],
   );
+
+  await billingService.recordPaymentCredit({
+    id: result.insertId,
+    client_id: row.client_id,
+    amount,
+    currency,
+    reference_number: row.reference_number || null,
+  }, orgId);
   return null;
 }
 
@@ -768,6 +820,7 @@ async function importPayments(req, res, next) {
     }
 
     const rows = parseCsv(req.body.csv);
+    const ctx = { userId: req.user?.id ?? null }; // + per-import org currency cache
     let imported = 0;
     const errors = [];
     const rowCount = rows.length;
@@ -775,7 +828,7 @@ async function importPayments(req, res, next) {
     for (let i = 0; i < rowCount; i++) {
       const row = rows[i];
       try {
-        const err = await insertPaymentRow(row);
+        const err = await insertPaymentRow(row, req.orgId, ctx);
         if (err) {
           errors.push({ row: i + 2, error: err });
         } else {
@@ -803,6 +856,7 @@ async function importPaymentsFile(req, res, next) {
     }
 
     const rows = parseUploadedFile(req.file.buffer);
+    const ctx = { userId: req.user?.id ?? null }; // + per-import org currency cache
     let imported = 0;
     const errors = [];
     const rowCount = rows.length;
@@ -810,7 +864,7 @@ async function importPaymentsFile(req, res, next) {
     for (let i = 0; i < rowCount; i++) {
       const row = rows[i];
       try {
-        const err = await insertPaymentRow(row);
+        const err = await insertPaymentRow(row, req.orgId, ctx);
         if (err) {
           errors.push({ row: i + 2, error: err });
         } else {

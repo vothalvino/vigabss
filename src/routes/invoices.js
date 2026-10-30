@@ -71,6 +71,27 @@ function sameValue(a, b) {
   return String(a) === String(b);
 }
 
+// An invoice's contract_id decides which contract a payment reconnects (see
+// paymentAllocationService.reconnectIfSuspended), so it must name a live
+// contract of the SAME organization and the SAME client as the invoice. It used
+// to be bound straight from the body on create and passed through the fillable
+// list on update, so an org-A invoice could point at an org-B suspended
+// contract and paying it reconnected that contract (BIL-04). 422, like every
+// other foreign body reference.
+async function assertContractMatchesInvoice(exec, contractId, clientId, orgId) {
+  if (contractId === undefined || contractId === null) return;
+  const [rows] = await exec(
+    `SELECT id FROM contracts
+      WHERE id = ? AND organization_id = ? AND client_id = ? AND deleted_at IS NULL LIMIT 1`,
+    [contractId, orgId, clientId],
+  );
+  if (!rows[0]) {
+    throw new ValidationError('contract_id does not belong to this client in this organization', [
+      { field: 'contract_id', message: 'Invalid, cross-organization or other-client contract' },
+    ]);
+  }
+}
+
 // `exec` runs this guard's own reads on the caller's transaction. crudController
 // passes the locked connection (transactionalWrites below); it defaults to
 // db.query so direct callers and tests are unaffected. Reading outside the lock
@@ -101,6 +122,17 @@ async function assertUpdateFiscallySafe(old, req, exec = db.query) {
     if (!owned[0]) {
       throw new AppError('client_id not found in this organization.', 422, 'CLIENT_NOT_FOUND');
     }
+  }
+
+  // contract_id is fillable but absent from the update schemas, so it reached
+  // BaseModel.update unverified. Re-check it whenever it or the client moves:
+  // a client change that keeps the old contract would leave the invoice
+  // reconnecting the previous client's line once paid.
+  const contractChanged = body.contract_id !== undefined && body.contract_id !== null
+    && Number(body.contract_id) !== Number(old.contract_id);
+  if (contractChanged || clientChanged) {
+    const effectiveContract = body.contract_id === undefined ? old.contract_id : body.contract_id;
+    await assertContractMatchesInvoice(exec, effectiveContract, body.client_id ?? old.client_id, req.orgId);
   }
 
   // invoices.tax_rate is a DECIMAL(5,4) FRACTION (max 9.9999). The schema
@@ -418,6 +450,7 @@ router.post('/', requirePermission('invoices.create'), validate(createInvoice), 
         docType: 'invoice',
       });
     }
+    await assertContractMatchesInvoice(db.query.bind(db), req.body.contract_id, req.body.client_id, req.orgId);
 
     const conn = await db.getConnection();
     let invoiceId;

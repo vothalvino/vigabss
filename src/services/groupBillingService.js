@@ -301,7 +301,7 @@ async function payGroup(orgId, groupId, opts = {}) {
   }
   for (const invoice of justPaidInvoices) {
     try {
-      await paymentAllocationService.reconnectIfSuspended(invoice, opts.actorUserId);
+      await paymentAllocationService.reconnectIfSuspended(invoice, opts.actorUserId, orgId);
     } catch (err) {
       logger.warn({ err, invoiceId: invoice.id }, 'reconnectIfSuspended failed after group payment');
     }

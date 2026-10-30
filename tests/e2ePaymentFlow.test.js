@@ -384,9 +384,10 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
 
     test('creates payment and records ledger credit', async () => {
       mockAuthUser();
-      // Payment.create: INSERT → findByIdIncludingDeleted
-      // Then route calls billingService.recordPaymentCredit → INSERT ledger
+      // client ownership check (TNB-09) → Payment.create: INSERT →
+      // findByIdIncludingDeleted → billingService.recordPaymentCredit → INSERT ledger
       db.query
+        .mockResolvedValueOnce([[{ id: 10 }]])
         .mockResolvedValueOnce([{ insertId: 300, affectedRows: 1 }])
         .mockResolvedValueOnce([[mockPayment]])
         .mockResolvedValueOnce([{ insertId: 1 }]);
@@ -683,9 +684,10 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       expect(invoiceInsert[6]).toBe(694.84);  // total
 
       // --- Step 5: Record payment ---
-      // Payment.create: INSERT → findByIdIncludingDeleted
-      // billingService.recordPaymentCredit: INSERT ledger
+      // client ownership check (TNB-09) → Payment.create: INSERT →
+      // findByIdIncludingDeleted → billingService.recordPaymentCredit: INSERT ledger
       db.query
+        .mockResolvedValueOnce([[{ id: clientId }]])
         .mockResolvedValueOnce([{ insertId: 300, affectedRows: 1 }])
         .mockResolvedValueOnce([[{
           id: 300, organization_id: 1, client_id: clientId,

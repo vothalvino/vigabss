@@ -16,13 +16,42 @@ const repService = require('../services/repService');
 const { requireMxLocale } = require('../middleware/orgLocale');
 const paymentAllocationService = require('../services/paymentAllocationService');
 const db = require('../config/database');
+const { AppError } = require('../utils/errors');
 
 const router = Router();
+
+// A payment's client_id decides whose balance it credits and whose subscriber
+// portal lists it, so it must be a live client of the caller's org (TNB-09).
+// The FK alone accepted any tenant's client. 422 like invoices' check.
+async function assertPaymentClientOwned(clientId, orgId, exec = db.query.bind(db)) {
+  const [rows] = await exec(
+    'SELECT id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL LIMIT 1',
+    [clientId, orgId],
+  );
+  if (!rows[0]) {
+    throw new AppError('client_id not found in this organization.', 422, 'CLIENT_NOT_FOUND');
+  }
+}
+
 // Keep the client balance ledger in sync with the payment lifecycle. Creating a
 // payment writes a 'payment' credit (see the POST handler below); deleting one
 // must remove that credit, otherwise the ledger and the computed balance keep
 // showing a payment that has vanished from the Payments tab. Restoring re-adds it.
 const ctrl = crudController(Payment, {
+  // client_id is fillable but undeclared in the update schemas, so PUT/PATCH
+  // used to re-point a payment at any tenant's client and leave its ledger
+  // credit on the old one. Moving a payment between clients is POST
+  // /:id/reassign's job (allocation check + ledger move); refuse it here.
+  beforeUpdate: async (old, req) => {
+    const body = req.body || {};
+    if (body.client_id !== undefined && Number(body.client_id) !== Number(old.client_id)) {
+      throw new AppError(
+        'A payment cannot change client through an update; use POST /payments/:id/reassign.',
+        422, 'PAYMENT_CLIENT_IMMUTABLE',
+      );
+    }
+    delete body.client_id;
+  },
   afterDelete: async (payment) => {
     await billingService.reversePaymentCredit(payment.id);
     // Also undo its invoice allocations so an invoice isn't left flagged 'paid'
@@ -46,6 +75,7 @@ router.get('/:id', requirePermission('payments.view'), ctrl.get);
 router.post('/', requirePermission('payments.create'), validate(createPayment), async (req, res, next) => {
   try {
     req.body.organization_id = req.orgId;
+    await assertPaymentClientOwned(req.body.client_id, req.orgId);
     // Default to the organization's currency when the caller doesn't send
     // one — otherwise payments.currency's own column default ('USD') would
     // silently win regardless of the org's real currency. An explicitly-set
@@ -124,7 +154,7 @@ router.post('/:id/allocate', requirePermission('payments.create'), validate(allo
     // cannot drift (see src/services/paymentAllocationService.js).
     const becamePaid = await paymentAllocationService.finalizeIfFullyPaid(db.query.bind(db), invoice);
     if (becamePaid) {
-      await paymentAllocationService.reconnectIfSuspended(invoice, req.user.id);
+      await paymentAllocationService.reconnectIfSuspended(invoice, req.user.id, req.orgId);
     }
 
     // MX/SAT: a payment against a vigente PPD CFDI must be reported with a
@@ -268,7 +298,7 @@ router.post('/:id/allocate-auto', requirePermission('payments.create'), validate
     // own connection/transaction and cannot join this one (see
     // paymentAllocationService.reconnectIfSuspended).
     for (const invoice of justPaidInvoices) {
-      await paymentAllocationService.reconnectIfSuspended(invoice, req.user.id);
+      await paymentAllocationService.reconnectIfSuspended(invoice, req.user.id, req.orgId);
     }
 
     // Release the transaction connection BEFORE the REP/PAC work: stamping is

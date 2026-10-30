@@ -8544,8 +8544,9 @@ END$$
 DELIMITER ;
 
 -- ---------------------------------------------------------------------------
--- Triggers: CFDI document immutability (migration 148)
--- Purpose: Prevents modification of stamped (vigente) CFDI documents.
+-- Triggers: CFDI document immutability (migrations 148, 469)
+-- Purpose: Once a CFDI is filed with SAT (vigente, cancel_pending, cancelado)
+--          its source links, folio, receptor and fiscal fields are frozen.
 -- ---------------------------------------------------------------------------
 
 DELIMITER $$
@@ -8555,27 +8556,32 @@ CREATE TRIGGER trg_cfdi_documents_immutable_bu
 BEFORE UPDATE ON cfdi_documents
 FOR EACH ROW
 BEGIN
-    IF OLD.sat_status = 'vigente' THEN
-        IF NEW.subtotal           != OLD.subtotal
-        OR NEW.total_impuestos    != OLD.total_impuestos
-        OR NEW.total              != OLD.total
-        OR NEW.tipo_comprobante   != OLD.tipo_comprobante
-        OR NEW.uso_cfdi           != OLD.uso_cfdi
-        OR (NEW.metodo_pago IS NULL) != (OLD.metodo_pago IS NULL)
-        OR COALESCE(NEW.metodo_pago, '') != COALESCE(OLD.metodo_pago, '')
-        OR (NEW.forma_pago IS NULL) != (OLD.forma_pago IS NULL)
-        OR COALESCE(NEW.forma_pago, '') != COALESCE(OLD.forma_pago, '')
-        OR NEW.moneda             != OLD.moneda
-        OR COALESCE(NEW.receptor_rfc, '')    != COALESCE(OLD.receptor_rfc, '')
-        OR COALESCE(NEW.receptor_nombre, '') != COALESCE(OLD.receptor_nombre, '')
-        OR COALESCE(NEW.uuid, '')            != COALESCE(OLD.uuid, '')
-        OR (NEW.xml_content IS NULL) != (OLD.xml_content IS NULL)
-        OR COALESCE(NEW.xml_content, '') != COALESCE(OLD.xml_content, '')
-        OR (NEW.signed_xml IS NULL) != (OLD.signed_xml IS NULL)
-        OR COALESCE(NEW.signed_xml, '') != COALESCE(OLD.signed_xml, '')
+    IF OLD.sat_status IN ('vigente', 'cancel_pending', 'cancelado') THEN
+        IF NOT (NEW.subtotal          <=> OLD.subtotal)
+        OR NOT (NEW.total_impuestos   <=> OLD.total_impuestos)
+        OR NOT (NEW.total             <=> OLD.total)
+        OR NOT (NEW.tipo_comprobante  <=> OLD.tipo_comprobante)
+        OR NOT (NEW.uso_cfdi          <=> OLD.uso_cfdi)
+        OR NOT (NEW.metodo_pago       <=> OLD.metodo_pago)
+        OR NOT (NEW.forma_pago        <=> OLD.forma_pago)
+        OR NOT (NEW.moneda            <=> OLD.moneda)
+        OR NOT (NEW.receptor_rfc      <=> OLD.receptor_rfc)
+        OR NOT (NEW.receptor_nombre   <=> OLD.receptor_nombre)
+        OR NOT (NEW.receptor_regimen  <=> OLD.receptor_regimen)
+        OR NOT (NEW.receptor_cp       <=> OLD.receptor_cp)
+        OR NOT (NEW.uuid              <=> OLD.uuid)
+        OR NOT (NEW.xml_content       <=> OLD.xml_content)
+        OR NOT (NEW.signed_xml        <=> OLD.signed_xml)
+        OR NOT (NEW.organization_id   <=> OLD.organization_id)
+        OR NOT (NEW.client_id         <=> OLD.client_id)
+        OR NOT (NEW.invoice_id        <=> OLD.invoice_id)
+        OR NOT (NEW.payment_id        <=> OLD.payment_id)
+        OR NOT (NEW.credit_note_id    <=> OLD.credit_note_id)
+        OR NOT (NEW.serie             <=> OLD.serie)
+        OR NOT (NEW.folio             <=> OLD.folio)
         THEN
             SIGNAL SQLSTATE '45000'
-                SET MESSAGE_TEXT = 'Stamped CFDI documents (vigente) cannot be modified; use the cancellation flow';
+                SET MESSAGE_TEXT = 'Filed CFDI documents (vigente/cancel_pending/cancelado) cannot be modified; use the cancellation flow';
         END IF;
     END IF;
 END$$

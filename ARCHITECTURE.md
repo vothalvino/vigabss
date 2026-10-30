@@ -194,7 +194,10 @@ shared primary database.
   that reference in `req.orgId` on create, update, and any derivation step (for
   example quote -> invoice conversion); reject a foreign or missing reference
   with a 422 `ValidationError`. See `assertServiceOrderFks`, `assertQuoteFks`
-  and `assertTicketFks` in `src/routes/`.
+  and `assertTicketFks` in `src/routes/`. A billing document's `contract_id`
+  must also belong to the document's own client, and a side effect driven by
+  a stored reference (a paid invoice reconnecting its contract) re-binds the
+  org at use time instead of trusting the stored id.
 - Child tables without their own `organization_id` (for example
   `ticket_comments`, `ticket_relations`, `ticket_time_logs`) are scoped only
   through their parent: load the parent by id **and** `req.orgId` before any
