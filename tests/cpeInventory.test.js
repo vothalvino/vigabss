@@ -224,14 +224,14 @@ describe('swapDevice — stock effects', () => {
     // transitionLifecycleState: load current state
     if (s === 'SELECT id, lifecycle_state, organization_id FROM cpe_devices WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL) AND deleted_at IS NULL') {
       const [id, orgId] = p;
-      const d = state.devices.find(dev => dev.id === id && (dev.organization_id === orgId || dev.organization_id == null));
+      const d = state.devices.find(dev => dev.id === id && (dev.organization_id === orgId || dev.organization_id === null));
       return Promise.resolve([d ? [{ id: d.id, lifecycle_state: d.lifecycle_state, organization_id: d.organization_id }] : []]);
     }
 
     // transitionLifecycleState: apply state
     if (s === 'UPDATE cpe_devices SET lifecycle_state = ? WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL)') {
       const [toState, id, orgId] = p;
-      const d = state.devices.find(dev => dev.id === id && (dev.organization_id === orgId || dev.organization_id == null));
+      const d = state.devices.find(dev => dev.id === id && (dev.organization_id === orgId || dev.organization_id === null));
       if (d) d.lifecycle_state = toState;
       return Promise.resolve([{ affectedRows: d ? 1 : 0 }]);
     }
