@@ -2756,7 +2756,14 @@
     "delete_success": "Plantilla eliminada.",
     "delete_error": "Error al eliminar plantilla.",
     "error": "Error al cargar plantillas.",
-    "empty": "No se encontraron plantillas."
+    "empty": "No se encontraron plantillas.",
+    "deploy_error": "No se pudo generar la plantilla de configuración para este dispositivo.",
+    "deploy_result_title": "Resultado del despliegue",
+    "deploy_not_pushed": "El envío automático aún no está disponible. No se envió nada al dispositivo: aplique manualmente la configuración generada a continuación.",
+    "deploy_pushed": "La configuración se envió al dispositivo.",
+    "deploy_status": "Estado del despliegue: {{status}}",
+    "rendered_config": "Configuración generada",
+    "deploy_result_close": "Listo"
   },
   "config_backup_schedules": {
     "title": "Programaciones de Respaldo",

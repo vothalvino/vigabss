@@ -111,7 +111,9 @@ describe('Config Template routes', () => {
       .expect(204);
   });
 
-  test('POST /api/v1/config-templates/:id/deploy creates deployment', async () => {
+  // Contract change (NET-09): no push exists, so deploy answers 200 with a
+  // 'pending' record instead of 201 "created/deployed".
+  test('POST /api/v1/config-templates/:id/deploy records a pending (not pushed) deployment', async () => {
     db.query.mockImplementation((sql) => {
       if (typeof sql === 'string' && sql.includes('users') && sql.includes('WHERE id = ?') && !sql.includes('config_template') && !sql.includes('device')) {
         return Promise.resolve([[{ id: 1, email: 'admin@test.com', role: 'admin', status: 'active', organization_id: 10 }]]);
@@ -139,7 +141,9 @@ describe('Config Template routes', () => {
       .set('Authorization', `Bearer ${token}`)
       .set('X-Org-Id', '10')
       .send({ device_id: 5, variables: { hostname: 'Router1' } })
-      .expect(201);
-    expect(res.body.data).toBeDefined();
+      .expect(200);
+    expect(res.body.data.status).toBe('pending');
+    expect(res.body.data.push_performed).toBe(false);
+    expect(res.body.data.rendered_config).toBe('hostname Router1');
   });
 });

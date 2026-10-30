@@ -292,6 +292,19 @@ frontend. MySQL booleans commonly return as `0`/`1`, and `DECIMAL` values return
 as strings under the current mysql2 configuration; convert deliberately before
 boolean logic, comparison, or arithmetic.
 
+A client's headline balance is computed live by
+`src/services/clientBalanceService.js` from invoices, payments, and
+`issued`/`applied` credit notes. `client_balance_ledger` is the history behind
+the Ledger tab, `GET /clients/:id/balance-ledger`, and the statement PDF, and
+it must agree with the headline balance. A credit note posts its ledger credit
+only when it is issued: a draft posts nothing, and the draft -> issued/applied
+change through `PUT /credit-notes/:id` posts the final total once, inside the
+crudController update transaction and row lock. A note created directly as
+issued/applied posts at creation. A posted note cannot return to draft, and
+`cancelled` is terminal. Cancelling a posted note writes no reversal today.
+Ledger history is corrected by appending compensating rows, not by editing old
+ones.
+
 `pnpm run sql:check` statically checks resolvable SQL in `src/` against
 `database/schema.sql`, including table/column names, ENUM values, and writes to
 generated columns. Dynamic SQL is reported as skipped. The exception lists in
@@ -345,6 +358,23 @@ device-less rule is organization-wide, never installation-wide. The global
 five-minute alert task fans out over active shared-database organizations and
 enters each isolated tenant database explicitly; it must never query rules with
 `organization_id = NULL` and report a false-success no-op.
+
+### Device configuration backup and templates
+
+On-demand `POST /device-config-backups/pull` loads the device with
+`organization_id <=> req.orgId` before any RouterOS session is opened through a
+FireRelay agent. Its credentials come only from the request body or from the
+device's active MikroTik `router_driver_configs` row in the same organization.
+The install-wide `ROUTEROS_API_USER`/`ROUTEROS_API_PASSWORD` variables belong to
+the unattended nightly `config_backup` task (`runNightlyBackups`) and must not
+become a fallback for tenant-triggered pulls.
+
+`POST /config-templates/:id/deploy` binds both template and device to
+`req.orgId`. No config-push mechanism exists (no RouterOS import/apply handler,
+FireRelay command, or driver command), so a deploy renders the template, records
+`config_deployment_records.status = 'pending'` with no `deployed_at`, and
+returns `push_performed: false` plus `rendered_config` for manual application.
+Do not record `success` until a real push reports per-step device results.
 
 ## REST/OpenAPI contract
 
