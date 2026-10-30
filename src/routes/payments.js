@@ -351,7 +351,7 @@ router.get('/:id/receipt', requirePermission('payments.view'), async (req, res, 
     const width = widthStr === '58' ? 32 : 48;
     const text = await thermalReceiptService.generatePaymentThermalReceipt(
       parseInt(req.params.id, 10),
-      { width },
+      { width, orgId: req.orgId },
     );
     res.set('Content-Type', 'text/plain; charset=utf-8');
     res.send(text);
@@ -697,7 +697,7 @@ router.post('/:id/send-receipt', requirePermission('payments.view'), async (req,
     if (!payment.client_email) return res.status(422).json({ error: 'Client has no email address' });
 
     const locale = req.query.locale || 'en';
-    const buffer = await pdfService.generatePaymentReceiptPdf(paymentId, { locale });
+    const buffer = await pdfService.generatePaymentReceiptPdf(paymentId, { locale, orgId: req.orgId });
 
     const templates = require('../views/emailTemplates');
     const template = templates.paymentReceiptEmail({

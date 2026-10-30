@@ -151,11 +151,15 @@ describe('a failed credit note is not reported as a processed refund', () => {
       if (/FROM `?clients`?/.test(sql)) return [[{ id: 5, tax_exempt: 0, locale: 'MX', zip_code: '06000' }]];
       if (/FROM `?invoices`?/.test(sql)) return [[{ tax_rate: '0.1600', currency: 'MXN' }]];
       if (/INSERT INTO credit_notes/.test(sql)) throw new Error('ER_NO_REFERENCED_ROW');
+      if (/^UPDATE `?refund_requests`?/i.test(sql)) return [{ affectedRows: 1 }];
       return [[]];
     });
     await expect(process()).rejects.toThrow(/ER_NO_REFERENCED_ROW/);
-    // The status write lives after this branch — it must never have run.
-    const marked = db.query.mock.calls.some(c => /^UPDATE `?refund_requests`?/i.test(c[0]) && /status/i.test(c[0]));
-    expect(marked).toBe(false);
+    // The only status writes are the atomic claim (approved -> processed) and
+    // its release back to approved; the final "processed" write never ran.
+    const statusWrites = db.query.mock.calls
+      .filter(c => /^UPDATE `?refund_requests`?/i.test(c[0]) && /status/i.test(c[0]))
+      .map(c => (c[0].match(/SET status = '(\w+)'/) || [])[1]);
+    expect(statusWrites).toEqual(['processed', 'approved']);
   });
 });

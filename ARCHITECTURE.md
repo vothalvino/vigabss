@@ -151,6 +151,16 @@ Staff/API authentication is implemented in `src/middleware/auth.js` and accepts:
 - the SPA's HTTP-only access cookie; or
 - an API key through `X-API-Key`.
 
+Subscriber-portal access JWTs are a separate credential class. They are signed
+with a portal-only key derived from `JWT_SECRET`, carry `aud: vigabss-portal`
+and `type: 'portal'`, and are issued and verified only through
+`src/utils/accessTokens.js`. Staff verification (`authenticate()`, GraphQL,
+SSE, and the browser WebSocket hub) uses `verifyStaffAccessToken`, which also
+rejects any token claiming the portal type or audience; `portalAuthenticate`
+uses `verifyPortalAccessToken`. Never verify an access JWT with a raw
+`jwt.verify(..., JWT_SECRET)` on a new surface: a `clients.id` must never be
+resolved as a `users.id`.
+
 The Authorization header takes precedence over the browser cookie. The active
 organization is resolved into the authenticated principal and carried as
 `req.user.organizationId`; `orgScope` validates it and exposes `req.orgId`.

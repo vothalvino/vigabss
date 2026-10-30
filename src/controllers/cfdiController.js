@@ -179,7 +179,7 @@ async function downloadPdf(req, res, next) {
     // impresa for stamped documents and the draft summary otherwise. The
     // hand-rolled layout that used to live here read phantom columns
     // (sello_sat / fecha_emision) and skipped every legally required element.
-    const buffer = await pdfService.generateCfdiPdf(docs[0].id, { locale: 'es' });
+    const buffer = await pdfService.generateCfdiPdf(docs[0].id, { locale: 'es', orgId: req.orgId });
     res.set('Content-Type', 'application/pdf');
     res.set('Content-Disposition', `attachment; filename="CFDI-${docs[0].uuid || docs[0].id}.pdf"`);
     res.send(buffer);

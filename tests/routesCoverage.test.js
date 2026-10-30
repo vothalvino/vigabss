@@ -1028,7 +1028,7 @@ describe('PDF Routes — /api/pdf', () => {
         .get('/api/pdf/invoices/1?locale=es')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect(pdfService.generateInvoicePdf).toHaveBeenCalledWith(1, { locale: 'es' });
+      expect(pdfService.generateInvoicePdf).toHaveBeenCalledWith(1, { locale: 'es', orgId: 1 });
     });
 
     test('handles errors', async () => {
@@ -1106,7 +1106,7 @@ describe('PDF Routes — /api/pdf', () => {
         .get('/api/pdf/payments/1?locale=es')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect(pdfService.generatePaymentReceiptPdf).toHaveBeenCalledWith(1, { locale: 'es' });
+      expect(pdfService.generatePaymentReceiptPdf).toHaveBeenCalledWith(1, { locale: 'es', orgId: 1 });
     });
 
     test('handles errors', async () => {

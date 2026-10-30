@@ -8652,42 +8652,6 @@
         }
       }
     },
-    "/billing/allocate-payment": {
-      "post": {
-        "tags": [
-          "Billing"
-        ],
-        "summary": "Allocate payment to invoices",
-        "operationId": "allocatePayment",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "description": "payment_id + allocations",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Allocations",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/billing/bulk-generate": {
       "post": {
         "tags": [
@@ -59600,22 +59564,6 @@
         },
         "required": [
           "contract_id"
-        ]
-      },
-      "billing_allocatePayment": {
-        "type": "object",
-        "properties": {
-          "payment_id": {
-            "type": "number",
-            "minimum": 1
-          },
-          "allocations": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "payment_id",
-          "allocations"
         ]
       },
       "billingAdjustments_createBillingAdjustmentSchema": {

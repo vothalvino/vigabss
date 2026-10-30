@@ -7,7 +7,6 @@
 
 const db = require('../config/database');
 const billingService = require('../services/billingService');
-const repService = require('../services/repService');
 
 /**
  * POST /api/billing/generate-period
@@ -63,84 +62,6 @@ async function generateInvoice(req, res, next) {
 }
 
 /**
- * POST /api/billing/allocate-payment
- * Allocate a payment to one or more invoices.
- */
-async function allocatePayment(req, res, next) {
-  try {
-    const { payment_id, allocations } = req.body;
-
-    // Validate payment exists and belongs to org
-    const [payments] = await db.query(
-      'SELECT * FROM payments WHERE id = ? AND organization_id = ?',
-      [payment_id, req.orgId],
-    );
-    if (!payments[0]) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Payment not found' } });
-    }
-    const payment = payments[0];
-
-    const conn = await db.getConnection();
-    let connReleased = false;
-    try {
-      await conn.beginTransaction();
-
-      const results = [];
-      for (const alloc of allocations) {
-        const [result] = await conn.execute(
-          // payment_allocations has no `currency` column — the currency lives on
-          // the payment and on the invoice (database/schema.sql).
-          `INSERT INTO payment_allocations (payment_id, invoice_id, amount)
-           VALUES (?, ?, ?)`,
-          [payment_id, alloc.invoice_id, alloc.amount],
-        );
-        results.push({ id: result.insertId, invoice_id: alloc.invoice_id, amount: alloc.amount });
-
-        // Check if invoice is fully paid and update status
-        const [totals] = await conn.execute(
-          'SELECT COALESCE(SUM(amount), 0) AS paid FROM payment_allocations WHERE invoice_id = ? AND deleted_at IS NULL',
-          [alloc.invoice_id],
-        );
-        const [inv] = await conn.execute(
-          'SELECT total FROM invoices WHERE id = ?',
-          [alloc.invoice_id],
-        );
-
-        if (inv[0] && parseFloat(totals[0].paid) >= parseFloat(inv[0].total)) {
-          await conn.execute(
-            'UPDATE invoices SET status = ? WHERE id = ?',
-            ['paid', alloc.invoice_id],
-          );
-        }
-      }
-
-      // Record credit on client balance ledger
-      await billingService.recordPaymentCredit(payment, req.orgId);
-
-      await conn.commit();
-      // Committed — free the pool slot before the REP/PAC I/O.
-      conn.release();
-      connReleased = true;
-
-      // MX/SAT: REP per allocation (best-effort, post-commit — mirrors the
-      // /payments/:id/allocate hook).
-      for (const alloc of allocations) {
-        await repService.maybeGenerateRep(payment_id, alloc.invoice_id, alloc.amount, req.orgId, req.user?.id);
-      }
-
-      res.status(201).json({ data: { payment_id, allocations: results } });
-    } catch (err) {
-      if (!connReleased) await conn.rollback();
-      throw err;
-    } finally {
-      if (!connReleased) conn.release();
-    }
-  } catch (err) {
-    next(err);
-  }
-}
-
-/**
  * POST /api/billing/bulk-generate
  * Generate invoices for all active contracts in the organization.
  */
@@ -176,4 +97,4 @@ async function bulkGenerate(req, res, next) {
   }
 }
 
-module.exports = { generatePeriod, generateInvoice, allocatePayment, bulkGenerate };
+module.exports = { generatePeriod, generateInvoice, bulkGenerate };

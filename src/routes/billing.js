@@ -28,11 +28,9 @@ router.post('/generate-invoice',
   billingController.generateInvoice,
 );
 
-router.post('/allocate-payment',
-  requirePermission('payments.create'),
-  validate(billingSchemas.allocatePayment),
-  billingController.allocatePayment,
-);
+// Payment allocation lives only in /payments/:id/allocate (and allocate-auto),
+// which bind organization, client, invoice state, currency and amount. The
+// legacy POST /billing/allocate-payment did none of that and was removed.
 
 router.post('/bulk-generate',
   requirePermission('invoices.create'),
