@@ -186,7 +186,7 @@ describe('paymentPlanService', () => {
     test('marks installment as paid and creates allocation when invoice_id exists', async () => {
       const plan = { id: 1, organization_id: 1 };
       const installment = { id: 10, plan_id: 1, sequence: 2, amount: '50.00', invoice_id: 99, status: 'pending' };
-      const payment = { id: 5, organization_id: 1, amount: '50.00' };
+      const payment = { id: 5, organization_id: 1, amount: '50.00', status: 'completed' };
 
       db.query
         .mockResolvedValueOnce([[plan]])       // SELECT plan
@@ -217,7 +217,7 @@ describe('paymentPlanService', () => {
     test('marks plan as completed when all installments are paid', async () => {
       const plan = { id: 1, organization_id: 1 };
       const installment = { id: 11, plan_id: 1, sequence: 1, amount: '100.00', invoice_id: null, status: 'pending' };
-      const payment = { id: 6, organization_id: 1 };
+      const payment = { id: 6, organization_id: 1, status: 'completed' };
 
       db.query
         .mockResolvedValueOnce([[plan]])
@@ -273,7 +273,7 @@ describe('paymentPlanService', () => {
     test('does not create allocation when invoice_id is null', async () => {
       const plan = { id: 1, organization_id: 1 };
       const installment = { id: 12, plan_id: 1, sequence: 1, amount: '75.00', invoice_id: null, status: 'pending' };
-      const payment = { id: 7, organization_id: 1 };
+      const payment = { id: 7, organization_id: 1, status: 'completed' };
 
       db.query
         .mockResolvedValueOnce([[plan]])
