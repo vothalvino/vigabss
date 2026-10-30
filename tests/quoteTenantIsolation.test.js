@@ -41,6 +41,7 @@ const billingService = require('../src/services/billingService');
 const checkoutService = require('../src/services/checkoutService');
 const pdfService = require('../src/services/pdfService');
 const { resolveOrgPrincipal } = require('../src/services/orgPrincipalService');
+const { signPortalAccessToken } = require('../src/utils/accessTokens');
 const app = require('../src/app');
 
 const ORG_A = 10;
@@ -145,7 +146,7 @@ function staffToken() {
   return jwt.sign({ sub: BILLING_USER.id, email: BILLING_USER.email, orgId: ORG_A }, config.jwt.secret, { expiresIn: '1h' });
 }
 function portalToken(clientId, orgId) {
-  return jwt.sign({ sub: clientId, orgId, type: 'portal' }, config.jwt.secret, { expiresIn: '1h' });
+  return signPortalAccessToken({ clientId, organizationId: orgId }, 3600);
 }
 
 const quoteWrites = () => writes.filter(w => w.table === 'quotes');

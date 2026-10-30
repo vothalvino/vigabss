@@ -48,6 +48,7 @@ const db = require('../src/config/database');
 const User = require('../src/models/User');
 const jobQueue = require('../src/services/jobQueueService');
 const { mockTxConnection } = require('./fixtures/mockTxConnection');
+const { signPortalAccessToken } = require('../src/utils/accessTokens');
 const app = require('../src/app');
 
 const ORG_A = 1; // the caller
@@ -58,11 +59,7 @@ const staffToken = jwt.sign(
   config.jwt.secret,
   { expiresIn: 900, algorithm: config.jwt.algorithm },
 );
-const portalToken = jwt.sign(
-  { sub: 10, type: 'portal' },
-  config.jwt.secret,
-  { expiresIn: 900, algorithm: config.jwt.algorithm },
-);
+const portalToken = signPortalAccessToken({ clientId: 10 }, 900);
 
 const ALL_TICKET_PERMS = [
   'tickets.view', 'tickets.create', 'tickets.update', 'tickets.delete',
