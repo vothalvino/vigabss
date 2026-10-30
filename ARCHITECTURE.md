@@ -240,7 +240,11 @@ There is no production-wide `users.role = 'admin'` permission bypass in
 doubles. Do not design production behavior around that test compatibility path.
 
 API token scope `NULL` is the legacy unrestricted sentinel; an empty or invalid
-scope list fails closed. GraphQL must maintain permission parity with equivalent
+scope list fails closed. A role is not expressible as a scope, so `requireRole`
+admits only that unrestricted sentinel and refuses scope-limited tokens.
+Installation-wide infrastructure (FireRelay node registry and tunnel commands,
+backup settings, system version) is gated on the install operator
+(`src/services/installOperator.js`), never on a tenant admin/owner role. GraphQL must maintain permission parity with equivalent
 REST operations through `src/graphql/authz.js` and the field map in
 `src/graphql/index.js`.
 
