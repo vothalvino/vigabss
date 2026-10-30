@@ -10,16 +10,13 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createFacturaPublica, updateFacturaPublica, addFacturaPublicaItem } = require('../middleware/schemas/facturasPublicas');
 const db = require('../config/database');
+const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
 
 const router = Router();
 
 const ALLOWED_COLUMNS = [
   'cfdi_document_id', 'periodicidad', 'meses', 'anio',
   'subtotal', 'total_impuestos', 'total', 'status',
-];
-
-const ALLOWED_ITEM_COLUMNS = [
-  'invoice_id',
 ];
 
 router.use(authenticate);
@@ -113,21 +110,42 @@ router.put('/:id', requirePermission('facturas_publicas.update'), validate(updat
   }
 });
 
+// factura_publica_invoice_items has no organization_id; both item routes prove
+// the parent factura belongs to the caller's org first (404 otherwise). They
+// used to read and link by factura id alone, and POST accepted any tenant's
+// invoice id — which, through UNIQUE(invoice_id), also let one tenant block
+// another's invoice from ever joining its own factura pública.
+async function findFacturaOrFail(exec, id, orgId, { forUpdate = false } = {}) {
+  const [rows] = await exec(
+    `SELECT id, status, cfdi_document_id FROM factura_publica_invoices
+      WHERE id = ? AND organization_id = ?${forUpdate ? ' FOR UPDATE' : ''}`,
+    [id, orgId],
+  );
+  if (!rows[0]) throw new NotFoundError('Factura pública');
+  return rows[0];
+}
+
 // List linked invoices for a factura pública
 router.get('/:id/items', requirePermission('facturas_publicas.view'), async (req, res, next) => {
   try {
+    await findFacturaOrFail(db.query, req.params.id, req.orgId);
     const { page = 1, limit = 50 } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10));
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
     const offset = (pageNum - 1) * limitNum;
 
     const [rows] = await db.query(
-      `SELECT * FROM factura_publica_invoice_items WHERE factura_publica_invoice_id = ? ORDER BY id LIMIT ${limitNum} OFFSET ${offset}`,
-      [req.params.id],
+      `SELECT fi.* FROM factura_publica_invoice_items fi
+         JOIN factura_publica_invoices f ON f.id = fi.factura_publica_invoice_id
+        WHERE fi.factura_publica_invoice_id = ? AND f.organization_id = ?
+        ORDER BY fi.id LIMIT ${limitNum} OFFSET ${offset}`,
+      [req.params.id, req.orgId],
     );
     const [countResult] = await db.query(
-      'SELECT COUNT(*) AS total FROM factura_publica_invoice_items WHERE factura_publica_invoice_id = ?',
-      [req.params.id],
+      `SELECT COUNT(*) AS total FROM factura_publica_invoice_items fi
+         JOIN factura_publica_invoices f ON f.id = fi.factura_publica_invoice_id
+        WHERE fi.factura_publica_invoice_id = ? AND f.organization_id = ?`,
+      [req.params.id, req.orgId],
     );
     const total = countResult[0].total;
 
@@ -143,18 +161,45 @@ router.get('/:id/items', requirePermission('facturas_publicas.view'), async (req
 // Link an invoice to a factura pública
 router.post('/:id/items', requirePermission('facturas_publicas.update'), validate(addFacturaPublicaItem), async (req, res, next) => {
   try {
-    const safe = Object.fromEntries(
-      Object.entries(req.body).filter(([k]) => ALLOWED_ITEM_COLUMNS.includes(k)),
-    );
-    safe.factura_publica_invoice_id = req.params.id;
-    const columns = Object.keys(safe);
-    const placeholders = columns.map(() => '?').join(', ');
-    const [result] = await db.query(
-      `INSERT INTO factura_publica_invoice_items (${columns.join(', ')}) VALUES (${placeholders})`,
-      Object.values(safe),
-    );
-    const [rows] = await db.query('SELECT * FROM factura_publica_invoice_items WHERE id = ?', [result.insertId]);
-    res.status(201).json({ data: rows[0] });
+    const conn = await db.getConnection();
+    let row;
+    try {
+      await conn.beginTransaction();
+      const exec = conn.execute.bind(conn);
+      // Lock the parent so a concurrent stamp cannot land between the status
+      // check and the insert.
+      const factura = await findFacturaOrFail(exec, req.params.id, req.orgId, { forUpdate: true });
+      // A stamped (or cancelled) factura pública is a filed SAT document; its
+      // invoice set is frozen.
+      if (factura.status !== 'draft' || factura.cfdi_document_id) {
+        throw new AppError(
+          `Invoices can only be linked to a draft factura pública (this one is ${factura.status}).`,
+          422, 'FACTURA_PUBLICA_NOT_DRAFT',
+        );
+      }
+      const [[invoice]] = await exec(
+        'SELECT id FROM invoices WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+        [req.body.invoice_id, req.orgId],
+      );
+      if (!invoice) {
+        throw new ValidationError(
+          'invoice_id does not reference an invoice in this organization',
+          [{ field: 'invoice_id', message: 'Invalid or cross-organization invoice' }],
+        );
+      }
+      const [result] = await exec(
+        'INSERT INTO factura_publica_invoice_items (factura_publica_invoice_id, invoice_id) VALUES (?, ?)',
+        [factura.id, invoice.id],
+      );
+      [[row]] = await exec('SELECT * FROM factura_publica_invoice_items WHERE id = ?', [result.insertId]);
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+    res.status(201).json({ data: row });
   } catch (err) {
     next(err);
   }

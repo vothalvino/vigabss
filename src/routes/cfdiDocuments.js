@@ -58,7 +58,8 @@ router.put('/:id', requirePermission('cfdi_documents.update'), validate(updateCf
 // Get CFDI conceptos
 router.get('/:id/conceptos', requirePermission('cfdi_documents.view'), async (req, res, next) => {
   try {
-    const conceptos = await CfdiDocument.getConceptos(req.params.id);
+    await CfdiDocument.findByIdOrFail(req.params.id, req.orgId);
+    const conceptos = await CfdiDocument.getConceptos(req.params.id, req.orgId);
     res.json({ data: conceptos });
   } catch (err) {
     next(err);
@@ -68,7 +69,8 @@ router.get('/:id/conceptos', requirePermission('cfdi_documents.view'), async (re
 // Get related CFDI documents
 router.get('/:id/related', requirePermission('cfdi_documents.view'), async (req, res, next) => {
   try {
-    const related = await CfdiDocument.getRelatedDocuments(req.params.id);
+    await CfdiDocument.findByIdOrFail(req.params.id, req.orgId);
+    const related = await CfdiDocument.getRelatedDocuments(req.params.id, req.orgId);
     res.json({ data: related });
   } catch (err) {
     next(err);

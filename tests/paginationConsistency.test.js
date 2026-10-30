@@ -235,6 +235,8 @@ describe('Pagination — GET /api/facturas-publicas/:id/items', () => {
   test('returns paginated items', async () => {
     mockAuthUser();
     db.query
+      // parent factura lookup (org-scoped) runs first now
+      .mockResolvedValueOnce([[{ id: 1, status: 'draft', cfdi_document_id: null }]])
       .mockResolvedValueOnce([[{ id: 1, invoice_id: 5 }]])
       .mockResolvedValueOnce([[{ total: 1 }]]);
 

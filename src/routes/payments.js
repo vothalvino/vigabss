@@ -336,7 +336,8 @@ router.post('/:id/rep', requireMxLocale, requirePermission('cfdi_documents.creat
 // Get payment allocations
 router.get('/:id/allocations', requirePermission('payments.view'), async (req, res, next) => {
   try {
-    const allocations = await Payment.getAllocations(req.params.id);
+    await Payment.findByIdOrFail(req.params.id, req.orgId);
+    const allocations = await Payment.getAllocations(req.params.id, req.orgId);
     res.json({ data: allocations });
   } catch (err) {
     next(err);

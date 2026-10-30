@@ -270,6 +270,21 @@ Most models extend `src/models/BaseModel.js`:
 - generic updates reject `organization_id`; tenant re-homing requires a
   separate, explicitly reviewed operation.
 
+Child tables without their own `organization_id` (contacts, invoice/quote/
+credit-note/factura-pública items, payment allocations, CFDI conceptos and
+related documents, inventory stock, device-group members) are tenant-scoped
+only through their parent. A child sub-route must load the parent with
+`req.orgId` first and return 404 when it is not in the org, and its model
+helper must take `orgId` and join the parent's `organization_id` (null-safe
+`<=>` where that column is nullable). Helpers built this way call
+`src/utils/requireOrgId.js` and throw when `orgId` is `undefined`. A line-item
+POST takes its parent id from the URL only: `validate()` does not strip
+undeclared keys, so a body parent id spread after the URL id overrides it.
+Global (`organization_id IS NULL`) rows such as shared CPE profiles stay
+readable through an explicit "own or NULL" lookup, never through an unscoped
+one. `tests/childResourceOrgIsolation.test.js` covers these routes with two
+organizations.
+
 Many responses are direct `SELECT *` database rows. Database column names and
 MySQL wire types are therefore part of the effective API contract. Verify them
 in `database/schema.sql` or the migration rather than guessing aliases in the

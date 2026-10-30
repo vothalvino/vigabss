@@ -993,6 +993,8 @@ describe('Invoice Routes — /api/invoices', () => {
     test('returns line items for an invoice', async () => {
       mockAuthUser();
       const item = { id: 1, invoice_id: 1, description: '50 Mbps Plan', quantity: 1, unit_price: 499, amount: 499 };
+      // The route proves the parent invoice is in the caller's org first.
+      db.query.mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]]);
       db.query.mockResolvedValueOnce([[item]]);
 
       const res = await request(app)
@@ -1114,6 +1116,8 @@ describe('Invoice Routes — /api/invoices', () => {
     test('returns payment allocations for an invoice', async () => {
       mockAuthUser();
       const alloc = { id: 1, payment_id: 2, invoice_id: 1, amount: 578.84, payment_amount: 578.84, payment_method: 'transfer' };
+      // The route proves the parent invoice is in the caller's org first.
+      db.query.mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]]);
       db.query.mockResolvedValueOnce([[alloc]]);
 
       const res = await request(app)
@@ -1309,6 +1313,8 @@ describe('Payment Routes — /api/payments', () => {
     test('returns allocations for a payment', async () => {
       mockAuthUser();
       const alloc = { id: 1, payment_id: 1, invoice_id: 5, amount: 578.84 };
+      // The route proves the parent payment is in the caller's org first.
+      db.query.mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]]);
       db.query.mockResolvedValueOnce([[alloc]]);
 
       const res = await request(app)

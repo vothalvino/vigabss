@@ -143,7 +143,9 @@ router.post('/:id/restore', requirePermission('quotes.update'), ctrl.restore);
 // Get quote line items
 router.get('/:id/items', requirePermission('quotes.view'), async (req, res, next) => {
   try {
-    const items = await Quote.getItems(req.params.id);
+    // quote_items has no organization_id; prove the parent quote is ours first.
+    await Quote.findByIdOrFail(req.params.id, req.orgId);
+    const items = await Quote.getItems(req.params.id, req.orgId);
     res.json({ data: items });
   } catch (err) {
     next(err);
@@ -197,7 +199,10 @@ router.post('/:id/items', requirePermission('quotes.update'), validate(createQuo
         [req.params.id, req.orgId],
       );
       if (!quote) throw new NotFoundError('Quote');
-      item = await Quote.addItem({ quote_id: req.params.id, ...req.body }, conn.execute.bind(conn));
+      // URL id LAST: validate() does not strip undeclared keys, so a body
+      // quote_id used to override the org-verified quote and land the line
+      // on another tenant's quote.
+      item = await Quote.addItem({ ...req.body, quote_id: req.params.id }, conn.execute.bind(conn));
       // The line's own STORED total, never req.body.amount. quote_items has no
       // writable `amount` column and `total` is
       // GENERATED ALWAYS AS (quantity * unit_price) — the API still accepts
