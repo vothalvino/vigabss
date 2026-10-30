@@ -1,12 +1,12 @@
 ---
 name: credit-note-draft-ledger-write
-description: POST /credit-notes writes a client_balance_ledger credit at create for ANY status (drafts included), so re-totaling a draft header from items needs a ledger decision first
+description: Credit notes post their client_balance_ledger credit on ISSUE (migration 465), not on draft creation; refund-path notes have no ledger row by design-or-omission
 metadata:
   type: project
 ---
 
-As of 2026-10-29, `POST /credit-notes` (src/routes/creditNotes.js) inserts a `client_balance_ledger` 'credit' row whenever `client_id && total`, regardless of `status` (which defaults to 'draft'). No issue/apply transition writes the ledger; it is only written at create. The headline balance (`clientBalanceService.computeClientBalance`) excludes drafts, but the ledger-based readers do NOT: `GET /clients/:id/balance-ledger` meta.balance, GraphQL `Client.ledger`, and the statement PDF opening/running balance.
+User decision (2026-10-29): a credit note posts to `client_balance_ledger` only when issued. Implemented in migration 465 + `src/routes/creditNotes.js`: drafts post nothing; PUT draft -> issued/applied posts the final total (net-aware, inside the crudController row lock via `transactionalAfterHooks`); posted -> draft and leaving `cancelled` are 422 `CREDIT_NOTE_STATUS_TRANSITION`; item add moves the draft header by delta (`billingService.applyCreditNoteLineItemToTotals`). Migration 465 appended compensating debits for drafts that had create-time credits.
 
-**Why:** a follow-up asked to re-total the draft header from `POST /credit-notes/:id/items`; it was stopped because the header total would diverge from the create-time ledger credit (or a total-0 draft would never get one).
+**Why:** the ledger running balance (Ledger tab, `/clients/:id/balance-ledger`, statement PDF) disagreed with `clientBalanceService`, which never counts drafts.
 
-**How to apply:** before touching credit-note totals, decide (product call) whether ledger rows move to issue time or get a compensating adjustment. Re-verify the route still writes at create. Related: [[balance-computed-currency-org]].
+**How to apply:** known gaps left open on purpose. Cancelling or soft-deleting a posted note writes no reversal. Editing an issued note's total does not adjust the ledger. Refund-path `credit_note` notes (`refundRequestService`) are inserted 'issued' with NO ledger row (only billing_adjustments). Don't "fix" any of these without a product decision. Related: [[balance-computed-currency-org]].
