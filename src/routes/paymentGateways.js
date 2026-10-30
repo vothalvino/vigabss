@@ -29,7 +29,30 @@ function redactPaymentGateway(row) {
   return { ...rest, has_secret_key: hasSecretKey, has_webhook_secret: hasWebhookSecret };
 }
 
-const ctrl = crudController(PaymentGateway, { serialize: redactPaymentGateway });
+// Deleting a gateway is a deactivation: soft-delete alone left status
+// 'active', and the money paths filter on status. Stop it, and stop every
+// scheduled retry that would charge a card stored at this gateway.
+async function deactivateGatewayBeforeDelete(gateway, req, exec) {
+  await exec(
+    `UPDATE payment_gateways SET status = 'inactive', is_default = 0
+      WHERE id = ? AND organization_id = ?`,
+    [gateway.id, req.orgId],
+  );
+  await exec(
+    `UPDATE payment_retries pr
+       JOIN recurring_payment_profiles rp ON rp.id = pr.recurring_profile_id
+        SET pr.status = 'cancelled', pr.completed_at = NOW(), pr.next_retry_at = NULL,
+            pr.last_error = 'Payment gateway deleted'
+      WHERE rp.payment_gateway_id = ? AND pr.organization_id = ?
+        AND pr.status IN ('pending', 'processing')`,
+    [gateway.id, req.orgId],
+  );
+}
+
+const ctrl = crudController(PaymentGateway, {
+  serialize: redactPaymentGateway,
+  beforeDelete: deactivateGatewayBeforeDelete,
+});
 
 router.use(authenticate);
 router.use(orgScope);

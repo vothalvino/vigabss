@@ -30,15 +30,39 @@ const paymentCircuitBreaker = createCircuitBreaker({
 });
 
 /**
- * Get the active payment gateway for an organization.
+ * Get the active payment gateway for an organization: the default one first,
+ * then the oldest. A soft-deleted gateway is never live, whatever its status.
  */
 async function getActiveGateway(organizationId) {
   const [rows] = await db.query(
-    'SELECT * FROM payment_gateways WHERE organization_id = ? AND status = \'active\' LIMIT 1',
+    `SELECT * FROM payment_gateways
+      WHERE organization_id = ? AND status = 'active' AND deleted_at IS NULL
+      ORDER BY is_default DESC, id ASC LIMIT 1`,
     [organizationId],
   );
   return rows[0] || null;
 }
+
+/**
+ * Load one specific live gateway of an organization (active, not deleted).
+ * Used for charges that must go through the gateway that issued a stored
+ * token (autopay, retries) rather than whichever gateway happens to be first.
+ */
+async function getGatewayById(organizationId, gatewayId) {
+  const [rows] = await db.query(
+    `SELECT * FROM payment_gateways
+      WHERE id = ? AND organization_id = ? AND status = 'active' AND deleted_at IS NULL
+      LIMIT 1`,
+    [gatewayId, organizationId],
+  );
+  return rows[0] || null;
+}
+
+// Providers that can charge a stored card without the customer present.
+// 'manual' and 'other' move no money; Conekta's charge path does not use the
+// stored payment source yet, so an off-session Conekta charge would not
+// collect from the saved card either.
+const OFF_SESSION_PROVIDERS = ['stripe'];
 
 /**
  * Resolve the per-gateway webhook context for an inbound, provider-scoped
@@ -138,7 +162,7 @@ async function storeIdempotencyKey(organizationId, key, statusCode, responseBody
  * If an idempotencyKey is provided and a cached result exists, the cached
  * result is returned instead of charging again.
  */
-async function charge({ organizationId, clientId, amount, currency, description, paymentMethodToken, customer, offSession, invoiceId, idempotencyKey }) {
+async function charge({ organizationId, gatewayId, clientId, amount, currency, description, paymentMethodToken, customer, offSession, invoiceId, idempotencyKey }) {
   // --- Idempotency check ---
   if (idempotencyKey) {
     const cached = await checkIdempotencyKey(organizationId, idempotencyKey);
@@ -150,9 +174,19 @@ async function charge({ organizationId, clientId, amount, currency, description,
     }
   }
 
-  const gateway = await getActiveGateway(organizationId);
+  // A charge against a stored token must use the gateway that issued it.
+  const gateway = gatewayId
+    ? await getGatewayById(organizationId, gatewayId)
+    : await getActiveGateway(organizationId);
   if (!gateway) {
-    throw new Error('No active payment gateway configured');
+    throw new Error(gatewayId
+      ? 'The payment gateway for this payment method is no longer active'
+      : 'No active payment gateway configured');
+  }
+  if (offSession && !OFF_SESSION_PROVIDERS.includes(gateway.provider)) {
+    throw new PaymentGatewayError(
+      `Payment provider '${gateway.provider}' cannot charge a stored payment method automatically`,
+    );
   }
 
   // Column is `payment_gateway_id`; there is no `description` column. And
@@ -183,16 +217,19 @@ async function charge({ organizationId, clientId, amount, currency, description,
     switch (gateway.provider) {
       case 'stripe':
         result = await paymentCircuitBreaker.call(() =>
-          chargeStripe(gateway, amount, currency || 'MXN', description, paymentMethodToken, { customer, offSession }));
+          chargeStripe(gateway, amount, currency || 'MXN', description, paymentMethodToken, { customer, offSession, idempotencyKey }));
         break;
       case 'conekta':
         result = await paymentCircuitBreaker.call(() =>
           chargeConekta(gateway, amount, currency || 'MXN', description, paymentMethodToken));
         break;
       case 'manual':
-        // Manual / offline-recorded payment: no API call needed; record as succeeded.
-        result = { gatewayRef: `manual_${Date.now()}`, status: 'succeeded' };
-        break;
+        // A manual gateway moves no money, so a "charge" through it must never
+        // be recorded as succeeded. Offline payments are recorded with
+        // POST /payments instead.
+        throw new PaymentGatewayError(
+          'A manual payment gateway cannot process charges; record the payment with POST /payments instead',
+        );
       default:
         // Provider is configured in the schema but not yet implemented.
         throw new PaymentGatewayError(
@@ -272,6 +309,9 @@ async function chargeStripe(gateway, amount, currency, description, paymentMetho
         'Authorization': `Bearer ${secretKey}`,
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(body),
+        // Stripe dedupes a repeated request with the same key, so a second
+        // replica or a retried run for the same invoice/day cannot charge twice.
+        ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
       },
       timeout: 30000,
     }, (res) => {
@@ -1298,6 +1338,7 @@ async function reverseRefund(transactionId) {
 
 module.exports = {
   getActiveGateway,
+  getGatewayById,
   loadGatewayWebhookContext,
   charge,
   refund,

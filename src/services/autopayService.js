@@ -22,7 +22,7 @@ async function resolveStripeGateway(organizationId) {
   if (!organizationId) return null;
   const [gateways] = await db.query(
     `SELECT id, provider, organization_id, secret_key_encrypted FROM payment_gateways
-      WHERE organization_id = ? AND provider = 'stripe' AND status = 'active'
+      WHERE organization_id = ? AND provider = 'stripe' AND status = 'active' AND deleted_at IS NULL
       ORDER BY is_default DESC, id ASC LIMIT 1`,
     [organizationId],
   );
@@ -37,7 +37,7 @@ async function loadStripeGatewayById(gatewayId) {
   if (!gatewayId) return null;
   const [gateways] = await db.query(
     `SELECT id, provider, organization_id, secret_key_encrypted FROM payment_gateways
-      WHERE id = ? AND provider = 'stripe' AND status = 'active'`,
+      WHERE id = ? AND provider = 'stripe' AND status = 'active' AND deleted_at IS NULL`,
     [gatewayId],
   );
   return gateways[0] || null;

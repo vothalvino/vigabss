@@ -389,7 +389,7 @@ router.get('/autopay/status', async (req, res, next) => {
   try {
     const [rows] = await db.query(
       `SELECT id, card_brand, card_last_four, created_at FROM recurring_payment_profiles
-        WHERE client_id = ? AND organization_id <=> ? AND status = 'active'
+        WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
         ORDER BY is_default DESC, id DESC LIMIT 1`,
       [req.client.id, req.client.organizationId],
     );
@@ -405,6 +405,16 @@ router.delete('/autopay', async (req, res, next) => {
     await db.query(
       `UPDATE recurring_payment_profiles SET status = 'revoked'
         WHERE client_id = ? AND organization_id <=> ? AND status = 'active'`,
+      [req.client.id, req.client.organizationId],
+    );
+    // Turning autopay off also stops any retry still scheduled for the card.
+    await db.query(
+      `UPDATE payment_retries pr
+         JOIN recurring_payment_profiles rp ON rp.id = pr.recurring_profile_id
+          SET pr.status = 'cancelled', pr.completed_at = NOW(), pr.next_retry_at = NULL,
+              pr.last_error = 'Autopay disabled by the subscriber'
+        WHERE rp.client_id = ? AND rp.organization_id <=> ?
+          AND pr.status IN ('pending', 'processing')`,
       [req.client.id, req.client.organizationId],
     );
     res.json({ message: 'Autopay disabled' });

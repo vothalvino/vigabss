@@ -108,6 +108,68 @@ describe('paymentGatewayService', () => {
   // charge
   // =========================================================================
   describe('charge()', () => {
+    // WHK-01 / DAL-01 / BIL-06
+    test('getActiveGateway prefers the default gateway and never returns a deleted one', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+      await paymentGatewayService.getActiveGateway(42);
+      const sql = db.query.mock.calls[0][0];
+      expect(sql).toContain('deleted_at IS NULL');
+      expect(sql).toContain('ORDER BY is_default DESC, id ASC');
+    });
+
+    test('with gatewayId, charges through that live gateway of the org only', async () => {
+      db.query.mockResolvedValueOnce([[]]); // getGatewayById: deleted / inactive / other org
+
+      await expect(paymentGatewayService.charge({
+        organizationId: 1, gatewayId: 9, clientId: 7, amount: 100, offSession: true,
+        paymentMethodToken: 'pm_1',
+      })).rejects.toThrow('no longer active');
+
+      const [sql, params] = db.query.mock.calls[0];
+      expect(sql).toContain('WHERE id = ? AND organization_id = ?');
+      expect(sql).toContain('deleted_at IS NULL');
+      expect(params).toEqual([9, 1]);
+      // No transaction row is written for a charge that cannot happen.
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    test.each(['manual', 'conekta', 'other'])('refuses an off-session charge on a %s gateway', async (provider) => {
+      db.query.mockResolvedValueOnce([[{ id: 9, provider, status: 'active', secret_key_encrypted: 'enc' }]]);
+
+      await expect(paymentGatewayService.charge({
+        organizationId: 1, gatewayId: 9, clientId: 7, amount: 100, offSession: true,
+        paymentMethodToken: 'pm_1',
+      })).rejects.toThrow(/cannot charge a stored payment method automatically/);
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('sends the idempotency key to Stripe as the Idempotency-Key header', async () => {
+      const https = require('https');
+      const EventEmitter = require('events');
+      db.query
+        .mockResolvedValueOnce([[]]) // checkIdempotencyKey
+        .mockResolvedValueOnce([[{ id: 5, provider: 'stripe', status: 'active', secret_key_encrypted: 'enc' }]])
+        .mockResolvedValueOnce([{ insertId: 201 }])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // storeIdempotencyKey
+
+      const mockReq = new EventEmitter(); mockReq.write = jest.fn(); mockReq.end = jest.fn(); mockReq.destroy = jest.fn();
+      const mockRes = new EventEmitter(); mockRes.statusCode = 200;
+      const spy = jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
+        process.nextTick(() => { cb(mockRes); mockRes.emit('data', JSON.stringify({ id: 'pi_2', status: 'succeeded' })); mockRes.emit('end'); });
+        return mockReq;
+      });
+
+      await paymentGatewayService.charge({
+        organizationId: 1, gatewayId: 5, clientId: 7, amount: 100, currency: 'MXN',
+        paymentMethodToken: 'pm_1', customer: 'cus_1', offSession: true,
+        idempotencyKey: 'recurring:1:50:20261030',
+      });
+
+      expect(spy.mock.calls[0][0].headers['Idempotency-Key']).toBe('recurring:1:50:20261030');
+      spy.mockRestore();
+    });
+
     test('sends customer + off_session to Stripe for a saved-card autopay charge', async () => {
       const https = require('https');
       const EventEmitter = require('events');
@@ -136,7 +198,19 @@ describe('paymentGatewayService', () => {
     });
 
     test('creates transaction and returns success', async () => {
-      const gw = { id: 1, provider: 'manual', status: 'active' };
+      const gw = { id: 1, provider: 'stripe', status: 'active', secret_key_encrypted: 'sk_test' };
+      const https = require('https');
+      const mockReq = { on: jest.fn(), write: jest.fn(), end: jest.fn() };
+      const spy = jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
+        cb({
+          statusCode: 200,
+          on: (ev, fn) => {
+            if (ev === 'data') fn(JSON.stringify({ id: 'pi_1', status: 'succeeded' }));
+            if (ev === 'end') fn();
+          },
+        });
+        return mockReq;
+      });
       db.query
         .mockResolvedValueOnce([[gw]])           // getActiveGateway
         .mockResolvedValueOnce([{ insertId: 100 }])  // INSERT transaction
@@ -149,7 +223,8 @@ describe('paymentGatewayService', () => {
 
       expect(result.status).toBe('succeeded');
       expect(result.transaction_id).toBe(100);
-      expect(result.provider).toBe('manual');
+      expect(result.provider).toBe('stripe');
+      spy.mockRestore();
     });
 
     test('throws when no active gateway', async () => {
@@ -651,7 +726,9 @@ describe('paymentGatewayService', () => {
       expect(result.error).toMatch(/paypal.*not yet supported/i);
     });
 
-    test('manual provider still succeeds without API call', async () => {
+    // WHK-01: a manual gateway moves no money. It used to record the charge as
+    // 'succeeded', so autopay "collected" nothing and reported success.
+    test('a manual gateway never records a charge as succeeded', async () => {
       const gw = { id: 8, provider: 'manual', status: 'active' };
       db.query
         .mockResolvedValueOnce([[gw]])
@@ -663,8 +740,11 @@ describe('paymentGatewayService', () => {
         description: 'Cash payment',
       });
 
-      expect(result.status).toBe('succeeded');
-      expect(result.provider).toBe('manual');
+      expect(result.status).toBe('failed');
+      expect(result.error).toMatch(/manual payment gateway cannot process charges/i);
+      const failUpdate = db.query.mock.calls[2];
+      expect(failUpdate[0]).toContain('UPDATE payment_transactions SET gateway_status');
+      expect(failUpdate[1][0]).toBe('failed');
     });
   });
 

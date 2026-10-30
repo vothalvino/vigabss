@@ -28,6 +28,7 @@ const checkoutService = require('../src/services/checkoutService');
 describe('checkoutService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    db.query.mockReset();
   });
 
   describe('createCheckoutSession()', () => {
@@ -198,9 +199,10 @@ describe('checkoutService', () => {
           provider: 'stripe', organization_id: 1, gateway_id: 5,
         }]])
         .mockResolvedValueOnce([[{
-          id: 50, invoice_number: 'INV-000050', total: '300.00',
+          id: 50, invoice_number: 'INV-000050', total: '300.00', balance_due: '300.00',
           currency: 'MXN', client_id: 10, organization_id: 1, status: 'issued',
-        }]]);
+        }]])
+        .mockResolvedValueOnce([[]]); // no charge already in flight for the invoice
       // No third query: the `UPDATE recurring_payment_profiles SET last_charged_at`
       // that used to be here targeted a column that does not exist, so it threw on
       // every run — *after* the card was charged.
@@ -247,9 +249,10 @@ describe('checkoutService', () => {
           provider: 'stripe', organization_id: 1, gateway_id: 5,
         }]])
         .mockResolvedValueOnce([[{
-          id: 50, invoice_number: 'INV-000050', total: '300.00',
+          id: 50, invoice_number: 'INV-000050', total: '300.00', balance_due: '300.00',
           currency: 'MXN', client_id: 10, organization_id: 1, status: 'issued',
         }]])
+        .mockResolvedValueOnce([[]]) // no charge already in flight for the invoice
         .mockResolvedValueOnce([{ insertId: 777 }]);  // INSERT failed payment_transactions row
 
       paymentRetryService.scheduleRetry.mockResolvedValueOnce({ id: 1 });
@@ -287,9 +290,10 @@ describe('checkoutService', () => {
           provider: 'stripe', organization_id: 1, gateway_id: 5,
         }]])
         .mockResolvedValueOnce([[{
-          id: 50, invoice_number: 'INV-000050', total: '300.00',
+          id: 50, invoice_number: 'INV-000050', total: '300.00', balance_due: '300.00',
           currency: 'MXN', client_id: 10, organization_id: 1, status: 'issued',
         }]])
+        .mockResolvedValueOnce([[]]) // no charge already in flight for the invoice
         .mockResolvedValueOnce([{ insertId: 778 }]);
 
       const result = await checkoutService.chargeRecurringProfile(1);
@@ -308,9 +312,10 @@ describe('checkoutService', () => {
           provider: 'stripe', organization_id: 1, gateway_id: 5,
         }]])
         .mockResolvedValueOnce([[{
-          id: 50, invoice_number: 'INV-000050', total: '300.00',
+          id: 50, invoice_number: 'INV-000050', total: '300.00', balance_due: '300.00',
           currency: 'MXN', client_id: 10, organization_id: 1, status: 'issued',
-        }]]);
+        }]])
+        .mockResolvedValueOnce([[]]); // no charge already in flight for the invoice
 
       paymentGatewayService.charge.mockResolvedValueOnce({ transaction_id: 201, status: 'pending' });
       paymentRetryService.scheduleRetry.mockResolvedValueOnce({ id: 2 });
@@ -330,7 +335,8 @@ describe('checkoutService', () => {
         .mockResolvedValueOnce([[{ id: 1 }, { id: 2 }]])  // list profiles
         // chargeRecurringProfile(1)
         .mockResolvedValueOnce([[{ id: 1, client_id: 10, payment_gateway_id: 5, token_reference: 'tok_1', status: 'active', provider: 'stripe', organization_id: 1, gateway_id: 5 }]])
-        .mockResolvedValueOnce([[{ id: 50, invoice_number: 'INV-050', total: '300.00', currency: 'MXN', client_id: 10, organization_id: 1, status: 'issued' }]])
+        .mockResolvedValueOnce([[{ id: 50, invoice_number: 'INV-050', total: '300.00', balance_due: '300.00', currency: 'MXN', client_id: 10, organization_id: 1, status: 'issued' }]])
+        .mockResolvedValueOnce([[]]) // no charge in flight
         // chargeRecurringProfile(2)
         .mockResolvedValueOnce([[{ id: 2, client_id: 20, payment_gateway_id: 5, token_reference: 'tok_2', status: 'active', provider: 'stripe', organization_id: 1, gateway_id: 5 }]])
         .mockResolvedValueOnce([[]]);  // no invoices for profile 2
@@ -341,6 +347,97 @@ describe('checkoutService', () => {
       expect(result.charged).toBe(1);
       expect(result.skipped).toBe(1);
       expect(result.total).toBe(2);
+    });
+  });
+
+  // BIL-06 / WHK-01 / DAL-01
+  describe('autopay guards (BIL-06, WHK-01, DAL-01)', () => {
+    const profile = {
+      id: 1, client_id: 10, payment_gateway_id: 5, token_reference: 'pm_1',
+      stripe_customer_id: 'cus_1', status: 'active', provider: 'stripe',
+      organization_id: 1, gateway_id: 5,
+    };
+
+    test('charges the open balance of a part-paid invoice, not its total', async () => {
+      db.query
+        .mockResolvedValueOnce([[profile]])
+        .mockResolvedValueOnce([[{ id: 50, invoice_number: 'INV-50', total: '300.00', balance_due: '120.00', currency: 'MXN' }]])
+        .mockResolvedValueOnce([[]]);
+      paymentGatewayService.charge.mockResolvedValue({ transaction_id: 1, status: 'succeeded' });
+
+      const result = await checkoutService.chargeRecurringProfile(1);
+
+      expect(paymentGatewayService.charge).toHaveBeenCalledWith(expect.objectContaining({ amount: 120 }));
+      expect(result.amount).toBe(120);
+    });
+
+    test('only payable, non-deleted invoices with money owed are considered', async () => {
+      db.query
+        .mockResolvedValueOnce([[profile]])
+        .mockResolvedValueOnce([[{ id: 51, invoice_number: 'INV-51', total: '300.00', balance_due: '0.00', currency: 'MXN' }]]);
+
+      const result = await checkoutService.chargeRecurringProfile(1);
+
+      expect(result.skipped).toBe(true);
+      expect(paymentGatewayService.charge).not.toHaveBeenCalled();
+      const invoiceSql = db.query.mock.calls[1][0];
+      expect(invoiceSql).toContain('i.deleted_at IS NULL');
+      expect(invoiceSql).toMatch(/i\.status IN/);
+    });
+
+    test('does not charge again while a charge for the invoice is in flight or unreconciled', async () => {
+      db.query
+        .mockResolvedValueOnce([[profile]])
+        .mockResolvedValueOnce([[{ id: 50, invoice_number: 'INV-50', total: '300.00', balance_due: '300.00', currency: 'MXN' }]])
+        .mockResolvedValueOnce([[{ 1: 1 }]]); // a pending/succeeded tx or a live retry exists
+
+      const result = await checkoutService.chargeRecurringProfile(1);
+
+      expect(result.charged).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(paymentGatewayService.charge).not.toHaveBeenCalled();
+      const [guardSql, guardParams] = db.query.mock.calls[2];
+      expect(guardSql).toContain("gateway_status IN ('pending', 'succeeded') AND payment_id IS NULL");
+      expect(guardSql).toContain('FROM payment_retries');
+      expect(guardParams).toEqual([1, 50, 1, 50]);
+    });
+
+    test('charges through the profile gateway with a deterministic per-day key', async () => {
+      db.query
+        .mockResolvedValueOnce([[profile]])
+        .mockResolvedValueOnce([[{ id: 50, invoice_number: 'INV-50', total: '300.00', balance_due: '300.00', currency: 'MXN' }]])
+        .mockResolvedValueOnce([[]]);
+      paymentGatewayService.charge.mockResolvedValue({ transaction_id: 1, status: 'succeeded' });
+
+      await checkoutService.chargeRecurringProfile(1);
+
+      const args = paymentGatewayService.charge.mock.calls[0][0];
+      expect(args.gatewayId).toBe(5);
+      expect(args.offSession).toBe(true);
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      expect(args.idempotencyKey).toBe(`recurring:1:50:${today}`);
+    });
+
+    test('a deleted profile or gateway is never loaded, and the org is enforced when given', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+
+      await expect(checkoutService.chargeRecurringProfile(1, 2)).rejects.toThrow('Active recurring profile not found');
+
+      const [sql, params] = db.query.mock.calls[0];
+      expect(sql).toContain('rp.deleted_at IS NULL');
+      expect(sql).toContain("pg.status = 'active' AND pg.deleted_at IS NULL");
+      expect(sql).toContain('AND pg.organization_id = ?');
+      expect(params).toEqual([1, 2]);
+    });
+
+    test('the scheduled run skips deleted profiles and gateways and passes the org through', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+
+      await checkoutService.processRecurringCharges(7);
+
+      const sql = db.query.mock.calls[0][0];
+      expect(sql).toContain('rp.deleted_at IS NULL');
+      expect(sql).toContain('pg.deleted_at IS NULL');
     });
   });
 });
