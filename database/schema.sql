@@ -14545,6 +14545,28 @@ CREATE TABLE IF NOT EXISTS reseller_billing_entities (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Separate billing entity per reseller (§19.2)';
 
 -- ---------------------------------------------------------------------------
+-- Table: reseller_user_bindings (migration 475 — TNB-13)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reseller_user_bindings (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization in which the binding applies',
+    user_id         BIGINT UNSIGNED NOT NULL COMMENT 'Staff user (primary-DB users.id; no FK, see migration 475) confined to the reseller subtree',
+    reseller_id     BIGINT UNSIGNED NOT NULL COMMENT 'Root of the reseller subtree the user may access',
+    created_by      BIGINT UNSIGNED NULL     COMMENT 'Administrator who created or last changed the binding',
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_reseller_user_bindings_org_user (organization_id, user_id),
+    KEY idx_reseller_user_bindings_reseller (reseller_id),
+    KEY idx_reseller_user_bindings_user (user_id),
+    CONSTRAINT fk_reseller_user_bindings_organization FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_user_bindings_reseller FOREIGN KEY (reseller_id)
+        REFERENCES resellers (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Binds a staff user to one reseller subtree per organization (TNB-13)';
+
+-- ---------------------------------------------------------------------------
 -- Column added to clients by migration 345 (§19.1 reseller scoping):
 --   reseller_id  BIGINT UNSIGNED NULL (FK → resellers ON DELETE SET NULL)
 -- Applied via stored-procedure guard. See migration 345.

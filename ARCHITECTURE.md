@@ -223,6 +223,16 @@ shared primary database.
 
 Reseller scoping by `reseller_id` is an additional business filter, not a hard
 tenant boundary and not a substitute for `organization_id`/tenant routing.
+Which resellers a staff caller may act on is resolved server-side by
+`src/middleware/resellerScope.js` (`req.resellerScope`) for every
+`/resellers` and `/reseller-portal` route: a `reseller_user_bindings` row
+(migration 475) confines the user to that reseller and its sub-resellers
+(404 outside it, lists filtered) whatever permissions it holds; an unbound
+user in the `reseller_admin` group is refused with 403; other unbound staff
+reach every reseller in their organization through ordinary permissions.
+Binding management (`PUT/DELETE /resellers/:id/users/:userId`) needs
+`resellers.update` and `users.update` and is refused to bound callers. A
+custom group meant for reseller staff must have its users bound.
 
 ### RBAC resolution
 

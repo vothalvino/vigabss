@@ -56352,6 +56352,128 @@
         }
       }
     },
+    "/resellers/{id}/users": {
+      "get": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "List users bound to the reseller (confined to its subtree)",
+        "operationId": "listResellerUserBindings",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ResellerUserBinding[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resellers/{id}/users/{userId}": {
+      "put": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Bind a staff user to the reseller (org-level admins only; requires resellers.update and users.update)",
+        "operationId": "bindResellerUser",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ResellerUserBinding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Resellers"
+        ],
+        "summary": "Remove a staff user binding from the reseller",
+        "operationId": "unbindResellerUser",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/reseller-portal/{id}/dashboard": {
       "get": {
         "tags": [
