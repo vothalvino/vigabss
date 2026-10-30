@@ -124,7 +124,7 @@ working. New documentation uses the VigaBSS names.
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 360 tables + column additions)
-│   └── migrations/          # Individual numbered migration files (001–463)
+│   └── migrations/          # Individual numbered migration files (001–464)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -699,6 +699,8 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 > **Migration 461 — GUI-controlled WireGuard activation:** Moves the installation-wide hub switch into the operator-only Settings page. The public app remains non-root and delegates kernel networking to an isolated helper with only `NET_ADMIN`; a one-time compatibility sentinel preserves an existing deployment's enabled/disabled behavior.
 
 > **Migration 463 — Mimosa PTP SNMP monitoring:** Replaces the inaccurate catch-all Mimosa template with separate system profiles for B-series PTP radios (1.x firmware/MIB branch) and C5c radios in PTP mode (2.x branch). Existing assignments to the global legacy profile are preserved by renaming it in place; tenant-owned profiles with the same name are untouched. The profiles use Mimosa's current B5/C5 product MIB for temperature, total received signal, chain-1 noise/SNR, and short-window Tx/Rx throughput plus IF-MIB/IF-X-MIB interface health and 64-bit octet counters. Chain 1 is explicit because an unfiltered all-chain average can include the MIB's invalid-chain sentinel. The poller now decodes exactly representable Counter64 values, the RF fields flow through raw/hourly/daily history and alert evaluation, and all RF plus interface-status columns are populated through hourly, daily, and monthly rollups. Exact deployed C5c PTP firmware still requires a live walk; CCQ, airtime, and GPS objects are deliberately not guessed.
+
+> **Migration 464 — Cross-org plan window repair:** Data-only. Soft-deletes `plan_speed_windows` and `plan_access_windows` rows whose `organization_id` is not null-safe equal to their plan's (`NOT (w.organization_id <=> p.organization_id)`), only where `deleted_at IS NULL`. Such rows could be written before the Phase 0 fix that made `POST /plans/:id/speed-windows` and `/access-windows` 404 a foreign plan, and the RADIUS/apply_speed_windows consumers key on `plan_id`, so they could throttle or time-block another tenant's subscribers. No schema change. The rollback is a deliberate no-op: the soft-deletes are not auto-restored.
 
 > **Migrations 235–236 — §4.1 PPPoE Management Phase A (Pool Enhancements, Permissions):**
 > `235_ip_pools_pppoe_enhancements.sql` adds five guarded columns to `ip_pools`: `nas_id` (FK→nas, for NAS-pool binding), `service_type` ENUM, `default_prefix_len` (IPv6 PD), `excluded_ranges` TEXT, and `last_alerted_threshold` TINYINT (utilization crossing tracker). `236_seed_pppoe_management_permissions.sql` seeds five RBAC permissions (`ip_pools.assign`, `ip_pools.utilization`, `ip_pools.binding_report`, `connection_logs.summary`, `radius.batch_disconnect`) with role assignments, and registers the `check_pool_utilization` hourly scheduled task.
