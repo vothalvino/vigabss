@@ -43,7 +43,7 @@ describe('portalServiceRequestService.listRequests()', () => {
       .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ total: 0 }]]);
 
-    const { rows, total } = await portalServiceRequestService.listRequests(42);
+    const { rows, total } = await portalServiceRequestService.listRequests(42, 1);
     expect(rows).toEqual([]);
     expect(total).toBe(0);
   });
@@ -53,7 +53,7 @@ describe('portalServiceRequestService.listRequests()', () => {
       .mockResolvedValueOnce([[{ id: 1, request_type: 'plan_upgrade', status: 'pending' }]])
       .mockResolvedValueOnce([[{ total: 1 }]]);
 
-    const { rows } = await portalServiceRequestService.listRequests(42, { requestType: 'plan_upgrade' });
+    const { rows } = await portalServiceRequestService.listRequests(42, 1, { requestType: 'plan_upgrade' });
     expect(rows[0].request_type).toBe('plan_upgrade');
     // Ensure the second query (COUNT) was called with the type filter
     expect(db.query).toHaveBeenCalledTimes(2);
@@ -65,13 +65,13 @@ describe('portalServiceRequestService.cancelRequest()', () => {
 
   test('throws NotFoundError when request not found', async () => {
     db.query.mockResolvedValueOnce([[]]); // SELECT
-    await expect(portalServiceRequestService.cancelRequest(99, 1))
+    await expect(portalServiceRequestService.cancelRequest(99, 1, 1))
       .rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   test('throws ValidationError when status is not pending', async () => {
     db.query.mockResolvedValueOnce([[{ id: 1, status: 'approved' }]]);
-    await expect(portalServiceRequestService.cancelRequest(1, 1))
+    await expect(portalServiceRequestService.cancelRequest(1, 1, 1))
       .rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
   });
 
@@ -80,11 +80,11 @@ describe('portalServiceRequestService.cancelRequest()', () => {
       .mockResolvedValueOnce([[{ id: 1, status: 'pending' }]]) // SELECT
       .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE
 
-    const result = await portalServiceRequestService.cancelRequest(1, 1);
+    const result = await portalServiceRequestService.cancelRequest(1, 1, 1);
     expect(result.status).toBe('cancelled');
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining("status = 'cancelled'"),
-      [1],
+      [1, 1, 1],
     );
   });
 });

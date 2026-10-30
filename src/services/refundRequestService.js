@@ -13,6 +13,7 @@ const { ValidationError, NotFoundError } = require('../utils/errors');
 const logger = require('../utils/logger').child({ service: 'refundRequest' });
 const paymentGatewayService = require('./paymentGatewayService');
 const billingService = require('./billingService');
+const creditNoteLedgerService = require('./creditNoteLedgerService');
 const Organization = require('../models/Organization');
 
 // ---------------------------------------------------------------------------
@@ -233,7 +234,8 @@ async function resolveRefundCreditNoteTax(orgId, refund) {
  *
  * When refund_method='credit_balance': inserts into client_balance_ledger and
  * optionally marks the payment_transaction as refunded.
- * When refund_method='credit_note': creates a credit_note row.
+ * When refund_method='credit_note': creates an issued credit_note row and its
+ * ledger credit in one transaction.
  * Always records a billing_adjustment.
  * Emits `refund.processed`.
  *
@@ -386,30 +388,56 @@ async function completeProcessing(orgId, existing, { refund_method, gateway_refu
   if (refund_method === 'credit_note') {
     const cnNumber = `RCN-${existing.id}-${Date.now()}`;
     const { subtotal, taxAmount, taxRate, currency } = await resolveRefundCreditNoteTax(orgId, existing);
-    const [cnResult] = await db.query(
-      `INSERT INTO credit_notes
-         (organization_id, client_id, invoice_id, credit_note_number, issue_date, reason,
-          subtotal, tax_rate, tax_amount, total, currency, status, created_by)
-       VALUES (?, ?, ?, ?, CURDATE(), 'other', ?, ?, ?, ?, ?, 'issued', ?)`,
-      [
-        orgId || null,
-        existing.client_id,
-        existing.invoice_id || null,
-        cnNumber,
-        subtotal,
-        taxRate,
-        taxAmount,
-        existing.amount,
-        currency,
-        processedByUserId || null,
-      ],
-    );
+    // The note is born 'issued', so it stands on the client's account at once:
+    // the headline balance (clientBalanceService) counts every issued note.
+    // Its client_balance_ledger credit is posted in the SAME transaction as the
+    // insert, through the shared sync helper, so the ledger running balance
+    // agrees with the headline figure. (billing_adjustments, written below, is
+    // an audit record only: no balance reads it, so this does not double-count.)
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+      const exec = conn.execute.bind(conn);
+      const [cnResult] = await exec(
+        `INSERT INTO credit_notes
+           (organization_id, client_id, invoice_id, credit_note_number, issue_date, reason,
+            subtotal, tax_rate, tax_amount, total, currency, status, created_by)
+         VALUES (?, ?, ?, ?, CURDATE(), 'other', ?, ?, ?, ?, ?, 'issued', ?)`,
+        [
+          orgId || null,
+          existing.client_id,
+          existing.invoice_id || null,
+          cnNumber,
+          subtotal,
+          taxRate,
+          taxAmount,
+          existing.amount,
+          currency,
+          processedByUserId || null,
+        ],
+      );
 
-    // Link the credit note back to the refund request
-    await db.query(
-      'UPDATE refund_requests SET resulting_credit_note_id = ? WHERE id = ? AND organization_id <=> ?',
-      [cnResult.insertId, existing.id, orgId],
-    );
+      await creditNoteLedgerService.syncCreditNoteLedger(exec, {
+        id: cnResult.insertId,
+        client_id: existing.client_id,
+        credit_note_number: cnNumber,
+        total: existing.amount,
+        currency,
+        status: 'issued',
+      }, orgId || null);
+
+      // Link the credit note back to the refund request
+      await exec(
+        'UPDATE refund_requests SET resulting_credit_note_id = ? WHERE id = ? AND organization_id <=> ?',
+        [cnResult.insertId, existing.id, orgId],
+      );
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback().catch(() => {});
+      throw err;
+    } finally {
+      conn.release();
+    }
   }
 
   // Always record a billing adjustment

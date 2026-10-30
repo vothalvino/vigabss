@@ -83,12 +83,15 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
  * the backend transition guard (CREDIT_NOTE_STATUS_TRANSITION): an issued or
  * applied note has posted its ledger credit and cannot go back to draft, and
  * cancelled is terminal. A new note (no current status) may start anywhere.
+ * A note whose CFDI de Egreso is still live cannot be cancelled (422
+ * CFDI_STAMPED): its CFDI is cancelled at SAT first.
  */
-export function allowedCreditNoteStatuses(current?: string | null): string[] {
+export function allowedCreditNoteStatuses(current?: string | null, hasLiveCfdi = false): string[] {
   if (!current) return STATUSES;
   if (current === 'cancelled') return ['cancelled'];
-  if (current === 'draft') return STATUSES;
-  return STATUSES.filter(s => s !== 'draft');
+  const open = hasLiveCfdi ? STATUSES.filter(s => s !== 'cancelled') : STATUSES;
+  if (current === 'draft') return open;
+  return open.filter(s => s !== 'draft');
 }
 const REASONS = [
   'billing_error',
@@ -463,7 +466,7 @@ export function CreditNoteModal({ creditNote, clients, onClose, onSaved, lockedC
           <label style={modalStyles.label}>
             Status
             <select style={modalStyles.select} value={form.status} onChange={e => setField('status', e.target.value)}>
-              {allowedCreditNoteStatuses(creditNote?.status).map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
+              {allowedCreditNoteStatuses(creditNote?.status, Boolean(creditNote?.cfdi_sat_status)).map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
             </select>
           </label>
 

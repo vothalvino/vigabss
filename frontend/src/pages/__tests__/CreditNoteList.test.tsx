@@ -297,4 +297,10 @@ describe('allowedCreditNoteStatuses (mirrors the backend transition guard)', () 
     expect(allowedCreditNoteStatuses('applied')).toEqual(['issued', 'applied', 'cancelled']);
     expect(allowedCreditNoteStatuses('cancelled')).toEqual(['cancelled']);
   });
+
+  it('does not offer cancelled while the note has a live CFDI (the backend 422s CFDI_STAMPED)', () => {
+    expect(allowedCreditNoteStatuses('issued', true)).toEqual(['issued', 'applied']);
+    expect(allowedCreditNoteStatuses('applied', true)).toEqual(['issued', 'applied']);
+    expect(allowedCreditNoteStatuses('cancelled', true)).toEqual(['cancelled']);
+  });
 });

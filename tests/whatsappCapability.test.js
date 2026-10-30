@@ -97,7 +97,7 @@ describe('write actions', () => {
 
   it('recentServiceRequestCount counts by type', async () => {
     db.query.mockResolvedValueOnce([[{ n: 2 }]]);
-    expect(await cap.recentServiceRequestCount(7, 'wifi_password_change')).toBe(2);
+    expect(await cap.recentServiceRequestCount(3, 7, 'wifi_password_change')).toBe(2);
     expect(db.query.mock.calls[0][0]).toMatch(/request_type = \?/);
   });
 });
@@ -208,20 +208,20 @@ describe('getActiveContracts / planText', () => {
       { id: 9, status: 'active', connection_type: 'pppoe', plan_name: 'Fiber 100', down: 100, up: 20, site_name: 'Main St' },
       { id: 10, status: 'active', connection_type: 'pppoe', plan_name: 'Fiber 50', down: 50, up: 10, site_name: null },
     ]]);
-    const c = await cap.getActiveContracts(7);
+    const c = await cap.getActiveContracts(3, 7);
     expect(c[0].label).toBe('Fiber 100 — Main St');
     expect(c[1].label).toBe('Fiber 50 (#10)');
   });
   it('planText lists active services with speed + status', async () => {
     db.query.mockResolvedValueOnce([[{ id: 9, status: 'active', connection_type: 'pppoe', plan_name: 'Fiber 100', down: 100, up: 20, site_name: null }]]);
-    const t = await cap.planText(7);
+    const t = await cap.planText(3, 7);
     expect(t).toMatch(/Fiber 100/);
     expect(t).toMatch(/100\/20 Mbps/);
     expect(t).toMatch(/active/);
   });
   it('planText handles no active service', async () => {
     db.query.mockResolvedValueOnce([[]]);
-    expect(await cap.planText(7)).toMatch(/don't have an active service/i);
+    expect(await cap.planText(3, 7)).toMatch(/don't have an active service/i);
   });
 });
 
@@ -230,14 +230,14 @@ describe('invoicesText', () => {
     db.query.mockResolvedValueOnce([[
       { invoice_number: 'INV-001', total: '116.00', status: 'issued', due_date: '2026-08-01' },
     ]]);
-    const t = await cap.invoicesText(7);
+    const t = await cap.invoicesText(3, 7);
     expect(t).toMatch(/INV-001/);
     expect(t).toMatch(/116\.00/);
     expect(t).toMatch(/issued/);
   });
   it('handles no invoices', async () => {
     db.query.mockResolvedValueOnce([[]]);
-    expect(await cap.invoicesText(7)).toMatch(/no invoices/i);
+    expect(await cap.invoicesText(3, 7)).toMatch(/no invoices/i);
   });
 });
 
@@ -259,7 +259,7 @@ describe('ticket creation', () => {
 
   it('recentWhatsappTicketCount counts WhatsApp-origin tickets', async () => {
     db.query.mockResolvedValueOnce([[{ n: 3 }]]);
-    expect(await cap.recentWhatsappTicketCount(7)).toBe(3);
+    expect(await cap.recentWhatsappTicketCount(3, 7)).toBe(3);
     expect(db.query.mock.calls[0][0]).toMatch(/subject LIKE 'WhatsApp:%'/);
   });
   it('createHumanHandoffTicket inserts a general ticket', async () => {

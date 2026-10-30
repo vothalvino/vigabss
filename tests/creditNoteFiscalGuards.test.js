@@ -49,6 +49,7 @@ const STORED = {
 function wireDb({ liveCfdi = false, stored = STORED } = {}) {
   db.query.mockImplementation(async (sql) => {
     if (isUserLookup(sql)) return [[ADMIN]];
+    if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return [[{ id: 1 }]];
     if (/FROM cfdi_documents/.test(sql)) return [liveCfdi ? [{ id: 31, sat_status: 'vigente' }] : []];
     if (/FROM `?credit_notes`?/.test(sql)) return [[stored]];
     if (/INSERT INTO `?credit_notes`?/.test(sql)) return [{ insertId: 5 }];

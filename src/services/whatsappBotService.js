@@ -133,7 +133,7 @@ async function maybeSendEmailOtp({ phone, email }) {
     const client = clients[0];
     // Per-target-inbox budget (the per-phone budget above protects the sender,
     // not the victim's inbox against a number-cycling attacker).
-    if (await wa.clientEmailCodeBudgetExceeded(client.id)) return;
+    if (await wa.clientEmailCodeBudgetExceeded(client.id, client.organization_id ?? null)) return;
 
     const code = await wa.createVerification({
       organizationId: client.organization_id,
@@ -366,8 +366,8 @@ async function clientEmailMasked(clientId) {
   }
 }
 
-async function startReport(phone, clientId) {
-  const contracts = await cap.getActiveContracts(clientId);
+async function startReport(phone, orgId, clientId) {
+  const contracts = await cap.getActiveContracts(orgId, clientId);
   if (contracts.length > 1) {
     await wa.setConversationState(phone, clientId, 'await_contract_pick', { contracts });
     return { reply: MSG.pickService(contracts) };
@@ -376,8 +376,8 @@ async function startReport(phone, clientId) {
   return { reply: MSG.askProblem };
 }
 
-async function startWifiReset(phone, clientId) {
-  const contracts = await cap.getActiveContracts(clientId);
+async function startWifiReset(phone, orgId, clientId) {
+  const contracts = await cap.getActiveContracts(orgId, clientId);
   if (contracts.length === 0) return { reply: MSG.noService };
   // Must be able to deliver the new PSK out-of-band, or the client is locked out.
   const emailMasked = await clientEmailMasked(clientId);
@@ -392,7 +392,7 @@ async function startWifiReset(phone, clientId) {
 
 async function applyWifiReset(phone, clientId, orgId, contract) {
   await wa.clearConversationState(phone);
-  if (await cap.recentServiceRequestCount(clientId, 'wifi_password_change') >= WHATSAPP_ACTION_CAP_PER_HOUR) {
+  if (await cap.recentServiceRequestCount(orgId, clientId, 'wifi_password_change') >= WHATSAPP_ACTION_CAP_PER_HOUR) {
     return { reply: MSG.actionCapped, clientId };
   }
   // resetWifiPassword delivers the new PSK by email FIRST and only applies on
@@ -408,8 +408,8 @@ async function applyWifiReset(phone, clientId, orgId, contract) {
   return { reply: MSG.wifiFiled(r.requestId), clientId };
 }
 
-async function startVisit(phone, clientId) {
-  const contracts = await cap.getActiveContracts(clientId);
+async function startVisit(phone, orgId, clientId) {
+  const contracts = await cap.getActiveContracts(orgId, clientId);
   if (contracts.length === 0) return { reply: MSG.noService };
   if (contracts.length > 1) {
     await wa.setConversationState(phone, clientId, 'await_visit_pick', { contracts });
@@ -421,13 +421,14 @@ async function startVisit(phone, clientId) {
 
 async function handleBound({ phone, body, binding }) {
   const clientId = binding.clientId;
-  const orgId = binding.organizationId;
+  // The org comes from the resolved link row, never from the inbound payload.
+  const orgId = binding.organizationId ?? null;
   const text = String(body || '').trim();
 
   await wa.touchBinding(binding.linkId);
 
   if (isUnlinkCommand(text)) {
-    await wa.revokeLink({ clientId, linkId: binding.linkId });
+    await wa.revokeLink({ clientId, organizationId: orgId, linkId: binding.linkId });
     await wa.clearConversationState(phone);
     return { reply: MSG.unlinked, clientId };
   }
@@ -463,7 +464,7 @@ async function handleBound({ phone, body, binding }) {
   }
   if (state && state.state === 'await_problem_desc') {
     await wa.clearConversationState(phone);
-    if (await cap.recentWhatsappTicketCount(clientId) >= WHATSAPP_TICKET_CAP_PER_HOUR) {
+    if (await cap.recentWhatsappTicketCount(orgId, clientId) >= WHATSAPP_TICKET_CAP_PER_HOUR) {
       return { reply: MSG.ticketCapped, clientId };
     }
     const id = await cap.createProblemTicket({ orgId, clientId, description: text, contract: state.context?.contract || null });
@@ -497,7 +498,7 @@ async function handleBound({ phone, body, binding }) {
     const slot = parseSlot(text);
     if (!slot) return { reply: MSG.askVisitSlot, clientId };
     await wa.clearConversationState(phone);
-    if (await cap.recentServiceRequestCount(clientId, 'visit_schedule') >= WHATSAPP_ACTION_CAP_PER_HOUR) {
+    if (await cap.recentServiceRequestCount(orgId, clientId, 'visit_schedule') >= WHATSAPP_ACTION_CAP_PER_HOUR) {
       return { reply: MSG.actionCapped, clientId };
     }
     const id = await cap.scheduleVisit({ orgId, clientId, contract: state.context?.contract || null, preferredDate: state.context?.date, slot });
@@ -524,14 +525,14 @@ async function handleBound({ phone, body, binding }) {
   // No active flow — parse an intent.
   switch (parseIntent(text)) {
     case 'balance': return { reply: await cap.balanceText(orgId, clientId), clientId };
-    case 'plan': return { reply: await cap.planText(clientId), clientId };
-    case 'invoices': return { reply: await cap.invoicesText(clientId), clientId };
-    case 'report': return { ...(await startReport(phone, clientId)), clientId };
-    case 'wifi': return { ...(await startWifiReset(phone, clientId)), clientId };
-    case 'visit': return { ...(await startVisit(phone, clientId)), clientId };
+    case 'plan': return { reply: await cap.planText(orgId, clientId), clientId };
+    case 'invoices': return { reply: await cap.invoicesText(orgId, clientId), clientId };
+    case 'report': return { ...(await startReport(phone, orgId, clientId)), clientId };
+    case 'wifi': return { ...(await startWifiReset(phone, orgId, clientId)), clientId };
+    case 'visit': return { ...(await startVisit(phone, orgId, clientId)), clientId };
     case 'human': {
       await wa.clearConversationState(phone);
-      if (await cap.recentWhatsappTicketCount(clientId) >= WHATSAPP_TICKET_CAP_PER_HOUR) {
+      if (await cap.recentWhatsappTicketCount(orgId, clientId) >= WHATSAPP_TICKET_CAP_PER_HOUR) {
         return { reply: MSG.ticketCapped, clientId };
       }
       const id = await cap.createHumanHandoffTicket({ orgId, clientId });

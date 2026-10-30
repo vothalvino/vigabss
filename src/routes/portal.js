@@ -304,7 +304,7 @@ router.post('/whatsapp/link-code', async (req, res, next) => {
   try {
     // Cap pending codes per client so an authenticated client can't inflate the
     // verification table (and marginally raise cross-client collision odds).
-    const pending = await whatsappService.pendingPortalCodeCount(req.client.id);
+    const pending = await whatsappService.pendingPortalCodeCount(req.client.id, req.client.organizationId);
     if (pending >= config.whatsapp.maxCodesPerHour) {
       throw new ValidationError('Too many linking codes requested. Please wait a few minutes and try again.');
     }
@@ -329,7 +329,7 @@ router.post('/whatsapp/link-code', async (req, res, next) => {
 // GET /portal/whatsapp/status — this client's active WhatsApp links (masked).
 router.get('/whatsapp/status', async (req, res, next) => {
   try {
-    const links = await whatsappService.listClientLinks(req.client.id);
+    const links = await whatsappService.listClientLinks(req.client.id, req.client.organizationId);
     res.json({
       data: {
         linked: links.length > 0,
@@ -352,7 +352,11 @@ router.delete('/whatsapp/link/:id', async (req, res, next) => {
   try {
     const linkId = parseInt(req.params.id, 10);
     if (!Number.isInteger(linkId)) throw new ValidationError('Invalid link id');
-    const ok = await whatsappService.revokeLink({ clientId: req.client.id, linkId });
+    const ok = await whatsappService.revokeLink({
+      clientId: req.client.id,
+      organizationId: req.client.organizationId,
+      linkId,
+    });
     if (!ok) throw new NotFoundError('WhatsApp link not found');
     res.json({ message: 'WhatsApp number disconnected' });
   } catch (err) {
@@ -1067,6 +1071,7 @@ router.get('/service-requests', async (req, res, next) => {
 
     const { rows, total } = await portalServiceRequestService.listRequests(
       req.client.id,
+      req.client.organizationId,
       { page, limit, requestType },
     );
     res.json({
@@ -1100,6 +1105,7 @@ router.post('/service-requests/:id/cancel', async (req, res, next) => {
     const result = await portalServiceRequestService.cancelRequest(
       req.params.id,
       req.client.id,
+      req.client.organizationId,
     );
     res.json({ data: result });
   } catch (err) {
@@ -1494,7 +1500,7 @@ router.delete('/push/subscribe', async (req, res, next) => {
   try {
     const { endpoint } = req.body || {};
     if (!endpoint) throw new ValidationError('endpoint is required');
-    await portalServiceRequestService.deletePushSubscription(req.client.id, endpoint);
+    await portalServiceRequestService.deletePushSubscription(req.client.id, req.client.organizationId, endpoint);
     res.json({ message: 'Push subscription removed' });
   } catch (err) {
     next(err);
