@@ -949,6 +949,7 @@
     "noOpenInvoices": "No open invoices for this client. This payment will be recorded as unallocated credit.",
     "loadClientsError": "Failed to load clients.",
     "excessCreditHint": "The amount above the checked invoices' balance stays as client credit.",
+    "notSettledHint": "Only a completed payment can be applied to invoices. This payment will be recorded without applying it; apply it once it is completed.",
     "table": {
       "invoice": "Invoice",
       "issueDate": "Issue Date",

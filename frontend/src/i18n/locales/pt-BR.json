@@ -949,6 +949,7 @@
     "noOpenInvoices": "Este cliente não possui faturas pendentes. O pagamento será registrado como crédito não alocado.",
     "loadClientsError": "Falha ao carregar clientes.",
     "excessCreditHint": "O valor que exceder o saldo das faturas marcadas permanece como crédito do cliente.",
+    "notSettledHint": "Somente um pagamento concluído pode ser aplicado a faturas. Este pagamento será registrado sem ser aplicado; aplique-o quando estiver concluído.",
     "table": {
       "invoice": "Fatura",
       "issueDate": "Data de Emissão",

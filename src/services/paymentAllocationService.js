@@ -23,6 +23,20 @@ const { requireOrgId } = require('../utils/requireOrgId');
 // PaymentActions.tsx: void/cancelled/paid/draft excluded) — keep both in sync.
 const PAYABLE_STATUSES = ['issued', 'sent', 'overdue'];
 
+// Only money that actually arrived may settle an invoice. A pending, failed,
+// refunded or cancelled payment applied to an invoice marked it paid,
+// reconnected service and stamped a REP for money that never landed.
+function paymentNotSettledError(payment) {
+  return {
+    code: 'PAYMENT_NOT_SETTLED',
+    message: `Only a completed payment can be applied to invoices (this payment is ${payment.status}).`,
+  };
+}
+
+function isPaymentSettled(payment) {
+  return payment?.status === 'completed';
+}
+
 /**
  * Recompute an invoice's live allocated total and flip it to 'paid' (+paid_at)
  * once fully covered. Takes a bound query FUNCTION — e.g. `conn.execute.bind(conn)`
@@ -127,6 +141,8 @@ async function getInvoicesWithBalance(exec, orgId, clientId, invoiceIds, forUpda
 
 module.exports = {
   PAYABLE_STATUSES,
+  isPaymentSettled,
+  paymentNotSettledError,
   finalizeIfFullyPaid,
   reconnectIfSuspended,
   getInvoicesWithBalance,

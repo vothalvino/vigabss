@@ -117,6 +117,9 @@ router.post('/:id/allocate', requirePermission('payments.create'), validate(allo
     if (!paymentRows[0]) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Payment not found.' } });
     }
+    if (!paymentAllocationService.isPaymentSettled(paymentRows[0])) {
+      return res.status(422).json({ error: paymentAllocationService.paymentNotSettledError(paymentRows[0]) });
+    }
 
     // Validate invoice exists (same org — same hole as above: this had no
     // organization_id filter either) and is not void BEFORE inserting the
@@ -212,6 +215,10 @@ router.post('/:id/allocate-auto', requirePermission('payments.create'), validate
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Payment not found.' } });
     }
     const payment = payRows[0];
+    if (!paymentAllocationService.isPaymentSettled(payment)) {
+      await conn.rollback();
+      return res.status(422).json({ error: paymentAllocationService.paymentNotSettledError(payment) });
+    }
 
     // Unallocated remainder for THIS payment (live allocations only).
     const [remRows] = await conn.execute(
@@ -426,6 +433,10 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Payment not found.' } });
     }
     const payment = payRows[0];
+    if (!paymentAllocationService.isPaymentSettled(payment)) {
+      await conn.rollback();
+      return res.status(422).json({ error: paymentAllocationService.paymentNotSettledError(payment) });
+    }
 
     // Load the live allocation from → invoice
     const [allocRows] = await conn.execute(

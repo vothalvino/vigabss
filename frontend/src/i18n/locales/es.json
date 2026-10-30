@@ -949,6 +949,7 @@
     "noOpenInvoices": "Este cliente no tiene facturas pendientes. El pago se registrará como crédito sin asignar.",
     "loadClientsError": "Error al cargar los clientes.",
     "excessCreditHint": "El monto que exceda el saldo de las facturas marcadas queda como crédito del cliente.",
+    "notSettledHint": "Solo un pago completado puede aplicarse a facturas. Este pago se registrará sin aplicarse; aplícalo cuando esté completado.",
     "table": {
       "invoice": "Factura",
       "issueDate": "Fecha de Emisión",
