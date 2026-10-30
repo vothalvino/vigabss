@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
     totp_secret     VARCHAR(255)    NULL     COMMENT 'TOTP shared secret (encrypted/base32 at app layer)',
     totp_enabled    BOOLEAN         NOT NULL DEFAULT FALSE COMMENT 'TRUE when 2FA/TOTP is enabled for this user',
     totp_backup_codes JSON          NULL     COMMENT 'JSON array of one-time backup recovery codes for TOTP',
+    totp_last_used_step BIGINT UNSIGNED NULL DEFAULT NULL COMMENT 'Last accepted TOTP time step (unix time / 30); a code is accepted only for a later step (migration 467)',
     last_login_at          TIMESTAMP       NULL,
     failed_login_attempts  TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Consecutive failed login attempts since last successful login',
     locked_until           TIMESTAMP       NULL DEFAULT NULL   COMMENT 'Account locked until this timestamp; NULL = not locked',

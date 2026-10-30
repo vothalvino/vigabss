@@ -711,6 +711,7 @@
           "Auth"
         ],
         "summary": "Login",
+        "description": "For an account with TOTP two-factor enabled no session is created and no cookies are set: the response is `{ data: { mfa_required: true, mfa_token, expires_in } }`. Complete it with POST /auth/login/2fa. Otherwise returns the token pair and user and sets the session cookies.",
         "operationId": "login",
         "requestBody": {
           "description": "auth_login",
@@ -724,11 +725,86 @@
         },
         "responses": {
           "200": {
+            "description": "Token + User, or a two-factor challenge",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login/2fa": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Complete a two-factor login",
+        "description": "Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.",
+        "operationId": "loginTwoFactor",
+        "requestBody": {
+          "description": "Two-factor challenge and code",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mfa_token",
+                  "code"
+                ],
+                "properties": {
+                  "mfa_token": {
+                    "type": "string",
+                    "maxLength": 2048
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
             "description": "Token + User",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired challenge, wrong or reused code, or locked account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -2264,12 +2340,35 @@
           "Two-Factor"
         ],
         "summary": "Generate TOTP secret",
+        "description": "When 2FA is already enabled, replacing the secret disables it until re-verified, so a current `code` (TOTP or backup) or the account `password` is required (403 otherwise). API tokens are refused on every /2fa route.",
         "operationId": "twoFactorSetup",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "requestBody": {
+          "description": "Re-verification, required only when 2FA is already enabled",
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 10
+                  },
+                  "password": {
+                    "type": "string",
+                    "maxLength": 1024
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Secret + QR URI",
@@ -2277,6 +2376,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "2FA already enabled and no valid code/password, or API token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -59580,6 +59706,24 @@
           "password"
         ]
       },
+      "auth_loginMfa": {
+        "type": "object",
+        "properties": {
+          "mfa_token": {
+            "type": "string",
+            "maximum": 2048
+          },
+          "code": {
+            "type": "string",
+            "minimum": 4,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "mfa_token",
+          "code"
+        ]
+      },
       "auth_requestPasswordReset": {
         "type": "object",
         "properties": {
@@ -77252,6 +77396,20 @@
         "required": [
           "code"
         ]
+      },
+      "twoFactor_setup": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minimum": 4,
+            "maximum": 10
+          },
+          "password": {
+            "type": "string",
+            "maximum": 1024
+          }
+        }
       },
       "usage_usage": {
         "type": "object",

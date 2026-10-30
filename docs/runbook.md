@@ -212,9 +212,19 @@ pnpm run backup
 
 2. **Admin disable 2FA** (if backup codes are lost):
    ```sql
-   UPDATE users SET totp_enabled = FALSE, totp_secret = NULL, totp_backup_codes = NULL
+   UPDATE users SET totp_enabled = FALSE, totp_secret = NULL, totp_backup_codes = NULL,
+                    totp_last_used_step = NULL
    WHERE id = <user_id>;
    ```
+
+3. **Account locked**: wrong 2FA codes count towards the same lockout as wrong
+   passwords (5 failures, 15 minutes). Wait, or clear `failed_login_attempts`
+   and `locked_until` after verifying the user's identity out of band.
+
+### "This 2FA code has already been used"
+
+Each TOTP code is accepted once (migration 467). The user should wait for the
+next code (up to 30 seconds) and try again.
 
 ### TOTP codes not working
 
@@ -227,7 +237,9 @@ pnpm run backup
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/2fa/backup-codes \
-  -H "Authorization: Bearer <token>"
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"code": "<current TOTP code>"}'
 ```
 
 This regenerates 10 new codes and invalidates old ones.

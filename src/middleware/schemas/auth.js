@@ -14,6 +14,13 @@ const login = {
   password: { type: 'string', required: true },
 };
 
+// Second step of a 2FA login: the challenge from POST /auth/login (or an SSO
+// callback) plus a 6-digit TOTP or a XXXX-XXXX backup code.
+const loginMfa = {
+  mfa_token: { type: 'string', required: true, max: 2048 },
+  code: { type: 'string', required: true, min: 4, max: 10 },
+};
+
 const requestPasswordReset = {
   email: { type: 'email', required: true },
 };
@@ -43,4 +50,4 @@ const switchOrganization = {
   refreshToken: { type: 'string', required: false },
 };
 
-module.exports = { register, login, requestPasswordReset, resetPassword, changePassword, verifyEmail, refreshToken, switchOrganization };
+module.exports = { register, login, loginMfa, requestPasswordReset, resetPassword, changePassword, verifyEmail, refreshToken, switchOrganization };

@@ -178,22 +178,55 @@ async function enrichAuthUser(user, activeOrgId) {
   };
 }
 
+/**
+ * Shared tail of a completed login (password, or password + second factor):
+ * enrich the user for the org the JWT was minted for, set the browser cookies
+ * and return the token pair.
+ */
+async function sendLoginSession(res, result) {
+  if (result.user) {
+    // Enrich for the org the JWT was minted for (primary membership org,
+    // falling back to the home org) — NOT blindly the home org, which can
+    // differ for membership-only users and would show the wrong
+    // currency/locale/permissions until the first /auth/me.
+    const activeOrgId = result.activeOrganizationId ?? result.user.organization_id;
+    result.user = await enrichAuthUser(result.user, activeOrgId);
+  }
+  // Set httpOnly cookies for the browser SPA; JSON tokens remain for API clients
+  setAuthCookies(res, result.accessToken, result.refreshToken);
+  res.json({ data: result });
+}
+
 router.post('/login',
   validate(authSchemas.login),
   async (req, res, next) => {
     try {
       const result = await authService.login(req.body);
-      if (result.user) {
-        // Enrich for the org the JWT was minted for (primary membership org,
-        // falling back to the home org) — NOT blindly the home org, which can
-        // differ for membership-only users and would show the wrong
-        // currency/locale/permissions until the first /auth/me.
-        const activeOrgId = result.activeOrganizationId ?? result.user.organization_id;
-        result.user = await enrichAuthUser(result.user, activeOrgId);
+      if (result.mfaRequired) {
+        // Password accepted, second factor pending: NO cookies and NO session.
+        // The challenge token only works on POST /auth/login/2fa.
+        return res.json({
+          data: { mfa_required: true, mfa_token: result.mfaToken, expires_in: result.expiresIn },
+        });
       }
-      // Set httpOnly cookies for the browser SPA; JSON tokens remain for API clients
-      setAuthCookies(res, result.accessToken, result.refreshToken);
-      res.json({ data: result });
+      await sendLoginSession(res, result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /api/auth/login/2fa — complete a password or SSO login with a TOTP or
+// backup code. Mounted under the auth rate limiter like /login.
+router.post('/login/2fa',
+  validate(authSchemas.loginMfa),
+  async (req, res, next) => {
+    try {
+      const result = await authService.completeMfaLogin({
+        mfaToken: req.body.mfa_token,
+        code: req.body.code,
+      });
+      await sendLoginSession(res, result);
     } catch (err) {
       next(err);
     }

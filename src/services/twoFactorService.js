@@ -8,7 +8,7 @@
 
 const crypto = require('crypto');
 const db = require('../config/database');
-const { UnauthorizedError, ValidationError } = require('../utils/errors');
+const { UnauthorizedError, ValidationError, ForbiddenError } = require('../utils/errors');
 
 // TOTP parameters
 const TOTP_DIGITS = 6;
@@ -20,17 +20,46 @@ const TOTP_WINDOW = 1; // Allow ±1 time step for clock drift
 /**
  * Generate a TOTP secret for a user. Does NOT enable 2FA yet.
  * Returns the secret and a provisioning URI for QR code generation.
+ *
+ * Replacing the secret of an account that already has 2FA enabled turns 2FA
+ * off until the new secret is verified, so it requires re-verification: a
+ * current TOTP/backup code or the account password. Without it, any session
+ * (stolen cookie, unattended browser) could silently strip the second factor.
+ *
+ * @param {number} userId
+ * @param {{ code?: string, password?: string }} [reauth]
  */
-async function generateSecret(userId) {
-  const [users] = await db.query('SELECT email FROM users WHERE id = ?', [userId]);
+async function generateSecret(userId, reauth = {}) {
+  const [users] = await db.query(
+    'SELECT email, totp_enabled, password_hash FROM users WHERE id = ? AND deleted_at IS NULL',
+    [userId],
+  );
   if (users.length === 0) throw new ValidationError('User not found');
+
+  if (users[0].totp_enabled) {
+    const code = typeof reauth.code === 'string' && reauth.code !== '' ? reauth.code : null;
+    const password = typeof reauth.password === 'string' && reauth.password !== '' ? reauth.password : null;
+    if (code) {
+      await verifyCode(userId, code);
+    } else if (password) {
+      const bcrypt = require('bcryptjs');
+      if (!await bcrypt.compare(password, users[0].password_hash || '')) {
+        throw new ForbiddenError('Invalid password');
+      }
+    } else {
+      throw new ForbiddenError(
+        'Two-factor authentication is already enabled. Provide a current code or your password to replace it.',
+      );
+    }
+  }
 
   const secret = crypto.randomBytes(20).toString('hex');
   const base32Secret = hexToBase32(secret);
 
-  // Store the secret (not yet verified/enabled)
+  // Store the secret (not yet verified/enabled). A fresh secret starts a fresh
+  // replay window.
   await db.query(
-    'UPDATE users SET totp_secret = ?, totp_enabled = FALSE WHERE id = ?',
+    'UPDATE users SET totp_secret = ?, totp_enabled = FALSE, totp_last_used_step = NULL WHERE id = ?',
     [secret, userId],
   );
 
@@ -58,8 +87,8 @@ async function verifyAndEnable(userId, code) {
     throw new ValidationError('No 2FA secret configured. Call setup first.');
   }
 
-  const valid = verifyTOTP(users[0].totp_secret, code);
-  if (!valid) {
+  const step = typeof code === 'string' ? matchTOTPStep(users[0].totp_secret, code.trim()) : null;
+  if (step === null) {
     throw new UnauthorizedError('Invalid verification code');
   }
 
@@ -70,8 +99,9 @@ async function verifyAndEnable(userId, code) {
   );
 
   await db.query(
-    'UPDATE users SET totp_enabled = TRUE, totp_backup_codes = ? WHERE id = ?',
-    [JSON.stringify(hashedCodes), userId],
+    // Record the enrolment step so the same code cannot be replayed at login.
+    'UPDATE users SET totp_enabled = TRUE, totp_backup_codes = ?, totp_last_used_step = ? WHERE id = ?',
+    [JSON.stringify(hashedCodes), step, userId],
   );
 
   return {
@@ -82,11 +112,47 @@ async function verifyAndEnable(userId, code) {
 }
 
 /**
- * Verify a TOTP code during login.
+ * Parse the stored backup-code hashes. mysql2 returns a JSON column already
+ * decoded (an array), while older drivers/tests hand back the JSON text; any
+ * other shape is treated as "no codes" instead of throwing (which used to turn
+ * every backup-code attempt into a 500).
+ */
+function parseBackupCodes(raw) {
+  if (Array.isArray(raw)) return raw.filter(c => typeof c === 'string');
+  if (typeof raw === 'string' && raw !== '') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(c => typeof c === 'string') : [];
+    } catch (_err) {
+      return [];
+    }
+  }
+  if (Buffer.isBuffer(raw)) return parseBackupCodes(raw.toString('utf8'));
+  return [];
+}
+
+/** Canonical form of a typed backup code: trimmed, upper-case, XXXX-XXXX. */
+function normalizeBackupCode(code) {
+  const compact = String(code).trim().toUpperCase().replace(/[\s-]/g, '');
+  if (!/^[0-9A-F]{8}$/.test(compact)) return null;
+  return `${compact.slice(0, 4)}-${compact.slice(4)}`;
+}
+
+function hashBackupCode(code) {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+/**
+ * Verify a TOTP or backup code for a user with 2FA enabled.
+ *
+ * Each TOTP time step is accepted at most once (users.totp_last_used_step is
+ * advanced with a conditional UPDATE, so two concurrent requests replaying the
+ * same code cannot both succeed), and each backup code is consumed by a single
+ * atomic JSON_REMOVE. Wrong codes throw UnauthorizedError (401).
  */
 async function verifyCode(userId, code) {
   const [users] = await db.query(
-    'SELECT totp_secret, totp_enabled, totp_backup_codes FROM users WHERE id = ?',
+    'SELECT totp_secret, totp_enabled, totp_backup_codes, totp_last_used_step FROM users WHERE id = ?',
     [userId],
   );
   if (users.length === 0) throw new UnauthorizedError('User not found');
@@ -95,25 +161,52 @@ async function verifyCode(userId, code) {
   if (!user.totp_enabled) {
     throw new ValidationError('2FA is not enabled for this account');
   }
+  if (typeof code !== 'string' || code.trim() === '') {
+    throw new UnauthorizedError('Invalid 2FA code');
+  }
+  const trimmed = code.trim();
 
   // Try TOTP first
-  if (verifyTOTP(user.totp_secret, code)) {
-    return { valid: true, method: 'totp' };
+  const step = user.totp_secret ? matchTOTPStep(user.totp_secret, trimmed) : null;
+  if (step !== null) {
+    const lastStep = user.totp_last_used_step === null || user.totp_last_used_step === undefined
+      ? null
+      : Number(user.totp_last_used_step);
+    if (lastStep === null || step > lastStep) {
+      const [claim] = await db.query(
+        `UPDATE users SET totp_last_used_step = ?
+          WHERE id = ? AND totp_enabled = TRUE
+            AND (totp_last_used_step IS NULL OR totp_last_used_step < ?)`,
+        [step, userId, step],
+      );
+      if (claim && claim.affectedRows === 1) {
+        return { valid: true, method: 'totp' };
+      }
+    }
+    throw new UnauthorizedError('This 2FA code has already been used');
   }
 
   // Try backup code
-  const backupCodes = JSON.parse(user.totp_backup_codes || '[]');
-  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
-  const idx = backupCodes.indexOf(codeHash);
-
-  if (idx !== -1) {
-    // Remove used backup code
-    backupCodes.splice(idx, 1);
-    await db.query(
-      'UPDATE users SET totp_backup_codes = ? WHERE id = ?',
-      [JSON.stringify(backupCodes), userId],
-    );
-    return { valid: true, method: 'backup_code', remaining_codes: backupCodes.length };
+  const normalized = normalizeBackupCode(trimmed);
+  if (normalized) {
+    const backupCodes = parseBackupCodes(user.totp_backup_codes);
+    const codeHash = hashBackupCode(normalized);
+    if (backupCodes.includes(codeHash)) {
+      // One statement removes exactly this hash, so concurrent redemptions of
+      // the same code cannot both succeed and two different codes redeemed
+      // at once cannot resurrect each other.
+      const [claim] = await db.query(
+        `UPDATE users
+            SET totp_backup_codes = JSON_REMOVE(totp_backup_codes,
+                  JSON_UNQUOTE(JSON_SEARCH(totp_backup_codes, 'one', ?)))
+          WHERE id = ? AND totp_enabled = TRUE
+            AND JSON_SEARCH(totp_backup_codes, 'one', ?) IS NOT NULL`,
+        [codeHash, userId, codeHash],
+      );
+      if (claim && claim.affectedRows === 1) {
+        return { valid: true, method: 'backup_code', remaining_codes: backupCodes.length - 1 };
+      }
+    }
   }
 
   throw new UnauthorizedError('Invalid 2FA code');
@@ -124,7 +217,7 @@ async function verifyCode(userId, code) {
  */
 async function disable(userId) {
   await db.query(
-    'UPDATE users SET totp_enabled = FALSE, totp_secret = NULL, totp_backup_codes = NULL WHERE id = ?',
+    'UPDATE users SET totp_enabled = FALSE, totp_secret = NULL, totp_backup_codes = NULL, totp_last_used_step = NULL WHERE id = ?',
     [userId],
   );
   return { enabled: false, message: 'Two-factor authentication disabled' };
@@ -192,18 +285,27 @@ function generateTOTP(hexSecret, timeStep = null) {
 }
 
 /**
- * Verify a TOTP code with a ±window tolerance for clock drift.
+ * Return the matching time step for a TOTP code within the ±window drift
+ * tolerance, or null when the code matches none.
  */
-function verifyTOTP(hexSecret, code) {
+function matchTOTPStep(hexSecret, code) {
   const currentStep = Math.floor(Date.now() / 1000 / TOTP_PERIOD);
 
   for (let i = -TOTP_WINDOW; i <= TOTP_WINDOW; i++) {
     const expected = generateTOTP(hexSecret, currentStep + i);
     if (timingSafeEqual(code, expected)) {
-      return true;
+      return currentStep + i;
     }
   }
-  return false;
+  return null;
+}
+
+/**
+ * Verify a TOTP code with a ±window tolerance for clock drift.
+ * Stateless: it does not enforce single use (verifyCode() does).
+ */
+function verifyTOTP(hexSecret, code) {
+  return matchTOTPStep(hexSecret, code) !== null;
 }
 
 /**
@@ -258,5 +360,8 @@ module.exports = {
   regenerateBackupCodes,
   generateTOTP,
   verifyTOTP,
+  matchTOTPStep,
+  parseBackupCodes,
+  normalizeBackupCode,
   hexToBase32,
 };

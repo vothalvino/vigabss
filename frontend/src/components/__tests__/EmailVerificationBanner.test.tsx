@@ -56,6 +56,7 @@ function mockUseAuth(user: AuthUser | null) {
     loading: false,
     initialized: true,
     login: vi.fn(),
+    completeMfaLogin: vi.fn(),
     logout: vi.fn(),
     refresh: mockRefresh,
     switchOrganization: vi.fn(),
