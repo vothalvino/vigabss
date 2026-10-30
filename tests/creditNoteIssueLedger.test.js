@@ -88,6 +88,15 @@ function freshTables() {
     ],
     credit_note_items: [],
     cfdi_documents: [],
+    clients: [
+      { id: 10, organization_id: ORG_A, deleted_at: null },
+      { id: 11, organization_id: ORG_A, deleted_at: null },
+      { id: 20, organization_id: ORG_B, deleted_at: null },
+    ],
+    invoices: [
+      { id: 900, organization_id: ORG_A, deleted_at: null },
+      { id: 901, organization_id: ORG_B, deleted_at: null },
+    ],
   };
 }
 
@@ -278,6 +287,41 @@ describe('creation', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ entry_type: 'credit', organization_id: ORG_A, client_id: 10, currency: 'MXN' });
     expect(Number(rows[0].amount)).toBe(116);
+  });
+});
+
+describe('cross-organization references', () => {
+  test('creating a note for another organization\'s client is 422 and writes nothing', async () => {
+    const before = T.credit_notes.length;
+    const res = await staff('post', '/api/v1/credit-notes').send({
+      client_id: 20, reason: 'billing_error', total: 116, currency: 'MXN', status: 'issued',
+    });
+    expect(res.status).toBe(422);
+    expect(T.credit_notes).toHaveLength(before);
+    expect(T.client_balance_ledger.some(l => same(l.client_id, 20))).toBe(false);
+  });
+
+  test('creating a note against another organization\'s invoice is 422', async () => {
+    const before = T.credit_notes.length;
+    const res = await staff('post', '/api/v1/credit-notes').send({
+      client_id: 10, invoice_id: 901, reason: 'billing_error', total: 116, currency: 'MXN',
+    });
+    expect(res.status).toBe(422);
+    expect(T.credit_notes).toHaveLength(before);
+  });
+
+  test('re-pointing a posted note at another organization\'s client is 422 and the credit stays put', async () => {
+    const res = await staff('put', '/api/v1/credit-notes/702').send({ client_id: 20 });
+    expect(res.status).toBe(422);
+    expect(cn(702).client_id).toBe(10);
+    expect(ledgerFor(702)).toHaveLength(1);
+  });
+
+  test('an own-org invoice is accepted', async () => {
+    const res = await staff('post', '/api/v1/credit-notes').send({
+      client_id: 10, invoice_id: 900, reason: 'billing_error', total: 116, currency: 'MXN',
+    });
+    expect(res.status).toBe(201);
   });
 });
 

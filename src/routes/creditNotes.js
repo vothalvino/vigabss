@@ -15,7 +15,7 @@ const { createCreditNote, updateCreditNote, createCreditNoteItem, stampCreditNot
 const creditNoteCfdiService = require('../services/creditNoteCfdiService');
 const billingService = require('../services/billingService');
 const creditNoteLedgerService = require('../services/creditNoteLedgerService');
-const { AppError, NotFoundError } = require('../utils/errors');
+const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
 const db = require('../config/database');
 
 // Header-amounts consistency: a credit note's total drives the client balance
@@ -113,6 +113,34 @@ function assertStatusTransition(oldStatus, newStatus) {
 
 // beforeUpdate -> afterUpdate hand-off of the locked row as it was before the
 // update (its status and client decide what the ledger sync must undo).
+// A credit note credits a client's account, so the client (and the invoice it
+// is raised against) must belong to the caller's organization: a foreign
+// client_id would post this org's credit onto another tenant's ledger.
+async function assertCreditNoteFks(body, orgId, exec = db.query.bind(db)) {
+  if (body.client_id !== undefined) {
+    const [[client]] = body.client_id === null ? [[null]] : await exec(
+      'SELECT id FROM clients WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      [body.client_id, orgId],
+    );
+    if (!client) {
+      throw new ValidationError('client_id does not belong to this organization', [
+        { field: 'client_id', message: 'Invalid or cross-organization client' },
+      ]);
+    }
+  }
+  if (body.invoice_id !== undefined && body.invoice_id !== null) {
+    const [[invoice]] = await exec(
+      'SELECT id FROM invoices WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      [body.invoice_id, orgId],
+    );
+    if (!invoice) {
+      throw new ValidationError('invoice_id does not belong to this organization', [
+        { field: 'invoice_id', message: 'Invalid or cross-organization invoice' },
+      ]);
+    }
+  }
+}
+
 const priorRow = new WeakMap();
 
 const router = Router();
@@ -133,6 +161,7 @@ const ctrl = crudController(CreditNote, {
   fatalAfterHooks: true,
   beforeUpdate: async (old, req, exec) => {
     assertStatusTransition(old.status, req.body.status);
+    await assertCreditNoteFks(req.body, req.orgId, exec);
     priorRow.set(req, old);
 
     // Cancelling reverses the note's ledger credit, but a CFDI de Egreso that
@@ -269,6 +298,7 @@ router.get('/:id', requirePermission('credit_notes.view'), ctrl.get);
 router.post('/', requirePermission('credit_notes.create'), validate(createCreditNote), async (req, res, next) => {
   try {
     assertTotalsConsistent(req.body);
+    await assertCreditNoteFks(req.body, req.orgId);
     req.body.organization_id = req.orgId;
 
     // The resolver was never consulted here. A credit note for a non-exempt MX
