@@ -84,9 +84,13 @@ describe('PacProviderList page', () => {
       body: expect.objectContaining({
         provider_name: 'sw_sapien', environment: 'sandbox',
         api_url: 'https://services.test.sw.com.mx', label: 'SW Sapien (sandbox)',
-        username_encrypted: 'sw-user', password_encrypted: 'sw-pass', status: 'active',
+        // Plaintext write-only fields: the server encrypts them (BIL-08).
+        username: 'sw-user', password: 'sw-pass', status: 'active',
       }),
     })));
+    const body = (mockApiPost.mock.calls[0][1] as { body: Record<string, unknown> }).body;
+    expect(body).not.toHaveProperty('username_encrypted');
+    expect(body).not.toHaveProperty('password_encrypted');
   });
 
   it('edit: blank credential fields are OMITTED (write-only, never clobber saved secrets)', async () => {
@@ -103,6 +107,8 @@ describe('PacProviderList page', () => {
 
     await waitFor(() => expect(mockApiPut).toHaveBeenCalled());
     const body = (mockApiPut.mock.calls[0][1] as { body: Record<string, unknown> }).body;
+    expect(body).not.toHaveProperty('username');
+    expect(body).not.toHaveProperty('password');
     expect(body).not.toHaveProperty('username_encrypted');
     expect(body).not.toHaveProperty('password_encrypted');
     expect(body.label).toBe('Finkok prod (renamed)');

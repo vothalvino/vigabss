@@ -10,6 +10,7 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createPaymentGateway, updatePaymentGateway } = require('../middleware/schemas/paymentGateways');
+const { sealSecretFields } = require('../utils/sealSecrets');
 
 const router = Router();
 
@@ -59,8 +60,14 @@ router.use(orgScope);
 
 router.get('/', requirePermission('payment_gateways.view'), ctrl.list);
 router.get('/:id', requirePermission('payment_gateways.view'), ctrl.get);
-router.post('/', requirePermission('payment_gateways.create'), validate(createPaymentGateway), ctrl.create);
-router.put('/:id', requirePermission('payment_gateways.update'), validate(updatePaymentGateway), ctrl.update);
+// secret_key_encrypted is NOT NULL; a gateway with no secret (manual) stores ''.
+const sealGatewaySecrets = sealSecretFields(
+  { secret_key: 'secret_key_encrypted', webhook_secret: 'webhook_secret_encrypted' },
+  { defaults: { secret_key_encrypted: '' } },
+);
+
+router.post('/', requirePermission('payment_gateways.create'), validate(createPaymentGateway), sealGatewaySecrets, ctrl.create);
+router.put('/:id', requirePermission('payment_gateways.update'), validate(updatePaymentGateway), sealGatewaySecrets, ctrl.update);
 router.delete('/:id', requirePermission('payment_gateways.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('payment_gateways.update'), ctrl.restore);
 

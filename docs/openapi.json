@@ -70451,17 +70451,17 @@
             "minimum": 0,
             "maximum": 1000
           },
-          "username_encrypted": {
+          "username": {
             "type": "string",
-            "maximum": 500
+            "maximum": 200
           },
-          "password_encrypted": {
+          "password": {
             "type": "string",
-            "maximum": 500
+            "maximum": 200
           },
-          "token_encrypted": {
+          "token": {
             "type": "string",
-            "maximum": 2000
+            "maximum": 1000
           },
           "status": {
             "type": "string",
@@ -70515,17 +70515,17 @@
             "minimum": 0,
             "maximum": 1000
           },
-          "username_encrypted": {
+          "username": {
             "type": "string",
-            "maximum": 500
+            "maximum": 200
           },
-          "password_encrypted": {
+          "password": {
             "type": "string",
-            "maximum": 500
+            "maximum": 200
           },
-          "token_encrypted": {
+          "token": {
             "type": "string",
-            "maximum": 2000
+            "maximum": 1000
           },
           "api_url": {
             "type": "string",
@@ -70570,13 +70570,13 @@
             "type": "string",
             "maximum": 500
           },
-          "secret_key_encrypted": {
+          "secret_key": {
             "type": "string",
-            "maximum": 2000
+            "maximum": 1000
           },
-          "webhook_secret_encrypted": {
+          "webhook_secret": {
             "type": "string",
-            "maximum": 2000
+            "maximum": 1000
           },
           "is_default": {
             "type": "boolean"
@@ -70628,13 +70628,13 @@
             "type": "string",
             "maximum": 500
           },
-          "secret_key_encrypted": {
+          "secret_key": {
             "type": "string",
-            "maximum": 2000
+            "maximum": 1000
           },
-          "webhook_secret_encrypted": {
+          "webhook_secret": {
             "type": "string",
-            "maximum": 2000
+            "maximum": 1000
           },
           "is_default": {
             "type": "boolean"

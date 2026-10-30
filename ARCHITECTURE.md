@@ -305,6 +305,12 @@ that inevitably fail, but they never replace server-side authorization.
   transactions. Use its extension points before forking a second CRUD pattern.
 - Put multi-record invariants, external I/O, and reusable domain decisions in a
   service. Route handlers should remain transport-oriented.
+- Stored credentials (`*_encrypted` columns) are written only by the server.
+  Settings routes accept a write-only plaintext field (`secret_key`,
+  `password`, ...) and seal it with `src/utils/sealSecrets.js`
+  (`encryptStrict` in production); a client-sent `*_encrypted` key is a 422, a
+  blank write-only field keeps the stored value, and responses expose only
+  `has_*` booleans. Readers always go through `decrypt()`.
 - Output encoding happens at the sink: React escapes text, the knowledge-base
   HTML sink uses DOMPurify, XML builders escape XML, and email templates escape
   interpolated HTML. Do not reintroduce blanket input-side HTML encoding.

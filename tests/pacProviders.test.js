@@ -26,6 +26,7 @@ const config = require('../src/config');
 const db = require('../src/config/database');
 const PacProvider = require('../src/models/PacProvider');
 const User = require('../src/models/User');
+const { decrypt } = require('../src/utils/encryption');
 const app = require('../src/app');
 
 function makeToken(payload = {}) {
@@ -139,15 +140,18 @@ describe('PAC Provider routes — secret redaction', () => {
         provider_name: 'finkok',
         label: 'Finkok prueba',
         api_url: 'https://demo-facturacion.finkok.com',
-        username_encrypted: 'PLAINTEXT_USERNAME',
-        password_encrypted: 'PLAINTEXT_PASSWORD',
+        // Write-only plaintext fields (BIL-08), sealed by the route.
+        username: 'PLAINTEXT_USERNAME',
+        password: 'PLAINTEXT_PASSWORD',
       });
 
     expect(res.status).toBe(201);
     assertRedacted(res.body.data);
-    expect(PacProvider.create).toHaveBeenCalledWith(
-      expect.objectContaining({ username_encrypted: 'PLAINTEXT_USERNAME', password_encrypted: 'PLAINTEXT_PASSWORD' }),
-    );
+    const stored = PacProvider.create.mock.calls[0][0];
+    expect(decrypt(stored.username_encrypted)).toBe('PLAINTEXT_USERNAME');
+    expect(decrypt(stored.password_encrypted)).toBe('PLAINTEXT_PASSWORD');
+    expect(stored).not.toHaveProperty('username');
+    expect(stored).not.toHaveProperty('password');
   });
 });
 
