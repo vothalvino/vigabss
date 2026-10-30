@@ -551,6 +551,10 @@ router.post('/devices/swap', requirePermission('cpe_inventory.swap'), async (req
     if (!old_device_id || !new_device_id) {
       return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'old_device_id and new_device_id are required' } });
     }
+    // Defense in depth (RTE-01): both units must be the caller's, as on every
+    // sibling /devices/:id route. swapDevice re-checks under a row lock.
+    await CpeDevice.findByIdOrFail(old_device_id, req.orgId);
+    await CpeDevice.findByIdOrFail(new_device_id, req.orgId);
     const result = await cpeInventoryService.swapDevice({
       oldDeviceId: parseInt(old_device_id, 10),
       newDeviceId: parseInt(new_device_id, 10),

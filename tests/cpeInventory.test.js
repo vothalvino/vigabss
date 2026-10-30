@@ -214,25 +214,24 @@ describe('swapDevice — stock effects', () => {
     const s = String(sql).replace(/\s+/g, ' ').trim();
     const p = params || [];
 
-    // swapDevice: load old/new device (full row, org-agnostic — swapDevice
-    // itself doesn't org-filter this particular SELECT)
-    if (s === 'SELECT * FROM cpe_devices WHERE id = ? AND deleted_at IS NULL') {
-      const [id] = p;
-      const d = state.devices.find(dev => dev.id === id && !dev._deleted);
+    // swapDevice: load + lock old/new device in the caller's org (RTE-01)
+    if (s === 'SELECT * FROM cpe_devices WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL FOR UPDATE') {
+      const [id, orgId] = p;
+      const d = state.devices.find(dev => dev.id === id && dev.organization_id === orgId && !dev._deleted);
       return Promise.resolve([d ? [{ ...d }] : []]);
     }
 
     // transitionLifecycleState: load current state
-    if (s === 'SELECT id, lifecycle_state, organization_id FROM cpe_devices WHERE id = ? AND deleted_at IS NULL') {
-      const [id] = p;
-      const d = state.devices.find(dev => dev.id === id);
+    if (s === 'SELECT id, lifecycle_state, organization_id FROM cpe_devices WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL) AND deleted_at IS NULL') {
+      const [id, orgId] = p;
+      const d = state.devices.find(dev => dev.id === id && (dev.organization_id === orgId || dev.organization_id == null));
       return Promise.resolve([d ? [{ id: d.id, lifecycle_state: d.lifecycle_state, organization_id: d.organization_id }] : []]);
     }
 
     // transitionLifecycleState: apply state
-    if (s === 'UPDATE cpe_devices SET lifecycle_state = ? WHERE id = ?') {
-      const [toState, id] = p;
-      const d = state.devices.find(dev => dev.id === id);
+    if (s === 'UPDATE cpe_devices SET lifecycle_state = ? WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL)') {
+      const [toState, id, orgId] = p;
+      const d = state.devices.find(dev => dev.id === id && (dev.organization_id === orgId || dev.organization_id == null));
       if (d) d.lifecycle_state = toState;
       return Promise.resolve([{ affectedRows: d ? 1 : 0 }]);
     }
