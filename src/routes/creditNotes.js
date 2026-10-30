@@ -14,7 +14,7 @@ const { validate } = require('../middleware/validate');
 const { createCreditNote, updateCreditNote, createCreditNoteItem, stampCreditNote } = require('../middleware/schemas/creditNotes');
 const creditNoteCfdiService = require('../services/creditNoteCfdiService');
 const billingService = require('../services/billingService');
-const { AppError } = require('../utils/errors');
+const { AppError, NotFoundError } = require('../utils/errors');
 const db = require('../config/database');
 
 // Header-amounts consistency: a credit note's total drives the client balance
@@ -259,10 +259,14 @@ router.post('/:id/stamp', requireMxLocale, requirePermission('cfdi_documents.cre
   }
 });
 
-// Credit note line items
+// Credit note line items. credit_note_items has no organization_id, so both
+// routes prove the parent credit note belongs to the caller's org first (404
+// otherwise). They used to read and write by id alone, and POST spread the
+// body AFTER the URL id, so a body credit_note_id chose the parent outright.
 router.get('/:id/items', requirePermission('credit_notes.view'), async (req, res, next) => {
   try {
-    const items = await CreditNote.getItems(req.params.id);
+    await CreditNote.findByIdOrFail(req.params.id, req.orgId);
+    const items = await CreditNote.getItems(req.params.id, req.orgId);
     res.json({ data: items });
   } catch (err) {
     next(err);
@@ -271,7 +275,40 @@ router.get('/:id/items', requirePermission('credit_notes.view'), async (req, res
 
 router.post('/:id/items', requirePermission('credit_notes.update'), validate(createCreditNoteItem), async (req, res, next) => {
   try {
-    const item = await CreditNote.addItem({ credit_note_id: req.params.id, ...req.body });
+    const conn = await db.getConnection();
+    let item;
+    try {
+      await conn.beginTransaction();
+      const exec = conn.execute.bind(conn);
+      // Lock the parent so a concurrent stamp/issue cannot land between the
+      // guards below and the insert.
+      const [[note]] = await exec(
+        `SELECT id, status FROM credit_notes
+          WHERE id = ? AND organization_id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [req.params.id, req.orgId],
+      );
+      if (!note) throw new NotFoundError('Credit note');
+      // Lines can only be added while the note is still being prepared: an
+      // issued/applied note has already credited the client's balance, and a
+      // cancelled one is void.
+      if (note.status !== 'draft') {
+        throw new AppError(
+          `Line items can only be added to a draft credit note (this one is ${note.status}).`,
+          422, 'CREDIT_NOTE_NOT_DRAFT',
+        );
+      }
+      await assertNoLiveCfdi(note.id, req.orgId,
+        'Cancel or substitute the CFDI before adding line items.', exec);
+      // Only the URL id names the parent; any body credit_note_id is ignored.
+      const { credit_note_id: _ignored, ...line } = req.body;
+      item = await CreditNote.addItem({ ...line, credit_note_id: note.id }, req.orgId, exec);
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
     res.status(201).json({ data: item });
   } catch (err) {
     next(err);

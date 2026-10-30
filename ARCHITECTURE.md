@@ -189,6 +189,21 @@ shared primary database.
   guard on one pooled connection and a write on another is not atomic.
 - Passing `organizationId = null` to a service does not reset database routing;
   use the explicit primary context for global work.
+- A tenant-owned row that references another tenant-owned row (`client_id`,
+  `contract_id`, `assigned_to`, a related or merge-source id, ...) must verify
+  that reference in `req.orgId` on create, update, and any derivation step (for
+  example quote -> invoice conversion); reject a foreign or missing reference
+  with a 422 `ValidationError`. See `assertServiceOrderFks`, `assertQuoteFks`
+  and `assertTicketFks` in `src/routes/`.
+- Child tables without their own `organization_id` (for example
+  `ticket_comments`, `ticket_relations`, `ticket_time_logs`) are scoped only
+  through their parent: load the parent by id **and** `req.orgId` before any
+  child read or write, and 404 on a miss (tickets: `requireOwnedTicket` in
+  `src/routes/tickets.js`).
+- Subscriber-portal queries must bind `req.client.organizationId` as well as
+  `req.client.id`, using null-safe `organization_id <=> ?` because single-tenant
+  installs may store NULL organization IDs. A `client_id` match alone is not a
+  tenant boundary.
 
 Reseller scoping by `reseller_id` is an additional business filter, not a hard
 tenant boundary and not a substitute for `organization_id`/tenant routing.
@@ -254,6 +269,21 @@ Most models extend `src/models/BaseModel.js`:
 - generic list filters and sort fields are allowlisted.
 - generic updates reject `organization_id`; tenant re-homing requires a
   separate, explicitly reviewed operation.
+
+Child tables without their own `organization_id` (contacts, invoice/quote/
+credit-note/factura-pública items, payment allocations, CFDI conceptos and
+related documents, inventory stock, device-group members) are tenant-scoped
+only through their parent. A child sub-route must load the parent with
+`req.orgId` first and return 404 when it is not in the org, and its model
+helper must take `orgId` and join the parent's `organization_id` (null-safe
+`<=>` where that column is nullable). Helpers built this way call
+`src/utils/requireOrgId.js` and throw when `orgId` is `undefined`. A line-item
+POST takes its parent id from the URL only: `validate()` does not strip
+undeclared keys, so a body parent id spread after the URL id overrides it.
+Global (`organization_id IS NULL`) rows such as shared CPE profiles stay
+readable through an explicit "own or NULL" lookup, never through an unscoped
+one. `tests/childResourceOrgIsolation.test.js` covers these routes with two
+organizations.
 
 Many responses are direct `SELECT *` database rows. Database column names and
 MySQL wire types are therefore part of the effective API contract. Verify them
@@ -540,6 +570,11 @@ verify each one's upgrade and interoperability contract first.
   key may be ignored, rejected, or accidentally reach custom SQL.
 - **Tenant escape:** omitting `req.orgId`, accepting `organization_id` on update,
   or running global work inside tenant context can leak or move data.
+- **User-supplied regex:** never pass a tenant-authored pattern straight to
+  `new RegExp()`; V8 has no match timeout, so one catastrophic pattern stalls
+  every tenant on the process. Use `src/utils/safeRegex.js` (length cap,
+  nested-quantifier/backreference rejection) at write time and again at
+  evaluation, and cap the subject length (config compliance rules do both).
 - **Permission half-wiring:** a new slug without seed/grant data, or navigation
   without matching backend grants, produces ordinary-user 403s while privileged
   test users appear fine.

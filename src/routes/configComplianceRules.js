@@ -10,7 +10,21 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createRule, updateRule } = require('../middleware/schemas/configComplianceRules');
 const { runComplianceAudit } = require('../services/configBackupService');
-const { NotFoundError } = require('../utils/errors');
+const { NotFoundError, ValidationError } = require('../utils/errors');
+const { compileSafeRegex } = require('../utils/safeRegex');
+
+const REGEX_RULE_TYPES = new Set(['regex_match', 'regex_not_match']);
+
+// Reject a regex rule whose pattern is invalid or structurally catastrophic
+// (ReDoS) at write time, so it never reaches the compliance evaluator. The
+// evaluator re-checks independently (rows written before this guard existed).
+function assertSafeRulePattern(ruleType, pattern) {
+  if (!REGEX_RULE_TYPES.has(ruleType)) return;
+  const compiled = compileSafeRegex(pattern);
+  if (!compiled.ok) {
+    throw new ValidationError('Validation failed', [{ field: 'pattern', message: `pattern ${compiled.reason}` }]);
+  }
+}
 
 const router = Router();
 router.use(authenticate);
@@ -75,6 +89,7 @@ router.post('/', requirePermission('config_compliance.create'), validate(createR
   try {
     const orgId = req.orgId;
     const { name, description, rule_type, pattern, severity, applies_to_device_type, is_enabled } = req.body;
+    assertSafeRulePattern(rule_type, pattern);
     const [result] = await db.query(
       `INSERT INTO config_compliance_rules (organization_id, name, description, rule_type, pattern, severity, applies_to_device_type, is_enabled)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -92,10 +107,18 @@ router.put('/:id', requirePermission('config_compliance.update'), validate(updat
     const orgId = req.orgId;
     const { id } = req.params;
     const [[existing]] = await db.query(
-      'SELECT id FROM config_compliance_rules WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      'SELECT id, rule_type, pattern FROM config_compliance_rules WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [id, orgId],
     );
     if (!existing) throw new NotFoundError('config_compliance_rules');
+    // Validate the EFFECTIVE (rule_type, pattern) pair: changing only the type
+    // to regex_* must still vet the stored pattern, and vice versa.
+    if (req.body.rule_type !== undefined || req.body.pattern !== undefined) {
+      assertSafeRulePattern(
+        req.body.rule_type !== undefined ? req.body.rule_type : existing.rule_type,
+        req.body.pattern !== undefined ? req.body.pattern : existing.pattern,
+      );
+    }
     const fields = ['name', 'description', 'rule_type', 'pattern', 'severity', 'applies_to_device_type', 'is_enabled'];
     const updates = [];
     const vals = [];

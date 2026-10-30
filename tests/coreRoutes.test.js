@@ -810,7 +810,9 @@ describe('Contract Routes — /api/contracts', () => {
     test('returns add-ons for a contract', async () => {
       mockAuthUser();
       const addon = { id: 1, contract_id: 1, plan_addon_id: 3, addon_name: 'Static IP', addon_type: 'static_ip', quantity: 1 };
-      db.query.mockResolvedValueOnce([[addon]]);
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]])  // org-scoped contract lookup (TNA-05)
+        .mockResolvedValueOnce([[addon]]);
 
       const res = await request(app)
         .get('/api/contracts/1/addons')
@@ -828,6 +830,8 @@ describe('Contract Routes — /api/contracts', () => {
       mockAuthUser();
       const addonRow = { id: 10, contract_id: 1, plan_addon_id: 3, quantity: 1, unit_price: 50, status: 'active' };
       db.query
+        .mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]])     // org-scoped contract lookup (TNA-05)
+        .mockResolvedValueOnce([[{ id: 3 }]])                         // plan_addon belongs to org (TNA-05)
         .mockResolvedValueOnce([{ insertId: 10, affectedRows: 1 }])  // INSERT
         .mockResolvedValueOnce([[addonRow]]);                         // SELECT
 
@@ -989,6 +993,8 @@ describe('Invoice Routes — /api/invoices', () => {
     test('returns line items for an invoice', async () => {
       mockAuthUser();
       const item = { id: 1, invoice_id: 1, description: '50 Mbps Plan', quantity: 1, unit_price: 499, amount: 499 };
+      // The route proves the parent invoice is in the caller's org first.
+      db.query.mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]]);
       db.query.mockResolvedValueOnce([[item]]);
 
       const res = await request(app)
@@ -1110,6 +1116,8 @@ describe('Invoice Routes — /api/invoices', () => {
     test('returns payment allocations for an invoice', async () => {
       mockAuthUser();
       const alloc = { id: 1, payment_id: 2, invoice_id: 1, amount: 578.84, payment_amount: 578.84, payment_method: 'transfer' };
+      // The route proves the parent invoice is in the caller's org first.
+      db.query.mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]]);
       db.query.mockResolvedValueOnce([[alloc]]);
 
       const res = await request(app)
@@ -1305,6 +1313,8 @@ describe('Payment Routes — /api/payments', () => {
     test('returns allocations for a payment', async () => {
       mockAuthUser();
       const alloc = { id: 1, payment_id: 1, invoice_id: 5, amount: 578.84 };
+      // The route proves the parent payment is in the caller's org first.
+      db.query.mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]]);
       db.query.mockResolvedValueOnce([[alloc]]);
 
       const res = await request(app)
@@ -1908,7 +1918,9 @@ describe('Ticket Routes — /api/tickets', () => {
   describe('GET /api/tickets/:id', () => {
     test('returns a ticket by id', async () => {
       mockAuthUser();
-      db.query.mockResolvedValueOnce([[mockTicket]]);
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
+        .mockResolvedValueOnce([[mockTicket]]);
 
       const res = await request(app)
         .get('/api/tickets/1')
@@ -1920,6 +1932,7 @@ describe('Ticket Routes — /api/tickets', () => {
 
     test('returns 404 when ticket not found', async () => {
       mockAuthUser();
+      // requireOwnedTicket's org-bound lookup (TNB-06) is now the first miss.
       db.query.mockResolvedValueOnce([[]]);
 
       const res = await request(app)
@@ -1935,6 +1948,7 @@ describe('Ticket Routes — /api/tickets', () => {
     test('creates a ticket and returns 201', async () => {
       mockAuthUser();
       db.query
+        .mockResolvedValueOnce([[{ id: 10, organization_id: 1 }]]) // assertTicketFks: client in org (TNB-06)
         .mockResolvedValueOnce([{ insertId: 2, affectedRows: 1 }])
         .mockResolvedValueOnce([[{ ...mockTicket, id: 2 }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
@@ -1954,6 +1968,7 @@ describe('Ticket Routes — /api/tickets', () => {
     test('updates a ticket', async () => {
       mockAuthUser();
       db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
         .mockResolvedValueOnce([[mockTicket]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ ...mockTicket, status: 'resolved' }]])
@@ -1974,6 +1989,7 @@ describe('Ticket Routes — /api/tickets', () => {
     test('deletes a ticket and returns 204', async () => {
       mockAuthUser();
       db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
         .mockResolvedValueOnce([[mockTicket]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
@@ -1994,7 +2010,9 @@ describe('Ticket Routes — /api/tickets', () => {
         id: 1, ticket_id: 1, user_id: 1, body: 'Working on it.',
         is_internal: false, first_name: 'Test', last_name: 'User',
       };
-      db.query.mockResolvedValueOnce([[comment]]);
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
+        .mockResolvedValueOnce([[comment]]);
 
       const res = await request(app)
         .get('/api/tickets/1/comments')
@@ -2012,6 +2030,7 @@ describe('Ticket Routes — /api/tickets', () => {
       mockAuthUser();
       const newComment = { id: 5, ticket_id: 1, user_id: 1, body: 'Issue resolved.', is_internal: false };
       db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
         .mockResolvedValueOnce([{ insertId: 5, affectedRows: 1 }])  // INSERT ticket_comments
         .mockResolvedValueOnce([[newComment]])                       // SELECT ticket_comment
         .mockResolvedValueOnce([[{ id: 1, organization_id: 1, contract_id: null }]]); // SELECT ticket for aiTriage
@@ -2030,6 +2049,7 @@ describe('Ticket Routes — /api/tickets', () => {
       mockAuthUser();
       const newComment = { id: 6, ticket_id: 1, user_id: 1, body: 'Internal note.', is_internal: true };
       db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
         .mockResolvedValueOnce([{ insertId: 6, affectedRows: 1 }])
         .mockResolvedValueOnce([[newComment]]);
 
@@ -2049,6 +2069,7 @@ describe('Ticket Routes — /api/tickets', () => {
       mockAuthUser();
       const updated = { id: 5, ticket_id: 1, user_id: 1, body: 'Edited body.', is_internal: false };
       db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[updated]]);
 
@@ -2063,7 +2084,9 @@ describe('Ticket Routes — /api/tickets', () => {
 
     test('returns 404 when the comment does not exist', async () => {
       mockAuthUser();
-      db.query.mockResolvedValueOnce([{ affectedRows: 0 }]);
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
+        .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
       const res = await request(app)
         .put('/api/tickets/1/comments/999')
@@ -2078,7 +2101,9 @@ describe('Ticket Routes — /api/tickets', () => {
   describe('DELETE /api/tickets/:id/comments/:commentId', () => {
     test('soft-deletes a comment and returns 204', async () => {
       mockAuthUser();
-      db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const res = await request(app)
         .delete('/api/tickets/1/comments/5')
@@ -2089,7 +2114,9 @@ describe('Ticket Routes — /api/tickets', () => {
 
     test('returns 404 when the comment does not exist', async () => {
       mockAuthUser();
-      db.query.mockResolvedValueOnce([{ affectedRows: 0 }]);
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
+        .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
       const res = await request(app)
         .delete('/api/tickets/1/comments/999')

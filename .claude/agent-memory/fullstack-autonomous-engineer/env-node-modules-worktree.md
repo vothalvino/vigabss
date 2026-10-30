@@ -60,3 +60,14 @@ afterward — they're untracked but git still lists them under `??` (a
 symlink doesn't match a `node_modules/`-with-trailing-slash gitignore
 pattern the same way a real directory does), so leaving them risks an
 accidental `git add -A`.
+
+**Full-suite noise seen in worktrees (2026-10-29):** in a worktree with no
+`frontend/node_modules`, `tests/trapForwardingOpenapi.test.js` ("generated
+TypeScript exposes the new routes") fails because it shells out to
+`pnpm --dir frontend run gen:api` -> `openapi-typescript: not found`
+(environment, not code). `tests/pacProviders.test.js` "POST never leaks
+credentials" flaked once (422) under the parallel full run and passed 3/3 when
+run alone — rerun it before treating it as a regression. The main checkout's
+`node_modules/.bin/jest` and `.../eslint` run fine from a worktree. Running Jest
+from the main checkout while worktrees exist under `.claude/worktrees/` also
+collects their test copies; pass `--testPathIgnorePatterns '/.claude/worktrees/'`.

@@ -660,12 +660,16 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
       }
     }
 
-    // Add line items for contract add-ons
+    // Add line items for contract add-ons. Only add-ons in force today bill:
+    // a pre-dated (start_date in the future) or expired (end_date passed)
+    // assignment must not be charged, and a soft-deleted one never is.
     const [addons] = await conn.execute(
       `SELECT ca.*, pa.name AS addon_name, pa.price AS addon_price
        FROM contract_addons ca
        JOIN plan_addons pa ON pa.id = ca.plan_addon_id
-       WHERE ca.contract_id = ? AND ca.status = 'active'`,
+       WHERE ca.contract_id = ? AND ca.status = 'active' AND ca.deleted_at IS NULL
+         AND (ca.start_date IS NULL OR ca.start_date <= CURDATE())
+         AND (ca.end_date IS NULL OR ca.end_date >= CURDATE())`,
       [contract.id],
     );
 

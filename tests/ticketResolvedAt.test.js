@@ -54,6 +54,9 @@ beforeEach(() => {
 
 function mockUpdateSequence(oldRecord) {
   db.query
+    // requireOwnedTicket's org-bound ownership lookup (TNB-06) runs on every
+    // /:id route, before the controller.
+    .mockResolvedValueOnce([[{ id: oldRecord.id, category: 'technical' }]])
     .mockResolvedValueOnce([[oldRecord]])          // findByIdOrFail (old)
     .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE
     .mockResolvedValueOnce([[{ ...oldRecord }]]);  // findById (fresh)

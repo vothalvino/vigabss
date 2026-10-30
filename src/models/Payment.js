@@ -3,6 +3,7 @@
 // =============================================================================
 
 const BaseModel = require('./BaseModel');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 class Payment extends BaseModel {
   static get tableName() { return 'payments'; }
@@ -20,13 +21,18 @@ class Payment extends BaseModel {
   static get softDelete() { return true; }
 
   /**
-   * Get payment allocations for this payment.
+   * Get payment allocations for this payment, scoped through the parent
+   * payment's organization_id (payment_allocations has no org column).
    */
-  static async getAllocations(paymentId) {
+  static async getAllocations(paymentId, orgId) {
+    requireOrgId(orgId, 'Payment.getAllocations');
     const db = require('../config/database');
     const [rows] = await db.query(
-      'SELECT * FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
-      [paymentId],
+      `SELECT pa.* FROM payment_allocations pa
+         JOIN payments p ON p.id = pa.payment_id
+        WHERE pa.payment_id = ? AND p.organization_id <=> ? AND p.deleted_at IS NULL
+          AND pa.deleted_at IS NULL`,
+      [paymentId, orgId],
     );
     return rows;
   }

@@ -3,6 +3,7 @@
 // =============================================================================
 
 const BaseModel = require('./BaseModel');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 class DeviceGroup extends BaseModel {
   static get tableName() { return 'device_groups'; }
@@ -29,25 +30,36 @@ class DeviceGroup extends BaseModel {
     return rows;
   }
 
-  // Add device(s) to a group
-  static async addMembers(groupId, deviceIds) {
+  // Add device(s) to a group. One INSERT ... SELECT that only produces rows
+  // when the group belongs to `orgId` AND each device belongs to the same
+  // organization as the group, so neither a foreign group nor a foreign
+  // device can be linked (previously both ids were inserted unverified).
+  static async addMembers(groupId, deviceIds, orgId) {
+    requireOrgId(orgId, 'DeviceGroup.addMembers');
     const db = require('../config/database');
     if (!deviceIds || deviceIds.length === 0) return 0;
-    const vals = deviceIds.map(() => '(?,?)').join(',');
-    const params = deviceIds.flatMap(id => [groupId, id]);
+    const placeholders = deviceIds.map(() => '?').join(',');
     const [result] = await db.query(
-      `INSERT IGNORE INTO device_group_members (device_group_id, device_id) VALUES ${vals}`,
-      params,
+      `INSERT IGNORE INTO device_group_members (device_group_id, device_id)
+       SELECT g.id, d.id
+         FROM device_groups g
+         JOIN devices d ON d.organization_id <=> g.organization_id AND d.deleted_at IS NULL
+        WHERE g.id = ? AND g.organization_id <=> ? AND g.deleted_at IS NULL
+          AND d.id IN (${placeholders})`,
+      [groupId, orgId, ...deviceIds],
     );
     return result.affectedRows;
   }
 
-  // Remove device from a group
-  static async removeMember(groupId, deviceId) {
+  // Remove device from a group owned by `orgId`.
+  static async removeMember(groupId, deviceId, orgId) {
+    requireOrgId(orgId, 'DeviceGroup.removeMember');
     const db = require('../config/database');
     const [result] = await db.query(
-      'DELETE FROM device_group_members WHERE device_group_id = ? AND device_id = ?',
-      [groupId, deviceId],
+      `DELETE dgm FROM device_group_members dgm
+         JOIN device_groups g ON g.id = dgm.device_group_id
+        WHERE dgm.device_group_id = ? AND dgm.device_id = ? AND g.organization_id <=> ?`,
+      [groupId, deviceId, orgId],
     );
     return result.affectedRows;
   }

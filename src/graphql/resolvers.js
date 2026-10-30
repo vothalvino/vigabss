@@ -241,7 +241,7 @@ const resolvers = {
       return rows;
     },
 
-    contacts: (client) => Client.getContacts(client.id),
+    contacts: (client, _args, ctx) => Client.getContacts(client.id, ctx.orgId),
   },
 
   // ---------------------------------------------------------------------------
@@ -295,7 +295,7 @@ const resolvers = {
       return rows;
     },
 
-    addons: (contract) => Contract.getAddons(contract.id),
+    addons: (contract, _args, ctx) => Contract.getAddons(contract.id, ctx.orgId),
   },
 
   // ---------------------------------------------------------------------------
@@ -328,18 +328,11 @@ const resolvers = {
     client: (inv, _args, ctx) =>
       inv.client_id ? Client.findById(inv.client_id, ctx.orgId) : null,
 
-    items: (inv) => Invoice.getItems(inv.id),
+    // Scoped through the parent invoice's org (defence in depth: the parent
+    // invoice was itself loaded with ctx.orgId).
+    items: (inv, _args, ctx) => Invoice.getItems(inv.id, ctx.orgId),
 
-    appliedPayments: async (inv) => {
-      const [rows] = await db.query(
-        `SELECT pa.*, p.amount AS payment_amount, p.payment_method, p.payment_date
-         FROM payment_allocations pa
-         JOIN payments p ON p.id = pa.payment_id
-         WHERE pa.invoice_id = ? AND pa.deleted_at IS NULL`,
-        [inv.id],
-      );
-      return rows;
-    },
+    appliedPayments: (inv, _args, ctx) => Invoice.getAppliedPayments(inv.id, ctx.orgId),
   },
 
   // ---------------------------------------------------------------------------

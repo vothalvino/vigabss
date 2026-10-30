@@ -10,6 +10,7 @@ jest.mock('../src/config/database', () => ({
 
 jest.mock('../src/models/CpeProfile', () => ({
   findById: jest.fn(),
+  findVisibleById: jest.fn(),
 }));
 
 jest.mock('../src/models/CpeParameterMapping', () => ({}));
@@ -173,9 +174,12 @@ describe('resolveProfile', () => {
       parent_profile_id: null,
       wifi_ssid_template: 'Test',
     };
-    CpeProfile.findById.mockResolvedValue(profile);
+    // resolveProfile now takes the caller's org and loads each link through
+    // the org-visible (own or global NULL-org) lookup.
+    CpeProfile.findVisibleById.mockResolvedValue(profile);
 
-    const chain = await cpeProfileService.resolveProfile(1);
+    const chain = await cpeProfileService.resolveProfile(1, 7);
+    expect(CpeProfile.findVisibleById).toHaveBeenCalledWith(1, 7);
     expect(chain).toHaveLength(1);
     expect(chain[0].id).toBe(1);
   });
@@ -184,11 +188,12 @@ describe('resolveProfile', () => {
     const parent = { id: 10, parent_profile_id: null, wifi_ssid_template: 'Parent' };
     const child = { id: 20, parent_profile_id: 10, wifi_ssid_template: 'Child' };
 
-    CpeProfile.findById
+    CpeProfile.findVisibleById
       .mockResolvedValueOnce(child)
       .mockResolvedValueOnce(parent);
 
-    const chain = await cpeProfileService.resolveProfile(20);
+    const chain = await cpeProfileService.resolveProfile(20, 7);
+    expect(CpeProfile.findVisibleById).toHaveBeenNthCalledWith(2, 10, 7);
     expect(chain).toHaveLength(2);
     expect(chain[0].id).toBe(10); // root first
     expect(chain[1].id).toBe(20); // leaf last

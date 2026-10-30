@@ -4,6 +4,8 @@
 
 const createQuote = {
   client_id: { type: 'number', required: true, min: 1 },
+  // Optional; client_id/contract_id are org-verified in the route (422).
+  contract_id: { type: 'number', min: 1 },
   quote_number: { type: 'string', max: 50 },
   valid_until: { type: 'string' },
   subtotal: { type: 'number', min: 0 },
@@ -11,11 +13,13 @@ const createQuote = {
   tax_amount: { type: 'number', min: 0 },
   total: { type: 'number', min: 0 },
   notes: { type: 'string', max: 5000 },
-  status: { type: 'string', enum: ['draft', 'sent', 'accepted', 'rejected', 'expired'] },
+  // No `status`: it is set only by POST /quotes/:id/approve|reject, and the
+  // route strips it from create/update bodies (see stripQuoteStatus).
 };
 
 const updateQuote = {
   client_id: { type: 'number', min: 1 },
+  contract_id: { type: 'number', min: 1 },
   quote_number: { type: 'string', max: 50 },
   valid_until: { type: 'string' },
   subtotal: { type: 'number', min: 0 },
@@ -23,7 +27,8 @@ const updateQuote = {
   tax_amount: { type: 'number', min: 0 },
   total: { type: 'number', min: 0 },
   notes: { type: 'string', max: 5000 },
-  status: { type: 'string', enum: ['draft', 'sent', 'accepted', 'rejected', 'expired'] },
+  // No `status`: it is set only by POST /quotes/:id/approve|reject, and the
+  // route strips it from create/update bodies (see stripQuoteStatus).
 };
 
 const createQuoteItem = {

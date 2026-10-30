@@ -510,9 +510,13 @@ router.post('/:id/stamp', requireMxLocale, requirePermission('cfdi_documents.cre
 });
 
 // Invoice line items
+// Both child reads below prove the parent invoice belongs to the caller's org
+// first (404 otherwise); they used to read invoice_items / payment_allocations
+// by invoice id alone.
 router.get('/:id/items', requirePermission('invoices.view'), async (req, res, next) => {
   try {
-    const [rows] = await db.query('SELECT * FROM invoice_items WHERE invoice_id = ? AND deleted_at IS NULL', [req.params.id]);
+    await Invoice.findByIdOrFail(req.params.id, req.orgId);
+    const rows = await Invoice.getItems(req.params.id, req.orgId);
     res.json({ data: rows });
   } catch (err) { next(err); }
 });
@@ -611,7 +615,9 @@ router.post('/:id/items', requirePermission('invoices.update'), validate(addInvo
         if (!invoice) throw new NotFoundError('Invoice');
         assertInvoiceNotTerminal(invoice.status);
         await assertNoLiveCfdi(conn.execute.bind(conn), invoice.id);
-        item = await Invoice.addItem({ invoice_id: req.params.id, ...req.body }, conn.execute.bind(conn));
+        // URL id LAST: validate() does not strip undeclared keys, so a body
+        // invoice_id used to override the org-verified invoice.
+        item = await Invoice.addItem({ ...req.body, invoice_id: req.params.id }, conn.execute.bind(conn));
         await applyItemTotals(conn, invoice, req.orgId, req.body.amount);
         await conn.commit();
       } catch (err) {
@@ -670,7 +676,7 @@ router.post('/:id/items', requirePermission('invoices.update'), validate(addInvo
         );
       }
 
-      item = await Invoice.addItem({ invoice_id: req.params.id, ...req.body }, conn.execute.bind(conn));
+      item = await Invoice.addItem({ ...req.body, invoice_id: req.params.id }, conn.execute.bind(conn));
 
       await inventoryDrawdownService.drawdownForSale(conn.execute.bind(conn), {
         orgId: req.orgId,
@@ -951,13 +957,8 @@ router.post('/generate', requirePermission('invoices.create'), async (req, res, 
 // Invoice payments
 router.get('/:id/payments', requirePermission('payments.view'), async (req, res, next) => {
   try {
-    const [rows] = await db.query(
-      `SELECT pa.*, p.amount AS payment_amount, p.payment_method, p.payment_date
-       FROM payment_allocations pa
-       JOIN payments p ON p.id = pa.payment_id
-       WHERE pa.invoice_id = ? AND pa.deleted_at IS NULL`,
-      [req.params.id],
-    );
+    await Invoice.findByIdOrFail(req.params.id, req.orgId);
+    const rows = await Invoice.getAppliedPayments(req.params.id, req.orgId);
     res.json({ data: rows });
   } catch (err) { next(err); }
 });
