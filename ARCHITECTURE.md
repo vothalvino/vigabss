@@ -353,7 +353,11 @@ active scalar, table, or averaged-table object to an allowlisted
 `snmp_metrics` column. IF-X-MIB Counter64 values arrive from `net-snmp` as
 big-endian buffers; the poller converts only values that remain exactly
 representable as JavaScript integers and records a gap rather than an
-imprecise counter otherwise.
+imprecise counter otherwise. The poll loop is install-wide, but a
+`device_polling_configs` row applies only to devices of its own organization
+(`organization_id <=>` the device's; type-level rows prefer the device's org,
+then an install-wide NULL-org row), and its `device_id` must belong to
+`req.orgId` on create/update.
 
 The metric pipeline is:
 
