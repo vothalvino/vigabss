@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration 475: Bind staff users to a reseller (audit TNB-13)
+-- Migration 471: Bind staff users to a reseller (audit TNB-13)
 -- =============================================================================
 -- Reseller routes only checked that the URL reseller belonged to the caller's
 -- organization, and nothing bound a user to a reseller, so any reseller_admin
@@ -31,7 +31,7 @@
 CREATE TABLE IF NOT EXISTS reseller_user_bindings (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization in which the binding applies',
-    user_id         BIGINT UNSIGNED NOT NULL COMMENT 'Staff user (primary-DB users.id; no FK, see migration 475) confined to the reseller subtree',
+    user_id         BIGINT UNSIGNED NOT NULL COMMENT 'Staff user (primary-DB users.id; no FK, see migration 471) confined to the reseller subtree',
     reseller_id     BIGINT UNSIGNED NOT NULL COMMENT 'Root of the reseller subtree the user may access',
     created_by      BIGINT UNSIGNED NULL     COMMENT 'Administrator who created or last changed the binding',
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,

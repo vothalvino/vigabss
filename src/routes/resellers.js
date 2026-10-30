@@ -27,7 +27,7 @@
 //  GET    /resellers/:id/billing-entity    get billing entity
 //  PUT    /resellers/:id/billing-entity    upsert billing entity
 //
-//  User bindings (TNB-13, migration 475)
+//  User bindings (TNB-13, migration 471)
 //  GET    /resellers/:id/users             list users bound to the reseller
 //  PUT    /resellers/:id/users/:userId     bind (or re-bind) a user to it
 //  DELETE /resellers/:id/users/:userId     remove the user's binding
@@ -616,7 +616,7 @@ router.put('/:id/billing-entity', requirePermission('reseller_billing_entities.m
 });
 
 // =============================================================================
-// User bindings (TNB-13, migration 475)
+// User bindings (TNB-13, migration 471)
 // =============================================================================
 // A bound user is confined to the reseller's subtree on every /resellers and
 // /reseller-portal route. Managing bindings decides another user's access, so

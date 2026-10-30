@@ -4,7 +4,7 @@
 // Reseller routes only checked that the URL reseller belonged to the caller's
 // organization, so any reseller_admin read and managed every reseller's
 // customers, invoices, inventory and billing entity (bank account/CLABE).
-// Migration 475 binds a user to one reseller; a bound user is confined to that
+// Migration 471 binds a user to one reseller; a bound user is confined to that
 // reseller's subtree, an unbound reseller_admin is refused, and org-level
 // staff keep cross-reseller access inside their organization.
 // =============================================================================

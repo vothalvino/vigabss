@@ -14570,12 +14570,12 @@ CREATE TABLE IF NOT EXISTS reseller_billing_entities (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Separate billing entity per reseller (§19.2)';
 
 -- ---------------------------------------------------------------------------
--- Table: reseller_user_bindings (migration 475 — TNB-13)
+-- Table: reseller_user_bindings (migration 471 — TNB-13)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS reseller_user_bindings (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization in which the binding applies',
-    user_id         BIGINT UNSIGNED NOT NULL COMMENT 'Staff user (primary-DB users.id; no FK, see migration 475) confined to the reseller subtree',
+    user_id         BIGINT UNSIGNED NOT NULL COMMENT 'Staff user (primary-DB users.id; no FK, see migration 471) confined to the reseller subtree',
     reseller_id     BIGINT UNSIGNED NOT NULL COMMENT 'Root of the reseller subtree the user may access',
     created_by      BIGINT UNSIGNED NULL     COMMENT 'Administrator who created or last changed the binding',
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,

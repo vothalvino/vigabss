@@ -14,7 +14,7 @@
 //      binding wins over any permission the user holds. A binding whose
 //      reseller was deleted or left the organization fails closed (403).
 //   3. An unbound user in the seeded reseller_admin group fails closed (403):
-//      that group is designed for reseller staff, and before migration 475 it
+//      that group is designed for reseller staff, and before migration 471 it
 //      could read every reseller's customers and bank details.
 //   4. Any other unbound user is org-level staff: requirePermission on each
 //      route remains the only gate, exactly as before.

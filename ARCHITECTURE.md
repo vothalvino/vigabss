@@ -240,7 +240,7 @@ tenant boundary and not a substitute for `organization_id`/tenant routing.
 Which resellers a staff caller may act on is resolved server-side by
 `src/middleware/resellerScope.js` (`req.resellerScope`) for every
 `/resellers` and `/reseller-portal` route: a `reseller_user_bindings` row
-(migration 475) confines the user to that reseller and its sub-resellers
+(migration 471) confines the user to that reseller and its sub-resellers
 (404 outside it, lists filtered) whatever permissions it holds; an unbound
 user in the `reseller_admin` group is refused with 403; other unbound staff
 reach every reseller in their organization through ordinary permissions.
