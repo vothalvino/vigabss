@@ -10,7 +10,7 @@ const createPaymentGateway = {
   // Write-only plaintext; stored encrypted in secret_key_encrypted /
   // webhook_secret_encrypted by src/utils/sealSecrets.js and never returned.
   secret_key: { type: 'string', max: 1000 },
-  webhook_secret: { type: 'string', max: 1000 },
+  webhook_secret: { type: 'string', max: 4000 }, // a Conekta RSA public key PEM is several hundred chars
   is_default: { type: 'boolean' },
   config_json: { type: 'string', max: 5000 },
   status: { type: 'string', enum: ['active', 'inactive'] },
@@ -23,7 +23,7 @@ const updatePaymentGateway = {
   public_key: { type: 'string', max: 500 },
   // Blank or absent keeps the stored secret.
   secret_key: { type: 'string', max: 1000 },
-  webhook_secret: { type: 'string', max: 1000 },
+  webhook_secret: { type: 'string', max: 4000 }, // a Conekta RSA public key PEM is several hundred chars
   is_default: { type: 'boolean' },
   config_json: { type: 'string', max: 5000 },
   status: { type: 'string', enum: ['active', 'inactive'] },

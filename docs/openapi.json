@@ -70576,7 +70576,7 @@
           },
           "webhook_secret": {
             "type": "string",
-            "maximum": 1000
+            "maximum": 4000
           },
           "is_default": {
             "type": "boolean"
@@ -70634,7 +70634,7 @@
           },
           "webhook_secret": {
             "type": "string",
-            "maximum": 1000
+            "maximum": 4000
           },
           "is_default": {
             "type": "boolean"

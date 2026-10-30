@@ -631,10 +631,19 @@ function PaymentGatewaysTab() {
                 onChange={e => setForm(f => ({ ...f, secret_key: e.target.value }))} />
             </label>
             <label style={sty.label}>
-              Webhook Secret {editing?.has_webhook_secret && <span style={sty.hint}>(leave blank to keep existing)</span>}
-              <input style={sty.input} type="password" value={form.webhook_secret} autoComplete="new-password"
-                placeholder={editing?.has_webhook_secret ? '••••••••' : 'whsec_…'}
-                onChange={e => setForm(f => ({ ...f, webhook_secret: e.target.value }))} />
+              {form.provider === 'conekta' ? 'Webhook Public Key (PEM)' : 'Webhook Secret'}
+              {editing?.has_webhook_secret && <span style={sty.hint}> (leave blank to keep existing)</span>}
+              {form.provider === 'conekta' ? (
+                // Conekta signs webhooks with RSA; the verifier needs the
+                // multi-line public key from POST /webhook_keys.
+                <textarea style={{ ...sty.input, minHeight: 96, fontFamily: 'monospace' }} value={form.webhook_secret}
+                  placeholder={editing?.has_webhook_secret ? '••••••••' : '-----BEGIN PUBLIC KEY-----'}
+                  onChange={e => setForm(f => ({ ...f, webhook_secret: e.target.value }))} />
+              ) : (
+                <input style={sty.input} type="password" value={form.webhook_secret} autoComplete="new-password"
+                  placeholder={editing?.has_webhook_secret ? '••••••••' : 'whsec_…'}
+                  onChange={e => setForm(f => ({ ...f, webhook_secret: e.target.value }))} />
+              )}
             </label>
             {editing && (editing.provider === 'stripe' || editing.provider === 'conekta') && (() => {
               const webhookUrl = `${window.location.origin}/api/v1/payment-webhooks/${editing.provider}/${editing.id}`;
@@ -655,6 +664,11 @@ function PaymentGatewaysTab() {
                     }}>{copied === 'ok' ? 'Copied!' : copied === 'fail' ? 'Select it ↑' : 'Copy'}</button>
                   </div>
                   <span style={sty.hint}>Set this as the webhook endpoint in {editing.provider}, then paste the signing secret it returns into “Webhook Secret” above. Until a secret is saved here, incoming webhooks are rejected (503) — payments won’t auto-reconcile.</span>
+                  <span style={sty.hint}>
+                    Subscribe it to: {editing.provider === 'stripe'
+                      ? 'checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, checkout.session.expired, payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, charge.dispute.created'
+                      : 'order.paid, order.payment_failed, charge.refunded, charge.chargeback.created'}
+                  </span>
                 </div>
               );
             })()}
