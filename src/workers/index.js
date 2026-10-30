@@ -149,7 +149,7 @@ function registerWorkers() {
       const ids = [], embeddings = [], documents = [], metadatas = [];
       for (const phrase of localePhrases) {
         try {
-          const embedding = await llmProviderService.embed(phrase.text, activeProviderId);
+          const embedding = await llmProviderService.embed(phrase.text, activeProviderId, { orgId });
           ids.push(`phrase_${phrase.id}`);
           embeddings.push(embedding);
           documents.push(phrase.text);
@@ -173,7 +173,7 @@ function registerWorkers() {
     for (const ticket of tickets) {
       const text = [ticket.subject, ticket.description].filter(Boolean).join('\n');
       try {
-        const embedding = await llmProviderService.embed(text, activeProviderId);
+        const embedding = await llmProviderService.embed(text, activeProviderId, { orgId });
         tIds.push(`ticket_${ticket.id}`);
         tEmbeds.push(embedding);
         tDocs.push(text);

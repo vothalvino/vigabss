@@ -264,8 +264,8 @@ describe('aiBackfillEmbeddingsWorker (ai-backfill-embeddings)', () => {
     const handler = getHandler(jobQueue, 'ai-backfill-embeddings');
     await handler(makeJob({ orgId: 3 }));
 
-    expect(mockEmbed).toHaveBeenCalledWith('Hello', 1);
-    expect(mockEmbed).toHaveBeenCalledWith('Internet down\nNo service', 1);
+    expect(mockEmbed).toHaveBeenCalledWith('Hello', 1, { orgId: 3 });
+    expect(mockEmbed).toHaveBeenCalledWith('Internet down\nNo service', 1, { orgId: 3 });
     expect(mockVsUpsert).toHaveBeenCalledTimes(2); // once for phrases, once for tickets
   });
 
