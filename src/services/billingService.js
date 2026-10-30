@@ -999,6 +999,35 @@ async function applyQuoteLineItemToTotals(exec, quoteId, taxRate, lineAmount) {
   return delta;
 }
 
+/**
+ * The credit-note twin of applyLineItemToTotals: fold ONE new line into a
+ * DRAFT credit note's stored money columns as a DELTA, at the header-level
+ * tax rate, with the same rounding.
+ *
+ * A delta rather than a recompute-from-lines for the same reason as invoices
+ * and quotes: credit notes are normally created with header amounts and no
+ * lines (the staff form, the refund path), so a recompute would collapse the
+ * credited amount to just the added line. Drafts post nothing to the balance
+ * ledger, so no ledger movement accompanies this; the issue transition posts
+ * the final total.
+ *
+ * @param {(sql: string, params: unknown[]) => Promise<[unknown, unknown]>} exec
+ * @param {number|string} creditNoteId
+ * @param {number|string} taxRate credit_notes.tax_rate (fraction; percent tolerated)
+ * @param {number} lineAmount the new line's stored total (quantity * unit_price)
+ * @returns {Promise<number>} the delta applied to `total`
+ */
+async function applyCreditNoteLineItemToTotals(exec, creditNoteId, taxRate, lineAmount) {
+  const amt = Math.round((parseFloat(lineAmount) || 0) * 100) / 100;
+  const lineTax = Math.round(amt * invoiceTaxFraction(taxRate) * 100) / 100;
+  const delta = Math.round((amt + lineTax) * 100) / 100;
+  await exec(
+    'UPDATE credit_notes SET subtotal = subtotal + ?, tax_amount = tax_amount + ?, total = total + ? WHERE id = ?',
+    [amt, lineTax, delta, creditNoteId],
+  );
+  return delta;
+}
+
 async function refreshInvoicePaidStatus(invoiceId) {
   const [rows] = await db.query(
     `SELECT i.total,
@@ -1231,6 +1260,7 @@ module.exports = {
   generateBillingPeriod, generateInvoice, createOneOffInvoice, calculateProration,
   recordPaymentCredit, reversePaymentCredit,
   reversePaymentAllocations, restorePaymentAllocations, refreshInvoicePaidStatus, applyLineItemToTotals, applyQuoteLineItemToTotals,
+  applyCreditNoteLineItemToTotals,
   releaseInvoiceAllocations, invoiceTaxFraction, resolveTaxContext, assertTaxCoherent,
   normalizePostalCode, postalSpecMatch, resolveRegionRate,
   voidInvoiceById, cancelInvoiceForSat,

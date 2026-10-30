@@ -292,6 +292,19 @@ frontend. MySQL booleans commonly return as `0`/`1`, and `DECIMAL` values return
 as strings under the current mysql2 configuration; convert deliberately before
 boolean logic, comparison, or arithmetic.
 
+A client's headline balance is computed live by
+`src/services/clientBalanceService.js` from invoices, payments, and
+`issued`/`applied` credit notes. `client_balance_ledger` is the history behind
+the Ledger tab, `GET /clients/:id/balance-ledger`, and the statement PDF, and
+it must agree with the headline balance. A credit note posts its ledger credit
+only when it is issued: a draft posts nothing, and the draft -> issued/applied
+change through `PUT /credit-notes/:id` posts the final total once, inside the
+crudController update transaction and row lock. A note created directly as
+issued/applied posts at creation. A posted note cannot return to draft, and
+`cancelled` is terminal. Cancelling a posted note writes no reversal today.
+Ledger history is corrected by appending compensating rows, not by editing old
+ones.
+
 `pnpm run sql:check` statically checks resolvable SQL in `src/` against
 `database/schema.sql`, including table/column names, ENUM values, and writes to
 generated columns. Dynamic SQL is reported as skipped. The exception lists in
