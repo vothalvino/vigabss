@@ -397,6 +397,12 @@ The scheduler reads `scheduled_tasks`, but executable task names must also be
 registered in the `switch` in `src/services/taskRunner.js`. A seed row without a
 cron expression, dispatcher case, scope classification, and dispatch test is a
 dead feature. Keep global versus organization-scoped execution explicit.
+A seeded install-wide row runs with `organizationId = null`; a handler that
+binds `organization_id = ?` must then be fanned out with
+`forEachActiveOrganization` (`src/services/organizationFanOut.js`) — it reads
+the org list on the primary, enters each isolated tenant's context, isolates
+per-org failures and throws only when every org failed. Passing NULL straight
+through matches nothing and records a successful no-op.
 
 Redis-backed caching and BullMQ workers are optional. Code must preserve the
 documented no-Redis fallback unless a deployment requirement is intentionally

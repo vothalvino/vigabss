@@ -1681,7 +1681,7 @@
     "feeAmount": "Monto del Cargo",
     "gracePeriodDays": "Días de Gracia",
     "maxApplications": "Aplicaciones Máximas",
-    "maxApplicationsUnlimited": "Ilimitado",
+    "maxApplicationsUnlimited": "Ilimitado (una vez al mes)",
     "isActive": "Activo",
     "deleteConfirm": "¿Eliminar esta regla de cargo por mora?",
     "noRules": "No hay reglas de cargo por mora configuradas."

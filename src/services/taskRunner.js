@@ -38,6 +38,7 @@ const cpeSessionLogService = require('./cpeSessionLogService');
 const speedWindowService = require('./speedWindowService');
 const assetService = require('./assetService');
 const scheduledReportService = require('./scheduledReportService');
+const { forEachActiveOrganization } = require('./organizationFanOut');
 const emailTemplates = require('../views/emailTemplates');
 const { backup: runBackup } = require('../scripts/backup');
 
@@ -157,7 +158,7 @@ async function runTask(taskName, organizationId = null) {
 
   switch (taskName) {
     case 'auto_generate_invoices':
-      return runAutoInvoice(organizationId);
+      return failIfInvoicingFailed(await runAutoInvoice(organizationId));
     case 'auto_suspend_overdue':
       return runAutoSuspend(organizationId);
     case 'billing_cycle':
@@ -290,10 +291,13 @@ async function runTask(taskName, organizationId = null) {
       return interactionService.autoEscalateTickets(organizationId);
     case 'campaign_send':
       return campaignService.processQueue(organizationId);
+    // ASY-02: these handlers bind `organization_id = ?`, so the seeded
+    // install-wide row (organization_id NULL) matched nothing and reported
+    // success. With no org they now run once per active organization.
     case 'apply_late_fees':
-      return lateFeeService.applyLateFees(organizationId);
+      return perOrganization(taskName, organizationId, orgId => lateFeeService.applyLateFees(orgId));
     case 'send_payment_reminders':
-      return paymentReminderService.sendPaymentReminders(organizationId);
+      return perOrganization(taskName, organizationId, orgId => paymentReminderService.sendPaymentReminders(orgId));
     case 'purge_radius_accounting': {
       const radiusAccountingService = require('./radiusAccountingService');
       return radiusAccountingService.purgeRadiusAccounting();
@@ -322,7 +326,7 @@ async function runTask(taskName, organizationId = null) {
       return handleSlaBreachCheck(organizationId);
     case 'geofence_evaluation': {
       const geoFenceService = require('./geoFenceService');
-      return geoFenceService.evaluateAll(organizationId);
+      return perOrganization(taskName, organizationId, orgId => geoFenceService.evaluateAll(orgId));
     }
     case 'inventory_low_stock_check':
       return handleInventoryLowStockCheck(organizationId);
@@ -332,15 +336,16 @@ async function runTask(taskName, organizationId = null) {
       return handleDataRetentionComplianceCheck(organizationId);
     // §18 Automation & Scripting tasks
     case 'anomaly_detection':
-      return analyticsService.detectAnomalies(organizationId);
+      return perOrganization(taskName, organizationId, orgId => analyticsService.detectAnomalies(orgId));
     case 'churn_score_computation':
-      return analyticsService.computeChurnScores(organizationId);
+      return perOrganization(taskName, organizationId, orgId => analyticsService.computeChurnScores(orgId));
     case 'remediation_evaluation':
-      return automationService.evaluateRemediationRules(organizationId);
+      return perOrganization(taskName, organizationId, orgId => automationService.evaluateRemediationRules(orgId));
     // §21 AI Customer Support tasks
     case 'ai_support_metrics_rollup': {
+      // With no org it used to INSERT a NULL organization_id and fail nightly.
       const aiSupportMetricsService = require('./aiSupportMetricsService');
-      return aiSupportMetricsService.rollupMetrics(organizationId);
+      return perOrganization(taskName, organizationId, orgId => aiSupportMetricsService.rollupMetrics(orgId));
     }
     // §7.1/§7.2 FTTH OLT/ONU tasks (seeded by migration 269)
     //
@@ -462,9 +467,12 @@ async function runAutoInvoice(organizationId) {
 
   let generated = 0;
   let emailed = 0;
+  let failed = 0;
+  const errors = [];
   for (const contract of contracts) {
     try {
       const period = await billingService.generateBillingPeriod(contract);
+      if (!period) continue;
       // generateBillingPeriod may pre-create the NEXT (future) window. Only invoice
       // a pending period once its scheduled billing day has actually arrived —
       // otherwise next cycle's invoice is generated way ahead of time.
@@ -512,12 +520,32 @@ async function runAutoInvoice(organizationId) {
           // Email failure must not block the billing cycle
         }
       }
-    } catch (_err) {
-      // Skip contracts that fail (already invoiced, etc.)
+    } catch (err) {
+      // One contract must not stop the run, but a failure must not vanish
+      // either: it is logged, counted and returned, and the task is marked
+      // failed (failIfInvoicingFailed). An already-invoiced period is not an
+      // error — generateInvoice returns the existing invoice for it.
+      failed++;
+      if (errors.length < 50) errors.push({ contract_id: contract.id, error: err.message });
+      logger.error({ err, contractId: contract.id, organizationId: contract.organization_id }, 'Scheduled invoice generation failed for contract');
     }
   }
 
-  return { invoices_generated: generated, emails_sent: emailed, contracts_checked: contracts.length };
+  return {
+    invoices_generated: generated,
+    emails_sent: emailed,
+    contracts_checked: contracts.length,
+    contracts_failed: failed,
+    errors,
+  };
+}
+
+function failIfInvoicingFailed(result) {
+  if (!result.contracts_failed) return result;
+  const err = new Error(`Invoice generation failed for ${result.contracts_failed} of ${result.contracts_checked} contract(s)`);
+  err.result = result;
+  err.failures = result.errors;
+  throw err;
 }
 
 /**
@@ -688,6 +716,13 @@ async function runAutoSuspend(organizationId) {
  * tenant's database context explicitly. One failed tenant does not prevent the
  * remaining organizations from being checked.
  */
+// Run an org-bound handler for one organization, or for every active one when
+// the task row is install-wide (organizationId null).
+function perOrganization(taskName, organizationId, handler) {
+  if (organizationId !== null && organizationId !== undefined) return handler(Number(organizationId));
+  return forEachActiveOrganization(taskName, handler);
+}
+
 async function runAlertEvaluation(organizationId = null) {
   const withPrimary = callback => (
     typeof db.withPrimaryContext === 'function' ? db.withPrimaryContext(callback) : callback()
@@ -756,15 +791,19 @@ async function runAlertEvaluation(organizationId = null) {
  */
 async function runBillingCycle(organizationId) {
   const invoiceResult = await runAutoInvoice(organizationId);
+  // Suspension still runs when some invoices failed; the cycle is then
+  // reported as failed with both results.
   const suspendResult = await runAutoSuspend(organizationId);
 
-  return {
+  return failIfInvoicingFailed({
     invoices_generated: invoiceResult.invoices_generated,
     emails_sent: invoiceResult.emails_sent,
     contracts_checked: invoiceResult.contracts_checked,
+    contracts_failed: invoiceResult.contracts_failed,
+    errors: invoiceResult.errors,
     contracts_suspended: suspendResult.contracts_suspended,
     warnings_sent: suspendResult.warnings_sent,
-  };
+  });
 }
 
 /**

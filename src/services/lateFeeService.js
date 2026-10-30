@@ -98,8 +98,8 @@ async function deleteLateFeeRule(organizationId, ruleId) {
 
 /**
  * Apply late fees to all eligible overdue invoices for an organization.
- * Idempotent: skips invoices already processed by a given rule
- * (unless max_applications > 1).
+ * Each rule applies at most once per invoice per calendar month (UTC) and at
+ * most max_applications times in total, so rerunning is safe.
  *
  * @param {number} organizationId
  * @returns {Promise<{ fees_applied: number, invoices_checked: number }>}
@@ -146,49 +146,77 @@ async function applyLateFees(organizationId) {
   );
 
   let feesApplied = 0;
+  // A rule applies at most once per invoice per calendar month (UTC), and at
+  // most max_applications times in total (NULL = no total cap). The scheduled
+  // task runs daily, so without the per-month bound an "unlimited" rule added
+  // a new fee every day. The UNIQUE (invoice, rule, period_key) key (migration
+  // 473) makes the bound hold across concurrent runs too.
+  const periodKey = new Date().toISOString().slice(0, 7);
 
   for (const invoice of invoices) {
     for (const rule of rules) {
       // Check grace period: invoice must be overdue beyond rule's grace period
       if (invoice.days_overdue <= rule.grace_period_days) continue;
 
-      // Count how many times this rule has already been applied to this invoice
       const [existing] = await db.query(
-        'SELECT COUNT(*) AS cnt FROM invoice_late_fees WHERE invoice_id = ? AND late_fee_rule_id = ?',
-        [invoice.id, rule.id],
+        `SELECT COUNT(*) AS cnt, COALESCE(SUM(period_key = ?), 0) AS this_period
+           FROM invoice_late_fees WHERE invoice_id = ? AND late_fee_rule_id = ?`,
+        [periodKey, invoice.id, rule.id],
       );
-      const alreadyApplied = existing[0].cnt;
-
+      if (Number(existing[0].this_period) > 0) continue;
+      const alreadyApplied = Number(existing[0].cnt);
       if (rule.max_applications !== null && alreadyApplied >= rule.max_applications) continue;
 
       // Calculate fee amount. A percent fee is a percentage of the NET subtotal
       // (not the tax-inclusive total) — the fee is booked as a taxable line and
       // taxed once below, so basing it on the gross total would tax it twice
-      // (effective surcharge p*(1+rate) instead of p).
+      // (effective surcharge p*(1+rate) instead of p). Earlier late fees are
+      // taken out of the base so a monthly percent fee does not compound.
       let feeAmount;
       if (rule.fee_type === 'percent') {
-        feeAmount = parseFloat(invoice.subtotal) * (parseFloat(rule.fee_amount) / 100);
+        const [prior] = await db.query(
+          'SELECT COALESCE(SUM(amount), 0) AS fees FROM invoice_late_fees WHERE invoice_id = ?',
+          [invoice.id],
+        );
+        const base = parseFloat(invoice.subtotal) - parseFloat(prior[0].fees || 0);
+        feeAmount = base * (parseFloat(rule.fee_amount) / 100);
       } else {
         feeAmount = parseFloat(rule.fee_amount);
       }
       feeAmount = Math.round(feeAmount * 100) / 100;
       if (feeAmount <= 0) continue;
 
+      const conn = await db.getConnection();
       try {
-        // Insert invoice_items line
-        const [itemResult] = await db.query(
+        await conn.beginTransaction();
+        const exec = conn.execute.bind(conn);
+
+        // Claim this (invoice, rule, month) first: a concurrent run hits the
+        // unique key here and adds nothing.
+        let claim;
+        try {
+          [claim] = await exec(
+            `INSERT INTO invoice_late_fees
+               (invoice_id, late_fee_rule_id, organization_id, amount, applied_by, invoice_item_id, period_key)
+             VALUES (?, ?, ?, ?, NULL, NULL, ?)`,
+            [invoice.id, rule.id, organizationId, feeAmount, periodKey],
+          );
+        } catch (dupErr) {
+          if (dupErr.code === 'ER_DUP_ENTRY' || dupErr.errno === 1062) {
+            await conn.rollback();
+            continue;
+          }
+          throw dupErr;
+        }
+
+        const [itemResult] = await exec(
           `INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, amount)
            VALUES (?, ?, 1, ?, ?)`,
           [invoice.id, `Late fee: ${rule.name}`, feeAmount, feeAmount],
         );
-        const invoiceItemId = itemResult.insertId;
-
-        // Record the late fee application
-        await db.query(
-          `INSERT INTO invoice_late_fees
-             (invoice_id, late_fee_rule_id, organization_id, amount, applied_by, invoice_item_id)
-           VALUES (?, ?, ?, ?, NULL, ?)`,
-          [invoice.id, rule.id, organizationId, feeAmount, invoiceItemId],
+        await exec(
+          'UPDATE invoice_late_fees SET invoice_item_id = ? WHERE id = ?',
+          [itemResult.insertId, claim.insertId],
         );
 
         // Book the fee as a taxable line via the canonical DELTA helper: it adds
@@ -196,7 +224,9 @@ async function applyLateFees(organizationId) {
         // round(fee*rate)), so total = subtotal + tax stays consistent WITHOUT
         // recomputing (and silently rewriting) the invoice's original tax_amount.
         const lineTax = Math.round(feeAmount * billingService.invoiceTaxFraction(invoice.tax_rate) * 100) / 100;
-        await billingService.applyLineItemToTotals(db.query, invoice.id, invoice.tax_rate, feeAmount);
+        await billingService.applyLineItemToTotals(exec, invoice.id, invoice.tax_rate, feeAmount);
+        await conn.commit();
+
         // Keep the in-memory invoice in sync so a second rule in this loop
         // accumulates on the updated figures.
         invoice.subtotal = Math.round((parseFloat(invoice.subtotal) + feeAmount) * 100) / 100;
@@ -224,7 +254,10 @@ async function applyLateFees(organizationId) {
           currency: invoice.currency,
         });
       } catch (err) {
+        await conn.rollback().catch(() => {});
         logger.error({ err, invoiceId: invoice.id, ruleId: rule.id }, 'lateFeeService: error applying fee');
+      } finally {
+        conn.release();
       }
     }
   }

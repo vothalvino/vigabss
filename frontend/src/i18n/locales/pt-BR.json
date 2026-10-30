@@ -1681,7 +1681,7 @@
     "feeAmount": "Valor da Multa",
     "gracePeriodDays": "Dias de Carência",
     "maxApplications": "Aplicações Máximas",
-    "maxApplicationsUnlimited": "Ilimitado",
+    "maxApplicationsUnlimited": "Ilimitado (uma vez por mês)",
     "isActive": "Ativo",
     "deleteConfirm": "Excluir esta regra de multa por atraso?",
     "noRules": "Nenhuma regra de multa por atraso configurada."

@@ -1681,7 +1681,7 @@
     "feeAmount": "Fee Amount",
     "gracePeriodDays": "Grace Period (days)",
     "maxApplications": "Max Applications",
-    "maxApplicationsUnlimited": "Unlimited",
+    "maxApplicationsUnlimited": "Unlimited (once a month)",
     "isActive": "Active",
     "deleteConfirm": "Delete this late fee rule?",
     "noRules": "No late fee rules configured."
