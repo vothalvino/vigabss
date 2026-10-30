@@ -3,6 +3,7 @@
 // =============================================================================
 
 const BaseModel = require('./BaseModel');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 class Quote extends BaseModel {
   static get tableName() { return 'quotes'; }
@@ -19,11 +20,18 @@ class Quote extends BaseModel {
 
   static get softDelete() { return true; }
 
-  static async getItems(quoteId) {
+  // Scoped through the parent quote's organization_id (quote_items has no
+  // org column of its own).
+  static async getItems(quoteId, orgId) {
+    requireOrgId(orgId, 'Quote.getItems');
     const db = require('../config/database');
     const [rows] = await db.query(
-      'SELECT * FROM quote_items WHERE quote_id = ? AND deleted_at IS NULL ORDER BY id',
-      [quoteId],
+      `SELECT qi.* FROM quote_items qi
+         JOIN quotes q ON q.id = qi.quote_id
+        WHERE qi.quote_id = ? AND q.organization_id <=> ? AND q.deleted_at IS NULL
+          AND qi.deleted_at IS NULL
+        ORDER BY qi.id`,
+      [quoteId, orgId],
     );
     return rows;
   }

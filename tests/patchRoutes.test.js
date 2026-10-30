@@ -63,11 +63,15 @@ beforeEach(() => {
 // =============================================================================
 // Helper: run standard PATCH tests for a CRUD resource
 // =============================================================================
-function describePatch(name, path, mockRecord, patchBody, updatedRecord) {
+// `ownershipLookup`: a route-level ownership guard that runs before the
+// controller (tickets' requireOwnedTicket, TNB-06) issues one org-bound
+// lookup first; pass the row it should see.
+function describePatch(name, path, mockRecord, patchBody, updatedRecord, { ownershipLookup } = {}) {
   describe(`PATCH ${path}/:id`, () => {
 
     test('partially updates the record and returns 200', async () => {
       mockAuthUser();
+      if (ownershipLookup) db.query.mockResolvedValueOnce([[ownershipLookup]]);
       db.query
         .mockResolvedValueOnce([[mockRecord]])       // findByIdOrFail (old)
         .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE
@@ -109,6 +113,7 @@ function describePatch(name, path, mockRecord, patchBody, updatedRecord) {
 
     test('returns 422 with invalid data', async () => {
       mockAuthUser();
+      if (ownershipLookup) db.query.mockResolvedValueOnce([[ownershipLookup]]);
 
       const res = await request(app)
         .patch(`${path}/1`)
@@ -184,6 +189,7 @@ describePatch(
   { id: 1, organization_id: 1, subject: 'No internet', priority: 'high', status: 'open' },
   { priority: 'critical' },
   { id: 1, organization_id: 1, subject: 'No internet', priority: 'critical', status: 'open' },
+  { ownershipLookup: { id: 1, category: 'technical' } },
 );
 
 // =============================================================================

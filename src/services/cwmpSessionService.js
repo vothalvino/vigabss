@@ -193,7 +193,7 @@ async function applyZeroTouchProvisioning(cpeDevice, orgId) {
   }
 
   const profile = profiles[0];
-  const resolvedProfile = await cpeProfileService.resolveProfile(profile.id);
+  const resolvedProfile = await cpeProfileService.resolveProfile(profile.id, orgId ?? null);
   const tasks = await cpeProfileService.buildProvisioningTasks(cpeDevice, resolvedProfile);
 
   // Insert tasks

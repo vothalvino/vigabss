@@ -823,6 +823,8 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
     test('success — lists items', async () => {
       mockAuthUser();
       db.query
+        // parent factura lookup (org-scoped) runs first now
+        .mockResolvedValueOnce([[{ id: 1, status: 'draft', cfdi_document_id: null }]])
         .mockResolvedValueOnce([[{ id: 1, invoice_id: 5 }]])
         .mockResolvedValueOnce([[{ total: 1 }]]);
 
@@ -840,7 +842,12 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
   describe('POST /api/facturas-publicas/:id/items', () => {
     test('success — links an invoice', async () => {
       mockAuthUser();
-      db.query
+      // Linking is transactional now: lock the org's draft factura, verify the
+      // invoice is in the org, insert, read back — all on one connection.
+      const conn = mockConnection();
+      conn.execute
+        .mockResolvedValueOnce([[{ id: 1, status: 'draft', cfdi_document_id: null }]])
+        .mockResolvedValueOnce([[{ id: 5 }]])
         .mockResolvedValueOnce([{ insertId: 3 }])
         .mockResolvedValueOnce([[{ id: 3, invoice_id: 5 }]]);
 
@@ -1126,6 +1133,15 @@ describe('PDF Routes — /api/pdf', () => {
 // QUOTE ROUTES — /api/quotes
 // =============================================================================
 describe('Quote Routes — /api/quotes', () => {
+  // POST /quotes, PUT /quotes/:id and convert-to-invoice now org-verify the
+  // quote's client_id (TNB-05; Client is automocked in this file, so an
+  // unstubbed findById reads as "not in this org" -> 422). These happy-path
+  // tests use an own-org client; the cross-org rejections are covered in
+  // tests/quoteTenantIsolation.test.js.
+  beforeEach(() => {
+    Client.findById.mockResolvedValue({ id: 5, organization_id: 1 });
+  });
+
   describe('GET /api/quotes', () => {
     test('success — lists quotes', async () => {
       mockAuthUser();
@@ -1758,7 +1774,8 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
   describe('GET /api/invoices/:id/items', () => {
     test('success — returns invoice items', async () => {
       mockAuthUser();
-      db.query.mockResolvedValue([[{ id: 1, description: 'Internet Service' }]]);
+      // Route now reads through the (auto-mocked) org-scoped model helper.
+      Invoice.getItems.mockResolvedValue([{ id: 1, description: 'Internet Service' }]);
 
       const res = await request(app)
         .get('/api/invoices/1/items')
@@ -1972,7 +1989,8 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
   describe('GET /api/invoices/:id/payments', () => {
     test('success — returns payment allocations', async () => {
       mockAuthUser();
-      db.query.mockResolvedValue([[{ id: 1, amount: '500.00', payment_method: 'cash' }]]);
+      // Route now reads through the (auto-mocked) org-scoped model helper.
+      Invoice.getAppliedPayments.mockResolvedValue([{ id: 1, amount: '500.00', payment_method: 'cash' }]);
 
       const res = await request(app)
         .get('/api/invoices/1/payments')

@@ -15,6 +15,8 @@ const crypto = require('crypto');
 const db = require('../config/database');
 const { tunnelServer } = require('./firerelayTunnel');
 const logger = require('../utils/logger').child({ service: 'configBackupService' });
+const { NotFoundError } = require('../utils/errors');
+const { compileSafeRegex, MAX_REGEX_SUBJECT_LENGTH } = require('../utils/safeRegex');
 
 // =============================================================================
 // Internal helpers
@@ -122,10 +124,10 @@ async function pullBackupForDevice({
     // organization_id is derived from the device in the statement itself rather
     // than passed in: this is the nightly unattended pull, it has no request
     // context to take req.orgId from, and a subquery cannot drift from the
-    // parent the way a caller-supplied value can. Migration 425 made the column
-    // NOT NULL precisely so a backup can never land unattributed — an
-    // unattributed row would be invisible to every tenant, which is the silent
-    // failure this whole change exists to close.
+    // parent the way a caller-supplied value can. The column is deliberately
+    // NULLABLE (migration 425): it mirrors devices.organization_id, which is
+    // NULL on single-tenant installs, so a NULL here means "single-tenant", not
+    // "unattributed". Org-bound reads therefore use the null-safe `<=>`.
     `INSERT INTO device_config_backups
        (organization_id, device_id, version, config_type, content, file_size, checksum,
         capture_method, captured_by_user_id, notes)
@@ -270,26 +272,84 @@ function computeDiff(previousContent, currentContent) {
 }
 
 /**
+ * Evaluate a single compliance rule against backup content.
+ * Regex rules go through compileSafeRegex (length cap + nested-quantifier /
+ * backreference rejection) and a subject-length cap; a rejected pattern or an
+ * oversized subject yields result 'error' instead of running the regex.
+ *
+ * @param {{ rule_type: string, pattern: string }} rule
+ * @param {string} content
+ * @returns {{ result: 'pass'|'fail'|'error', details: string }}
+ */
+function evaluateRule(rule, content) {
+  const { rule_type, pattern } = rule;
+  if (rule_type === 'must_contain') {
+    const found = content.includes(pattern);
+    return found
+      ? { result: 'pass', details: `Pattern found: ${pattern}` }
+      : { result: 'fail', details: `Pattern not found: ${pattern}` };
+  }
+  if (rule_type === 'must_not_contain') {
+    const found = content.includes(pattern);
+    return !found
+      ? { result: 'pass', details: `Forbidden pattern absent: ${pattern}` }
+      : { result: 'fail', details: `Forbidden pattern found: ${pattern}` };
+  }
+  if (rule_type === 'regex_match' || rule_type === 'regex_not_match') {
+    const compiled = compileSafeRegex(pattern);
+    if (!compiled.ok) {
+      return { result: 'error', details: `Rule evaluation error: unsafe or invalid regex rejected (${compiled.reason})` };
+    }
+    if (content.length > MAX_REGEX_SUBJECT_LENGTH) {
+      return {
+        result: 'error',
+        details: `Rule evaluation error: config content (${content.length} chars) exceeds the ${MAX_REGEX_SUBJECT_LENGTH}-char regex evaluation limit`,
+      };
+    }
+    const matched = compiled.regex.test(content);
+    if (rule_type === 'regex_match') {
+      return matched
+        ? { result: 'pass', details: `Regex matched: ${pattern}` }
+        : { result: 'fail', details: `Regex did not match: ${pattern}` };
+    }
+    return !matched
+      ? { result: 'pass', details: `Regex absent (good): ${pattern}` }
+      : { result: 'fail', details: `Regex matched (violation): ${pattern}` };
+  }
+  // Unknown rule types were previously recorded as a silent 'fail' with empty
+  // details; keep the 'fail' outcome but say why.
+  return { result: 'fail', details: `Unknown rule type: ${rule_type}` };
+}
+
+/**
  * Run a compliance audit on a backup, evaluating all enabled compliance rules
  * for the org against the backup content. Inserts result rows.
  *
+ * Tenant boundary: the backup is loaded only if it belongs to organizationId
+ * (NotFoundError otherwise, before any result row is written), and the device
+ * lookup is bound to the same org. organization_id is nullable on both tables
+ * (single-tenant installs, migration 425), so the predicate uses the null-safe
+ * `<=>`; HTTP callers always pass a non-null req.orgId (orgScope rejects a
+ * request without one), so a NULL-org row is never reachable from a tenant.
+ *
  * @param {number} backupId
- * @param {number} organizationId
+ * @param {number|null} organizationId
  * @returns {Promise<{ total: number, passed: number, failed: number }>}
  */
 async function runComplianceAudit(backupId, organizationId) {
-  // Load backup
+  // Load backup — org-bound, and soft-deleted backups are not auditable.
   const [backupRows] = await db.query(
-    'SELECT id, device_id, content FROM device_config_backups WHERE id = ?',
-    [backupId],
+    `SELECT id, device_id, content FROM device_config_backups WHERE id = ?
+        AND organization_id <=> ? AND deleted_at IS NULL`,
+    [backupId, organizationId],
   );
-  if (backupRows.length === 0) throw new Error(`Backup ${backupId} not found`);
+  if (backupRows.length === 0) throw new NotFoundError('device_config_backups');
   const backup = backupRows[0];
 
-  // Load device type for filtering
+  // Load device type for filtering (defence in depth: same org as the backup).
   const [deviceRows] = await db.query(
-    'SELECT id, type AS device_type FROM devices WHERE id = ?',
-    [backup.device_id],
+    'SELECT id, type AS device_type FROM devices WHERE id = ? AND organization_id <=> ?',
+    [backup.device_id, organizationId],
   );
   const deviceType = deviceRows.length > 0 ? deviceRows[0].device_type : null;
 
@@ -305,28 +365,13 @@ async function runComplianceAudit(backupId, organizationId) {
   );
 
   const stats = { total: rules.length, passed: 0, failed: 0 };
-  const content = backup.content;
+  const content = typeof backup.content === 'string' ? backup.content : String(backup.content ?? '');
 
   for (const rule of rules) {
-    let result = 'fail';
-    let details = '';
+    let result;
+    let details;
     try {
-      const { rule_type, pattern } = rule;
-      if (rule_type === 'must_contain') {
-        result = content.includes(pattern) ? 'pass' : 'fail';
-        details = result === 'pass' ? `Pattern found: ${pattern}` : `Pattern not found: ${pattern}`;
-      } else if (rule_type === 'must_not_contain') {
-        result = !content.includes(pattern) ? 'pass' : 'fail';
-        details = result === 'pass' ? `Forbidden pattern absent: ${pattern}` : `Forbidden pattern found: ${pattern}`;
-      } else if (rule_type === 'regex_match') {
-        const rx = new RegExp(pattern);
-        result = rx.test(content) ? 'pass' : 'fail';
-        details = result === 'pass' ? `Regex matched: ${pattern}` : `Regex did not match: ${pattern}`;
-      } else if (rule_type === 'regex_not_match') {
-        const rx = new RegExp(pattern);
-        result = !rx.test(content) ? 'pass' : 'fail';
-        details = result === 'pass' ? `Regex absent (good): ${pattern}` : `Regex matched (violation): ${pattern}`;
-      }
+      ({ result, details } = evaluateRule(rule, content));
     } catch (err) {
       result = 'error';
       details = `Rule evaluation error: ${err.message}`;
@@ -458,6 +503,7 @@ module.exports = {
   runNightlyBackups,
   computeDiff,
   runComplianceAudit,
+  evaluateRule,
   pullBackupWithDiff,
   deployConfigTemplate,
   // exported for testing

@@ -6,6 +6,8 @@ const { Router } = require('express');
 const Quote = require('../models/Quote');
 const Invoice = require('../models/Invoice');
 const Organization = require('../models/Organization');
+const Client = require('../models/Client');
+const Contract = require('../models/Contract');
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
@@ -20,7 +22,45 @@ const auditLog = require('../services/auditLog');
 const { ValidationError, NotFoundError } = require('../utils/errors');
 
 const router = Router();
-const ctrl = crudController(Quote);
+
+// Rejects a quote body whose client_id/contract_id do not belong to the
+// caller's organization (mirrors assertServiceOrderFks in serviceOrders.js).
+// Without it a quote — and, via convert-to-invoice, an issued invoice — could
+// carry another tenant's client, which that tenant's subscriber portal would
+// then list and offer to pay. 422 (bad reference), never a 404/500.
+// client_id is NOT NULL on quotes, so an explicit null is rejected too;
+// contract_id is optional and an explicit null simply unlinks it.
+async function assertQuoteFks(body, orgId) {
+  if (body.client_id !== undefined) {
+    const client = body.client_id === null ? null : await Client.findById(body.client_id, orgId);
+    if (!client) {
+      throw new ValidationError('client_id does not belong to this organization', [
+        { field: 'client_id', message: 'Invalid or cross-organization client' },
+      ]);
+    }
+  }
+  if (body.contract_id !== undefined && body.contract_id !== null) {
+    const contract = await Contract.findById(body.contract_id, orgId);
+    if (!contract) {
+      throw new ValidationError('contract_id does not belong to this organization', [
+        { field: 'contract_id', message: 'Invalid or cross-organization contract' },
+      ]);
+    }
+  }
+}
+
+// status is owned by POST /:id/approve and /:id/reject (and the conversion
+// stamp). Accepting it on create/update let a caller mint an already
+// "accepted" quote and convert it straight to an issued invoice, bypassing
+// the approval gate entirely — so it is silently dropped from those bodies.
+function stripQuoteStatus(req, _res, next) {
+  if (req.body && typeof req.body === 'object') delete req.body.status;
+  next();
+}
+
+const ctrl = crudController(Quote, {
+  beforeUpdate: (_old, req) => assertQuoteFks(req.body, req.orgId),
+});
 
 router.use(authenticate);
 router.use(orgScope);
@@ -41,8 +81,11 @@ router.get('/:id', requirePermission('quotes.view'), ctrl.get);
 //
 // When an explicit quote_number IS supplied there's no sequence to protect,
 // so the plain crudController path (ctrl.create) is used unchanged.
-router.post('/', requirePermission('quotes.create'), validate(createQuote), async (req, res, next) => {
+router.post('/', requirePermission('quotes.create'), stripQuoteStatus, validate(createQuote), async (req, res, next) => {
   try {
+    // Both branches below write client_id/contract_id straight from the body.
+    await assertQuoteFks(req.body, req.orgId);
+
     if (req.body.quote_number) {
       return ctrl.create(req, res, next);
     }
@@ -93,14 +136,16 @@ router.post('/', requirePermission('quotes.create'), validate(createQuote), asyn
     next(err);
   }
 });
-router.put('/:id', requirePermission('quotes.update'), validate(updateQuote), ctrl.update);
+router.put('/:id', requirePermission('quotes.update'), stripQuoteStatus, validate(updateQuote), ctrl.update);
 router.delete('/:id', requirePermission('quotes.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('quotes.update'), ctrl.restore);
 
 // Get quote line items
 router.get('/:id/items', requirePermission('quotes.view'), async (req, res, next) => {
   try {
-    const items = await Quote.getItems(req.params.id);
+    // quote_items has no organization_id; prove the parent quote is ours first.
+    await Quote.findByIdOrFail(req.params.id, req.orgId);
+    const items = await Quote.getItems(req.params.id, req.orgId);
     res.json({ data: items });
   } catch (err) {
     next(err);
@@ -154,7 +199,10 @@ router.post('/:id/items', requirePermission('quotes.update'), validate(createQuo
         [req.params.id, req.orgId],
       );
       if (!quote) throw new NotFoundError('Quote');
-      item = await Quote.addItem({ quote_id: req.params.id, ...req.body }, conn.execute.bind(conn));
+      // URL id LAST: validate() does not strip undeclared keys, so a body
+      // quote_id used to override the org-verified quote and land the line
+      // on another tenant's quote.
+      item = await Quote.addItem({ ...req.body, quote_id: req.params.id }, conn.execute.bind(conn));
       // The line's own STORED total, never req.body.amount. quote_items has no
       // writable `amount` column and `total` is
       // GENERATED ALWAYS AS (quantity * unit_price) — the API still accepts
@@ -443,6 +491,12 @@ router.post('/:id/convert-to-invoice', requirePermission('quotes.create'), requi
         },
       });
     }
+
+    // Re-verify the quote's own client/contract belong to this org before
+    // issuing an invoice from it — a quote written before assertQuoteFks
+    // existed (or by any other path) must never become a foreign-tenant
+    // invoice that the other org's subscriber portal lists and pays.
+    await assertQuoteFks({ client_id: quote.client_id, contract_id: quote.contract_id }, req.orgId);
 
     // Re-check the tax figures AT CONVERSION TIME, before the transaction.
     // The INSERT below copies subtotal/tax_amount/total/tax_rate off the quote

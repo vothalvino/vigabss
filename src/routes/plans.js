@@ -110,6 +110,10 @@ router.get('/:id/speed-windows', requirePermission('plans.view'), async (req, re
 
 router.post('/:id/speed-windows', requirePermission('plans.create'), validate(createSpeedWindow), async (req, res, next) => {
   try {
+    // The plan must belong to the caller's organization (404 otherwise): the
+    // window is keyed by plan_id, so an unchecked id would let one tenant
+    // throttle or time-block another tenant's subscribers.
+    await Plan.findByIdOrFail(req.params.id, req.orgId);
     const { label, day_mask, start_time, end_time, download_speed_mbps, upload_speed_mbps, priority, status } = req.body;
     const [result] = await db.query(
       `INSERT INTO plan_speed_windows (plan_id, organization_id, label, day_mask, start_time, end_time, download_speed_mbps, upload_speed_mbps, priority, status)
@@ -132,7 +136,12 @@ router.put('/:id/speed-windows/:windowId', requirePermission('plans.update'), va
       [label, day_mask ?? 127, start_time, end_time, download_speed_mbps, upload_speed_mbps, priority ?? 10, status ?? 'active',
         req.params.windowId, req.params.id, req.orgId],
     );
-    const [rows] = await db.query('SELECT * FROM plan_speed_windows WHERE id = ?', [req.params.windowId]);
+    // Re-read with the same scope as the UPDATE: an id-only read-back would
+    // return another tenant's window when the scoped UPDATE matched nothing.
+    const [rows] = await db.query(
+      'SELECT * FROM plan_speed_windows WHERE id = ? AND plan_id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.windowId, req.params.id, req.orgId],
+    );
     if (rows.length === 0) return res.status(404).json({ error: 'Speed window not found' });
     res.json({ data: rows[0] });
   } catch (err) {
@@ -170,6 +179,10 @@ router.get('/:id/access-windows', requirePermission('plan_access_windows.view'),
 
 router.post('/:id/access-windows', requirePermission('plan_access_windows.create'), validate(createAccessWindow), async (req, res, next) => {
   try {
+    // The plan must belong to the caller's organization (404 otherwise): the
+    // window is keyed by plan_id, so an unchecked id would let one tenant
+    // throttle or time-block another tenant's subscribers.
+    await Plan.findByIdOrFail(req.params.id, req.orgId);
     const { label, day_mask, start_time, end_time, status } = req.body;
     const [result] = await db.query(
       `INSERT INTO plan_access_windows (plan_id, organization_id, label, day_mask, start_time, end_time, status)
@@ -192,7 +205,12 @@ router.put('/:id/access-windows/:windowId', requirePermission('plan_access_windo
       [label, day_mask ?? 127, start_time, end_time, status ?? 'active',
         req.params.windowId, req.params.id, req.orgId],
     );
-    const [rows] = await db.query('SELECT * FROM plan_access_windows WHERE id = ?', [req.params.windowId]);
+    // Re-read with the same scope as the UPDATE: an id-only read-back would
+    // return another tenant's window when the scoped UPDATE matched nothing.
+    const [rows] = await db.query(
+      'SELECT * FROM plan_access_windows WHERE id = ? AND plan_id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.windowId, req.params.id, req.orgId],
+    );
     if (rows.length === 0) return res.status(404).json({ error: 'Access window not found' });
     res.json({ data: rows[0] });
   } catch (err) {

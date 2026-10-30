@@ -146,10 +146,13 @@ router.patch('/:id', requirePermission('clients.update'), validate(patchClient),
 router.delete('/:id', requirePermission('clients.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('clients.update'), ctrl.restore);
 
-// Contacts sub-routes
+// Contacts sub-routes. contacts has no organization_id of its own, so both
+// routes prove the parent client belongs to the caller's org first (404
+// otherwise) — they used to read and write by client id alone.
 router.get('/:id/contacts', requirePermission('clients.view'), async (req, res, next) => {
   try {
-    const contacts = await Client.getContacts(req.params.id);
+    await Client.findByIdOrFail(req.params.id, req.orgId);
+    const contacts = await Client.getContacts(req.params.id, req.orgId);
     res.json({ data: contacts });
   } catch (err) {
     next(err);
@@ -158,6 +161,7 @@ router.get('/:id/contacts', requirePermission('clients.view'), async (req, res, 
 
 router.post('/:id/contacts', requirePermission('clients.update'), validate(createContact), async (req, res, next) => {
   try {
+    await Client.findByIdOrFail(req.params.id, req.orgId);  // 404s if the client isn't in this org
     const { name, email, phone, role } = req.body;
     // The contacts table stores first_name + last_name (both NOT NULL), but the
     // UI sends a single `name`. Insert into `name` failed with "Unknown column".

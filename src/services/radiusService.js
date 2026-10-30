@@ -652,10 +652,14 @@ async function syncFreeradiusTables(organizationId) {
     const planIds = [...planSet.keys()];
     const placeholders = planIds.map(() => '?').join(',');
     const [windowRows] = await db.query(
-      `SELECT plan_id, day_mask, start_time, end_time, status, deleted_at
-       FROM plan_access_windows
-       WHERE plan_id IN (${placeholders}) AND deleted_at IS NULL AND status = 'active'
-       ORDER BY plan_id, id`,
+      // Only windows owned by the plan's own organization apply (null-safe
+      // for single-tenant NULL-org rows): a cross-tenant window must never
+      // time-block another organization's subscribers.
+      `SELECT w.plan_id, w.day_mask, w.start_time, w.end_time, w.status, w.deleted_at
+       FROM plan_access_windows w
+       JOIN plans p ON p.id = w.plan_id AND w.organization_id <=> p.organization_id
+       WHERE w.plan_id IN (${placeholders}) AND w.deleted_at IS NULL AND w.status = 'active'
+       ORDER BY w.plan_id, w.id`,
       planIds,
     );
     for (const row of windowRows) {

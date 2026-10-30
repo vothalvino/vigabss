@@ -3,6 +3,7 @@
 // =============================================================================
 
 const BaseModel = require('./BaseModel');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 class CfdiDocument extends BaseModel {
   static get tableName() { return 'cfdi_documents'; }
@@ -34,20 +35,30 @@ class CfdiDocument extends BaseModel {
   // the CFDI list page filters by it (draft/vigente/cancelado/cancel_pending).
   static get filterableColumns() { return ['sat_status']; }
 
-  static async getConceptos(cfdiId) {
+  // Both children are scoped through the parent CFDI's organization_id
+  // (neither child table has an org column of its own).
+  static async getConceptos(cfdiId, orgId) {
+    requireOrgId(orgId, 'CfdiDocument.getConceptos');
     const db = require('../config/database');
     const [rows] = await db.query(
-      'SELECT * FROM cfdi_conceptos WHERE cfdi_document_id = ? ORDER BY id',
-      [cfdiId],
+      `SELECT cc.* FROM cfdi_conceptos cc
+         JOIN cfdi_documents d ON d.id = cc.cfdi_document_id
+        WHERE cc.cfdi_document_id = ? AND d.organization_id <=> ?
+        ORDER BY cc.id`,
+      [cfdiId, orgId],
     );
     return rows;
   }
 
-  static async getRelatedDocuments(cfdiId) {
+  static async getRelatedDocuments(cfdiId, orgId) {
+    requireOrgId(orgId, 'CfdiDocument.getRelatedDocuments');
     const db = require('../config/database');
     const [rows] = await db.query(
-      'SELECT * FROM cfdi_related_documents WHERE cfdi_document_id = ? ORDER BY id',
-      [cfdiId],
+      `SELECT crd.* FROM cfdi_related_documents crd
+         JOIN cfdi_documents d ON d.id = crd.cfdi_document_id
+        WHERE crd.cfdi_document_id = ? AND d.organization_id <=> ?
+        ORDER BY crd.id`,
+      [cfdiId, orgId],
     );
     return rows;
   }

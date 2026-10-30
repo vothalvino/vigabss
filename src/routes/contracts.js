@@ -728,7 +728,10 @@ router.post('/:id/restore', requirePermission('contracts.update'), async (req, r
 // Contract add-ons
 router.get('/:id/addons', requirePermission('contracts.view'), async (req, res, next) => {
   try {
-    const addons = await Contract.getAddons(req.params.id);
+    // 404 for a contract outside the caller's organization (not an empty list,
+    // which would confirm the id exists); getAddons is also org-scoped.
+    await Contract.findByIdOrFail(req.params.id, req.orgId);
+    const addons = await Contract.getAddons(req.params.id, req.orgId);
     res.json({ data: addons });
   } catch (err) {
     next(err);
@@ -1104,6 +1107,21 @@ router.post('/:id/terminate', requirePermission('contracts.update'), async (req,
 router.post('/:id/addons', requirePermission('contracts.update'), validate(createContractAddon), async (req, res, next) => {
   try {
     const { plan_addon_id, quantity, unit_price, start_date, end_date } = req.body;
+    // The contract must belong to the caller's organization (404 otherwise),
+    // and the catalog add-on must be the org's own or a global (NULL-org)
+    // catalog row — otherwise generateInvoice would bill a foreign tenant's
+    // contract or reference another tenant's catalog.
+    await Contract.findByIdOrFail(req.params.id, req.orgId);
+    const [addonRows] = await db.query(
+      `SELECT id FROM plan_addons
+       WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL`,
+      [plan_addon_id, req.orgId],
+    );
+    if (!addonRows[0]) {
+      throw new ValidationError('plan_addon_id does not reference an add-on in this organization', [
+        { field: 'plan_addon_id', message: 'Add-on not found in this organization' },
+      ]);
+    }
     const [result] = await db.query(
       `INSERT INTO contract_addons (contract_id, plan_addon_id, quantity, unit_price, start_date, end_date, status)
        VALUES (?, ?, ?, ?, ?, ?, 'active')`,

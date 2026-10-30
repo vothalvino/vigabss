@@ -76,7 +76,8 @@ router.post('/items/:id/restore', requirePermission('inventory.update'), ctrl.re
 // Stock levels for an item
 router.get('/items/:id/stock', requirePermission('inventory.view'), async (req, res, next) => {
   try {
-    const stock = await InventoryItem.getStock(req.params.id);
+    await InventoryItem.findByIdOrFail(req.params.id, req.orgId);
+    const stock = await InventoryItem.getStock(req.params.id, req.orgId);
     res.json({ data: stock });
   } catch (err) {
     next(err);

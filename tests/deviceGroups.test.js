@@ -77,6 +77,10 @@ function mockDbDefault() {
     if (typeof sql === 'string' && sql.includes('UPDATE device_groups')) {
       return Promise.resolve([{ affectedRows: 1 }]);
     }
+    // Member-add ownership check: every requested device_id must be in the org.
+    if (typeof sql === 'string' && sql.includes('FROM devices') && sql.includes('WHERE id IN')) {
+      return Promise.resolve([[{ id: 5 }, { id: 6 }]]);
+    }
     // device_group_members queries
     if (typeof sql === 'string' && sql.includes('device_group_members')) {
       return Promise.resolve([[{ id: 5, name: 'Router-01', type: 'router', ip_address: '192.168.1.1', status: 'active' }]]);

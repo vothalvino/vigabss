@@ -77,6 +77,7 @@ describe('POST /api/tickets — category taxonomy', () => {
   test('creates with a valid category', async () => {
     mockAuthUser('admin', []);
     db.query
+      .mockResolvedValueOnce([[{ id: 37, organization_id: 1 }]]) // assertTicketFks: client in org
       .mockResolvedValueOnce([{ insertId: 7 }]) // INSERT
       .mockResolvedValueOnce([[{ id: 7, organization_id: 1, subject: 'ok', category: 'technical', description: null }]]); // findById
     const res = await request(app)
@@ -166,9 +167,13 @@ describe('GET /api/tickets/:id — billing tickets are 404 without the permissio
     expect(res.body.data.category).toBe('technical');
   });
 
-  test('support (has tickets.view_billing) opens a billing ticket without the guard query', async () => {
+  test('support (has tickets.view_billing) opens a billing ticket', async () => {
+    // The org-ownership lookup now runs for every caller (TNB-06); the
+    // billing-category gate it carries passes for a view_billing holder.
     mockAuthUser('support', ['tickets.view', 'tickets.view_billing']);
-    db.query.mockResolvedValueOnce([[{ id: 5, organization_id: 1, subject: 'refund?', category: 'billing' }]]); // findByIdOrFail
+    db.query
+      .mockResolvedValueOnce([[{ id: 5, category: 'billing' }]]) // ownership guard lookup
+      .mockResolvedValueOnce([[{ id: 5, organization_id: 1, subject: 'refund?', category: 'billing' }]]); // findByIdOrFail
     const res = await request(app)
       .get('/api/tickets/5')
       .set('Authorization', `Bearer ${tokenFor('support')}`);
@@ -198,6 +203,7 @@ describe('PATCH /api/tickets/:id — editing', () => {
   test('updates category and notes', async () => {
     mockAuthUser('admin', []);
     db.query
+      .mockResolvedValueOnce([[{ id: 5, category: 'general' }]]) // ownership guard lookup
       .mockResolvedValueOnce([[{ id: 5, organization_id: 1, subject: 'x', status: 'open', category: 'general', notes: null }]]) // findByIdOrFail
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE
       .mockResolvedValueOnce([[{ id: 5, organization_id: 1, subject: 'x', status: 'open', category: 'installation', notes: 'ladder required' }]]); // fresh
@@ -214,6 +220,7 @@ describe('PATCH /api/tickets/:id — editing', () => {
 
   test('rejects a category outside the taxonomy on edit', async () => {
     mockAuthUser('admin', []);
+    db.query.mockResolvedValueOnce([[{ id: 5, category: 'general' }]]); // ownership guard lookup
     const res = await request(app)
       .patch('/api/tickets/5')
       .set('Authorization', `Bearer ${tokenFor('admin')}`)
@@ -245,7 +252,9 @@ describe('billing-category exclusion on sideways surfaces', () => {
 
   test('merge validates the body-supplied source ticket against org + category', async () => {
     mockAuthUser('admin', []);
-    db.query.mockResolvedValueOnce([[]]); // source lookup: not in this org
+    db.query
+      .mockResolvedValueOnce([[{ id: 5, category: 'technical' }]]) // ownership guard lookup (target)
+      .mockResolvedValueOnce([[]]); // source lookup: not in this org
     const res = await request(app)
       .post('/api/tickets/5/merge')
       .set('Authorization', `Bearer ${tokenFor('admin')}`)

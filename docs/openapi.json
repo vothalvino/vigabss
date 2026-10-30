@@ -8504,6 +8504,9 @@
           },
           "409": {
             "description": "Quote is not accepted (QUOTE_NOT_ACCEPTED), or has already been converted to an invoice — see quotes.converted_invoice_id (CONVERSION_EXISTS)"
+          },
+          "422": {
+            "description": "The quote's client_id/contract_id does not belong to this organization (VALIDATION_ERROR)"
           }
         }
       }
@@ -61048,7 +61051,8 @@
           },
           "pattern": {
             "type": "string",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 2000
           },
           "severity": {
             "type": "string",
@@ -61095,7 +61099,8 @@
           },
           "pattern": {
             "type": "string",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 2000
           },
           "severity": {
             "type": "string",
@@ -72291,53 +72296,7 @@
             "type": "number",
             "minimum": 1
           },
-          "quote_number": {
-            "type": "string",
-            "maximum": 50
-          },
-          "valid_until": {
-            "type": "string"
-          },
-          "subtotal": {
-            "type": "number",
-            "minimum": 0
-          },
-          "tax_rate": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "tax_amount": {
-            "type": "number",
-            "minimum": 0
-          },
-          "total": {
-            "type": "number",
-            "minimum": 0
-          },
-          "notes": {
-            "type": "string",
-            "maximum": 5000
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "sent",
-              "accepted",
-              "rejected",
-              "expired"
-            ]
-          }
-        },
-        "required": [
-          "client_id"
-        ]
-      },
-      "quotes_updateQuote": {
-        "type": "object",
-        "properties": {
-          "client_id": {
+          "contract_id": {
             "type": "number",
             "minimum": 1
           },
@@ -72368,16 +72327,50 @@
           "notes": {
             "type": "string",
             "maximum": 5000
+          }
+        },
+        "required": [
+          "client_id"
+        ]
+      },
+      "quotes_updateQuote": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "number",
+            "minimum": 1
           },
-          "status": {
+          "contract_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "quote_number": {
             "type": "string",
-            "enum": [
-              "draft",
-              "sent",
-              "accepted",
-              "rejected",
-              "expired"
-            ]
+            "maximum": 50
+          },
+          "valid_until": {
+            "type": "string"
+          },
+          "subtotal": {
+            "type": "number",
+            "minimum": 0
+          },
+          "tax_rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "tax_amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "total": {
+            "type": "number",
+            "minimum": 0
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
           }
         }
       },

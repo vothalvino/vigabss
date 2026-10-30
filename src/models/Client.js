@@ -3,6 +3,7 @@
 // =============================================================================
 
 const BaseModel = require('./BaseModel');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 class Client extends BaseModel {
   static get tableName() { return 'clients'; }
@@ -28,13 +29,20 @@ class Client extends BaseModel {
   static get softDelete() { return true; }
 
   /**
-   * Get contacts for this client.
+   * Get contacts for this client. Scoped through the parent client's
+   * organization_id: contacts carry no org column of their own, so binding
+   * only client_id let any tenant read another tenant's contacts by id.
    */
-  static async getContacts(clientId) {
+  static async getContacts(clientId, orgId) {
+    requireOrgId(orgId, 'Client.getContacts');
     const db = require('../config/database');
     const [rows] = await db.query(
-      'SELECT * FROM contacts WHERE client_id = ? AND deleted_at IS NULL ORDER BY id',
-      [clientId],
+      `SELECT ct.* FROM contacts ct
+         JOIN clients c ON c.id = ct.client_id
+        WHERE ct.client_id = ? AND c.organization_id <=> ? AND c.deleted_at IS NULL
+          AND ct.deleted_at IS NULL
+        ORDER BY ct.id`,
+      [clientId, orgId],
     );
     return rows;
   }

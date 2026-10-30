@@ -47,16 +47,20 @@ async function getActiveWindow(planId) {
   const dayBit = 1 << now.getDay(); // bit0=Sun,...,bit6=Sat
   const currentTime = now.toTimeString().slice(0, 8); // HH:MM:SS
 
+  // Defense in depth: a window only applies when it belongs to the same
+  // organization as its plan (null-safe for single-tenant NULL-org rows), so
+  // a window attached cross-tenant can never shape the plan's subscribers.
   const [rows] = await db.query(`
-    SELECT *
-    FROM plan_speed_windows
-    WHERE plan_id = ?
-      AND status = 'active'
-      AND deleted_at IS NULL
-      AND (day_mask & ?) > 0
-      AND start_time <= ?
-      AND end_time > ?
-    ORDER BY priority ASC, id ASC
+    SELECT w.*
+    FROM plan_speed_windows w
+    JOIN plans p ON p.id = w.plan_id AND w.organization_id <=> p.organization_id
+    WHERE w.plan_id = ?
+      AND w.status = 'active'
+      AND w.deleted_at IS NULL
+      AND (w.day_mask & ?) > 0
+      AND w.start_time <= ?
+      AND w.end_time > ?
+    ORDER BY w.priority ASC, w.id ASC
     LIMIT 1
   `, [planId, dayBit, currentTime, currentTime]);
 
@@ -134,6 +138,7 @@ async function applySpeedWindows(organizationId) {
            p.burst_time_seconds, p.radius_vendor, p.priority
     FROM plans p
     JOIN plan_speed_windows w ON w.plan_id = p.id AND w.deleted_at IS NULL
+      AND w.organization_id <=> p.organization_id
     WHERE p.deleted_at IS NULL
       ${orgFilter}
   `, params);

@@ -60,8 +60,10 @@ router.get('/', requirePermission('cpe_profiles.view'), async (req, res, next) =
 
 router.get('/:id', requirePermission('cpe_profiles.view'), async (req, res, next) => {
   try {
-    const profile = await CpeProfile.findByIdOrFail(req.params.id);
-    const chain = await cpeProfileService.resolveProfile(profile.id);
+    // Own or global (NULL-org) profiles only — the same set GET / lists. It
+    // used to load any tenant's profile (and its Wi-Fi settings) by id.
+    const profile = await CpeProfile.findVisibleByIdOrFail(req.params.id, req.orgId);
+    const chain = await cpeProfileService.resolveProfile(profile.id, req.orgId);
     const merged = cpeProfileService.mergeProfileParameters(chain);
     res.json({ data: { ...profile, resolved: merged, chain: chain.map(p => p.id) } });
   } catch (err) { next(err); }
@@ -178,8 +180,8 @@ router.delete('/:id/mappings/:mappingId', requirePermission('cpe_mappings.delete
 
 router.post('/:id/resolve', requirePermission('cpe_profiles.view'), async (req, res, next) => {
   try {
-    const profile = await CpeProfile.findByIdOrFail(req.params.id);
-    const chain = await cpeProfileService.resolveProfile(profile.id);
+    const profile = await CpeProfile.findVisibleByIdOrFail(req.params.id, req.orgId);
+    const chain = await cpeProfileService.resolveProfile(profile.id, req.orgId);
     const merged = cpeProfileService.mergeProfileParameters(chain);
 
     const { cpe_device, contract, plan } = req.body || {};
@@ -188,6 +190,7 @@ router.post('/:id/resolve', requirePermission('cpe_profiles.view'), async (req, 
       contract || null,
       plan || null,
       profile,
+      req.orgId,
     );
 
     // Merge mapping results into the parameters

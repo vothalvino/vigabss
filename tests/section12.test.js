@@ -92,6 +92,7 @@ describe('GET /api/v1/noc/sla-compliance', () => {
 describe('POST /api/v1/tickets/:id/time-logs', () => {
   it('creates a time log entry', async () => {
     db.query
+      .mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
       .mockResolvedValueOnce([{ insertId: 5 }])
       .mockResolvedValueOnce([[{ id: 5, ticket_id: 1, user_id: 1, minutes: 60, work_date: '2026-06-12' }]]);
     const res = await request(app)
@@ -103,6 +104,7 @@ describe('POST /api/v1/tickets/:id/time-logs', () => {
   });
 
   it('returns 422 when minutes missing', async () => {
+    db.query.mockResolvedValueOnce([[{ id: 1, category: 'technical' }]]); // requireOwnedTicket org lookup (TNB-06)
     const res = await request(app)
       .post('/api/v1/tickets/1/time-logs')
       .set('X-Org-Id', '1')
@@ -114,14 +116,18 @@ describe('POST /api/v1/tickets/:id/time-logs', () => {
 // ---- Ticket AI triage ----
 describe('GET /api/v1/tickets/:id/ai-triage', () => {
   it('returns triage result', async () => {
-    db.query.mockResolvedValueOnce([[{ id: 1, ticket_id: 99, suggested_category: 'connectivity' }]]);
+    db.query
+      .mockResolvedValueOnce([[{ id: 99, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
+      .mockResolvedValueOnce([[{ id: 1, ticket_id: 99, suggested_category: 'connectivity' }]]);
     const res = await request(app).get('/api/v1/tickets/99/ai-triage').set('X-Org-Id', '1');
     expect(res.status).toBe(200);
     expect(res.body.data.suggested_category).toBe('connectivity');
   });
 
   it('returns 404 when no triage result', async () => {
-    db.query.mockResolvedValueOnce([[undefined]]);
+    db.query
+      .mockResolvedValueOnce([[{ id: 99, category: 'technical' }]]) // requireOwnedTicket org lookup (TNB-06)
+      .mockResolvedValueOnce([[undefined]]);
     const res = await request(app).get('/api/v1/tickets/99/ai-triage').set('X-Org-Id', '1');
     expect(res.status).toBe(404);
   });

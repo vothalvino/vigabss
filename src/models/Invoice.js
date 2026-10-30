@@ -3,6 +3,7 @@
 // =============================================================================
 
 const BaseModel = require('./BaseModel');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 class Invoice extends BaseModel {
   static get tableName() { return 'invoices'; }
@@ -19,11 +20,35 @@ class Invoice extends BaseModel {
 
   static get softDelete() { return true; }
 
-  static async getItems(invoiceId) {
+  // Scoped through the parent invoice's organization_id (invoice_items has no
+  // org column of its own).
+  static async getItems(invoiceId, orgId) {
+    requireOrgId(orgId, 'Invoice.getItems');
     const db = require('../config/database');
     const [rows] = await db.query(
-      'SELECT * FROM invoice_items WHERE invoice_id = ? AND deleted_at IS NULL ORDER BY id',
-      [invoiceId],
+      `SELECT ii.* FROM invoice_items ii
+         JOIN invoices i ON i.id = ii.invoice_id
+        WHERE ii.invoice_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL
+          AND ii.deleted_at IS NULL
+        ORDER BY ii.id`,
+      [invoiceId, orgId],
+    );
+    return rows;
+  }
+
+  // Allocations applied to this invoice, with the paying payment's method and
+  // date, scoped through the parent invoice's organization_id.
+  static async getAppliedPayments(invoiceId, orgId) {
+    requireOrgId(orgId, 'Invoice.getAppliedPayments');
+    const db = require('../config/database');
+    const [rows] = await db.query(
+      `SELECT pa.*, p.amount AS payment_amount, p.payment_method, p.payment_date
+         FROM payment_allocations pa
+         JOIN invoices i ON i.id = pa.invoice_id
+         JOIN payments p ON p.id = pa.payment_id
+        WHERE pa.invoice_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL
+          AND pa.deleted_at IS NULL`,
+      [invoiceId, orgId],
     );
     return rows;
   }

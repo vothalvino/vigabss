@@ -10,6 +10,8 @@
 
 const { Router } = require('express');
 const SubscriberCertificate = require('../models/SubscriberCertificate');
+const Client = require('../models/Client');
+const Radius = require('../models/Radius');
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
@@ -36,7 +38,10 @@ router.delete('/:id', requirePermission('subscriber_certificates.revoke'), ctrl.
 // List certificates for a specific RADIUS account
 router.get('/radius-account/:radiusAccountId', requirePermission('subscriber_certificates.view'), async (req, res, next) => {
   try {
-    const certs = await SubscriberCertificate.findByRadiusAccount(req.params.radiusAccountId);
+    // 404 unless the RADIUS account belongs to the caller's org (Radius.findById
+    // scopes through the owning client).
+    await Radius.findByIdOrFail(req.params.radiusAccountId, req.orgId);
+    const certs = await SubscriberCertificate.findByRadiusAccount(req.params.radiusAccountId, req.orgId);
     res.json({ data: certs });
   } catch (err) {
     next(err);
@@ -46,7 +51,8 @@ router.get('/radius-account/:radiusAccountId', requirePermission('subscriber_cer
 // List certificates for a specific client
 router.get('/client/:clientId', requirePermission('subscriber_certificates.view'), async (req, res, next) => {
   try {
-    const certs = await SubscriberCertificate.findByClient(req.params.clientId);
+    await Client.findByIdOrFail(req.params.clientId, req.orgId);
+    const certs = await SubscriberCertificate.findByClient(req.params.clientId, req.orgId);
     res.json({ data: certs });
   } catch (err) {
     next(err);
@@ -56,12 +62,12 @@ router.get('/client/:clientId', requirePermission('subscriber_certificates.view'
 // Revoke a certificate
 router.post('/:id/revoke', requirePermission('subscriber_certificates.revoke'), validate(revokeSubscriberCertificate), async (req, res, next) => {
   try {
-    const cert = await SubscriberCertificate.findByIdOrFail(req.params.id);
+    const cert = await SubscriberCertificate.findByIdOrFail(req.params.id, req.orgId);
     if (cert.status === 'revoked') {
       return res.status(409).json({ error: 'Certificate is already revoked' });
     }
-    await SubscriberCertificate.revoke(cert.id, req.body.revocation_reason);
-    const updated = await SubscriberCertificate.findById(cert.id);
+    await SubscriberCertificate.revoke(cert.id, req.orgId, req.body.revocation_reason);
+    const updated = await SubscriberCertificate.findById(cert.id, req.orgId);
     res.json({ data: updated });
   } catch (err) {
     next(err);

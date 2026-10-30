@@ -46,13 +46,15 @@ describe('CreditNote.addItem() / Quote.addItem() vs GENERATED total', () => {
   });
 
   test('CreditNote.addItem() never writes total or amount, and returns the computed row', async () => {
+    // addItem gained an orgId argument: the INSERT ... SELECT only inserts when
+    // the parent credit note belongs to that org (affectedRows 0 -> 404).
     db.query
-      .mockResolvedValueOnce([{ insertId: 9 }])
+      .mockResolvedValueOnce([{ insertId: 9, affectedRows: 1 }])
       .mockResolvedValueOnce([[{ id: 9, credit_note_id: 3, description: 'Refund', quantity: '1.00', unit_price: '50.00', total: '50.00' }]]);
 
     const row = await CreditNote.addItem({
       credit_note_id: 3, description: 'Refund', quantity: 1, unit_price: 50, amount: 999, tax_rate_id: null,
-    });
+    }, 1);
 
     const [insertSql, insertParams] = db.query.mock.calls[0];
     expect(insertSql).toMatch(/INSERT INTO credit_note_items/i);

@@ -3,6 +3,7 @@
 // =============================================================================
 
 const BaseModel = require('./BaseModel');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 class InventoryItem extends BaseModel {
   static get tableName() { return 'inventory_items'; }
@@ -21,15 +22,19 @@ class InventoryItem extends BaseModel {
   /**
    * Get stock levels for this item across all warehouses.
    */
-  static async getStock(itemId) {
+  // Scoped through the parent item's organization_id (inventory_stock has no
+  // org column of its own).
+  static async getStock(itemId, orgId) {
+    requireOrgId(orgId, 'InventoryItem.getStock');
     const db = require('../config/database');
     const [rows] = await db.query(`
       SELECT s.*, w.name AS warehouse_name
       FROM inventory_stock s
+      JOIN inventory_items i ON i.id = s.item_id
       JOIN warehouses w ON w.id = s.warehouse_id
-      WHERE s.item_id = ?
+      WHERE s.item_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL
       ORDER BY w.name
-    `, [itemId]);
+    `, [itemId, orgId]);
     return rows;
   }
 

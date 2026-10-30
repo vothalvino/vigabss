@@ -5,6 +5,7 @@
 
 const db = require('../config/database');
 const CpeProfile = require('../models/CpeProfile');
+const { requireOrgId } = require('../utils/requireOrgId');
 const _CpeParameterMapping = require('../models/CpeParameterMapping');
 const _logger = require('../utils/logger').child({ service: 'cpeProfileService' });
 
@@ -16,16 +17,21 @@ const MAX_INHERITANCE_DEPTH = 5;
 
 /**
  * Load the full profile chain (up to MAX_INHERITANCE_DEPTH), return ordered
- * array from root (grandparent) to leaf (child).
+ * array from root (grandparent) to leaf (child). Every link must be visible
+ * to `orgId` (its own or a global NULL-org profile): parent_profile_id is a
+ * plain id, so an unscoped walk would merge another tenant's profile —
+ * including its Wi-Fi settings and parameters — into this one.
  * @param {number} profileId
+ * @param {number|null} orgId
  * @returns {object[]} chain, index 0 = root, last = leaf
  */
-async function resolveProfile(profileId) {
+async function resolveProfile(profileId, orgId) {
+  requireOrgId(orgId, 'cpeProfileService.resolveProfile');
   const chain = [];
   let currentId = profileId;
 
   for (let depth = 0; depth < MAX_INHERITANCE_DEPTH; depth++) {
-    const profile = await CpeProfile.findById(currentId);
+    const profile = await CpeProfile.findVisibleById(currentId, orgId);
     if (!profile) break;
     chain.unshift(profile); // prepend so root is first
     if (!profile.parent_profile_id) break;
@@ -149,18 +155,22 @@ async function buildProvisioningTasks(cpeDevice, profileChain) {
 
 /**
  * Evaluate parameter mappings for a profile against a contract/plan/device context.
+ * Only mappings visible to `orgId` (its own or global NULL-org rows) apply.
  * @param {object} cpeDevice
  * @param {object|null} contract
  * @param {object|null} plan
  * @param {object|null} profile
+ * @param {number|null} orgId
  * @returns {Array<{path: string, value: string}>}
  */
-async function resolveParameterMappings(cpeDevice, contract, plan, profile) {
+async function resolveParameterMappings(cpeDevice, contract, plan, profile, orgId) {
+  requireOrgId(orgId, 'cpeProfileService.resolveParameterMappings');
   if (!profile) return [];
 
   const [mappings] = await db.query(
-    'SELECT * FROM cpe_parameter_mappings WHERE cpe_profile_id = ?',
-    [profile.id],
+    `SELECT * FROM cpe_parameter_mappings
+      WHERE cpe_profile_id = ? AND (organization_id <=> ? OR organization_id IS NULL)`,
+    [profile.id, orgId],
   );
 
   const result = [];

@@ -180,13 +180,20 @@ describe('DeviceGroup — static methods', () => {
 
   afterEach(() => { jest.clearAllMocks(); });
 
-  it('removeMember deletes the device_group_member row and returns affectedRows', async () => {
+  // Signature gained orgId: the DELETE is now scoped through the parent
+  // group's organization_id so a foreign group's membership cannot be removed.
+  it('removeMember deletes the device_group_member row (org-scoped) and returns affectedRows', async () => {
     db.query.mockResolvedValue([{ affectedRows: 1 }]);
-    const affected = await DeviceGroup.removeMember(10, 5);
+    const affected = await DeviceGroup.removeMember(10, 5, 3);
     expect(affected).toBe(1);
-    expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('DELETE FROM device_group_members'),
-      [10, 5],
-    );
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/DELETE dgm FROM device_group_members dgm/);
+    expect(sql).toMatch(/g\.organization_id <=> \?/);
+    expect(params).toEqual([10, 5, 3]);
+  });
+
+  it('removeMember refuses to run without an orgId', async () => {
+    await expect(DeviceGroup.removeMember(10, 5)).rejects.toThrow(/requires an orgId/);
+    expect(db.query).not.toHaveBeenCalled();
   });
 });
