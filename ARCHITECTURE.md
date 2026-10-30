@@ -346,6 +346,23 @@ five-minute alert task fans out over active shared-database organizations and
 enters each isolated tenant database explicitly; it must never query rules with
 `organization_id = NULL` and report a false-success no-op.
 
+### Device configuration backup and templates
+
+On-demand `POST /device-config-backups/pull` loads the device with
+`organization_id <=> req.orgId` before any RouterOS session is opened through a
+FireRelay agent. Its credentials come only from the request body or from the
+device's active MikroTik `router_driver_configs` row in the same organization.
+The install-wide `ROUTEROS_API_USER`/`ROUTEROS_API_PASSWORD` variables belong to
+the unattended nightly `config_backup` task (`runNightlyBackups`) and must not
+become a fallback for tenant-triggered pulls.
+
+`POST /config-templates/:id/deploy` binds both template and device to
+`req.orgId`. No config-push mechanism exists (no RouterOS import/apply handler,
+FireRelay command, or driver command), so a deploy renders the template, records
+`config_deployment_records.status = 'pending'` with no `deployed_at`, and
+returns `push_performed: false` plus `rendered_config` for manual application.
+Do not record `success` until a real push reports per-step device results.
+
 ## REST/OpenAPI contract
 
 The REST contract has a manual source and two generated consumers:

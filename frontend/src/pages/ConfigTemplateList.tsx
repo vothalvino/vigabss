@@ -57,12 +57,60 @@ async function deleteTemplate(id: number): Promise<void> {
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete config template');
 }
 
-async function deployTemplate(id: number, deviceId: number, variables: Record<string, string> | null): Promise<void> {
+// The backend has no automatic push to the device yet: a deploy renders the
+// template, records the deployment as 'pending' and returns the rendered
+// config with push_performed=false. The UI must show that, never "deployed".
+export interface DeployResult {
+  id: number;
+  status: string;
+  push_performed: boolean;
+  result_output: string;
+  rendered_config: string;
+}
+
+async function deployTemplate(id: number, deviceId: number, variables: Record<string, string> | null): Promise<DeployResult> {
   const res = await api.POST('/config-templates/{id}/deploy' as never, {
     params: { path: { id } },
     body: { device_id: deviceId, variables } as never,
   } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to deploy config template');
+  return ((res as { data: unknown }).data as { data: DeployResult }).data;
+}
+
+interface DeployResultDialogProps {
+  result: DeployResult;
+  onClose: () => void;
+}
+
+function DeployResultDialog({ result, onClose }: DeployResultDialogProps) {
+  const { t } = useTranslation();
+  const pushed = result.push_performed === true;
+  return (
+    <div style={modalStyles.backdrop} onClick={onClose}>
+      <div style={{ ...modalStyles.panel, maxWidth: 560 }} onClick={e => e.stopPropagation()} role="dialog" aria-label={t('config_templates.deploy_result_title')}>
+        <div style={modalStyles.header}>
+          <h3 style={modalStyles.title}>{t('config_templates.deploy_result_title')}</h3>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('common.close')}>x</button>
+        </div>
+        <p style={{ marginBottom: '0.5rem', padding: '0.6rem 1rem', borderRadius: 6, background: '#fef3c7', color: '#92400e', fontSize: '0.85rem' }}>
+          {pushed ? t('config_templates.deploy_pushed') : t('config_templates.deploy_not_pushed')}
+        </p>
+        <p style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+          {t('config_templates.deploy_status', { status: result.status })}
+        </p>
+        <label style={modalStyles.label} htmlFor="deploy-rendered-config">{t('config_templates.rendered_config')}</label>
+        <textarea
+          id="deploy-rendered-config"
+          readOnly
+          value={result.rendered_config ?? ''}
+          style={{ ...modalStyles.input, width: '100%', boxSizing: 'border-box' as const, minHeight: 160, fontFamily: 'monospace', resize: 'vertical' as const }}
+        />
+        <div style={modalStyles.actions}>
+          <button type="button" style={styles.btnPrimary} onClick={onClose}>{t('config_templates.deploy_result_close')}</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface TemplateFormProps {
@@ -195,6 +243,7 @@ export function ConfigTemplateList() {
   const [editing, setEditing] = useState<ConfigTemplate | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [deployTarget, setDeployTarget] = useState<ConfigTemplate | null>(null);
+  const [deployResult, setDeployResult] = useState<DeployResult | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
 
   const templatesQ = useQuery({
@@ -231,8 +280,8 @@ export function ConfigTemplateList() {
   const deployMut = useMutation({
     mutationFn: ({ id, deviceId, variables }: { id: number; deviceId: number; variables: Record<string, string> | null }) =>
       deployTemplate(id, deviceId, variables),
-    onSuccess: () => { setDeployTarget(null); showMsg('ok', 'Template deployed successfully.'); },
-    onError: () => showMsg('err', 'Failed to deploy template.'),
+    onSuccess: (result) => { setDeployTarget(null); setDeployResult(result); },
+    onError: () => showMsg('err', t('config_templates.deploy_error')),
   });
 
   const totalPages = meta ? Math.ceil(meta.total / PAGE_SIZE) : 1;
@@ -319,6 +368,8 @@ export function ConfigTemplateList() {
           deploying={deployMut.isPending}
         />
       )}
+
+      {deployResult && <DeployResultDialog result={deployResult} onClose={() => setDeployResult(null)} />}
     </div>
   );
 }

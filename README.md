@@ -363,7 +363,7 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 | 185 | `alert_notification_channels` | Multi-channel notification routing configs (§6.5) — channel_type enum, credentials AES-256-GCM encrypted in config_encrypted column |
 | 186 | `alert_suppression_rules` | Upstream→downstream device correlation suppression (§6.5) — when upstream has a triggered alert, suppress downstream alerts for suppress_duration_minutes |
 | 187 | `config_templates` | Device configuration templates with {{variable}} placeholders (§6.6) — optional device_type/manufacturer filter for deployment targeting |
-| 188 | `config_deployment_records` | Config template push records (§6.6) — tracks status, variables used, result output, and deployed_at per device per deployment |
+| 188 | `config_deployment_records` | Config template deployment records (§6.6) — tracks status, variables used, result output, and deployed_at per device per deployment. No automatic push exists yet: deploys are recorded as `pending` with the rendered config returned for manual application |
 | 189 | `config_backup_schedules` | Per-device or per-org config backup schedules (§6.6) — extends the global nightly task with custom cron expressions per device |
 | 190 | `config_compliance_rules` | Config compliance audit rules (§6.6) — keyword/regex rules (must_contain, must_not_contain, regex_match, regex_not_match) with severity levels |
 | 191 | `config_compliance_results` | Config compliance audit results (§6.6) — pass/fail/error per rule per backup, indexed by device and evaluation time |
