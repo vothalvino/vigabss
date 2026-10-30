@@ -248,14 +248,20 @@ scope list fails closed. A role is not expressible as a scope, so `requireRole`
 admits only that unrestricted sentinel and refuses scope-limited tokens.
 Installation-wide infrastructure (FireRelay node registry and tunnel commands,
 backup settings, system version) is gated on the install operator
-(`src/services/installOperator.js`), never on a tenant admin/owner role. GraphQL must maintain permission parity with equivalent
-REST operations through `src/graphql/authz.js` and the field map in
-`src/graphql/index.js`.
-
-Known existing divergence: `src/graphql/authz.js` still short-circuits for
-`user.role === 'admin'`, while REST only bypasses permissions for a validated
-global-access principal. Treat this as security debt, not a pattern to copy.
-When changing GraphQL authorization, align it with REST and add parity tests.
+(`src/services/installOperator.js`), never on a tenant admin/owner role.
+GraphQL must maintain permission parity with equivalent
+REST operations through `src/graphql/authz.js` and the field maps in
+`src/graphql/index.js`: `FIELD_PERMISSIONS` guards root fields (FORBIDDEN on
+denial) and `NESTED_FIELD_PERMISSIONS` guards every nested edge that crosses
+into another resource (for example `Client.invoices` needs `invoices.view`).
+A denied nested edge resolves to `[]`/`null` without an error so detail pages
+keep the sections the caller may see. `authz.js` resolves principals exactly
+like `requirePermission` (token scopes, global-access bypass never for API
+tokens, permission set memoized per request); there is no `role === 'admin'`
+shortcut. Billing-category tickets are hidden from `ticket`/`tickets` without
+`tickets.view_billing`. A new type field that reaches another resource needs a
+`NESTED_FIELD_PERMISSIONS` entry and a test in
+`tests/graphqlNestedAuthz.test.js`.
 
 Frontend route guards, navigation visibility, and `can(user, permission)` are
 UX controls only. They must reflect backend grants so users do not see actions

@@ -20,7 +20,7 @@ const ClientBalanceLedger = require('../models/ClientBalanceLedger');
 const aiReplyService = require('../services/aiReplyService');
 const { computeClientBalance } = require('../services/clientBalanceService');
 const { pubsub } = require('../services/pubsub');
-const { assertGraphqlPermission, gqlForbidden } = require('./authz');
+const { assertGraphqlPermission, graphqlHasPermission, gqlForbidden } = require('./authz');
 
 /** Clamp pagination params to safe bounds. */
 function clamp(val, defaultVal, max) {
@@ -79,15 +79,40 @@ const resolvers = {
 
     payment: (_parent, { id }, ctx) => Payment.findById(id, ctx.orgId),
 
-    ticket: (_parent, { id }, ctx) => Ticket.findById(id, ctx.orgId),
+    // Billing-category tickets are gated by tickets.view_billing (mig 394),
+    // exactly like REST routes/tickets.js: a caller without it gets null for
+    // a billing ticket (indistinguishable from a missing one) and a list that
+    // excludes them.
+    ticket: async (_parent, { id }, ctx) => {
+      const ticket = await Ticket.findById(id, ctx.orgId);
+      if (ticket && ticket.category === 'billing'
+        && !(await graphqlHasPermission(ctx, ['tickets.view_billing']))) {
+        return null;
+      }
+      return ticket;
+    },
 
-    tickets: (_parent, { limit, offset, clientId }, ctx) =>
-      Ticket.findAll({
-        where: clientId ? { client_id: clientId } : {},
-        orgId: ctx.orgId,
-        limit: clamp(limit, 50, MAX_LIMIT),
-        offset: clamp(offset, 0, 1e6),
-      }),
+    tickets: async (_parent, { limit, offset, clientId }, ctx) => {
+      const safeLimit = clamp(limit, 50, MAX_LIMIT);
+      const safeOffset = clamp(offset, 0, 1e6);
+      if (await graphqlHasPermission(ctx, ['tickets.view_billing'])) {
+        return Ticket.findAll({
+          where: clientId ? { client_id: clientId } : {},
+          orgId: ctx.orgId,
+          limit: safeLimit,
+          offset: safeOffset,
+        });
+      }
+      const conditions = ['organization_id = ?', 'deleted_at IS NULL', "category <> 'billing'"];
+      const params = [ctx.orgId];
+      if (clientId) { conditions.push('client_id = ?'); params.push(clientId); }
+      const [rows] = await db.query(
+        `SELECT * FROM tickets WHERE ${conditions.join(' AND ')}
+         ORDER BY id ASC LIMIT ${safeLimit || 50} OFFSET ${safeOffset}`,
+        params,
+      );
+      return rows;
+    },
 
     // ---- AI Reply Assistant queries (§5.2) ---------------------------------
 
