@@ -187,7 +187,7 @@ describe('POST /api/v1/purchase-orders/:id/receive', () => {
     });
   }
 
-  function buildConn(lineItems, { serialRequiredByItemId = {}, existingSerials = [] } = {}) {
+  function buildConn(lineItems, { serialRequiredByItemId = {}, existingSerials = [], foreignIds = {} } = {}) {
     const stockRows = new Map(); // item_id:warehouse_id -> { id, quantity }
     let nextStockId = 100;
     let nextDeviceId = 900;
@@ -203,6 +203,13 @@ describe('POST /api/v1/purchase-orders/:id/receive', () => {
         if (typeof sql !== 'string') return Promise.resolve([[]]);
         if (sql.includes('SELECT * FROM purchase_order_items WHERE po_id')) {
           return Promise.resolve([lineItems]);
+        }
+        // TNB-12: in-transaction ownership re-check of the PO's warehouse and
+        // each line's inventory item. These fixtures are all the caller's own
+        // unless the test lists the id in foreignIds.
+        const own = /^SELECT id FROM (warehouses|inventory_items) WHERE id = \?/.exec(sql);
+        if (own) {
+          return Promise.resolve([foreignIds[own[1]]?.includes(params[0]) ? [] : [{ id: params[0] }]]);
         }
         // Inventory Phase 3 (migration 391): serial_required lookup per item.
         if (sql.includes('SELECT serial_required FROM inventory_items WHERE id')) {

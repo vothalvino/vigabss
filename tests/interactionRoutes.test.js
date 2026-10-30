@@ -47,6 +47,11 @@ function mockDb() {
     if (typeof sql === 'string' && sql.includes('INSERT')) {
       return Promise.resolve([{ insertId: 999 }]);
     }
+    // Follow-up assignee ownership check (TNA-09): the default assignee is the
+    // caller, who is a user of the active org.
+    if (typeof sql === 'string' && sql.includes('FROM users u')) {
+      return Promise.resolve([[{ total: 1 }]]);
+    }
     if (typeof sql === 'string' && sql.includes('COUNT(*)')) {
       return Promise.resolve([[{ total: 0 }]]);
     }

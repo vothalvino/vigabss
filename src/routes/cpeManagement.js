@@ -43,6 +43,17 @@ const cpeSessionLogService = require('../services/cpeSessionLogService');
 const cpeInventoryService = require('../services/cpeInventoryService');
 // Inventory Phase 3 (migration 391)
 const inventorySerialService = require('../services/inventorySerialService');
+const { assertOwnedReferences, ownedReferences } = require('../utils/ownedReferences');
+
+// Body links on a CPE unit that point at other tenant-owned rows (TNA-09).
+// cpe_profile_id is not listed: profiles may be installation-global and are
+// verified by the CPE-profile routes' own rules.
+const CPE_DEVICE_REFS = {
+  device_id: 'devices',
+  contract_id: 'contracts',
+  subscriber_id: 'clients',
+  inventory_item_id: 'inventory_items',
+};
 
 const router = Router();
 
@@ -103,8 +114,8 @@ router.get('/devices', requirePermission('cpe_devices.view'), async (req, res, n
     const [rows] = await db.query(
       `SELECT d.*, i.name AS item_name, i.sku AS item_sku, c.name AS subscriber_name
        FROM cpe_devices d
-       LEFT JOIN inventory_items i ON i.id = d.inventory_item_id
-       LEFT JOIN clients c ON c.id = d.subscriber_id
+       LEFT JOIN inventory_items i ON i.id = d.inventory_item_id AND i.organization_id <=> d.organization_id
+       LEFT JOIN clients c ON c.id = d.subscriber_id AND c.organization_id <=> d.organization_id
        ${where} ORDER BY d.id DESC LIMIT ${limit} OFFSET ${offset}`,
       params,
     );
@@ -128,7 +139,7 @@ router.get('/devices/:id', requirePermission('cpe_devices.view'), async (req, re
   } catch (err) { next(err); }
 });
 
-router.post('/devices', requirePermission('cpe_devices.create'), validate(createCpeDevice), async (req, res, next) => {
+router.post('/devices', requirePermission('cpe_devices.create'), validate(createCpeDevice), ownedReferences(CPE_DEVICE_REFS), async (req, res, next) => {
   try {
     const data = { ...req.body, organization_id: req.orgId };
     if (data.acs_password) {
@@ -140,7 +151,7 @@ router.post('/devices', requirePermission('cpe_devices.create'), validate(create
   } catch (err) { next(err); }
 });
 
-router.put('/devices/:id', requirePermission('cpe_devices.update'), validate(updateCpeDevice), async (req, res, next) => {
+router.put('/devices/:id', requirePermission('cpe_devices.update'), validate(updateCpeDevice), ownedReferences(CPE_DEVICE_REFS), async (req, res, next) => {
   try {
     const data = { ...req.body };
     if (data.acs_password) {
@@ -535,6 +546,9 @@ router.post('/devices/:id/subscriber-link', requirePermission('cpe_inventory.lin
   try {
     await CpeDevice.findByIdOrFail(req.params.id, req.orgId);
     const { subscriber_id } = req.body;
+    // The subscriber must be the caller's own client: the FK only proves it
+    // exists, and the CPE list joins the subscriber's name back (TNA-09).
+    await assertOwnedReferences(req.body, req.orgId, { subscriber_id: 'clients' });
     const device = await cpeInventoryService.linkSubscriber(
       parseInt(req.params.id, 10),
       subscriber_id || null,

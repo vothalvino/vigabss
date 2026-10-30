@@ -11,9 +11,25 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createFollowUp, updateFollowUp, patchFollowUp } = require('../middleware/schemas/interactions');
 const db = require('../config/database');
+const { assertOwnedReferences } = require('../utils/ownedReferences');
+
+// A reminder's client/ticket/interaction/assignee must be the caller's own:
+// the list and /due join the client's name and the assignee's name straight
+// back to the caller (TNA-09).
+const FOLLOW_UP_REFS = {
+  client_id: 'clients',
+  ticket_id: 'tickets',
+  interaction_id: 'client_interactions',
+  assigned_to: 'users',
+};
+const assertFollowUpRefs = (req) => assertOwnedReferences(req.body, req.orgId, FOLLOW_UP_REFS);
 
 const router = Router();
-const ctrl = crudController(FollowUpReminder, { cacheResource: 'follow-up-reminders' });
+const ctrl = crudController(FollowUpReminder, {
+  cacheResource: 'follow-up-reminders',
+  beforeCreate: assertFollowUpRefs,
+  beforeUpdate: (_old, req) => assertFollowUpRefs(req),
+});
 
 router.use(authenticate);
 router.use(orgScope);
@@ -44,7 +60,7 @@ router.get('/', requirePermission('follow_ups.view'), async (req, res, next) => 
       `SELECT r.*, cl.name AS client_name,
               u.first_name AS assignee_first_name, u.last_name AS assignee_last_name
        FROM follow_up_reminders r
-       JOIN clients cl ON cl.id = r.client_id
+       JOIN clients cl ON cl.id = r.client_id AND cl.organization_id <=> r.organization_id
        LEFT JOIN users u ON u.id = r.assigned_to
        ${where}
        ORDER BY ${orderCol} ${orderDir}
@@ -52,7 +68,7 @@ router.get('/', requirePermission('follow_ups.view'), async (req, res, next) => 
       params,
     );
     const [[{ total }]] = await db.query(
-      `SELECT COUNT(*) AS total FROM follow_up_reminders r JOIN clients cl ON cl.id = r.client_id ${where}`,
+      `SELECT COUNT(*) AS total FROM follow_up_reminders r JOIN clients cl ON cl.id = r.client_id AND cl.organization_id <=> r.organization_id ${where}`,
       params,
     );
     res.json({ data: rows, meta: { total, page: safePage, limit: safeLimit, totalPages: Math.ceil(total / safeLimit) } });
@@ -66,7 +82,7 @@ router.get('/due', requirePermission('follow_ups.view'), async (req, res, next) 
     let sql = `SELECT r.*, cl.name AS client_name,
                       u.first_name AS assignee_first_name, u.last_name AS assignee_last_name
                FROM follow_up_reminders r
-               JOIN clients cl ON cl.id = r.client_id
+               JOIN clients cl ON cl.id = r.client_id AND cl.organization_id <=> r.organization_id
                LEFT JOIN users u ON u.id = r.assigned_to
                WHERE r.status = 'pending' AND r.deleted_at IS NULL AND r.due_at <= NOW()`;
     if (req.orgId) { sql += ' AND r.organization_id = ?'; params.push(req.orgId); }
