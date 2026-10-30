@@ -295,7 +295,7 @@ const resolvers = {
       return rows;
     },
 
-    addons: (contract) => Contract.getAddons(contract.id),
+    addons: (contract, _args, ctx) => Contract.getAddons(contract.id, ctx.orgId),
   },
 
   // ---------------------------------------------------------------------------

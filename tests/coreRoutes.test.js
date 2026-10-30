@@ -810,7 +810,9 @@ describe('Contract Routes — /api/contracts', () => {
     test('returns add-ons for a contract', async () => {
       mockAuthUser();
       const addon = { id: 1, contract_id: 1, plan_addon_id: 3, addon_name: 'Static IP', addon_type: 'static_ip', quantity: 1 };
-      db.query.mockResolvedValueOnce([[addon]]);
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]])  // org-scoped contract lookup (TNA-05)
+        .mockResolvedValueOnce([[addon]]);
 
       const res = await request(app)
         .get('/api/contracts/1/addons')
@@ -828,6 +830,8 @@ describe('Contract Routes — /api/contracts', () => {
       mockAuthUser();
       const addonRow = { id: 10, contract_id: 1, plan_addon_id: 3, quantity: 1, unit_price: 50, status: 'active' };
       db.query
+        .mockResolvedValueOnce([[{ id: 1, organization_id: 1 }]])     // org-scoped contract lookup (TNA-05)
+        .mockResolvedValueOnce([[{ id: 3 }]])                         // plan_addon belongs to org (TNA-05)
         .mockResolvedValueOnce([{ insertId: 10, affectedRows: 1 }])  // INSERT
         .mockResolvedValueOnce([[addonRow]]);                         // SELECT
 
