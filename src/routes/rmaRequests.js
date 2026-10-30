@@ -11,9 +11,21 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createRmaRequest, updateRmaRequest, shipRma, receiveRma, closeRma } = require('../middleware/schemas/rmaRequests');
 const db = require('../config/database');
+const { assertOwnedReferences, ownedReferences } = require('../utils/ownedReferences');
+
+// Ship/close flip the linked asset's lifecycle, so an RMA may only point at
+// the caller's own assets and vendor (TNB-12).
+const RMA_REFS = {
+  asset_id: 'assets',
+  replacement_asset_id: 'assets',
+  vendor_id: 'vendors',
+};
 
 const router = Router();
-const ctrl = crudController(RmaRequest);
+const ctrl = crudController(RmaRequest, {
+  beforeCreate: (req) => assertOwnedReferences(req.body, req.orgId, RMA_REFS),
+  beforeUpdate: (_old, req) => assertOwnedReferences(req.body, req.orgId, RMA_REFS),
+});
 
 router.use(authenticate);
 router.use(orgScope);
@@ -36,12 +48,16 @@ router.post('/:id/ship', requirePermission('rma.update'), validate(shipRma), asy
     if (!rma) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'RMA request not found' } });
     if (rma.status !== 'open') return res.status(400).json({ error: { code: 'INVALID_STATUS', message: `Cannot ship RMA in status: ${rma.status}` } });
     await db.query(
-      'UPDATE rma_requests SET status = ?, shipped_at = NOW() WHERE id = ?',
-      ['shipped', rma.id],
+      'UPDATE rma_requests SET status = ?, shipped_at = NOW() WHERE id = ? AND organization_id <=> ?',
+      ['shipped', rma.id, req.orgId],
     );
     // Update linked asset lifecycle to rma
     if (rma.asset_id) {
-      await db.query("UPDATE assets SET lifecycle_status = 'rma' WHERE id = ?", [rma.asset_id]);
+      // Org-bound: a legacy RMA row may still carry a foreign asset_id.
+      await db.query(
+        "UPDATE assets SET lifecycle_status = 'rma' WHERE id = ? AND organization_id <=> ?",
+        [rma.asset_id, req.orgId],
+      );
     }
     const updated = await RmaRequest.findById(rma.id, req.orgId);
     res.json({ data: updated });
@@ -55,8 +71,8 @@ router.post('/:id/receive', requirePermission('rma.update'), validate(receiveRma
     if (!rma) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'RMA request not found' } });
     if (rma.status !== 'shipped') return res.status(400).json({ error: { code: 'INVALID_STATUS', message: `Cannot receive RMA in status: ${rma.status}` } });
     await db.query(
-      'UPDATE rma_requests SET status = ?, received_at = NOW() WHERE id = ?',
-      ['received', rma.id],
+      'UPDATE rma_requests SET status = ?, received_at = NOW() WHERE id = ? AND organization_id <=> ?',
+      ['received', rma.id, req.orgId],
     );
     const updated = await RmaRequest.findById(rma.id, req.orgId);
     res.json({ data: updated });
@@ -64,7 +80,7 @@ router.post('/:id/receive', requirePermission('rma.update'), validate(receiveRma
 });
 
 // POST /rma-requests/:id/close
-router.post('/:id/close', requirePermission('rma.close'), validate(closeRma), async (req, res, next) => {
+router.post('/:id/close', requirePermission('rma.close'), validate(closeRma), ownedReferences({ replacement_asset_id: 'assets' }), async (req, res, next) => {
   try {
     const rma = await RmaRequest.findById(parseInt(req.params.id, 10), req.orgId);
     if (!rma) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'RMA request not found' } });
@@ -73,12 +89,15 @@ router.post('/:id/close', requirePermission('rma.close'), validate(closeRma), as
     }
     const { status, replacement_asset_id, notes } = req.body;
     await db.query(
-      'UPDATE rma_requests SET status = ?, resolved_at = NOW(), replacement_asset_id = COALESCE(?, replacement_asset_id), notes = COALESCE(?, notes) WHERE id = ?',
-      [status, replacement_asset_id || null, notes || null, rma.id],
+      'UPDATE rma_requests SET status = ?, resolved_at = NOW(), replacement_asset_id = COALESCE(?, replacement_asset_id), notes = COALESCE(?, notes) WHERE id = ? AND organization_id <=> ?',
+      [status, replacement_asset_id || null, notes || null, rma.id, req.orgId],
     );
     // Restore asset lifecycle status if closed (not denied)
     if (status === 'closed' && rma.asset_id) {
-      await db.query("UPDATE assets SET lifecycle_status = 'in_stock' WHERE id = ? AND lifecycle_status = 'rma'", [rma.asset_id]);
+      await db.query(
+        "UPDATE assets SET lifecycle_status = 'in_stock' WHERE id = ? AND organization_id <=> ? AND lifecycle_status = 'rma'",
+        [rma.asset_id, req.orgId],
+      );
     }
     const updated = await RmaRequest.findById(rma.id, req.orgId);
     res.json({ data: updated });

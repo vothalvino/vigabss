@@ -151,6 +151,9 @@ describe('payGroup', () => {
     expect(ledger).toHaveLength(3);
     const byClient = Object.fromEntries(ledger.map(([, p]) => [p[0], p[2]]));
     expect(byClient).toEqual({ 1: 100, 2: 50, 3: 30 });
+    // Each settled invoice's reconnect is bound to the group's org (BIL-04).
+    expect(mockReconnect).toHaveBeenCalledTimes(3);
+    for (const call of mockReconnect.mock.calls) expect(call[2]).toBe(10);
   });
 
   it('refuses to settle a group whose open invoices span more than one currency', async () => {

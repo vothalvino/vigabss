@@ -65,6 +65,7 @@ function mockUseAuth() {
     loading: false,
     initialized: true,
     login: vi.fn(),
+    completeMfaLogin: vi.fn(),
     logout: vi.fn(),
     refresh: vi.fn(),
     switchOrganization: vi.fn(),
@@ -77,6 +78,7 @@ function mockUsePortalAuth() {
     loading: false,
     initialized: true,
     login: vi.fn(),
+    completeMfaLogin: vi.fn(),
     logout: vi.fn(),
   } as ReturnType<typeof PortalAuthContextModule.usePortalAuth>);
 }

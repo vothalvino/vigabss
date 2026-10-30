@@ -132,6 +132,7 @@ function renderUserList(authUser: AuthUser = adminUser) {
     loading: false,
     initialized: true,
     login: vi.fn(),
+    completeMfaLogin: vi.fn(),
     logout: vi.fn(),
     refresh: vi.fn(),
     switchOrganization: vi.fn(),

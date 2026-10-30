@@ -14,7 +14,13 @@ const mockConnCommit   = jest.fn();
 const mockConnRollback = jest.fn();
 
 const mockOidcAuthorizationUrl = jest.fn(() => 'https://idp.example/authorize');
-const mockOidcClient = { authorizationUrl: mockOidcAuthorizationUrl };
+const mockOidcUserinfo = jest.fn();
+const mockOidcClient = {
+  authorizationUrl: mockOidcAuthorizationUrl,
+  callbackParams: (req) => ({ ...req.query }),
+  callback: jest.fn(async () => ({ access_token: 'idp-access' })),
+  userinfo: mockOidcUserinfo,
+};
 const mockOidcClientConstructor = jest.fn(function MockOidcClient() {
   return mockOidcClient;
 });
@@ -28,6 +34,14 @@ jest.mock('openid-client', () => ({
   Issuer: { discover: mockOidcDiscover },
 }));
 
+// The OIDC issuer is DNS-checked against private ranges (SSRF guard). Tests
+// never resolve real hostnames; individual tests make it reject.
+const mockAssertSafeOutboundUrl = jest.fn(async (url) => url);
+jest.mock('../src/utils/safeOutboundUrl', () => ({
+  ...jest.requireActual('../src/utils/safeOutboundUrl'),
+  assertSafeOutboundUrl: (...args) => mockAssertSafeOutboundUrl(...args),
+}));
+
 jest.mock('../src/config/database', () => ({
   query:         mockQuery,
   execute:       jest.fn(),
@@ -39,14 +53,23 @@ jest.mock('../src/config/database', () => ({
 // ---------------------------------------------------------------------------
 // Mock auth + org middleware
 // ---------------------------------------------------------------------------
+// Test headers let a case act as another org, an API token or a global
+// identity. Default: an org-1 admin with a browser session.
 jest.mock('../src/middleware/auth', () => ({
   authenticate: (req, _res, next) => {
-    req.user = { id: 1, email: 'admin@test.com', role: 'admin', organizationId: 1 };
+    req.user = {
+      id: 1,
+      email: 'admin@test.com',
+      role: 'admin',
+      organizationId: Number(req.headers['x-test-org'] || 1),
+    };
+    if (req.headers['x-test-api-token']) req.user.apiTokenId = 9;
+    if (req.headers['x-test-global']) req.user.hasGlobalOrganizationAccess = true;
     next();
   },
 }));
 jest.mock('../src/middleware/orgScope', () => ({
-  orgScope: (req, _res, next) => { req.orgId = 1; next(); },
+  orgScope: (req, _res, next) => { req.orgId = req.user.organizationId; next(); },
 }));
 jest.mock('../src/middleware/rbac', () => ({
   userHasPermission: async () => true,
@@ -78,6 +101,7 @@ jest.mock('../src/config', () => ({
   requestTimeoutMs:   0,
   corsOrigins:        '',
   adminIpAllowlist:   '',
+  installOperatorUserIds: [],
   log:                { level: 'silent' },
   features: {
     cfdi: false, radius: false, twoFactor: false, webhooks: false, snmp: false,
@@ -163,10 +187,19 @@ describe('ssoService.normalizeOidcProfile', () => {
     expect(r.groups).toEqual(['dev']);
   });
 
-  test('falls back to preferred_username for email', () => {
-    const userinfo = { preferred_username: 'alice', given_name: 'Alice', family_name: 'Smith' };
+  // SEC-05: preferred_username is a free-form, often user-editable handle and
+  // was used as the "email" that linked to existing accounts. It is no longer
+  // a fallback (this test previously asserted the insecure fallback).
+  test('does not fall back to preferred_username for email', () => {
+    const userinfo = { preferred_username: 'admin@demo-isp.com', given_name: 'Alice', family_name: 'Smith' };
     const r = normalizeOidcProfile(userinfo, {}, 'groups');
-    expect(r.email).toBe('alice');
+    expect(r.email).toBe('');
+  });
+
+  test('carries the subject and an explicit email_verified=false', () => {
+    const r = normalizeOidcProfile({ sub: 'abc', email: 'a@b.com', email_verified: false }, {}, 'groups');
+    expect(r.subject).toBe('abc');
+    expect(r.emailVerified).toBe(false);
   });
 
   test('uses attribute mapping overrides', () => {
@@ -242,54 +275,112 @@ describe('ssoService.generateOidcLoginUrl redirect persistence', () => {
 
 describe('ssoService.findOrCreateSsoUser', () => {
   const ORG_ID = 1;
-  const CFG_ENABLED = { id: 10, is_enabled: 1, auto_provision: 1, default_role: 'readonly' };
-  const PROFILE     = { email: 'user@example.com', firstName: 'Jane', lastName: 'Doe', groups: ['admins'] };
+  const CFG_ENABLED = { id: 10, provider_type: 'oidc', is_enabled: 1, auto_provision: 1, default_role: 'readonly' };
+  const PROFILE     = {
+    email: 'user@example.com', firstName: 'Jane', lastName: 'Doe', groups: ['admins'],
+    issuer: 'https://idp.example', subject: 'sub-123', emailVerified: null,
+  };
   const MAPPINGS    = [{ idp_group: 'admins', fireisp_role: 'admin' }];
+
+  /**
+   * Route db.query by statement. `state` describes the install:
+   *   usersByEmail, usersById, links (identity_hash -> user_id), userLinks
+   *   (user ids already linked at this org/provider), memberships.
+   */
+  function routeDb(state) {
+    const calls = [];
+    mockQuery.mockImplementation(async (sql, params) => {
+      calls.push({ sql, params });
+      if (/SELECT user_id FROM user_sso_identities/.test(sql)) {
+        const uid = state.links?.[params[2]] ?? state.linkAfterInsert?.[params[2]];
+        return [uid ? [{ user_id: uid }] : []];
+      }
+      if (/SELECT id FROM user_sso_identities/.test(sql)) {
+        return [(state.userLinks || []).includes(params[2]) ? [{ id: 1 }] : []];
+      }
+      if (/INSERT IGNORE INTO user_sso_identities/.test(sql)) {
+        state.linkAfterInsert = { ...(state.linkAfterInsert || {}), [params[4]]: state.linkWinner ?? params[5] };
+        return [{ affectedRows: 1 }];
+      }
+      if (/FROM users WHERE email = \?/.test(sql)) {
+        return [state.usersByEmail?.[params[0]] ? [state.usersByEmail[params[0]]] : []];
+      }
+      if (/SELECT \* FROM users WHERE id = \?/.test(sql)) {
+        const u = state.usersById?.[params[0]];
+        return [u ? [u] : []];
+      }
+      if (/INSERT INTO users/.test(sql)) return [{ insertId: 99 }];
+      if (/FROM organization_users WHERE user_id = \?/.test(sql)) return [state.memberships || []];
+      if (/FROM users u\s+JOIN roles r/.test(sql)) return [state.groupRows || []];
+      if (/is_install_operator FROM users/.test(sql)) return [[]];
+      return [{ affectedRows: 1 }];
+    });
+    return calls;
+  }
+
+  const homed = (over = {}) => ({
+    id: 5, email: 'user@example.com', role: 'support', status: 'active',
+    organization_id: ORG_ID, is_install_operator: 0, ...over,
+  });
 
   beforeEach(() => {
     mockQuery.mockReset();
   });
 
-  test('returns existing user with role from group mapping', async () => {
-    const existingUser = { id: 5, email: 'user@example.com', role: 'support', status: 'active' };
-    // 1. findByEmail query
-    mockQuery.mockResolvedValueOnce([[existingUser]]);
-    // 2. upsert org membership
-    mockQuery.mockResolvedValueOnce([{ affectedRows: 1 }]);
+  test('links an eligible account homed in the SSO org and maps its role', async () => {
+    const calls = routeDb({
+      usersByEmail: { 'user@example.com': homed() },
+      memberships: [{ organization_id: ORG_ID, deleted_at: null }],
+    });
 
     const { user, orgRole } = await ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS);
     expect(user.id).toBe(5);
     expect(orgRole).toBe('admin');
+
+    const link = calls.find(c => /INSERT IGNORE INTO user_sso_identities/.test(c.sql));
+    expect(link.params).toEqual([ORG_ID, 'oidc', 'https://idp.example', 'sub-123', expect.stringMatching(/^[0-9a-f]{64}$/), 5]);
+    const membership = calls.find(c => /INSERT INTO organization_users/.test(c.sql));
+    expect(membership.sql).not.toMatch(/deleted_at/);
+    const group = calls.find(c => /UPDATE users u/.test(c.sql));
+    expect(group.sql).toMatch(/u\.organization_id = \?/);
+    expect(group.params).toEqual(['admin', 5, ORG_ID]);
   });
 
   test('uses default_role when no group matches', async () => {
-    const existingUser = { id: 5, email: 'user@example.com', role: 'support', status: 'active' };
-    mockQuery.mockResolvedValueOnce([[existingUser]]);
-    mockQuery.mockResolvedValueOnce([{ affectedRows: 1 }]);
-
+    routeDb({
+      usersByEmail: { 'user@example.com': homed() },
+      memberships: [{ organization_id: ORG_ID, deleted_at: null }],
+    });
     const noMatchMappings = [{ idp_group: 'other-group', fireisp_role: 'manager' }];
     const { orgRole } = await ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, noMatchMappings);
     expect(orgRole).toBe('readonly');
   });
 
-  test('auto-provisions a new user when not found', async () => {
-    // findByEmail → not found
-    mockQuery.mockResolvedValueOnce([[]]); // user not found
-    // INSERT user
-    mockQuery.mockResolvedValueOnce([{ insertId: 99 }]);
-    // SELECT new user
-    mockQuery.mockResolvedValueOnce([[{ id: 99, email: 'user@example.com', role: 'support', password_hash: 'x' }]]);
-    // upsert org membership
-    mockQuery.mockResolvedValueOnce([{ affectedRows: 1 }]);
+  test('ignores a stored mapping whose role is outside the SSO role set', async () => {
+    routeDb({
+      usersByEmail: { 'user@example.com': homed() },
+      memberships: [{ organization_id: ORG_ID, deleted_at: null }],
+    });
+    const { orgRole } = await ssoService.findOrCreateSsoUser(
+      ORG_ID, PROFILE, CFG_ENABLED, [{ idp_group: 'admins', fireisp_role: 'super_admin' }],
+    );
+    expect(orgRole).toBe('readonly');
+  });
+
+  test('auto-provisions a new user homed in the org when the email is unused install-wide', async () => {
+    const created = homed({ id: 99, password_hash: 'x' });
+    const calls = routeDb({ usersById: { 99: created }, memberships: [] });
 
     const { user, orgRole } = await ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS);
     expect(user.id).toBe(99);
     expect(orgRole).toBe('admin');
+    const insert = calls.find(c => /INSERT INTO users/.test(c.sql));
+    expect(insert.params[0]).toBe(ORG_ID);
+    expect(calls.some(c => /INSERT IGNORE INTO user_sso_identities/.test(c.sql))).toBe(true);
   });
 
   test('throws UnauthorizedError when auto_provision=false and user not found', async () => {
-    mockQuery.mockResolvedValueOnce([[]]); // user not found
-
+    routeDb({});
     const cfgNoProvision = { ...CFG_ENABLED, auto_provision: 0 };
     await expect(
       ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, cfgNoProvision, []),
@@ -297,10 +388,125 @@ describe('ssoService.findOrCreateSsoUser', () => {
   });
 
   test('throws UnauthorizedError when profile has no email', async () => {
-    const badProfile = { email: '', firstName: 'X', lastName: 'Y', groups: [] };
+    const badProfile = { ...PROFILE, email: '' };
     await expect(
       ssoService.findOrCreateSsoUser(ORG_ID, badProfile, CFG_ENABLED, []),
     ).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  // ---- SEC-05 regressions: the IdP-asserted email used to match ANY account
+  // ---- on the install, and the minted session was that account's.
+
+  test('refuses an account homed in another organization (no link, no membership)', async () => {
+    const calls = routeDb({
+      usersByEmail: { 'user@example.com': homed({ organization_id: 2 }) },
+      memberships: [{ organization_id: 2, deleted_at: null }],
+    });
+    await expect(ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS))
+      .rejects.toMatchObject({ statusCode: 403 });
+    expect(calls.some(c => /INSERT INTO organization_users/.test(c.sql))).toBe(false);
+    expect(calls.some(c => /INSERT IGNORE INTO user_sso_identities/.test(c.sql))).toBe(false);
+    expect(calls.some(c => /UPDATE users u/.test(c.sql))).toBe(false);
+  });
+
+  test('refuses the install operator even when homed in the SSO org', async () => {
+    const calls = routeDb({
+      usersByEmail: { 'user@example.com': homed({ role: 'admin', is_install_operator: 1 }) },
+      memberships: [{ organization_id: ORG_ID, deleted_at: null }],
+    });
+    await expect(ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS))
+      .rejects.toMatchObject({ statusCode: 403 });
+    expect(calls.some(c => /INSERT INTO organization_users/.test(c.sql))).toBe(false);
+  });
+
+  test('refuses a system super_admin', async () => {
+    routeDb({
+      usersByEmail: { 'user@example.com': homed({ role: 'admin' }) },
+      memberships: [{ organization_id: ORG_ID, deleted_at: null }],
+      groupRows: [{ group_name: 'super_admin', group_is_system: 1 }],
+    });
+    await expect(ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS))
+      .rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test('refuses an account that also holds a live membership in another org', async () => {
+    routeDb({
+      usersByEmail: { 'user@example.com': homed() },
+      memberships: [
+        { organization_id: ORG_ID, deleted_at: null },
+        { organization_id: 3, deleted_at: null },
+      ],
+    });
+    await expect(ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS))
+      .rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test('does not resurrect a removed membership', async () => {
+    const calls = routeDb({
+      usersByEmail: { 'user@example.com': homed({ organization_id: null }) },
+      memberships: [{ organization_id: ORG_ID, deleted_at: new Date() }],
+    });
+    await expect(ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS))
+      .rejects.toMatchObject({ statusCode: 403 });
+    expect(calls.some(c => /INSERT INTO organization_users/.test(c.sql))).toBe(false);
+  });
+
+  test('a member-only account (no home org) is linked but its global group is left alone', async () => {
+    const calls = routeDb({
+      usersByEmail: { 'user@example.com': homed({ organization_id: null }) },
+      memberships: [{ organization_id: ORG_ID, deleted_at: null }],
+    });
+    await ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS);
+    expect(calls.some(c => /UPDATE users u/.test(c.sql))).toBe(false);
+  });
+
+  test('a linked identity decides the account, not the asserted email', async () => {
+    const crypto = require('crypto');
+    const hash = crypto.createHash('sha256').update('https://idp.example\nsub-123').digest('hex');
+    const calls = routeDb({
+      links: { [hash]: 5 },
+      usersById: { 5: homed() },
+      usersByEmail: { 'user@example.com': homed({ id: 6 }) },
+      memberships: [{ organization_id: ORG_ID, deleted_at: null }],
+    });
+    const { user } = await ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS);
+    expect(user.id).toBe(5);
+    expect(calls.some(c => /FROM users WHERE email = \?/.test(c.sql))).toBe(false);
+    // Lookups are always bound to the SSO organization.
+    const lookup = calls.find(c => /SELECT user_id FROM user_sso_identities/.test(c.sql));
+    expect(lookup.params[0]).toBe(ORG_ID);
+  });
+
+  test('refuses an email match for an account already linked to a different IdP identity', async () => {
+    routeDb({
+      usersByEmail: { 'user@example.com': homed() },
+      userLinks: [5],
+      memberships: [{ organization_id: ORG_ID, deleted_at: null }],
+    });
+    await expect(ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS))
+      .rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test('refuses when a concurrent sign-in linked the identity to another account', async () => {
+    routeDb({
+      usersByEmail: { 'user@example.com': homed() },
+      memberships: [{ organization_id: ORG_ID, deleted_at: null }],
+      linkWinner: 77,
+    });
+    await expect(ssoService.findOrCreateSsoUser(ORG_ID, PROFILE, CFG_ENABLED, MAPPINGS))
+      .rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test('refuses an email the IdP marks as unverified', async () => {
+    routeDb({ usersByEmail: { 'user@example.com': homed() } });
+    await expect(ssoService.findOrCreateSsoUser(ORG_ID, { ...PROFILE, emailVerified: false }, CFG_ENABLED, []))
+      .rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  test('refuses a profile without a stable subject', async () => {
+    routeDb({ usersByEmail: { 'user@example.com': homed() } });
+    await expect(ssoService.findOrCreateSsoUser(ORG_ID, { ...PROFILE, subject: '' }, CFG_ENABLED, []))
+      .rejects.toMatchObject({ statusCode: 401 });
   });
 });
 
@@ -603,5 +809,162 @@ describe('SSO saml/login — feature enabled, config missing', () => {
     const res = await request(app).get('/api/v1/sso/1/saml/login');
     // ForbiddenError (cfg not found / not enabled) → 403
     expect(res.status).toBe(403);
+  });
+});
+
+// ============================================================================
+// SEC-04 — admin endpoints are bound to the caller's active organization
+// ============================================================================
+
+describe('SSO admin endpoints — :orgId must be the caller org', () => {
+  const ROUTES = [
+    ['get', '/api/v1/sso/2/saml/config'],
+    ['put', '/api/v1/sso/2/saml/config'],
+    ['get', '/api/v1/sso/2/oidc/config'],
+    ['put', '/api/v1/sso/2/oidc/config'],
+    ['get', '/api/v1/sso/2/saml/group-mappings'],
+    ['put', '/api/v1/sso/2/saml/group-mappings'],
+    ['get', '/api/v1/sso/2/oidc/group-mappings'],
+    ['put', '/api/v1/sso/2/oidc/group-mappings'],
+  ];
+
+  beforeEach(() => mockQuery.mockReset());
+
+  test.each(ROUTES)('an org-1 admin gets 403 on %s %s and nothing is read or written', async (method, path) => {
+    const res = await request(app)[method](path).send({ mappings: [], is_enabled: true });
+    expect(res.status).toBe(403);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test.each(ROUTES)('an API token gets 403 on %s %s even for its own org', async (method, path) => {
+    const res = await request(app)[method](path.replace('/sso/2/', '/sso/1/'))
+      .set('x-test-api-token', '1')
+      .send({ mappings: [], is_enabled: true });
+    expect(res.status).toBe(403);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('an org-2 admin may read org 2', async () => {
+    mockQuery.mockResolvedValueOnce([[{ id: 4, organization_id: 2, provider_type: 'oidc', is_enabled: 1 }]]);
+    const res = await request(app).get('/api/v1/sso/2/oidc/config').set('x-test-org', '2');
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls[0][1]).toEqual([2, 'oidc']);
+  });
+
+  test('an installation-global browser identity may administer another org', async () => {
+    mockQuery.mockResolvedValueOnce([[{ id: 4, organization_id: 2, provider_type: 'oidc', is_enabled: 1 }]]);
+    const res = await request(app).get('/api/v1/sso/2/oidc/config').set('x-test-global', '1');
+    expect(res.status).toBe(200);
+  });
+});
+
+// ============================================================================
+// SEC-05 — config and mapping validation
+// ============================================================================
+
+describe('SSO config/mapping validation', () => {
+  beforeEach(() => {
+    mockQuery.mockReset();
+    mockGetConn.mockClear();
+    mockAssertSafeOutboundUrl.mockReset().mockImplementation(async (url) => url);
+  });
+
+  test('PUT oidc/config rejects an issuer that resolves to a private address', async () => {
+    const { AppError } = require('../src/utils/errors');
+    mockAssertSafeOutboundUrl.mockRejectedValueOnce(
+      new AppError('oidc_issuer must not target a private or loopback host.', 422, 'UNSAFE_URL'),
+    );
+    const res = await request(app)
+      .put('/api/v1/sso/1/oidc/config')
+      .send({ oidc_issuer: 'https://169.254.169.254/latest' });
+    expect(res.status).toBe(422);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('PUT saml/config rejects a non-https SSO URL', async () => {
+    const res = await request(app)
+      .put('/api/v1/sso/1/saml/config')
+      .send({ saml_sso_url: 'http://idp.example.com/sso' });
+    expect(res.status).toBe(422);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    [[{ idp_group: 'admins', fireisp_role: 'super_admin' }]],
+    [[{ idp_group: 'admins', fireisp_role: 'owner' }]],
+    [[{ idp_group: '', fireisp_role: 'admin' }]],
+    [['admins']],
+  ])('PUT group-mappings rejects %j', async (mappings) => {
+    mockQuery.mockResolvedValueOnce([[{ id: 1, organization_id: 1, provider_type: 'saml' }]]); // getConfig
+    const res = await request(app).put('/api/v1/sso/1/saml/group-mappings').send({ mappings });
+    expect(res.status).toBe(422);
+    expect(mockGetConn).not.toHaveBeenCalled();
+  });
+
+  test('OIDC discovery re-checks the issuer before any outbound request', async () => {
+    const { AppError } = require('../src/utils/errors');
+    mockOidcDiscover.mockClear();
+    mockAssertSafeOutboundUrl.mockRejectedValueOnce(new AppError('unsafe', 422, 'UNSAFE_URL'));
+    mockQuery
+      .mockResolvedValueOnce([[{ id: 10, is_enabled: 1, oidc_issuer: 'https://rebound.example', oidc_client_id: 'c' }]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+    await expect(ssoService.generateOidcLoginUrl(1, '/')).rejects.toMatchObject({ statusCode: 422 });
+    expect(mockOidcDiscover).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================================
+// SEC-03 — SSO honours TOTP two-factor
+// ============================================================================
+
+describe('GET /sso/:orgId/oidc/callback — 2FA', () => {
+  const ISSUER = 'https://idp-2fa.example';
+
+  function routeCallbackDb(user) {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/FROM organization_sso_configs/.test(sql)) {
+        return [[{ id: 10, organization_id: 1, provider_type: 'oidc', is_enabled: 1, auto_provision: 0,
+          default_role: 'readonly', oidc_issuer: ISSUER, oidc_client_id: 'c' }]];
+      }
+      if (/FROM sso_auth_states/.test(sql)) return [[{ state: 's1', nonce: 'n1', organization_id: 1, redirect_to: null }]];
+      if (/FROM organization_sso_group_mappings/.test(sql)) return [[]];
+      if (/SELECT user_id FROM user_sso_identities/.test(sql)) return [[{ user_id: user.id }]];
+      if (/SELECT \* FROM users WHERE id = \?/.test(sql)) return [[user]];
+      if (/FROM organization_users WHERE user_id = \?/.test(sql)) return [[{ organization_id: 1, deleted_at: null }]];
+      return [{ affectedRows: 1 }];
+    });
+  }
+
+  beforeEach(() => {
+    mockQuery.mockReset();
+    mockOidcUserinfo.mockReset().mockResolvedValue({ sub: 'sub-1', email: 'tech@example.com' });
+    mockAssertSafeOutboundUrl.mockReset().mockImplementation(async (url) => url);
+  });
+
+  test('a TOTP-enabled account gets a challenge redirect, not tokens', async () => {
+    routeCallbackDb({ id: 5, email: 'tech@example.com', role: 'technician', status: 'active',
+      organization_id: 1, is_install_operator: 0, totp_enabled: 1, password_hash: 'h' });
+
+    const res = await request(app).get('/api/v1/sso/1/oidc/callback?state=s1&code=c1');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(/^http:\/\/localhost:3000\/login#mfa_token=/);
+    expect(res.headers.location).not.toMatch(/accessToken|refreshToken/);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO user_sessions/.test(sql))).toBe(false);
+
+    const { verifyMfaChallengeToken } = require('../src/utils/accessTokens');
+    const token = decodeURIComponent(res.headers.location.split('#mfa_token=')[1]);
+    expect(verifyMfaChallengeToken(token)).toMatchObject({ sub: 5, method: 'sso', orgId: 1 });
+  });
+
+  test('an account without 2FA still receives tokens', async () => {
+    routeCallbackDb({ id: 5, email: 'tech@example.com', role: 'technician', status: 'active',
+      organization_id: 1, is_install_operator: 0, totp_enabled: 0, password_hash: 'h' });
+
+    const res = await request(app).get('/api/v1/sso/1/oidc/callback?state=s1&code=c1');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(/\/sso\/callback#accessToken=/);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO user_sessions/.test(sql))).toBe(true);
   });
 });

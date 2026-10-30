@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
     totp_secret     VARCHAR(255)    NULL     COMMENT 'TOTP shared secret (encrypted/base32 at app layer)',
     totp_enabled    BOOLEAN         NOT NULL DEFAULT FALSE COMMENT 'TRUE when 2FA/TOTP is enabled for this user',
     totp_backup_codes JSON          NULL     COMMENT 'JSON array of one-time backup recovery codes for TOTP',
+    totp_last_used_step BIGINT UNSIGNED NULL DEFAULT NULL COMMENT 'Last accepted TOTP time step (unix time / 30); a code is accepted only for a later step (migration 467)',
     last_login_at          TIMESTAMP       NULL,
     failed_login_attempts  TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Consecutive failed login attempts since last successful login',
     locked_until           TIMESTAMP       NULL DEFAULT NULL   COMMENT 'Account locked until this timestamp; NULL = not locked',
@@ -8544,8 +8545,9 @@ END$$
 DELIMITER ;
 
 -- ---------------------------------------------------------------------------
--- Triggers: CFDI document immutability (migration 148)
--- Purpose: Prevents modification of stamped (vigente) CFDI documents.
+-- Triggers: CFDI document immutability (migrations 148, 469)
+-- Purpose: Once a CFDI is filed with SAT (vigente, cancel_pending, cancelado)
+--          its source links, folio, receptor and fiscal fields are frozen.
 -- ---------------------------------------------------------------------------
 
 DELIMITER $$
@@ -8555,27 +8557,32 @@ CREATE TRIGGER trg_cfdi_documents_immutable_bu
 BEFORE UPDATE ON cfdi_documents
 FOR EACH ROW
 BEGIN
-    IF OLD.sat_status = 'vigente' THEN
-        IF NEW.subtotal           != OLD.subtotal
-        OR NEW.total_impuestos    != OLD.total_impuestos
-        OR NEW.total              != OLD.total
-        OR NEW.tipo_comprobante   != OLD.tipo_comprobante
-        OR NEW.uso_cfdi           != OLD.uso_cfdi
-        OR (NEW.metodo_pago IS NULL) != (OLD.metodo_pago IS NULL)
-        OR COALESCE(NEW.metodo_pago, '') != COALESCE(OLD.metodo_pago, '')
-        OR (NEW.forma_pago IS NULL) != (OLD.forma_pago IS NULL)
-        OR COALESCE(NEW.forma_pago, '') != COALESCE(OLD.forma_pago, '')
-        OR NEW.moneda             != OLD.moneda
-        OR COALESCE(NEW.receptor_rfc, '')    != COALESCE(OLD.receptor_rfc, '')
-        OR COALESCE(NEW.receptor_nombre, '') != COALESCE(OLD.receptor_nombre, '')
-        OR COALESCE(NEW.uuid, '')            != COALESCE(OLD.uuid, '')
-        OR (NEW.xml_content IS NULL) != (OLD.xml_content IS NULL)
-        OR COALESCE(NEW.xml_content, '') != COALESCE(OLD.xml_content, '')
-        OR (NEW.signed_xml IS NULL) != (OLD.signed_xml IS NULL)
-        OR COALESCE(NEW.signed_xml, '') != COALESCE(OLD.signed_xml, '')
+    IF OLD.sat_status IN ('vigente', 'cancel_pending', 'cancelado') THEN
+        IF NOT (NEW.subtotal          <=> OLD.subtotal)
+        OR NOT (NEW.total_impuestos   <=> OLD.total_impuestos)
+        OR NOT (NEW.total             <=> OLD.total)
+        OR NOT (NEW.tipo_comprobante  <=> OLD.tipo_comprobante)
+        OR NOT (NEW.uso_cfdi          <=> OLD.uso_cfdi)
+        OR NOT (NEW.metodo_pago       <=> OLD.metodo_pago)
+        OR NOT (NEW.forma_pago        <=> OLD.forma_pago)
+        OR NOT (NEW.moneda            <=> OLD.moneda)
+        OR NOT (NEW.receptor_rfc      <=> OLD.receptor_rfc)
+        OR NOT (NEW.receptor_nombre   <=> OLD.receptor_nombre)
+        OR NOT (NEW.receptor_regimen  <=> OLD.receptor_regimen)
+        OR NOT (NEW.receptor_cp       <=> OLD.receptor_cp)
+        OR NOT (NEW.uuid              <=> OLD.uuid)
+        OR NOT (NEW.xml_content       <=> OLD.xml_content)
+        OR NOT (NEW.signed_xml        <=> OLD.signed_xml)
+        OR NOT (NEW.organization_id   <=> OLD.organization_id)
+        OR NOT (NEW.client_id         <=> OLD.client_id)
+        OR NOT (NEW.invoice_id        <=> OLD.invoice_id)
+        OR NOT (NEW.payment_id        <=> OLD.payment_id)
+        OR NOT (NEW.credit_note_id    <=> OLD.credit_note_id)
+        OR NOT (NEW.serie             <=> OLD.serie)
+        OR NOT (NEW.folio             <=> OLD.folio)
         THEN
             SIGNAL SQLSTATE '45000'
-                SET MESSAGE_TEXT = 'Stamped CFDI documents (vigente) cannot be modified; use the cancellation flow';
+                SET MESSAGE_TEXT = 'Filed CFDI documents (vigente/cancel_pending/cancelado) cannot be modified; use the cancellation flow';
         END IF;
     END IF;
 END$$
@@ -8809,6 +8816,30 @@ CREATE TABLE IF NOT EXISTS sso_auth_states (
     UNIQUE KEY uq_sso_state (state),
     KEY idx_sso_state_expires (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Per-organization SSO identity links (migration 468): the IdP identity
+-- (issuer + subject), not the asserted email, decides the account after the
+-- first sign-in. Every lookup binds organization_id.
+CREATE TABLE IF NOT EXISTS user_sso_identities (
+    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id   BIGINT UNSIGNED NOT NULL COMMENT 'Organization whose SSO config linked this identity',
+    provider_type     ENUM('saml', 'oidc') NOT NULL,
+    issuer            VARCHAR(500) NOT NULL COMMENT 'OIDC issuer URL or SAML IdP entity ID',
+    subject           VARCHAR(500) NOT NULL COMMENT 'OIDC sub claim or SAML NameID',
+    identity_hash     CHAR(64) NOT NULL COMMENT 'sha256 hex of issuer + newline + subject',
+    user_id           BIGINT UNSIGNED NOT NULL,
+    created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_user_sso_identity (organization_id, provider_type, identity_hash),
+    UNIQUE KEY uq_user_sso_identity_user (organization_id, provider_type, user_id),
+    KEY idx_user_sso_identities_user_id (user_id),
+    CONSTRAINT fk_user_sso_identities_org FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_user_sso_identities_user FOREIGN KEY (user_id)
+        REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='Per-organization link from an SSO IdP identity (issuer + subject) to a local user (migration 468)';
 
 
 -- ---------------------------------------------------------------------------
@@ -14537,6 +14568,28 @@ CREATE TABLE IF NOT EXISTS reseller_billing_entities (
     CONSTRAINT fk_rbe_reseller FOREIGN KEY (reseller_id)
         REFERENCES resellers (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Separate billing entity per reseller (§19.2)';
+
+-- ---------------------------------------------------------------------------
+-- Table: reseller_user_bindings (migration 471 — TNB-13)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reseller_user_bindings (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Organization in which the binding applies',
+    user_id         BIGINT UNSIGNED NOT NULL COMMENT 'Staff user (primary-DB users.id; no FK, see migration 471) confined to the reseller subtree',
+    reseller_id     BIGINT UNSIGNED NOT NULL COMMENT 'Root of the reseller subtree the user may access',
+    created_by      BIGINT UNSIGNED NULL     COMMENT 'Administrator who created or last changed the binding',
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_reseller_user_bindings_org_user (organization_id, user_id),
+    KEY idx_reseller_user_bindings_reseller (reseller_id),
+    KEY idx_reseller_user_bindings_user (user_id),
+    CONSTRAINT fk_reseller_user_bindings_organization FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_reseller_user_bindings_reseller FOREIGN KEY (reseller_id)
+        REFERENCES resellers (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Binds a staff user to one reseller subtree per organization (TNB-13)';
 
 -- ---------------------------------------------------------------------------
 -- Column added to clients by migration 345 (§19.1 reseller scoping):

@@ -70,8 +70,10 @@
     "emailLabel": "Email",
     "passwordLabel": "Password",
     "totpLabel": "Two-Factor Code",
-    "totpPlaceholder": "6-digit code",
-    "totpPrompt": "Enter your two-factor authentication code.",
+    "totpPlaceholder": "6-digit code or backup code",
+    "totpPrompt": "Enter the code from your authenticator app, or one of your backup codes.",
+    "totpVerify": "Verify",
+    "totpBack": "Back to sign in",
     "forgotPasswordLink": "Forgot password?"
   },
   "forgotPassword": {

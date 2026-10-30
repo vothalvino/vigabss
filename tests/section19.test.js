@@ -1069,7 +1069,7 @@ describe('Portal: inactive reseller and wrong reseller checks', () => {
     expect(res.status).toBe(422);
   });
 
-  it('returns 422 when suspending client that belongs to different reseller', async () => {
+  it('returns 404 when suspending client that belongs to a reseller outside the subtree (TNB-13: no ownership oracle)', async () => {
     db.query.mockImplementation((sql) => {
       const s = typeof sql === 'string' ? sql : '';
       if (s.includes('`users`') || (s.includes('users') && s.includes('WHERE id = ?'))) {
@@ -1090,10 +1090,10 @@ describe('Portal: inactive reseller and wrong reseller checks', () => {
       .post('/api/v1/reseller-portal/1/clients/3/suspend')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10');
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(404);
   });
 
-  it('returns 422 when cancelling client that belongs to different reseller', async () => {
+  it('returns 404 when cancelling client that belongs to a reseller outside the subtree (TNB-13: no ownership oracle)', async () => {
     db.query.mockImplementation((sql) => {
       const s = typeof sql === 'string' ? sql : '';
       if (s.includes('`users`') || (s.includes('users') && s.includes('WHERE id = ?'))) {
@@ -1105,7 +1105,7 @@ describe('Portal: inactive reseller and wrong reseller checks', () => {
       if (s.includes('FROM resellers') && s.includes('organization_id')) {
         return Promise.resolve([[sampleReseller]]); // reseller id=1
       }
-      if (s.includes('SELECT id, reseller_id FROM clients')) {
+      if (s.includes('SELECT id, status, reseller_id FROM clients')) {
         return Promise.resolve([[{ id: 3, reseller_id: 99 }]]); // wrong reseller
       }
       return Promise.resolve([[]]);
@@ -1114,7 +1114,7 @@ describe('Portal: inactive reseller and wrong reseller checks', () => {
       .post('/api/v1/reseller-portal/1/clients/3/cancel')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10');
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(404);
   });
 
   it('returns 200 with empty list when reseller has no clients (invoices)', async () => {

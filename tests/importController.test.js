@@ -755,6 +755,25 @@ describe('importController', () => {
       expect(db.query.mock.calls.some(c => /INSERT INTO invoices/.test(c[0]))).toBe(false);
     });
 
+    test('rejects a contract_id that is not this client\'s contract in this org (BIL-04)', async () => {
+      invoiceImportMock();
+      db.query.mockImplementation((sql) => {
+        if (/FROM contracts/.test(sql)) return Promise.resolve([[]]); // foreign / other-client contract
+        if (/FROM clients/.test(sql)) return Promise.resolve([[{ tax_exempt: 0 }]]);
+        if (/FROM tax_rates/.test(sql)) return Promise.resolve([[]]);
+        return Promise.resolve([{ insertId: 1 }]);
+      });
+      const csv = 'client_id,contract_id,invoice_number,issue_date,due_date,subtotal,total\n1,8080,INV-C,2024-01-01,2024-01-31,100,116';
+      const { req, res, next } = mockReqRes({ body: { csv } });
+      await importInvoices(req, res, next);
+      const result = res.json.mock.calls[0][0].data;
+      expect(result.imported).toBe(0);
+      expect(result.errors[0].error).toMatch(/contract_id 8080 not found/);
+      const lookup = db.query.mock.calls.find((c) => /FROM contracts/.test(c[0]));
+      expect(lookup[1]).toEqual(['8080', 1, '1']);
+      expect(db.query.mock.calls.some((c) => /INSERT INTO invoices/.test(c[0]))).toBe(false);
+    });
+
     test('validates required fields', async () => {
       db.query.mockResolvedValue([{ insertId: 1 }]);
       const csv = 'client_id,invoice_number,issue_date,due_date\n,INV-002,2024-01-01,2024-01-31\n1,,2024-01-01,2024-01-31';
@@ -896,12 +915,68 @@ describe('importController', () => {
       );
     });
 
+    // Org-scoped client / invoice ownership lookups, the org currency, then the
+    // payment INSERT and its balance-ledger credit (TNA-10). `owned` lists the
+    // ids that exist in the caller's org.
+    const paymentImportMock = ({ clients = ['1'], invoices = ['42'], currency = 'MXN' } = {}) => {
+      db.query.mockImplementation((sql, params = []) => {
+        if (/FROM clients/.test(sql)) {
+          return Promise.resolve([clients.includes(String(params[0])) && params[1] === 1 ? [{ id: params[0] }] : []]);
+        }
+        if (/FROM invoices/.test(sql)) {
+          return Promise.resolve([invoices.includes(String(params[0])) && params[1] === 1 ? [{ id: params[0] }] : []]);
+        }
+        if (/FROM organizations/.test(sql)) return Promise.resolve([[{ currency }]]);
+        return Promise.resolve([{ insertId: 77 }]);
+      });
+    };
+    const paymentInsertArgs = () => db.query.mock.calls.find((c) => /INSERT INTO payments/.test(c[0]))[1];
+
     test('imports valid rows and returns counts', async () => {
-      db.query.mockResolvedValue([{ insertId: 1 }]);
+      paymentImportMock();
       const csv = 'client_id,amount,payment_date,payment_method\n1,500.00,2024-01-15,cash';
       const { req, res, next } = mockReqRes({ body: { csv } });
       await importPayments(req, res, next);
       expect(res.json).toHaveBeenCalledWith({ data: { imported: 1, total: 1, errors: [] } });
+    });
+
+    test('writes the caller org, org currency and recorded_by, plus the ledger credit', async () => {
+      paymentImportMock({ currency: 'MXN' });
+      const csv = 'client_id,amount,payment_date\n1,500.00,2024-01-15';
+      const { req, res, next } = mockReqRes({ body: { csv }, user: { id: 9 } });
+      await importPayments(req, res, next);
+      const insert = db.query.mock.calls.find((c) => /INSERT INTO payments/.test(c[0]));
+      expect(insert[0]).toMatch(/organization_id/);
+      expect(insert[1][0]).toBe(1);                     // organization_id = req.orgId
+      expect(insert[1][4]).toBe('MXN');                 // currency from the org, not 'USD'
+      expect(insert[1][insert[1].length - 1]).toBe(9);  // recorded_by
+      const ledger = db.query.mock.calls.find((c) => /INSERT INTO client_balance_ledger/.test(c[0]));
+      expect(ledger).toBeDefined();
+      expect(ledger[1]).toEqual(expect.arrayContaining(['1', 1, 500, 'MXN', 77]));
+    });
+
+    test('rejects a client of another organization and writes nothing', async () => {
+      paymentImportMock({ clients: [] });
+      const csv = 'client_id,amount,payment_date\n555,100,2024-01-15';
+      const { req, res, next } = mockReqRes({ body: { csv } });
+      await importPayments(req, res, next);
+      const result = res.json.mock.calls[0][0].data;
+      expect(result.imported).toBe(0);
+      expect(result.errors[0].error).toMatch(/client_id 555 not found in this organization/);
+      expect(db.query.mock.calls.some((c) => /INSERT INTO/.test(c[0]))).toBe(false);
+    });
+
+    test('rejects an invoice_id that is not this client\'s invoice in this org', async () => {
+      paymentImportMock({ invoices: [] });
+      const csv = 'client_id,invoice_id,amount,payment_date\n1,999,100,2024-01-15';
+      const { req, res, next } = mockReqRes({ body: { csv } });
+      await importPayments(req, res, next);
+      const result = res.json.mock.calls[0][0].data;
+      expect(result.imported).toBe(0);
+      expect(result.errors[0].error).toMatch(/invoice_id 999 not found/);
+      const invoiceLookup = db.query.mock.calls.find((c) => /FROM invoices/.test(c[0]));
+      expect(invoiceLookup[0]).toMatch(/organization_id = \? AND client_id = \?/);
+      expect(db.query.mock.calls.some((c) => /INSERT INTO/.test(c[0]))).toBe(false);
     });
 
     test('validates required fields', async () => {
@@ -935,28 +1010,31 @@ describe('importController', () => {
     });
 
     test('defaults payment_method to cash when not provided', async () => {
-      db.query.mockResolvedValue([{ insertId: 1 }]);
+      paymentImportMock();
       const csv = 'client_id,amount,payment_date\n1,200,2024-01-15';
       const { req, res, next } = mockReqRes({ body: { csv } });
       await importPayments(req, res, next);
-      const callArgs = db.query.mock.calls[0][1];
-      expect(callArgs[4]).toBe('cash');
+      // (organization_id, client_id, invoice_id, amount, currency, payment_date,
+      //  payment_method, sat_forma_pago, reference_number, clabe, bank_name, notes, recorded_by)
+      const callArgs = paymentInsertArgs();
+      expect(callArgs[6]).toBe('cash');
     });
 
     test('stores optional fields correctly', async () => {
-      db.query.mockResolvedValue([{ insertId: 1 }]);
+      paymentImportMock();
       const csv = 'client_id,invoice_id,amount,payment_date,payment_method,reference_number,notes\n1,42,300.00,2024-01-15,spei,REF-XYZ,some note';
       const { req, res, next } = mockReqRes({ body: { csv } });
       await importPayments(req, res, next);
-      const args = db.query.mock.calls[0][1];
-      expect(args[1]).toBe('42');      // invoice_id
-      expect(args[6]).toBe('REF-XYZ'); // reference_number
-      expect(args[9]).toBe('some note'); // notes
+      const args = paymentInsertArgs();
+      expect(args[2]).toBe('42');      // invoice_id
+      expect(args[8]).toBe('REF-XYZ'); // reference_number
+      expect(args[11]).toBe('some note'); // notes
     });
 
     test('tracks db errors per row', async () => {
-      db.query.mockRejectedValueOnce(new Error('FK violation')).mockResolvedValueOnce([{ insertId: 2 }]);
-      const csv = 'client_id,amount,payment_date\n999,100,2024-01-15\n1,200,2024-01-16';
+      paymentImportMock();
+      db.query.mockRejectedValueOnce(new Error('connection lost'));
+      const csv = 'client_id,amount,payment_date\n1,100,2024-01-15\n1,200,2024-01-16';
       const { req, res, next } = mockReqRes({ body: { csv } });
       await importPayments(req, res, next);
       const result = res.json.mock.calls[0][0].data;
@@ -976,7 +1054,11 @@ describe('importController', () => {
     });
 
     test('imports payments from a CSV file buffer', async () => {
-      db.query.mockResolvedValue([{ insertId: 1 }]);
+      db.query.mockImplementation((sql) => {
+        if (/FROM (clients|invoices)/.test(sql)) return Promise.resolve([[{ id: 1 }]]);
+        if (/FROM organizations/.test(sql)) return Promise.resolve([[{ currency: 'MXN' }]]);
+        return Promise.resolve([{ insertId: 1 }]);
+      });
       const csv = 'client_id,amount,payment_date,payment_method\n1,150.00,2024-01-20,bank_transfer';
       const { req, res, next } = mockReqRes({
         file: { buffer: Buffer.from(csv), originalname: 'payments.csv' },

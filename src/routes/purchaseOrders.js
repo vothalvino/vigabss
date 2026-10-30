@@ -16,9 +16,21 @@ const {
 const db = require('../config/database');
 const inventorySerialService = require('../services/inventorySerialService');
 const { ValidationError } = require('../utils/errors');
+const { assertOwnedReferences, ownedReferences } = require('../utils/ownedReferences');
+
+// A PO's vendor/warehouse and every line's inventory item must belong to the
+// caller's org: receiving increments inventory_stock (which has no
+// organization_id of its own) for that (item, warehouse) pair and mints
+// cpe_devices for serialized items, so a foreign id would mutate another
+// tenant's stock (TNB-12).
+const PO_REFS = { vendor_id: 'vendors', warehouse_id: 'warehouses' };
+const PO_ITEM_REFS = { inventory_item_id: 'inventory_items' };
 
 const router = Router();
-const ctrl = crudController(PurchaseOrder);
+const ctrl = crudController(PurchaseOrder, {
+  beforeCreate: (req) => assertOwnedReferences(req.body, req.orgId, PO_REFS),
+  beforeUpdate: (_old, req) => assertOwnedReferences(req.body, req.orgId, PO_REFS),
+});
 
 router.use(authenticate);
 router.use(orgScope);
@@ -43,13 +55,13 @@ router.get('/:id/items', requirePermission('purchase_orders.view'), async (req, 
   try {
     const po = await PurchaseOrder.findById(parseInt(req.params.id, 10), req.orgId);
     if (!po) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Purchase order not found' } });
-    const items = await PurchaseOrder.getItems(po.id);
+    const items = await PurchaseOrder.getItems(po.id, req.orgId);
     res.json({ data: items });
   } catch (err) { next(err); }
 });
 
 // POST /purchase-orders/:id/items
-router.post('/:id/items', requirePermission('purchase_orders.update'), validate(createPoItem), async (req, res, next) => {
+router.post('/:id/items', requirePermission('purchase_orders.update'), validate(createPoItem), ownedReferences(PO_ITEM_REFS), async (req, res, next) => {
   try {
     const po = await PurchaseOrder.findById(parseInt(req.params.id, 10), req.orgId);
     if (!po) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Purchase order not found' } });
@@ -65,7 +77,7 @@ router.post('/:id/items', requirePermission('purchase_orders.update'), validate(
 });
 
 // PUT /purchase-orders/:id/items/:itemId
-router.put('/:id/items/:itemId', requirePermission('purchase_orders.update'), validate(updatePoItem), async (req, res, next) => {
+router.put('/:id/items/:itemId', requirePermission('purchase_orders.update'), validate(updatePoItem), ownedReferences(PO_ITEM_REFS), async (req, res, next) => {
   try {
     const po = await PurchaseOrder.findById(parseInt(req.params.id, 10), req.orgId);
     if (!po) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Purchase order not found' } });
@@ -167,6 +179,17 @@ router.post('/:id/receive', requirePermission('purchase_orders.receive'), valida
         'SELECT * FROM purchase_order_items WHERE po_id = ? ORDER BY id',
         [po.id],
       );
+
+      // Re-check, on the transaction's connection, that the PO's warehouse
+      // and every referenced inventory item are still the caller's own
+      // before any stock is touched. Rows written before ownership checks
+      // existed may carry a foreign id; reject rather than mutate another
+      // tenant's stock.
+      const ownExec = { exec: conn.query.bind(conn), includeDeleted: true };
+      await assertOwnedReferences(po, req.orgId, { warehouse_id: 'warehouses' }, ownExec);
+      for (const item of lineItems) {
+        await assertOwnedReferences(item, req.orgId, PO_ITEM_REFS, ownExec);
+      }
 
       // Resolve serial_required per referenced inventory item (a small extra
       // query per distinct item, not joined into the line-items SELECT above
@@ -271,8 +294,8 @@ router.post('/:id/receive', requirePermission('purchase_orders.receive'), valida
         : po.received_date;
 
       await conn.query(
-        'UPDATE purchase_orders SET status = ?, received_date = ? WHERE id = ?',
-        [newStatus, receivedDate, po.id],
+        'UPDATE purchase_orders SET status = ?, received_date = ? WHERE id = ? AND organization_id <=> ?',
+        [newStatus, receivedDate, po.id, req.orgId],
       );
 
       await conn.commit();

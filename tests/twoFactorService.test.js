@@ -16,6 +16,9 @@ const twoFactorService = require('../src/services/twoFactorService');
 describe('twoFactorService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearAllMocks() keeps queued mockResolvedValueOnce results; reset them so
+    // one failing case cannot cascade stale rows into the next.
+    db.query.mockReset();
   });
 
   describe('hexToBase32()', () => {
@@ -90,6 +93,53 @@ describe('twoFactorService', () => {
       db.query.mockResolvedValueOnce([[]]);
       await expect(twoFactorService.generateSecret(999)).rejects.toThrow('User not found');
     });
+
+    // SEC-03 regression: POST /2fa/setup silently disabled an enabled 2FA for
+    // any session. Replacing an enabled secret now needs re-verification.
+    test('refuses to replace an enabled 2FA secret without a code or password', async () => {
+      db.query.mockResolvedValueOnce([[{ email: 'u@example.com', totp_enabled: 1, password_hash: 'h' }]]);
+      await expect(twoFactorService.generateSecret(1)).rejects.toMatchObject({ statusCode: 403 });
+      // Nothing was written.
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('refuses to replace an enabled 2FA secret with a wrong password', async () => {
+      const bcrypt = require('bcryptjs');
+      const hash = await bcrypt.hash('right-password', 4);
+      db.query.mockResolvedValueOnce([[{ email: 'u@example.com', totp_enabled: 1, password_hash: hash }]]);
+      await expect(twoFactorService.generateSecret(1, { password: 'wrong-password' }))
+        .rejects.toMatchObject({ statusCode: 403 });
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('replaces an enabled 2FA secret after the password is re-verified', async () => {
+      const bcrypt = require('bcryptjs');
+      const hash = await bcrypt.hash('right-password', 4);
+      db.query
+        .mockResolvedValueOnce([[{ email: 'u@example.com', totp_enabled: 1, password_hash: hash }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);
+      const result = await twoFactorService.generateSecret(1, { password: 'right-password' });
+      expect(result.uri).toContain('otpauth://totp/');
+      expect(db.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('totp_enabled = FALSE'),
+        [expect.any(String), 1],
+      );
+    });
+
+    test('replaces an enabled 2FA secret after a current TOTP code', async () => {
+      const secret = 'a'.repeat(40);
+      const currentStep = Math.floor(Date.now() / 1000 / 30);
+      const code = twoFactorService.generateTOTP(secret, currentStep);
+      db.query
+        .mockResolvedValueOnce([[{ email: 'u@example.com', totp_enabled: 1, password_hash: 'h' }]])
+        .mockResolvedValueOnce([[{
+          totp_secret: secret, totp_enabled: 1, totp_backup_codes: null, totp_last_used_step: null,
+        }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }]) // claim step
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // store new secret
+      const result = await twoFactorService.generateSecret(1, { code });
+      expect(result.secret).toBeTruthy();
+    });
   });
 
   describe('verifyAndEnable()', () => {
@@ -125,15 +175,103 @@ describe('twoFactorService', () => {
       const currentStep = Math.floor(Date.now() / 1000 / 30);
       const code = twoFactorService.generateTOTP(secret, currentStep);
 
-      db.query.mockResolvedValueOnce([[{
-        totp_secret: secret,
-        totp_enabled: true,
-        totp_backup_codes: '[]',
-      }]]);
+      db.query
+        .mockResolvedValueOnce([[{
+          totp_secret: secret,
+          totp_enabled: true,
+          totp_backup_codes: '[]',
+          totp_last_used_step: null,
+        }]])
+        // The accepted step is claimed with a conditional UPDATE (migration
+        // 467 replay guard) — a new statement, hence the extra mock.
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const result = await twoFactorService.verifyCode(1, code);
       expect(result.valid).toBe(true);
       expect(result.method).toBe('totp');
+      expect(db.query).toHaveBeenLastCalledWith(
+        expect.stringContaining('totp_last_used_step IS NULL OR totp_last_used_step < ?'),
+        [currentStep, 1, currentStep],
+      );
+    });
+
+    // SEC-03 regression: a TOTP code was accepted any number of times inside
+    // its drift window.
+    test('rejects a replayed TOTP code (step already used) without claiming it again', async () => {
+      const secret = 'a'.repeat(40);
+      const currentStep = Math.floor(Date.now() / 1000 / 30);
+      const code = twoFactorService.generateTOTP(secret, currentStep);
+
+      db.query.mockResolvedValueOnce([[{
+        totp_secret: secret,
+        totp_enabled: true,
+        totp_backup_codes: '[]',
+        totp_last_used_step: currentStep,
+      }]]);
+
+      await expect(twoFactorService.verifyCode(1, code)).rejects.toMatchObject({ statusCode: 401 });
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('rejects a TOTP code when a concurrent request already claimed its step', async () => {
+      const secret = 'a'.repeat(40);
+      const currentStep = Math.floor(Date.now() / 1000 / 30);
+      const code = twoFactorService.generateTOTP(secret, currentStep);
+
+      db.query
+        .mockResolvedValueOnce([[{
+          totp_secret: secret, totp_enabled: true, totp_backup_codes: '[]', totp_last_used_step: null,
+        }]])
+        .mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+      await expect(twoFactorService.verifyCode(1, code)).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    // SEC-03 regression: mysql2 decodes the JSON column to an array, and
+    // JSON.parse(array) threw — every backup-code login returned 500.
+    test('accepts a backup code when the JSON column arrives already decoded', async () => {
+      const crypto = require('crypto');
+      const hashed = crypto.createHash('sha256').update('ABCD-EF12').digest('hex');
+
+      db.query
+        .mockResolvedValueOnce([[{
+          totp_secret: 'a'.repeat(40),
+          totp_enabled: true,
+          totp_backup_codes: [hashed, 'otherhash'],
+          totp_last_used_step: null,
+        }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+      const result = await twoFactorService.verifyCode(1, 'abcd ef12');
+      expect(result).toMatchObject({ valid: true, method: 'backup_code', remaining_codes: 1 });
+      // Consumed with one atomic JSON_REMOVE guarded by the code still existing.
+      const [sql, params] = db.query.mock.calls[1];
+      expect(sql).toContain('JSON_REMOVE');
+      expect(sql).toContain('JSON_SEARCH(totp_backup_codes, \'one\', ?) IS NOT NULL');
+      expect(params).toEqual([hashed, 1, hashed]);
+    });
+
+    test('returns 401 (not 500) for a wrong code when backup codes are malformed', async () => {
+      db.query.mockResolvedValueOnce([[{
+        totp_secret: 'a'.repeat(40),
+        totp_enabled: true,
+        totp_backup_codes: { not: 'an array' },
+        totp_last_used_step: null,
+      }]]);
+
+      await expect(twoFactorService.verifyCode(1, 'ABCD-EF12')).rejects.toMatchObject({ statusCode: 401 });
+    });
+
+    test('a backup code redeemed concurrently is accepted only once', async () => {
+      const crypto = require('crypto');
+      const hashed = crypto.createHash('sha256').update('ABCD-EF12').digest('hex');
+      db.query
+        .mockResolvedValueOnce([[{
+          totp_secret: 'a'.repeat(40), totp_enabled: true, totp_backup_codes: [hashed], totp_last_used_step: null,
+        }]])
+        .mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+      await expect(twoFactorService.verifyCode(1, 'ABCD-EF12')).rejects.toMatchObject({ statusCode: 401 });
     });
 
     test('verifies backup code and removes it', async () => {

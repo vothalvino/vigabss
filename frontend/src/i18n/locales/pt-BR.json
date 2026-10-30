@@ -70,8 +70,10 @@
     "emailLabel": "E-mail",
     "passwordLabel": "Senha",
     "totpLabel": "Código de dois fatores",
-    "totpPlaceholder": "Código de 6 dígitos",
-    "totpPrompt": "Insira seu código de autenticação de dois fatores.",
+    "totpPlaceholder": "Código de 6 dígitos ou código de backup",
+    "totpPrompt": "Insira o código do seu aplicativo autenticador ou um dos seus códigos de backup.",
+    "totpVerify": "Verificar",
+    "totpBack": "Voltar para o login",
     "forgotPasswordLink": "Esqueceu a senha?"
   },
   "forgotPassword": {

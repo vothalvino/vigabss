@@ -13,6 +13,7 @@
 
 jest.mock('../src/services/authService', () => ({
   login: jest.fn(),
+  completeMfaLogin: jest.fn(),
   logout: jest.fn(),
   refreshToken: jest.fn(),
   switchOrganization: jest.fn(),
@@ -86,6 +87,53 @@ describe('P3.4 — httpOnly cookie auth', () => {
   // =========================================================================
   // POST /auth/login — sets cookies
   // =========================================================================
+  // =========================================================================
+  // SEC-03 — two-step login for accounts with TOTP enabled
+  // =========================================================================
+  describe('POST /api/v1/auth/login with TOTP enabled', () => {
+    test('returns the challenge and sets NO auth cookies', async () => {
+      authService.login.mockResolvedValueOnce({ mfaRequired: true, mfaToken: 'challenge-jwt', expiresIn: 300 });
+
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'admin@example.com', password: 'secret1234' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual({ mfa_required: true, mfa_token: 'challenge-jwt', expires_in: 300 });
+      expect(res.headers['set-cookie']).toBeUndefined();
+    });
+
+    test('POST /login/2fa completes the login and sets the session cookies', async () => {
+      authService.completeMfaLogin.mockResolvedValueOnce({
+        accessToken: 'access-jwt',
+        refreshToken: 'opaque-refresh-token',
+        expiresIn: 900,
+        user: { id: 1, email: 'admin@example.com', role: 'admin', organization_id: 1 },
+        activeOrganizationId: 1,
+      });
+
+      const res = await request(app)
+        .post('/api/v1/auth/login/2fa')
+        .send({ mfa_token: 'challenge-jwt', code: '123456' });
+
+      expect(res.status).toBe(200);
+      expect(authService.completeMfaLogin).toHaveBeenCalledWith({ mfaToken: 'challenge-jwt', code: '123456' });
+      expect(res.body.data.accessToken).toBe('access-jwt');
+      const cookies = res.headers['set-cookie'];
+      expect(cookies.find(c => c.startsWith('fireisp_access=access-jwt'))).toBeDefined();
+      expect(cookies.find(c => c.startsWith('fireisp_refresh=opaque-refresh-token'))).toBeDefined();
+    });
+
+    test('POST /login/2fa rejects a missing code before reaching the service', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/login/2fa')
+        .send({ mfa_token: 'challenge-jwt' });
+
+      expect(res.status).toBe(422);
+      expect(authService.completeMfaLogin).not.toHaveBeenCalled();
+    });
+  });
+
   describe('POST /api/v1/auth/login', () => {
     const loginPayload = { email: 'admin@example.com', password: 'secret1234' };
     const loginResult = {

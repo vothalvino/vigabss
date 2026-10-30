@@ -26,6 +26,17 @@
 //  DELETE /resellers/:id/olt-ports/:aId    remove OLT port assignment
 //  GET    /resellers/:id/billing-entity    get billing entity
 //  PUT    /resellers/:id/billing-entity    upsert billing entity
+//
+//  User bindings (TNB-13, migration 471)
+//  GET    /resellers/:id/users             list users bound to the reseller
+//  PUT    /resellers/:id/users/:userId     bind (or re-bind) a user to it
+//  DELETE /resellers/:id/users/:userId     remove the user's binding
+//
+//  Every route is confined to the caller's reseller scope: a bound user only
+//  sees its own subtree (404 outside it, GET / filtered), an unbound
+//  reseller_admin is refused, and org-level staff see every reseller in their
+//  organization. Binding management is org-level only. See
+//  middleware/resellerScope.js.
 // =============================================================================
 
 const { Router } = require('express');
@@ -33,13 +44,19 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
-const { NotFoundError, ValidationError } = require('../utils/errors');
+const { resellerScope, assertResellerInScope, resellerInScope } = require('../middleware/resellerScope');
+const { ForbiddenError, NotFoundError, ValidationError } = require('../utils/errors');
 const Organization = require('../models/Organization');
+const User = require('../models/User');
+const auditLog = require('../services/auditLog');
 const db = require('../config/database');
+const { inPlaceholders } = require('../utils/sqlBuild');
+const { runInPrimaryContext } = require('../utils/primaryContext');
 
 const router = Router();
 router.use(authenticate);
 router.use(orgScope);
+router.use(resellerScope);
 
 // ---------------------------------------------------------------------------
 // Validation schemas
@@ -112,15 +129,26 @@ const billingEntitySchema = {
 };
 
 // ---------------------------------------------------------------------------
-// Helper — verify reseller belongs to current org
+// Helper — verify the URL reseller is in the caller's scope and current org.
+// Out-of-scope and foreign ids both 404, so a bound user cannot probe ids.
 // ---------------------------------------------------------------------------
-async function getResellerOrThrow(id, orgId) {
+async function getResellerOrThrow(req) {
+  assertResellerInScope(req, req.params.id);
   const [[row]] = await db.query(
     'SELECT * FROM resellers WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-    [id, orgId],
+    [req.params.id, req.orgId],
   );
-  if (!row) throw new NotFoundError('Reseller not found');
+  if (!row) throw new NotFoundError('Reseller');
   return row;
+}
+
+// Binding management decides which subtree another user may reach, so a
+// reseller-bound caller can never use it, whatever permissions it holds.
+function requireOrgLevelResellerAccess(req, _res, next) {
+  if (!req.resellerScope || !req.resellerScope.all) {
+    return next(new ForbiddenError('Reseller-bound users cannot manage reseller bindings'));
+  }
+  next();
 }
 
 // =============================================================================
@@ -137,6 +165,10 @@ router.get('/', requirePermission('resellers.view'), async (req, res, next) => {
 
     const conditions = ['r.organization_id = ? AND r.deleted_at IS NULL'];
     const params = [req.orgId];
+    if (!req.resellerScope.all) {
+      conditions.push(`r.id IN (${inPlaceholders(req.resellerScope.resellerIds)})`);
+      params.push(...req.resellerScope.resellerIds);
+    }
     if (status) { conditions.push('r.status = ?'); params.push(status); }
     if (parent_id !== undefined) {
       if (parent_id === 'null') {
@@ -170,6 +202,14 @@ router.post('/', requirePermission('resellers.create'), validate(createResellerS
       portal_domain, portal_name, notes,
     } = req.body;
 
+    // A reseller-bound caller may only add sub-resellers inside its subtree.
+    if (!req.resellerScope.all && !parent_id) {
+      throw new ForbiddenError('Reseller-bound users can only create sub-resellers of their own reseller');
+    }
+    if (parent_id && !resellerInScope(req.resellerScope, parent_id)) {
+      throw new ValidationError('parent_id: parent reseller not found');
+    }
+
     let level = 1;
     if (parent_id) {
       const [[parent]] = await db.query(
@@ -199,7 +239,7 @@ router.post('/', requirePermission('resellers.create'), validate(createResellerS
 // GET /resellers/:id
 router.get('/:id', requirePermission('resellers.view'), async (req, res, next) => {
   try {
-    const row = await getResellerOrThrow(req.params.id, req.orgId);
+    const row = await getResellerOrThrow(req);
     res.json({ data: row });
   } catch (err) { next(err); }
 });
@@ -207,7 +247,7 @@ router.get('/:id', requirePermission('resellers.view'), async (req, res, next) =
 // PUT /resellers/:id
 router.put('/:id', requirePermission('resellers.update'), validate(updateResellerSchema), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const {
       name, email, phone, contact_name, commission_rate,
       status, brand_logo_url, brand_primary_color, brand_accent_color,
@@ -240,7 +280,7 @@ router.put('/:id', requirePermission('resellers.update'), validate(updateReselle
 // DELETE /resellers/:id
 router.delete('/:id', requirePermission('resellers.delete'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     await db.query('UPDATE resellers SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
     res.json({ data: { id: parseInt(req.params.id, 10), deleted: true } });
   } catch (err) { next(err); }
@@ -249,7 +289,7 @@ router.delete('/:id', requirePermission('resellers.delete'), async (req, res, ne
 // POST /resellers/:id/suspend
 router.post('/:id/suspend', requirePermission('resellers.suspend'), async (req, res, next) => {
   try {
-    const row = await getResellerOrThrow(req.params.id, req.orgId);
+    const row = await getResellerOrThrow(req);
     const newStatus = row.status === 'suspended' ? 'active' : 'suspended';
     await db.query('UPDATE resellers SET status = ? WHERE id = ?', [newStatus, req.params.id]);
     res.json({ data: { id: parseInt(req.params.id, 10), status: newStatus } });
@@ -263,7 +303,7 @@ router.post('/:id/suspend', requirePermission('resellers.suspend'), async (req, 
 // GET /resellers/:id/plan-prices
 router.get('/:id/plan-prices', requirePermission('reseller_plan_prices.view'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const [rows] = await db.query(
       `SELECT rpp.*, p.name AS plan_name, p.price AS base_price
        FROM reseller_plan_prices rpp
@@ -279,7 +319,7 @@ router.get('/:id/plan-prices', requirePermission('reseller_plan_prices.view'), a
 // POST /resellers/:id/plan-prices
 router.post('/:id/plan-prices', requirePermission('reseller_plan_prices.manage'), validate(planPriceSchema), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const { plan_id, custom_price, is_active = true, notes } = req.body;
     // Default to the organization's currency (not a hardcoded 'USD') when
     // the caller omits one — an explicitly-set currency always wins.
@@ -303,7 +343,7 @@ router.post('/:id/plan-prices', requirePermission('reseller_plan_prices.manage')
 // DELETE /resellers/:id/plan-prices/:ppId
 router.delete('/:id/plan-prices/:ppId', requirePermission('reseller_plan_prices.manage'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const [[pp]] = await db.query(
       'SELECT id FROM reseller_plan_prices WHERE id = ? AND reseller_id = ?',
       [req.params.ppId, req.params.id],
@@ -321,7 +361,7 @@ router.delete('/:id/plan-prices/:ppId', requirePermission('reseller_plan_prices.
 // GET /resellers/:id/commissions
 router.get('/:id/commissions', requirePermission('reseller_commissions.view'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const { status, page = 1, limit = 50 } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10));
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
@@ -350,7 +390,7 @@ router.get('/:id/commissions', requirePermission('reseller_commissions.view'), a
 // POST /resellers/:id/commissions/:cId/approve
 router.post('/:id/commissions/:cId/approve', requirePermission('reseller_commissions.approve'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const [[comm]] = await db.query(
       'SELECT * FROM reseller_commissions WHERE id = ? AND reseller_id = ?',
       [req.params.cId, req.params.id],
@@ -375,7 +415,7 @@ router.post('/:id/commissions/:cId/approve', requirePermission('reseller_commiss
 // GET /resellers/:id/ip-pools
 router.get('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.view'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const [rows] = await db.query(
       `SELECT a.*, p.network, p.subnet_mask, p.ip_version, p.name AS pool_name, p.status AS pool_status
        FROM reseller_ip_pool_allocations a
@@ -391,7 +431,7 @@ router.get('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.view
 // POST /resellers/:id/ip-pools
 router.post('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.manage'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const { ip_pool_id, notes } = req.body;
     if (!ip_pool_id) throw new ValidationError('ip_pool_id is required');
 
@@ -411,7 +451,7 @@ router.post('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.man
 // DELETE /resellers/:id/ip-pools/:allocId
 router.delete('/:id/ip-pools/:allocId', requirePermission('reseller_ip_pool_allocations.manage'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const [[alloc]] = await db.query(
       'SELECT id FROM reseller_ip_pool_allocations WHERE id = ? AND reseller_id = ?',
       [req.params.allocId, req.params.id],
@@ -429,7 +469,7 @@ router.delete('/:id/ip-pools/:allocId', requirePermission('reseller_ip_pool_allo
 // GET /resellers/:id/bandwidth-quota
 router.get('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.view'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const [[row]] = await db.query(
       'SELECT * FROM reseller_bandwidth_quotas WHERE reseller_id = ?',
       [req.params.id],
@@ -441,7 +481,7 @@ router.get('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.
 // PUT /resellers/:id/bandwidth-quota
 router.put('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.manage'), validate(bandwidthQuotaSchema), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const {
       download_mbps, upload_mbps, burst_download_mbps, burst_upload_mbps,
       is_enforced = true, notes,
@@ -474,7 +514,7 @@ router.put('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.
 // GET /resellers/:id/olt-ports
 router.get('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.view'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const [rows] = await db.query(
       `SELECT a.*, p.port_name, p.port_no, p.port_type
        FROM reseller_olt_port_assignments a
@@ -490,7 +530,7 @@ router.get('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.vi
 // POST /resellers/:id/olt-ports
 router.post('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.manage'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const { olt_port_id, notes } = req.body;
     if (!olt_port_id) throw new ValidationError('olt_port_id is required');
 
@@ -510,7 +550,7 @@ router.post('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.m
 // DELETE /resellers/:id/olt-ports/:aId
 router.delete('/:id/olt-ports/:aId', requirePermission('reseller_olt_port_assignments.manage'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const [[asgn]] = await db.query(
       'SELECT id FROM reseller_olt_port_assignments WHERE id = ? AND reseller_id = ?',
       [req.params.aId, req.params.id],
@@ -528,7 +568,7 @@ router.delete('/:id/olt-ports/:aId', requirePermission('reseller_olt_port_assign
 // GET /resellers/:id/billing-entity
 router.get('/:id/billing-entity', requirePermission('reseller_billing_entities.view'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const [[row]] = await db.query(
       'SELECT * FROM reseller_billing_entities WHERE reseller_id = ?', [req.params.id],
     );
@@ -539,7 +579,7 @@ router.get('/:id/billing-entity', requirePermission('reseller_billing_entities.v
 // PUT /resellers/:id/billing-entity
 router.put('/:id/billing-entity', requirePermission('reseller_billing_entities.manage'), validate(billingEntitySchema), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const {
       legal_name, tax_id, address, city, state, country, zip_code,
       phone, email, invoice_prefix, invoice_footer,
@@ -574,5 +614,131 @@ router.put('/:id/billing-entity', requirePermission('reseller_billing_entities.m
     res.json({ data: row });
   } catch (err) { next(err); }
 });
+
+// =============================================================================
+// User bindings (TNB-13, migration 471)
+// =============================================================================
+// A bound user is confined to the reseller's subtree on every /resellers and
+// /reseller-portal route. Managing bindings decides another user's access, so
+// it needs both resellers.update and users.update, and is org-level only.
+
+function parseUserIdParam(req) {
+  const userId = Number(req.params.userId);
+  if (!Number.isInteger(userId) || userId <= 0) throw new NotFoundError('User');
+  return userId;
+}
+
+// GET /resellers/:id/users
+router.get('/:id/users', requirePermission('resellers.view'), async (req, res, next) => {
+  try {
+    await getResellerOrThrow(req);
+    const [bindings] = await db.query(
+      `SELECT id, user_id, reseller_id, created_by, created_at, updated_at
+       FROM reseller_user_bindings
+       WHERE organization_id = ? AND reseller_id = ?
+       ORDER BY id ASC`,
+      [req.orgId, req.params.id],
+    );
+    // Staff identities live in the primary database.
+    const userIds = bindings.map((b) => b.user_id);
+    let users = [];
+    if (userIds.length) {
+      [users] = await runInPrimaryContext(() => db.query(
+        `SELECT id, first_name, last_name, email, status
+         FROM users WHERE id IN (${inPlaceholders(userIds)}) AND deleted_at IS NULL`,
+        userIds,
+      ));
+    }
+    const byId = new Map(users.map((u) => [Number(u.id), u]));
+    res.json({
+      data: bindings.map((b) => {
+        const u = byId.get(Number(b.user_id));
+        return {
+          ...b,
+          first_name: u ? u.first_name : null,
+          last_name: u ? u.last_name : null,
+          email: u ? u.email : null,
+          user_status: u ? u.status : null,
+        };
+      }),
+    });
+  } catch (err) { next(err); }
+});
+
+// PUT /resellers/:id/users/:userId — bind (or move) a user to this reseller
+router.put(
+  '/:id/users/:userId',
+  requirePermission('resellers.update'),
+  requirePermission('users.update'),
+  requireOrgLevelResellerAccess,
+  async (req, res, next) => {
+    try {
+      await getResellerOrThrow(req);
+      const userId = parseUserIdParam(req);
+      // Binding yourself would immediately revoke your own ability to undo it.
+      if (userId === Number(req.user.id)) {
+        throw new ValidationError('You cannot bind your own account to a reseller');
+      }
+      // Same organization-visibility rule as the Users page (home org,
+      // explicit membership, or an installation-wide identity).
+      const visible = await User.count({ where: { id: userId }, orgId: req.orgId });
+      if (!Number(visible)) throw new NotFoundError('User');
+
+      const [[previous]] = await db.query(
+        'SELECT reseller_id FROM reseller_user_bindings WHERE organization_id = ? AND user_id = ?',
+        [req.orgId, userId],
+      );
+      await db.query(
+        `INSERT INTO reseller_user_bindings (organization_id, user_id, reseller_id, created_by)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE reseller_id = VALUES(reseller_id), created_by = VALUES(created_by)`,
+        [req.orgId, userId, req.params.id, req.user.id],
+      );
+      const [[row]] = await db.query(
+        `SELECT id, organization_id, user_id, reseller_id, created_by, created_at, updated_at
+         FROM reseller_user_bindings WHERE organization_id = ? AND user_id = ?`,
+        [req.orgId, userId],
+      );
+      await auditLog.log({
+        userId: req.user.id,
+        organizationId: req.orgId,
+        action: previous ? 'update' : 'create',
+        tableName: 'reseller_user_bindings',
+        recordId: row ? row.id : null,
+        oldValues: previous || null,
+        newValues: { user_id: userId, reseller_id: Number(req.params.id) },
+      });
+      res.json({ data: row });
+    } catch (err) { next(err); }
+  },
+);
+
+// DELETE /resellers/:id/users/:userId — remove the user's binding
+router.delete(
+  '/:id/users/:userId',
+  requirePermission('resellers.update'),
+  requirePermission('users.update'),
+  requireOrgLevelResellerAccess,
+  async (req, res, next) => {
+    try {
+      await getResellerOrThrow(req);
+      const userId = parseUserIdParam(req);
+      const [result] = await db.query(
+        'DELETE FROM reseller_user_bindings WHERE organization_id = ? AND user_id = ? AND reseller_id = ?',
+        [req.orgId, userId, req.params.id],
+      );
+      if (!result || !result.affectedRows) throw new NotFoundError('Reseller binding');
+      await auditLog.log({
+        userId: req.user.id,
+        organizationId: req.orgId,
+        action: 'delete',
+        tableName: 'reseller_user_bindings',
+        recordId: null,
+        oldValues: { user_id: userId, reseller_id: Number(req.params.id) },
+      });
+      res.json({ data: { user_id: userId, reseller_id: Number(req.params.id), deleted: true } });
+    } catch (err) { next(err); }
+  },
+);
 
 module.exports = router;

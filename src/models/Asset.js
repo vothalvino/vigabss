@@ -4,6 +4,7 @@
 
 const BaseModel = require('./BaseModel');
 const db = require('../config/database');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 class Asset extends BaseModel {
   static get tableName() { return 'assets'; }
@@ -27,14 +28,18 @@ class Asset extends BaseModel {
    * Get assignment history for an asset.
    */
   static async getAssignments(assetId, orgId) {
+    requireOrgId(orgId, 'Asset.getAssignments');
+    // Display joins are bound to the assignment's org so a stray foreign
+    // client/device id (written before ownership checks existed) can never
+    // surface another tenant's name or email.
     const [rows] = await db.query(
       `SELECT aa.*,
               c.name AS client_name, c.email AS client_email,
               d.name AS device_name
        FROM asset_assignments aa
-       LEFT JOIN clients c ON c.id = aa.client_id
-       LEFT JOIN devices d ON d.id = aa.device_id
-       WHERE aa.asset_id = ? AND aa.organization_id = ?
+       LEFT JOIN clients c ON c.id = aa.client_id AND c.organization_id <=> aa.organization_id
+       LEFT JOIN devices d ON d.id = aa.device_id AND d.organization_id <=> aa.organization_id
+       WHERE aa.asset_id = ? AND aa.organization_id <=> ?
        ORDER BY aa.assigned_at DESC`,
       [assetId, orgId],
     );

@@ -770,12 +770,22 @@ async function syncFreeradiusTables(organizationId) {
           [username, 'Cleartext-Password', ':=', sub.cleartext_password],
         );
 
-        // EAP-TLS: add TLS-Cert-Serial check entry if certificate available
-        if (sub.auth_method === 'eap_tls' && certMap.has(sub.id)) {
-          await db.query(
-            'INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)',
-            [username, 'TLS-Cert-Serial', '==', certMap.get(sub.id)],
-          );
+        // EAP-TLS: pin the active certificate's serial. With no active,
+        // unexpired certificate (for example the last one was revoked) the
+        // account is rejected outright instead of silently authenticating
+        // without a certificate pin.
+        if (sub.auth_method === 'eap_tls') {
+          if (certMap.has(sub.id)) {
+            await db.query(
+              'INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)',
+              [username, 'TLS-Cert-Serial', '==', certMap.get(sub.id)],
+            );
+          } else {
+            await db.query(
+              'INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)',
+              [username, 'Auth-Type', ':=', 'Reject'],
+            );
+          }
         }
       }
 

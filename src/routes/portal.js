@@ -1002,11 +1002,13 @@ router.get('/invoices/:id/cfdi', async (req, res, next) => {
       // "successfully stamped and valid".
       `SELECT cd.id, cd.uuid, cd.xml_content, cd.signed_xml, cd.sat_status
        FROM cfdi_documents cd
-       WHERE cd.invoice_id = ?
+       WHERE cd.invoice_id = ? AND cd.organization_id <=> ?
          AND cd.sat_status = 'vigente'
        ORDER BY cd.created_at DESC
        LIMIT 1`,
-      [req.params.id],
+      // Bound to the invoice's org too: a CFDI of another tenant that names
+      // this invoice_id (BIL-10) must never be served as this client's XML.
+      [req.params.id, req.client.organizationId],
     );
     // The stamped (signed_xml, with the TimbreFiscalDigital) document is the
     // fiscally valid one — xml_content is the pre-stamp builder draft, useless

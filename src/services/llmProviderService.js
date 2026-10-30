@@ -582,6 +582,21 @@ function _parseExtraConfig(raw) {
 }
 
 // =============================================================================
+// Provider lookup
+// =============================================================================
+
+/**
+ * Load a provider row. When `orgId` is supplied (not undefined) the lookup is
+ * bound to that organization; a foreign id then resolves to null (404).
+ * Callers that derive the provider id from tenant data must pass it.
+ */
+async function _loadProvider(providerId, orgId) {
+  if (orgId === undefined) return AiProvider.findById(providerId);
+  if (orgId === null) return null;
+  return AiProvider.findById(providerId, orgId);
+}
+
+// =============================================================================
 // Public API — chat
 // =============================================================================
 
@@ -595,14 +610,17 @@ function _parseExtraConfig(raw) {
  * @param {AbortSignal} [opts.signal] — caller abort signal
  * @returns {Promise<{text:string, json:object|null, usage:{prompt_tokens:number,completion_tokens:number}, cost_usd:number}>}
  */
-async function chat({ providerId, messages, jsonSchema = null, signal = null } = {}) {
+async function chat({ providerId, messages, jsonSchema = null, signal = null, orgId } = {}) {
   if (!providerId) throw new AppError('providerId is required', 400, 'LLM_MISSING_PROVIDER');
   if (!Array.isArray(messages) || messages.length === 0) {
     throw new AppError('messages must be a non-empty array', 400, 'LLM_MISSING_MESSAGES');
   }
 
   // --- Load the chosen provider ---
-  const primary = await AiProvider.findById(providerId);
+  // With an orgId the lookup is tenant-bound, so a provider id taken from a
+  // tenant-writable source (the AI policy) can never resolve to another
+  // org's decrypted key and endpoint (ASY-04).
+  const primary = await _loadProvider(providerId, orgId);
   if (!primary) {
     throw new AppError(`Provider ${providerId} not found`, 404, 'LLM_PROVIDER_NOT_FOUND');
   }
@@ -675,10 +693,10 @@ const EMBED_DEFAULT_MODELS = {
  * @param {number} providerId
  * @returns {Promise<number[]>}
  */
-async function embed(text, providerId) {
+async function embed(text, providerId, { orgId } = {}) {
   if (!providerId) throw new AppError('providerId is required', 400, 'LLM_MISSING_PROVIDER');
 
-  const provider = await AiProvider.findById(providerId);
+  const provider = await _loadProvider(providerId, orgId);
   if (!provider) {
     throw new AppError(`Provider ${providerId} not found`, 404, 'LLM_PROVIDER_NOT_FOUND');
   }
@@ -793,8 +811,8 @@ async function _embedOllama(provider, text) {
  * @param {number} providerId
  * @returns {Promise<{ok:boolean, model:string, latency_ms:number}>}
  */
-async function verify(providerId) {
-  const provider = await AiProvider.findById(providerId);
+async function verify(providerId, { orgId } = {}) {
+  const provider = await _loadProvider(providerId, orgId);
   if (!provider) {
     throw new AppError(`Provider ${providerId} not found`, 404, 'LLM_PROVIDER_NOT_FOUND');
   }

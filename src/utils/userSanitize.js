@@ -11,6 +11,8 @@ const SENSITIVE_USER_FIELDS = [
   'password_hash',
   'totp_secret',
   'totp_backup_codes',
+  // Replay-guard state (migration 467): internal, never useful to a client.
+  'totp_last_used_step',
   'reset_token_hash',
   'reset_token_expires',
   'email_verify_token_hash',

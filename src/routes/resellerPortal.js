@@ -10,12 +10,21 @@
 //  POST   /reseller-portal/:id/clients/:cId/cancel    cancel (set inactive) client
 //  GET    /reseller-portal/:id/invoices        list invoices for reseller clients
 //  GET    /reseller-portal/:id/inventory       list inventory scoped to reseller
+//
+//  Every :id must be inside the caller's reseller scope (TNB-13): a user bound
+//  to a reseller (reseller_user_bindings) only reaches its own subtree, an
+//  unbound reseller_admin is refused, and org-level staff keep access to every
+//  reseller in their organization. See middleware/resellerScope.js.
 // =============================================================================
 
 const { Router } = require('express');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
+const { validate } = require('../middleware/validate');
+const { quotaCheck } = require('../middleware/checkQuota');
+const { resellerScope, assertResellerInScope } = require('../middleware/resellerScope');
+const { createClient } = require('../middleware/schemas/clients');
 const { NotFoundError, ValidationError } = require('../utils/errors');
 const db = require('../config/database');
 const resellerService = require('../services/resellerService');
@@ -24,17 +33,36 @@ const { inPlaceholders } = require('../utils/sqlBuild');
 const router = Router();
 router.use(authenticate);
 router.use(orgScope);
+router.use(resellerScope);
 
 // ---------------------------------------------------------------------------
-// Helper — verify reseller belongs to current org
+// Helper — verify the URL reseller is in the caller's scope and current org.
+// Out-of-scope and foreign ids both 404, so a bound user cannot probe ids.
 // ---------------------------------------------------------------------------
-async function getResellerOrThrow(id, orgId) {
+async function getResellerOrThrow(req) {
+  assertResellerInScope(req, req.params.id);
   const [[row]] = await db.query(
     'SELECT * FROM resellers WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-    [id, orgId],
+    [req.params.id, req.orgId],
   );
-  if (!row) throw new NotFoundError('Reseller not found');
+  if (!row) throw new NotFoundError('Reseller');
   return row;
+}
+
+// Clients a reseller may manage: its own and its sub-resellers' (the same
+// subtree the list endpoints show).
+async function getResellerClientOrThrow(req) {
+  const subtree = (await resellerService.getResellerSubtree(
+    [parseInt(req.params.id, 10)], req.orgId,
+  )).map(Number);
+  const [[client]] = await db.query(
+    'SELECT id, status, reseller_id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+    [req.params.cId, req.orgId],
+  );
+  if (!client || client.reseller_id === null || !subtree.includes(Number(client.reseller_id))) {
+    throw new NotFoundError('Client');
+  }
+  return client;
 }
 
 // =============================================================================
@@ -44,7 +72,7 @@ async function getResellerOrThrow(id, orgId) {
 // GET /reseller-portal/:id/dashboard
 router.get('/:id/dashboard', requirePermission('reseller_portal.dashboard'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const dashboard = await resellerService.getResellerDashboard(
       parseInt(req.params.id, 10), req.orgId,
     );
@@ -59,7 +87,7 @@ router.get('/:id/dashboard', requirePermission('reseller_portal.dashboard'), asy
 // GET /reseller-portal/:id/clients
 router.get('/:id/clients', requirePermission('reseller_portal.manage_customers'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const { page = 1, limit = 50, status } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10));
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
@@ -90,14 +118,15 @@ router.get('/:id/clients', requirePermission('reseller_portal.manage_customers')
 });
 
 // POST /reseller-portal/:id/clients
-router.post('/:id/clients', requirePermission('reseller_portal.manage_customers'), async (req, res, next) => {
+// Same validation and tenant client quota as POST /clients: this path used to
+// skip both, so a reseller could exceed the organization's max_clients.
+router.post('/:id/clients', requirePermission('reseller_portal.manage_customers'), quotaCheck('clients'), validate(createClient), async (req, res, next) => {
   try {
-    const reseller = await getResellerOrThrow(req.params.id, req.orgId);
+    const reseller = await getResellerOrThrow(req);
     if (reseller.status !== 'active') {
       throw new ValidationError('Reseller is not active');
     }
     const { name, email, phone, client_type = 'personal', address, city, state, country, zip_code, notes } = req.body;
-    if (!name) throw new ValidationError('name is required');
 
     const [result] = await db.query(
       `INSERT INTO clients
@@ -115,17 +144,13 @@ router.post('/:id/clients', requirePermission('reseller_portal.manage_customers'
 // POST /reseller-portal/:id/clients/:cId/suspend
 router.post('/:id/clients/:cId/suspend', requirePermission('reseller_portal.manage_customers'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
-    const [[client]] = await db.query(
-      'SELECT id, status, reseller_id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-      [req.params.cId, req.orgId],
-    );
-    if (!client) throw new NotFoundError('Client not found');
-    if (client.reseller_id !== parseInt(req.params.id, 10)) {
-      throw new ValidationError('Client does not belong to this reseller');
-    }
+    await getResellerOrThrow(req);
+    const client = await getResellerClientOrThrow(req);
     const newStatus = client.status === 'suspended' ? 'active' : 'suspended';
-    await db.query('UPDATE clients SET status = ? WHERE id = ?', [newStatus, req.params.cId]);
+    await db.query(
+      'UPDATE clients SET status = ? WHERE id = ? AND organization_id = ?',
+      [newStatus, req.params.cId, req.orgId],
+    );
     res.json({ data: { id: parseInt(req.params.cId, 10), status: newStatus } });
   } catch (err) { next(err); }
 });
@@ -133,16 +158,12 @@ router.post('/:id/clients/:cId/suspend', requirePermission('reseller_portal.mana
 // POST /reseller-portal/:id/clients/:cId/cancel
 router.post('/:id/clients/:cId/cancel', requirePermission('reseller_portal.manage_customers'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
-    const [[client]] = await db.query(
-      'SELECT id, reseller_id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-      [req.params.cId, req.orgId],
+    await getResellerOrThrow(req);
+    await getResellerClientOrThrow(req);
+    await db.query(
+      'UPDATE clients SET status = ? WHERE id = ? AND organization_id = ?',
+      ['inactive', req.params.cId, req.orgId],
     );
-    if (!client) throw new NotFoundError('Client not found');
-    if (client.reseller_id !== parseInt(req.params.id, 10)) {
-      throw new ValidationError('Client does not belong to this reseller');
-    }
-    await db.query('UPDATE clients SET status = ? WHERE id = ?', ['inactive', req.params.cId]);
     res.json({ data: { id: parseInt(req.params.cId, 10), status: 'inactive' } });
   } catch (err) { next(err); }
 });
@@ -154,7 +175,7 @@ router.post('/:id/clients/:cId/cancel', requirePermission('reseller_portal.manag
 // GET /reseller-portal/:id/invoices
 router.get('/:id/invoices', requirePermission('reseller_portal.invoices'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     const { page = 1, limit = 50, status } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10));
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
@@ -195,7 +216,7 @@ router.get('/:id/invoices', requirePermission('reseller_portal.invoices'), async
 // GET /reseller-portal/:id/inventory
 router.get('/:id/inventory', requirePermission('reseller_portal.inventory'), async (req, res, next) => {
   try {
-    await getResellerOrThrow(req.params.id, req.orgId);
+    await getResellerOrThrow(req);
     // Reuse §14 inventory: assets assigned to clients that belong to this reseller
     const subtree = await resellerService.getResellerSubtree(
       [parseInt(req.params.id, 10)], req.orgId,

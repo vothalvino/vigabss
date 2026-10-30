@@ -131,9 +131,21 @@ beforeEach(() => {
 // =============================================================================
 describe('Bulk Routes — /api/bulk', () => {
   describe('POST /api/bulk/invoices/generate', () => {
+    // `success` counts invoices actually created (TNA-12): each contract is
+    // looked up in the caller's org, then billed through generateBillingPeriod
+    // + generateInvoice (mocked here with billingService).
+    const activeContract = async (sql, params) => (
+      /FROM contracts/.test(sql)
+        ? [[{ id: params[0], organization_id: 1, client_id: 5, status: 'active', plan_name: 'Home', plan_price: '100.00' }]]
+        : [[]]
+    );
+    const duePeriod = { id: 1, status: 'pending', scheduled_at: new Date(Date.now() - 1000) };
+
     test('success — generates invoices for contract_ids', async () => {
       mockAuthUser();
-      db.query.mockResolvedValue([{ affectedRows: 1 }]);
+      db.query.mockImplementation(activeContract);
+      billingService.generateBillingPeriod.mockResolvedValue(duePeriod);
+      billingService.generateInvoice.mockImplementation(async (_p, contract) => ({ id: 100 + contract.id }));
 
       const res = await request(app)
         .post('/api/bulk/invoices/generate')
@@ -169,10 +181,12 @@ describe('Bulk Routes — /api/bulk', () => {
 
     test('handles partial failures', async () => {
       mockAuthUser();
-      db.query
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
+      db.query.mockImplementation(activeContract);
+      billingService.generateBillingPeriod.mockResolvedValue(duePeriod);
+      billingService.generateInvoice
+        .mockResolvedValueOnce({ id: 101 })
         .mockRejectedValueOnce(new Error('Duplicate'))
-        .mockResolvedValueOnce([{ affectedRows: 1 }]);
+        .mockResolvedValueOnce({ id: 103 });
 
       const res = await request(app)
         .post('/api/bulk/invoices/generate')
@@ -1626,6 +1640,8 @@ describe('Payment Routes — /api/payments', () => {
 
     test('success — an explicitly-set currency always wins over the org default', async () => {
       mockAuthUser();
+      // TNB-09: the client ownership lookup is the only query left.
+      db.query.mockResolvedValueOnce([[{ id: 10 }]]);
       Payment.create.mockResolvedValue({ id: 3, amount: '500.00', client_id: 10, currency: 'USD' });
       billingService.recordPaymentCredit.mockResolvedValue(true);
 
@@ -1635,8 +1651,10 @@ describe('Payment Routes — /api/payments', () => {
         .send({ client_id: 10, amount: 500, payment_method: 'cash', payment_date: '2024-01-01', currency: 'USD' });
 
       expect(res.status).toBe(201);
-      // The org-currency lookup is skipped entirely when the caller sends one.
-      expect(db.query).not.toHaveBeenCalled();
+      // The org-currency lookup is skipped entirely when the caller sends one;
+      // the only query is the org-scoped client ownership check (TNB-09).
+      expect(db.query).toHaveBeenCalledTimes(1);
+      expect(db.query.mock.calls[0][0]).toMatch(/FROM clients WHERE id = \? AND organization_id = \?/);
       expect(Payment.create).toHaveBeenCalledWith(expect.objectContaining({ currency: 'USD' }));
     });
   });

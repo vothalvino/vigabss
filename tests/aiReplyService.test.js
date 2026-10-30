@@ -348,6 +348,14 @@ describe('aiReplyService.generate — draft_only', () => {
     expect(r.action).toBe('proposed');
   });
 
+  it('binds every LLM call to the policy\'s org (ASY-04)', async () => {
+    await svc.generate(GENERATE_ARGS);
+    expect(mockLlmChat.mock.calls.length).toBeGreaterThanOrEqual(2); // classify + generate
+    for (const [opts] of mockLlmChat.mock.calls) {
+      expect(opts.orgId).toBe(GENERATE_ARGS.orgId);
+    }
+  });
+
   it('attaches an internal comment to the ticket', async () => {
     await svc.generate(GENERATE_ARGS);
     expect(mockTicketAddComment).toHaveBeenCalledWith(

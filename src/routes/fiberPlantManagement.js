@@ -42,6 +42,35 @@ const {
   createSfpInventory, updateSfpInventory, patchSfpInventory,
 } = require('../middleware/schemas/sfpInventory');
 const fiberPlantService = require('../services/fiberPlantService');
+const { ownedReferences } = require('../utils/ownedReferences');
+
+// Body links to other plant/device rows must be the caller's own or
+// installation-shared (organization_id IS NULL), the same visibility rule
+// this module's reads use. The FKs only prove the rows exist, and the list
+// joins surface the referenced device/splitter/site names (TNA-09).
+const shared = (table) => ({ table, allowShared: true });
+const FIBER_ROUTE_REFS = {
+  parent_route_id: shared('fiber_routes'),
+  from_device_id: shared('devices'),
+  from_olt_port_id: shared('olt_ports'),
+  from_splitter_id: shared('olt_splitters'),
+  to_device_id: shared('devices'),
+  to_splitter_id: shared('olt_splitters'),
+  to_onu_detail_id: shared('onu_details'),
+};
+const ODF_FRAME_REFS = { site_id: shared('sites') };
+const ODF_PORT_REFS = {
+  odf_frame_id: shared('odf_frames'),
+  connected_device_id: shared('devices'),
+  splitter_id: shared('olt_splitters'),
+};
+const ODF_CROSS_CONNECT_REFS = { port_a_id: shared('odf_ports'), port_b_id: shared('odf_ports') };
+const OTDR_REFS = {
+  fiber_route_id: shared('fiber_routes'),
+  olt_port_id: shared('olt_ports'),
+  olt_device_id: shared('devices'),
+};
+const SFP_REFS = { installed_device_id: shared('devices'), inventory_item_id: shared('inventory_items') };
 
 const router = Router();
 router.use(authenticate);
@@ -67,10 +96,10 @@ router.get('/fiber-routes', requirePermission('fiber_routes.view'), async (req, 
         sp.name AS from_splitter_name,
         tsp.name AS to_splitter_name
       FROM fiber_routes fr
-      LEFT JOIN devices fd   ON fd.id   = fr.from_device_id
-      LEFT JOIN devices td   ON td.id   = fr.to_device_id
-      LEFT JOIN olt_splitters sp  ON sp.id  = fr.from_splitter_id
-      LEFT JOIN olt_splitters tsp ON tsp.id = fr.to_splitter_id
+      LEFT JOIN devices fd   ON fd.id   = fr.from_device_id AND (fd.organization_id <=> fr.organization_id OR fd.organization_id IS NULL)
+      LEFT JOIN devices td   ON td.id   = fr.to_device_id AND (td.organization_id <=> fr.organization_id OR td.organization_id IS NULL)
+      LEFT JOIN olt_splitters sp  ON sp.id  = fr.from_splitter_id AND (sp.organization_id <=> fr.organization_id OR sp.organization_id IS NULL)
+      LEFT JOIN olt_splitters tsp ON tsp.id = fr.to_splitter_id AND (tsp.organization_id <=> fr.organization_id OR tsp.organization_id IS NULL)
       WHERE (fr.organization_id = ? OR fr.organization_id IS NULL) AND fr.deleted_at IS NULL`;
     const params = [req.orgId];
 
@@ -96,8 +125,8 @@ router.get('/fiber-routes/:id', requirePermission('fiber_routes.view'), async (r
     const [rows] = await db.query(
       `SELECT fr.*, fd.name AS from_device_name, td.name AS to_device_name
        FROM fiber_routes fr
-       LEFT JOIN devices fd ON fd.id = fr.from_device_id
-       LEFT JOIN devices td ON td.id = fr.to_device_id
+       LEFT JOIN devices fd ON fd.id = fr.from_device_id AND (fd.organization_id <=> fr.organization_id OR fd.organization_id IS NULL)
+       LEFT JOIN devices td ON td.id = fr.to_device_id AND (td.organization_id <=> fr.organization_id OR td.organization_id IS NULL)
        WHERE fr.id = ? AND (fr.organization_id = ? OR fr.organization_id IS NULL) AND fr.deleted_at IS NULL`,
       [req.params.id, req.orgId],
     );
@@ -129,7 +158,7 @@ router.get('/fiber-routes/onu/:onuDetailId/path', requirePermission('fiber_route
 /**
  * POST /fiber-routes — create a fiber route segment
  */
-router.post('/fiber-routes', requirePermission('fiber_routes.create'), validate(createFiberRoute), async (req, res, next) => {
+router.post('/fiber-routes', requirePermission('fiber_routes.create'), validate(createFiberRoute), ownedReferences(FIBER_ROUTE_REFS), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
@@ -148,7 +177,7 @@ router.post('/fiber-routes', requirePermission('fiber_routes.create'), validate(
 /**
  * PUT /fiber-routes/:id — full update
  */
-router.put('/fiber-routes/:id', requirePermission('fiber_routes.update'), validate(updateFiberRoute), async (req, res, next) => {
+router.put('/fiber-routes/:id', requirePermission('fiber_routes.update'), validate(updateFiberRoute), ownedReferences(FIBER_ROUTE_REFS), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM fiber_routes WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -167,7 +196,7 @@ router.put('/fiber-routes/:id', requirePermission('fiber_routes.update'), valida
 /**
  * PATCH /fiber-routes/:id — partial update
  */
-router.patch('/fiber-routes/:id', requirePermission('fiber_routes.update'), validate(patchFiberRoute), async (req, res, next) => {
+router.patch('/fiber-routes/:id', requirePermission('fiber_routes.update'), validate(patchFiberRoute), ownedReferences(FIBER_ROUTE_REFS), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM fiber_routes WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -212,7 +241,7 @@ router.get('/odf/frames', requirePermission('odf_frames.view'), async (req, res,
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 25), 100);
     const offset = (pageNum - 1) * limitNum;
 
-    let sql = 'SELECT f.*, s.name AS site_name FROM odf_frames f LEFT JOIN sites s ON s.id = f.site_id WHERE (f.organization_id = ? OR f.organization_id IS NULL) AND f.deleted_at IS NULL';
+    let sql = 'SELECT f.*, s.name AS site_name FROM odf_frames f LEFT JOIN sites s ON s.id = f.site_id AND (s.organization_id <=> f.organization_id OR s.organization_id IS NULL) WHERE (f.organization_id = ? OR f.organization_id IS NULL) AND f.deleted_at IS NULL';
     const params = [req.orgId];
     if (status) { sql += ' AND f.status = ?'; params.push(status); }
     if (site_id) { sql += ' AND f.site_id = ?'; params.push(site_id); }
@@ -241,7 +270,7 @@ router.get('/odf/frames/:id', requirePermission('odf_frames.view'), async (req, 
 /**
  * POST /odf/frames — create ODF frame
  */
-router.post('/odf/frames', requirePermission('odf_frames.create'), validate(createOdfFrame), async (req, res, next) => {
+router.post('/odf/frames', requirePermission('odf_frames.create'), validate(createOdfFrame), ownedReferences(ODF_FRAME_REFS), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
@@ -254,7 +283,7 @@ router.post('/odf/frames', requirePermission('odf_frames.create'), validate(crea
 /**
  * PUT /odf/frames/:id — full update
  */
-router.put('/odf/frames/:id', requirePermission('odf_frames.update'), validate(updateOdfFrame), async (req, res, next) => {
+router.put('/odf/frames/:id', requirePermission('odf_frames.update'), validate(updateOdfFrame), ownedReferences(ODF_FRAME_REFS), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM odf_frames WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -273,7 +302,7 @@ router.put('/odf/frames/:id', requirePermission('odf_frames.update'), validate(u
 /**
  * PATCH /odf/frames/:id — partial update
  */
-router.patch('/odf/frames/:id', requirePermission('odf_frames.update'), validate(patchOdfFrame), async (req, res, next) => {
+router.patch('/odf/frames/:id', requirePermission('odf_frames.update'), validate(patchOdfFrame), ownedReferences(ODF_FRAME_REFS), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM odf_frames WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -318,7 +347,7 @@ router.get('/odf/ports', requirePermission('odf_ports.view'), async (req, res, n
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 25), 100);
     const offset = (pageNum - 1) * limitNum;
 
-    let sql = 'SELECT p.*, f.name AS frame_name FROM odf_ports p JOIN odf_frames f ON f.id = p.odf_frame_id WHERE (p.organization_id = ? OR p.organization_id IS NULL) AND p.deleted_at IS NULL';
+    let sql = 'SELECT p.*, f.name AS frame_name FROM odf_ports p JOIN odf_frames f ON f.id = p.odf_frame_id AND (f.organization_id <=> p.organization_id OR f.organization_id IS NULL) WHERE (p.organization_id = ? OR p.organization_id IS NULL) AND p.deleted_at IS NULL';
     const params = [req.orgId];
     if (odf_frame_id) { sql += ' AND p.odf_frame_id = ?'; params.push(odf_frame_id); }
     if (port_status) { sql += ' AND p.port_status = ?'; params.push(port_status); }
@@ -339,7 +368,7 @@ router.get('/odf/ports', requirePermission('odf_ports.view'), async (req, res, n
 router.get('/odf/ports/:id', requirePermission('odf_ports.view'), async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      'SELECT p.*, f.name AS frame_name FROM odf_ports p JOIN odf_frames f ON f.id = p.odf_frame_id WHERE p.id = ? AND (p.organization_id = ? OR p.organization_id IS NULL) AND p.deleted_at IS NULL',
+      'SELECT p.*, f.name AS frame_name FROM odf_ports p JOIN odf_frames f ON f.id = p.odf_frame_id AND (f.organization_id <=> p.organization_id OR f.organization_id IS NULL) WHERE p.id = ? AND (p.organization_id = ? OR p.organization_id IS NULL) AND p.deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
@@ -350,7 +379,7 @@ router.get('/odf/ports/:id', requirePermission('odf_ports.view'), async (req, re
 /**
  * POST /odf/ports — create ODF port
  */
-router.post('/odf/ports', requirePermission('odf_ports.create'), validate(createOdfPort), async (req, res, next) => {
+router.post('/odf/ports', requirePermission('odf_ports.create'), validate(createOdfPort), ownedReferences(ODF_PORT_REFS), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
@@ -363,7 +392,7 @@ router.post('/odf/ports', requirePermission('odf_ports.create'), validate(create
 /**
  * PATCH /odf/ports/:id — update ODF port status/label
  */
-router.patch('/odf/ports/:id', requirePermission('odf_ports.update'), validate(patchOdfPort), async (req, res, next) => {
+router.patch('/odf/ports/:id', requirePermission('odf_ports.update'), validate(patchOdfPort), ownedReferences(ODF_PORT_REFS), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM odf_ports WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -439,11 +468,17 @@ router.get('/odf/cross-connects/:id', requirePermission('odf_cross_connects.view
 /**
  * POST /odf/cross-connects — create cross-connect
  */
-router.post('/odf/cross-connects', requirePermission('odf_cross_connects.create'), validate(createOdfCrossConnect), async (req, res, next) => {
+// The shape check runs before the ownership lookups so a self-loop 400s
+// without touching the database.
+function rejectSamePort(req, res, next) {
+  if (req.body.port_a_id === req.body.port_b_id) {
+    return res.status(400).json({ error: 'port_a_id and port_b_id must differ' });
+  }
+  next();
+}
+
+router.post('/odf/cross-connects', requirePermission('odf_cross_connects.create'), validate(createOdfCrossConnect), rejectSamePort, ownedReferences(ODF_CROSS_CONNECT_REFS), async (req, res, next) => {
   try {
-    if (req.body.port_a_id === req.body.port_b_id) {
-      return res.status(400).json({ error: 'port_a_id and port_b_id must differ' });
-    }
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
     const [result] = await db.query(`INSERT INTO odf_cross_connects (${columns}) VALUES (${placeholders})`, values);
@@ -455,7 +490,7 @@ router.post('/odf/cross-connects', requirePermission('odf_cross_connects.create'
 /**
  * PATCH /odf/cross-connects/:id — partial update
  */
-router.patch('/odf/cross-connects/:id', requirePermission('odf_cross_connects.update'), validate(patchOdfCrossConnect), async (req, res, next) => {
+router.patch('/odf/cross-connects/:id', requirePermission('odf_cross_connects.update'), validate(patchOdfCrossConnect), ownedReferences(ODF_CROSS_CONNECT_REFS), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM odf_cross_connects WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -500,7 +535,7 @@ router.get('/otdr/tests', requirePermission('otdr_tests.view'), async (req, res,
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 25), 100);
     const offset = (pageNum - 1) * limitNum;
 
-    let sql = 'SELECT t.*, fr.name AS fiber_route_name FROM otdr_test_results t LEFT JOIN fiber_routes fr ON fr.id = t.fiber_route_id WHERE (t.organization_id = ? OR t.organization_id IS NULL) AND t.deleted_at IS NULL';
+    let sql = 'SELECT t.*, fr.name AS fiber_route_name FROM otdr_test_results t LEFT JOIN fiber_routes fr ON fr.id = t.fiber_route_id AND (fr.organization_id <=> t.organization_id OR fr.organization_id IS NULL) WHERE (t.organization_id = ? OR t.organization_id IS NULL) AND t.deleted_at IS NULL';
     const params = [req.orgId];
     if (fiber_route_id) { sql += ' AND t.fiber_route_id = ?'; params.push(fiber_route_id); }
     if (olt_port_id) { sql += ' AND t.olt_port_id = ?'; params.push(olt_port_id); }
@@ -533,7 +568,7 @@ router.get('/otdr/tests/:id', requirePermission('otdr_tests.view'), async (req, 
 /**
  * POST /otdr/tests — create/import OTDR test result
  */
-router.post('/otdr/tests', requirePermission('otdr_tests.create'), validate(createOtdrTest), async (req, res, next) => {
+router.post('/otdr/tests', requirePermission('otdr_tests.create'), validate(createOtdrTest), ownedReferences(OTDR_REFS), async (req, res, next) => {
   try {
     const result = await fiberPlantService.createOtdrTestResult({
       orgId: req.orgId,
@@ -563,7 +598,7 @@ router.post('/otdr/tests', requirePermission('otdr_tests.create'), validate(crea
 /**
  * PATCH /otdr/tests/:id — update test record (job status, notes, fault info)
  */
-router.patch('/otdr/tests/:id', requirePermission('otdr_tests.update'), validate(patchOtdrTest), async (req, res, next) => {
+router.patch('/otdr/tests/:id', requirePermission('otdr_tests.update'), validate(patchOtdrTest), ownedReferences(OTDR_REFS), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM otdr_test_results WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -608,7 +643,7 @@ router.get('/sfp', requirePermission('sfp_inventory.view'), async (req, res, nex
     const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 25), 100);
     const offset = (pageNum - 1) * limitNum;
 
-    let sql = 'SELECT si.*, d.name AS device_name, ii.name AS item_name FROM sfp_inventory si LEFT JOIN devices d ON d.id = si.installed_device_id LEFT JOIN inventory_items ii ON ii.id = si.inventory_item_id WHERE (si.organization_id = ? OR si.organization_id IS NULL) AND si.deleted_at IS NULL';
+    let sql = 'SELECT si.*, d.name AS device_name, ii.name AS item_name FROM sfp_inventory si LEFT JOIN devices d ON d.id = si.installed_device_id AND (d.organization_id <=> si.organization_id OR d.organization_id IS NULL) LEFT JOIN inventory_items ii ON ii.id = si.inventory_item_id AND (ii.organization_id <=> si.organization_id OR ii.organization_id IS NULL) WHERE (si.organization_id = ? OR si.organization_id IS NULL) AND si.deleted_at IS NULL';
     const params = [req.orgId];
     if (lifecycle_status) { sql += ' AND si.lifecycle_status = ?'; params.push(lifecycle_status); }
     if (form_factor) { sql += ' AND si.form_factor = ?'; params.push(form_factor); }
@@ -630,7 +665,7 @@ router.get('/sfp', requirePermission('sfp_inventory.view'), async (req, res, nex
 router.get('/sfp/:id', requirePermission('sfp_inventory.view'), async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      'SELECT si.*, d.name AS device_name FROM sfp_inventory si LEFT JOIN devices d ON d.id = si.installed_device_id WHERE si.id = ? AND (si.organization_id = ? OR si.organization_id IS NULL) AND si.deleted_at IS NULL',
+      'SELECT si.*, d.name AS device_name FROM sfp_inventory si LEFT JOIN devices d ON d.id = si.installed_device_id AND (d.organization_id <=> si.organization_id OR d.organization_id IS NULL) WHERE si.id = ? AND (si.organization_id = ? OR si.organization_id IS NULL) AND si.deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
@@ -659,7 +694,7 @@ router.get('/sfp/:id/diagnostics', requirePermission('sfp_inventory.view'), asyn
 /**
  * POST /sfp — add SFP module record
  */
-router.post('/sfp', requirePermission('sfp_inventory.create'), validate(createSfpInventory), async (req, res, next) => {
+router.post('/sfp', requirePermission('sfp_inventory.create'), validate(createSfpInventory), ownedReferences(SFP_REFS), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
@@ -672,7 +707,7 @@ router.post('/sfp', requirePermission('sfp_inventory.create'), validate(createSf
 /**
  * PUT /sfp/:id — full update SFP record
  */
-router.put('/sfp/:id', requirePermission('sfp_inventory.update'), validate(updateSfpInventory), async (req, res, next) => {
+router.put('/sfp/:id', requirePermission('sfp_inventory.update'), validate(updateSfpInventory), ownedReferences(SFP_REFS), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM sfp_inventory WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -691,7 +726,7 @@ router.put('/sfp/:id', requirePermission('sfp_inventory.update'), validate(updat
 /**
  * PATCH /sfp/:id — partial update (lifecycle, port, device)
  */
-router.patch('/sfp/:id', requirePermission('sfp_inventory.update'), validate(patchSfpInventory), async (req, res, next) => {
+router.patch('/sfp/:id', requirePermission('sfp_inventory.update'), validate(patchSfpInventory), ownedReferences(SFP_REFS), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM sfp_inventory WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',

@@ -184,6 +184,7 @@ describe('scriptingService', () => {
     it('inserts script with all fields and returns row', async () => {
       const row = { id: 1, name: 'deploy.sh', language: 'bash', is_shared: 0 };
       db.query
+        .mockResolvedValueOnce(mockRows([{ id: 5 }])) // scheduled_task_id ownership check (ASY-07)
         .mockResolvedValueOnce([{ insertId: 1 }])
         .mockResolvedValueOnce(mockRows([row]));
       const result = await svc.createScript(1, {
@@ -192,7 +193,8 @@ describe('scriptingService', () => {
         api_endpoint: '/deploy', description: 'Deploy script',
       }, 99);
       expect(result.name).toBe('deploy.sh');
-      expect(db.query.mock.calls[0][0]).toContain('INSERT INTO automation_scripts');
+      expect(db.query.mock.calls[0][0]).toContain('FROM scheduled_tasks');
+      expect(db.query.mock.calls[1][0]).toContain('INSERT INTO automation_scripts');
     });
 
     it('inserts script with minimal fields', async () => {

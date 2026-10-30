@@ -16,6 +16,7 @@
 
 const db = require('../config/database');
 const suspensionService = require('./suspensionService');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 // Invoices in these statuses can receive a payment allocation. Mirrors the
 // frontend's NON_PAYABLE_STATUSES set (frontend/src/pages/payments/
@@ -60,18 +61,29 @@ async function finalizeIfFullyPaid(exec, invoice) {
  * behaviour and billingService.refreshInvoicePaidStatus's "outside the
  * transaction — reads committed state" convention (see reallocate route).
  *
- * @param {{id:number, contract_id:number|null}} invoice
+ * The contract is looked up in the CALLER'S organization and must belong to
+ * the invoice's own client. An invoice can carry a contract_id written before
+ * the create/update paths verified it, so the invoice row alone is not proof
+ * that its contract is ours: unscoped, paying an org-A invoice reconnected an
+ * org-B suspended contract (BIL-04). reconnectContract is handed the org too,
+ * so its own lock/UPDATE are bound the same way.
+ *
+ * @param {{id:number, client_id:number, contract_id:number|null}} invoice
  * @param {number} userId
+ * @param {number|null} orgId - the caller's org (req.orgId); undefined throws
  * @returns {Promise<boolean>} true if a reconnect was actually performed
  */
-async function reconnectIfSuspended(invoice, userId) {
+async function reconnectIfSuspended(invoice, userId, orgId) {
+  requireOrgId(orgId, 'paymentAllocationService.reconnectIfSuspended');
   if (!invoice.contract_id) return false;
   const [contractRows] = await db.query(
-    'SELECT * FROM contracts WHERE id = ? AND status = ? AND deleted_at IS NULL',
-    [invoice.contract_id, 'suspended'],
+    `SELECT * FROM contracts
+      WHERE id = ? AND organization_id <=> ? AND client_id = ?
+        AND status = ? AND deleted_at IS NULL`,
+    [invoice.contract_id, orgId, invoice.client_id, 'suspended'],
   );
   if (!contractRows[0]) return false;
-  await suspensionService.reconnectContract(invoice.contract_id, userId, invoice.id);
+  await suspensionService.reconnectContract(invoice.contract_id, userId, invoice.id, { orgId });
   return true;
 }
 

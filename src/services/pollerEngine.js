@@ -28,16 +28,28 @@ const adaptiveOverrides = new Map();
 //   2. Device-type match (device_polling_configs.device_type = device.type, device_id IS NULL)
 //   3. snmp_profile.poll_interval_sec (if device has snmp_profile_id)
 //   4. Default: 300 seconds
+//
+// Tenant boundary (TNA-18): a polling config belongs to an organization, and
+// the poller runs install-wide. A config only ever applies to a device of the
+// SAME organization (null-safe `<=>` for single-tenant installs). Without this
+// a tenant's type-level row ({device_type:'router', poll_interval_sec:86400})
+// matched every organization's routers, and a device override naming a
+// foreign device_id throttled that device. Type-level rows prefer the
+// device's own organization, then an install-wide (NULL-org) row, each in id
+// order so the choice is deterministic.
 // ---------------------------------------------------------------------------
 async function getPollingConfig(deviceId) {
   // Fetch device-specific override first
   const [specificRows] = await db.query(
     `SELECT dpc.*, pn.max_concurrent_polls, pn.status AS node_status
      FROM device_polling_configs dpc
+     JOIN devices d ON d.id = dpc.device_id
      LEFT JOIN poller_nodes pn ON pn.id = dpc.poller_node_id
      WHERE dpc.device_id = ?
+       AND dpc.organization_id <=> d.organization_id
        AND dpc.is_enabled = 1
        AND dpc.deleted_at IS NULL
+     ORDER BY dpc.id ASC
      LIMIT 1`,
     [deviceId],
   );
@@ -54,7 +66,7 @@ async function getPollingConfig(deviceId) {
 
   // Fetch device type for type-based lookup
   const [deviceRows] = await db.query(
-    'SELECT type, snmp_profile_id FROM devices WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+    'SELECT type, snmp_profile_id, organization_id FROM devices WHERE id = ? AND deleted_at IS NULL LIMIT 1',
     [deviceId],
   );
 
@@ -70,10 +82,12 @@ async function getPollingConfig(deviceId) {
       `SELECT * FROM device_polling_configs
        WHERE device_type = ?
          AND device_id IS NULL
+         AND (organization_id <=> ? OR organization_id IS NULL)
          AND is_enabled = 1
          AND deleted_at IS NULL
+       ORDER BY (organization_id IS NULL) ASC, id ASC
        LIMIT 1`,
-      [device.type],
+      [device.type, device.organization_id ?? null],
     );
 
     if (typeRows.length > 0) {
@@ -202,12 +216,14 @@ async function adaptivePollCheck() {
     const ids = [...activeDeviceIds];
     const placeholders = ids.map(() => '?').join(', ');
     const [cfgRows] = await db.query(
-      `SELECT device_id, adaptive_min_interval_sec
-       FROM device_polling_configs
-       WHERE device_id IN (${placeholders})
-         AND adaptive_polling_enabled = 1
-         AND is_enabled = 1
-         AND deleted_at IS NULL`,
+      `SELECT dpc.device_id, dpc.adaptive_min_interval_sec
+       FROM device_polling_configs dpc
+       JOIN devices d ON d.id = dpc.device_id
+       WHERE dpc.device_id IN (${placeholders})
+         AND dpc.organization_id <=> d.organization_id
+         AND dpc.adaptive_polling_enabled = 1
+         AND dpc.is_enabled = 1
+         AND dpc.deleted_at IS NULL`,
       ids,
     );
 

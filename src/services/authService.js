@@ -14,6 +14,12 @@ const { resolveOrgPrincipal } = require('./orgPrincipalService');
 const { hasGlobalOrganizationAccessUser } = require('./globalOrganizationAccess');
 const emailTemplates = require('../views/emailTemplates');
 const logger = require('../utils/logger');
+const {
+  signMfaChallengeToken,
+  verifyMfaChallengeToken,
+  passwordFingerprint,
+  MFA_CHALLENGE_SECONDS,
+} = require('../utils/accessTokens');
 const { UnauthorizedError, ConflictError, ValidationError, NotFoundError } = require('../utils/errors');
 
 const SALT_ROUNDS = 12;
@@ -174,68 +180,43 @@ async function register({ firstName, lastName, email, password, organizationId, 
   return sanitizeUser(user);
 }
 
+/** True when the account must present a second factor before a session. */
+function requiresSecondFactor(user) {
+  return Boolean(user && (user.totp_enabled === true || Number(user.totp_enabled) === 1));
+}
+
 /**
- * Authenticate a user and return an access token + refresh token pair.
+ * Record one failed credential attempt (password or second factor) and lock
+ * the account after MAX_LOGIN_ATTEMPTS. Both factors share the counter, so a
+ * stolen password cannot be used to grind through TOTP codes.
  */
-async function login({ email, password }) {
-  const user = await User.findByEmail(email);
-  if (!user) {
-    throw new UnauthorizedError('Invalid email or password');
-  }
-
-  if (user.status !== 'active') {
-    throw new UnauthorizedError('Account is inactive');
-  }
-
-  // Check brute-force lockout
-  if (user.locked_until && new Date(user.locked_until) > new Date()) {
-    throw new UnauthorizedError('Account temporarily locked due to too many failed login attempts');
-  }
-
-  const valid = await bcrypt.compare(password, user.password_hash);
-  if (!valid) {
-    // Increment failed attempts and potentially lock the account
-    const attempts = (user.failed_login_attempts || 0) + 1;
-    if (attempts >= MAX_LOGIN_ATTEMPTS) {
-      await db.query(
-        'UPDATE users SET failed_login_attempts = ?, locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?',
-        [attempts, LOCKOUT_MINUTES, user.id],
-      );
-    } else {
-      await db.query(
-        'UPDATE users SET failed_login_attempts = ? WHERE id = ?',
-        [attempts, user.id],
-      );
-    }
-    throw new UnauthorizedError('Invalid email or password');
-  }
-
-  // Reset failed attempts on successful login
-  if (user.failed_login_attempts > 0 || user.locked_until) {
+async function recordFailedLoginAttempt(user) {
+  const attempts = (user.failed_login_attempts || 0) + 1;
+  if (attempts >= MAX_LOGIN_ATTEMPTS) {
     await db.query(
-      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
-      [user.id],
+      'UPDATE users SET failed_login_attempts = ?, locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?',
+      [attempts, LOCKOUT_MINUTES, user.id],
+    );
+  } else {
+    await db.query(
+      'UPDATE users SET failed_login_attempts = ? WHERE id = ?',
+      [attempts, user.id],
     );
   }
+}
 
-  // Update last_login_at
-  await db.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [user.id]);
-
-  // Get user's primary organization. A global identity can outlive its seeded
-  // home tenant (for example after the operator retires Demo ISP), so when it
-  // has no remaining membership choose a live organization rather than minting
-  // an unusable JWT bound to a soft-deleted home id.
-  const orgs = await User.getOrganizations(user.id);
-  let primaryOrg = orgs[0] || null;
-  if (!primaryOrg) primaryOrg = await findGlobalFallbackOrganization(user);
-
-  // Issue short-lived access token (JWT, 15 min default)
+/**
+ * Mint an access token + refresh session for a fully authenticated user.
+ * Callers must already have verified every required factor (and stamped
+ * last_login_at).
+ */
+async function issueSession(user, orgs, activeOrgId) {
   const accessToken = jwt.sign(
     {
       sub: user.id,
       email: user.email,
       role: user.role,
-      orgId: primaryOrg?.id || user.organization_id,
+      orgId: activeOrgId,
     },
     config.jwt.secret,
     { expiresIn: config.jwt.accessExpiresIn, algorithm: config.jwt.algorithm },
@@ -261,8 +242,155 @@ async function login({ email, password }) {
     // The org the JWT was minted for — the login route enriches the user
     // (currency/locale/group/permissions) for THIS org so the first-paint UI
     // matches what every subsequent request will be authorized against.
-    activeOrganizationId: primaryOrg?.id || user.organization_id,
+    activeOrganizationId: activeOrgId,
   };
+}
+
+/**
+ * Resolve the organization a fresh login is bound to: the primary
+ * membership, else (for a global identity whose seeded home tenant is gone)
+ * a live organization, else the stored home org.
+ */
+async function resolveLoginOrganizations(user) {
+  // A global identity can outlive its seeded home tenant (for example after
+  // the operator retires Demo ISP), so when it has no remaining membership
+  // choose a live organization rather than minting an unusable JWT bound to a
+  // soft-deleted home id.
+  const orgs = await User.getOrganizations(user.id);
+  let primaryOrg = orgs[0] || null;
+  if (!primaryOrg) primaryOrg = await findGlobalFallbackOrganization(user);
+  return { orgs, activeOrgId: primaryOrg?.id || user.organization_id };
+}
+
+/**
+ * Authenticate a user and return an access token + refresh token pair.
+ *
+ * When the account has TOTP 2FA enabled, no session is minted: the result is
+ * `{ mfaRequired: true, mfaToken, expiresIn }`, and the caller must complete
+ * the login with completeMfaLogin(). The failed-attempt counter is NOT reset
+ * until the second factor succeeds.
+ */
+async function login({ email, password }) {
+  const user = await User.findByEmail(email);
+  if (!user) {
+    throw new UnauthorizedError('Invalid email or password');
+  }
+
+  if (user.status !== 'active') {
+    throw new UnauthorizedError('Account is inactive');
+  }
+
+  // Check brute-force lockout
+  if (user.locked_until && new Date(user.locked_until) > new Date()) {
+    throw new UnauthorizedError('Account temporarily locked due to too many failed login attempts');
+  }
+
+  const valid = await bcrypt.compare(password, user.password_hash);
+  if (!valid) {
+    // Increment failed attempts and potentially lock the account
+    await recordFailedLoginAttempt(user);
+    throw new UnauthorizedError('Invalid email or password');
+  }
+
+  if (requiresSecondFactor(user)) {
+    return {
+      mfaRequired: true,
+      mfaToken: signMfaChallengeToken({ userId: user.id, passwordHash: user.password_hash, method: 'password' }),
+      expiresIn: MFA_CHALLENGE_SECONDS,
+    };
+  }
+
+  // Reset failed attempts on successful login
+  if (user.failed_login_attempts > 0 || user.locked_until) {
+    await db.query(
+      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
+      [user.id],
+    );
+  }
+
+  // Update last_login_at
+  await db.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [user.id]);
+  const { orgs, activeOrgId } = await resolveLoginOrganizations(user);
+  return issueSession(user, orgs, activeOrgId);
+}
+
+/**
+ * Challenge an SSO-authenticated user for their second factor. The IdP
+ * assertion replaces the password, never the TOTP; the challenge is bound to
+ * the SSO organization.
+ */
+function createSsoMfaChallenge(user, organizationId) {
+  return {
+    mfaRequired: true,
+    mfaToken: signMfaChallengeToken({
+      userId: user.id, passwordHash: user.password_hash, organizationId, method: 'sso',
+    }),
+    expiresIn: MFA_CHALLENGE_SECONDS,
+  };
+}
+
+/**
+ * Second step of a 2FA login (password or SSO). Verifies the challenge token
+ * and a TOTP or backup code, then mints the session exactly as login() does.
+ * An SSO challenge stays bound to the SSO organization it was issued for.
+ */
+async function completeMfaLogin({ mfaToken, code }) {
+  let challenge;
+  try {
+    challenge = verifyMfaChallengeToken(mfaToken);
+  } catch (_err) {
+    throw new UnauthorizedError('Invalid or expired two-factor challenge. Sign in again.');
+  }
+
+  const user = await User.findById(challenge.sub);
+  if (!user || user.status !== 'active') {
+    throw new UnauthorizedError('Invalid or expired two-factor challenge. Sign in again.');
+  }
+  if (user.locked_until && new Date(user.locked_until) > new Date()) {
+    throw new UnauthorizedError('Account temporarily locked due to too many failed login attempts');
+  }
+  // A password change (or reset) since the challenge was issued voids it, and
+  // so does 2FA having been turned off in the meantime.
+  if (challenge.pwf !== passwordFingerprint(user.password_hash) || !requiresSecondFactor(user)) {
+    throw new UnauthorizedError('Invalid or expired two-factor challenge. Sign in again.');
+  }
+
+  const twoFactorService = require('./twoFactorService');
+  try {
+    await twoFactorService.verifyCode(user.id, code);
+  } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      await recordFailedLoginAttempt(user);
+      throw new UnauthorizedError('Invalid 2FA code');
+    }
+    throw err;
+  }
+
+  if (user.failed_login_attempts > 0 || user.locked_until) {
+    await db.query(
+      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
+      [user.id],
+    );
+  }
+
+  await db.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [user.id]);
+
+  let orgs;
+  let activeOrgId;
+  if (challenge.method === 'sso') {
+    // The SSO organization is the only one this challenge may open. It is
+    // re-validated so a membership revoked in the meantime is honoured.
+    const resolved = await resolveActiveOrg(user.id, user.role, challenge.orgId);
+    if (!resolved) {
+      throw new UnauthorizedError('User no longer has access to the selected organization');
+    }
+    orgs = await User.getOrganizations(user.id);
+    activeOrgId = resolved.id;
+  } else {
+    ({ orgs, activeOrgId } = await resolveLoginOrganizations(user));
+  }
+
+  return issueSession(user, orgs, activeOrgId);
 }
 
 /**
@@ -656,7 +784,7 @@ async function resendVerificationEmail(userId) {
 }
 
 module.exports = {
-  register, login, logout, refreshToken, switchOrganization,
+  register, login, completeMfaLogin, createSsoMfaChallenge, requiresSecondFactor, logout, refreshToken, switchOrganization,
   requestPasswordReset, resetPassword, changePassword,
   verifyEmail, generateEmailVerificationToken, resendVerificationEmail,
   // Exported for cookie maxAge calculations in auth routes

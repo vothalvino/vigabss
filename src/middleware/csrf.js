@@ -73,6 +73,8 @@ const CSRF_HEADER        = 'x-csrf-token';
 // Matched as suffixes so both /api/v1/auth/* and /api/auth/* mounts are covered.
 const CSRF_EXEMPT_SUFFIXES = [
   '/auth/login',
+  // Second step of a 2FA login: reads a posted challenge token + code.
+  '/auth/login/2fa',
   '/auth/register',
   '/auth/refresh',
   '/auth/verify-email',

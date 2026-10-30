@@ -372,7 +372,7 @@ async function search(orgId, locale, query, k = 5) {
 
   let embedding;
   try {
-    embedding = await llmProviderService.embed(query, policy.active_provider_id);
+    embedding = await llmProviderService.embed(query, policy.active_provider_id, { orgId });
   } catch (err) {
     logger.warn({ orgId, err: err.message }, 'phraseLibraryService.search: embed failed — skipping RAG');
     return [];

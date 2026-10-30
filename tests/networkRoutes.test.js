@@ -290,6 +290,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
     test('creates an IP assignment and returns 201', async () => {
       mockAuthUser();
       db.query
+        .mockResolvedValueOnce([[{ id: 1 }]])                            // pool_id ownership (NET-07)
         .mockResolvedValueOnce([[]])                                     // dup check: contracts
         .mockResolvedValueOnce([[]])                                     // dup check: ip_assignments
         .mockResolvedValueOnce([{ insertId: 2, affectedRows: 1 }])       // INSERT

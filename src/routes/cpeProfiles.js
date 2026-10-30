@@ -20,7 +20,7 @@ const {
   updateCpeParameterMapping,
 } = require('../middleware/schemas/cpeParameterMappings');
 const cpeProfileService = require('../services/cpeProfileService');
-const { NotFoundError } = require('../utils/errors');
+const { NotFoundError, ValidationError } = require('../utils/errors');
 
 const router = Router();
 
@@ -69,14 +69,41 @@ router.get('/:id', requirePermission('cpe_profiles.view'), async (req, res, next
   } catch (err) { next(err); }
 });
 
-router.post('/', requirePermission('cpe_profiles.create'), validate(createCpeProfile), async (req, res, next) => {
+// parent_profile_id and plan_id are plain ids. Unchecked, a tenant could
+// inherit another tenant's profile (resolveProfile now skips a foreign link,
+// but the row would still store it) or auto-apply a profile to another
+// tenant's plan. A parent may be own or global (the set GET / lists); a plan
+// must be the caller's own. 422 on a foreign or missing reference.
+async function assertProfileRefs(req, _res, next) {
+  try {
+    const { parent_profile_id: parentId, plan_id: planId } = req.body || {};
+    if (parentId !== undefined && parentId !== null) {
+      if (req.params.id !== undefined && String(parentId) === String(req.params.id)) {
+        throw new ValidationError('parent_profile_id cannot reference the profile itself');
+      }
+      const parent = await CpeProfile.findVisibleById(parentId, req.orgId);
+      if (!parent) throw new ValidationError('parent_profile_id does not belong to this organization');
+    }
+    if (planId !== undefined && planId !== null) {
+      const [rows] = await db.query(
+        `SELECT id FROM plans
+          WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL LIMIT 1`,
+        [planId, req.orgId ?? null],
+      );
+      if (!rows.length) throw new ValidationError('plan_id does not belong to this organization');
+    }
+    return next();
+  } catch (err) { return next(err); }
+}
+
+router.post('/', requirePermission('cpe_profiles.create'), validate(createCpeProfile), assertProfileRefs, async (req, res, next) => {
   try {
     const record = await CpeProfile.create({ ...req.body, organization_id: req.orgId });
     res.status(201).json({ data: record });
   } catch (err) { next(err); }
 });
 
-router.put('/:id', requirePermission('cpe_profiles.update'), validate(updateCpeProfile), async (req, res, next) => {
+router.put('/:id', requirePermission('cpe_profiles.update'), validate(updateCpeProfile), assertProfileRefs, async (req, res, next) => {
   try {
     const record = await CpeProfile.update(req.params.id, req.body, req.orgId);
     res.json({ data: record });

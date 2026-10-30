@@ -161,6 +161,20 @@ uses `verifyPortalAccessToken`. Never verify an access JWT with a raw
 `jwt.verify(..., JWT_SECRET)` on a new surface: a `clients.id` must never be
 resolved as a `users.id`.
 
+Staff with TOTP enabled sign in in two steps. `POST /auth/login` (and an SSO
+callback) returns a 5-minute `type: 'mfa'` challenge signed with a third
+derived key; it sets no cookies and creates no session, and
+`verifyStaffAccessToken` rejects it. Only `POST /auth/login/2fa` exchanges it,
+with a single-use TOTP step or backup code, for a session. Any new path that
+mints a staff session must apply `authService.requiresSecondFactor()` first.
+
+SSO (`src/services/ssoService.js`) may only sign in accounts that belong to the
+configuring organization alone, never an install operator or super-admin, and
+links each account to the IdP identity (`user_sso_identities`, bound by
+`organization_id`). The `/sso/:orgId` admin endpoints require `:orgId` to be the
+caller's active organization unless the caller has global access, and refuse
+API tokens.
+
 The Authorization header takes precedence over the browser cookie. The active
 organization is resolved into the authenticated principal and carried as
 `req.user.organizationId`; `orgScope` validates it and exposes `req.orgId`.
@@ -194,7 +208,14 @@ shared primary database.
   that reference in `req.orgId` on create, update, and any derivation step (for
   example quote -> invoice conversion); reject a foreign or missing reference
   with a 422 `ValidationError`. See `assertServiceOrderFks`, `assertQuoteFks`
-  and `assertTicketFks` in `src/routes/`.
+  and `assertTicketFks` in `src/routes/`; the shared table-map form is
+  `assertOwnedReferences`/`ownedReferences` in `src/utils/ownedReferences.js`.
+  A billing document's `contract_id` must also belong to the document's own
+  client, and a side effect driven by a stored reference (a paid invoice
+  reconnecting its contract) re-binds the org at use time instead of trusting
+  the stored id. Display joins to a referenced row (client name, device name,
+  ...) must also bind the joined row's `organization_id` to the base row's, so
+  a legacy foreign id can never surface another tenant's data.
 - Child tables without their own `organization_id` (for example
   `ticket_comments`, `ticket_relations`, `ticket_time_logs`) are scoped only
   through their parent: load the parent by id **and** `req.orgId` before any
@@ -216,6 +237,16 @@ shared primary database.
 
 Reseller scoping by `reseller_id` is an additional business filter, not a hard
 tenant boundary and not a substitute for `organization_id`/tenant routing.
+Which resellers a staff caller may act on is resolved server-side by
+`src/middleware/resellerScope.js` (`req.resellerScope`) for every
+`/resellers` and `/reseller-portal` route: a `reseller_user_bindings` row
+(migration 471) confines the user to that reseller and its sub-resellers
+(404 outside it, lists filtered) whatever permissions it holds; an unbound
+user in the `reseller_admin` group is refused with 403; other unbound staff
+reach every reseller in their organization through ordinary permissions.
+Binding management (`PUT/DELETE /resellers/:id/users/:userId`) needs
+`resellers.update` and `users.update` and is refused to bound callers. A
+custom group meant for reseller staff must have its users bound.
 
 ### RBAC resolution
 
@@ -237,14 +268,24 @@ There is no production-wide `users.role = 'admin'` permission bypass in
 doubles. Do not design production behavior around that test compatibility path.
 
 API token scope `NULL` is the legacy unrestricted sentinel; an empty or invalid
-scope list fails closed. GraphQL must maintain permission parity with equivalent
-REST operations through `src/graphql/authz.js` and the field map in
-`src/graphql/index.js`.
-
-Known existing divergence: `src/graphql/authz.js` still short-circuits for
-`user.role === 'admin'`, while REST only bypasses permissions for a validated
-global-access principal. Treat this as security debt, not a pattern to copy.
-When changing GraphQL authorization, align it with REST and add parity tests.
+scope list fails closed. A role is not expressible as a scope, so `requireRole`
+admits only that unrestricted sentinel and refuses scope-limited tokens.
+Installation-wide infrastructure (FireRelay node registry and tunnel commands,
+backup settings, system version) is gated on the install operator
+(`src/services/installOperator.js`), never on a tenant admin/owner role.
+GraphQL must maintain permission parity with equivalent
+REST operations through `src/graphql/authz.js` and the field maps in
+`src/graphql/index.js`: `FIELD_PERMISSIONS` guards root fields (FORBIDDEN on
+denial) and `NESTED_FIELD_PERMISSIONS` guards every nested edge that crosses
+into another resource (for example `Client.invoices` needs `invoices.view`).
+A denied nested edge resolves to `[]`/`null` without an error so detail pages
+keep the sections the caller may see. `authz.js` resolves principals exactly
+like `requirePermission` (token scopes, global-access bypass never for API
+tokens, permission set memoized per request); there is no `role === 'admin'`
+shortcut. Billing-category tickets are hidden from `ticket`/`tickets` without
+`tickets.view_billing`. A new type field that reaches another resource needs a
+`NESTED_FIELD_PERMISSIONS` entry and a test in
+`tests/graphqlNestedAuthz.test.js`.
 
 Frontend route guards, navigation visibility, and `can(user, permission)` are
 UX controls only. They must reflect backend grants so users do not see actions
@@ -350,7 +391,11 @@ active scalar, table, or averaged-table object to an allowlisted
 `snmp_metrics` column. IF-X-MIB Counter64 values arrive from `net-snmp` as
 big-endian buffers; the poller converts only values that remain exactly
 representable as JavaScript integers and records a gap rather than an
-imprecise counter otherwise.
+imprecise counter otherwise. The poll loop is install-wide, but a
+`device_polling_configs` row applies only to devices of its own organization
+(`organization_id <=>` the device's; type-level rows prefer the device's org,
+then an install-wide NULL-org row), and its `device_id` must belong to
+`req.orgId` on create/update.
 
 The metric pipeline is:
 

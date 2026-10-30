@@ -70,8 +70,10 @@
     "emailLabel": "Correo electrónico",
     "passwordLabel": "Contraseña",
     "totpLabel": "Código de doble factor",
-    "totpPlaceholder": "Código de 6 dígitos",
-    "totpPrompt": "Ingresa tu código de autenticación de doble factor.",
+    "totpPlaceholder": "Código de 6 dígitos o código de respaldo",
+    "totpPrompt": "Ingresa el código de tu app de autenticación o uno de tus códigos de respaldo.",
+    "totpVerify": "Verificar",
+    "totpBack": "Volver a iniciar sesión",
     "forgotPasswordLink": "¿Olvidaste tu contraseña?"
   },
   "forgotPassword": {

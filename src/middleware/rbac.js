@@ -116,6 +116,15 @@ function requireRole(...roles) {
         throw new ForbiddenError('No organization context');
       }
 
+      // A role is not expressible as an API-token scope, so only the legacy
+      // unrestricted token (scopes SQL NULL) may satisfy a role gate. A
+      // scope-limited token such as `clients:read` previously passed any
+      // requireRole() gate its owner's role satisfied, bypassing its scopes.
+      if (req.user.apiTokenId
+        && !((req.user.scopes === null || req.user.scopes === undefined) && req.user.scopesSqlNull === true)) {
+        throw new ForbiddenError('API token scopes cannot authorize a role-restricted endpoint');
+      }
+
       if (req.user.hasGlobalOrganizationAccess && !req.user.apiTokenId) return next();
       if (isLegacyTestAdmin(req.user) && roles.includes(req.user.role)) return next();
 

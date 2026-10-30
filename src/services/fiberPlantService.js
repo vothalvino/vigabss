@@ -35,10 +35,10 @@ async function getFiberPathForPort(oltPortId, orgId) {
        fd.name AS from_device_name,
        td.name AS to_device_name
      FROM fiber_routes fr
-     LEFT JOIN olt_splitters sp  ON sp.id  = fr.from_splitter_id
-     LEFT JOIN olt_splitters tsp ON tsp.id = fr.to_splitter_id
-     LEFT JOIN devices fd        ON fd.id  = fr.from_device_id
-     LEFT JOIN devices td        ON td.id  = fr.to_device_id
+     LEFT JOIN olt_splitters sp  ON sp.id  = fr.from_splitter_id AND (sp.organization_id <=> fr.organization_id OR sp.organization_id IS NULL)
+     LEFT JOIN olt_splitters tsp ON tsp.id = fr.to_splitter_id AND (tsp.organization_id <=> fr.organization_id OR tsp.organization_id IS NULL)
+     LEFT JOIN devices fd        ON fd.id  = fr.from_device_id AND (fd.organization_id <=> fr.organization_id OR fd.organization_id IS NULL)
+     LEFT JOIN devices td        ON td.id  = fr.to_device_id AND (td.organization_id <=> fr.organization_id OR td.organization_id IS NULL)
      WHERE fr.from_olt_port_id = ?
        AND (fr.organization_id = ? OR fr.organization_id IS NULL)
        AND fr.deleted_at IS NULL
@@ -61,8 +61,8 @@ async function getFiberPathForOnu(onuDetailId, orgId) {
        sp.name AS from_splitter_name,
        tsp.name AS to_splitter_name
      FROM fiber_routes fr
-     LEFT JOIN olt_splitters sp  ON sp.id  = fr.from_splitter_id
-     LEFT JOIN olt_splitters tsp ON tsp.id = fr.to_splitter_id
+     LEFT JOIN olt_splitters sp  ON sp.id  = fr.from_splitter_id AND (sp.organization_id <=> fr.organization_id OR sp.organization_id IS NULL)
+     LEFT JOIN olt_splitters tsp ON tsp.id = fr.to_splitter_id AND (tsp.organization_id <=> fr.organization_id OR tsp.organization_id IS NULL)
      WHERE fr.to_onu_detail_id = ?
        AND (fr.organization_id = ? OR fr.organization_id IS NULL)
        AND fr.deleted_at IS NULL
@@ -86,7 +86,7 @@ async function getOdfFrameWithPorts(frameId, orgId) {
   const [[frame]] = await db.query(
     `SELECT f.*, s.name AS site_name
      FROM odf_frames f
-     LEFT JOIN sites s ON s.id = f.site_id
+     LEFT JOIN sites s ON s.id = f.site_id AND (s.organization_id <=> f.organization_id OR s.organization_id IS NULL)
      WHERE f.id = ?
        AND (f.organization_id = ? OR f.organization_id IS NULL)
        AND f.deleted_at IS NULL`,
@@ -99,11 +99,13 @@ async function getOdfFrameWithPorts(frameId, orgId) {
             d.name AS connected_device_name,
             sp.name AS splitter_name
      FROM odf_ports p
-     LEFT JOIN devices d ON d.id = p.connected_device_id
-     LEFT JOIN olt_splitters sp ON sp.id = p.splitter_id
-     WHERE p.odf_frame_id = ? AND p.deleted_at IS NULL
+     LEFT JOIN devices d ON d.id = p.connected_device_id AND (d.organization_id <=> p.organization_id OR d.organization_id IS NULL)
+     LEFT JOIN olt_splitters sp ON sp.id = p.splitter_id AND (sp.organization_id <=> p.organization_id OR sp.organization_id IS NULL)
+     WHERE p.odf_frame_id = ?
+       AND (p.organization_id = ? OR p.organization_id IS NULL)
+       AND p.deleted_at IS NULL
      ORDER BY p.port_number ASC`,
-    [frameId],
+    [frameId, orgId],
   );
 
   return { ...frame, ports };
@@ -148,7 +150,10 @@ async function createOtdrTestResult(params) {
     ],
   );
 
-  const [[result]] = await db.query('SELECT * FROM otdr_test_results WHERE id = ?', [res.insertId]);
+  const [[result]] = await db.query(
+    'SELECT * FROM otdr_test_results WHERE id = ? AND organization_id <=> ?',
+    [res.insertId, orgId],
+  );
   return result;
 }
 
@@ -167,7 +172,7 @@ async function getSfpDiagnosticsForDevice(deviceId, orgId) {
   const [invRows] = await db.query(
     `SELECT si.*, ii.name AS item_name, ii.model AS item_model
      FROM sfp_inventory si
-     LEFT JOIN inventory_items ii ON ii.id = si.inventory_item_id
+     LEFT JOIN inventory_items ii ON ii.id = si.inventory_item_id AND (ii.organization_id <=> si.organization_id OR ii.organization_id IS NULL)
      WHERE si.installed_device_id = ?
        AND (si.organization_id = ? OR si.organization_id IS NULL)
        AND si.deleted_at IS NULL
@@ -178,12 +183,14 @@ async function getSfpDiagnosticsForDevice(deviceId, orgId) {
 
   // Latest SNMP DDM diagnostics from snmp_metrics
   const [diagRows] = await db.query(
-    `SELECT sfp_tx_power_dbm, sfp_rx_power_dbm, sfp_temperature_c, polled_at
-     FROM snmp_metrics
-     WHERE device_id = ?
-       AND sfp_tx_power_dbm IS NOT NULL
-     ORDER BY polled_at DESC LIMIT 1`,
-    [deviceId],
+    `SELECT m.sfp_tx_power_dbm, m.sfp_rx_power_dbm, m.sfp_temperature_c, m.polled_at
+     FROM snmp_metrics m
+     JOIN devices d ON d.id = m.device_id
+       AND (d.organization_id = ? OR d.organization_id IS NULL)
+     WHERE m.device_id = ?
+       AND m.sfp_tx_power_dbm IS NOT NULL
+     ORDER BY m.polled_at DESC LIMIT 1`,
+    [orgId, deviceId],
   );
 
   return {

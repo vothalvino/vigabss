@@ -6,6 +6,8 @@
 'use strict';
 
 const db = require('../config/database');
+const { requireOrgId } = require('../utils/requireOrgId');
+const { ValidationError } = require('../utils/errors');
 
 // ---- IPv4 utilities ----
 
@@ -268,7 +270,7 @@ async function assertNoOverlap(pool, excludePoolId = null) {
  * @param {{ contractId: number, clientId: number, type: string }} opts
  * @returns {Promise<string>}
  */
-async function assignNextFreeIpv4(pool, { contractId, clientId, type }) {
+async function assignNextFreeIpv4(pool, { contractId, clientId, type }, exec = db.query.bind(db)) {
   const parsed = parseIpv4Pool(pool);
   if (!parsed) throw Object.assign(new Error('Unable to parse IPv4 pool'), { status: 422 });
 
@@ -276,7 +278,7 @@ async function assignNextFreeIpv4(pool, { contractId, clientId, type }) {
   const gatewayInt = pool.gateway ? ipv4ToInt(pool.gateway) : null;
 
   // Fetch all currently-assigned (non-expired) IPs for this pool
-  const [assignedRows] = await db.query(
+  const [assignedRows] = await exec(
     `SELECT ip_address FROM ip_assignments
      WHERE pool_id = ? AND deleted_at IS NULL AND status != 'expired'`,
     [pool.id],
@@ -291,12 +293,12 @@ async function assignNextFreeIpv4(pool, { contractId, clientId, type }) {
     if (taken.has(candidate)) continue;
 
     // Insert assignment
-    const [result] = await db.query(
+    const [result] = await exec(
       `INSERT INTO ip_assignments (pool_id, organization_id, ip_address, contract_id, client_id, type, status)
        VALUES (?, ?, ?, ?, ?, ?, 'active')`,
       [pool.id, pool.organization_id, candidate, contractId || null, clientId || null, type],
     );
-    const [rows] = await db.query('SELECT * FROM ip_assignments WHERE id = ?', [result.insertId]);
+    const [rows] = await exec('SELECT * FROM ip_assignments WHERE id = ?', [result.insertId]);
     return rows[0];
   }
 
@@ -311,7 +313,7 @@ async function assignNextFreeIpv4(pool, { contractId, clientId, type }) {
  * @param {{ contractId: number, clientId: number, type: string }} opts
  * @returns {Promise<object>}
  */
-async function assignNextFreeIpv6Prefix(pool, { contractId, clientId, type }) {
+async function assignNextFreeIpv6Prefix(pool, { contractId, clientId, type }, exec = db.query.bind(db)) {
   const parsed = parseIpv6Pool(pool);
   if (!parsed) throw Object.assign(new Error('Unable to parse IPv6 pool'), { status: 422 });
   if (!pool.default_prefix_len) {
@@ -322,7 +324,7 @@ async function assignNextFreeIpv6Prefix(pool, { contractId, clientId, type }) {
   const blockSize = 1n << BigInt(128 - pool.default_prefix_len);
 
   // Fetch all currently-assigned (non-expired) prefixes for this pool
-  const [assignedRows] = await db.query(
+  const [assignedRows] = await exec(
     `SELECT ip_address FROM ip_assignments
      WHERE pool_id = ? AND deleted_at IS NULL AND status != 'expired'`,
     [pool.id],
@@ -336,12 +338,12 @@ async function assignNextFreeIpv6Prefix(pool, { contractId, clientId, type }) {
     // Check both the full CIDR and the address part
     if (taken.has(candidate) || taken.has(candidateAddr)) continue;
 
-    const [result] = await db.query(
+    const [result] = await exec(
       `INSERT INTO ip_assignments (pool_id, organization_id, ip_address, contract_id, client_id, type, status)
        VALUES (?, ?, ?, ?, ?, ?, 'active')`,
       [pool.id, pool.organization_id, candidate, contractId || null, clientId || null, type],
     );
-    const [rows] = await db.query('SELECT * FROM ip_assignments WHERE id = ?', [result.insertId]);
+    const [rows] = await exec('SELECT * FROM ip_assignments WHERE id = ?', [result.insertId]);
     return rows[0];
   }
 
@@ -350,22 +352,58 @@ async function assignNextFreeIpv6Prefix(pool, { contractId, clientId, type }) {
 
 /**
  * Main entry point: assign next free IP or IPv6 prefix from the specified pool.
+ *
+ * Tenant boundary (NET-07): the pool must belong to `orgId` (null-safe, 404
+ * otherwise) and contract_id/client_id must belong to it too (422). The orgId
+ * used to be discarded, so a caller could allocate from (and stamp rows into)
+ * another tenant's pool, linked to unverified contract/client ids.
+ *
+ * The pool row is locked FOR UPDATE for the whole allocation so two concurrent
+ * calls on the same pool serialise instead of racing for the same address.
+ *
  * @param {number|string} poolId
- * @param {{ contractId: number, clientId: number, type?: string, orgId: number }} opts
+ * @param {{ contractId: number, clientId: number, type?: string, orgId: number|null }} opts
  * @returns {Promise<object>} the new ip_assignments row
  */
-async function assignNextFreeIp(poolId, { contractId, clientId, type = 'dynamic', orgId: _orgId }) {
-  const [rows] = await db.query(
-    'SELECT * FROM ip_pools WHERE id = ? AND deleted_at IS NULL',
-    [poolId],
-  );
-  if (!rows.length) throw Object.assign(new Error('Pool not found'), { status: 404 });
-  const pool = rows[0];
+async function assignNextFreeIp(poolId, { contractId, clientId, type = 'dynamic', orgId }) {
+  requireOrgId(orgId, 'poolAssignmentService.assignNextFreeIp');
+  const conn = await db.getConnection();
+  const exec = conn.query.bind(conn);
+  try {
+    await conn.beginTransaction();
+    const [rows] = await exec(
+      `SELECT * FROM ip_pools
+        WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL
+        FOR UPDATE`,
+      [poolId, orgId],
+    );
+    if (!rows.length) throw Object.assign(new Error('Pool not found'), { status: 404 });
+    const pool = rows[0];
 
-  if (pool.ip_version === '6') {
-    return assignNextFreeIpv6Prefix(pool, { contractId, clientId, type });
+    for (const [value, table, field] of [
+      [contractId, 'contracts', 'contract_id'],
+      [clientId, 'clients', 'client_id'],
+    ]) {
+      if (value === undefined || value === null) continue;
+      const [owned] = await exec(
+        `SELECT id FROM ${table}
+          WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL LIMIT 1`,
+        [value, orgId],
+      );
+      if (!owned.length) throw new ValidationError(`${field} does not belong to this organization`);
+    }
+
+    const assignment = pool.ip_version === '6'
+      ? await assignNextFreeIpv6Prefix(pool, { contractId, clientId, type }, exec)
+      : await assignNextFreeIpv4(pool, { contractId, clientId, type }, exec);
+    await conn.commit();
+    return assignment;
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
   }
-  return assignNextFreeIpv4(pool, { contractId, clientId, type });
 }
 
 module.exports = {

@@ -15,7 +15,8 @@
 //   GET  /sso/:orgId/oidc/login         Redirect to IdP authorization endpoint
 //   GET  /sso/:orgId/oidc/callback      OIDC authorization code callback
 //
-//   Admin (JWT + owner/admin role)
+//   Admin (JWT + owner/admin role in the SAME organization as :orgId;
+//   installation-global identities may administer any org; API tokens never)
 //   GET  /sso/:orgId/saml/config        Get SAML config
 //   PUT  /sso/:orgId/saml/config        Create or update SAML config
 //   GET  /sso/:orgId/oidc/config        Get OIDC config
@@ -28,10 +29,13 @@
 
 const { Router } = require('express');
 const ssoService = require('../services/ssoService');
+const authService = require('../services/authService');
 const { authenticate } = require('../middleware/auth');
+const { orgScope } = require('../middleware/orgScope');
 const { requireRole } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const ssoSchemas = require('../middleware/schemas/sso');
+const { ForbiddenError } = require('../utils/errors');
 const config = require('../config');
 
 const router = Router();
@@ -54,6 +58,25 @@ function parseOrgId(req, res) {
     return null;
   }
   return orgId;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: finish an SSO login. An account with TOTP 2FA enabled gets a
+// second-factor challenge (bound to this org) instead of a session; the SPA
+// login page completes it via POST /auth/login/2fa.
+// ---------------------------------------------------------------------------
+async function finishSsoLogin(res, user, orgId, spaBase) {
+  if (authService.requiresSecondFactor(user)) {
+    const challenge = authService.createSsoMfaChallenge(user, orgId);
+    return res.redirect(`${config.appUrl}/login#mfa_token=${encodeURIComponent(challenge.mfaToken)}`);
+  }
+  const tokens = await ssoService.mintTokens(user, orgId);
+  // The SPA should read accessToken from the fragment (not sent to the server).
+  const spaUrl = `${spaBase}#` +
+    `accessToken=${encodeURIComponent(tokens.accessToken)}&` +
+    `refreshToken=${encodeURIComponent(tokens.refreshToken)}&` +
+    `expiresIn=${tokens.expiresIn}`;
+  return res.redirect(spaUrl);
 }
 
 // ---------------------------------------------------------------------------
@@ -112,16 +135,7 @@ router.post('/:orgId/saml/acs', async (req, res, next) => {
     const mappings = await ssoService.getGroupMappings(cfg.id);
 
     const { user } = await ssoService.findOrCreateSsoUser(orgId, profile, cfg, mappings);
-    const tokens   = await ssoService.mintTokens(user, orgId);
-
-    // Redirect back to the SPA.  The SPA should read accessToken from the
-    // fragment (not sent to the server) and store it in memory / localStorage.
-    const spaUrl = `${config.appUrl}/sso/callback#` +
-      `accessToken=${encodeURIComponent(tokens.accessToken)}&` +
-      `refreshToken=${encodeURIComponent(tokens.refreshToken)}&` +
-      `expiresIn=${tokens.expiresIn}`;
-
-    res.redirect(spaUrl);
+    await finishSsoLogin(res, user, orgId, `${config.appUrl}/sso/callback`);
   } catch (err) {
     next(err);
   }
@@ -157,15 +171,7 @@ router.get('/:orgId/oidc/callback', async (req, res, next) => {
     const mappings = await ssoService.getGroupMappings(cfg.id);
 
     const { user } = await ssoService.findOrCreateSsoUser(orgId, profile, cfg, mappings);
-    const tokens   = await ssoService.mintTokens(user, orgId);
-
-    const spaBase = redirectTo || `${config.appUrl}/sso/callback`;
-    const spaUrl = `${spaBase}#` +
-      `accessToken=${encodeURIComponent(tokens.accessToken)}&` +
-      `refreshToken=${encodeURIComponent(tokens.refreshToken)}&` +
-      `expiresIn=${tokens.expiresIn}`;
-
-    res.redirect(spaUrl);
+    await finishSsoLogin(res, user, orgId, redirectTo || `${config.appUrl}/sso/callback`);
   } catch (err) {
     next(err);
   }
@@ -175,7 +181,30 @@ router.get('/:orgId/oidc/callback', async (req, res, next) => {
 // Admin config endpoints — require JWT + owner or admin org role
 // =============================================================================
 
-const adminGuard = [authenticate, requireRole('owner', 'admin')];
+/**
+ * Bind the URL :orgId to the caller. An owner/admin may only administer the
+ * SSO of the organization they are acting in (req.orgId); only an
+ * installation-global browser identity may target another one. API tokens are
+ * refused outright: SSO config decides who can sign in, which is not a
+ * delegable integration scope.
+ */
+function bindOrgParam(req, _res, next) {
+  try {
+    if (req.user?.apiTokenId) {
+      throw new ForbiddenError('API tokens cannot manage SSO configuration');
+    }
+    const target = parseInt(req.params.orgId, 10);
+    if (!target || target < 1) return next();
+    if (Number(target) === Number(req.orgId)) return next();
+    // Same rule requirePermission applies: a validated global browser identity.
+    if (req.user?.hasGlobalOrganizationAccess === true) return next();
+    throw new ForbiddenError('You can only manage SSO for your active organization');
+  } catch (err) {
+    next(err);
+  }
+}
+
+const adminGuard = [authenticate, orgScope, bindOrgParam, requireRole('owner', 'admin')];
 
 // GET /sso/:orgId/saml/config
 router.get('/:orgId/saml/config', ...adminGuard, async (req, res, next) => {

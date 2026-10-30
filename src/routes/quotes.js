@@ -30,7 +30,13 @@ const router = Router();
 // then list and offer to pay. 422 (bad reference), never a 404/500.
 // client_id is NOT NULL on quotes, so an explicit null is rejected too;
 // contract_id is optional and an explicit null simply unlinks it.
-async function assertQuoteFks(body, orgId) {
+//
+// The contract must also belong to the quote's own client (the body's, or the
+// stored row's on a partial update): convert-to-invoice copies contract_id
+// onto the invoice, and paying that invoice reconnects the contract (BIL-04).
+// `existing` is the stored quote on update; when only client_id moves, the
+// stored contract is re-checked against the new client.
+async function assertQuoteFks(body, orgId, existing = null) {
   if (body.client_id !== undefined) {
     const client = body.client_id === null ? null : await Client.findById(body.client_id, orgId);
     if (!client) {
@@ -39,11 +45,15 @@ async function assertQuoteFks(body, orgId) {
       ]);
     }
   }
-  if (body.contract_id !== undefined && body.contract_id !== null) {
-    const contract = await Contract.findById(body.contract_id, orgId);
-    if (!contract) {
-      throw new ValidationError('contract_id does not belong to this organization', [
-        { field: 'contract_id', message: 'Invalid or cross-organization contract' },
+  const contractId = body.contract_id !== undefined ? body.contract_id : existing?.contract_id;
+  const checkContract = body.contract_id !== undefined || body.client_id !== undefined;
+  if (checkContract && contractId !== undefined && contractId !== null) {
+    const clientId = body.client_id !== undefined ? body.client_id : existing?.client_id;
+    const contract = await Contract.findById(contractId, orgId);
+    if (!contract || (clientId !== undefined && clientId !== null
+      && Number(contract.client_id) !== Number(clientId))) {
+      throw new ValidationError('contract_id does not belong to this client in this organization', [
+        { field: 'contract_id', message: 'Invalid, cross-organization or other-client contract' },
       ]);
     }
   }
@@ -59,7 +69,7 @@ function stripQuoteStatus(req, _res, next) {
 }
 
 const ctrl = crudController(Quote, {
-  beforeUpdate: (_old, req) => assertQuoteFks(req.body, req.orgId),
+  beforeUpdate: (old, req) => assertQuoteFks(req.body, req.orgId, old),
 });
 
 router.use(authenticate);

@@ -312,6 +312,28 @@ describe('syncFreeradiusTables — EAP-TLS subscriber with certificate', () => {
     expect(passRow.params[0]).toBe('client3@isp.net');
   });
 
+  test('rejects the account when it has no active certificate (last one revoked)', async () => {
+    const calls = setupMockDb({ subscribers: [subscriber], certs: [] });
+
+    await syncFreeradiusTables(10);
+
+    const checkRows = calls.filter(c => c.sql.includes('INSERT INTO radcheck') && c.params);
+    expect(checkRows.find(c => c.params[1] === 'TLS-Cert-Serial')).toBeUndefined();
+    const rejectRow = checkRows.find(c => c.params[1] === 'Auth-Type');
+    expect(rejectRow).toBeDefined();
+    expect(rejectRow.params).toEqual(['client3@isp.net', 'Auth-Type', ':=', 'Reject']);
+  });
+
+  test('does not reject an EAP-TLS account that has an active certificate', async () => {
+    const calls = setupMockDb({ subscribers: [subscriber], certs: [cert] });
+
+    await syncFreeradiusTables(10);
+
+    expect(calls.find(
+      c => c.sql.includes('INSERT INTO radcheck') && c.params && c.params[1] === 'Auth-Type',
+    )).toBeUndefined();
+  });
+
   test('inserts MikroTik rate-limit attribute for MikroTik vendor plan', async () => {
     const calls = setupMockDb({ subscribers: [subscriber], certs: [cert] });
 

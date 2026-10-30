@@ -202,6 +202,7 @@ describe('ODF Ports API', () => {
   describe('POST /api/fiber-plant/odf/ports', () => {
     it('creates an ODF port', async () => {
       db.query
+        .mockResolvedValueOnce([[{ id: 1 }]]) // ownership check (TNA-09)
         .mockResolvedValueOnce([{ insertId: 20 }])
         .mockResolvedValueOnce([[{ id: 20, odf_frame_id: 1, port_number: 3, port_status: 'empty' }]]);
 
@@ -241,6 +242,8 @@ describe('ODF Cross-Connects API', () => {
   describe('POST /api/fiber-plant/odf/cross-connects', () => {
     it('creates a cross-connect between two ODF ports', async () => {
       db.query
+        .mockResolvedValueOnce([[{ id: 1 }]]) // ownership check (TNA-09)
+        .mockResolvedValueOnce([[{ id: 1 }]]) // ownership check (TNA-09)
         .mockResolvedValueOnce([{ insertId: 30 }])
         .mockResolvedValueOnce([[{ id: 30, port_a_id: 1, port_b_id: 2, status: 'active' }]]);
 
@@ -290,6 +293,7 @@ describe('OTDR Tests API', () => {
   describe('POST /api/fiber-plant/otdr/tests', () => {
     it('creates an OTDR test result record', async () => {
       db.query
+        .mockResolvedValueOnce([[{ id: 1 }]]) // ownership check (TNA-09)
         .mockResolvedValueOnce([{ insertId: 7 }])
         .mockResolvedValueOnce([[{
           id: 7, test_type: 'fault_locate', fault_detected: 1,
@@ -361,6 +365,7 @@ describe('SFP Inventory API', () => {
   describe('PATCH /api/fiber-plant/sfp/:id', () => {
     it('updates SFP lifecycle status to installed', async () => {
       db.query
+        .mockResolvedValueOnce([[{ id: 1 }]]) // ownership check (TNA-09)
         .mockResolvedValueOnce([[{ id: 15 }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ id: 15, lifecycle_status: 'installed', installed_device_id: 42 }]]);

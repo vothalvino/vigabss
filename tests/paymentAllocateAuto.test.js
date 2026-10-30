@@ -170,7 +170,45 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.data.allocations[0].fully_paid).toBe(true);
-    expect(suspensionService.reconnectContract).toHaveBeenCalledWith(7, 1, 20);
+    // The contract lookup and the reconnect are bound to the caller's org and
+    // the invoice's client (BIL-04) — an invoice's contract_id alone is not
+    // proof the contract is ours.
+    const lookup = db.query.mock.calls.find(([sql]) => /FROM contracts/.test(sql));
+    expect(lookup[0]).toMatch(/organization_id <=> \? AND client_id = \?/);
+    expect(lookup[1]).toEqual([7, 1, 5, 'suspended']);
+    expect(suspensionService.reconnectContract).toHaveBeenCalledWith(7, 1, 20, { orgId: 1 });
+  });
+
+  test('a contract outside the caller org is never reconnected', async () => {
+    const conn = makeConn();
+    const inv = invoiceRow({ id: 21, contract_id: 99, total: '250.00', balance_due: '250.00' });
+
+    conn.execute
+      .mockResolvedValueOnce([[PAYMENT_ROW]])
+      .mockResolvedValueOnce([[{ allocated: 0 }]])
+      .mockResolvedValueOnce([[inv]])
+      .mockResolvedValueOnce([{ insertId: 302 }])
+      .mockResolvedValueOnce([[{ total_allocated: '250.00' }]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    db.getConnection.mockResolvedValue(conn);
+    // Like MySQL: an org-bound lookup misses another tenant's contract; an
+    // unscoped one would have found it suspended.
+    db.query.mockImplementation(async (sql) => (
+      /FROM contracts/.test(sql) && !/organization_id/.test(sql)
+        ? [[{ id: 99, status: 'suspended', organization_id: 2 }]]
+        : [[]]
+    ));
+
+    const res = await request(app)
+      .post('/api/v1/payments/1/allocate-auto')
+      .set('Authorization', AUTH)
+      .set('X-Org-Id', '1')
+      .send({});
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.allocations[0].fully_paid).toBe(true);
+    expect(suspensionService.reconnectContract).not.toHaveBeenCalled();
   });
 
   test('leftover after covering all invoices is returned as remaining_credit', async () => {

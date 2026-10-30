@@ -98,7 +98,10 @@ describe('POST /payments/:id/allocate → auto-reconnect of a suspended contract
     expect(conn.rollback).not.toHaveBeenCalled();
 
     const contractUpdate = conn.execute.mock.calls.find(([sql]) => /UPDATE contracts SET status/i.test(sql));
-    expect(contractUpdate[1]).toEqual(['active', 10]);
+    // Bound to the caller's org (BIL-04): reconnectIfSuspended now hands
+    // reconnectContract the org, so its UPDATE carries the org predicate.
+    expect(contractUpdate[1]).toEqual(['active', 10, 1]);
+    expect(contractUpdate[0]).toMatch(/organization_id = \?/);
 
     const radiusUpdate = conn.execute.mock.calls.find(([sql]) => /UPDATE radius SET status/i.test(sql));
     expect(radiusUpdate[0]).toContain("'active'");

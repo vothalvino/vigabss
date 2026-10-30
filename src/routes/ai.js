@@ -79,6 +79,20 @@ router.get('/policy', requirePermission('ai.policy.read'), async (req, res, next
  */
 router.put('/policy', requirePermission('ai.policy.write'), validate(updateAiPolicy), async (req, res, next) => {
   try {
+    // The active provider must be one of this org's own enabled providers.
+    // The FK only proves the id exists; without this an org could point its
+    // policy at another tenant's provider and run drafts, triage, portal chat
+    // and embeddings on that tenant's decrypted key and endpoint (ASY-04).
+    const providerId = req.body.active_provider_id;
+    if (providerId !== undefined && providerId !== null) {
+      const [rows] = await db.query(
+        'SELECT id FROM ai_providers WHERE id = ? AND organization_id = ? AND enabled = 1 AND deleted_at IS NULL LIMIT 1',
+        [providerId, req.orgId],
+      );
+      if (!rows.length) {
+        throw new ValidationError('active_provider_id must be an enabled AI provider of this organization');
+      }
+    }
     const policy = await AiPolicy.upsert(req.orgId, req.body);
     logger.info({ orgId: req.orgId, userId: req.user?.id }, 'AI policy updated');
     res.json({ data: policy });
@@ -361,7 +375,7 @@ router.post('/providers/:id/verify', requirePermission('ai.providers.write'), as
     const provider = await AiProvider.findById(req.params.id, req.orgId);
     if (!provider) return next(new NotFoundError('AI provider'));
 
-    const result = await llmProviderService.verify(provider.id);
+    const result = await llmProviderService.verify(provider.id, { orgId: req.orgId });
     res.json({ data: result });
   } catch (err) { next(err); }
 });
