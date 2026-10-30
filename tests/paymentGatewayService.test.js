@@ -315,6 +315,39 @@ describe('paymentGatewayService', () => {
   // =========================================================================
   // createConektaCheckoutSession — hosted payment page (order + embedded checkout)
   // =========================================================================
+  describe('createStripeCheckoutSession()', () => {
+    // WHK-03: payment_intent.* / charge.* events carry the PaymentIntent's
+    // metadata, not the session's; without the copy they could never match.
+    test('copies the metadata onto the PaymentIntent so payment_intent.* events match', async () => {
+      const https = require('https');
+      const EventEmitter = require('events');
+      const encryption = require('../src/utils/encryption');
+      const mockDecrypt = jest.spyOn(encryption, 'decrypt').mockReturnValue('sk_test');
+      const mockReq = new EventEmitter(); mockReq.write = jest.fn(); mockReq.end = jest.fn(); mockReq.destroy = jest.fn();
+      const mockRes = new EventEmitter(); mockRes.statusCode = 200;
+      const spy = jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
+        process.nextTick(() => {
+          cb(mockRes);
+          mockRes.emit('data', JSON.stringify({ id: 'cs_1', url: 'https://checkout.stripe.com/c/cs_1' }));
+          mockRes.emit('end');
+        });
+        return mockReq;
+      });
+
+      await paymentGatewayService.createStripeCheckoutSession({ secret_key_encrypted: 'enc' }, {
+        amount: 500, currency: 'MXN', description: 'Invoice INV-1', successUrl: 'https://app/ok', cancelUrl: 'https://app/no',
+        metadata: { transaction_id: 42, invoice_id: 7 },
+      });
+
+      const form = new URLSearchParams(mockReq.write.mock.calls[0][0]);
+      expect(form.get('metadata[transaction_id]')).toBe('42');
+      expect(form.get('payment_intent_data[metadata][transaction_id]')).toBe('42');
+      expect(form.get('payment_intent_data[metadata][invoice_id]')).toBe('7');
+      spy.mockRestore();
+      mockDecrypt.mockRestore();
+    });
+  });
+
   describe('createConektaCheckoutSession()', () => {
     test('POSTs an order with an embedded HostedPayment checkout and returns the hosted url', async () => {
       const https = require('https');
@@ -846,32 +879,41 @@ describe('paymentGatewayService', () => {
   // =========================================================================
   // Webhook Signature Verification — Conekta
   // =========================================================================
+  // BIL-25: Conekta signs with RSA-SHA256 (base64 DIGEST), verified with the
+  // webhook key's public key. The old cases signed with HMAC-hex, mirroring
+  // the receiver's wrong scheme, so they could not catch it.
   describe('verifyConektaSignature()', () => {
-    const secret = 'conekta_webhook_key';
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const pem = publicKey.export({ type: 'spki', format: 'pem' });
+    const sign = (body, key = privateKey) => crypto.sign('RSA-SHA256', Buffer.from(body, 'utf8'), key).toString('base64');
 
     test('returns true for valid signature', () => {
       const body = '{"id":"ord_1"}';
-      const expected = crypto.createHmac('sha256', secret).update(body, 'utf8').digest('hex');
-      expect(paymentGatewayService.verifyConektaSignature(body, expected, secret)).toBe(true);
+      expect(paymentGatewayService.verifyConektaSignature(body, sign(body), pem)).toBe(true);
     });
 
     test('returns false for invalid signature', () => {
       const body = '{"id":"ord_1"}';
-      const badSig = crypto.createHmac('sha256', 'wrong-key').update(body, 'utf8').digest('hex');
-      expect(paymentGatewayService.verifyConektaSignature(body, badSig, secret)).toBe(false);
+      const other = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+      expect(paymentGatewayService.verifyConektaSignature(body, sign(body, other.privateKey), pem)).toBe(false);
     });
 
     test('returns false for missing digest header', () => {
-      expect(paymentGatewayService.verifyConektaSignature('body', null, secret)).toBe(false);
+      expect(paymentGatewayService.verifyConektaSignature('body', null, pem)).toBe(false);
     });
 
-    test('returns false for missing secret', () => {
+    test('returns false for missing key', () => {
       expect(paymentGatewayService.verifyConektaSignature('body', 'abc', null)).toBe(false);
     });
 
-    test('returns false for non-hex digest', () => {
-      // Non-hex strings cause Buffer.from to produce unexpected output
-      expect(paymentGatewayService.verifyConektaSignature('body', 'not-hex-at-all!', secret)).toBe(false);
+    test('returns false for non-base64 digest', () => {
+      expect(paymentGatewayService.verifyConektaSignature('body', 'not-base64-at-all!', pem)).toBe(false);
+    });
+
+    test('a shared-secret string is not a usable key', () => {
+      const body = '{"id":"ord_1"}';
+      const hmac = crypto.createHmac('sha256', 'conekta_webhook_key').update(body, 'utf8').digest('hex');
+      expect(paymentGatewayService.verifyConektaSignature(body, hmac, 'conekta_webhook_key')).toBe(false);
     });
   });
 
@@ -1006,132 +1048,81 @@ describe('paymentGatewayService', () => {
   // =========================================================================
   // reconcilePayment
   // =========================================================================
+  // Rewritten for BIL-05: the old cases asserted the defective contract (flip
+  // the oldest same-amount issued invoice to 'paid', no payment row, drop the
+  // capture otherwise, swallow errors). Full behaviour is covered by
+  // tests/gatewayPaymentReconcile.test.js against a stateful fake.
   describe('reconcilePayment()', () => {
-    test('reconciles payment with matching invoice', async () => {
-      const tx = { id: 1, client_id: 10, organization_id: 42, amount: '500.00', currency: 'MXN', gateway_reference_id: 'pi_1' };
-      const invoice = { id: 100, total: '500.00' };
-
-      const mockConn = {
-        beginTransaction: jest.fn(),
-        execute: jest.fn(),
-        commit: jest.fn(),
-        rollback: jest.fn(),
-        release: jest.fn(),
+    function routeConn({ tx, invoices = [], failOn } = {}) {
+      let nextId = 500;
+      const allocated = {};
+      const conn = {
+        beginTransaction: jest.fn(), commit: jest.fn(), rollback: jest.fn(), release: jest.fn(),
+        execute: jest.fn(async (sql, params) => {
+          if (failOn && failOn.test(sql)) throw new Error('DB failure');
+          if (/FROM payment_transactions WHERE id = \? FOR UPDATE/.test(sql)) return [tx ? [tx] : []];
+          if (/FROM client_balance_ledger/.test(sql)) return [[]];
+          if (/FROM payment_gateways/.test(sql)) return [[{ provider: 'stripe' }]];
+          if (/FROM invoices i/.test(sql)) return [invoices];
+          if (/INSERT INTO payment_allocations/.test(sql)) {
+            allocated[params[1]] = (allocated[params[1]] || 0) + params[2];
+            return [{ insertId: ++nextId }];
+          }
+          if (/SUM\(amount\) AS total_allocated/.test(sql)) return [[{ total_allocated: String(allocated[params[0]] || 0) }]];
+          if (/^\s*INSERT/.test(sql)) return [{ insertId: ++nextId }];
+          return [{ affectedRows: 1 }];
+        }),
       };
-      mockConn.execute
-        .mockResolvedValueOnce([[tx]])       // SELECT transaction FOR UPDATE
-        .mockResolvedValueOnce([[invoice]])   // SELECT invoice FOR UPDATE
-        .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE invoice
-        .mockResolvedValueOnce([{ insertId: 1 }]);    // INSERT ledger
-
-      db.getConnection.mockResolvedValueOnce(mockConn);
-
-      await paymentGatewayService.reconcilePayment(1);
-
-      expect(mockConn.commit).toHaveBeenCalled();
-      expect(mockConn.release).toHaveBeenCalled();
+      db.getConnection.mockResolvedValueOnce(conn);
+      db.query.mockResolvedValue([{ affectedRows: 0 }]);
+      return conn;
+    }
+    const tx = (over = {}) => ({
+      id: 1, client_id: 10, organization_id: 42, payment_gateway_id: 3, amount: '500.00', currency: 'MXN',
+      gateway_reference_id: 'pi_1', gateway_status: 'succeeded', payment_id: null, invoice_id: null, ...over,
     });
 
-    test('rolls back when no matching invoice', async () => {
-      const tx = { id: 2, client_id: 10, organization_id: 42, amount: '500.00', currency: 'MXN' };
-
-      const mockConn = {
-        beginTransaction: jest.fn(),
-        execute: jest.fn(),
-        commit: jest.fn(),
-        rollback: jest.fn(),
-        release: jest.fn(),
-      };
-      mockConn.execute
-        .mockResolvedValueOnce([[tx]])
-        .mockResolvedValueOnce([[]]);  // no invoices
-
-      db.getConnection.mockResolvedValueOnce(mockConn);
-
-      await paymentGatewayService.reconcilePayment(2);
-
-      expect(mockConn.rollback).toHaveBeenCalled();
-      expect(mockConn.commit).not.toHaveBeenCalled();
+    test('reconciles payment with matching invoice through a payment + allocation', async () => {
+      const conn = routeConn({ tx: tx(), invoices: [{ id: 100, total: '500.00', balance_due: '500.00' }] });
+      const res = await paymentGatewayService.reconcilePayment(1);
+      expect(res.status).toBe('reconciled');
+      expect(conn.execute.mock.calls.some((c) => /INSERT INTO payments/.test(c[0]))).toBe(true);
+      expect(conn.execute.mock.calls.find((c) => /INSERT INTO payment_allocations/.test(c[0]))[1]).toEqual([res.paymentId, 100, 500]);
+      expect(conn.commit).toHaveBeenCalled();
+      expect(conn.release).toHaveBeenCalled();
     });
 
-    test('rolls back when amount does not match', async () => {
-      const tx = { id: 3, client_id: 10, organization_id: 42, amount: '500.00', currency: 'MXN' };
-      const invoice = { id: 101, total: '600.00' }; // different amount
+    test('with no payable invoice the payment is kept as client credit', async () => {
+      const conn = routeConn({ tx: tx({ id: 2 }), invoices: [] });
+      const res = await paymentGatewayService.reconcilePayment(2);
+      expect(res).toMatchObject({ status: 'reconciled', remainingCredit: 500 });
+      expect(conn.commit).toHaveBeenCalled();
+    });
 
-      const mockConn = {
-        beginTransaction: jest.fn(),
-        execute: jest.fn(),
-        commit: jest.fn(),
-        rollback: jest.fn(),
-        release: jest.fn(),
-      };
-      mockConn.execute
-        .mockResolvedValueOnce([[tx]])
-        .mockResolvedValueOnce([[invoice]]);
-
-      db.getConnection.mockResolvedValueOnce(mockConn);
-
+    test('a partial match allocates only the balance due', async () => {
+      const conn = routeConn({ tx: tx({ id: 3 }), invoices: [{ id: 101, total: '600.00', balance_due: '600.00' }] });
       await paymentGatewayService.reconcilePayment(3);
-
-      expect(mockConn.rollback).toHaveBeenCalled();
+      expect(conn.execute.mock.calls.find((c) => /INSERT INTO payment_allocations/.test(c[0]))[1][2]).toBe(500);
+      expect(conn.execute.mock.calls.some((c) => /UPDATE invoices SET status/.test(c[0]))).toBe(false);
     });
 
     test('rolls back when transaction not found', async () => {
-      const mockConn = {
-        beginTransaction: jest.fn(),
-        execute: jest.fn(),
-        commit: jest.fn(),
-        rollback: jest.fn(),
-        release: jest.fn(),
-      };
-      mockConn.execute.mockResolvedValueOnce([[]]); // no transaction
-
-      db.getConnection.mockResolvedValueOnce(mockConn);
-
-      await paymentGatewayService.reconcilePayment(999);
-
-      expect(mockConn.rollback).toHaveBeenCalled();
+      const conn = routeConn({ tx: null });
+      await expect(paymentGatewayService.reconcilePayment(999)).resolves.toEqual({ status: 'not_found' });
+      expect(conn.rollback).toHaveBeenCalled();
     });
 
-    test('handles tolerance for small rounding differences', async () => {
-      const tx = { id: 4, client_id: 10, organization_id: 42, amount: '500.005', currency: 'MXN', gateway_reference_id: 'pi_4' };
-      const invoice = { id: 102, total: '500.00' };
-
-      const mockConn = {
-        beginTransaction: jest.fn(),
-        execute: jest.fn(),
-        commit: jest.fn(),
-        rollback: jest.fn(),
-        release: jest.fn(),
-      };
-      mockConn.execute
-        .mockResolvedValueOnce([[tx]])
-        .mockResolvedValueOnce([[invoice]])
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([{ insertId: 1 }]);
-
-      db.getConnection.mockResolvedValueOnce(mockConn);
-
-      await paymentGatewayService.reconcilePayment(4);
-
-      expect(mockConn.commit).toHaveBeenCalled();
+    test('does not reconcile a transaction that already has a payment', async () => {
+      const conn = routeConn({ tx: tx({ id: 4, payment_id: 77 }) });
+      await expect(paymentGatewayService.reconcilePayment(4)).resolves.toEqual({ status: 'already_reconciled', paymentId: 77 });
+      expect(conn.execute.mock.calls.some((c) => /INSERT/.test(c[0]))).toBe(false);
     });
 
-    test('does not throw on reconciliation error (best-effort)', async () => {
-      const mockConn = {
-        beginTransaction: jest.fn(),
-        execute: jest.fn().mockRejectedValueOnce(new Error('DB failure')),
-        commit: jest.fn(),
-        rollback: jest.fn(),
-        release: jest.fn(),
-      };
-
-      db.getConnection.mockResolvedValueOnce(mockConn);
-
-      // Should not throw — reconciliation is best-effort
-      await expect(paymentGatewayService.reconcilePayment(5)).resolves.not.toThrow();
-      expect(mockConn.rollback).toHaveBeenCalled();
-      expect(mockConn.release).toHaveBeenCalled();
+    test('rethrows a reconciliation error after rolling back (retryable, not silently lost)', async () => {
+      const conn = routeConn({ tx: tx({ id: 5 }), failOn: /INSERT INTO payments/ });
+      await expect(paymentGatewayService.reconcilePayment(5)).rejects.toThrow('DB failure');
+      expect(conn.rollback).toHaveBeenCalled();
+      expect(conn.release).toHaveBeenCalled();
     });
   });
 });

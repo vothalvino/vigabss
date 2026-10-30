@@ -3,7 +3,9 @@
 // =============================================================================
 // Receives inbound webhooks from payment gateways (Stripe, Conekta).
 // These endpoints are PUBLIC (no JWT auth) — authentication is done via
-// HMAC signature verification per provider.
+// provider signature verification: Stripe HMAC-SHA256 (Stripe-Signature, with
+// the whsec_ signing secret), Conekta RSA-SHA256 (base64 DIGEST header,
+// verified with the webhook key's public key PEM).
 //
 // Two shapes per provider:
 //   POST /api/payment-webhooks/stripe            — global receiver; signing
@@ -37,9 +39,14 @@ const PROVIDERS = {
     verify: (b, h, s) => paymentGatewayService.verifyStripeSignature(b, h, s),
   },
   conekta: {
+    // Conekta signs with RSA (no shared secret): the configured value is the
+    // webhook key's PUBLIC key PEM (POST /webhook_keys → public_key). A value
+    // that is not an RSA public key (e.g. an old HMAC secret) can never verify
+    // anything, so it counts as not configured (503), never as a 401 storm.
     envVarName: 'CONEKTA_WEBHOOK_KEY',
     sigHeaderName: 'digest',
-    verify: (b, h, s) => paymentGatewayService.verifyConektaSignature(b, h, s),
+    resolveSecret: (s) => paymentGatewayService.parseConektaPublicKey(s),
+    verify: (b, h, key) => paymentGatewayService.verifyConektaSignature(b, h, key),
   },
 };
 
@@ -99,11 +106,21 @@ function sendError(res, e) {
 // Shared processing once the signing secret (and optional tenant) are resolved.
 async function processWebhook(req, res, { provider, secret, organizationId, configHint }) {
   const cfg = PROVIDERS[provider];
+  let verifier = secret;
+  if (secret && cfg.resolveSecret) {
+    verifier = cfg.resolveSecret(secret);
+    if (!verifier) {
+      logger.error(
+        { provider },
+        `${provider} webhook key is set but is not an RSA public key PEM — treating as not configured. Paste the public_key returned by Conekta's POST /webhook_keys.`,
+      );
+    }
+  }
   // Verify over the raw body for a byte-exact match with the provider.
   const rawBody = req.rawBody || JSON.stringify(req.body);
   const authErr = webhookAuthError({
     provider,
-    secret,
+    secret: verifier,
     configHint,
     rawBody,
     sigHeader: req.headers[cfg.sigHeaderName],

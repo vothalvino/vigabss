@@ -139,6 +139,70 @@ async function getInvoicesWithBalance(exec, orgId, clientId, invoiceIds, forUpda
   return rows;
 }
 
+/**
+ * Apply up to `amount` of a payment across the given invoice rows, oldest
+ * first (the rows' order), inside the caller's open transaction. Each invoice
+ * receives min(remainder, live balance_due); a fully covered invoice is
+ * finalized paid. Whatever is left stays as unallocated credit on the
+ * payment. Shared by POST /payments/:id/allocate-auto (staff) and gateway
+ * reconciliation (paymentGatewayService.reconcilePayment) so both post money
+ * the same way.
+ *
+ * A second live allocation of the same payment to the same invoice (the
+ * soft-delete-aware UNIQUE, migration 361) is skipped. Any other error,
+ * including the over-allocation guard trigger (SQLSTATE 45000), is rethrown
+ * for the caller to map and roll back.
+ *
+ * @param {Function} exec - bound query function on the open transaction
+ * @param {object} params
+ * @param {number} params.paymentId
+ * @param {number|string} params.amount - the payment's unallocated remainder
+ * @param {object[]} params.invoices - rows from getInvoicesWithBalance(..., forUpdate=true)
+ * @returns {Promise<{allocations: object[], justPaidInvoices: object[], remainder: number}>}
+ */
+async function allocateAcrossInvoices(exec, { paymentId, amount, invoices }) {
+  let remainder = Math.round(Number(amount) * 100) / 100;
+  const allocations = [];
+  const justPaidInvoices = [];
+  for (const invoice of invoices) {
+    if (remainder <= 0) break;
+
+    const balanceDue = Math.max(0, Math.round(Number(invoice.balance_due) * 100) / 100);
+    if (balanceDue <= 0) continue; // already fully covered — skip, don't insert a zero row
+
+    const applyAmount = Math.round(Math.min(remainder, balanceDue) * 100) / 100;
+    if (applyAmount <= 0) continue;
+
+    let insertResult;
+    try {
+      [insertResult] = await exec(
+        'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
+        [paymentId, invoice.id, applyAmount],
+      );
+    } catch (allocErr) {
+      // Already allocated live from this payment (e.g. allocate-auto called
+      // twice with overlapping invoice_ids): the earlier row covers it.
+      if (allocErr.code === 'ER_DUP_ENTRY' || allocErr.errno === 1062) continue;
+      throw allocErr;
+    }
+
+    allocations.push({
+      id: insertResult.insertId, payment_id: paymentId, invoice_id: invoice.id,
+      invoice_number: invoice.invoice_number, amount: applyAmount,
+    });
+    remainder = Math.round((remainder - applyAmount) * 100) / 100;
+
+    const becamePaid = await finalizeIfFullyPaid(exec, invoice);
+    if (becamePaid) justPaidInvoices.push(invoice);
+  }
+  return { allocations, justPaidInvoices, remainder };
+}
+
+/** True for the over-allocation guard trigger's SIGNAL (migration 126). */
+function isOverAllocationError(err) {
+  return Boolean(err) && (err.sqlState === '45000' || err.errno === 1644);
+}
+
 module.exports = {
   PAYABLE_STATUSES,
   isPaymentSettled,
@@ -146,4 +210,6 @@ module.exports = {
   finalizeIfFullyPaid,
   reconnectIfSuspended,
   getInvoicesWithBalance,
+  allocateAcrossInvoices,
+  isOverAllocationError,
 };

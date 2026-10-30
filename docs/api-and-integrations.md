@@ -49,10 +49,26 @@ The following event types are dispatched to registered webhooks:
 ### Inbound Payment-Provider Webhooks (Stripe / Conekta)
 
 These are webhooks VigaBSS **receives** from a payment processor to auto-reconcile
-payments (mark invoices paid, record refunds/disputes). They are **public**
-endpoints authenticated by the provider's **HMAC signature** — never by a JWT.
-The receiver **fails closed**: if it can't verify a request, it rejects it rather
-than trusting it.
+payments and record refunds/disputes. They are **public** endpoints authenticated
+by the provider's **signature** — never by a JWT: Stripe signs with HMAC-SHA256
+(the `whsec_…` signing secret), Conekta signs with RSA-SHA256 (base64 `DIGEST`
+header, verified with your webhook key's **public key**). The receiver **fails
+closed**: if it can't verify a request, it rejects it rather than trusting it.
+
+**What a successful payment does.** When the provider reports a capture, VigaBSS
+creates a `completed` payment (method and SAT forma de pago taken from the
+provider, reference = the gateway id), credits the client ledger, and applies it
+exactly like **Payments → Allocate**: to the invoice the customer paid when the
+transaction has one, otherwise to the client's open invoices oldest first. A
+fully covered invoice is marked paid, a suspended contract on it is reconnected,
+pending charge retries for it are cancelled and, for an invoice with a PPD CFDI,
+the REP (Complemento de Pago) is generated. Any excess stays on the account as
+credit. The payment appears in the Payments list, the client's portal history
+and the revenue reports. Each capture posts once, however many events arrive
+for it. If posting fails, the webhook answers `500` so the provider retries, and
+the `reconcile_gateway_payments` scheduled task (every 15 minutes) posts any
+succeeded transaction still missing a payment. A provider refund marks the
+payment refunded, releases its allocations and re-opens those invoices.
 
 Two receiver shapes per provider:
 
@@ -68,11 +84,35 @@ Two receiver shapes per provider:
 2. Re-open the gateway. Copy the **Webhook URL** shown on the form
    (`https://<your-host>/api/v1/payment-webhooks/stripe/<gatewayId>`).
 3. In the Stripe dashboard → Developers → Webhooks → add an endpoint with that
-   URL. Subscribe to at least `payment_intent.succeeded`,
-   `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`.
+   URL and subscribe to **all** of these events:
+
+   | Event | Needed for |
+   |---|---|
+   | `checkout.session.completed` | Portal and payment-link card payments (Stripe Checkout), **and** autopay card enrollment (setup mode). Without it these payments never reconcile. |
+   | `checkout.session.async_payment_succeeded` | Checkout payments with delayed methods (for example OXXO) |
+   | `checkout.session.async_payment_failed` | Same, when the delayed payment fails |
+   | `checkout.session.expired` | Abandoned Checkout sessions (marks the pending attempt failed) |
+   | `payment_intent.succeeded` | Autopay / off-session charges (and a backup match for Checkout) |
+   | `payment_intent.payment_failed` | Failed autopay charges (drives the retry queue) |
+   | `charge.refunded` | Refunds made in the Stripe dashboard (full refunds only) |
+   | `charge.dispute.created` | Chargebacks |
+
 4. Stripe shows a signing secret (`whsec_…`). Paste it into the gateway's
    **Webhook Secret** field in Settings and save.
 5. Send a test event from Stripe; it should return `200 {received:true}`.
+
+**Conekta setup.** Conekta does not use a shared secret. Create a webhook key
+once with `POST https://api.conekta.io/webhook_keys` (body `{"active": true}`,
+authenticated with your private API key). The response contains `public_key`, a
+PEM block (`-----BEGIN PUBLIC KEY----- …`). Paste that whole PEM into the Conekta
+gateway's **Webhook Secret** field (per-gateway URL
+`/api/v1/payment-webhooks/conekta/<gatewayId>`), or set it as
+`CONEKTA_WEBHOOK_KEY` for the global URL (one line with `\n` escapes is
+accepted). Subscribe the Conekta webhook to `order.paid`, `order.payment_failed`,
+`charge.refunded` and `charge.chargeback.created`. A value that is not an RSA
+public key (for example an old HMAC secret) is treated as not configured and the
+endpoint answers `503`. Verification is built from Conekta's published sample;
+confirm it once with a real sandbox event before going live.
 
 **Responses:** `200` accepted · `400 WEBHOOK_INVALID_PAYLOAD` (malformed body) ·
 `401 WEBHOOK_SIGNATURE_INVALID` (bad signature) · `404 WEBHOOK_GATEWAY_NOT_FOUND`

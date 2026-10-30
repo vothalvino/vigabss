@@ -892,11 +892,16 @@ function calculateProration({ oldPrice, newPrice, changeDate, periodStart, perio
 
 /**
  * Record a payment and update client balance.
+ *
+ * @param {object} payment
+ * @param {number|null} orgId
+ * @param {Function} [exec] - bound query function; pass `conn.execute.bind(conn)`
+ *   to write the credit inside the caller's transaction (gateway reconcile).
  */
-async function recordPaymentCredit(payment, orgId) {
+async function recordPaymentCredit(payment, orgId, exec = db.query.bind(db)) {
   logger.info({ paymentId: payment.id, clientId: payment.client_id, amount: payment.amount }, 'Recording payment credit');
   const currency = payment.currency || await Organization.getCurrency(orgId);
-  await db.query(
+  await exec(
     `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
      VALUES (?, ?, 'credit', ?, ?, 'payment', ?, ?)`,
     [payment.client_id, orgId, payment.amount, currency, payment.id, 'Payment ' + (payment.reference_number || payment.id)],

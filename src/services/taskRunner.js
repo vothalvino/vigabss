@@ -57,7 +57,7 @@ const ORGANIZATION_SCOPED_TASK_NAMES = new Set([
   'inventory_low_stock_check', 'data_retention_compliance_check',
   'anomaly_detection', 'churn_score_computation', 'remediation_evaluation',
   'ai_support_metrics_rollup', 'rollover_balance_accrue', 'apply_speed_windows',
-  'poll_pppoe_events',
+  'poll_pppoe_events', 'reconcile_gateway_payments',
 ]);
 
 const PPPoE_EVENT_POLL_TASK = 'poll_pppoe_events';
@@ -269,6 +269,11 @@ async function runTask(taskName, organizationId = null) {
       return checkoutService.processRecurringCharges(organizationId);
     case 'retry_failed_charges':
       return paymentRetryService.processPendingRetries(organizationId);
+    // Migration 472: retry path for gateway captures that never became a
+    // payment (failed reconcile / missed webhook). Seeded install-wide; with no
+    // org it fans out over every active org, isolated tenants included.
+    case 'reconcile_gateway_payments':
+      return require('./paymentGatewayService').reconcileOutstandingTransactions(organizationId);
     case 'data_retention':
       return retentionService.runGeneral();
     case 'database_backup':

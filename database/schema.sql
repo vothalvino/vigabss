@@ -7955,6 +7955,23 @@ VALUES
      NULL);
 
 -- ---------------------------------------------------------------------------
+-- Seed: gateway payment reconciliation retry sweep (migration 472)
+-- ---------------------------------------------------------------------------
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, description, cron_expression, is_enabled, priority)
+SELECT NULL,
+       'reconcile_gateway_payments',
+       'Post succeeded gateway transactions that have no payment yet (retry of failed or missed reconciliation)',
+       '*/15 * * * *',
+       TRUE,
+       'high'
+  FROM DUAL
+ WHERE NOT EXISTS (
+   SELECT 1 FROM scheduled_tasks
+    WHERE task_name = 'reconcile_gateway_payments' AND organization_id IS NULL
+ );
+
+-- ---------------------------------------------------------------------------
 -- Seed: billing cycle orchestrator scheduled task (migration 155)
 -- ---------------------------------------------------------------------------
 INSERT IGNORE INTO scheduled_tasks

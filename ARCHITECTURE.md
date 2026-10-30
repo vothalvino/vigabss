@@ -367,7 +367,22 @@ nothing; a note created already issued/applied and the refund path
 inserts the note) post at creation. A posted note cannot return to draft,
 `cancelled` is terminal, and cancelling or deleting a note with a live CFDI de
 Egreso is refused until the CFDI is cancelled. `billing_adjustments` is an
-audit record and feeds no balance. Ledger history is corrected by appending
+audit record and feeds no balance.
+
+A succeeded gateway capture is money like any other payment:
+`paymentGatewayService.reconcilePayment` posts one `completed` `payments` row,
+links it through `payment_transactions.payment_id` (set in the same transaction,
+under the transaction row lock, which is also the idempotency guard), writes the
+ledger credit with `billingService.recordPaymentCredit`, and allocates through
+`paymentAllocationService.allocateAcrossInvoices`, the same waterfall as
+`POST /payments/:id/allocate-auto`; reconnect, retry cancellation and REP
+generation run after commit. A succeeded transaction with `payment_id IS NULL`
+is unposted money: reconcile throws on failure (the webhook answers 500 and the
+redelivered failed event is reprocessed) and the install-wide
+`reconcile_gateway_payments` task sweeps the rest. Rows reconciled before
+migration 472 carry a `payment_transaction` ledger credit and no payment, and
+are skipped. Stripe webhooks use the HMAC signing secret; Conekta webhooks are
+RSA-SHA256 verified against the webhook key's public key PEM. Ledger history is corrected by appending
 compensating rows, not by editing old ones.
 
 `pnpm run sql:check` statically checks resolvable SQL in `src/` against

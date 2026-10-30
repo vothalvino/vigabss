@@ -250,4 +250,4 @@ async function maybeGenerateRep(paymentId, invoiceId, allocatedAmount, orgId, us
   }
 }
 
-module.exports = { generateRepForAllocation, maybeGenerateRep };
+module.exports = { generateRepForAllocation, maybeGenerateRep, FORMA_PAGO_BY_METHOD };
