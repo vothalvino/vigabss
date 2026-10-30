@@ -43,7 +43,7 @@ describe('thermalReceiptService', () => {
         .mockResolvedValueOnce([mockInvoice])
         .mockResolvedValueOnce([mockItems]);
 
-      const text = await thermalReceiptService.generateInvoiceThermalReceipt(1);
+      const text = await thermalReceiptService.generateInvoiceThermalReceipt(1, { orgId: 1 });
       expect(typeof text).toBe('string');
       expect(text).toContain('INV-000001');
       expect(text).toContain('Test ISP');
@@ -55,7 +55,7 @@ describe('thermalReceiptService', () => {
         .mockResolvedValueOnce([mockInvoice])
         .mockResolvedValueOnce([mockItems]);
 
-      const text = await thermalReceiptService.generateInvoiceThermalReceipt(1, { width: 32 });
+      const text = await thermalReceiptService.generateInvoiceThermalReceipt(1, { width: 32, orgId: 1 });
       // No line should exceed 32 chars (except for the trailing newline)
       const lines = text.split('\n').filter(l => l !== '');
       const tooLong = lines.filter(l => l.length > 32);
@@ -64,7 +64,7 @@ describe('thermalReceiptService', () => {
 
     it('throws when invoice not found', async () => {
       db.query.mockResolvedValueOnce([[]]); // empty result
-      await expect(thermalReceiptService.generateInvoiceThermalReceipt(999)).rejects.toThrow('Invoice not found');
+      await expect(thermalReceiptService.generateInvoiceThermalReceipt(999, { orgId: 1 })).rejects.toThrow('Invoice not found');
     });
 
     it('includes TOTAL line with currency', async () => {
@@ -72,7 +72,7 @@ describe('thermalReceiptService', () => {
         .mockResolvedValueOnce([mockInvoice])
         .mockResolvedValueOnce([mockItems]);
 
-      const text = await thermalReceiptService.generateInvoiceThermalReceipt(1);
+      const text = await thermalReceiptService.generateInvoiceThermalReceipt(1, { orgId: 1 });
       expect(text).toContain('MXN 116.00');
     });
   });
@@ -106,7 +106,7 @@ describe('thermalReceiptService', () => {
         .mockResolvedValueOnce([mockPayment])
         .mockResolvedValueOnce([mockAllocs]);
 
-      const text = await thermalReceiptService.generatePaymentThermalReceipt(5);
+      const text = await thermalReceiptService.generatePaymentThermalReceipt(5, { orgId: 1 });
       expect(typeof text).toBe('string');
       expect(text).toContain('Bob Jones');
       expect(text).toContain('MXN 116.00');
@@ -115,7 +115,7 @@ describe('thermalReceiptService', () => {
 
     it('throws when payment not found', async () => {
       db.query.mockResolvedValueOnce([[]]); // empty result
-      await expect(thermalReceiptService.generatePaymentThermalReceipt(999)).rejects.toThrow('Payment not found');
+      await expect(thermalReceiptService.generatePaymentThermalReceipt(999, { orgId: 1 })).rejects.toThrow('Payment not found');
     });
 
     it('handles no allocations gracefully', async () => {
@@ -123,7 +123,7 @@ describe('thermalReceiptService', () => {
         .mockResolvedValueOnce([mockPayment])
         .mockResolvedValueOnce([[]]); // no allocations
 
-      const text = await thermalReceiptService.generatePaymentThermalReceipt(5);
+      const text = await thermalReceiptService.generatePaymentThermalReceipt(5, { orgId: 1 });
       expect(text).not.toContain('Applied to invoices');
     });
   });

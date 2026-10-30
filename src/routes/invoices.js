@@ -970,7 +970,7 @@ router.get('/:id/receipt', requirePermission('invoices.view'), async (req, res, 
     const width = widthStr === '58' ? 32 : 48; // 58mm → 32 chars, 80mm → 48 chars (default)
     const text = await thermalReceiptService.generateInvoiceThermalReceipt(
       parseInt(req.params.id, 10),
-      { width },
+      { width, orgId: req.orgId },
     );
     res.set('Content-Type', 'text/plain; charset=utf-8');
     res.send(text);
@@ -1003,7 +1003,7 @@ router.post('/:id/send-email', requirePermission('invoices.view'), async (req, r
     if (!invoice.client_email) return res.status(422).json({ error: { code: 'NO_EMAIL', message: 'Client has no email address' } });
 
     const locale = req.query.locale || 'en';
-    const buffer = await pdfService.generateInvoicePdf(invoiceId, { locale });
+    const buffer = await pdfService.generateInvoicePdf(invoiceId, { locale, orgId: req.orgId });
 
     const [itemRows] = await db.query(
       'SELECT description, amount FROM invoice_items WHERE invoice_id = ? AND deleted_at IS NULL',

@@ -14,6 +14,7 @@ jest.mock('../src/models/User');
 
 jest.mock('../src/services/refundRequestService', () => ({
   createRequest: jest.fn(),
+  updateRequest: jest.fn(),
   reviewRequest: jest.fn(),
   processRequest: jest.fn(),
 }));
@@ -158,5 +159,20 @@ describe('POST /api/v1/refund-requests/:id/process', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('processed');
+  });
+});
+
+describe('PUT /api/v1/refund-requests/:id', () => {
+  test('goes through the service with status/reviewer/processing keys stripped', async () => {
+    mockAuthUser();
+    refundRequestService.updateRequest.mockResolvedValue({ ...MOCK_REQUEST, amount: '90.00' });
+
+    const res = await request(app)
+      .put('/api/v1/refund-requests/1')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ amount: 90, status: 'approved', reviewed_by: 7, refund_method: 'original_method' });
+
+    expect(res.status).toBe(200);
+    expect(refundRequestService.updateRequest).toHaveBeenCalledWith(1, 1, { amount: 90 });
   });
 });

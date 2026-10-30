@@ -16,6 +16,7 @@ const {
   processRefundRequestSchema,
 } = require('../middleware/schemas/refundRequests');
 const refundRequestService = require('../services/refundRequestService');
+const { AppError } = require('../utils/errors');
 
 const router = Router();
 const ctrl = crudController(RefundRequest);
@@ -43,10 +44,20 @@ router.post('/', requirePermission('refund_requests.create'), validate(createRef
   }
 });
 
-// Update non-status fields
-router.put('/:id', requirePermission('refund_requests.create'), validate(updateRefundRequestSchema), async (req, res, next) => {
+// A refund request can never be moved to another organization. Checked before
+// validate() strips undeclared keys so the caller gets an explicit refusal.
+function rejectOrgReassignment(req, _res, next) {
+  if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'organization_id')) {
+    return next(new AppError('A refund request cannot be moved to another organization.', 422, 'ORG_IMMUTABLE'));
+  }
+  next();
+}
+
+// Update non-status fields (open requests only; unknown keys are stripped so
+// status, reviewer and processing fields cannot be mass-assigned)
+router.put('/:id', requirePermission('refund_requests.create'), rejectOrgReassignment, validate(updateRefundRequestSchema, { strip: true }), async (req, res, next) => {
   try {
-    const updated = await RefundRequest.update(req.params.id, req.body, req.orgId);
+    const updated = await refundRequestService.updateRequest(req.orgId, parseInt(req.params.id, 10), req.body);
     res.json({ data: updated });
   } catch (err) {
     next(err);

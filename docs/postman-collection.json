@@ -6794,39 +6794,6 @@
           "response": []
         },
         {
-          "name": "Allocate payment to invoices",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/billing/allocate-payment",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "billing",
-                "allocate-payment"
-              ]
-            },
-            "description": "Allocate payment to invoices",
-            "body": {
-              "mode": "raw",
-              "raw": "{}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
           "name": "Bulk generate invoices for all active contracts",
           "request": {
             "method": "POST",

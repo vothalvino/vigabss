@@ -38,8 +38,7 @@
 // =============================================================================
 
 const { WebSocketServer, WebSocket } = require('ws');
-const jwt = require('jsonwebtoken');
-const config = require('../config');
+const { verifyStaffAccessToken } = require('../utils/accessTokens');
 const logger = require('../utils/logger').child({ service: 'wsHub' });
 const { registerWebSocketRoute } = require('./websocketUpgradeRouter');
 const {
@@ -258,7 +257,8 @@ class WsHub {
 
     let payload;
     try {
-      payload = jwt.verify(token, config.jwt.secret, { algorithms: [config.jwt.algorithm] });
+      // Staff hub only: subscriber-portal tokens must not join the org feed.
+      payload = verifyStaffAccessToken(token);
     } catch (_err) {
       ws.send(JSON.stringify({ type: 'auth_fail', reason: 'Invalid or expired token' }));
       ws.close(4003, 'Invalid token');
