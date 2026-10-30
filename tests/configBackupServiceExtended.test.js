@@ -196,27 +196,39 @@ describe('pullBackupWithDiff', () => {
 describe('deployConfigTemplate', () => {
   afterEach(() => jest.clearAllMocks());
 
-  test('renders template with variables and creates deployment record', async () => {
-    tunnelServer.isConnected.mockReturnValue(false);
+  // Contract change (NET-09): there is no device push mechanism, so a deploy
+  // renders the template and records 'pending' (never 'success'), returning the
+  // rendered config for manual application. Lookups now take the caller's org.
+  test('renders template with variables and records a pending, not-pushed deployment', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, organization_id: 5, template_content: 'hostname {{hostname}}', status: 'active' }]])
-      .mockResolvedValueOnce([[{ id: 10, firerelay_node_id: null }]])
+      .mockResolvedValueOnce([[{ id: 10 }]])
       .mockResolvedValueOnce([{ insertId: 20 }]);
-    const record = await deployConfigTemplate(1, 10, { hostname: 'Router1' }, 99);
+    const record = await deployConfigTemplate(1, 10, { hostname: 'Router1' }, 99, 5);
     expect(record.id).toBe(20);
-    expect(record.status).toBe('success');
+    expect(record.status).toBe('pending');
+    expect(record.push_performed).toBe(false);
+    expect(record.rendered_config).toBe('hostname Router1');
     expect(db.query.mock.calls[2][0]).toContain('INSERT INTO config_deployment_records');
+    expect(db.query.mock.calls[2][1]).toContain('pending');
+    expect(db.query.mock.calls[2][1]).not.toContain('success');
+    expect(tunnelServer.sendCommand).not.toHaveBeenCalled();
   });
 
-  test('throws when template not found', async () => {
+  test('throws NotFoundError when template not found', async () => {
     db.query.mockResolvedValueOnce([[]]);
-    await expect(deployConfigTemplate(999, 1, {}, 1)).rejects.toThrow('not found');
+    await expect(deployConfigTemplate(999, 1, {}, 1, 5)).rejects.toThrow(NotFoundError);
   });
 
-  test('throws when device not found', async () => {
+  test('throws NotFoundError when device not found', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, organization_id: 5, template_content: 'x', status: 'active' }]])
       .mockResolvedValueOnce([[]]); // device not found
-    await expect(deployConfigTemplate(1, 999, {}, 1)).rejects.toThrow('not found');
+    await expect(deployConfigTemplate(1, 999, {}, 1, 5)).rejects.toThrow(NotFoundError);
+  });
+
+  test('refuses an unscoped call with no orgId', async () => {
+    await expect(deployConfigTemplate(1, 10, {}, 1)).rejects.toThrow(/requires an orgId/);
+    expect(db.query).not.toHaveBeenCalled();
   });
 });

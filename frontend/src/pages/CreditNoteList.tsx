@@ -77,6 +77,19 @@ interface CreditNoteBody {
 const DEFAULT_PAGE_SIZE = 25;
 const STATUSES = ['draft', 'issued', 'applied', 'cancelled'];
 const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
+
+/**
+ * Statuses the edit form may offer for a note currently in `current`. Mirrors
+ * the backend transition guard (CREDIT_NOTE_STATUS_TRANSITION): an issued or
+ * applied note has posted its ledger credit and cannot go back to draft, and
+ * cancelled is terminal. A new note (no current status) may start anywhere.
+ */
+export function allowedCreditNoteStatuses(current?: string | null): string[] {
+  if (!current) return STATUSES;
+  if (current === 'cancelled') return ['cancelled'];
+  if (current === 'draft') return STATUSES;
+  return STATUSES.filter(s => s !== 'draft');
+}
 const REASONS = [
   'billing_error',
   'service_interruption',
@@ -450,7 +463,7 @@ export function CreditNoteModal({ creditNote, clients, onClose, onSaved, lockedC
           <label style={modalStyles.label}>
             Status
             <select style={modalStyles.select} value={form.status} onChange={e => setField('status', e.target.value)}>
-              {STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
+              {allowedCreditNoteStatuses(creditNote?.status).map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
             </select>
           </label>
 

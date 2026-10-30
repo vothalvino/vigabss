@@ -51,13 +51,16 @@ beforeEach(() => {
 });
 
 describe('POST /api/v1/credit-notes — currency defaulting', () => {
+  // These notes are created already 'issued' so the create-time ledger credit
+  // (whose currency is asserted) is posted: since migration 465 a draft posts
+  // nothing until it is issued.
   test('defaults to the linked invoice\'s own currency when invoice_id is given', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
       if (sql.includes('FROM invoices WHERE id')) return Promise.resolve([[{ currency: 'MXN' }]]);
       if (sql.includes('INSERT INTO `credit_notes`') || sql.includes('INSERT INTO credit_notes')) return Promise.resolve([{ insertId: 5 }]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
-        return Promise.resolve([[{ id: 5, client_id: 9, invoice_id: 7, total: '100.00', currency: 'MXN', credit_note_number: 'CN-0001' }]]);
+        return Promise.resolve([[{ id: 5, client_id: 9, invoice_id: 7, total: '100.00', currency: 'MXN', credit_note_number: 'CN-0001', status: 'issued' }]]);
       }
       if (sql.includes('INSERT INTO client_balance_ledger')) return Promise.resolve([{ insertId: 1 }]);
       return Promise.resolve([[]]);
@@ -66,7 +69,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
     const res = await request(app)
       .post('/api/v1/credit-notes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ client_id: 9, invoice_id: 7, total: 100 });
+      .send({ client_id: 9, invoice_id: 7, total: 100, status: 'issued' });
 
     expect(res.status).toBe(201);
     const ledgerInsert = db.query.mock.calls.find((c) => c[0].includes('INSERT INTO client_balance_ledger'));
@@ -82,7 +85,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
       if (sql.includes('FROM organizations')) return Promise.resolve([[{ currency: 'MXN' }]]);
       if (sql.includes('INSERT INTO `credit_notes`') || sql.includes('INSERT INTO credit_notes')) return Promise.resolve([{ insertId: 6 }]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
-        return Promise.resolve([[{ id: 6, client_id: 9, invoice_id: null, total: '50.00', currency: 'MXN', credit_note_number: 'CN-0002' }]]);
+        return Promise.resolve([[{ id: 6, client_id: 9, invoice_id: null, total: '50.00', currency: 'MXN', credit_note_number: 'CN-0002', status: 'issued' }]]);
       }
       if (sql.includes('INSERT INTO client_balance_ledger')) return Promise.resolve([{ insertId: 2 }]);
       return Promise.resolve([[]]);
@@ -91,7 +94,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
     const res = await request(app)
       .post('/api/v1/credit-notes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ client_id: 9, total: 50 });
+      .send({ client_id: 9, total: 50, status: 'issued' });
 
     expect(res.status).toBe(201);
     const ledgerInsert = db.query.mock.calls.find((c) => c[0].includes('INSERT INTO client_balance_ledger'));
@@ -103,7 +106,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
       if (sql.includes('INSERT INTO `credit_notes`') || sql.includes('INSERT INTO credit_notes')) return Promise.resolve([{ insertId: 7 }]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
-        return Promise.resolve([[{ id: 7, client_id: 9, invoice_id: 7, total: '100.00', currency: 'EUR', credit_note_number: 'CN-0003' }]]);
+        return Promise.resolve([[{ id: 7, client_id: 9, invoice_id: 7, total: '100.00', currency: 'EUR', credit_note_number: 'CN-0003', status: 'issued' }]]);
       }
       if (sql.includes('INSERT INTO client_balance_ledger')) return Promise.resolve([{ insertId: 3 }]);
       return Promise.resolve([[]]);
@@ -112,7 +115,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
     const res = await request(app)
       .post('/api/v1/credit-notes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ client_id: 9, invoice_id: 7, total: 100, currency: 'EUR' });
+      .send({ client_id: 9, invoice_id: 7, total: 100, currency: 'EUR', status: 'issued' });
 
     expect(res.status).toBe(201);
     expect(db.query.mock.calls.some((c) => c[0].includes('FROM invoices WHERE id'))).toBe(false);

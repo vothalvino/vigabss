@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { CreditNoteList, CreditNoteModal, splitCreditAmount } from '../CreditNoteList';
+import { CreditNoteList, CreditNoteModal, allowedCreditNoteStatuses, splitCreditAmount } from '../CreditNoteList';
 
 const mockApiGet = vi.fn();
 const mockApiPost = vi.fn();
@@ -283,5 +283,18 @@ describe('splitCreditAmount', () => {
         expect(Number((s.subtotal + s.tax).toFixed(2))).toBe(s.total);
       }
     }
+  });
+});
+
+describe('allowedCreditNoteStatuses (mirrors the backend transition guard)', () => {
+  it('lets a new or draft note take any status', () => {
+    expect(allowedCreditNoteStatuses()).toEqual(['draft', 'issued', 'applied', 'cancelled']);
+    expect(allowedCreditNoteStatuses('draft')).toEqual(['draft', 'issued', 'applied', 'cancelled']);
+  });
+
+  it('never offers draft once the note has posted, and keeps cancelled terminal', () => {
+    expect(allowedCreditNoteStatuses('issued')).toEqual(['issued', 'applied', 'cancelled']);
+    expect(allowedCreditNoteStatuses('applied')).toEqual(['issued', 'applied', 'cancelled']);
+    expect(allowedCreditNoteStatuses('cancelled')).toEqual(['cancelled']);
   });
 });

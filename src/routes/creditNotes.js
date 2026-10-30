@@ -5,6 +5,7 @@
 const { Router } = require('express');
 const CreditNote = require('../models/CreditNote');
 const Organization = require('../models/Organization');
+const ClientBalanceLedger = require('../models/ClientBalanceLedger');
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
@@ -18,7 +19,7 @@ const { AppError, NotFoundError } = require('../utils/errors');
 const db = require('../config/database');
 
 // Header-amounts consistency: a credit note's total drives the client balance
-// (POST writes a client_balance_ledger credit) and the CFDI de Egreso, but the
+// (an issued note posts a client_balance_ledger credit) and the CFDI de Egreso, but the
 // three amount columns were accepted unvalidated — an inconsistent note
 // (subtotal + tax ≠ total) polluted the books at create and only failed later,
 // at stamp time. Reject it at the door. Fires only when both subtotal and total
@@ -78,6 +79,66 @@ function sameValue(a, b) {
   return String(a) === String(b);
 }
 
+// ---------------------------------------------------------------------------
+// Balance-ledger posting
+// ---------------------------------------------------------------------------
+// A credit note stands on the client's account only once it is issued: the
+// statuses below are exactly the ones clientBalanceService counts. A draft is
+// still being prepared and posts NOTHING to client_balance_ledger; the
+// draft -> issued/applied transition posts the note's final total, once.
+const POSTED_STATUSES = new Set(['issued', 'applied']);
+
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+/**
+ * Bring this credit note's net ledger credit to exactly its total.
+ *
+ * Net-aware rather than a blind INSERT: a draft created before the
+ * issue-time contract may still carry its create-time credit (migration 465
+ * reverses those, but this keeps a stray one from being doubled). The row
+ * lock the caller holds on credit_notes serializes concurrent issues, so the
+ * second one sees the first one's entry and posts nothing.
+ */
+async function postCreditNoteLedger(exec, note, orgId) {
+  if (!note.client_id) return;
+  const [rows] = await exec(
+    `SELECT COALESCE(SUM(${ClientBalanceLedger.signedAmountSql}), 0) AS net
+       FROM client_balance_ledger
+      WHERE reference_type = 'credit_note' AND reference_id = ?
+        AND client_id = ? AND organization_id <=> ?`,
+    [note.id, note.client_id, orgId],
+  );
+  // Signed sum is positive for debits, so the credit already posted is -net.
+  const alreadyCredited = round2(-(Number(rows?.[0]?.net) || 0));
+  const diff = round2(round2(note.total) - alreadyCredited);
+  if (Math.abs(diff) < 0.005) return;
+  await exec(
+    `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
+     VALUES (?, ?, ?, ?, ?, 'credit_note', ?, ?)`,
+    [note.client_id, orgId, diff > 0 ? 'credit' : 'debit', Math.abs(diff), note.currency,
+      note.id, `Credit Note ${note.credit_note_number || note.id}`],
+  );
+}
+
+/**
+ * Status changes that would post twice or leave the ledger stranded are
+ * refused. A posted (issued/applied) note never goes back to draft — drafts
+ * carry no ledger entry and there is no reversal on the way back — and a
+ * cancelled note is terminal.
+ */
+function assertStatusTransition(oldStatus, newStatus) {
+  if (newStatus === undefined || newStatus === null || newStatus === oldStatus) return;
+  if (oldStatus === 'cancelled' || (newStatus === 'draft' && oldStatus !== 'draft')) {
+    throw new AppError(
+      `A credit note cannot move from '${oldStatus}' to '${newStatus}'.`,
+      422, 'CREDIT_NOTE_STATUS_TRANSITION',
+    );
+  }
+}
+
+// beforeUpdate -> afterUpdate hand-off of the locked row's prior status.
+const priorStatus = new WeakMap();
+
 const router = Router();
 // The update guard merges the incoming partial body over the existing row so a
 // PUT that changes only one amount can't sneak the note inconsistent (or can
@@ -89,7 +150,14 @@ const ctrl = crudController(CreditNote, {
   // document already filed with SAT. Credit notes had NO lock at all, so the
   // stamper was not serialized against the editor even in principle.
   transactionalWrites: true,
+  // Issuing posts the ledger credit inside the same transaction and row lock
+  // as the status change, so it commits or rolls back with it.
+  transactionalAfterHooks: true,
+  fatalAfterHooks: true,
   beforeUpdate: async (old, req, exec) => {
+    assertStatusTransition(old.status, req.body.status);
+    priorStatus.set(req, old.status);
+
     assertTotalsConsistent({
       subtotal: req.body.subtotal ?? old.subtotal,
       tax_amount: req.body.tax_amount ?? old.tax_amount,
@@ -117,6 +185,14 @@ const ctrl = crudController(CreditNote, {
       await billingService.assertTaxCoherent(exec, {
         orgId: req.orgId, clientId: old.client_id, taxAmount, docType: 'credit note',
       });
+    }
+  },
+
+  // draft -> issued/applied: post the final total, exactly once (the
+  // crudController row lock serializes concurrent issues).
+  afterUpdate: async (record, req, exec) => {
+    if (priorStatus.get(req) === 'draft' && POSTED_STATUSES.has(record.status)) {
+      await postCreditNoteLedger(exec, record, req.orgId);
     }
   },
 
@@ -219,14 +295,10 @@ router.post('/', requirePermission('credit_notes.create'), validate(createCredit
     }
     const creditNote = await CreditNote.create(req.body);
 
-    // Credit client balance ledger
-    if (creditNote.client_id && creditNote.total) {
-      await db.query(
-        `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-         VALUES (?, ?, 'credit', ?, ?, 'credit_note', ?, ?)`,
-        [creditNote.client_id, req.orgId, creditNote.total, creditNote.currency,
-          creditNote.id, `Credit Note ${creditNote.credit_note_number || creditNote.id}`],
-      );
+    // Credit the client balance ledger only for a note created already
+    // issued/applied. A draft (the default) posts at its issue transition.
+    if (POSTED_STATUSES.has(creditNote.status)) {
+      await postCreditNoteLedger(db.query.bind(db), creditNote, req.orgId);
     }
 
     res.status(201).json({ data: creditNote });
@@ -283,7 +355,7 @@ router.post('/:id/items', requirePermission('credit_notes.update'), validate(cre
       // Lock the parent so a concurrent stamp/issue cannot land between the
       // guards below and the insert.
       const [[note]] = await exec(
-        `SELECT id, status FROM credit_notes
+        `SELECT id, status, tax_rate FROM credit_notes
           WHERE id = ? AND organization_id = ? AND deleted_at IS NULL FOR UPDATE`,
         [req.params.id, req.orgId],
       );
@@ -302,6 +374,10 @@ router.post('/:id/items', requirePermission('credit_notes.update'), validate(cre
       // Only the URL id names the parent; any body credit_note_id is ignored.
       const { credit_note_id: _ignored, ...line } = req.body;
       item = await CreditNote.addItem({ ...line, credit_note_id: note.id }, req.orgId, exec);
+      // Header follows the line, in the same transaction: the line's STORED
+      // total (quantity * unit_price, a generated column), never body.amount.
+      // Drafts post nothing to the ledger, so nothing else moves.
+      await billingService.applyCreditNoteLineItemToTotals(exec, note.id, note.tax_rate, item.total);
       await conn.commit();
     } catch (err) {
       await conn.rollback();

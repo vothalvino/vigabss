@@ -2756,7 +2756,14 @@
     "delete_success": "Modelo excluido.",
     "delete_error": "Falha ao excluir modelo.",
     "error": "Falha ao carregar modelos.",
-    "empty": "Nenhum modelo encontrado."
+    "empty": "Nenhum modelo encontrado.",
+    "deploy_error": "Falha ao gerar o modelo de configuração para este dispositivo.",
+    "deploy_result_title": "Resultado da implantação",
+    "deploy_not_pushed": "O envio automático ainda não está disponível. Nada foi enviado ao dispositivo: aplique manualmente a configuração gerada abaixo.",
+    "deploy_pushed": "A configuração foi enviada ao dispositivo.",
+    "deploy_status": "Status da implantação: {{status}}",
+    "rendered_config": "Configuração gerada",
+    "deploy_result_close": "Concluído"
   },
   "config_backup_schedules": {
     "title": "Agendamentos de Backup",

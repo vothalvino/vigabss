@@ -10,7 +10,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createTemplate, updateTemplate } = require('../middleware/schemas/configTemplates');
 const { deployConfigTemplate } = require('../services/configBackupService');
-const { NotFoundError } = require('../utils/errors');
+const { NotFoundError, ValidationError } = require('../utils/errors');
 
 const router = Router();
 router.use(authenticate);
@@ -51,15 +51,25 @@ router.post('/', requirePermission('config_templates.create'), validate(createTe
   } catch (err) { next(err); }
 });
 
-// POST /:id/deploy — deploy template to device (before /:id to avoid route collision)
+// POST /:id/deploy — render a template for a device (before /:id to avoid route collision)
+// Template and device must both belong to the caller's organization (404
+// otherwise). No automatic push to the device exists yet, so the deployment is
+// recorded as status 'pending' with push_performed: false and the rendered
+// config is returned for manual application. 200, not 201/202: nothing has
+// been queued that will later complete on its own.
 router.post('/:id/deploy', requirePermission('config_deployments.create'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { device_id, variables } = req.body;
     if (!device_id) { return res.status(400).json({ error: 'device_id is required' }); }
-    const parsedVars = typeof variables === 'string' ? JSON.parse(variables) : (variables || {});
-    const record = await deployConfigTemplate(Number(id), Number(device_id), parsedVars, req.user?.id ?? null);
-    res.status(201).json({ data: record });
+    let parsedVars;
+    try {
+      parsedVars = typeof variables === 'string' ? JSON.parse(variables) : (variables || {});
+    } catch {
+      throw new ValidationError('variables must be a JSON object');
+    }
+    const record = await deployConfigTemplate(Number(id), Number(device_id), parsedVars, req.user?.id ?? null, req.orgId);
+    res.status(200).json({ data: record });
   } catch (err) { next(err); }
 });
 

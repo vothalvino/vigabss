@@ -385,8 +385,9 @@ router.get('/autopay/status', async (req, res, next) => {
   try {
     const [rows] = await db.query(
       `SELECT id, card_brand, card_last_four, created_at FROM recurring_payment_profiles
-        WHERE client_id = ? AND status = 'active' ORDER BY is_default DESC, id DESC LIMIT 1`,
-      [req.client.id],
+        WHERE client_id = ? AND organization_id <=> ? AND status = 'active'
+        ORDER BY is_default DESC, id DESC LIMIT 1`,
+      [req.client.id, req.client.organizationId],
     );
     res.json({ data: { enabled: rows.length > 0, profile: rows[0] || null } });
   } catch (err) {
@@ -398,8 +399,9 @@ router.get('/autopay/status', async (req, res, next) => {
 router.delete('/autopay', async (req, res, next) => {
   try {
     await db.query(
-      "UPDATE recurring_payment_profiles SET status = 'revoked' WHERE client_id = ? AND status = 'active'",
-      [req.client.id],
+      `UPDATE recurring_payment_profiles SET status = 'revoked'
+        WHERE client_id = ? AND organization_id <=> ? AND status = 'active'`,
+      [req.client.id, req.client.organizationId],
     );
     res.json({ message: 'Autopay disabled' });
   } catch (err) {
@@ -688,9 +690,9 @@ router.post('/data-packs/:packId/purchase', async (req, res, next) => {
     // Resolve the subscriber's active contract
     const [contracts] = await db.query(
       `SELECT id FROM contracts
-       WHERE client_id = ? AND status = 'active' AND deleted_at IS NULL
+       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
        LIMIT 1`,
-      [req.client.id],
+      [req.client.id, req.client.organizationId],
     );
     if (!contracts[0]) throw new NotFoundError('Active contract');
 
@@ -711,9 +713,9 @@ router.get('/data-packs/my-purchases', async (req, res, next) => {
   try {
     const [contracts] = await db.query(
       `SELECT id FROM contracts
-       WHERE client_id = ? AND status = 'active' AND deleted_at IS NULL
+       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
        LIMIT 1`,
-      [req.client.id],
+      [req.client.id, req.client.organizationId],
     );
     if (!contracts[0]) return res.json({ data: [] });
 
@@ -732,9 +734,9 @@ router.get('/usage/allowance', async (req, res, next) => {
   try {
     const [contracts] = await db.query(
       `SELECT id FROM contracts
-       WHERE client_id = ? AND status = 'active' AND deleted_at IS NULL
+       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
        LIMIT 1`,
-      [req.client.id],
+      [req.client.id, req.client.organizationId],
     );
     if (!contracts[0]) return res.json({ data: null });
 
@@ -789,9 +791,9 @@ router.get('/dashboard', async (req, res, next) => {
               p.billing_cycle, p.data_cap_gb
        FROM contracts c
        JOIN plans p ON p.id = c.plan_id
-       WHERE c.client_id = ? AND c.status = 'active' AND c.deleted_at IS NULL
+       WHERE c.client_id = ? AND c.organization_id <=> ? AND c.status = 'active' AND c.deleted_at IS NULL
        LIMIT 1`,
-      [clientId],
+      [clientId, req.client.organizationId],
     );
     const contract = contracts[0] || null;
 
@@ -914,9 +916,9 @@ router.get('/usage/current-month', async (req, res, next) => {
   try {
     const [contracts] = await db.query(
       `SELECT id FROM contracts
-       WHERE client_id = ? AND status = 'active' AND deleted_at IS NULL
+       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
        LIMIT 1`,
-      [req.client.id],
+      [req.client.id, req.client.organizationId],
     );
     if (!contracts[0]) return res.json({ data: [] });
 
@@ -1025,19 +1027,22 @@ router.get('/payments', async (req, res, next) => {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
     const offset = (page - 1) * limit;
 
+    // Bound to the subscriber's organization as well as client_id (list and
+    // count alike): a payment another tenant recorded against this client_id
+    // must never surface here. Null-safe <=> for single-tenant NULL-org rows.
     const [rows] = await db.query(
       `SELECT p.id, p.amount, p.currency, p.payment_method, p.payment_date,
               p.reference_number, p.status, p.notes, p.created_at
        FROM payments p
-       WHERE p.client_id = ? AND p.deleted_at IS NULL
+       WHERE p.client_id = ? AND p.organization_id <=> ? AND p.deleted_at IS NULL
        ORDER BY p.payment_date DESC, p.created_at DESC
        LIMIT ${limit} OFFSET ${offset}`,
-      [req.client.id],
+      [req.client.id, req.client.organizationId],
     );
 
     const [[{ total }]] = await db.query(
-      'SELECT COUNT(*) AS total FROM payments WHERE client_id = ? AND deleted_at IS NULL',
-      [req.client.id],
+      'SELECT COUNT(*) AS total FROM payments WHERE client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      [req.client.id, req.client.organizationId],
     );
 
     res.json({
@@ -1158,9 +1163,9 @@ router.post('/speed-test', async (req, res, next) => {
   try {
     const [contracts] = await db.query(
       `SELECT id, organization_id FROM contracts
-       WHERE client_id = ? AND status = 'active' AND deleted_at IS NULL
+       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
        LIMIT 1`,
-      [req.client.id],
+      [req.client.id, req.client.organizationId],
     );
     if (!contracts[0]) throw new ValidationError('No active contract found');
 
@@ -1205,9 +1210,9 @@ router.get('/speed-test/results', async (req, res, next) => {
 
     const [contracts] = await db.query(
       `SELECT id FROM contracts
-       WHERE client_id = ? AND status = 'active' AND deleted_at IS NULL
+       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
        LIMIT 1`,
-      [req.client.id],
+      [req.client.id, req.client.organizationId],
     );
     if (!contracts[0]) return res.json({ data: [], meta: { page, limit, total: 0, pages: 0 } });
 
@@ -1216,15 +1221,15 @@ router.get('/speed-test/results', async (req, res, next) => {
               download_mbps, upload_mbps, latency_ms, jitter_ms, packet_loss_pct,
               protocol, error_message, created_at
        FROM subscriber_speed_test_jobs
-       WHERE contract_id = ?
+       WHERE contract_id = ? AND organization_id <=> ?
        ORDER BY created_at DESC
        LIMIT ${limit} OFFSET ${offset}`,
-      [contracts[0].id],
+      [contracts[0].id, req.client.organizationId],
     );
 
     const [[{ total }]] = await db.query(
-      'SELECT COUNT(*) AS total FROM subscriber_speed_test_jobs WHERE contract_id = ?',
-      [contracts[0].id],
+      'SELECT COUNT(*) AS total FROM subscriber_speed_test_jobs WHERE contract_id = ? AND organization_id <=> ?',
+      [contracts[0].id, req.client.organizationId],
     );
 
     res.json({
@@ -1264,12 +1269,12 @@ router.post('/chat/:token/message', validate(chatMessageSchema), async (req, res
     const { token } = req.params;
     const { message } = req.body;
 
-    // Verify session belongs to this client
+    // Verify session belongs to this client, in this client's organization.
     const [sessions] = await db.query(
       `SELECT id, messages, status, turn_count, ticket_id
        FROM portal_chat_sessions
-       WHERE session_token = ? AND client_id = ?`,
-      [token, req.client.id],
+       WHERE session_token = ? AND client_id = ? AND organization_id <=> ?`,
+      [token, req.client.id, req.client.organizationId],
     );
     const session = sessions[0];
     if (!session) throw new NotFoundError('Chat session');
@@ -1323,7 +1328,11 @@ router.post('/chat/:token/message', validate(chatMessageSchema), async (req, res
           newTicketId = tempTicketId;
         } else {
           // Clean up temp ticket if not escalated
-          await db.query('UPDATE tickets SET status = \'closed\' WHERE id = ?', [tempTicketId]);
+          await db.query(
+            `UPDATE tickets SET status = 'closed'
+              WHERE id = ? AND client_id = ? AND organization_id <=> ?`,
+            [tempTicketId, req.client.id, req.client.organizationId],
+          );
         }
       }
     } catch (_aiErr) {
@@ -1338,8 +1347,9 @@ router.post('/chat/:token/message', validate(chatMessageSchema), async (req, res
     await db.query(
       `UPDATE portal_chat_sessions
        SET messages = ?, turn_count = ?, status = ?, ticket_id = ?, updated_at = NOW()
-       WHERE id = ?`,
-      [JSON.stringify(messages), newTurnCount, newStatus, newTicketId || session.ticket_id, session.id],
+       WHERE id = ? AND client_id = ? AND organization_id <=> ?`,
+      [JSON.stringify(messages), newTurnCount, newStatus, newTicketId || session.ticket_id,
+        session.id, req.client.id, req.client.organizationId],
     );
 
     res.json({
@@ -1374,8 +1384,8 @@ router.post('/callback-request', async (req, res, next) => {
     );
 
     const [rows] = await db.query(
-      'SELECT id, subject, priority, status, created_at FROM tickets WHERE id = ?',
-      [result.insertId],
+      'SELECT id, subject, priority, status, created_at FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ?',
+      [result.insertId, req.client.id, req.client.organizationId],
     );
 
     res.status(201).json({ data: rows[0] });
@@ -1418,10 +1428,12 @@ router.post('/push/subscribe', validate(pushSubscribeSchema), async (req, res, n
 // org's notice and records acceptance with the version and content hash of
 // the exact text that was shown.
 
-// The active-consent lookup is by client_id alone, deliberately: req.client.id
-// comes from the portal token, and a client belongs to exactly one org, so an
-// org predicate adds nothing — and would wrongly exclude single-tenant rows
-// where organization_id is NULL by design.
+// The active-consent lookup binds the client's organization as well as
+// client_id: a client_id match alone is not a tenant boundary (another org's
+// row naming this client_id must never read as this subscriber's consent).
+// Null-safe <=> keeps single-tenant rows, whose organization_id is NULL by
+// design, matching. Every writer (this route, the staff consent route, the
+// installation handoff) stores the client's own organization.
 //
 // document_hash is compared, not just stored. Version alone is not enough: the
 // version is free text an operator is never forced to change, so editing the
@@ -1433,7 +1445,7 @@ router.post('/push/subscribe', validate(pushSubscribeSchema), async (req, res, n
 // attestation, not a hash of served text, so they must not be invalidated.
 const CONSENT_LOOKUP_SQL =
   `SELECT id, given_at FROM subscriber_consents
-   WHERE client_id = ? AND purpose = 'service_delivery'
+   WHERE client_id = ? AND organization_id <=> ? AND purpose = 'service_delivery'
      AND consent_version = ? AND (document_hash IS NULL OR document_hash = ?)
      AND withdrawn_at IS NULL
    ORDER BY given_at DESC LIMIT 1`;
@@ -1442,7 +1454,7 @@ const CONSENT_LOOKUP_SQL =
 router.get('/privacy-notice', async (req, res, next) => {
   try {
     const notice = await privacyNoticeService.getNotice(req.client.organizationId);
-    const [rows] = await db.query(CONSENT_LOOKUP_SQL, [req.client.id, notice.version, notice.hash]);
+    const [rows] = await db.query(CONSENT_LOOKUP_SQL, [req.client.id, req.client.organizationId, notice.version, notice.hash]);
     res.json({
       data: {
         version: notice.version,
@@ -1460,7 +1472,7 @@ router.get('/privacy-notice', async (req, res, next) => {
 router.post('/privacy-notice/accept', async (req, res, next) => {
   try {
     const notice = await privacyNoticeService.getNotice(req.client.organizationId);
-    const [existing] = await db.query(CONSENT_LOOKUP_SQL, [req.client.id, notice.version, notice.hash]);
+    const [existing] = await db.query(CONSENT_LOOKUP_SQL, [req.client.id, req.client.organizationId, notice.version, notice.hash]);
     if (existing.length > 0) {
       return res.json({ data: { accepted: true, accepted_at: existing[0].given_at } });
     }
@@ -1470,7 +1482,7 @@ router.post('/privacy-notice/accept', async (req, res, next) => {
        VALUES (?, ?, ?, 'service_delivery', 'web', ?, ?, NOW())`,
       [req.client.organizationId, req.client.id, notice.version, req.ip || null, notice.hash],
     );
-    const [rows] = await db.query(CONSENT_LOOKUP_SQL, [req.client.id, notice.version, notice.hash]);
+    const [rows] = await db.query(CONSENT_LOOKUP_SQL, [req.client.id, req.client.organizationId, notice.version, notice.hash]);
     res.status(201).json({ data: { accepted: true, accepted_at: rows[0]?.given_at ?? null } });
   } catch (err) {
     next(err);

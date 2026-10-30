@@ -16,6 +16,7 @@ const db = require('../config/database');
 const { tunnelServer } = require('./firerelayTunnel');
 const logger = require('../utils/logger').child({ service: 'configBackupService' });
 const { NotFoundError } = require('../utils/errors');
+const { requireOrgId } = require('../utils/requireOrgId');
 const { compileSafeRegex, MAX_REGEX_SUBJECT_LENGTH } = require('../utils/safeRegex');
 
 // =============================================================================
@@ -427,32 +428,50 @@ async function pullBackupWithDiff(opts) {
 }
 
 /**
- * Deploy a config template to a device by substituting variables and recording
- * the deployment. Does not perform a live push — queues or marks as deferred
- * when no active tunnel is present.
+ * Message stored on, and returned with, every deployment record. No
+ * config-push mechanism is wired today: routerosService has no import/apply
+ * handler, the FireRelay agent exposes no such command, and
+ * routerDriverService maps no "apply config" command. A deployment therefore
+ * renders the template and is recorded as 'pending'. It is NEVER 'success',
+ * because nothing reached the device.
+ */
+const DEPLOY_NOT_PUSHED_MESSAGE =
+  'Automatic push is not available yet; apply the rendered config manually';
+
+/**
+ * Render a config template for a device in the caller's organization and
+ * record the deployment request. No live push is performed (see
+ * DEPLOY_NOT_PUSHED_MESSAGE): the record is written with status 'pending' and
+ * deployed_at/completed_at NULL, and the rendered config is returned so an
+ * operator can apply it by hand.
+ *
+ * Both lookups bind the caller's organization with the null-safe `<=>` (both
+ * columns are nullable; NULL means a single-tenant install). That matches the
+ * GET /config-templates list, which only shows the caller's own templates.
  *
  * @param {number} templateId
  * @param {number} deviceId
  * @param {object|null} variables - key/value pairs for {{variable}} substitution
  * @param {number|null} deployedBy - user id who triggered the deployment
- * @returns {Promise<object>} deployment record
+ * @param {number|null} orgId - the caller's organization (req.orgId)
+ * @returns {Promise<object>} deployment record plus rendered_config
+ * @throws {NotFoundError} template or device not in the caller's organization
  */
-async function deployConfigTemplate(templateId, deviceId, variables, deployedBy) {
-  // Load template
+async function deployConfigTemplate(templateId, deviceId, variables, deployedBy, orgId) {
+  requireOrgId(orgId, 'deployConfigTemplate');
+
   const [templateRows] = await db.query(
-    'SELECT id, organization_id, template_content, status FROM config_templates WHERE id = ? AND deleted_at IS NULL',
-    [templateId],
+    'SELECT id, organization_id, template_content, status FROM config_templates WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+    [templateId, orgId],
   );
-  if (templateRows.length === 0) throw new Error(`Template ${templateId} not found`);
+  if (templateRows.length === 0) throw new NotFoundError('config_templates');
   const template = templateRows[0];
 
-  // Load device
   const [deviceRows] = await db.query(
-    'SELECT id, firerelay_node_id FROM devices WHERE id = ? AND deleted_at IS NULL',
-    [deviceId],
+    'SELECT id FROM devices WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+    [deviceId, orgId],
   );
-  if (deviceRows.length === 0) throw new Error(`Device ${deviceId} not found`);
-  const device = deviceRows[0];
+  if (deviceRows.length === 0) throw new NotFoundError('devices');
 
   // Render template
   let rendered = template.template_content;
@@ -462,18 +481,14 @@ async function deployConfigTemplate(templateId, deviceId, variables, deployedBy)
     }
   }
 
-  // Determine if tunnel is available
-  const hasTunnel = device.firerelay_node_id && tunnelServer.isConnected(device.firerelay_node_id);
-  const status = 'success';
-  const resultOutput = hasTunnel
-    ? 'Template rendered and push queued via FireRelay tunnel'
-    : 'Template rendered; live push deferred (no active tunnel)';
+  const status = 'pending';
+  const resultOutput = DEPLOY_NOT_PUSHED_MESSAGE;
 
-  // Insert deployment record
+  // deployed_at / completed_at stay NULL: nothing was deployed or completed.
   const [ins] = await db.query(
     `INSERT INTO config_deployment_records
-       (organization_id, template_id, device_id, deployed_by, status, variables_used, result_output, deployed_at, completed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+       (organization_id, template_id, device_id, deployed_by, status, variables_used, result_output)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       template.organization_id,
       templateId,
@@ -485,7 +500,10 @@ async function deployConfigTemplate(templateId, deviceId, variables, deployedBy)
     ],
   );
 
-  logger.info({ templateId, deviceId, deployedBy, deploymentId: ins.insertId }, 'Config template deployed');
+  logger.info(
+    { templateId, deviceId, deployedBy, deploymentId: ins.insertId },
+    'Config template rendered; automatic push not available, recorded as pending',
+  );
 
   return {
     id: ins.insertId,
@@ -493,8 +511,10 @@ async function deployConfigTemplate(templateId, deviceId, variables, deployedBy)
     device_id: deviceId,
     deployed_by: deployedBy,
     status,
+    push_performed: false,
     result_output: resultOutput,
     variables_used: variables,
+    rendered_config: rendered,
   };
 }
 
@@ -506,6 +526,7 @@ module.exports = {
   evaluateRule,
   pullBackupWithDiff,
   deployConfigTemplate,
+  DEPLOY_NOT_PUSHED_MESSAGE,
   // exported for testing
   sha256,
   getLatestVersion,

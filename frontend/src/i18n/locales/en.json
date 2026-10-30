@@ -2756,7 +2756,14 @@
     "delete_success": "Config template deleted.",
     "delete_error": "Failed to delete config template.",
     "error": "Failed to load config templates.",
-    "empty": "No config templates found."
+    "empty": "No config templates found.",
+    "deploy_error": "Failed to render the config template for this device.",
+    "deploy_result_title": "Deployment result",
+    "deploy_not_pushed": "Automatic push is not available yet. Nothing was sent to the device: apply the rendered config below manually.",
+    "deploy_pushed": "The configuration was pushed to the device.",
+    "deploy_status": "Deployment status: {{status}}",
+    "rendered_config": "Rendered configuration",
+    "deploy_result_close": "Done"
   },
   "config_backup_schedules": {
     "title": "Config Backup Schedules",

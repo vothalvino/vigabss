@@ -14,6 +14,7 @@ const { tunnelServer } = require('../services/firerelayTunnel');
 const configBackupService = require('../services/configBackupService');
 const db = require('../config/database');
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const { decrypt } = require('../utils/encryption');
 
 const router = Router();
 const ctrl = crudController(DeviceConfigBackup);
@@ -109,23 +110,65 @@ router.delete('/:id', requirePermission('device_config_backups.delete'), ctrl.de
 // assigned FireRelay agent.
 //
 // Body: { device_id, user?, password?, port?, compact?, notes? }
-//   - user/password override env-var defaults for this pull only.
-//   - password is required if ROUTEROS_API_PASSWORD is not set.
+//
+// The device must belong to the caller's organization (404 otherwise), checked
+// before any RouterOS session is opened through a FireRelay agent.
+//
+// Credentials, in order:
+//   1. user/password from the request body (user defaults to 'admin');
+//   2. the device's own active MikroTik router driver config in the caller's
+//      org (router_driver_configs: username + encrypted_password, port).
+// There is deliberately NO fallback to the install-wide ROUTEROS_API_USER /
+// ROUTEROS_API_PASSWORD env vars here: those are the operator's credentials for
+// the unattended nightly pull, and letting any tenant user borrow them for an
+// arbitrary device would hand every tenant the install operator's login. With
+// neither source present the request is refused with 422.
 // ---------------------------------------------------------------------------
+async function resolvePullCredentials(deviceId, orgId, body) {
+  const { user, password, port } = body;
+  if (password !== undefined && password !== null && password !== '') {
+    return { user: user || 'admin', password: String(password), port: port ? Number(port) : undefined };
+  }
+
+  const [configs] = await db.query(
+    `SELECT username, encrypted_password, port FROM router_driver_configs
+      WHERE device_id = ? AND organization_id = ? AND vendor = 'mikrotik'
+        AND protocol = 'routeros_api' AND is_active = 1 AND deleted_at IS NULL
+      ORDER BY id DESC LIMIT 1`,
+    [deviceId, orgId],
+  );
+  const stored = configs[0];
+  if (stored && stored.username && stored.encrypted_password) {
+    return {
+      user: stored.username,
+      password: decrypt(stored.encrypted_password),
+      port: port ? Number(port) : (stored.port ? Number(stored.port) : undefined),
+    };
+  }
+
+  throw new ValidationError(
+    'RouterOS credentials are required: provide user and password in the request body, '
+    + 'or add an active MikroTik router driver config with a username and password for this device',
+  );
+}
+
 router.post(
   '/pull',
   requirePermission('device_config_backups.create'),
   async (req, res, next) => {
     try {
-      const { device_id, user, password, port, compact, notes } = req.body;
+      const { device_id, compact, notes } = req.body;
 
       if (!device_id) {
         throw new ValidationError('device_id is required');
       }
 
+      // devices.organization_id is nullable (single-tenant installs), so the
+      // org predicate is null-safe.
       const [rows] = await db.query(
-        'SELECT id, name, ip_address, firerelay_node_id FROM devices WHERE id = ? AND deleted_at IS NULL',
-        [device_id],
+        `SELECT id, name, ip_address, firerelay_node_id FROM devices
+          WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL`,
+        [device_id, req.orgId],
       );
 
       if (rows.length === 0) {
@@ -146,20 +189,15 @@ router.post(
         throw new ValidationError(`FireRelay agent '${device.firerelay_node_id}' is not currently connected`);
       }
 
-      const resolvedUser = user || process.env.ROUTEROS_API_USER || 'admin';
-      const resolvedPassword = password || process.env.ROUTEROS_API_PASSWORD;
-
-      if (!resolvedPassword) {
-        throw new ValidationError('RouterOS password is required (provide in request body or set ROUTEROS_API_PASSWORD)');
-      }
+      const creds = await resolvePullCredentials(device.id, req.orgId, req.body);
 
       const result = await configBackupService.pullBackupForDevice({
         deviceId: device.id,
         nodeId: device.firerelay_node_id,
         host: device.ip_address,
-        user: resolvedUser,
-        password: resolvedPassword,
-        port: port ? Number(port) : undefined,
+        user: creds.user,
+        password: creds.password,
+        port: creds.port,
         compact: !!compact,
         captureMethod: 'manual',
         capturedByUserId: req.user?.id ?? null,

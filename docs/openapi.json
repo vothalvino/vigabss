@@ -34441,6 +34441,107 @@
         }
       }
     },
+    "/device-config-backups/pull": {
+      "post": {
+        "tags": [
+          "Device Config Backups"
+        ],
+        "summary": "Pull an on-demand RouterOS config backup through the device's FireRelay agent",
+        "description": "Body: { device_id, user?, password?, port?, compact?, notes? }. The device must belong to the caller's organization (404 otherwise), checked before any RouterOS session is opened. Credentials come from the body (user defaults to admin) or from the device's active MikroTik router driver config in the same organization; the install-wide ROUTEROS_API_* env credentials are never used here (422 when neither source exists).",
+        "operationId": "pullDeviceConfigBackup",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "ConfigBackupPullRequest",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Config unchanged; backup skipped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Backup stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Device not found in this organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing device_id, credentials, FireRelay agent, or ip_address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/device-config-backups/compliance-results": {
       "get": {
         "tags": [
@@ -34666,13 +34767,68 @@
             }
           }
         },
+        "description": "Template and device must belong to the caller's organization. No automatic push to the device exists yet: the template is rendered, a deployment record is written with status \"pending\", and the response carries push_performed=false, result_output and rendered_config for manual application. Never reports success.",
         "responses": {
-          "201": {
-            "description": "ConfigDeploymentRecord",
+          "200": {
+            "description": "ConfigDeploymentRecord (status pending, push_performed false, rendered_config)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Template or device not found in this organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "variables is not a JSON object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
