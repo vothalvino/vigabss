@@ -448,7 +448,9 @@ async function nextQuoteNumber(conn, orgId) {
  * @returns {boolean}
  */
 async function resolveFullPlan(contract, plan, orgId) {
-  if (plan && plan.id !== undefined && plan.trial_days !== undefined && plan.overage_mode !== undefined) return plan;
+  // A plans row (it has an id) is used as is; a hand-built {name, price,
+  // currency} or a missing plan is replaced by the row.
+  if (plan && plan.id !== undefined && plan.id !== null) return plan;
   const [rows] = await db.query(
     'SELECT * FROM plans WHERE id = ? AND organization_id <=> ?',
     [contract.plan_id, orgId ?? contract.organization_id ?? null],

@@ -2,7 +2,7 @@
 // Tests: Late Fee Service
 // =============================================================================
 
-jest.mock('../src/config/database', () => ({ query: jest.fn() }));
+jest.mock('../src/config/database', () => ({ query: jest.fn(), getConnection: jest.fn() }));
 jest.mock('../src/services/eventBus', () => ({ emit: jest.fn() }));
 jest.mock('../src/utils/logger', () => ({
   child: () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }),
@@ -16,6 +16,15 @@ const lateFeeService = require('../src/services/lateFeeService');
 describe('lateFeeService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    db.query.mockReset();
+    // A fee is applied in one transaction (ASY-02 / migration 473); its
+    // statements go through the same db.query mock so the sequences below
+    // still answer them.
+    db.getConnection.mockResolvedValue({
+      beginTransaction: jest.fn(), commit: jest.fn(), release: jest.fn(),
+      rollback: jest.fn().mockResolvedValue(),
+      execute: (...args) => db.query(...args),
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -182,6 +191,7 @@ describe('lateFeeService', () => {
         .mockResolvedValueOnce([[rule]])
         .mockResolvedValueOnce([[invoice]])
         .mockResolvedValueOnce([[{ cnt: 0 }]])
+        .mockResolvedValueOnce([[{ fees: 0 }]]) // earlier late fees on the invoice (percent base)
         .mockResolvedValueOnce([{ insertId: 10 }])
         .mockResolvedValueOnce([{}])
         .mockResolvedValueOnce([{}]);
@@ -203,6 +213,7 @@ describe('lateFeeService', () => {
         .mockResolvedValueOnce([[rule]])
         .mockResolvedValueOnce([[invoice]])
         .mockResolvedValueOnce([[{ cnt: 0 }]])
+        .mockResolvedValueOnce([[{ fees: 0 }]]) // earlier late fees on the invoice (percent base)
         .mockResolvedValueOnce([{ insertId: 99 }])
         .mockResolvedValueOnce([{}])
         .mockResolvedValueOnce([{}]);
