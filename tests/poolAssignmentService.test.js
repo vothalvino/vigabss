@@ -25,6 +25,19 @@ const {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // assignNextFreeIp runs on one transaction connection (NET-07). The fixture
+  // routes its allocation queries to the same ordered db.query mocks the
+  // tests below queue, and answers the new contract/client ownership lookups
+  // as owned, so the existing allocation assertions are unchanged.
+  db.getConnection.mockResolvedValue({
+    beginTransaction: jest.fn().mockResolvedValue(),
+    commit: jest.fn().mockResolvedValue(),
+    rollback: jest.fn().mockResolvedValue(),
+    release: jest.fn(),
+    query: (sql, params) => (/FROM (contracts|clients)\b/.test(sql)
+      ? Promise.resolve([[{ id: params[0] }]])
+      : db.query(sql, params)),
+  });
 });
 
 // =============================================================================
