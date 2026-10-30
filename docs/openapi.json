@@ -61048,7 +61048,8 @@
           },
           "pattern": {
             "type": "string",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 2000
           },
           "severity": {
             "type": "string",
@@ -61095,7 +61096,8 @@
           },
           "pattern": {
             "type": "string",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 2000
           },
           "severity": {
             "type": "string",

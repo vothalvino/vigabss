@@ -540,6 +540,11 @@ verify each one's upgrade and interoperability contract first.
   key may be ignored, rejected, or accidentally reach custom SQL.
 - **Tenant escape:** omitting `req.orgId`, accepting `organization_id` on update,
   or running global work inside tenant context can leak or move data.
+- **User-supplied regex:** never pass a tenant-authored pattern straight to
+  `new RegExp()`; V8 has no match timeout, so one catastrophic pattern stalls
+  every tenant on the process. Use `src/utils/safeRegex.js` (length cap,
+  nested-quantifier/backreference rejection) at write time and again at
+  evaluation, and cap the subject length (config compliance rules do both).
 - **Permission half-wiring:** a new slug without seed/grant data, or navigation
   without matching backend grants, produces ordinary-user 403s while privileged
   test users appear fine.
