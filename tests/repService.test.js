@@ -25,7 +25,7 @@ const cfdiService = require('../src/services/cfdiService');
 const repService = require('../src/services/repService');
 
 const CFDI = { id: 2, uuid: 'SIMULADO-aaaa-4bbb-8ccc-ddddeeeeffff', serie: 'A', folio: 3, total: '580.00' };
-const PAYMENT = { id: 38, organization_id: 5, currency: 'MXN', payment_method: 'transfer', sat_forma_pago: null, payment_date: new Date('2026-07-20T00:00:00Z'), reference_number: 'SPEI-123' };
+const PAYMENT = { id: 38, organization_id: 5, currency: 'MXN', payment_method: 'transfer', sat_forma_pago: null, payment_date: new Date('2026-07-20T00:00:00Z'), reference_number: 'SPEI-123', status: 'completed' };
 const INVOICE = { id: 605, client_id: 42, total: '580.00', currency: 'MXN' };
 const RECEPTOR = { rfc: 'XAXX010101000', razon_social: 'María', regimen_fiscal: '616', codigo_postal_fiscal: '01000' };
 const EMISOR = { rfc: 'EKU9003173C9', razon_social: 'Escuela Kemper', regimen_fiscal: '601', codigo_postal_fiscal: '26015', cfdi_serie_pago: 'P' };

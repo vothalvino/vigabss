@@ -424,7 +424,7 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       //        Payment.allocate (INSERT → SELECT) → SUM allocations →
       //        UPDATE invoice → SELECT contract
       db.query
-        .mockResolvedValueOnce([[{ id: 300, client_id: 10, amount: '694.84', organization_id: 1 }]])
+        .mockResolvedValueOnce([[{ id: 300, client_id: 10, amount: '694.84', organization_id: 1, status: 'completed' }]])
         .mockResolvedValueOnce([[{ id: 200, total: '694.84', contract_id: 1, status: 'issued' }]])
         .mockResolvedValueOnce([{ insertId: 1 }])
         .mockResolvedValueOnce([[mockAllocation]])
@@ -461,7 +461,7 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       //        Payment.allocate (INSERT → SELECT) → SUM allocations (partial —
       //        no UPDATE since not fully paid)
       db.query
-        .mockResolvedValueOnce([[{ id: 301, client_id: 10, amount: '300.00', organization_id: 1 }]])
+        .mockResolvedValueOnce([[{ id: 301, client_id: 10, amount: '300.00', organization_id: 1, status: 'completed' }]])
         .mockResolvedValueOnce([[{ id: 200, total: '694.84', contract_id: 1, status: 'issued' }]])
         .mockResolvedValueOnce([{ insertId: 2 }])
         .mockResolvedValueOnce([[mockAllocation]])
@@ -715,7 +715,7 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       //        Payment.allocate (INSERT → SELECT) → SUM allocations →
       //        UPDATE invoice → SELECT contract
       db.query
-        .mockResolvedValueOnce([[{ id: paymentId, client_id: clientId, amount: '694.84', organization_id: 1 }]])
+        .mockResolvedValueOnce([[{ id: paymentId, client_id: clientId, amount: '694.84', organization_id: 1, status: 'completed' }]])
         .mockResolvedValueOnce([[{ id: invoiceId, total: '694.84', contract_id: contractId, status: 'issued' }]])
         .mockResolvedValueOnce([{ insertId: 1 }])
         .mockResolvedValueOnce([[{ id: 1, payment_id: paymentId, invoice_id: invoiceId, amount: '694.84' }]])
