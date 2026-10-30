@@ -563,6 +563,7 @@ function generateSpec() {
           responses: {
             ...r201('Invoice'),
             404: { description: 'Quote not found' },
+            422: { description: "The quote's client_id/contract_id does not belong to this organization (VALIDATION_ERROR)" },
             409: { description: 'Quote is not accepted (QUOTE_NOT_ACCEPTED), or has already been converted to an invoice — see quotes.converted_invoice_id (CONVERSION_EXISTS)' },
           },
         },

@@ -1126,6 +1126,15 @@ describe('PDF Routes — /api/pdf', () => {
 // QUOTE ROUTES — /api/quotes
 // =============================================================================
 describe('Quote Routes — /api/quotes', () => {
+  // POST /quotes, PUT /quotes/:id and convert-to-invoice now org-verify the
+  // quote's client_id (TNB-05; Client is automocked in this file, so an
+  // unstubbed findById reads as "not in this org" -> 422). These happy-path
+  // tests use an own-org client; the cross-org rejections are covered in
+  // tests/quoteTenantIsolation.test.js.
+  beforeEach(() => {
+    Client.findById.mockResolvedValue({ id: 5, organization_id: 1 });
+  });
+
   describe('GET /api/quotes', () => {
     test('success — lists quotes', async () => {
       mockAuthUser();

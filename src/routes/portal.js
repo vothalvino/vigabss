@@ -423,8 +423,12 @@ router.get('/invoices', async (req, res, next) => {
     // is no discount concept anywhere on invoices (dropped; the frontend
     // already renders it conditionally), and the billing period dates live on
     // billing_periods, linked via invoice_id.
-    let whereClause = 'WHERE i.client_id = ? AND i.deleted_at IS NULL';
-    const params = [req.client.id];
+    // Bound to the subscriber's own organization as well as client_id: an
+    // invoice another tenant issued against this client_id (TNB-05) must never
+    // surface here. Null-safe <=> because invoices.organization_id (and the
+    // client's) may be NULL on a single-tenant install.
+    let whereClause = 'WHERE i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL';
+    const params = [req.client.id, req.client.organizationId];
 
     if (status) {
       whereClause += ' AND i.status = ?';
@@ -486,8 +490,8 @@ router.get('/invoices/:id', async (req, res, next) => {
          FROM billing_periods
          WHERE invoice_id IS NOT NULL
        ) bp ON bp.invoice_id = i.id AND bp.rn = 1
-       WHERE i.id = ? AND i.client_id = ? AND i.deleted_at IS NULL`,
-      [req.params.id, req.client.id],
+       WHERE i.id = ? AND i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL`,
+      [req.params.id, req.client.id, req.client.organizationId],
     );
 
     if (!rows[0]) throw new NotFoundError('Invoice');
@@ -520,8 +524,10 @@ router.get('/invoices/:id', async (req, res, next) => {
 router.post('/invoices/:id/pay', async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, organization_id FROM invoices WHERE id = ? AND client_id = ? AND deleted_at IS NULL',
-      [req.params.id, req.client.id],
+      // Org-bound (see GET /invoices) so a foreign-tenant invoice carrying this
+      // client_id can never open a checkout on that tenant's gateway.
+      'SELECT id, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!rows[0]) throw new NotFoundError('Invoice');
 
@@ -797,8 +803,8 @@ router.get('/dashboard', async (req, res, next) => {
     const [[{ next_due }]] = await db.query(
       `SELECT MIN(due_date) AS next_due
        FROM invoices
-       WHERE client_id = ? AND status IN ('issued','overdue') AND deleted_at IS NULL`,
-      [clientId],
+       WHERE client_id = ? AND organization_id <=> ? AND status IN ('issued','overdue') AND deleted_at IS NULL`,
+      [clientId, req.client.organizationId],
     );
 
     // Current RADIUS session status
@@ -957,8 +963,8 @@ router.get('/usage/current-month', async (req, res, next) => {
 router.get('/invoices/:id/pdf', async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, invoice_number, organization_id FROM invoices WHERE id = ? AND client_id = ? AND deleted_at IS NULL',
-      [req.params.id, req.client.id],
+      'SELECT id, invoice_number, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!rows[0]) throw new NotFoundError('Invoice');
 
@@ -975,8 +981,8 @@ router.get('/invoices/:id/pdf', async (req, res, next) => {
 router.get('/invoices/:id/cfdi', async (req, res, next) => {
   try {
     const [invoiceRows] = await db.query(
-      'SELECT id, client_id FROM invoices WHERE id = ? AND client_id = ? AND deleted_at IS NULL',
-      [req.params.id, req.client.id],
+      'SELECT id, client_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!invoiceRows[0]) throw new NotFoundError('Invoice');
 

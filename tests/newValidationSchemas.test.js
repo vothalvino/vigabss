@@ -423,9 +423,12 @@ describe('Quote validation schemas', () => {
     expect(errorFields(next)).toContain('client_id');
   });
 
-  test('createQuote rejects invalid status', () => {
-    const next = run(createQuote, { client_id: 1, status: 'archived' });
-    expectReject(next);
+  // status is no longer a create/update field (TNB-05): only POST
+  // /quotes/:id/approve|reject change it, and the route strips it from the
+  // body before validation, so neither schema declares it any more.
+  test('createQuote/updateQuote do not declare status', () => {
+    expect(createQuote.status).toBeUndefined();
+    expect(updateQuote.status).toBeUndefined();
   });
 
   test('createQuote accepts valid data', () => {

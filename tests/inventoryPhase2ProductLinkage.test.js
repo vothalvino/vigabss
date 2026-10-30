@@ -46,6 +46,15 @@ function isUserLookup(sql) {
 }
 const ADMIN_USER_ROW = { id: 1, email: 'admin@test.com', role: 'admin', status: 'active', organization_id: 10 };
 
+// convert-to-invoice re-verifies the quote's client belongs to the caller's
+// org (TNB-05) via Client.findById — the backticked, org-scoped BaseModel
+// lookup, distinct from the tax-context `FROM clients` read. The quotes in
+// these tests are own-org (client 5 in org 10).
+function isOwnClientLookup(sql) {
+  return typeof sql === 'string' && sql.includes('FROM `clients` WHERE id = ?');
+}
+const OWN_CLIENT_ROW = { id: 5, organization_id: 10 };
+
 function buildConn() {
   return {
     beginTransaction: jest.fn().mockResolvedValue(undefined),
@@ -689,6 +698,7 @@ describe('POST /api/v1/quotes/:id/convert-to-invoice — carries inventory_item_
   it('copies inventory_item_id to the new invoice_items row and draws down exactly once', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
+      if (isOwnClientLookup(sql)) return Promise.resolve([[OWN_CLIENT_ROW]]);
       if (typeof sql === 'string' && sql.includes('FROM quotes WHERE id')) {
         return Promise.resolve([[{
           id: 1, client_id: 5, contract_id: null, subtotal: '500.00', tax_amount: '80.00', total: '580.00',
@@ -763,6 +773,7 @@ describe('POST /api/v1/quotes/:id/convert-to-invoice — rejects a zero-tax quot
   it('422s before any write instead of converting', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
+      if (isOwnClientLookup(sql)) return Promise.resolve([[OWN_CLIENT_ROW]]);
       if (typeof sql === 'string' && sql.includes('FROM quotes WHERE id')) {
         // Drafted with NO tax at all: total === subtotal.
         return Promise.resolve([[{
@@ -802,6 +813,7 @@ describe('POST /api/v1/quotes/:id/convert-to-invoice — rejects a zero-tax quot
     // The guard must not block the normal path.
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
+      if (isOwnClientLookup(sql)) return Promise.resolve([[OWN_CLIENT_ROW]]);
       if (typeof sql === 'string' && sql.includes('FROM quotes WHERE id')) {
         return Promise.resolve([[{
           id: 1, client_id: 5, contract_id: null, subtotal: '500.00', tax_amount: '80.00', total: '580.00',
@@ -848,6 +860,7 @@ describe('POST /api/v1/quotes/:id/convert-to-invoice — idempotency', () => {
   it('returns 409 CONVERSION_EXISTS on a second convert and never opens a transaction (no double drawdown)', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
+      if (isOwnClientLookup(sql)) return Promise.resolve([[OWN_CLIENT_ROW]]);
       if (typeof sql === 'string' && sql.includes('FROM quotes WHERE id')) {
         return Promise.resolve([[{
           id: 1, client_id: 5, contract_id: null, subtotal: '500.00', tax_amount: '80.00', total: '580.00',
@@ -879,6 +892,7 @@ describe('POST /api/v1/quotes/:id/convert-to-invoice — idempotency', () => {
   it('reports the existing invoice id even if that invoice row cannot be re-fetched', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
+      if (isOwnClientLookup(sql)) return Promise.resolve([[OWN_CLIENT_ROW]]);
       if (typeof sql === 'string' && sql.includes('FROM quotes WHERE id')) {
         return Promise.resolve([[{
           id: 1, client_id: 5, status: 'accepted', converted_invoice_id: 999,
@@ -908,6 +922,7 @@ describe('POST /api/v1/quotes/:id/convert-to-invoice — idempotency', () => {
   it('rolls back and 409s when a concurrent conversion wins the atomic stamp (affectedRows 0)', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
+      if (isOwnClientLookup(sql)) return Promise.resolve([[OWN_CLIENT_ROW]]);
       if (typeof sql === 'string' && sql.includes('FROM quotes WHERE id')) {
         return Promise.resolve([[{
           id: 1, client_id: 5, contract_id: null, subtotal: '500.00', tax_amount: '80.00', total: '580.00',
@@ -964,6 +979,7 @@ describe('GET /api/v1/inventory/transactions', () => {
   it('org-scopes, paginates newest-first with defaults, and enriches rows', async () => {
     db.query.mockImplementation((sql, params) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
+      if (isOwnClientLookup(sql)) return Promise.resolve([[OWN_CLIENT_ROW]]);
       if (typeof sql === 'string' && sql.includes('SELECT COUNT(*) AS total')) {
         return Promise.resolve([[{ total: 2 }]]);
       }
@@ -993,6 +1009,7 @@ describe('GET /api/v1/inventory/transactions', () => {
   it('applies item_id/transaction_type filters and custom limit/offset', async () => {
     db.query.mockImplementation((sql, params) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
+      if (isOwnClientLookup(sql)) return Promise.resolve([[OWN_CLIENT_ROW]]);
       if (typeof sql === 'string' && sql.includes('SELECT COUNT(*) AS total')) {
         expect(sql).toMatch(/s\.item_id = \?/);
         expect(sql).toMatch(/t\.transaction_type = \?/);
