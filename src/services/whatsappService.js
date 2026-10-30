@@ -16,12 +16,21 @@
 //     webhook has no org context, so a sender must resolve to exactly one
 //     client). Enforced by the whatsapp_links.active_phone UNIQUE and a
 //     revoke-then-insert transaction here.
+//   - Phone- and code-keyed lookups (verifyPhoneCode, verifyPortalCode,
+//     bindNumber, resolveBinding, conversation state by phone) are install-wide
+//     by design: the inbound webhook has no org context. Every CLIENT-keyed
+//     query, however, also binds the client's organization null-safely
+//     (`organization_id <=> ?`) — a client_id match alone is not a tenant
+//     boundary (ARCHITECTURE.md). Callers pass the portal client's org, or for
+//     webhook callers the org of the already-resolved link/client row, never a
+//     payload value.
 // =============================================================================
 
 const crypto = require('crypto');
 const db = require('../config/database');
 const config = require('../config');
 const logger = require('../utils/logger');
+const { requireOrgId } = require('../utils/requireOrgId');
 
 const PORTAL_CODE_LENGTH = 8; // phone-agnostic lookup — larger space
 const EMAIL_CODE_LENGTH  = 6; // delivered to a second channel (email)
@@ -186,23 +195,25 @@ async function verifyPortalCode({ code }) {
 }
 
 /** Count a client's still-pending portal linking codes minted in the last hour. */
-async function pendingPortalCodeCount(clientId) {
+async function pendingPortalCodeCount(clientId, organizationId) {
+  requireOrgId(organizationId, 'whatsappService.pendingPortalCodeCount');
   const [rows] = await db.query(
     `SELECT COUNT(*) AS n FROM whatsapp_verifications
-      WHERE client_id = ? AND purpose = 'link_portal' AND consumed_at IS NULL
+      WHERE client_id = ? AND organization_id <=> ? AND purpose = 'link_portal' AND consumed_at IS NULL
         AND created_at > (NOW() - INTERVAL 1 HOUR)`,
-    [clientId],
+    [clientId, organizationId],
   );
   return rows[0]?.n || 0;
 }
 
 /** Has this client been sent too many email linking codes recently (target-inbox budget)? */
-async function clientEmailCodeBudgetExceeded(clientId) {
+async function clientEmailCodeBudgetExceeded(clientId, organizationId) {
+  requireOrgId(organizationId, 'whatsappService.clientEmailCodeBudgetExceeded');
   const [rows] = await db.query(
     `SELECT COUNT(*) AS n FROM whatsapp_verifications
-      WHERE client_id = ? AND purpose = 'link_email'
+      WHERE client_id = ? AND organization_id <=> ? AND purpose = 'link_email'
         AND created_at > (NOW() - INTERVAL 1 HOUR)`,
-    [clientId],
+    [clientId, organizationId],
   );
   return (rows[0]?.n || 0) >= config.whatsapp.maxCodesPerHour;
 }
@@ -272,27 +283,36 @@ async function touchBinding(linkId) {
  * List a client's active bindings (for the portal "Connect WhatsApp" screen).
  * Numbers are masked by the caller before display.
  */
-async function listClientLinks(clientId) {
+async function listClientLinks(clientId, organizationId) {
+  requireOrgId(organizationId, 'whatsappService.listClientLinks');
   const [rows] = await db.query(
     `SELECT id, phone_e164, bound_via, bound_at, last_seen_at
        FROM whatsapp_links
-      WHERE client_id = ? AND status = 'active'
+      WHERE client_id = ? AND organization_id <=> ? AND status = 'active'
       ORDER BY bound_at DESC`,
-    [clientId],
+    [clientId, organizationId],
   );
   return rows;
 }
 
-/** Revoke a client's binding by id (client-initiated unlink). Scoped to the client. */
-async function revokeLink({ clientId, linkId }) {
+/** Revoke a client's binding by id (client-initiated unlink). Scoped to the client and its org. */
+async function revokeLink({ clientId, organizationId, linkId }) {
+  requireOrgId(organizationId, 'whatsappService.revokeLink');
   const [res] = await db.query(
     `UPDATE whatsapp_links SET status = 'revoked', revoked_at = NOW()
-      WHERE id = ? AND client_id = ? AND status = 'active'`,
-    [linkId, clientId],
+      WHERE id = ? AND client_id = ? AND organization_id <=> ? AND status = 'active'`,
+    [linkId, clientId, organizationId],
   );
   if (res.affectedRows > 0) {
-    // Drop any in-flight bot flow for this client (portal/staff unlink path).
-    await db.query('DELETE FROM whatsapp_conversation_state WHERE client_id = ?', [clientId]).catch(() => {});
+    // Drop any in-flight bot flow for this client (portal/bot unlink path).
+    // whatsapp_conversation_state has no organization_id, so it is scoped
+    // through its parent client row.
+    await db.query(
+      `DELETE s FROM whatsapp_conversation_state s
+         JOIN clients c ON c.id = s.client_id AND c.organization_id <=> ?
+        WHERE s.client_id = ?`,
+      [organizationId, clientId],
+    ).catch(() => {});
   }
   return res.affectedRows > 0;
 }

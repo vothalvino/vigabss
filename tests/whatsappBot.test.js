@@ -86,13 +86,13 @@ describe('bound-client capabilities', () => {
 
   it('answers plan for the keyword "plan"', async () => {
     const { reply } = await bot.handleInbound({ phone: PHONE, body: 'plan' });
-    expect(cap.planText).toHaveBeenCalledWith(7);
+    expect(cap.planText).toHaveBeenCalledWith(3, 7);
     expect(reply).toMatch(/your service/i);
   });
 
   it('answers invoices for the Spanish keyword "factura"', async () => {
     await bot.handleInbound({ phone: PHONE, body: 'factura' });
-    expect(cap.invoicesText).toHaveBeenCalledWith(7);
+    expect(cap.invoicesText).toHaveBeenCalledWith(3, 7);
   });
 
   it('opens a human-handoff ticket for intent 7', async () => {
@@ -146,7 +146,7 @@ describe('bound-client capabilities', () => {
 
   it('still unlinks on UNLINK', async () => {
     const { reply } = await bot.handleInbound({ phone: PHONE, body: 'UNLINK' });
-    expect(wa.revokeLink).toHaveBeenCalledWith({ clientId: 7, linkId: 1 });
+    expect(wa.revokeLink).toHaveBeenCalledWith({ clientId: 7, organizationId: 3, linkId: 1 });
     expect(reply).toMatch(/disconnected/i);
   });
 
@@ -284,7 +284,7 @@ describe('bound-client capabilities', () => {
 it('unlinks a bound number on the UNLINK command', async () => {
   wa.resolveBinding.mockResolvedValue({ clientId: 7, organizationId: 3, linkId: 1 });
   const { reply } = await bot.handleInbound({ phone: PHONE, body: 'UNLINK' });
-  expect(wa.revokeLink).toHaveBeenCalledWith({ clientId: 7, linkId: 1 });
+  expect(wa.revokeLink).toHaveBeenCalledWith({ clientId: 7, organizationId: 3, linkId: 1 });
   expect(reply).toMatch(/disconnected/i);
 });
 

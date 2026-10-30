@@ -203,7 +203,16 @@ shared primary database.
 - Subscriber-portal queries must bind `req.client.organizationId` as well as
   `req.client.id`, using null-safe `organization_id <=> ?` because single-tenant
   installs may store NULL organization IDs. A `client_id` match alone is not a
-  tenant boundary.
+  tenant boundary. Services called from the portal (`portalServiceRequestService`,
+  `whatsappService`) take the org as an argument and refuse `undefined` via
+  `src/utils/requireOrgId.js`.
+- The WhatsApp webhook has no org context, so its phone- and code-keyed
+  lookups (binding resolution, code verification, per-phone conversation
+  state) are install-wide by design. Every client-keyed WhatsApp query still
+  binds an org: the portal client's, or for the bot the org of the already
+  resolved `whatsapp_links` row, never a payload value.
+  `whatsapp_conversation_state` has no `organization_id` and is scoped through
+  its parent `clients` row.
 
 Reseller scoping by `reseller_id` is an additional business filter, not a hard
 tenant boundary and not a substitute for `organization_id`/tenant routing.
