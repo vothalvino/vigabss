@@ -531,6 +531,7 @@ async function runSuspensionWarnings(organizationId) {
              WHERE sr.notify_before_days IS NOT NULL
                AND sr.notify_before_days > 0
                AND sr.is_active = TRUE
+               AND sr.deleted_at IS NULL
                AND o.status = 'active'`;
   const params = [];
 
@@ -543,25 +544,17 @@ async function runSuspensionWarnings(organizationId) {
 
   let warnings_sent = 0;
   for (const rule of rules) {
-    // Contracts approaching suspension: overdue but not yet past the days_past_due threshold,
-    // within the notify_before_days window.
-    const warningStart = rule.days_past_due - rule.notify_before_days;
-    const warningEnd = rule.days_past_due;
-    if (warningStart < 0) continue;
+    if (!suspensionService.ENFORCED_RULE_ACTIONS.includes(rule.action)) continue;
+    // Contracts approaching suspension: overdue, within notify_before_days of
+    // the day the rule acts (days_past_due + grace), and in the rule's plans.
+    const warningEnd = suspensionService.ruleThresholdDays(rule);
+    const warningStart = Math.max(0, warningEnd - rule.notify_before_days);
 
-    const [contracts] = await db.query(
-      `SELECT c.id AS contract_id, c.client_id, c.organization_id,
-              i.id AS invoice_id, i.invoice_number, i.total, i.currency, i.due_date,
-              DATEDIFF(NOW(), i.due_date) AS days_overdue
-       FROM contracts c
-       JOIN invoices i ON i.contract_id = c.id AND i.organization_id = ?
-       WHERE c.organization_id = ?
-         AND c.status = 'active'
-         AND i.status = 'issued'
-         AND DATEDIFF(NOW(), i.due_date) >= ?
-         AND DATEDIFF(NOW(), i.due_date) < ?`,
-      [rule.org_id, rule.org_id, warningStart, warningEnd],
-    );
+    const contracts = (await suspensionService.findOverdueContracts(rule.org_id, {
+      minDays: warningStart,
+      maxDays: warningEnd,
+      planIds: suspensionService.rulePlanIds(rule),
+    })).map(c => ({ ...c, contract_id: c.id }));
 
     for (const contract of contracts) {
       try {
@@ -638,9 +631,10 @@ async function runAutoSuspend(organizationId) {
         continue;
       }
       if (rule.action === 'auto_suspend') {
-        await suspensionService.suspendContract(
+        const outcome = await suspensionService.suspendContract(
           contract.id, rule.id, null, contract.invoice_id,
         );
+        if (outcome?.skipped) continue;
         suspended++;
 
         // Send post-suspension notification email

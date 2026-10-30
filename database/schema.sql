@@ -6790,7 +6790,7 @@ CREATE TABLE IF NOT EXISTS suspension_rules (
     name                VARCHAR(150)     NOT NULL                         COMMENT 'Descriptive rule name, e.g. "Suspensión 30 días"',
     days_past_due       INT UNSIGNED     NOT NULL                         COMMENT 'Number of days overdue before this rule triggers',
     grace_period_days   INT UNSIGNED     NOT NULL DEFAULT 0               COMMENT 'Additional grace days after trigger before action is executed',
-    action              ENUM('auto_suspend','notify_only','auto_disconnect','soft_suspend')
+    action              ENUM('auto_suspend','notify_only','auto_disconnect','soft_suspend','walled_garden')
                                          NOT NULL                         COMMENT 'Action to perform when rule fires',
     soft_suspend_download_kbps INT UNSIGNED NULL DEFAULT 128              COMMENT 'Throttled download speed (kbps) applied during soft suspension; NULL = inherit plan default',
     soft_suspend_upload_kbps   INT UNSIGNED NULL DEFAULT 128              COMMENT 'Throttled upload speed (kbps) applied during soft suspension; NULL = inherit plan default',

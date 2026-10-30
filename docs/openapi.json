@@ -76466,9 +76466,8 @@
             "type": "string",
             "enum": [
               "auto_suspend",
-              "notify_only",
-              "auto_disconnect",
-              "soft_suspend"
+              "soft_suspend",
+              "walled_garden"
             ]
           },
           "notify_before_days": {
@@ -76516,9 +76515,8 @@
             "type": "string",
             "enum": [
               "auto_suspend",
-              "notify_only",
-              "auto_disconnect",
-              "soft_suspend"
+              "soft_suspend",
+              "walled_garden"
             ]
           },
           "notify_before_days": {
