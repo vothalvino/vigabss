@@ -24,6 +24,7 @@ const db = require('../config/database');
 const firerelayService = require('../services/firerelayService');
 const { tunnelServer } = require('../services/firerelayTunnel');
 const { ValidationError, NotFoundError } = require('../utils/errors');
+const { isInstallOperator, OPERATOR_ONLY_MESSAGE } = require('../services/installOperator');
 
 const router = Router();
 const RELAY_TOKEN_RE = /^[0-9a-fA-F]{64}$/;
@@ -100,12 +101,28 @@ router.get('/health', requireRelayToken, async (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// All node-management endpoints below require admin auth + org context.
+// All node-management endpoints below require auth + org context AND the
+// install operator. The node registry (firerelay_nodes has no
+// organization_id) and the tunnel agents are installation-wide: a connected
+// agent fronts whichever POP routers it can reach, regardless of tenant, so a
+// tenant admin/owner role is not sufficient authority to list agents or send
+// them commands (TNA-01). API tokens never inherit install-operator authority,
+// so they are refused here even when the token owner is the operator.
 // orgScope also applies the per-tenant API rate limit, which the
 // authenticate-only mount previously skipped (a defense-in-depth gap).
 // ---------------------------------------------------------------------------
+async function requireInstallOperator(req, res, next) {
+  try {
+    if (!req.user?.apiTokenId && await isInstallOperator(req)) return next();
+    return res.status(403).json({
+      error: { code: 'INSTALL_OPERATOR_ONLY', message: OPERATOR_ONLY_MESSAGE },
+    });
+  } catch (err) { return next(err); }
+}
+
 router.use(authenticate);
 router.use(orgScope);
+router.use(requireInstallOperator);
 
 // ---------------------------------------------------------------------------
 // GET /api/firerelay/nodes — list all registered nodes
