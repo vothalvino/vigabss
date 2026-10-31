@@ -225,7 +225,8 @@ async function resetPassword(args) {
     [passwordHash, users[0].id],
   );
 
-  // Invalidate all sessions
+  // End every session, including access tokens already issued (SEC-10).
+  await db.query('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [users[0].id]);
   await db.query('DELETE FROM user_sessions WHERE user_id = ?', [users[0].id]);
 
   logger.info({ email: args.email, id: users[0].id }, 'Password reset');

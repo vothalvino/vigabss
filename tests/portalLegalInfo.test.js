@@ -27,7 +27,7 @@ function wire({ client, cartaUrl }) {
   db.query.mockImplementation((sql) => {
     // portalAuthenticate's identity lookup (no locale column — that omission
     // is exactly why the endpoint reads locale itself; this test caught it).
-    if (/SELECT id, organization_id, name, email, status FROM clients/.test(sql)) {
+    if (/SELECT id, organization_id, name, email, status(, portal_token_version)? FROM clients/.test(sql)) {
       return Promise.resolve([[{ id: client.id, organization_id: client.organization_id, name: client.name, email: client.email, status: client.status }]]);
     }
     if (/LEFT JOIN organization_mx_profiles/.test(sql)) {

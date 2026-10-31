@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const User = require('../models/User');
+const { revokeUserSessions } = require('./sessionRevocation');
 const { sanitizeUser } = require('../utils/userSanitize');
 const db = require('../config/database');
 const emailTransport = require('./emailTransport');
@@ -235,6 +236,7 @@ async function issueSession(user, orgs, activeOrgId) {
       email: user.email,
       role: user.role,
       orgId: activeOrgId,
+      tv: Number(user.token_version ?? 0),
     },
     config.jwt.secret,
     { expiresIn: config.jwt.accessExpiresIn, algorithm: config.jwt.algorithm },
@@ -494,6 +496,7 @@ async function refreshToken(currentRefreshToken, requestedActiveOrgId = null) {
       email: user.email,
       role: user.role,
       orgId: activeOrgId,
+      tv: Number(user.token_version ?? 0),
     },
     config.jwt.secret,
     { expiresIn: config.jwt.accessExpiresIn, algorithm: config.jwt.algorithm },
@@ -601,8 +604,8 @@ async function resetPassword(token, newPassword) {
     [passwordHash, user.id],
   );
 
-  // Invalidate all existing sessions
-  await db.query('DELETE FROM user_sessions WHERE user_id = ?', [user.id]);
+  // End every session, including access tokens already issued (SEC-10).
+  await revokeUserSessions(user.id);
 
   return { message: 'Password reset successfully' };
 }
@@ -635,8 +638,9 @@ async function changePassword(userId, currentPassword, newPassword) {
     [passwordHash, user.id],
   );
 
-  // Invalidate all existing sessions for this user (force re-login)
-  await db.query('DELETE FROM user_sessions WHERE user_id = ?', [user.id]);
+  // End every session for this user, including access tokens already issued
+  // (force re-login, SEC-10).
+  await revokeUserSessions(user.id);
 
   return { message: 'Password changed successfully' };
 }
@@ -722,6 +726,7 @@ async function switchOrganization(userId, organizationId, currentRefreshToken) {
       email: user.email,
       role: user.role,
       orgId: membership.org_id,
+      tv: Number(user.token_version ?? 0),
     },
     config.jwt.secret,
     { expiresIn: config.jwt.accessExpiresIn, algorithm: config.jwt.algorithm },

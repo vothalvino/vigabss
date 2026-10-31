@@ -16,6 +16,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 const { UnauthorizedError, ValidationError } = require('../utils/errors');
 const { signPortalAccessToken } = require('../utils/accessTokens');
+const { revokePortalSessions } = require('./sessionRevocation');
 
 const SALT_ROUNDS = 12;
 const MAX_ATTEMPTS = 5;
@@ -48,7 +49,7 @@ async function login({ email, password }) {
 
   const [rows] = await db.query(
     `SELECT id, organization_id, name, email, status,
-            portal_password_hash, portal_login_attempts, portal_locked_until
+            portal_password_hash, portal_login_attempts, portal_locked_until, portal_token_version
      FROM clients
      WHERE email = ? AND deleted_at IS NULL
      LIMIT 2`,
@@ -93,7 +94,7 @@ async function login({ email, password }) {
 
   // Issue tokens
   const accessToken = signPortalAccessToken(
-    { clientId: client.id, organizationId: client.organization_id },
+    { clientId: client.id, organizationId: client.organization_id, tokenVersion: client.portal_token_version },
     ACCESS_SECONDS,
   );
 
@@ -130,7 +131,7 @@ async function refreshToken(token) {
   const hash = crypto.createHash('sha256').update(token).digest('hex');
 
   const [rows] = await db.query(
-    `SELECT prt.*, c.id AS client_id, c.organization_id, c.name, c.email, c.status
+    `SELECT prt.*, c.id AS client_id, c.organization_id, c.name, c.email, c.status, c.portal_token_version
      FROM portal_refresh_tokens prt
      JOIN clients c ON c.id = prt.client_id
      WHERE prt.token_hash = ?
@@ -150,7 +151,7 @@ async function refreshToken(token) {
   }
 
   const newAccessToken = signPortalAccessToken(
-    { clientId: row.client_id, organizationId: row.organization_id },
+    { clientId: row.client_id, organizationId: row.organization_id, tokenVersion: row.portal_token_version },
     ACCESS_SECONDS,
   );
 
@@ -220,6 +221,9 @@ async function setPassword(clientId, newPassword) {
     'UPDATE clients SET portal_password_hash = ?, portal_login_attempts = 0, portal_locked_until = NULL WHERE id = ?',
     [hash, clientId],
   );
+  // A new password ends every portal session — staff setting it and the
+  // subscriber changing it alike — including access tokens already issued (SEC-10).
+  await revokePortalSessions(clientId);
 }
 
 // ---------------------------------------------------------------------------

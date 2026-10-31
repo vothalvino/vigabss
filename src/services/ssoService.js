@@ -795,6 +795,7 @@ async function mintTokens(user, orgId) {
       email: user.email,
       role:  user.role,
       orgId,
+      tv:    Number(user.token_version ?? 0),
     },
     config.jwt.secret,
     { expiresIn: config.jwt.accessExpiresIn, algorithm: config.jwt.algorithm },

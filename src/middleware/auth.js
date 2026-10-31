@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 const db = require('../config/database');
 const User = require('../models/User');
+const { tokenVersionStale } = require('../services/sessionRevocation');
 const { resolveOrgPrincipal } = require('../services/orgPrincipalService');
 const { verifyStaffAccessToken } = require('../utils/accessTokens');
 const { UnauthorizedError, AppError } = require('../utils/errors');
@@ -162,6 +163,11 @@ async function authenticate(req, _res, next) {
     const user = await User.findById(payload.sub);
     if (!user || user.status !== 'active') {
       throw new UnauthorizedError('User not found or inactive');
+    }
+    // A password, email, status or group change (or an archive) bumps the
+    // version and ends every access token issued before it (SEC-10).
+    if (tokenVersionStale(payload.tv, user.token_version)) {
+      throw new UnauthorizedError('Session has been revoked');
     }
     const targetOrganizationId = payload.orgId || user.organization_id;
     const principal = await resolveOrgPrincipal(user, targetOrganizationId);
