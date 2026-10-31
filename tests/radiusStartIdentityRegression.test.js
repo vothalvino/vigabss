@@ -111,9 +111,9 @@ describe('Accounting-Start lifecycle identity', () => {
     const closure = connection.execute.mock.calls.find(([sql]) => (
       /UPDATE connection_logs/.test(sql)
     ));
-    expect(closure[1]).toEqual([
-      'Session-Identity-Changed', new Date(START_AT), 40, 7,
-    ]);
+    // Closed at its own last real accounting, never at the new Start (REG-01).
+    expect(closure[0]).toContain('last_accounting_at = COALESCE(last_accounting_at, event_at)');
+    expect(closure[1]).toEqual(['Session-Identity-Changed', 40, 7]);
 
     const insert = connection.execute.mock.calls.find(([sql]) => (
       /INSERT INTO connection_logs/.test(sql)
