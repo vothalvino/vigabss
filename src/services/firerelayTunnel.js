@@ -30,6 +30,11 @@ const { randomUUID } = require('crypto');
 const db = require('../config/database');
 const relayConfig = require('../config/firerelay');
 const logger = require('../utils/logger').child({ service: 'firerelayTunnel' });
+const { rejectOversizedPreAuth, PendingSockets } = require('./wsLimits');
+
+// Agent responses carry command output, so frames may be larger than the
+// browser hub's, but not ws's 100 MiB default (SEC-16).
+const MAX_PAYLOAD_BYTES = 8 * 1024 * 1024;
 const { registerWebSocketRoute } = require('./websocketUpgradeRouter');
 
 const FIRERELAY_WS_PATH = '/ws/firerelay';
@@ -72,7 +77,8 @@ class TunnelServer extends EventEmitter {
     // Route upgrades through the shared exact-path dispatcher. The `ws`
     // `{ server, path }` shortcut rejects every non-matching upgrade and would
     // prevent the browser hub on this same HTTP server from seeing its path.
-    this._wss = new WebSocketServer({ noServer: true });
+    this._wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
+    this._pendingSockets = new PendingSockets();
     const wss = this._wss;
     this._unregisterUpgradeRoute = registerWebSocketRoute(
       httpServer,
@@ -133,6 +139,12 @@ class TunnelServer extends EventEmitter {
   // ─── Connection Handling ────────────────────────────────────────────────────
 
   _handleConnection(ws, remoteIp) {
+    const releasePending = (this._pendingSockets || new PendingSockets()).admit(remoteIp);
+    if (!releasePending) {
+      ws.close(1013, 'Too many pending connections');
+      return;
+    }
+    ws._releasePending = releasePending;
     // Set a short auth timeout — unauthenticated connections must identify quickly
     const authTimeout = setTimeout(() => {
       logger.warn({ remoteIp }, 'Tunnel: auth timeout, closing connection');
@@ -144,6 +156,7 @@ class TunnelServer extends EventEmitter {
     ws._nodeId = null;
 
     ws.on('message', (raw) => {
+      if (!ws._authenticated && rejectOversizedPreAuth(ws, raw)) return;
       let msg;
       try {
         msg = JSON.parse(raw.toString());
@@ -166,6 +179,7 @@ class TunnelServer extends EventEmitter {
 
     ws.on('close', (code, reason) => {
       clearTimeout(authTimeout);
+      releasePending();
       if (ws._nodeId) {
         this._onAgentDisconnect(ws, code, reason.toString());
       }
@@ -209,6 +223,7 @@ class TunnelServer extends EventEmitter {
     }
 
     ws._authenticated = true;
+    ws._releasePending();
     ws._nodeId = node_id;
     ws._lastPong = Date.now();
 

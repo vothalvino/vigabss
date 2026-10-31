@@ -40,6 +40,7 @@
 const { WebSocketServer, WebSocket } = require('ws');
 const { verifyStaffAccessToken } = require('../utils/accessTokens');
 const logger = require('../utils/logger').child({ service: 'wsHub' });
+const { rejectOversizedPreAuth, PendingSockets } = require('./wsLimits');
 const { registerWebSocketRoute } = require('./websocketUpgradeRouter');
 const {
   BROWSER_WS_PATH,
@@ -52,6 +53,8 @@ const {
 // Constants
 // ---------------------------------------------------------------------------
 
+// Browser hub frames are small JSON control messages (auth, subscribe).
+const MAX_PAYLOAD_BYTES = 16 * 1024;
 const AUTH_TIMEOUT_MS = 5000;
 const PING_INTERVAL_MS = 30000;
 const PONG_WAIT_MS = 10000;
@@ -104,7 +107,8 @@ class WsHub {
     // `upgrade` listener that sends HTTP 400 for a path mismatch; with both the
     // FireRelay agent tunnel and browser hub on one server, whichever listener
     // ran first rejected the other's path.
-    this._wss = new WebSocketServer({ noServer: true });
+    this._wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
+    this._pendingSockets = new PendingSockets();
     const wss = this._wss;
     this._unregisterUpgradeRoute = registerWebSocketRoute(
       httpServer,
@@ -191,6 +195,13 @@ class WsHub {
 
   _handleConnection(ws, req) {
     ws._authenticated = false;
+    // Cap the unauthenticated sockets one IP (and the server) may hold (SEC-16).
+    const releasePending = (this._pendingSockets || new PendingSockets()).admit(req.socket.remoteAddress);
+    if (!releasePending) {
+      ws.close(1013, 'Too many pending connections');
+      return;
+    }
+    ws._releasePending = releasePending;
     ws._orgId = null;
     // Keep the ambient credential only until the first auth attempt, and only
     // when a real browser supplied an explicitly allowed Origin.
@@ -207,6 +218,8 @@ class WsHub {
     }, AUTH_TIMEOUT_MS);
 
     ws.on('message', (raw) => {
+      // An auth message is a few hundred bytes; parse nothing larger before auth.
+      if (!ws._authenticated && rejectOversizedPreAuth(ws, raw)) return;
       let msg;
       try {
         msg = JSON.parse(raw.toString());
@@ -228,6 +241,7 @@ class WsHub {
 
     ws.on('close', () => {
       clearTimeout(authTimer);
+      releasePending();
       this._removeClient(ws);
     });
 
@@ -284,6 +298,7 @@ class WsHub {
 
     clearTimeout(authTimer);
     ws._authenticated = true;
+    if (ws._releasePending) ws._releasePending();
     ws._orgId = orgId;
     ws._lastPong = Date.now();
 
