@@ -408,7 +408,7 @@ app.use('/api/', csrfOriginCheck);
 // are hit on every page load (the SPA keeps the access token in memory only and
 // re-bootstraps on reload); leaving them under the 20/window limiter made frequent
 // reloads 429 and bounce active users to the login screen. They stay on the general
-// apiLimiter (200/window, applied above). '/password-reset' also covers
+// apiLimiter (RATE_LIMIT_API, applied once above). '/password-reset' also covers
 // '/password-reset/request' by prefix.
 for (const sub of ['/login', '/password-reset', '/change-password', '/verify-email']) {
   app.use(`/api/auth${sub}`, authLimiter);
@@ -754,16 +754,16 @@ v1.use('/import', ...adminIpAllowlist, importRoutes);
 v1.use('/firerelay', firerelayRoutes);
 v1.use('/pdf', pdfRoutes);
 v1.use('/events', eventsRoutes);
-v1.use('/usage', apiLimiter, usageRoutes);
-v1.use('/reports', apiLimiter, reportRoutes);
-v1.use('/report-definitions', apiLimiter, reportDefinitionRoutes);
-v1.use('/scheduled-reports', apiLimiter, scheduledReportRoutes);
-v1.use('/dashboard-widgets', apiLimiter, dashboardWidgetRoutes);
-v1.use('/custom-reports', apiLimiter, customReportRoutes);
-v1.use('/checkout', apiLimiter, checkoutRoutes);
-v1.use('/alerts', apiLimiter, alertRoutes);
+v1.use('/usage', usageRoutes);
+v1.use('/reports', reportRoutes);
+v1.use('/report-definitions', reportDefinitionRoutes);
+v1.use('/scheduled-reports', scheduledReportRoutes);
+v1.use('/dashboard-widgets', dashboardWidgetRoutes);
+v1.use('/custom-reports', customReportRoutes);
+v1.use('/checkout', checkoutRoutes);
+v1.use('/alerts', alertRoutes);
 v1.use('/2fa', authLimiter, requireFeature('twoFactor'), twoFactorRoutes);
-v1.use('/bulk', apiLimiter, bulkRoutes);
+v1.use('/bulk', bulkRoutes);
 v1.use('/map-config', mapConfigRoutes);
 v1.use('/portal', portalRoutes);
 v1.use('/portal-kb', portalKbRoutes);
@@ -808,9 +808,9 @@ v1.use('/quality-classes', qualityClassRoutes);
 v1.use('/queue-tree-nodes', queueTreeNodeRoutes);
 v1.use('/rate-limit-templates', rateLimitTemplateRoutes);
 v1.use('/protocol-shaping-rules', protocolShapingRuleRoutes);
-v1.use('/', apiLimiter, dataManagementRoutes);
-v1.use('/', apiLimiter, trafficEngineeringRoutes);
-v1.use('/', apiLimiter, bandwidthTestRoutes);
+v1.use('/', dataManagementRoutes);
+v1.use('/', trafficEngineeringRoutes);
+v1.use('/', bandwidthTestRoutes);
 v1.use('/regulatory-compliance', regulatoryComplianceRoutes);
 v1.use('/numbering-management', numberingManagementRoutes);
 v1.use('/universal-service', universalServiceRoutes);

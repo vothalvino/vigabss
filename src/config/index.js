@@ -97,6 +97,8 @@ const config = {
     // Per-tenant limits — apply to all authenticated/org-scoped requests
     tenantWindowMs: parseIntEnv('RATE_LIMIT_TENANT_WINDOW_MS', 15 * 60 * 1000),
     tenantApi: parseIntEnv('RATE_LIMIT_TENANT_API', 2000),
+    // Each user or API token's share of its tenant's budget (SEC-13).
+    tenantPrincipalApi: parseIntEnv('RATE_LIMIT_TENANT_PRINCIPAL_API', Math.floor(parseIntEnv('RATE_LIMIT_TENANT_API', 2000) / 2)),
   },
 
   // TR-069 ACS (/acs/cwmp). Every CWMP message must authenticate (NET-04):
