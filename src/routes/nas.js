@@ -120,6 +120,9 @@ async function requireNatedTunnelProvisioned(nas) {
 
 const ctrl = crudController(Nas, {
   cacheResource: 'nas',
+  // secondary_nas_id is the failover CoA target: another tenant's NAS would
+  // receive this tenant's disconnects with its own secret (TNB-28).
+  ownedRefs: { site_id: 'sites', secondary_nas_id: 'nas' },
   serialize: redactNas,
   // Re-adding a NAS on an IP that was soft-deleted restores the archived row
   // (keeps id/history) instead of orphaning it — see Nas.createOrRestore.

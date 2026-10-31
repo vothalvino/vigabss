@@ -14,7 +14,12 @@ const interactionService = require('../services/interactionService');
 const db = require('../config/database');
 
 const router = Router();
-const ctrl = crudController(SatisfactionSurvey, { cacheResource: 'satisfaction-surveys' });
+// A survey on another tenant's client listed that client's name and sent it
+// a survey request (TNB-10); its linked rows must be this organization's.
+const ctrl = crudController(SatisfactionSurvey, {
+  cacheResource: 'satisfaction-surveys',
+  ownedRefs: { client_id: 'clients', ticket_id: 'tickets', interaction_id: 'client_interactions' },
+});
 
 router.use(authenticate);
 router.use(orgScope);
@@ -42,14 +47,14 @@ router.get('/', requirePermission('surveys.view'), async (req, res, next) => {
     const [rows] = await db.query(
       `SELECT s.*, cl.name AS client_name
        FROM satisfaction_surveys s
-       JOIN clients cl ON cl.id = s.client_id
+       JOIN clients cl ON cl.id = s.client_id AND cl.organization_id <=> s.organization_id
        ${where}
        ORDER BY ${orderCol} ${orderDir}
        LIMIT ${safeLimit} OFFSET ${safeOffset}`,
       params,
     );
     const [[{ total }]] = await db.query(
-      `SELECT COUNT(*) AS total FROM satisfaction_surveys s JOIN clients cl ON cl.id = s.client_id ${where}`,
+      `SELECT COUNT(*) AS total FROM satisfaction_surveys s JOIN clients cl ON cl.id = s.client_id AND cl.organization_id <=> s.organization_id ${where}`,
       params,
     );
     res.json({ data: rows, meta: { total, page: safePage, limit: safeLimit, totalPages: Math.ceil(total / safeLimit) } });

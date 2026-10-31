@@ -33,7 +33,7 @@ const {
   updateChannelInterference,
 } = require('../middleware/schemas/wirelessSectors');
 const wirelessService = require('../services/wirelessService');
-const { buildUpdate } = require('../utils/sqlBuild');
+const { buildUpdate, columnsOf } = require('../utils/sqlBuild');
 const logger = require('../utils/logger').child({ service: 'routes/wirelessManagement' });
 
 const router = Router();
@@ -329,7 +329,7 @@ router.put('/ap-commands/:id', requirePermission('ap_commands.create'), validate
     if (!existing.length) return res.status(404).json({ error: 'AP command job not found' });
     const db = require('../config/database');
     const { organization_id: _o, id: _i, created_at: _c, deleted_at: _d, ...fields } = req.body;
-    const { assignments, values } = buildUpdate(fields);
+    const { assignments, values } = buildUpdate(fields, columnsOf(updateApCommandJob));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
     await db.query(
       `UPDATE ap_command_jobs SET ${setClause} WHERE id = ? AND (organization_id = ? OR organization_id IS NULL)`,

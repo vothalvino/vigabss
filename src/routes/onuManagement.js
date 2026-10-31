@@ -24,10 +24,11 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
-const { buildInsert, buildUpdate } = require('../utils/sqlBuild');
+const { buildInsert, buildUpdate, columnsOf } = require('../utils/sqlBuild');
 const { sealSecret, sealSecretFields } = require('../utils/sealSecrets');
 const { redactSecretsInResponses, keepBlankSecrets } = require('../utils/secretRedaction');
 const { assertOwnedReferences } = require('../utils/ownedReferences');
+const { writableRow } = require('../utils/writableRow');
 const {
   createOnuProfile, updateOnuProfile, patchOnuProfile,
 } = require('../middleware/schemas/onuProfiles');
@@ -56,27 +57,6 @@ router.use(orgScope);
 router.use(['/details', '/omci-configs'], redactSecretsInResponses(['loid_password_encrypted', 'wifi_password_encrypted']));
 const sealLoidPassword = [keepBlankSecrets(['loid_password']), sealSecretFields({ loid_password: 'loid_password_encrypted' })];
 const sealWifiPassword = [keepBlankSecrets(['wifi_password']), sealSecretFields({ wifi_password: 'wifi_password_encrypted' })];
-
-// Rows with organization_id NULL are installation-shared: every tenant reads
-// them, but no tenant may change or delete them. The write lookups used to
-// accept them, so one tenant's admin could edit or delete a profile every
-// other tenant provisions with. The null-safe `<=>` still lets a caller with
-// no organization (single-tenant install) manage its own NULL-org rows.
-async function writableRow(res, table, id, orgId, columns = 'id') {
-  const [rows] = await db.query(
-    `SELECT ${columns}, organization_id FROM ${table} WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL`,
-    [id, orgId],
-  );
-  if (!rows.length) {
-    res.status(404).json({ error: 'Not found' });
-    return null;
-  }
-  if (rows[0].organization_id === null && orgId !== null && orgId !== undefined) {
-    res.status(403).json({ error: 'Shared ONU records are read-only' });
-    return null;
-  }
-  return rows[0];
-}
 
 // Writes take only the fields the route's schema declares (plus a sealed
 // credential column). The profile edit form sends the whole row back, and
@@ -140,7 +120,7 @@ router.get('/profiles/:id', requirePermission('onu_profiles.view'), async (req, 
 router.post('/profiles', requirePermission('onu_profiles.create'), validate(createOnuProfile), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
     const fields = declaredFields(req.body, createOnuProfile);
-    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
+    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOnuProfile, 'organization_id'));
     const [result] = await db.query(
       `INSERT INTO onu_profiles (${columns}) VALUES (${placeholders})`,
       values,
@@ -154,7 +134,7 @@ router.put('/profiles/:id', requirePermission('onu_profiles.update'), validate(u
   try {
     if (!await writableRow(res, 'onu_profiles', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuProfile);
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updateOnuProfile));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
     await db.query(`UPDATE onu_profiles SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_profiles WHERE id = ?', [req.params.id]);
@@ -167,7 +147,7 @@ router.patch('/profiles/:id', requirePermission('onu_profiles.update'), validate
     if (!await writableRow(res, 'onu_profiles', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, patchOnuProfile);
     if (!Object.keys(updateData).length) return res.status(400).json({ error: 'No fields to update' });
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(patchOnuProfile));
     await db.query(`UPDATE onu_profiles SET ${assignments}, updated_at = NOW() WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_profiles WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
@@ -198,7 +178,9 @@ router.get('/details', requirePermission('onu_management.view'), async (req, res
              p.port_name, np.name AS profile_name
       FROM onu_details od
       JOIN devices d ON d.id = od.device_id AND d.deleted_at IS NULL
+        AND (d.organization_id <=> od.organization_id OR d.organization_id IS NULL)
       LEFT JOIN olt_ports p ON p.id = od.olt_port_id
+        AND (p.organization_id <=> od.organization_id OR p.organization_id IS NULL)
       LEFT JOIN onu_profiles np ON np.id = od.onu_profile_id AND np.deleted_at IS NULL
       WHERE (od.organization_id = ? OR od.organization_id IS NULL) AND od.deleted_at IS NULL
     `;
@@ -225,7 +207,9 @@ router.get('/details/:id', requirePermission('onu_management.view'), async (req,
               p.port_name, np.name AS profile_name
        FROM onu_details od
        JOIN devices d ON d.id = od.device_id AND d.deleted_at IS NULL
+         AND (d.organization_id <=> od.organization_id OR d.organization_id IS NULL)
        LEFT JOIN olt_ports p ON p.id = od.olt_port_id
+         AND (p.organization_id <=> od.organization_id OR p.organization_id IS NULL)
        LEFT JOIN onu_profiles np ON np.id = od.onu_profile_id AND np.deleted_at IS NULL
        WHERE od.id = ? AND (od.organization_id = ? OR od.organization_id IS NULL) AND od.deleted_at IS NULL`,
       [req.params.id, req.orgId],
@@ -238,7 +222,7 @@ router.get('/details/:id', requirePermission('onu_management.view'), async (req,
 router.post('/details', requirePermission('onu_management.create'), validate(createOnuDetail), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
   try {
     const fields = declaredFields(req.body, createOnuDetail, ['loid_password_encrypted']);
-    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
+    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOnuDetail, 'organization_id', 'loid_password_encrypted'));
     const [result] = await db.query(
       `INSERT INTO onu_details (${columns}) VALUES (${placeholders})`,
       values,
@@ -252,7 +236,7 @@ router.put('/details/:id', requirePermission('onu_management.update'), validate(
   try {
     if (!await writableRow(res, 'onu_details', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuDetail, ['loid_password_encrypted']);
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updateOnuDetail, 'loid_password_encrypted'));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
     await db.query(`UPDATE onu_details SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_details WHERE id = ?', [req.params.id]);
@@ -265,7 +249,7 @@ router.patch('/details/:id', requirePermission('onu_management.update'), validat
     if (!await writableRow(res, 'onu_details', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, patchOnuDetail, ['loid_password_encrypted']);
     if (!Object.keys(updateData).length) return res.status(400).json({ error: 'No fields to update' });
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(patchOnuDetail, 'loid_password_encrypted'));
     await db.query(`UPDATE onu_details SET ${assignments}, updated_at = NOW() WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_details WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
@@ -372,7 +356,7 @@ router.get('/whitelist/:id', requirePermission('onu_whitelist.view'), async (req
 router.post('/whitelist', requirePermission('onu_whitelist.create'), validate(createOnuWhitelistEntry), ownsReferences(DEVICE_REFS), async (req, res, next) => {
   try {
     const fields = declaredFields(req.body, createOnuWhitelistEntry);
-    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
+    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOnuWhitelistEntry, 'organization_id'));
     const [result] = await db.query(
       `INSERT INTO onu_whitelist (${columns}) VALUES (${placeholders})`,
       values,
@@ -386,7 +370,7 @@ router.put('/whitelist/:id', requirePermission('onu_whitelist.update'), validate
   try {
     if (!await writableRow(res, 'onu_whitelist', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuWhitelistEntry);
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updateOnuWhitelistEntry));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
     await db.query(`UPDATE onu_whitelist SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_whitelist WHERE id = ?', [req.params.id]);
@@ -443,7 +427,7 @@ router.get('/omci-configs/:id', requirePermission('onu_omci_configs.view'), asyn
 router.post('/omci-configs', requirePermission('onu_omci_configs.create'), validate(createOnuOmciConfig), ownsReferences(DEVICE_REFS), sealWifiPassword, async (req, res, next) => {
   try {
     const fields = declaredFields(req.body, createOnuOmciConfig, ['wifi_password_encrypted']);
-    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, apply_status: 'pending', ...fields });
+    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, apply_status: 'pending', ...fields }, columnsOf(createOnuOmciConfig, 'organization_id', 'apply_status', 'wifi_password_encrypted'));
     const [result] = await db.query(
       `INSERT INTO onu_omci_configs (${columns}) VALUES (${placeholders})`,
       values,
@@ -457,7 +441,7 @@ router.put('/omci-configs/:id', requirePermission('onu_omci_configs.update'), va
   try {
     if (!await writableRow(res, 'onu_omci_configs', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuOmciConfig, ['wifi_password_encrypted']);
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updateOnuOmciConfig, 'wifi_password_encrypted'));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
     await db.query(`UPDATE onu_omci_configs SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_omci_configs WHERE id = ?', [req.params.id]);
@@ -532,7 +516,7 @@ router.put('/firmware-jobs/:id', requirePermission('onu_firmware_jobs.update'), 
   try {
     if (!await writableRow(res, 'onu_firmware_jobs', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuFirmwareJob);
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updateOnuFirmwareJob));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
     await db.query(`UPDATE onu_firmware_jobs SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_firmware_jobs WHERE id = ?', [req.params.id]);

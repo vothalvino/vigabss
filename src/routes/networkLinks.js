@@ -9,19 +9,22 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 const { createNetworkLink, updateNetworkLink } = require('../middleware/schemas/networkLinks');
 const topologyContextService = require('../services/topologyContextService');
 const logger = require('../utils/logger').child({ service: 'routes/networkLinks' });
 
 const router = Router();
 const ctrl = crudController(NetworkLink);
+// Both ends of a link must be this tenant's devices (TNB-28).
+const LINK_REFS = { device_a_id: 'devices', device_b_id: 'devices' };
 
 router.use(authenticate);
 router.use(orgScope);
 
 router.get('/', requirePermission('network_links.view'), ctrl.list);
 router.get('/:id', requirePermission('network_links.view'), ctrl.get);
-router.post('/', requirePermission('network_links.create'), validate(createNetworkLink), async (req, res, next) => {
+router.post('/', requirePermission('network_links.create'), validate(createNetworkLink), ownedReferences(LINK_REFS), async (req, res, next) => {
   try {
     if (NetworkLink.hasOrgScope && req.orgId) req.body.organization_id = req.orgId;
     const record = await NetworkLink.create(req.body);
@@ -30,7 +33,7 @@ router.post('/', requirePermission('network_links.create'), validate(createNetwo
     res.status(201).json({ data: record });
   } catch (err) { next(err); }
 });
-router.put('/:id', requirePermission('network_links.update'), validate(updateNetworkLink), async (req, res, next) => {
+router.put('/:id', requirePermission('network_links.update'), validate(updateNetworkLink), ownedReferences(LINK_REFS), async (req, res, next) => {
   try {
     const record = await NetworkLink.update(req.params.id, req.body, req.orgId);
     topologyContextService.invalidate(record.id, 'link')

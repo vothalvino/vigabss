@@ -52,6 +52,7 @@ const auditLog = require('../services/auditLog');
 const db = require('../config/database');
 const { inPlaceholders } = require('../utils/sqlBuild');
 const { runInPrimaryContext } = require('../utils/primaryContext');
+const { ownedReferences } = require('../utils/ownedReferences');
 
 const router = Router();
 router.use(authenticate);
@@ -98,6 +99,18 @@ const planPriceSchema = {
   currency:     { type: 'string', max: 3 },
   is_active:    { type: 'boolean' },
   notes:        { type: 'string' },
+};
+
+// Allocations named another tenant's plan, pool or port, and the lists joined
+// those rows in (TNB-19): the ids are checked and the joins scoped.
+const ipPoolAllocationSchema = {
+  ip_pool_id: { type: 'number', required: true },
+  notes:      { type: 'string' },
+};
+
+const oltPortAssignmentSchema = {
+  olt_port_id: { type: 'number', required: true },
+  notes:       { type: 'string' },
 };
 
 const bandwidthQuotaSchema = {
@@ -308,16 +321,16 @@ router.get('/:id/plan-prices', requirePermission('reseller_plan_prices.view'), a
       `SELECT rpp.*, p.name AS plan_name, p.price AS base_price
        FROM reseller_plan_prices rpp
        JOIN plans p ON rpp.plan_id = p.id
-       WHERE rpp.reseller_id = ?
+       WHERE rpp.reseller_id = ? AND p.organization_id <=> ?
        ORDER BY p.name ASC`,
-      [req.params.id],
+      [req.params.id, req.orgId],
     );
     res.json({ data: rows });
   } catch (err) { next(err); }
 });
 
 // POST /resellers/:id/plan-prices
-router.post('/:id/plan-prices', requirePermission('reseller_plan_prices.manage'), validate(planPriceSchema), async (req, res, next) => {
+router.post('/:id/plan-prices', requirePermission('reseller_plan_prices.manage'), validate(planPriceSchema), ownedReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const { plan_id, custom_price, is_active = true, notes } = req.body;
@@ -420,16 +433,16 @@ router.get('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.view
       `SELECT a.*, p.network, p.subnet_mask, p.ip_version, p.name AS pool_name, p.status AS pool_status
        FROM reseller_ip_pool_allocations a
        JOIN ip_pools p ON a.ip_pool_id = p.id
-       WHERE a.reseller_id = ?
+       WHERE a.reseller_id = ? AND p.organization_id <=> ?
        ORDER BY p.network ASC`,
-      [req.params.id],
+      [req.params.id, req.orgId],
     );
     res.json({ data: rows });
   } catch (err) { next(err); }
 });
 
 // POST /resellers/:id/ip-pools
-router.post('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.manage'), async (req, res, next) => {
+router.post('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.manage'), validate(ipPoolAllocationSchema), ownedReferences({ ip_pool_id: 'ip_pools' }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const { ip_pool_id, notes } = req.body;
@@ -519,16 +532,16 @@ router.get('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.vi
       `SELECT a.*, p.port_name, p.port_no, p.port_type
        FROM reseller_olt_port_assignments a
        JOIN olt_ports p ON a.olt_port_id = p.id
-       WHERE a.reseller_id = ?
+       WHERE a.reseller_id = ? AND p.organization_id <=> ?
        ORDER BY p.port_index ASC`,
-      [req.params.id],
+      [req.params.id, req.orgId],
     );
     res.json({ data: rows });
   } catch (err) { next(err); }
 });
 
 // POST /resellers/:id/olt-ports
-router.post('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.manage'), async (req, res, next) => {
+router.post('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.manage'), validate(oltPortAssignmentSchema), ownedReferences({ olt_port_id: 'olt_ports' }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const { olt_port_id, notes } = req.body;

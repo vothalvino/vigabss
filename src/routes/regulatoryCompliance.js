@@ -10,6 +10,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 const { createConsent, createDsarRequest, resolveDsarRequest } = require('../middleware/schemas/regulatoryCompliance');
 const { NotFoundError, ValidationError, ForbiddenError, ConflictError } = require('../utils/errors');
 const auditLog = require('../services/auditLog');
@@ -446,7 +447,7 @@ router.get('/identity-verification', requirePermission('identity_verification.vi
   }
 });
 
-router.post('/identity-verification', requirePermission('identity_verification.create'), async (req, res, next) => {
+router.post('/identity-verification', requirePermission('identity_verification.create'), ownedReferences({ client_id: 'clients' }), async (req, res, next) => {
   try {
     const { client_id, id_type, id_number, verification_method, notes } = req.body;
 

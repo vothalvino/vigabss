@@ -406,7 +406,11 @@ function registerHooks() {
         ? new Date(workOrder.scheduled_at).toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
         : null;
 
-      await Notification.create({
+      // Notifications carry no organization: only a user who can see this
+      // organization's work orders gets the bell entry (RTE-04).
+      const User = require('../models/User');
+      const canSee = await User.hasEffectivePermission(workOrder.assigned_to, organizationId, 'work_orders.view');
+      if (canSee) await Notification.create({
         user_id:     workOrder.assigned_to,
         type:        'work_order',
         title:       `Work order assigned: ${workOrder.title}`,

@@ -9,6 +9,7 @@ const db = require('../config/database');
 const auditLog = require('../services/auditLog');
 const { bustCache } = require('../middleware/httpCache');
 const { AppError } = require('../utils/errors');
+const { assertOwnedReferences } = require('../utils/ownedReferences');
 const logger = require('../utils/logger').child({ service: 'crudController' });
 
 /**
@@ -134,6 +135,13 @@ function crudController(Model, _options = {}) {
   // after* hook is useless because the insert has already tripped the unique
   // index by then.
   const beforeCreateHook = typeof _options.beforeCreate === 'function' ? _options.beforeCreate : null;
+  // Linked rows named in the body ({ field: 'table' | { table, allowShared } },
+  // see utils/ownedReferences.js) must belong to the caller's organization.
+  // create() injected organization_id but checked no foreign id, so any
+  // *_id from the body — another tenant's client, gateway, NAS, device —
+  // was stored and later joined or acted on (TNB-28). Checked on create,
+  // update and partialUpdate, before the write.
+  const ownedRefs = _options.ownedRefs || null;
   // Optional pre-delete guard — called with the EXISTING record (and req) right
   // after it is fetched and BEFORE the delete is applied. Like beforeUpdate it
   // MAY throw to reject. Reuses the existing fetch, so it costs no extra query.
@@ -214,6 +222,7 @@ function crudController(Model, _options = {}) {
   }
 
   async function applyUpdate(req) {
+    if (ownedRefs) await assertOwnedReferences(req.body, req.orgId ?? null, ownedRefs);
     // A record can never be moved between tenants through generic CRUD.
     //
     // This is not defence in depth — it closed a live cross-tenant WRITE.
@@ -359,6 +368,7 @@ function crudController(Model, _options = {}) {
           req.body.organization_id = req.orgId;
         }
 
+        if (ownedRefs) await assertOwnedReferences(req.body, req.orgId ?? null, ownedRefs);
         // After the org injection, so a hook reconciling per-org state sees the
         // org it will actually be written with.
         if (beforeCreateHook) await beforeCreateHook(req);

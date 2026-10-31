@@ -21,6 +21,7 @@ const eventBus = require('../services/eventBus');
 const auditLog = require('../services/auditLog');
 const logger = require('../utils/logger').child({ service: 'routes/workOrders' });
 const { ForbiddenError, NotFoundError, ValidationError } = require('../utils/errors');
+const { ownedReferences } = require('../utils/ownedReferences');
 const { attachmentStorage, resolveStoredPath, STORAGE_ROOT,
   attachmentFileFilter, attachmentMimeType, contentDispositionAttachment } = require('../middleware/upload');
 
@@ -356,6 +357,25 @@ async function writeActivationTransition({ req, before, body, activationOwned, w
   }
 }
 
+// A work order's targets must be this organization's rows: a foreign client,
+// site or device id was stored and its name joined into the list (TNB-14).
+const WORK_ORDER_REFS = {
+  client_id: 'clients', site_id: 'sites', device_id: 'devices',
+  contract_id: 'contracts', ticket_id: 'tickets', service_order_id: 'service_orders',
+};
+
+// Sub-resources keyed only by work_order_id (materials) check the parent first.
+async function requireOwnedWorkOrder(req, res, next) {
+  try {
+    const [rows] = await db.query(
+      'SELECT id FROM work_orders WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.id, req.orgId],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Work order not found' });
+    next();
+  } catch (err) { next(err); }
+}
+
 /**
  * Guard for the `assigned_to` field on create/update/patch. Resolves to an error
  * string when the target user may not be assigned, or null when assignment is
@@ -470,9 +490,12 @@ router.get('/', requirePermission('work_orders.view'), async (req, res, next) =>
               c.name AS client_name, s.name AS site_name, d.name AS device_name
        FROM work_orders wo
        LEFT JOIN users u ON u.id = wo.assigned_to
-       LEFT JOIN clients c ON c.id = wo.client_id
-       LEFT JOIN sites s ON s.id = wo.site_id
-       LEFT JOIN devices d ON d.id = wo.device_id
+         AND (u.organization_id = wo.organization_id OR EXISTS (
+           SELECT 1 FROM organization_users ou
+            WHERE ou.user_id = u.id AND ou.organization_id = wo.organization_id AND ou.deleted_at IS NULL))
+       LEFT JOIN clients c ON c.id = wo.client_id AND c.organization_id = wo.organization_id
+       LEFT JOIN sites s ON s.id = wo.site_id AND s.organization_id = wo.organization_id
+       LEFT JOIN devices d ON d.id = wo.device_id AND d.organization_id = wo.organization_id
        WHERE ${whereSql}
        ORDER BY wo.${safeOrderBy} ${safeOrder} LIMIT ${limit} OFFSET ${offset}`,
       params,
@@ -493,9 +516,12 @@ router.get('/:id', requirePermission('work_orders.view'), async (req, res, next)
               c.name AS client_name, s.name AS site_name, d.name AS device_name
        FROM work_orders wo
        LEFT JOIN users u ON u.id = wo.assigned_to
-       LEFT JOIN clients c ON c.id = wo.client_id
-       LEFT JOIN sites s ON s.id = wo.site_id
-       LEFT JOIN devices d ON d.id = wo.device_id
+         AND (u.organization_id = wo.organization_id OR EXISTS (
+           SELECT 1 FROM organization_users ou
+            WHERE ou.user_id = u.id AND ou.organization_id = wo.organization_id AND ou.deleted_at IS NULL))
+       LEFT JOIN clients c ON c.id = wo.client_id AND c.organization_id = wo.organization_id
+       LEFT JOIN sites s ON s.id = wo.site_id AND s.organization_id = wo.organization_id
+       LEFT JOIN devices d ON d.id = wo.device_id AND d.organization_id = wo.organization_id
        WHERE wo.id = ? AND wo.organization_id = ? AND wo.deleted_at IS NULL`,
       [req.params.id, req.orgId],
     );
@@ -505,7 +531,7 @@ router.get('/:id', requirePermission('work_orders.view'), async (req, res, next)
 });
 
 // POST /work-orders
-router.post('/', requirePermission('work_orders.create'), validate(createWorkOrder), async (req, res, next) => {
+router.post('/', requirePermission('work_orders.create'), validate(createWorkOrder), ownedReferences(WORK_ORDER_REFS), async (req, res, next) => {
   try {
     const { ticket_id, assigned_to, title, description, status, priority, scheduled_at, latitude, longitude, address, notes,
       client_id, site_id, device_id, contract_id, service_order_id, work_type } = req.body;
@@ -538,7 +564,7 @@ router.post('/', requirePermission('work_orders.create'), validate(createWorkOrd
 });
 
 // PUT /work-orders/:id
-router.put('/:id', requirePermission('work_orders.update'), validate(updateWorkOrder), async (req, res, next) => {
+router.put('/:id', requirePermission('work_orders.update'), validate(updateWorkOrder), ownedReferences(WORK_ORDER_REFS), async (req, res, next) => {
   try {
     const { ticket_id, assigned_to, title, description, status, priority, scheduled_at, started_at, completed_at, latitude, longitude, address, notes,
       client_id, site_id, device_id, contract_id, service_order_id, work_type } = req.body;
@@ -603,7 +629,7 @@ router.put('/:id', requirePermission('work_orders.update'), validate(updateWorkO
 });
 
 // PATCH /work-orders/:id
-router.patch('/:id', requirePermission('work_orders.update'), validate(patchWorkOrder), async (req, res, next) => {
+router.patch('/:id', requirePermission('work_orders.update'), validate(patchWorkOrder), ownedReferences(WORK_ORDER_REFS), async (req, res, next) => {
   try {
     const allowed = ['ticket_id','assigned_to','title','description','status','priority','scheduled_at','started_at','completed_at','latitude','longitude','address','notes','client_id','site_id','device_id','contract_id','service_order_id','work_type',
       'acceptance_signal_dbm','acceptance_link_mbps','acceptance_rx_dbm','acceptance_waived','acceptance_notes'];
@@ -852,7 +878,7 @@ router.post('/:id/restore', requirePermission('work_orders.update'), async (req,
 });
 
 // GET /work-orders/:id/materials
-router.get('/:id/materials', requirePermission('work_order_materials.view'), async (req, res, next) => {
+router.get('/:id/materials', requirePermission('work_order_materials.view'), requireOwnedWorkOrder, async (req, res, next) => {
   try {
     const [rows] = await db.query(
       'SELECT * FROM work_order_materials WHERE work_order_id = ? ORDER BY created_at ASC',
@@ -863,7 +889,7 @@ router.get('/:id/materials', requirePermission('work_order_materials.view'), asy
 });
 
 // POST /work-orders/:id/materials
-router.post('/:id/materials', requirePermission('work_order_materials.create'), async (req, res, next) => {
+router.post('/:id/materials', requirePermission('work_order_materials.create'), requireOwnedWorkOrder, async (req, res, next) => {
   try {
     const { item_name, quantity, unit, unit_cost, notes } = req.body;
     if (!item_name) return res.status(422).json({ error: 'item_name is required' });
@@ -877,7 +903,7 @@ router.post('/:id/materials', requirePermission('work_order_materials.create'), 
 });
 
 // DELETE /work-orders/:id/materials/:matId
-router.delete('/:id/materials/:matId', requirePermission('work_order_materials.delete'), async (req, res, next) => {
+router.delete('/:id/materials/:matId', requirePermission('work_order_materials.delete'), requireOwnedWorkOrder, async (req, res, next) => {
   try {
     const [result] = await db.query(
       'DELETE FROM work_order_materials WHERE id = ? AND work_order_id = ?',

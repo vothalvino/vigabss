@@ -504,8 +504,8 @@ async function getDependencyEdges(orgId, deviceId) {
             pd.name AS parent_name, pd.type AS parent_type, pd.status AS parent_status,
             cd.name AS child_name, cd.type AS child_type, cd.status AS child_status
      FROM device_dependency_edges dde
-     JOIN devices pd ON pd.id = dde.parent_device_id
-     JOIN devices cd ON cd.id = dde.child_device_id
+     JOIN devices pd ON pd.id = dde.parent_device_id AND pd.organization_id <=> dde.organization_id
+     JOIN devices cd ON cd.id = dde.child_device_id AND cd.organization_id <=> dde.organization_id
      WHERE dde.organization_id = ?
        AND (dde.parent_device_id = ? OR dde.child_device_id = ?)`,
     [orgId, deviceId, deviceId],

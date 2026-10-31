@@ -14,6 +14,8 @@ const { createDataPack, updateDataPack } = require('../middleware/schemas/dataPa
 const dataPackService = require('../services/dataPackService');
 const rolloverService = require('../services/rolloverService');
 const fupNotificationService = require('../services/fupNotificationService');
+const db = require('../config/database');
+const { ownedReferences } = require('../utils/ownedReferences');
 
 const router = Router();
 
@@ -88,8 +90,23 @@ router.get('/data-packs/:id/purchases', requirePermission('data_pack_purchases.v
 // Contract-scoped data pack endpoints
 // ---------------------------------------------------------------------------
 
+// The allowance, rollover and purchase services key on contract_id alone, so
+// the contract is checked against the caller's organization first (TNA-20).
+async function requireOwnedContract(req, res, next) {
+  try {
+    const [rows] = await db.query(
+      'SELECT id FROM contracts WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.contractId, req.orgId],
+    );
+    if (!rows.length) return res.status(404).json({ error: { message: 'Contract not found' } });
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /contracts/:contractId/data-packs — effective allowance + purchases
-router.get('/contracts/:contractId/data-packs', requirePermission('data_pack_purchases.view'), async (req, res, next) => {
+router.get('/contracts/:contractId/data-packs', requirePermission('data_pack_purchases.view'), requireOwnedContract, async (req, res, next) => {
   try {
     const [allowance, purchases] = await Promise.all([
       dataPackService.getEffectiveAllowance(req.params.contractId),
@@ -102,7 +119,7 @@ router.get('/contracts/:contractId/data-packs', requirePermission('data_pack_pur
 });
 
 // POST /contracts/:contractId/data-packs/:packId/purchase — admin purchase
-router.post('/contracts/:contractId/data-packs/:packId/purchase', requirePermission('data_pack_purchases.create'), async (req, res, next) => {
+router.post('/contracts/:contractId/data-packs/:packId/purchase', requirePermission('data_pack_purchases.create'), requireOwnedContract, ownedReferences({ invoice_id: 'invoices' }), async (req, res, next) => {
   try {
     const purchase = await dataPackService.purchasePack(
       req.orgId,
@@ -132,7 +149,7 @@ router.put('/data-pack-purchases/:id/cancel', requirePermission('data_pack_purch
 // ---------------------------------------------------------------------------
 
 // GET /contracts/:contractId/rollover
-router.get('/contracts/:contractId/rollover', requirePermission('data_rollover.view'), async (req, res, next) => {
+router.get('/contracts/:contractId/rollover', requirePermission('data_rollover.view'), requireOwnedContract, async (req, res, next) => {
   try {
     const balance = await rolloverService.getRolloverBalance(req.params.contractId);
     res.json({ data: balance });
