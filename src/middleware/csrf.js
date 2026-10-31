@@ -33,6 +33,7 @@
 const Tokens = require('csrf');
 const config = require('../config');
 const { URL } = require('url');
+const { bearerToken } = require('../utils/bearerToken');
 
 const tokens = new Tokens();
 
@@ -198,9 +199,9 @@ function csrfOriginCheck(req, res, next) {
   // requests cannot set custom `Authorization` headers without a CORS
   // pre-flight that the server would reject.  The SPA uses both Bearer token
   // and cookies, so we must exempt it here to avoid double-enforcement.
-  const hasBearer = typeof req.headers?.authorization === 'string' &&
-    req.headers.authorization.startsWith('Bearer ');
-  if (hasBearer) return next();
+  // A placeholder ("Bearer null") is not a credential: authenticate falls back
+  // to the cookie for it, so it must not skip the CSRF check either.
+  if (bearerToken(req)) return next();
 
   // --- Primary: csrf-library token verification ---
   const secret = req.cookies?.[CSRF_SECRET_COOKIE];
