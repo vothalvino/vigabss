@@ -28,6 +28,9 @@
 # =============================================================================
 
 set -euo pipefail
+# A failing command under errexit used to end the run with no output at all
+# (SUP-01). Name the line and command that stopped it.
+trap 'echo "install.sh: stopped at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 REPO_URL="https://github.com/vothalvino/vigabss.git"
 VIGABSS_VERSION="0.1.0-alpha.1"
@@ -1033,13 +1036,10 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
   fi
 
   # Schedule nginx to reload every 6 hours so it picks up renewed TLS
-  # certificates without manual intervention.  Uses the root crontab.
-  # A unique comment marker is used so we can safely remove or update this
-  # entry without accidentally removing unrelated crontab lines.
-  CRON_MARKER="# vigabss-nginx-reload"
-  LEGACY_CRON_MARKER="# fireisp-nginx-reload"
-  CRON_LINE="0 */6 * * * /usr/sbin/nginx -s reload 2>/dev/null || true  $CRON_MARKER"
-  ( crontab -l 2>/dev/null | grep -v -e "$CRON_MARKER" -e "$LEGACY_CRON_MARKER" ; echo "$CRON_LINE" ) | crontab -
+  # certificates without manual intervention (/etc/cron.d/vigabss-nginx-reload;
+  # entries older installers put in root's crontab are removed).
+  bash "$INSTALL_DIR/nginx/install-reload-cron.sh" \
+    || die "Could not schedule the nginx reload in /etc/cron.d."
   log "Cron job added: nginx reloads every 6 hours to pick up renewed certs."
 fi
 
