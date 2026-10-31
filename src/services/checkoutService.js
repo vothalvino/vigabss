@@ -13,6 +13,7 @@ const paymentRetryService = require('./paymentRetryService');
 const paymentAllocationService = require('./paymentAllocationService');
 const logger = require('../utils/logger');
 const { ValidationError } = require('../utils/errors');
+const { orgScopeFilter } = require('./organizationFanOut');
 
 /** Return `url` only if it is same-origin as `base` (anti open-redirect); else null. */
 function sameOriginUrl(url, base) {
@@ -404,8 +405,7 @@ async function chargeRecurringProfile(profileId, organizationId) {
  * Auto-charge all active recurring profiles with pending invoices.
  */
 async function processRecurringCharges(organizationId) {
-  const orgFilter = organizationId ? 'AND pg.organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('pg.organization_id', organizationId);
 
   const [profiles] = await db.query(`
     SELECT rp.id

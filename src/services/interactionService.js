@@ -22,6 +22,7 @@ const TicketEscalation = require('../models/TicketEscalation');
 const eventBus = require('./eventBus');
 const logger = require('../utils/logger').child({ service: 'interactions' });
 const { ValidationError, NotFoundError } = require('../utils/errors');
+const { orgScopeFilter } = require('./organizationFanOut');
 
 // Score ranges per survey type: NPS uses the 0-10 recommendation scale,
 // CSAT the classic 1-5 satisfaction scale.
@@ -131,8 +132,8 @@ async function processDueReminders(organizationId = null) {
       AND r.deleted_at IS NULL
       AND r.due_at <= NOW()
       AND r.notified_at IS NULL
-      AND (? IS NULL OR r.organization_id = ?)
-  `, [organizationId, organizationId]);
+      ${orgScopeFilter('r.organization_id', organizationId).sql}
+  `, orgScopeFilter('r.organization_id', organizationId).params);
 
   let notified = 0;
   for (const reminder of reminders) {
@@ -173,8 +174,8 @@ async function dispatchTicketSurveys(organizationId = null, { days = 7 } = {}) {
       AND t.resolved_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       AND s.id IS NULL
       AND cl.email IS NOT NULL AND cl.email <> ''
-      AND (? IS NULL OR t.organization_id = ?)
-  `, [safeDays, organizationId, organizationId]);
+      ${orgScopeFilter('t.organization_id', organizationId).sql}
+  `, [safeDays, ...orgScopeFilter('t.organization_id', organizationId).params]);
 
   let sent = 0;
   for (const ticket of tickets) {
@@ -397,8 +398,8 @@ async function autoEscalateTickets(organizationId = null, { hours = 48 } = {}) {
       AND t.deleted_at IS NULL
       AND t.created_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)
       AND e.id IS NULL
-      AND (? IS NULL OR t.organization_id = ?)
-  `, [safeHours, organizationId, organizationId]);
+      ${orgScopeFilter('t.organization_id', organizationId).sql}
+  `, [safeHours, ...orgScopeFilter('t.organization_id', organizationId).params]);
 
   let escalated = 0;
   for (const { id } of tickets) {
