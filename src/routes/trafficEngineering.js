@@ -178,7 +178,10 @@ function teController(tableName) {
           `UPDATE ${tableName} SET deleted_at = NULL WHERE id = ? AND organization_id = ?`,
           [req.params.id, req.orgId],
         );
-        const [[row]] = await db.query(`SELECT * FROM ${tableName} WHERE id = ?`, [req.params.id]);
+        // Read back within the caller's organization; an id-only read returned
+        // another tenant's row when the scoped UPDATE matched nothing (TNB-22).
+        const [[row]] = await db.query(`SELECT * FROM ${tableName} WHERE id = ? AND organization_id = ?`, [req.params.id, req.orgId]);
+        if (!row) return res.status(404).json({ error: { message: 'Not found' } });
         res.json({ data: row });
       } catch (err) {
         next(err);

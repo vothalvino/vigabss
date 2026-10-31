@@ -159,9 +159,10 @@ async function cancelPurchase(purchaseId, organizationId) {
      WHERE id = ? AND organization_id = ? AND status IN ('pending','active')`,
     [purchaseId, organizationId],
   );
+  // Scoped like the UPDATE, so another tenant's id reads as not found (TNB-22).
   const [[row]] = await db.query(
-    'SELECT * FROM data_pack_purchases WHERE id = ?',
-    [purchaseId],
+    'SELECT * FROM data_pack_purchases WHERE id = ? AND organization_id = ?',
+    [purchaseId, organizationId],
   );
   return row;
 }
