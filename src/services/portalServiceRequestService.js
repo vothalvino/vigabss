@@ -27,6 +27,21 @@ const logger = require('../utils/logger').child({ service: 'portalServiceRequest
 // Create a new service request
 // ---------------------------------------------------------------------------
 
+// A requested PPPoE or Wi-Fi password is kept in the payload until approval
+// applies it, and every list and detail returned it: to any staff holder of
+// portal_service_requests.view, which the read-only role has. Responses carry
+// has_new_password instead.
+function withoutRequestedPassword(row) {
+  if (!row || row.payload === undefined || row.payload === null) return row;
+  let payload = row.payload;
+  if (typeof payload === 'string') {
+    try { payload = JSON.parse(payload); } catch { return row; }
+  }
+  if (!payload || typeof payload !== 'object' || !('new_password' in payload)) return row;
+  const { new_password: secret, ...rest } = payload;
+  return { ...row, payload: { ...rest, has_new_password: Boolean(secret) } };
+}
+
 /** Active plans of the organization, or global ones (TNB-11). */
 async function findUpgradePlan(planId, organizationId, executor = db) {
   const [plans] = await executor.query(
@@ -164,7 +179,7 @@ async function createRequest({ clientId, organizationId, requestType, payload = 
     'SELECT * FROM portal_service_requests WHERE id = ?',
     [result.insertId],
   );
-  return rows[0];
+  return withoutRequestedPassword(rows[0]);
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +212,7 @@ async function listRequests(clientId, organizationId, { page = 1, limit = 20, re
     `SELECT COUNT(*) AS total FROM portal_service_requests ${where}`,
     params,
   );
-  return { rows, total };
+  return { rows: rows.map(withoutRequestedPassword), total };
 }
 
 // ---------------------------------------------------------------------------
@@ -342,7 +357,7 @@ async function adminListRequests(organizationId, { page = 1, limit = 25, status,
     `SELECT COUNT(*) AS total FROM portal_service_requests psr ${where}`,
     params,
   );
-  return { rows, total };
+  return { rows: rows.map(withoutRequestedPassword), total };
 }
 
 /**
@@ -357,7 +372,7 @@ async function adminGetRequest(requestId, organizationId) {
     [requestId, organizationId],
   );
   if (!rows[0]) throw new NotFoundError('Service request');
-  return rows[0];
+  return withoutRequestedPassword(rows[0]);
 }
 
 /**
@@ -447,7 +462,7 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
     'SELECT * FROM portal_service_requests WHERE id = ?',
     [requestId],
   );
-  return updated[0];
+  return withoutRequestedPassword(updated[0]);
 }
 
 /**

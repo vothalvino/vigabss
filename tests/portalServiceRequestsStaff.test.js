@@ -124,3 +124,23 @@ describe('requested passwords', () => {
     expect(db.query.mock.calls.some(([sql]) => /INSERT INTO portal_service_requests/.test(sql))).toBe(false);
   });
 });
+
+describe('requested passwords are never returned', () => {
+  const stored = { ...PENDING, request_type: 'pppoe_password_change', payload: '{"new_password":"S3cret-pass","source":"portal"}' };
+
+  test('the staff list and detail carry has_new_password instead', async () => {
+    strictDb((sql) => (/COUNT\(\*\)/.test(sql) ? [[{ total: 1 }]] : [[{ ...stored }]]));
+    const list = await call('get', '');
+    const detail = await call('get', '/7');
+    for (const body of [list.body.data[0], detail.body.data]) {
+      expect(JSON.stringify(body)).not.toContain('S3cret-pass');
+      expect(body.payload).toEqual({ source: 'portal', has_new_password: true });
+    }
+  });
+
+  test("the subscriber's own list does not echo it back either", async () => {
+    strictDb((sql) => (/COUNT\(\*\)/.test(sql) ? [[{ total: 1 }]] : [[{ ...stored }]]));
+    const { rows } = await service.listRequests(5, 1);
+    expect(JSON.stringify(rows)).not.toContain('S3cret-pass');
+  });
+});
