@@ -95,6 +95,12 @@ async function restorePack(id, organizationId) {
 // ---------------------------------------------------------------------------
 
 async function purchasePack(organizationId, contractId, packId, { purchasedBy = 'admin', invoiceId = null } = {}) {
+  const [[contract]] = await db.query(
+    'SELECT id FROM contracts WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+    [contractId, organizationId],
+  );
+  if (!contract) throw Object.assign(new Error('Contract not found'), { status: 404 });
+
   const [[pack]] = await db.query(
     `SELECT * FROM data_packs
      WHERE id = ?
@@ -195,9 +201,10 @@ async function getEffectiveAllowance(contractId) {
     `SELECT COALESCE(SUM(gb_applied), 0) AS pack_gb
      FROM data_pack_purchases
      WHERE contract_id = ?
+       AND organization_id <=> ?
        AND status = 'active'
        AND (expires_at IS NULL OR expires_at > NOW())`,
-    [contractId],
+    [contractId, contract.organization_id],
   );
   const packGb = parseFloat(packRow.pack_gb) || 0;
 

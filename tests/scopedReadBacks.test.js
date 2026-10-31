@@ -73,3 +73,27 @@ test('secret-named extra_params keys are redacted in driver config responses', (
   expect(out.extra_params).not.toContain('p@ss');
   expect(out.extra_params).toContain('mgmt');
 });
+
+// TNA-20: parents named in the path are checked before the write or read.
+test.each([
+  ['post', '/alerts/escalation-chains/900/steps', { step_number: 1, notification_channel: 'email', recipient_email: 'a@x.test' }, /INSERT INTO alert_escalation_steps/],
+  ['post', '/contracts/900/data-packs/1/purchase', {}, /INSERT INTO data_pack_purchases/],
+  ['get', '/contracts/900/data-packs', undefined, /FROM data_pack_purchases/],
+  ['get', '/contracts/900/rollover', undefined, /FROM data_rollover_balances/],
+])('%s %s under another tenant\'s parent is 404 and touches nothing', async (method, path, body, touched) => {
+  const res = await call(method, path, body);
+  expect(res.status).toBe(404);
+  expect(db.query.mock.calls.some(([sql]) => touched.test(sql))).toBe(false);
+});
+
+test('a data pack cannot be purchased onto another tenant\'s contract', async () => {
+  const { purchasePack } = require('../src/services/dataPackService');
+  // The pack is live and visible; only the contract is foreign.
+  db.query.mockImplementation(async (sql) => {
+    if (/FROM data_packs/.test(sql)) return [[{ id: 1, data_gb: '10.000', validity_days: 30 }]];
+    if (/^\s*INSERT/.test(sql)) return [{ insertId: 5 }];
+    return [[]];
+  });
+  await expect(purchasePack(1, 900, 1, {})).rejects.toMatchObject({ status: 404 });
+  expect(db.query.mock.calls.some(([sql]) => /INSERT INTO data_pack_purchases/.test(sql))).toBe(false);
+});

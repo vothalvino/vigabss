@@ -222,6 +222,13 @@ router.get('/escalation-chains/:id/steps', requirePermission('alert_escalations.
 
 router.post('/escalation-chains/:id/steps', requirePermission('alert_escalations.create'), validate(escalationSchemas.createStep), async (req, res, next) => {
   try {
+    // The chain must be this organization's: a step on another tenant's chain
+    // sent that tenant's alerts to a recipient of the caller's choosing (TNA-20).
+    const [chains] = await db.query(
+      'SELECT id FROM alert_escalation_chains WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.id, req.orgId],
+    );
+    if (!chains.length) return res.status(404).json({ error: { message: 'Escalation chain not found' } });
     const [result] = await db.query(
       'INSERT INTO alert_escalation_steps (chain_id, step_number, delay_minutes, notification_channel, recipient_email, recipient_phone, webhook_url, message_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [req.params.id, req.body.step_number, req.body.delay_minutes || 15, req.body.notification_channel,
