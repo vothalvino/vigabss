@@ -45,6 +45,8 @@ export interface AuthUser {
    *  per-tenant Admin persona and every org has one. Gates install-wide UI:
    *  the version tab, the update banner, the sidebar entry. */
   is_install_operator?: boolean;
+  /** Must set a new password before using the app (migration 479). */
+  must_change_password?: boolean | number;
   /** True only for an account in the exact seeded system super_admin group. */
   is_super_admin?: boolean;
   /** Install operators and super administrators can enter every organization

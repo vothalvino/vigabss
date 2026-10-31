@@ -80,6 +80,11 @@ export function Login() {
         <h1 style={styles.title}><BrandLockup size="hero" showVersion /></h1>
         <p style={styles.subtitle}>{mfaToken ? t('login.totpPrompt') : t('login.subtitle')}</p>
 
+        {(location.state as { notice?: string } | null)?.notice === 'passwordChanged' && !error && (
+          <div role="status" style={{ background: '#d1fae5', color: '#065f46', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 14 }}>
+            {t('login.passwordChanged')}
+          </div>
+        )}
         {error && <div style={styles.error} role="alert">{error}</div>}
 
         {mfaToken ? (
