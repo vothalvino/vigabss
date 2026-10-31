@@ -479,10 +479,10 @@ describe('the installer does not compile on the target box', () => {
     expect(install).toContain('VIGABSS_BOOTSTRAP_STATE=pending');
     expect(install).toContain('get_compatible_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE FIREISP_BOOTSTRAP_STATE');
     expect(install).toMatch(/pending\)\s+RUN_INITIAL_SEED=1/);
-    expect(install).toMatch(/if \[\[ "\$RUN_INITIAL_SEED" == "1" \]\]; then[\s\S]+src\/scripts\/seed\.js[\s\S]+VIGABSS_BOOTSTRAP_STATE seeded/);
+    expect(install).toMatch(/if \[\[ "\$RUN_INITIAL_SEED" == "1" \]\]; then[\s\S]+src\/scripts\/bootstrap\.js[\s\S]+VIGABSS_BOOTSTRAP_STATE seeded/);
     expect(install).toContain('VIGABSS_BOOTSTRAP_STATE complete');
     expect(install).toMatch(/_ADMIN_PASSWORD_STATUS" -eq 0 && -z "\$_SAVED_ADMIN_PASSWORD"[\s\S]+_ADMIN_PASSWORD_STATUS=1/);
-    expect(install).toContain('Existing application data detected — skipping the demo seed.');
+    expect(install).toContain('Existing application data detected — skipping the initial bootstrap.');
   });
 
   it.each([
@@ -547,7 +547,8 @@ describe('the installer does not compile on the target box', () => {
     const depsAt = index(/^\s*\$COMPOSE up -d db-primary redis\s*$/);
     const stopAt = index(/^\s*\$COMPOSE stop -t 30 app\s*$/);
     const migrateAt = index(/^\s*(?:if ! )?\$COMPOSE run --rm -T --no-deps -e MIGRATE_ISOLATED_TENANTS=true/);
-    const seedAt = index(/^\s*\$COMPOSE run --rm -T --no-deps app node src\/scripts\/seed\.js\s*$/);
+    // OPS-03: the production bootstrap, not the demo seed.
+    const seedAt = index(/^\s*app node src\/scripts\/bootstrap\.js\s*$/);
     const startAt = index(/^\s*\$COMPOSE up -d\s*$/);
     const readyAt = live.findIndex(l => l.includes("fetch('http://127.0.0.1:3000/health/ready'"));
 

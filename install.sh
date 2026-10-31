@@ -11,7 +11,9 @@
 #
 # Full variable reference:
 #   DOMAIN              Public domain name (e.g. isp.example.com)
-#   EMAIL               Email for Let's Encrypt + admin account
+#   EMAIL               Administrator login + Let's Encrypt contact
+#   ORG_NAME            Your organization's name (prompted on a fresh install)
+#   ORG_COUNTRY         Two-letter country code, e.g. MX (prompted on a fresh install)
 #   INSTALL_DIR         Target install directory (default: /opt/vigabss;
 #                       an existing /opt/fireisp install is reused automatically)
 #   SKIP_TLS            Set to 1 to use a self-signed cert instead of Let's Encrypt
@@ -463,6 +465,26 @@ set_env_value() {
   fi
 }
 
+# Drop every single-line KEY=... assignment from an env file (atomic). Returns
+# 1, changing nothing, if a quoted value might span lines.
+remove_env_key() {
+  local file="$1" key="$2" line temp
+  local -a lines=()
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == "${key}="* ]]; then
+      [[ "${line#*=}" == *[\"\']* ]] && return 1
+      continue
+    fi
+    lines+=("$line")
+  done < "$file"
+  temp="$(mktemp "${file}.bak-tmp-XXXXXX")" || return 1
+  chmod 600 "$temp"
+  if ! printf '%s\n' "${lines[@]}" > "$temp" || ! mv -f -- "$temp" "$file"; then
+    rm -f -- "$temp"
+    return 1
+  fi
+}
+
 reuse_env_value() {
   local variable="$1" key="$2" existing status=0
   existing="$(get_env_value "$ENV_FILE" "$key")" || status=$?
@@ -641,7 +663,7 @@ else
 fi
 
 prompt DOMAIN "Public domain name (e.g. isp.example.com)"
-prompt EMAIL  "Admin email address (used for Let's Encrypt and first-run account)"
+prompt EMAIL  "Administrator email (your login, and the Let's Encrypt contact)"
 
 SKIP_TLS="${SKIP_TLS:-0}"
 if [[ "$SKIP_TLS" == "1" ]]; then
@@ -830,9 +852,10 @@ ENCRYPTION_KEY=${ENCRYPTION_KEY}
 ADMIN_IP_ALLOWLIST=${ADMIN_IP_ALLOWLIST:-}
 
 # ---- Admin account (generated at install time) --------------------------------
-# Plaintext initial password for the admin@demo-isp.com account.
-# seed.js reads this, hashes it with bcrypt, and stores only the hash in the DB.
-# Change this password in the web UI after your first login.
+# Plaintext initial password for the administrator (CERTBOT_EMAIL above).
+# bootstrap.js hashes it with bcrypt and stores only the hash in the DB; the
+# installer removes this line once it has shown you the password. Change the
+# password in the web UI after your first login.
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 
 # Installer bootstrap state. `pending` makes an interrupted post-migration run
@@ -1295,14 +1318,24 @@ if [[ "$RUN_INITIAL_SEED" == "1" || "$SAVED_BOOTSTRAP_STATE" == "seeded" ]]; the
 fi
 
 if [[ "$RUN_INITIAL_SEED" == "1" ]]; then
-  info "Seeding the initial administrator and demo data..."
-  # The app service receives ADMIN_PASSWORD through its 0600 env_file.
-  $COMPOSE run --rm -T --no-deps app node src/scripts/seed.js
+  # Only your organization and its administrator. This used to run seed.js,
+  # which created a "Demo ISP" tenant, admin@demo-isp.com, sample clients,
+  # active 2025 contracts that were then back-billed, and an active NAS with
+  # the secret 'testing123' (OPS-03).
+  prompt ORG_NAME "Your organization (ISP) name" "My ISP"
+  prompt ORG_COUNTRY "Country (two-letter code; MX turns on SAT/IFT compliance)" "MX"
+  info "Creating your organization and administrator account..."
+  # The app service receives ADMIN_PASSWORD through its 0600 env_file; the
+  # non-secret values below are passed on the command line.
+  $COMPOSE run --rm -T --no-deps \
+    -e ADMIN_EMAIL="$EMAIL" -e ORG_NAME="$ORG_NAME" -e ORG_COUNTRY="$ORG_COUNTRY" \
+    app node src/scripts/bootstrap.js
+  set_env_value "$ENV_FILE" VIGABSS_INITIAL_ADMIN_EMAIL "$EMAIL"
   set_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE seeded
   SAVED_BOOTSTRAP_STATE="seeded"
-  log "Initial data loaded."
+  log "Organization and administrator created."
 else
-  info "Existing application data detected — skipping the demo seed."
+  info "Existing application data detected — skipping the initial bootstrap."
 fi
 
 # Only now expose the application listeners and reverse proxy.
@@ -1357,9 +1390,12 @@ echo -e "  ${BOLD}Next steps:${RESET}"
 echo -e "   1. Open https://${DOMAIN} in your browser"
 if [[ "$SHOW_INITIAL_ADMIN" == "1" ]]; then
   echo -e "   2. Log in with the credentials below, then immediately change the password"
-  echo -e "      ${BOLD}Admin email   :${RESET} admin@demo-isp.com"
+  # Installs bootstrapped by an older installer (seed.js) log in as the demo
+  # address; newer ones recorded the administrator's own email.
+  _INITIAL_ADMIN_EMAIL="$(get_env_value "$ENV_FILE" VIGABSS_INITIAL_ADMIN_EMAIL 2>/dev/null || true)"
+  echo -e "      ${BOLD}Admin email   :${RESET} ${_INITIAL_ADMIN_EMAIL:-admin@demo-isp.com}"
   echo -e "      ${BOLD}Admin password:${RESET} ${ADMIN_PASSWORD}"
-  echo -e "      ${YELLOW}(Also stored in ${ENV_FILE} — keep that file private)${RESET}"
+  echo -e "      ${YELLOW}(Shown once: it is now removed from ${ENV_FILE}.)${RESET}"
 else
   echo -e "   2. Existing administrator credentials were left unchanged"
   echo -e "      (use the current password or the normal password-reset flow)"
@@ -1371,6 +1407,10 @@ fi
 if [[ "$SAVED_BOOTSTRAP_STATE" == "seeded" ]]; then
   set_env_value "$ENV_FILE" VIGABSS_BOOTSTRAP_STATE complete
   SAVED_BOOTSTRAP_STATE="complete"
+  # The initial password has been shown; do not leave it in plain text on disk.
+  if ! remove_env_key "$ENV_FILE" ADMIN_PASSWORD; then
+    warn "Could not remove ADMIN_PASSWORD from $ENV_FILE; delete that line by hand after logging in."
+  fi
 fi
 echo -e "   3. Configure SMTP in Settings → Organization → Email"
 echo -e "   4. Fill in your ISP organization details"
