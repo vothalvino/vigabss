@@ -59,11 +59,17 @@ async function start() {
     logger.warn({ err: migrationErr }, 'Could not check migration status — run `npm run migrate` first');
   }
 
-  // Start the cron scheduler
-  try {
-    await scheduler.start();
-  } catch (err) {
-    logger.warn({ err }, 'Scheduler failed to start');
+  // Start the cron scheduler. SCHEDULER_ENABLED=false keeps this process out
+  // of cron (e.g. web-only pods); every task still runs once per tick across
+  // the processes that do start it (scheduler.runClaimed / BullMQ job ids).
+  if (process.env.SCHEDULER_ENABLED === 'false') {
+    logger.info('Scheduler disabled on this process (SCHEDULER_ENABLED=false)');
+  } else {
+    try {
+      await scheduler.start();
+    } catch (err) {
+      logger.warn({ err }, 'Scheduler failed to start');
+    }
   }
 
   // Register BullMQ job workers (no-op when REDIS_URL is unset)

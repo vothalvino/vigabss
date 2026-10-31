@@ -158,11 +158,11 @@ describe('CreditNoteList page', () => {
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <CreditNoteModal creditNote={null} clients={[client1]} onClose={() => {}} onSaved={() => {}} />
+          <CreditNoteModal creditNote={null} lockedClientId={client1.id} clientName={client1.name} onClose={() => {}} onSaved={() => {}} />
         </MemoryRouter>
       </QueryClientProvider>
     );
-    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: '10' } }); // Client select
+    expect(screen.getByText(client1.name)).toBeInTheDocument(); // the chosen client, shown by the picker
     fireEvent.click(screen.getByText('Create Credit Note'));
     await waitFor(() => expect(screen.getByText(/must equal total \(300\.00\)/)).toBeInTheDocument());
   });
@@ -184,7 +184,7 @@ describe('CreditNoteList page', () => {
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <CreditNoteModal creditNote={null} clients={[client1]} onClose={() => {}} onSaved={() => {}} />
+          <CreditNoteModal creditNote={null} onClose={() => {}} onSaved={() => {}} />
         </MemoryRouter>
       </QueryClientProvider>
     );
@@ -211,7 +211,7 @@ describe('CreditNoteList page', () => {
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <CreditNoteModal creditNote={null} clients={[client1]} onClose={() => {}} onSaved={() => {}} />
+          <CreditNoteModal creditNote={null} onClose={() => {}} onSaved={() => {}} />
         </MemoryRouter>
       </QueryClientProvider>
     );

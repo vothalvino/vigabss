@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { authedFetch, tokenStore } from '@/api/client';
+import { authedFetch } from '@/api/client';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,11 +34,7 @@ interface ReminderSettings {
 const API = '/api/v1';
 
 async function fetchSettings(): Promise<ReminderSettings> {
-  const token = tokenStore.getAccess();
-  const res = await fetch(`${API}/payment-reminder-settings`, {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: 'include',
-  });
+  const res = await authedFetch(`${API}/payment-reminder-settings`);
   if (!res.ok) throw new Error('Failed to load settings');
   return res.json();
 }
@@ -111,7 +107,7 @@ export function PaymentReminderSettings() {
   const [enabled, setEnabled] = useState(true);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, isSuccess, refetch } = useQuery({
     queryKey: ['payment-reminder-settings'],
     queryFn: fetchSettings,
   });
@@ -139,6 +135,7 @@ export function PaymentReminderSettings() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (!isSuccess) return;
     mutation.mutate({
       days_before_due: parseNumbers(daysBefore),
       send_on_due: sendOnDue,
@@ -154,6 +151,14 @@ export function PaymentReminderSettings() {
       </h1>
 
       {isLoading && <p>{t('common.loading')}</p>}
+      {/* Without the stored settings the form only holds defaults; saving
+          them would overwrite the real configuration. */}
+      {isError && (
+        <p role="alert" style={{ color: '#991b1b' }}>
+          {t('common.loadError')}{' '}
+          <button type="button" onClick={() => refetch()}>{t('common.retry')}</button>
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} style={card}>
         {msg && (
@@ -201,7 +206,7 @@ export function PaymentReminderSettings() {
           />
         </div>
 
-        <button type="submit" style={saveBtn} disabled={mutation.isPending}>
+        <button type="submit" style={saveBtn} disabled={!isSuccess || mutation.isPending}>
           {mutation.isPending ? t('common.saving') : t('common.save')}
         </button>
       </form>

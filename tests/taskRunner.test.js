@@ -400,6 +400,7 @@ describe('taskRunner', () => {
 
     test('dispatches generate_scheduled_reports task', async () => {
       // processScheduledReports: no due schedules
+      db.query.mockResolvedValueOnce([[]]); // isolated organizations: none (ASY-06 fan-out)
       db.query.mockResolvedValueOnce([[]]); // scheduled_reports SELECT
       const result = await taskRunner.runTask('generate_scheduled_reports');
       expect(result).toHaveProperty('processed', 0);

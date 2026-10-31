@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { portalTokenStore } from '@/auth/PortalAuthContext';
+import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
 
@@ -30,12 +30,9 @@ interface InvoicesResponse {
 }
 
 async function fetchPortalInvoices(page: number, status: string): Promise<InvoicesResponse> {
-  const token = portalTokenStore.getAccess();
   const query = new URLSearchParams({ page: String(page), limit: '20' });
   if (status) query.set('status', status);
-  const res = await fetch(`${API_BASE}/invoices?${query}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await portalAuthedFetch(`${API_BASE}/invoices?${query}`);
   if (!res.ok) throw new Error('Failed to load invoices');
   return res.json() as Promise<InvoicesResponse>;
 }

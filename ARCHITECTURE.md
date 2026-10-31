@@ -416,6 +416,18 @@ the org list on the primary, enters each isolated tenant's context, isolates
 per-org failures and throws only when every org failed. Passing NULL straight
 through matches nothing and records a successful no-op.
 
+Handlers that already cover every organization of one database when given
+`organizationId = null` (invoicing, suspension, autopay, payment retries,
+ticket automation, CSD/SLA checks, scheduled reports, SNMP polling) run through
+`forEachDatabaseScope` instead: once on the primary, where `orgScopeFilter()`
+excludes the stale primary rows of isolated organizations, then once inside each
+isolated organization's database. Use `orgScopeFilter(column, organizationId)`
+for the organization predicate in such handlers; a hand-written
+`organizationId ? 'AND x = ?' : ''` processes isolated organizations' stale
+primary copies. A task row owned by one organization runs inside that
+organization's database (`runTask` enters it). Backups (`database_backup`)
+still dump the primary database only.
+
 Redis-backed caching and BullMQ workers are optional. Code must preserve the
 documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;

@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { authedFetch, tokenStore } from '@/api/client';
+import { authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 
 // ---------------------------------------------------------------------------
@@ -33,11 +33,7 @@ interface InvoiceSettingsData {
 const API = '/api/v1';
 
 async function fetchSettings(): Promise<InvoiceSettingsData> {
-  const token = tokenStore.getAccess();
-  const res = await fetch(`${API}/invoice-settings`, {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: 'include',
-  });
+  const res = await authedFetch(`${API}/invoice-settings`);
   if (!res.ok) throw new Error('Failed to load invoice settings');
   return res.json();
 }
@@ -102,7 +98,7 @@ export function InvoiceSettings() {
   });
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, isSuccess, refetch } = useQuery({
     queryKey: ['invoice-settings'],
     queryFn: fetchSettings,
   });
@@ -132,6 +128,7 @@ export function InvoiceSettings() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (!isSuccess) return;
     mutation.mutate(form);
   };
 
@@ -144,6 +141,14 @@ export function InvoiceSettings() {
       </h1>
 
       {isLoading && <p>{t('common.loading')}</p>}
+      {/* Without the stored settings the form only holds defaults; saving
+          them would overwrite the real configuration. */}
+      {isError && (
+        <p role="alert" style={{ color: '#991b1b' }}>
+          {t('common.loadError')}{' '}
+          <button type="button" onClick={() => refetch()}>{t('common.retry')}</button>
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} style={card}>
         {msg && (
@@ -203,7 +208,7 @@ export function InvoiceSettings() {
           />
         </div>
 
-        <button type="submit" style={saveBtn} disabled={mutation.isPending}>
+        <button type="submit" style={saveBtn} disabled={!isSuccess || mutation.isPending}>
           {mutation.isPending ? t('common.saving') : t('common.save')}
         </button>
       </form>

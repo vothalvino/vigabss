@@ -102,9 +102,8 @@ describe('RecordPaymentModal', () => {
     // No client picked yet (unlocked entry point) — nothing has loaded that
     // could override the org-currency default.
     renderModal({ lockedClientId: undefined, lockedClientName: undefined });
-    // Wait for the self-fetched client picker to settle so no state update
-    // from that query lands after the test (and its assertions) finish.
-    await screen.findByRole('option', { name: 'Acme Corp' });
+    // The client search box is there, nothing chosen yet.
+    expect(await screen.findByRole('textbox', { name: 'Client' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('EUR')).toBeInTheDocument();
   });
 

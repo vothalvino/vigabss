@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { api, tokenStore } from '@/api/client';
 import { readCsrfCookie } from '@/api/csrf';
 import { extractApiError } from '@/components/ClientFormModal';
+import { ClientPicker } from '@/components/ClientPicker';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -97,12 +98,6 @@ export function fmtAmount(amount: string | null | undefined, currency: string): 
 // ---------------------------------------------------------------------------
 // Fetch / mutate helpers
 // ---------------------------------------------------------------------------
-
-export async function fetchClients(): Promise<Client[]> {
-  const res = await api.GET('/clients', { params: { query: { limit: 500 } as never } });
-  if (res.error) throw new Error('Failed to load clients');
-  return (res.data as unknown as { data: Client[] }).data;
-}
 
 export async function fetchAllocations(paymentId: number): Promise<PaymentAllocation[]> {
   const token = tokenStore.getAccess();
@@ -670,13 +665,14 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
 
 interface ReassignModalProps {
   payment: Payment;
-  clients: Client[];
   onClose: () => void;
   onReassigned: () => void;
 }
 
-function ReassignModal({ payment, clients, onClose, onReassigned }: ReassignModalProps) {
-  const [newClientId, setNewClientId] = useState('');
+function ReassignModal({ payment, onClose, onReassigned }: ReassignModalProps) {
+  // Search-based picker: the old <select> held only the newest 100 clients (FE-04).
+  const [newClientId, setNewClientId] = useState<number | ''>('');
+  const [newClientName, setNewClientName] = useState('');
 
   const { data: allocs = [], isLoading: loadingAllocs } = useQuery({
     queryKey: ['payment-allocs', payment.id],
@@ -692,7 +688,7 @@ function ReassignModal({ payment, clients, onClose, onReassigned }: ReassignModa
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!newClientId || isBlocked) return;
+    if (!newClientId || isBlocked || newClientId === payment.client_id) return;
     mutation.mutate();
   }
 
@@ -720,28 +716,23 @@ function ReassignModal({ payment, clients, onClose, onReassigned }: ReassignModa
         )}
 
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>New Client *</label>
-          <select
-            style={inputStyle}
+          <ClientPicker
+            label="New Client"
             value={newClientId}
-            onChange={e => setNewClientId(e.target.value)}
+            initialName={newClientName}
             disabled={isBlocked}
-            required
-          >
-            <option value="">— select client —</option>
-            {clients
-              .filter(c => c.id !== payment.client_id)
-              .map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-          </select>
+            onChange={(id, name) => { setNewClientId(id || ''); setNewClientName(name); }}
+          />
+          {newClientId === payment.client_id && (
+            <div style={errorBox}>This payment already belongs to that client.</div>
+          )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
             <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
             <button
               type="submit"
               style={{ ...submitBtn, ...(isBlocked ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
-              disabled={mutation.isPending || isBlocked || !newClientId}
+              disabled={mutation.isPending || isBlocked || !newClientId || newClientId === payment.client_id}
             >
               {mutation.isPending ? 'Reassigning…' : 'Reassign'}
             </button>
@@ -865,14 +856,6 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
   const [sendingReceipt, setSendingReceipt] = useState(false);
   const [toast, setToast] = useState('');
   const qc = useQueryClient();
-
-  // Clients only needed when Reassign modal is open; same query key as the
-  // eager fetch in PaymentList, so the cache is shared across all rows.
-  const { data: clients = [] } = useQuery({
-    queryKey: ['clients-slim'],
-    queryFn: fetchClients,
-    enabled: reassignOpen,
-  });
 
   function showToast(msg: string) {
     setToast(msg);
@@ -1018,7 +1001,6 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
       {reassignOpen && (
         <ReassignModal
           payment={payment}
-          clients={clients}
           onClose={() => setReassignOpen(false)}
           onReassigned={() => {
             qc.invalidateQueries({ queryKey: ['payment-allocs', payment.id] });

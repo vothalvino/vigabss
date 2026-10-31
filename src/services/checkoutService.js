@@ -13,6 +13,7 @@ const paymentRetryService = require('./paymentRetryService');
 const paymentAllocationService = require('./paymentAllocationService');
 const logger = require('../utils/logger');
 const { ValidationError } = require('../utils/errors');
+const { orgScopeFilter } = require('./organizationFanOut');
 
 /** Return `url` only if it is same-origin as `base` (anti open-redirect); else null. */
 function sameOriginUrl(url, base) {
@@ -101,7 +102,9 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
         description: `Invoice ${invoice.invoice_number}`,
         successUrl,
         cancelUrl,
-        metadata: { invoice_id: invoiceId, client_id: resolvedClientId, transaction_id: transactionId },
+        // organization_id: the install-wide webhook route resolves the owning
+        // tenant (and its database) from this signed metadata (WHK-11).
+        metadata: { invoice_id: invoiceId, client_id: resolvedClientId, transaction_id: transactionId, organization_id: organizationId },
       });
     } catch (err) {
       await db.query(
@@ -174,7 +177,9 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
         successUrl,
         failureUrl,
         expiresAt: conektaExpiresAt,
-        metadata: { invoice_id: invoiceId, client_id: resolvedClientId, transaction_id: transactionId },
+        // organization_id: the install-wide webhook route resolves the owning
+        // tenant (and its database) from this signed metadata (WHK-11).
+        metadata: { invoice_id: invoiceId, client_id: resolvedClientId, transaction_id: transactionId, organization_id: organizationId },
       });
     } catch (err) {
       await db.query(
@@ -400,8 +405,7 @@ async function chargeRecurringProfile(profileId, organizationId) {
  * Auto-charge all active recurring profiles with pending invoices.
  */
 async function processRecurringCharges(organizationId) {
-  const orgFilter = organizationId ? 'AND pg.organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('pg.organization_id', organizationId);
 
   const [profiles] = await db.query(`
     SELECT rp.id

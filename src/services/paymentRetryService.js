@@ -12,6 +12,7 @@
 const db = require('../config/database');
 const paymentGatewayService = require('./paymentGatewayService');
 const logger = require('../utils/logger');
+const { orgScopeFilter } = require('./organizationFanOut');
 
 // Retry delay schedule in milliseconds (from the time of the original failure)
 // Attempt 1: 4 hours, Attempt 2: 24 hours, Attempt 3: 72 hours
@@ -104,8 +105,7 @@ async function scheduleRetry({
  * @returns {object} Summary of processed retries
  */
 async function processPendingRetries(organizationId = null) {
-  const orgFilter = organizationId ? 'AND pr.organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('pr.organization_id', organizationId);
 
   // The profile and its gateway must still be live: a revoked, expired or
   // deleted card (or a deleted gateway) is never charged again.

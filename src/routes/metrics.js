@@ -5,8 +5,10 @@
 // No external dependency — generates text/plain Prometheus exposition format.
 // =============================================================================
 
+const crypto = require('crypto');
 const { Router } = require('express');
 const { dbQuerySamples, dbQueryBuckets } = require('../utils/dbMetrics');
+const { bearerToken } = require('../utils/bearerToken');
 
 const router = Router();
 
@@ -19,8 +21,55 @@ const counters = {
 };
 
 const histogramBuckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
-/** @type {Map<string, number[]>} keyed by method:route */
+
+// Series used to be keyed by the raw request path whenever no route matched
+// (every 404, and any non-GET outside /api), and keys were never pruned, so
+// a client looping requests to random paths grew this map without bound
+// until the process, embedded RADIUS included, ran out of memory (OPS-01).
+// Series are now keyed by the matched route template, or 'unmatched', and
+// their number is capped.
+const MAX_SERIES = 500;
+const OVERFLOW_PATH = '__other__';
+const UNMATCHED_PATH = 'unmatched';
+const KNOWN_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
+/** @type {Map<string, { method: string, path: string, samples: number[] }>} */
 const latencySamples = new Map();
+
+function routeLabel(req) {
+  if (!req.route || typeof req.route.path !== 'string') return UNMATCHED_PATH;
+  return `${req.baseUrl || ''}${req.route.path}`;
+}
+
+function seriesFor(method, path) {
+  let key = `${method} ${path}`;
+  if (!latencySamples.has(key) && latencySamples.size >= MAX_SERIES) {
+    path = OVERFLOW_PATH;
+    key = `${method} ${path}`;
+  }
+  let series = latencySamples.get(key);
+  if (!series) {
+    series = { method, path, samples: [] };
+    latencySamples.set(key, series);
+  }
+  return series;
+}
+
+/**
+ * Who may read /metrics and /health?detail=true. They were open to the
+ * internet. With METRICS_TOKEN set, the caller must send it as a Bearer
+ * token; without it they are available outside production only.
+ * @param {import('express').Request} req
+ * @returns {boolean}
+ */
+function metricsAccessAllowed(req) {
+  const expected = process.env.METRICS_TOKEN;
+  if (!expected) return process.env.NODE_ENV !== 'production';
+  const provided = bearerToken(req);
+  if (!provided) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 /**
  * Middleware to record request count and latency.
@@ -32,12 +81,8 @@ function metricsMiddleware(req, res, next) {
 
   res.on('finish', () => {
     const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
-    const key = `${req.method}:${req.route ? req.route.path : req.path}`;
-
-    if (!latencySamples.has(key)) {
-      latencySamples.set(key, []);
-    }
-    const samples = latencySamples.get(key);
+    const method = KNOWN_METHODS.has(req.method) ? req.method : 'OTHER';
+    const { samples } = seriesFor(method, routeLabel(req));
     samples.push(durationMs / 1000); // store in seconds
     // Keep only last 1000 samples per route to bound memory
     if (samples.length > 1000) samples.shift();
@@ -83,7 +128,8 @@ function buildHistogram(name, labels, samples, buckets) {
  * GET /metrics
  * Prometheus-compatible metrics endpoint.
  */
-router.get('/', (_req, res) => {
+router.get('/', (req, res) => {
+  if (!metricsAccessAllowed(req)) return res.status(404).json({ error: 'Not found' });
   const lines = [];
   const mem = process.memoryUsage();
   const uptime = process.uptime();
@@ -125,9 +171,8 @@ router.get('/', (_req, res) => {
   // ---- Request latency histogram ----
   lines.push('# HELP http_request_duration_seconds HTTP request duration in seconds');
   lines.push('# TYPE http_request_duration_seconds histogram');
-  for (const [key, samples] of latencySamples.entries()) {
-    const [method, path] = key.split(':');
-    const labels = `method="${method}",path="${path}"`;
+  for (const { method, path, samples } of latencySamples.values()) {
+    const labels = `method="${method}",path="${path.replace(/["\\\n]/g, '_')}"`;
     lines.push(...buildHistogram('http_request_duration_seconds', labels, samples, histogramBuckets));
   }
 
@@ -143,4 +188,4 @@ router.get('/', (_req, res) => {
   res.send(lines.join('\n') + '\n');
 });
 
-module.exports = { router, metricsMiddleware, counters };
+module.exports = { router, metricsMiddleware, counters, metricsAccessAllowed, latencySamples, MAX_SERIES };

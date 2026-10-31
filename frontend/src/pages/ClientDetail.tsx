@@ -1428,7 +1428,7 @@ export function ClientDetail() {
       {creditNoteModal && (
         <CreditNoteModal
           creditNote={creditNoteModal.note}
-          clients={[{ id: Number(client.id), name: client.name }]}
+          clientName={client.name}
           lockedClientId={Number(client.id)}
           onClose={() => setCreditNoteModal(null)}
           onSaved={() => {

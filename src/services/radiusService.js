@@ -177,6 +177,23 @@ async function getActiveSession(contractId) {
  * @returns {Promise<object|null>}
  */
 async function getSessionByClientId(clientId, orgId) {
+  return findLiveSession('cl.client_id = ?', clientId, orgId);
+}
+
+/**
+ * The live session of one contract (same liveness rule and field names as
+ * getSessionByClientId). The portal dashboard shows one contract; a
+ * client-wide lookup could report another contract's session.
+ *
+ * @param {number|string} contractId
+ * @param {number|string|null} orgId  null matches single-tenant rows (`<=>`)
+ * @returns {Promise<object|null>}
+ */
+async function getSessionByContractId(contractId, orgId) {
+  return findLiveSession('cl.contract_id = ?', contractId, orgId);
+}
+
+async function findLiveSession(subjectPredicate, subjectId, orgId) {
   // Same liveness predicate as getActiveSession above: 'start' OR
   // 'interim-update' is live evidence, as long as no 'stop' followed it for
   // that session_id. Anchoring on 'start' alone diagnosed a currently
@@ -185,14 +202,14 @@ async function getSessionByClientId(clientId, orgId) {
   const [rows] = await db.query(`
     SELECT cl.* FROM connection_logs cl
     JOIN contracts c ON c.id = cl.contract_id
-    WHERE cl.client_id = ? AND c.organization_id = ?
-      AND cl.organization_id = c.organization_id
+    WHERE ${subjectPredicate} AND c.organization_id <=> ?
+      AND cl.organization_id <=> c.organization_id
       AND cl.event_type IN ('start', 'interim-update')
       AND COALESCE(cl.last_accounting_received_at, cl.last_accounting_at, cl.event_at)
           >= DATE_SUB(NOW(), INTERVAL ${Number.isInteger(config.radiusSessionLivenessMinutes) ? config.radiusSessionLivenessMinutes : 60} MINUTE)
       AND (cl.session_instance_id IS NOT NULL OR cl.id = (
         SELECT legacy_latest.id FROM connection_logs legacy_latest
-         WHERE legacy_latest.organization_id = cl.organization_id
+         WHERE legacy_latest.organization_id <=> cl.organization_id
            AND legacy_latest.session_instance_id IS NULL
            AND legacy_latest.nas_id <=> cl.nas_id
            AND legacy_latest.username = cl.username
@@ -201,7 +218,7 @@ async function getSessionByClientId(clientId, orgId) {
                <=> COALESCE(cl.acct_session_id, cl.session_id)
          ORDER BY legacy_latest.event_at DESC, legacy_latest.id DESC LIMIT 1))
     ORDER BY COALESCE(cl.last_accounting_received_at, cl.last_accounting_at, cl.event_at) DESC LIMIT 1
-  `, [clientId, orgId]);
+  `, [subjectId, orgId]);
   const session = rows[0];
   if (!session) return null;
 
@@ -1439,6 +1456,7 @@ module.exports = {
   checkCertificateExpiry,
   getActiveSession,
   getSessionByClientId,
+  getSessionByContractId,
   disconnectSession,
   changeOfAuth,
   getSessionHistory,

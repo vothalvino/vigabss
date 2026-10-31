@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ContractList } from '../ContractList';
+import { pickClient } from '@/test/pickClient';
 
 // ---------------------------------------------------------------------------
 // Mock API client
@@ -401,7 +402,7 @@ describe('ContractList page', () => {
     renderContractList();
 
     fireEvent.click(await screen.findByRole('button', { name: '+ New Contract' }));
-    fireEvent.change(screen.getByLabelText(/Client \*/), { target: { value: '10' } });
+    await pickClient(client1.name);
     fireEvent.change(screen.getByLabelText(/Plan \*/), { target: { value: '2' } });
     const source = await screen.findByRole('option', { name: 'PROFECO Internet 2026' });
     fireEvent.change(source.closest('select')!, { target: { value: '77' } });
@@ -431,7 +432,7 @@ describe('ContractList page', () => {
     renderContractList();
 
     fireEvent.click(await screen.findByRole('button', { name: '+ New Contract' }));
-    fireEvent.change(screen.getByLabelText(/Client \*/), { target: { value: '10' } });
+    await pickClient(client1.name);
     fireEvent.change(screen.getByLabelText(/Plan \*/), { target: { value: '2' } });
     expect(screen.getByText(/server will apply the exact source/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Create Contract' }));
@@ -486,7 +487,7 @@ describe('ContractList page', () => {
     renderContractList();
 
     fireEvent.click(await screen.findByRole('button', { name: '+ New Contract' }));
-    fireEvent.change(screen.getByLabelText(/Client \*/), { target: { value: '10' } });
+    await pickClient(client1.name);
     fireEvent.change(screen.getByLabelText(/Plan \*/), { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Contract' }));
 

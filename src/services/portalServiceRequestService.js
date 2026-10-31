@@ -27,6 +27,46 @@ const logger = require('../utils/logger').child({ service: 'portalServiceRequest
 // Create a new service request
 // ---------------------------------------------------------------------------
 
+// A requested PPPoE or Wi-Fi password is kept in the payload until approval
+// applies it, and every list and detail returned it: to any staff holder of
+// portal_service_requests.view, which the read-only role has. Responses carry
+// has_new_password instead.
+function withoutRequestedPassword(row) {
+  if (!row || row.payload === undefined || row.payload === null) return row;
+  let payload = row.payload;
+  if (typeof payload === 'string') {
+    try { payload = JSON.parse(payload); } catch { return row; }
+  }
+  if (!payload || typeof payload !== 'object' || !('new_password' in payload)) return row;
+  const { new_password: secret, ...rest } = payload;
+  return { ...row, payload: { ...rest, has_new_password: Boolean(secret) } };
+}
+
+/** Active plans of the organization, or global ones (TNB-11). */
+async function findUpgradePlan(planId, organizationId, executor = db) {
+  const [plans] = await executor.query(
+    `SELECT id, name, price FROM plans
+     WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL)
+       AND status = 'active' AND deleted_at IS NULL`,
+    [planId, organizationId],
+  );
+  return plans;
+}
+
+// Printable ASCII without spaces. Wi-Fi follows the WPA2 passphrase rule
+// (8-63 characters); PPPoE secrets are written into RADIUS and router
+// commands as given, so they get the same charset (TNB-11).
+const REQUESTED_PASSWORD = /^[\x21-\x7E]+$/;
+function assertRequestedPassword(requestType, value) {
+  const max = requestType === 'wifi_password_change' ? 63 : 64;
+  if (typeof value !== 'string' || value.length < 8 || value.length > max || !REQUESTED_PASSWORD.test(value)) {
+    throw new ValidationError(`new_password must be 8-${max} printable characters without spaces`, [{
+      field: 'payload.new_password',
+      message: `8-${max} printable ASCII characters, no spaces`,
+    }]);
+  }
+}
+
 /**
  * @param {object} opts
  * @param {number} opts.clientId
@@ -59,15 +99,10 @@ async function createRequest({ clientId, organizationId, requestType, payload = 
     if (!new_plan_id) throw new ValidationError('new_plan_id is required for plan_upgrade');
     if (!contract) throw new ValidationError('No active contract found for this client');
 
-    // The target plan must be this organization's own or a global
-    // (organization_id IS NULL) plan — the same selectability rule as
-    // services/planAvailability.js. A foreign plan reads as missing; approval
-    // later copies payload.new_plan_id onto the contract verbatim.
-    const [plans] = await db.query(
-      `SELECT id, name, price FROM plans
-       WHERE id = ? AND (organization_id <=> ? OR organization_id IS NULL) AND deleted_at IS NULL`,
-      [new_plan_id, organizationId],
-    );
+    // The target plan must be an active plan of this organization or a
+    // global (organization_id IS NULL) one. A foreign, inactive or archived
+    // plan reads as missing (TNB-11); approval checks it again.
+    const plans = await findUpgradePlan(new_plan_id, organizationId);
     if (!plans[0]) throw new NotFoundError('Plan');
     if (plans[0].id === contract.plan_id) {
       throw new ValidationError('Client is already on this plan');
@@ -101,6 +136,10 @@ async function createRequest({ clientId, organizationId, requestType, payload = 
     payload.new_plan_price = plans[0].price;
     payload.current_plan_id = contract.plan_id;
     payload.current_plan_name = contract.plan_name;
+  }
+
+  if (requestType === 'pppoe_password_change' || requestType === 'wifi_password_change') {
+    assertRequestedPassword(requestType, payload.new_password);
   }
 
   // Validate PPPoE password change has a radius account
@@ -140,7 +179,7 @@ async function createRequest({ clientId, organizationId, requestType, payload = 
     'SELECT * FROM portal_service_requests WHERE id = ?',
     [result.insertId],
   );
-  return rows[0];
+  return withoutRequestedPassword(rows[0]);
 }
 
 // ---------------------------------------------------------------------------
@@ -173,7 +212,7 @@ async function listRequests(clientId, organizationId, { page = 1, limit = 20, re
     `SELECT COUNT(*) AS total FROM portal_service_requests ${where}`,
     params,
   );
-  return { rows, total };
+  return { rows: rows.map(withoutRequestedPassword), total };
 }
 
 // ---------------------------------------------------------------------------
@@ -318,7 +357,7 @@ async function adminListRequests(organizationId, { page = 1, limit = 25, status,
     `SELECT COUNT(*) AS total FROM portal_service_requests psr ${where}`,
     params,
   );
-  return { rows, total };
+  return { rows: rows.map(withoutRequestedPassword), total };
 }
 
 /**
@@ -333,7 +372,7 @@ async function adminGetRequest(requestId, organizationId) {
     [requestId, organizationId],
   );
   if (!rows[0]) throw new NotFoundError('Service request');
-  return rows[0];
+  return withoutRequestedPassword(rows[0]);
 }
 
 /**
@@ -354,16 +393,28 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
     throw new ValidationError(`Request is already ${req.status}`);
   }
 
-  // Set approved_by + approved_at immediately
-  await db.query(
+  const payload = typeof req.payload === 'string' ? JSON.parse(req.payload) : (req.payload || {});
+
+  // The plan was checked when the subscriber asked; it may since have been
+  // archived, and requests stored before that check could name any
+  // organization's plan (TNB-11). The request stays pending if it fails.
+  if (req.request_type === 'plan_upgrade' && payload.new_plan_id) {
+    const plans = await findUpgradePlan(payload.new_plan_id, organizationId);
+    if (!plans[0]) {
+      throw new ValidationError('The requested plan is no longer available to this organization; reject the request instead');
+    }
+  }
+
+  // Set approved_by + approved_at, only from pending, so two approvals
+  // cannot both run the action.
+  const [approved] = await db.query(
     `UPDATE portal_service_requests
      SET status = 'approved', approved_by = ?, approved_at = NOW(),
          notes = COALESCE(?, notes), updated_at = NOW()
-     WHERE id = ?`,
-    [approvedByUserId, notes || null, requestId],
+     WHERE id = ? AND organization_id = ? AND status = 'pending'`,
+    [approvedByUserId, notes || null, requestId, organizationId],
   );
-
-  const payload = typeof req.payload === 'string' ? JSON.parse(req.payload) : (req.payload || {});
+  if (!approved.affectedRows) throw new ValidationError('Request is no longer pending');
 
   // Execute type-specific action
   if (req.request_type === 'pppoe_password_change') {
@@ -373,8 +424,8 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
     // Update contract plan_id and mark completed
     if (req.contract_id && payload.new_plan_id) {
       await db.query(
-        'UPDATE contracts SET plan_id = ?, updated_at = NOW() WHERE id = ?',
-        [payload.new_plan_id, req.contract_id],
+        'UPDATE contracts SET plan_id = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?',
+        [payload.new_plan_id, req.contract_id, organizationId],
       );
     }
     await db.query(
@@ -411,7 +462,7 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
     'SELECT * FROM portal_service_requests WHERE id = ?',
     [requestId],
   );
-  return updated[0];
+  return withoutRequestedPassword(updated[0]);
 }
 
 /**

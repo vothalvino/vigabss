@@ -33,9 +33,13 @@ const ADDONS = [
 ];
 
 function setupApi() {
-  (api.GET as unknown as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+  (api.GET as unknown as ReturnType<typeof vi.fn>).mockImplementation((path: string, opts?: unknown) => {
     if (path === '/clients') return Promise.resolve({ data: { data: CLIENTS }, error: undefined });
-    if (path === '/contracts') return Promise.resolve({ data: { data: CONTRACTS }, error: undefined });
+    // Like the real list: filtered by the client_id query (FE-04).
+    if (path === '/contracts') {
+      const clientId = Number((opts as { params?: { query?: { client_id?: string } } })?.params?.query?.client_id);
+      return Promise.resolve({ data: { data: CONTRACTS.filter(c => c.client_id === clientId) }, error: undefined });
+    }
     return Promise.resolve({ data: { data: [] }, error: undefined });
   });
   (api.POST as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { id: 99 } }, error: undefined });
@@ -74,7 +78,9 @@ beforeEach(() => {
 describe('GenerateInvoiceModal', () => {
   it('locks the client to its name and starts with no line items', async () => {
     renderModal();
-    expect(await screen.findByRole('option', { name: 'Acme Corp' })).toBeInTheDocument();
+    // The locked client is shown by name, with no way to change it.
+    expect(await screen.findByText('Acme Corp')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /change/i })).not.toBeInTheDocument();
     expect(screen.getByText(/Use the buttons above to add items/i)).toBeInTheDocument();
   });
 
@@ -109,6 +115,8 @@ describe('GenerateInvoiceModal', () => {
     await user.click(screen.getByTitle('Add Contract charge'));
     expect(await screen.findByRole('option', { name: 'Contract #11' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Contract #12' })).not.toBeInTheDocument();
+    // Only the client's own contracts were asked for.
+    expect((api.GET as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith('/contracts', { params: { query: { client_id: '5', limit: 100 } } });
   });
 
   it('posts { client_id, items } to /invoices/generate on submit', async () => {

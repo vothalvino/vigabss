@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { portalTokenStore } from '@/auth/PortalAuthContext';
+import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
 
@@ -26,12 +26,10 @@ interface SpeedTestJob {
 }
 
 async function portalFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const token = portalTokenStore.getAccess();
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await portalAuthedFetch(`${API_BASE}${path}`, {
     ...opts,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
   if (!res.ok) {

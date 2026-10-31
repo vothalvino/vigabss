@@ -38,6 +38,7 @@ import { useOrgCurrency } from '@/auth/useOrgCurrency';
 import {
   overlay, modalBox, errorBox, labelStyle, inputStyle, submitBtn, cancelBtn,
 } from '@/components/ClientFormModal';
+import { ClientPicker } from '@/components/ClientPicker';
 
 const API_BASE = '/api/v1';
 // Must match the backend payment_method enum exactly (src/middleware/schemas/payments.js
@@ -50,8 +51,6 @@ const PAYMENT_METHODS = [
   'digital_wallet', 'other',
 ];
 const STATUSES = ['completed', 'pending', 'failed', 'refunded', 'cancelled'];
-
-interface Client { id: number; name: string; }
 
 interface OpenInvoice {
   id: number;
@@ -89,12 +88,6 @@ function fmtDate(dateStr: string | null | undefined): string {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
-}
-
-async function fetchClients(): Promise<Client[]> {
-  const res = await api.GET('/clients', { params: { query: { limit: 500 } as never } });
-  if (res.error) throw new Error('Failed to load clients');
-  return (res.data as unknown as { data: Client[] }).data ?? [];
 }
 
 async function fetchOpenInvoices(clientId: number): Promise<OpenInvoice[]> {
@@ -178,11 +171,9 @@ export function RecordPaymentModal({
 
   const numericClientId = clientId ? Number(clientId) : null;
 
-  // Self-fetch data. Client list only needed when the client isn't locked
-  // (same pattern as GenerateInvoiceModal — callers just render the modal).
-  const { data: clients = [], isError: clientsError } = useQuery({
-    queryKey: ['clients-slim'], queryFn: fetchClients, enabled: !lockedClientId,
-  });
+  // Clients are chosen by search: the old <select> held only the newest 100
+  // (FE-04).
+  const [clientName, setClientName] = useState('');
   const { data: openInvoices = [], isLoading: loadingInvoices, isError: invoicesError, refetch: refetchInvoices } = useQuery({
     queryKey: ['client-open-invoices', numericClientId],
     queryFn: () => fetchOpenInvoices(numericClientId!),
@@ -342,19 +333,21 @@ export function RecordPaymentModal({
       <div style={{ ...modalBox, width: 520, maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 style={{ margin: '0 0 1rem' }}>{t('recordPayment.title')}</h3>
         {error && <div style={errorBox}>{error}</div>}
-        {!lockedClientId && clientsError && (
-          <div style={errorBox}>{t('recordPayment.loadClientsError')}</div>
-        )}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>{t('recordPayment.client')}</label>
           {lockedClientId ? (
-            <input style={{ ...inputStyle, background: 'var(--bg-body)', color: 'var(--text-muted)' }}
-              value={lockedClientName ?? `Client #${lockedClientId}`} disabled />
+            <>
+              <label style={labelStyle}>{t('recordPayment.client')}</label>
+              <input style={{ ...inputStyle, background: 'var(--bg-body)', color: 'var(--text-muted)' }}
+                value={lockedClientName ?? `Client #${lockedClientId}`} disabled />
+            </>
           ) : (
-            <select style={inputStyle} value={clientId} onChange={e => selectClient(e.target.value)} required disabled={paymentLocked}>
-              <option value="">{t('recordPayment.selectClient')}</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <ClientPicker
+              label={t('recordPayment.client')}
+              value={numericClientId ?? ''}
+              initialName={clientName || undefined}
+              disabled={paymentLocked}
+              onChange={(id, name) => { setClientName(name); selectClient(id ? String(id) : ''); }}
+            />
           )}
           {paymentLocked && (
             <div style={{ ...errorBox, background: 'var(--bg-body)', color: 'var(--text-secondary)' }}>

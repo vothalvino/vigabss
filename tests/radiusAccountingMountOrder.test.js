@@ -86,6 +86,40 @@ describe('RADIUS accounting route mount order', () => {
     }));
   });
 
+  // REG-05: rlm_rest prints date attributes as zone-abbreviated text; the
+  // stock setup's every packet was refused with 422.
+  test('a native date-text Event-Timestamp is accepted and dated at receipt', async () => {
+    const attr = (type, value) => ({ type, value: [value] });
+    const res = await request(app)
+      .post('/api/v1/radius/accounting')
+      .set('X-Radius-Secret', 'accounting-secret')
+      .send({
+        'Acct-Status-Type': attr('string', 'Start'),
+        'User-Name': attr('string', 'alice'),
+        'Acct-Session-Id': attr('string', 'session-2'),
+        'NAS-IP-Address': attr('ipaddr', '10.0.0.12'),
+        'Event-Timestamp': attr('date', 'Oct 20 2026 12:00:00 CST'),
+        'Acct-Delay-Time': attr('integer', 4),
+      });
+
+    expect(res.status).toBe(200);
+    expect(accountingService.ingestAccounting).toHaveBeenCalledWith(expect.objectContaining({
+      acctStatusType: 'Start', eventTimestamp: null, acctDelayTime: 4,
+    }));
+  });
+
+  test.each([
+    ['Oct 20 2026 12:00:00 CST', null],
+    ['Oct  5 2026 09:03:00 UTC', null],
+    ['1792500000', '1792500000'],
+    ['2026-10-20T12:00:00Z', '2026-10-20T12:00:00Z'],
+    ['not a date', 'not a date'],
+  ])('Event-Timestamp %j is passed on as %j', (text, expected) => {
+    const { normalizeAccountingBody } = require('../src/routes/radiusAccounting');
+    expect(normalizeAccountingBody({ 'Event-Timestamp': { type: 'date', value: [text] } }).eventTimestamp).toBe(expected);
+    expect(normalizeAccountingBody({ 'Event-Timestamp': text }).eventTimestamp).toBe(expected);
+  });
+
   test.each(['Accounting-On', 'Accounting-Off'])(
     'accepts a native %s infrastructure event without subscriber/session attributes',
     async (status) => {

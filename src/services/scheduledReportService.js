@@ -11,20 +11,24 @@ const logger = require('../utils/logger');
 // schedule.report_def_name (below) is DB-stored text interpolated raw into
 // the HTML report-delivery email — escape it.
 const { escapeHtmlForTemplate: esc } = require('./notificationService');
+const { orgScopeFilter } = require('./organizationFanOut');
 
 /**
  * Process all due scheduled reports.
  * Finds enabled schedules where next_run_at <= NOW(), generates report, emails recipients.
  */
 async function processScheduledReports() {
+  // Skips isolated organizations' stale primary rows during an install-wide
+  // run's primary pass; their own database is processed separately (ASY-06).
+  const scope = orgScopeFilter('sr.organization_id', null);
   const [schedules] = await db.query(`
     SELECT sr.*, o.name AS org_name
     FROM scheduled_reports sr
     JOIN organizations o ON o.id = sr.organization_id
     WHERE sr.is_enabled = 1
       AND sr.deleted_at IS NULL
-      AND (sr.next_run_at IS NULL OR sr.next_run_at <= NOW())
-  `);
+      AND (sr.next_run_at IS NULL OR sr.next_run_at <= NOW())${scope.sql}
+  `, scope.params);
 
   let processed = 0;
   let failed = 0;

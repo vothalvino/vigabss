@@ -1,4 +1,5 @@
-{{- if .Values.pdb.enabled -}}
+{{- /* A minAvailable: 1 budget on a single replica blocks every node drain. */ -}}
+{{- if and .Values.pdb.enabled (or (gt (int .Values.replicaCount) 1) .Values.hpa.enabled) -}}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

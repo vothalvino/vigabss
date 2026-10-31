@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
+import { listTotal, unwrapData, fmtFixed } from '@/api/envelope';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,11 +39,12 @@ interface PonPortUtilization {
     xgspon_mode_validated: number;
   };
   onu_state_counts: Array<{ onu_state: string; cnt: number }>;
+  // AVG/MIN/MAX over DECIMAL columns: strings from mysql2.
   optical_summary: {
-    avg_rx_dbm: number | null;
-    min_rx_dbm: number | null;
-    max_rx_dbm: number | null;
-    avg_tx_dbm: number | null;
+    avg_rx_dbm: number | string | null;
+    min_rx_dbm: number | string | null;
+    max_rx_dbm: number | string | null;
+    avg_tx_dbm: number | string | null;
   } | null;
 }
 
@@ -106,7 +108,7 @@ async function fetchUtilization(portId: number): Promise<PonPortUtilization> {
     params: { path: { portId } },
   } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to load utilization');
-  return (res as { data: unknown }).data as unknown as PonPortUtilization;
+  return unwrapData<PonPortUtilization>((res as { data: unknown }).data);
 }
 
 async function fetchOnus(portId: number, state: string): Promise<OnuListItem[]> {
@@ -116,7 +118,7 @@ async function fetchOnus(portId: number, state: string): Promise<OnuListItem[]> 
     params: { path: { portId }, query: query as never },
   } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to load ONUs');
-  return (res as { data: unknown }).data as unknown as OnuListItem[];
+  return unwrapData<OnuListItem[]>((res as { data: unknown }).data) ?? [];
 }
 
 async function calcPowerBudget(body: {
@@ -130,7 +132,7 @@ async function calcPowerBudget(body: {
     body: body as never,
   } as never);
   if ((res as { error?: unknown }).error) throw new Error('Calculation failed');
-  return (res as { data: unknown }).data as unknown as PowerBudgetResult;
+  return unwrapData<PowerBudgetResult>((res as { data: unknown }).data);
 }
 
 async function setPortMaintenance(portId: number, enable: boolean, note: string): Promise<void> {
@@ -302,7 +304,7 @@ export function PonPortManagementPage() {
   // ---------------------------------------------------------------------------
 
   const util = utilizationQ.data;
-  const migTotalPages = Math.ceil((migrationsQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const migTotalPages = Math.ceil(listTotal(migrationsQ.data) / PAGE_SIZE) || 1;
 
   // ---------------------------------------------------------------------------
   // Render
@@ -454,15 +456,15 @@ export function PonPortManagementPage() {
                       <tbody>
                         <tr style={styles.tr}>
                           <td style={styles.td}>{t('ponPortManagement.utilization.avgRxDbm')}</td>
-                          <td style={styles.tdNum}>{util.optical_summary.avg_rx_dbm?.toFixed(2) ?? '—'}</td>
+                          <td style={styles.tdNum}>{fmtFixed(util.optical_summary.avg_rx_dbm, 2)}</td>
                         </tr>
                         <tr style={styles.tr}>
                           <td style={styles.td}>{t('ponPortManagement.utilization.minRxDbm')}</td>
-                          <td style={styles.tdNum}>{util.optical_summary.min_rx_dbm?.toFixed(2) ?? '—'}</td>
+                          <td style={styles.tdNum}>{fmtFixed(util.optical_summary.min_rx_dbm, 2)}</td>
                         </tr>
                         <tr style={styles.tr}>
                           <td style={styles.td}>{t('ponPortManagement.utilization.maxRxDbm')}</td>
-                          <td style={styles.tdNum}>{util.optical_summary.max_rx_dbm?.toFixed(2) ?? '—'}</td>
+                          <td style={styles.tdNum}>{fmtFixed(util.optical_summary.max_rx_dbm, 2)}</td>
                         </tr>
                       </tbody>
                     </table>

@@ -8,7 +8,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { usePortalAuth, portalTokenStore } from '@/auth/PortalAuthContext';
+import { usePortalAuth, portalAuthedFetch } from '@/auth/PortalAuthContext';
 import { useDarkMode } from '@/auth/DarkModeContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { BrandLockup } from '@/components/BrandLockup';
@@ -23,10 +23,7 @@ export function PortalLayout() {
   const notice = useQuery({
     queryKey: ['portal-privacy-notice'],
     queryFn: async () => {
-      const token = portalTokenStore.getAccess();
-      const res = await fetch('/api/v1/portal/privacy-notice', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await portalAuthedFetch('/api/v1/portal/privacy-notice');
       if (!res.ok) throw new Error('privacy notice fetch failed');
       return res.json() as Promise<{ data: { accepted: boolean; version: string; content: string; accepted_at: string | null } }>;
     },
@@ -39,10 +36,7 @@ export function PortalLayout() {
   const legalInfo = useQuery({
     queryKey: ['portal-legal-info'],
     queryFn: async () => {
-      const token = portalTokenStore.getAccess();
-      const res = await fetch('/api/v1/portal/legal-info', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await portalAuthedFetch('/api/v1/portal/legal-info');
       if (!res.ok) throw new Error('legal info fetch failed');
       return res.json() as Promise<{ data: { locale: string; carta_derechos_url: string } }>;
     },

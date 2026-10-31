@@ -33,6 +33,7 @@ import {
 } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';
+import { useClientNames } from '@/api/clientNames';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,11 +58,6 @@ interface QuotesResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-interface Client {
-  id: number;
-  name: string;
-}
-
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -79,12 +75,6 @@ async function fetchQuotes(page: number, pageSize: number, statusFilter: string)
   const res = await api.GET('/quotes', { params: { query: query as never } });
   if (res.error) throw new Error('Failed to load quotes');
   return res.data as unknown as QuotesResponse;
-}
-
-async function fetchClients(): Promise<Client[]> {
-  const res = await api.GET('/clients', { params: { query: { limit: 500 } as never } });
-  if (res.error) throw new Error('Failed to load clients');
-  return (res.data as unknown as { data: Client[] }).data;
 }
 
 async function deleteQuote(id: number): Promise<void> {
@@ -158,12 +148,6 @@ export function QuoteList() {
     queryFn: () => fetchQuotes(page, pageSize, statusFilter),
   });
 
-  const clientsQ = useQuery({
-    queryKey: ['clients-lookup'],
-    queryFn: fetchClients,
-    staleTime: 60_000,
-  });
-
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteQuote(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['quotes'] }),
@@ -182,8 +166,9 @@ export function QuoteList() {
 
   const quotes = quotesQ.data?.data ?? [];
   const meta = quotesQ.data?.meta;
-  const clients = clientsQ.data ?? [];
-  const clientName = (id: number) => clients.find(c => c.id === id)?.name ?? `#${id}`;
+  // Names for the clients on this page (FE-04).
+  const clientNames = useClientNames(quotes.map(q => q.client_id));
+  const clientName = (id: number) => clientNames.get(id) ?? `#${id}`;
 
   return (
     <div style={styles.page}>

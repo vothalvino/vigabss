@@ -9,48 +9,76 @@
 const cron = require('node-cron');
 const db = require('../config/database');
 const taskRunner = require('./taskRunner');
-const cacheService = require('./cacheService');
 const logger = require('../utils/logger').child({ service: 'scheduler' });
 
 const jobs = new Map();
 const MINUTE_IN_MS = 60_000;
 
-/**
- * Attempt to acquire a distributed lock for a task using the cache service.
- * Returns true if this node acquired the lock, false otherwise.
- * Falls back to always returning true when Redis is not available (single-node).
- *
- * Note: This is not fully atomic without Redis SETNX. When using the in-memory
- * fallback (single node), this is safe. With Redis, a small race window exists
- * between get and set; for cron tasks running at most once per minute, this is
- * acceptable. For sub-second scheduling, use Redis SET NX directly via ioredis.
- */
-async function acquireLock(taskName, ttlSeconds = 300) {
-  const key = `scheduler:lock:${taskName}`;
-  try {
-    // Try to get existing lock
-    const existing = await cacheService.get(key);
-    if (existing) return false;
+// Without Redis, every app process runs every cron tick. The lock used to be
+// a get-then-set in cacheService, which without Redis is a per-process memory
+// cache, so with two or more replicas (the shipped k8s/Helm default, and no
+// REDIS_URL) every replica ran every task: autopay at 07:00, the hourly
+// payment retries, SNMP polling (ASY-01). Two database guards now decide:
+//   1. a MySQL advisory lock per task id, held on one dedicated primary
+//      connection for the whole run, so a run never overlaps a previous one
+//      still going, in this process or another;
+//   2. a per-minute claim on the task row: only the process whose UPDATE
+//      moves last_run_at into the current minute runs it.
+const crypto = require('crypto');
 
-    // Set the lock with TTL — this is not atomic without Redis SETNX,
-    // but is sufficient for reducing duplicate runs
-    await cacheService.set(key, { node: process.pid, lockedAt: Date.now() }, ttlSeconds);
-    return true;
-  } catch (_err) {
-    // If cache fails, allow execution (single-node fallback)
-    return true;
-  }
+const lockDatabaseName = db.baseConnectionConfig?.database || process.env.DB_NAME || 'fireisp';
+const lockPrefix = `fireisp:${crypto.createHash('sha256').update(lockDatabaseName).digest('hex').slice(0, 16)}:scheduled-task:`;
+
+async function primaryConnection() {
+  const getConnection = () => db.getConnection();
+  return typeof db.withPrimaryContext === 'function'
+    ? db.withPrimaryContext(getConnection)
+    : getConnection();
 }
 
 /**
- * Release a distributed lock for a task.
+ * Run `fn` only if this process wins the task's lock and its minute slot.
+ * @returns {Promise<boolean>} whether `fn` ran
  */
-async function releaseLock(taskName) {
-  const key = `scheduler:lock:${taskName}`;
+async function runClaimed(task, fn) {
+  const connection = await primaryConnection();
+  const lockName = `${lockPrefix}${task.id}`;
+  let locked = false;
+  let discardConnection = false;
   try {
-    await cacheService.del(key);
-  } catch (_err) {
-    // Best effort
+    const [rows] = await connection.query('SELECT GET_LOCK(?, 0) AS acquired', [lockName]);
+    locked = Number(rows[0]?.acquired) === 1;
+    if (!locked) {
+      logger.debug({ taskName: task.task_name, taskId: task.id }, 'Scheduled task already running elsewhere');
+      return false;
+    }
+    // Both sides of the comparison use the database clock.
+    const [claim] = await connection.query(
+      `UPDATE scheduled_tasks
+          SET last_status = 'running', last_run_at = NOW()
+        WHERE id = ? AND is_enabled = 1
+          AND (last_run_at IS NULL OR last_run_at < DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:00'))`,
+      [task.id],
+    );
+    if (Number(claim?.affectedRows) !== 1) {
+      logger.debug({ taskName: task.task_name, taskId: task.id }, 'Scheduled task already ran this minute');
+      return false;
+    }
+    await fn();
+    return true;
+  } finally {
+    if (locked) {
+      try {
+        const [rows] = await connection.query('SELECT RELEASE_LOCK(?) AS released', [lockName]);
+        if (Number(rows[0]?.released) !== 1) discardConnection = true;
+      } catch (err) {
+        discardConnection = true;
+        logger.error({ err: err.message, taskName: task.task_name }, 'Could not release the scheduled-task lock');
+      }
+    }
+    // Never return a possibly lock-owning session to the pool.
+    if (discardConnection && typeof connection.destroy === 'function') connection.destroy();
+    else connection.release();
   }
 }
 
@@ -102,22 +130,14 @@ function schedule(task) {
       return;
     }
 
-    // Fallback (no Redis): acquire advisory lock, run inline
-    const acquired = await acquireLock(task.task_name);
-    if (!acquired) {
-      return; // Another node is running this task
-    }
-
+    // No Redis: run inline, once across all processes (see runClaimed).
     try {
-      await db.query(
-        'UPDATE scheduled_tasks SET last_status = ?, last_run_at = NOW() WHERE id = ?',
-        ['running', task.id],
-      );
-
-      const result = await taskRunner.runTask(task.task_name, task.organization_id);
-      await taskRunner.markTaskRun(task.task_name, result, {
-        taskId: task.id,
-        organizationId: task.organization_id,
+      await runClaimed(task, async () => {
+        const result = await taskRunner.runTask(task.task_name, task.organization_id);
+        await taskRunner.markTaskRun(task.task_name, result, {
+          taskId: task.id,
+          organizationId: task.organization_id,
+        });
       });
     } catch (err) {
       logger.error({ err, taskName: task.task_name }, 'Scheduler error on task');
@@ -125,19 +145,19 @@ function schedule(task) {
         'UPDATE scheduled_tasks SET last_status = ? WHERE id = ?',
         ['failed', task.id],
       ).catch(() => {});
-    } finally {
-      await releaseLock(task.task_name);
     }
   });
 
-  jobs.set(task.task_name, job);
+  // Keyed by id: per-organization rows share a task_name, and keying by name
+  // lost the handle of every row but the last, so stop() left them running.
+  jobs.set(task.id, { job, taskName: task.task_name });
 }
 
 /**
  * Stop all scheduled cron jobs.
  */
 function stop() {
-  for (const [, job] of jobs) {
+  for (const { job } of jobs.values()) {
     job.stop();
   }
   jobs.clear();
@@ -149,10 +169,10 @@ function stop() {
  */
 function getStatus() {
   const result = [];
-  for (const [name] of jobs) {
-    result.push({ task_name: name, scheduled: true });
+  for (const [id, { taskName }] of jobs) {
+    result.push({ task_id: id, task_name: taskName, scheduled: true });
   }
   return result;
 }
 
-module.exports = { start, stop, getStatus };
+module.exports = { start, stop, getStatus, runClaimed };

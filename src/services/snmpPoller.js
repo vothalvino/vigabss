@@ -17,6 +17,7 @@ const db = require('../config/database');
 const { decrypt } = require('../utils/encryption');
 const deviceStatusService = require('./deviceStatusService');
 const logger = require('../utils/logger').child({ service: 'snmpPoller' });
+const { orgScopeFilter } = require('./organizationFanOut');
 
 // Columns in snmp_metrics that a profile OID may target.
 // Includes base columns (migrations 001-248) and §6.2 extended metrics (migration 255).
@@ -121,6 +122,10 @@ const POLL_CONCURRENCY = parseInt(process.env.SNMP_POLL_CONCURRENCY || '10', 10)
  * Returns { polled, errors, total }.
  */
 async function poll() {
+  // In the primary pass of an install-wide run, skip the stale primary copy of
+  // isolated organizations' devices; their own database is polled separately
+  // (ASY-06).
+  const scope = orgScopeFilter('d.organization_id', null);
   const [devices] = await db.query(`
     SELECT d.id, d.ip_address, d.snmp_community, d.snmp_version, d.snmp_port,
            d.snmp_profile_id,
@@ -131,8 +136,8 @@ async function poll() {
     WHERE d.snmp_enabled = 1
       AND d.ip_address IS NOT NULL
       AND d.snmp_profile_id IS NOT NULL
-      AND d.deleted_at IS NULL
-  `);
+      AND d.deleted_at IS NULL${scope.sql}
+  `, scope.params);
 
   let polled = 0;
   let errors = 0;

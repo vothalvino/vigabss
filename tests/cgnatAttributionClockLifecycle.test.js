@@ -114,6 +114,8 @@ function lifecycleDatabase({ exporterOverrides = {}, sessions = [sessionRow()] }
   let nextProjectionId = 70;
   const connection = {
     beginTransaction: jest.fn().mockResolvedValue(undefined),
+    // SAVEPOINT / ROLLBACK TO / RELEASE SAVEPOINT (per-record ingest, REG-04).
+    query: jest.fn().mockResolvedValue([{}]),
     commit: jest.fn().mockResolvedValue(undefined),
     rollback: jest.fn().mockResolvedValue(undefined),
     release: jest.fn(),
