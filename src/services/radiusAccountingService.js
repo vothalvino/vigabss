@@ -594,14 +594,22 @@ async function ingestAccounting(attrs) {
         return { action: 'noop', id: duplicate.id, macMove: false,
           sessionInstanceId: duplicate.session_instance_id || null };
       }
+      // A synthetic closure (the real Stop was lost) ends the old lifecycle at
+      // its LAST REAL accounting, not at this Start: the evidence trigger
+      // stamps the closure at last_accounting_at, and lookups treat it as
+      // certain up to then. Stamping it with the reconnect time certified the
+      // old subscriber for the whole gap, during which the address may have
+      // been someone else's (REG-01). A real Stop arriving later (always after
+      // that time) still replaces it through the corrected-Stop path.
       if (staleOpenSession || newOpenLifecycle) {
         await connection.execute(
           `UPDATE connection_logs
               SET event_type = 'stop', terminate_cause = ?,
-                  last_accounting_at = ?, last_accounting_received_at = NOW(3)
+                  last_accounting_at = COALESCE(last_accounting_at, event_at),
+                  last_accounting_received_at = NOW(3)
             WHERE id = ? AND organization_id = ? AND event_type != 'stop'`,
           [identityChanged ? 'Session-Identity-Changed' : 'Session-Restarted',
-            observedEventAt, duplicate.id, organizationId],
+            duplicate.id, organizationId],
         );
         if (stationChanged) macMove = true;
       }
@@ -635,12 +643,14 @@ async function ingestAccounting(attrs) {
 
           // Close the current-session projection in place.  The evidence trigger
           // appends the synthetic Stop while preserving event_at as session start.
+          // Closed at its last real accounting, not at this Start (REG-01).
           await connection.execute(
             `UPDATE connection_logs
               SET event_type = 'stop', terminate_cause = 'Session-Moved',
-                  last_accounting_at = ?, last_accounting_received_at = NOW(3)
-            WHERE id = ? AND organization_id = ?`,
-            [observedEventAt, open.id, organizationId],
+                  last_accounting_at = COALESCE(last_accounting_at, event_at),
+                  last_accounting_received_at = NOW(3)
+            WHERE id = ? AND organization_id = ? AND event_type != 'stop'`,
+            [open.id, organizationId],
           );
 
           // Record the MAC move event (mac_move_events has old_mac/new_mac columns)
