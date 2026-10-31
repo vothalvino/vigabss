@@ -24,12 +24,12 @@ import {
   extractApiError,
 } from '@/components/ClientFormModal';
 import { fetchAddonCatalog, fetchSellableInventoryItems, buildProductPickerEntries } from '@/api/addonCatalog';
+import { ClientPicker } from '@/components/ClientPicker';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface Client { id: number; name: string; }
 interface Contract { id: number; client_id: number; }
 
 type ItemType = 'contract' | 'product' | 'custom';
@@ -68,14 +68,11 @@ function makeItem(type: ItemType): InvoiceLineItem {
 // Data helpers
 // ---------------------------------------------------------------------------
 
-async function fetchClients(): Promise<Client[]> {
-  const res = await api.GET('/clients', { params: { query: { limit: 500 } as never } });
-  if (res.error) throw new Error('Failed to load clients');
-  return (res.data as unknown as { data: Client[] }).data;
-}
-
-async function fetchContracts(): Promise<Contract[]> {
-  const res = await api.GET('/contracts', { params: { query: { limit: 1000 } as never } });
+// The chosen client's contracts. This fetched every contract and filtered by
+// client, but the list returns at most 100 (the oldest), so most clients'
+// contracts never appeared (FE-04).
+async function fetchClientContracts(clientId: string): Promise<Contract[]> {
+  const res = await api.GET('/contracts', { params: { query: { client_id: clientId, limit: 100 } as never } });
   if (res.error) throw new Error('Failed to load contracts');
   return (res.data as unknown as { data: Contract[] }).data;
 }
@@ -110,8 +107,12 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
   const [error, setError] = useState('');
 
   // Self-fetch data. Client list only needed when the client isn't locked.
-  const { data: clients = [], isError: clientsError } = useQuery({ queryKey: ['clients-slim'], queryFn: fetchClients, enabled: !lockedClientId });
-  const { data: contracts = [] } = useQuery({ queryKey: ['contracts-slim'], queryFn: fetchContracts });
+  const [clientName, setClientName] = useState(lockedClientName ?? '');
+  const { data: clientContracts = [] } = useQuery({
+    queryKey: ['client-contracts', clientId],
+    queryFn: () => fetchClientContracts(clientId),
+    enabled: !!clientId,
+  });
   const { data: addonCatalog = [], isError: addonsError } = useQuery({ queryKey: ['addon-catalog'], queryFn: fetchAddonCatalog });
   const { data: sellableItems = [] } = useQuery({ queryKey: ['sellable-inventory-items'], queryFn: fetchSellableInventoryItems });
   // Product picker: UNION of the curated addon catalog and active inventory
@@ -122,9 +123,8 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
   // row and draws down in the same transaction — same behavior as
   // InvoiceDetail's per-item Add Item form.
   const addons = buildProductPickerEntries(addonCatalog, sellableItems);
-  const loadError = (!lockedClientId && clientsError) || addonsError;
+  const loadError = addonsError;
 
-  const clientContracts = contracts.filter(c => String(c.client_id) === clientId);
 
   function addItem(type: ItemType) { setItems(prev => [...prev, makeItem(type)]); }
   function removeItem(localId: string) { setItems(prev => prev.filter(i => i.localId !== localId)); }
@@ -209,24 +209,13 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
         )}
         <form onSubmit={handleSubmit}>
           {/* Client selector — hidden/locked when opened from a client's page */}
-          <label style={labelStyle}>Client</label>
-          {lockedClientId ? (
-            <select style={{ ...inputStyle, background: 'var(--bg-body)', color: 'var(--text-muted)' }} value={clientId} disabled>
-              <option value={clientId}>
-                {clients.find(c => String(c.id) === clientId)?.name ?? lockedClientName ?? `Client #${clientId}`}
-              </option>
-            </select>
-          ) : (
-            <select
-              style={inputStyle}
-              value={clientId}
-              onChange={e => { setClientId(e.target.value); setItems([]); }}
-              required
-            >
-              <option value="">— select client —</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          )}
+          <ClientPicker
+            label="Client"
+            value={clientId ? Number(clientId) : ''}
+            initialName={clientName || (clientId ? `Client #${clientId}` : undefined)}
+            disabled={!!lockedClientId}
+            onChange={(id, name) => { setClientId(id ? String(id) : ''); setClientName(name); setItems([]); }}
+          />
 
           {/* Line items */}
           <div style={{ marginTop: '1rem' }}>
