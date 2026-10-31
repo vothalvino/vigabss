@@ -76,6 +76,7 @@ interface PaymentGateway {
   has_secret_key: boolean;
   has_webhook_secret: boolean;
   status: string;
+  organization_id?: number | null;
   created_at: string;
 }
 
@@ -646,7 +647,11 @@ function PaymentGatewaysTab() {
               )}
             </label>
             {editing && (editing.provider === 'stripe' || editing.provider === 'conekta') && (() => {
-              const webhookUrl = `${window.location.origin}/api/v1/payment-webhooks/${editing.provider}/${editing.id}`;
+              // Organization-scoped URL: the event is processed in this
+              // organization's own database when it has one (WHK-11).
+              const webhookUrl = editing.organization_id
+                ? `${window.location.origin}/api/v1/payment-webhooks/${editing.provider}/${editing.organization_id}/${editing.id}`
+                : `${window.location.origin}/api/v1/payment-webhooks/${editing.provider}/${editing.id}`;
               return (
                 <div style={sty.label}>
                   <span>Webhook URL <span style={sty.hint}>(paste into your {editing.provider} dashboard)</span></span>

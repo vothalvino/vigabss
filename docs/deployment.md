@@ -957,17 +957,13 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # File uploads (10MB max)
-        client_max_body_size 10m;
+        # Uploads: the app accepts 20 MB files, plus multipart overhead
+        client_max_body_size 25m;
     }
 
-    # Metrics endpoint — restrict to internal networks
-    location /metrics {
-        allow 10.0.0.0/8;
-        allow 172.16.0.0/12;
-        allow 192.168.0.0/16;
-        deny all;
-        proxy_pass http://vigabss;
+    # Metrics: never through the public proxy — scrape the app directly
+    location = /metrics {
+        return 404;
     }
 }
 
@@ -1094,23 +1090,34 @@ than the real client IP, and the allowlist will not work as expected.
 curl https://isp.example.com/health
 # {"status":"ok","version":"0.1.0-alpha.1","uptime":3600,"relay":"standalone","timestamp":"..."}
 
-curl https://isp.example.com/health?detail=true
-# Adds memory usage and DB latency
+curl -H "Authorization: Bearer $METRICS_TOKEN" http://app:3000/health?detail=true
+# Adds memory usage and DB latency. In production this needs METRICS_TOKEN;
+# without it the plain health answer is returned.
 ```
 
 ### Prometheus Metrics
 
-VigaBSS exposes metrics at `/metrics` in Prometheus exposition format:
+VigaBSS exposes metrics at `/metrics` in Prometheus exposition format. In
+production the endpoint answers 404 unless the request carries
+`Authorization: Bearer <METRICS_TOKEN>`, and the shipped nginx configs never
+proxy it, so scrape the app container directly on the private network:
 
 ```yaml
 # prometheus.yml
 scrape_configs:
   - job_name: vigabss
     static_configs:
-      - targets: ['isp.example.com:3000']
+      - targets: ['app:3000']
     metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/vigabss-metrics-token
     scrape_interval: 15s
 ```
+
+Request latency is labelled by route template (`/api/v1/clients/:id`);
+requests that match no route share the `unmatched` label, and past 500
+series new ones go to `__other__`.
 
 Available metrics:
 - `process_uptime_seconds` — Process uptime

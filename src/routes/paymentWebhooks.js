@@ -28,6 +28,7 @@
 
 const { Router } = require('express');
 const paymentGatewayService = require('../services/paymentGatewayService');
+const db = require('../config/database');
 const logger = require('../utils/logger');
 
 const router = Router();
@@ -152,22 +153,67 @@ async function processWebhook(req, res, { provider, secret, organizationId, conf
   }
 }
 
-// Global (env-var) receiver: one signing secret for the whole install.
-function envHandler(provider) {
-  return (req, res) => processWebhook(req, res, {
-    provider,
-    secret: process.env[PROVIDERS[provider].envVarName],
-    organizationId: undefined,
-    configHint: `Set ${PROVIDERS[provider].envVarName}, use the per-gateway /${provider}/:gatewayId URL, or ALLOW_UNSIGNED_WEBHOOKS=true for local testing only.`,
+// Webhooks arrive with no tenant context, so every query ran against the
+// primary database: an organization on its own (isolated) database never had
+// its gateway found, its transactions matched or its payments posted, and a
+// gateway id could collide with another organization's (WHK-11). Processing
+// now runs inside the owning organization's database context.
+const positiveId = value => (/^\d+$/.test(String(value ?? '')) && Number(value) > 0 ? Number(value) : null);
+
+async function isIsolatedOrganization(organizationId) {
+  return db.withPrimaryContext(async () => {
+    const [rows] = await db.query(
+      "SELECT 1 FROM organization_database_configs WHERE organization_id = ? AND isolation_mode = 'isolated' LIMIT 1",
+      [organizationId],
+    );
+    return rows.length > 0;
   });
 }
 
+// Global (env-var) receiver: one signing secret for the whole install. The
+// owning organization comes from the event's own metadata (set by us at
+// checkout and covered by the provider signature); without it the event is
+// matched in the primary database by gateway reference only.
+function envHandler(provider) {
+  return (req, res) => {
+    const organizationId = positiveId(req.body?.data?.object?.metadata?.organization_id);
+    const run = organizationId
+      ? fn => db.withTenantContext(organizationId, fn)
+      : fn => db.withPrimaryContext(fn);
+    return run(() => processWebhook(req, res, {
+      provider,
+      secret: process.env[PROVIDERS[provider].envVarName],
+      organizationId: organizationId ?? undefined,
+      configHint: `Set ${PROVIDERS[provider].envVarName}, use the per-gateway /${provider}/:organizationId/:gatewayId URL, or ALLOW_UNSIGNED_WEBHOOKS=true for local testing only.`,
+    }));
+  };
+}
+
 // Multi-tenant receiver: signing secret + tenant come from the gateway row.
+// /:provider/:organizationId/:gatewayId loads the gateway, and processes the
+// event, in that organization's database. The older /:provider/:gatewayId
+// (primary database only) still serves shared-database organizations; for an
+// isolated organization its primary row is a stale copy, so it answers 404.
 function gatewayHandler(provider) {
   return async (req, res) => {
+    const hasOrg = req.params.organizationId !== undefined;
+    const organizationId = hasOrg ? positiveId(req.params.organizationId) : null;
+    if (hasOrg && !organizationId) {
+      return res.status(404).json({ error: { code: 'WEBHOOK_GATEWAY_NOT_FOUND', message: 'Unknown payment gateway' } });
+    }
+    const run = organizationId
+      ? fn => db.withTenantContext(organizationId, fn)
+      : fn => db.withPrimaryContext(fn);
     let ctx;
     try {
-      ctx = await paymentGatewayService.loadGatewayWebhookContext({ provider, gatewayId: req.params.gatewayId });
+      ctx = await run(() => paymentGatewayService.loadGatewayWebhookContext({
+        provider, gatewayId: req.params.gatewayId, organizationId: organizationId ?? undefined,
+      }));
+      if (ctx.found && !organizationId && await isIsolatedOrganization(ctx.organizationId)) {
+        logger.warn({ provider, gatewayId: req.params.gatewayId, organizationId: ctx.organizationId },
+          'Webhook for an isolated organization arrived on the legacy URL; use /:provider/:organizationId/:gatewayId');
+        ctx = { found: false };
+      }
     } catch (err) {
       logger.error({ err, provider, gatewayId: req.params.gatewayId }, 'Failed to load gateway webhook context');
       return res.status(500).json({ error: { code: 'WEBHOOK_PROCESSING_ERROR', message: 'Webhook processing failed' } });
@@ -181,17 +227,19 @@ function gatewayHandler(provider) {
     // secret and moves no money (the signature still gates all action), and the
     // informative codes are what a provider dashboard / operator needs to debug
     // setup. Do not collapse them without a better operator signal.
-    return processWebhook(req, res, {
+    return run(() => processWebhook(req, res, {
       provider,
       secret: ctx.webhookSecret,
       organizationId: ctx.organizationId,
       configHint: `Set the webhook signing secret on this ${provider} gateway in Settings, or ALLOW_UNSIGNED_WEBHOOKS=true for local testing only.`,
-    });
+    }));
   };
 }
 
 // Per-gateway routes are declared before the bare routes for clarity; Express
 // matches by path shape either way (different depths, no conflict).
+router.post('/stripe/:organizationId/:gatewayId', gatewayHandler('stripe'));
+router.post('/conekta/:organizationId/:gatewayId', gatewayHandler('conekta'));
 router.post('/stripe/:gatewayId', gatewayHandler('stripe'));
 router.post('/conekta/:gatewayId', gatewayHandler('conekta'));
 router.post('/stripe', envHandler('stripe'));

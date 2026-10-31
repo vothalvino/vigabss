@@ -53,6 +53,7 @@ import { TicketDetail } from '@/pages/TicketDetail';
 import { FollowUpReminderList } from '@/pages/FollowUpReminderList';
 import { SatisfactionSurveyList } from '@/pages/SatisfactionSurveyList';
 import { EscalationList } from '@/pages/EscalationList';
+import { PortalServiceRequestList } from '@/pages/PortalServiceRequestList';
 import { DeviceMap } from '@/pages/DeviceMap';
 import { UserList } from '@/pages/UserList';
 import { CfdiList } from '@/pages/CfdiList';
@@ -248,6 +249,7 @@ export function App() {
                 <Route path="follow-up-reminders" element={<FollowUpReminderList />} />
                 <Route path="satisfaction-surveys" element={<SatisfactionSurveyList />} />
                 <Route path="escalations" element={<EscalationList />} />
+                <Route path="self-service-requests" element={<PortalServiceRequestList />} />
                 <Route path="devices" element={<DeviceMap />} />
                 <Route path="devices/:id" element={<DeviceDetail />} />
                 <Route path="wg-tunnels" element={<UserWgTunnels />} />

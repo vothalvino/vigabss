@@ -172,6 +172,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/tickets', keywords: ['soporte', 'casos'], labelKey: 'nav.tickets', section: 'support', guard: 'any', rail: true, roles: ['support', 'technician'] },
   // escalations.view: technician+support (197) + billing (394)
   { path: '/escalations', labelKey: 'nav.escalations', section: 'support', guard: 'any', rail: true, roles: ['technician', 'support', 'billing'] },
+  { path: '/self-service-requests', keywords: ['solicitudes', 'portal', 'autoservicio'], labelKey: 'nav.portalServiceRequests', section: 'support', guard: 'any', rail: true, roles: ['technician'] },
   { path: '/follow-up-reminders', labelKey: 'nav.followUps', section: 'support', guard: 'any', rail: true, roles: ['technician', 'support', 'billing'] },
   { path: '/communication-campaigns', labelKey: 'nav.communicationCampaigns', section: 'support', guard: 'any', rail: true, roles: ['technician', 'support', 'billing'] },
   { path: '/satisfaction-surveys', labelKey: 'nav.surveys', section: 'support', guard: 'any', rail: true, roles: ['support', 'billing'] },

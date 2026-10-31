@@ -43,6 +43,65 @@ export const portalTokenStore = {
 };
 
 // ---------------------------------------------------------------------------
+// portalAuthedFetch — every authenticated portal call goes through it (FE-05)
+// ---------------------------------------------------------------------------
+// The portal access token lives 15 minutes and was minted only at login and
+// on a full page load, so every portal call (Pay Now included) failed 15
+// minutes after the last load. portalAuthedFetch attaches the current token and, on
+// a 401, makes one shared POST /portal/auth/refresh and retries once. When the
+// refresh is refused the session is over: the tokens are cleared and the
+// provider signs the subscriber out, so PortalRoute shows the login page.
+
+let refreshInFlight: Promise<boolean> | null = null;
+let onSessionExpired: (() => void) | null = null;
+
+function expireSession() {
+  portalTokenStore.clear();
+  onSessionExpired?.();
+}
+
+async function refreshPortalSession(): Promise<boolean> {
+  const refreshToken = portalTokenStore.getRefresh();
+  if (!refreshToken) { expireSession(); return false; }
+  try {
+    const res = await fetch('/api/v1/portal/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (res.ok) {
+      const json = (await res.json()) as { data: { accessToken: string; refreshToken: string } };
+      portalTokenStore.setAccess(json.data.accessToken);
+      portalTokenStore.setRefresh(json.data.refreshToken);
+      return true;
+    }
+    // 429/5xx are transient: keep the session and let the caller show its error.
+    if (res.status === 401 || res.status === 403) expireSession();
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export async function portalAuthedFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const send = () => {
+    const headers = new Headers(init.headers);
+    const token = portalTokenStore.getAccess();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    else headers.delete('Authorization');
+    return fetch(input, { ...init, headers });
+  };
+  let res = await send();
+  if (res.status === 401) {
+    if (!refreshInFlight) {
+      refreshInFlight = refreshPortalSession().finally(() => { refreshInFlight = null; });
+    }
+    if (await refreshInFlight) res = await send();
+  }
+  return res;
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -80,6 +139,11 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     loading: true,
     initialized: false,
   });
+
+  useEffect(() => {
+    onSessionExpired = () => setState({ client: null, loading: false, initialized: true });
+    return () => { onSessionExpired = null; };
+  }, []);
 
   const booted = useRef(false);
   useEffect(() => {

@@ -9,7 +9,7 @@
 import { lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { portalTokenStore } from '@/auth/PortalAuthContext';
+import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
 
@@ -23,12 +23,10 @@ interface PrivacyNotice {
 }
 
 async function portalFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const token = portalTokenStore.getAccess();
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await portalAuthedFetch(`${API_BASE}${path}`, {
     ...opts,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(opts.headers as Record<string, string> | undefined),
     },
   });

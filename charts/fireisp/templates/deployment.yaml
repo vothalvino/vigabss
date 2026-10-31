@@ -1,3 +1,8 @@
+{{- $redis := or .Values.secrets.REDIS_URL .Values.config.REDIS_URL -}}
+{{- $multi := or (gt (int .Values.replicaCount) 1) (and .Values.hpa.enabled (gt (int .Values.hpa.maxReplicas) 1)) -}}
+{{- if and $multi (not $redis) -}}
+{{- fail "More than one replica (replicaCount > 1, or hpa.enabled with maxReplicas > 1) needs secrets.REDIS_URL: without a shared Redis, rate limits, caches, websocket fan-out and the job queue are per-process. Set REDIS_URL or run one replica." -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

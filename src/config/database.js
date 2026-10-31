@@ -38,8 +38,19 @@ const baseConnectionConfig = {
   timezone: '+00:00',
 };
 
+// db.query runs pool.execute, which prepares every distinct SQL text on the
+// server. mysql2 caches those statements per connection (LRU of 16,000 by
+// default) and never closes them while the connection lives, and the server
+// allows max_prepared_stmt_count (16,382 by default) across ALL connections,
+// so a busy install with pooled connections from several replicas could
+// exhaust it and every new statement then failed (DB-04). Each connection
+// now keeps at most DB_MAX_PREPARED_STATEMENTS; keep
+// connections x this cap below the server's max_prepared_stmt_count.
+const MAX_PREPARED_STATEMENTS = Math.max(1, parseIntEnv('DB_MAX_PREPARED_STATEMENTS', 128));
+
 const pool = mysql.createPool({
   ...baseConnectionConfig,
+  maxPreparedStatements: MAX_PREPARED_STATEMENTS,
   waitForConnections: true,
   connectionLimit: parseIntEnv('DB_POOL_SIZE', 20),
   queueLimit: parseIntEnv('DB_QUEUE_LIMIT', 0),
@@ -80,6 +91,7 @@ const replicaPool = process.env.DB_REPLICA_HOST
     timezone: '+00:00',
     waitForConnections: true,
     connectionLimit: parseIntEnv('DB_REPLICA_POOL_SIZE', 10),
+    maxPreparedStatements: MAX_PREPARED_STATEMENTS,
     queueLimit: parseIntEnv('DB_QUEUE_LIMIT', 0),
     enableKeepAlive: true,
     keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),
@@ -217,6 +229,7 @@ async function getTenantPool(orgId) {
         timezone: '+00:00',
         waitForConnections: true,
         connectionLimit: parseIntEnv('TENANT_DB_POOL_SIZE', 10),
+        maxPreparedStatements: MAX_PREPARED_STATEMENTS,
         queueLimit: parseIntEnv('DB_QUEUE_LIMIT', 0),
         enableKeepAlive: true,
         keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),

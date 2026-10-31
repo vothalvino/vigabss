@@ -39,6 +39,10 @@ export interface ClientPickerProps {
   initialName?: string;
   /** Whether the client is mandatory. Shows a "*" on the label. Default true. */
   required?: boolean;
+  /** Label text; defaults to clientPicker.label. */
+  label?: string;
+  /** Read-only: shows the chosen client without the Change button. */
+  disabled?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +67,7 @@ async function searchClients(term: string, limit = 20): Promise<ClientOption[]> 
 // Component
 // ---------------------------------------------------------------------------
 
-export function ClientPicker({ value, onChange, initialName, required = true }: ClientPickerProps) {
+export function ClientPicker({ value, onChange, initialName, required = true, label, disabled = false }: ClientPickerProps) {
   const { t } = useTranslation();
   // The picker is "resolved" once a client is selected. Until then we show the
   // search input; afterwards we show the chosen name + a Change button.
@@ -134,14 +138,16 @@ export function ClientPicker({ value, onChange, initialName, required = true }: 
 
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
-      <label style={labelStyle}>{t('clientPicker.label')}{required ? ' *' : ''}</label>
+      <label style={labelStyle}>{label ?? t('clientPicker.label')}{required ? ' *' : ''}</label>
 
       {isSelected ? (
         <div style={selectedRow}>
           <span style={selectedName_}>{selectedName}</span>
-          <button type="button" style={changeBtn} onClick={handleClear}>
-            {t('clientPicker.change')}
-          </button>
+          {!disabled && (
+            <button type="button" style={changeBtn} onClick={handleClear}>
+              {t('clientPicker.change')}
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -150,6 +156,8 @@ export function ClientPicker({ value, onChange, initialName, required = true }: 
             type="text"
             value={term}
             placeholder={t('clientPicker.placeholder')}
+            aria-label={label ?? t('clientPicker.label')}
+            disabled={disabled}
             autoComplete="off"
             onChange={e => setTerm(e.target.value)}
             onFocus={() => { setFocused(true); setOpen(true); }}

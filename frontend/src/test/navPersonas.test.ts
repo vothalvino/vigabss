@@ -85,6 +85,7 @@ describe('technician', () => {
     expect(nav.support.items).toEqual([
       '/tickets',
       '/escalations',
+      '/self-service-requests', // portal_service_requests.view/update — mig 296 grants
       '/follow-up-reminders',
       '/communication-campaigns',
     ]);

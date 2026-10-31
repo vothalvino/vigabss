@@ -24,6 +24,8 @@ import {
 import { extractApiError } from '@/components/ClientFormModal';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { Pagination } from '@/components/Pagination';
+import { ClientPicker } from '@/components/ClientPicker';
+import { useClientNames } from '@/api/clientNames';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -86,10 +88,6 @@ interface Plan {
   price: string;
 }
 
-interface Client {
-  id: number;
-  name: string;
-}
 
 interface CreateContractBody {
   client_id: number;
@@ -181,14 +179,6 @@ async function fetchPlans(): Promise<Plan[]> {
   });
   if (res.error) throw new Error('Failed to load plans');
   return (res.data as unknown as { data: Plan[] }).data;
-}
-
-async function fetchClients(): Promise<Client[]> {
-  const res = await api.GET('/clients', {
-    params: { query: { limit: 500 } as never },
-  });
-  if (res.error) throw new Error('Failed to load clients');
-  return (res.data as unknown as { data: Client[] }).data;
 }
 
 async function patchContractStatus(
@@ -364,13 +354,12 @@ const TODAY = new Date().toISOString().split('T')[0];
 
 interface NewContractModalProps {
   plans: Plan[];
-  clients: Client[];
   isMxOrg: boolean;
   onClose: () => void;
   onCreated: (contractId: number) => void;
 }
 
-function NewContractModal({ plans, clients, isMxOrg, onClose, onCreated }: NewContractModalProps) {
+function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractModalProps) {
   const [form, setForm] = useState({
     client_id: '',
     plan_id: '',
@@ -449,20 +438,12 @@ function NewContractModal({ plans, clients, isMxOrg, onClose, onCreated }: NewCo
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           {/* Client */}
-          <label style={modalStyles.label}>
-            Client <span style={{ color: '#ef4444' }}>*</span>
-            <select
-              style={modalStyles.select}
-              value={form.client_id}
-              onChange={e => setField('client_id', e.target.value)}
-              required
-            >
-              <option value="">— select client —</option>
-              {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </label>
+          {/* Search, not a <select>: the list returns at most 100 clients (FE-04). */}
+          <ClientPicker
+            label="Client"
+            value={form.client_id ? Number(form.client_id) : ''}
+            onChange={id => setField('client_id', id ? String(id) : '')}
+          />
 
           {/* Plan */}
           <label style={modalStyles.label}>
@@ -1226,13 +1207,6 @@ export function ContractList() {
     staleTime: 60_000,
   });
 
-  const clientsQ = useQuery({
-    queryKey: ['clients-lookup'],
-    queryFn: fetchClients,
-    staleTime: 60_000,
-  });
-
-  const clientMap = new Map((clientsQ.data ?? []).map((c: Client) => [c.id, c.name]));
 
   // Mutation for suspend (uses dedicated CoA-disconnect endpoint)
   const suspendMutation = useMutation({
@@ -1282,6 +1256,8 @@ export function ContractList() {
 
   const contracts = contractsQ.data?.data ?? [];
   const meta = contractsQ.data?.meta;
+  // Names for the clients on this page (FE-04).
+  const clientMap = useClientNames(contracts.map(c => c.client_id));
 
   return (
     <div style={styles.page}>
@@ -1397,10 +1373,9 @@ export function ContractList() {
       </div>
 
       {/* Modals */}
-      {showNew && plansQ.data && clientsQ.data && (
+      {showNew && plansQ.data && (
         <NewContractModal
           plans={plansQ.data}
-          clients={clientsQ.data}
           isMxOrg={isMxOrg}
           onClose={() => setShowNew(false)}
           onCreated={(contractId) => {

@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, fmtDate } from './crudStyles';
+import { listTotal } from '@/api/envelope';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -428,7 +429,7 @@ export function WirelessManagementPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wireless', 'apSectors'] }),
   });
 
-  const apTotalPages = Math.ceil((apQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const apTotalPages = Math.ceil(listTotal(apQ.data) / PAGE_SIZE) || 1;
 
   // ============================== CHANNEL PLANS ==============================
 
@@ -475,7 +476,7 @@ export function WirelessManagementPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wireless', 'channelPlans'] }),
   });
 
-  const cpTotalPages = Math.ceil((cpQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const cpTotalPages = Math.ceil(listTotal(cpQ.data) / PAGE_SIZE) || 1;
 
   // ============================== AP COMMANDS ==============================
 
@@ -503,7 +504,7 @@ export function WirelessManagementPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wireless', 'apCommands'] }),
   });
 
-  const cmdTotalPages = Math.ceil((cmdQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const cmdTotalPages = Math.ceil(listTotal(cmdQ.data) / PAGE_SIZE) || 1;
 
   // ============================== INTERFERENCE LOG ==============================
 
@@ -550,7 +551,7 @@ export function WirelessManagementPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wireless', 'interference'] }),
   });
 
-  const intTotalPages = Math.ceil((intQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const intTotalPages = Math.ceil(listTotal(intQ.data) / PAGE_SIZE) || 1;
 
   // ---------------------------------------------------------------------------
   // Render

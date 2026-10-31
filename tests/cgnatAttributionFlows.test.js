@@ -63,6 +63,8 @@ function fakeIngestDatabase({ exporterOverrides = {}, overlap = false } = {}) {
   const state = { exporter: exporter(exporterOverrides), events: [], projection: null };
   const connection = {
     beginTransaction: jest.fn().mockResolvedValue(undefined),
+    // SAVEPOINT / ROLLBACK TO / RELEASE SAVEPOINT (per-record ingest, REG-04).
+    query: jest.fn().mockResolvedValue([{}]),
     commit: jest.fn().mockResolvedValue(undefined),
     rollback: jest.fn().mockResolvedValue(undefined),
     release: jest.fn(),
@@ -457,5 +459,55 @@ describe('case-bound lookup method and candidate boundaries', () => {
     expect(replayed.evidence_snapshot_hash).toBe(first.evidence_snapshot_hash);
     expect(stopped.evidence_snapshot_hash).not.toBe(first.evidence_snapshot_hash);
     expect(storedKeys.size).toBe(2);
+  });
+});
+
+// REG-04: one uncorrelatable record used to roll back its whole batch, and a
+// release after the access session ended was refused.
+describe('per-record ingest', () => {
+  test('a record that cannot be correlated is rejected by index and the rest is stored', async () => {
+    const { state, connection } = fakeIngestDatabase();
+    const result = await ingestBatch(10, {
+      // The release names a public port the allocation never had.
+      bindings: [binding(), release({ public_port_start: 45001, public_port_end: 45001, event_id: 'release-x' })],
+    }, { apiTokenId: 99 });
+
+    expect(result).toMatchObject({ received: 2, inserted: 1, allocated: 1, released: 0, rejected_count: 1 });
+    expect(result.rejected).toEqual([expect.objectContaining({
+      index: 1, event_id: 'release-x', event_type: 'release',
+      error: expect.objectContaining({ message: expect.stringMatching(/^bindings\[1\]: Release event tuple does not match/) }),
+    })]);
+    expect(result.rejected[0]).not.toHaveProperty('cause');
+    expect(state.events.map(event => event.event_id)).toEqual(['allocate-1']);
+    const savepoints = connection.query.mock.calls.map(([sql]) => sql);
+    expect(savepoints).toEqual([
+      'SAVEPOINT cgnat_record', 'RELEASE SAVEPOINT cgnat_record',
+      'SAVEPOINT cgnat_record', 'ROLLBACK TO SAVEPOINT cgnat_record',
+    ]);
+    expect(connection.commit).toHaveBeenCalledTimes(1);
+  });
+
+  test('a batch in which nothing can be stored still fails, naming the record', async () => {
+    const { state, connection } = fakeIngestDatabase();
+    await expect(ingestBatch(10, { bindings: [release({ binding_key: 'never-allocated' })] }, { apiTokenId: 99 }))
+      .rejects.toThrow(/^bindings\[0\]: Release event has no unique allocation/);
+    expect(state.events).toHaveLength(0);
+    expect(connection.rollback).toHaveBeenCalledTimes(1);
+  });
+
+  test('format errors name the record too', async () => {
+    fakeIngestDatabase();
+    await expect(ingestBatch(10, { bindings: [binding(), binding({ protocol: 'icmp-ish' })] }, { apiTokenId: 99 }))
+      .rejects.toThrow(/^bindings\[1\]: /);
+  });
+
+  test('a release after the access session ended is accepted (lookups cap certainty at the session end)', async () => {
+    const { connection } = fakeIngestDatabase();
+    await ingestBatch(10, { bindings: [binding()] }, { apiTokenId: 99 });
+    const closed = await ingestBatch(10, { bindings: [release()] }, { apiTokenId: 99 });
+    expect(closed).toMatchObject({ released: 1, rejected_count: 0 });
+    const [sql] = connection.execute.mock.calls.find(([s]) => /SELECT cl\.id\s+FROM connection_logs cl/.test(s));
+    expect(sql).not.toMatch(/INTERVAL|stop_evidence/);
+    expect(sql).toMatch(/cl\.session_instance_id = \?/);
   });
 });

@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
+import { listTotal } from '@/api/envelope';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -682,7 +683,7 @@ export function QosBandwidthPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['qos', 'qualityClasses'] }),
   });
 
-  const qcTotalPages = Math.ceil((qcQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const qcTotalPages = Math.ceil(listTotal(qcQ.data) / PAGE_SIZE) || 1;
 
   // ============================== QUEUE TREE NODES ==============================
 
@@ -743,7 +744,7 @@ export function QosBandwidthPage() {
     }
   }
 
-  const qtTotalPages = Math.ceil((qtQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const qtTotalPages = Math.ceil(listTotal(qtQ.data) / PAGE_SIZE) || 1;
 
   // ============================== RATE LIMIT TEMPLATES ==============================
 
@@ -806,7 +807,7 @@ export function QosBandwidthPage() {
     }
   }
 
-  const rltTotalPages = Math.ceil((rltQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const rltTotalPages = Math.ceil(listTotal(rltQ.data) / PAGE_SIZE) || 1;
 
   // ============================== PROTOCOL SHAPING RULES ==============================
 
@@ -868,7 +869,7 @@ export function QosBandwidthPage() {
     }
   }
 
-  const psrTotalPages = Math.ceil((psrQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const psrTotalPages = Math.ceil(listTotal(psrQ.data) / PAGE_SIZE) || 1;
 
   // ============================== DATA PACKS (§10.3) ==============================
 
@@ -905,7 +906,7 @@ export function QosBandwidthPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['qos', 'dataPacks'] }),
   });
 
-  const dpTotalPages = Math.ceil((dpQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const dpTotalPages = Math.ceil(listTotal(dpQ.data) / PAGE_SIZE) || 1;
 
   const [fupNotifPage, setFupNotifPage] = useState(1);
   const fupNotifQ = useQuery({
@@ -913,7 +914,7 @@ export function QosBandwidthPage() {
     queryFn: () => fetchFupNotifications(fupNotifPage),
     enabled: tab === 'fupDataCaps',
   });
-  const fupNotifTotalPages = Math.ceil((fupNotifQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const fupNotifTotalPages = Math.ceil(listTotal(fupNotifQ.data) / PAGE_SIZE) || 1;
 
   // ============================== INTERFACE QoS POLICIES (§10.4) ==============================
 
@@ -950,7 +951,7 @@ export function QosBandwidthPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['qos', 'interfaceQosPolicies'] }),
   });
 
-  const iqpTotalPages = Math.ceil((iqpQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const iqpTotalPages = Math.ceil(listTotal(iqpQ.data) / PAGE_SIZE) || 1;
 
   // ============================== DSCP MARKING POLICIES (§10.4) ==============================
 
@@ -998,7 +999,7 @@ export function QosBandwidthPage() {
     }
   }
 
-  const dscpTotalPages = Math.ceil((dscpQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const dscpTotalPages = Math.ceil(listTotal(dscpQ.data) / PAGE_SIZE) || 1;
 
   // ============================== MPLS/VLAN PRIORITIZATION (§10.4) ==============================
 
@@ -1035,7 +1036,7 @@ export function QosBandwidthPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['qos', 'mplsVlan'] }),
   });
 
-  const mvTotalPages = Math.ceil((mvQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const mvTotalPages = Math.ceil(listTotal(mvQ.data) / PAGE_SIZE) || 1;
 
   // ============================== BANDWIDTH TEST SERVERS (§10.4) ==============================
 
@@ -1072,7 +1073,7 @@ export function QosBandwidthPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['qos', 'bandwidthTestServers'] }),
   });
 
-  const bwtTotalPages = Math.ceil((bwtQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const bwtTotalPages = Math.ceil(listTotal(bwtQ.data) / PAGE_SIZE) || 1;
 
   // ---------------------------------------------------------------------------
   // Render

@@ -622,6 +622,15 @@ native format directly. It also accepts flat hyphenated
 (`"Acct-Status-Type":"Start"`) and camelCase (`"acctStatusType":"Start"`)
 forms for custom shippers.
 
+**Event times.** `rlm_rest` writes `date` attributes such as `Event-Timestamp`
+as text in the FreeRADIUS server's local zone (`"Oct 20 2026 12:00:00 CST"`).
+Zone abbreviations are ambiguous, so VigaBSS ignores that text and dates the
+event at the time the request arrives, minus `Acct-Delay-Time`, the same as a
+packet without `Event-Timestamp`. Keep `rest` in the accounting section (not
+behind a `detail` replay queue) so arrival time stays close to the event.
+Custom shippers can send `Event-Timestamp` as Unix seconds or as ISO 8601 with
+an offset (`2026-10-20T18:00:00Z`) to have it used as sent.
+
 | Status-Type | Required attributes |
 |-------------|---------------------|
 | Start / Stop / Interim-Update | `User-Name`, `NAS-IP-Address`, `Acct-Session-Id` |

@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { portalTokenStore } from '@/auth/PortalAuthContext';
+import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
 
@@ -26,23 +26,18 @@ interface TicketsResponse {
 }
 
 async function fetchPortalTickets(page: number, status: string): Promise<TicketsResponse> {
-  const token = portalTokenStore.getAccess();
   const query = new URLSearchParams({ page: String(page), limit: '20' });
   if (status) query.set('status', status);
-  const res = await fetch(`${API_BASE}/tickets?${query}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await portalAuthedFetch(`${API_BASE}/tickets?${query}`);
   if (!res.ok) throw new Error('Failed to load tickets');
   return res.json() as Promise<TicketsResponse>;
 }
 
 async function createTicket(body: { subject: string; description?: string; priority?: string; category?: string }): Promise<Ticket> {
-  const token = portalTokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/tickets`, {
+  const res = await portalAuthedFetch(`${API_BASE}/tickets`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
   });

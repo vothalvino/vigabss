@@ -889,7 +889,8 @@ async function getSignalDistribution(deviceId, orgId, hours = 24) {
         SUM(CASE WHEN signal_dbm >= -70  AND signal_dbm < -60 THEN 1 ELSE 0 END) AS bucket_70_60,
         SUM(CASE WHEN signal_dbm >= -60  AND signal_dbm < -50 THEN 1 ELSE 0 END) AS bucket_60_50,
         SUM(CASE WHEN signal_dbm >= -50             THEN 1 ELSE 0 END) AS bucket_50_0,
-        COUNT(signal_dbm) AS total_sessions
+        COUNT(signal_dbm) AS total_sessions,
+        AVG(signal_dbm) AS avg_signal_dbm
      FROM wireless_client_sessions wcs
      WHERE (wcs.organization_id = ? OR wcs.organization_id IS NULL)
        AND wcs.last_seen_at >= ?
@@ -908,6 +909,10 @@ async function getSignalDistribution(deviceId, orgId, hours = 24) {
       { range: '[-50,0)',    label: '-50 to 0 dBm',    count: Number(r.bucket_50_0) },
     ],
     total_sessions: Number(r.total_sessions),
+    // The Signal tab shows it; it was never returned (FE2-01).
+    avg_signal_dbm: r.avg_signal_dbm === null || r.avg_signal_dbm === undefined
+      ? null
+      : Math.round(Number(r.avg_signal_dbm) * 10) / 10,
     device_id: deviceId || null,
     hours,
   };

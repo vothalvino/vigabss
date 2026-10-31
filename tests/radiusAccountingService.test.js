@@ -340,8 +340,9 @@ describe('radiusAccountingService', () => {
       const close = connection.execute.mock.calls.find(([sql]) => (
         sql.includes('terminate_cause = ?') && sql.includes("event_type = 'stop'")
       ));
-      expect(close[1]).toEqual(['Session-Identity-Changed',
-        new Date('2026-08-14T10:00:01.000Z'), 40, 7]);
+      // Closed at its own last real accounting, never at the new Start (REG-01).
+      expect(close[0]).toContain('last_accounting_at = COALESCE(last_accounting_at, event_at)');
+      expect(close[1]).toEqual(['Session-Identity-Changed', 40, 7]);
       const insert = connection.execute.mock.calls.find(([sql]) => sql.includes('INSERT INTO connection_logs'));
       expect(insert[1]).toContain('1.1.1.1');
       expect(insert[1]).not.toContain(SESSION_UUID);
@@ -495,7 +496,9 @@ describe('radiusAccountingService', () => {
       expect(usageInsert[1][15]).toBe('missing_start_baseline');
     });
 
-    test('MAC-move closure ends at the accepted Start event time and records receipt chronology', async () => {
+    // REG-01: the old lifecycle used to be closed at the NEW Start's time, which
+    // certified the old subscriber for the whole lost-Stop gap.
+    test('MAC-move closure ends at the old session\'s last real accounting and records receipt chronology', async () => {
       const connection = makeConnection({ openRows: [{
         id: 11,
         calling_station_id: 'AA:AA:AA:AA:AA:AA',
@@ -509,9 +512,10 @@ describe('radiusAccountingService', () => {
       }));
       expect(result.macMove).toBe(true);
       const moveUpdate = connection.execute.mock.calls.find(([sql]) => sql.includes("terminate_cause = 'Session-Moved'"));
-      expect(moveUpdate[0]).toContain('last_accounting_at = ?');
+      expect(moveUpdate[0]).toContain('last_accounting_at = COALESCE(last_accounting_at, event_at)');
       expect(moveUpdate[0]).toContain('last_accounting_received_at = NOW(3)');
-      expect(moveUpdate[1]).toEqual([new Date('2026-08-14T09:59:30.000Z'), 11, 7]);
+      expect(moveUpdate[1]).toEqual([11, 7]);
+      expect(moveUpdate[1]).not.toContainEqual(new Date('2026-08-14T09:59:30.000Z'));
       expect(connection.commit).toHaveBeenCalledTimes(1);
     });
 

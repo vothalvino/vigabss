@@ -845,9 +845,23 @@ jobs:
   # `needs: container-scan` waits for every matrix leg, and because the matrix
   # does not set continue-on-error a failed or unscanned architecture skips this
   # job entirely.
+  #
+  # It also waits for every test job (OPS-02). It used to need container-scan
+  # only, so a main commit whose lint, Jest, Vitest, e2e or database jobs
+  # failed was still published and signed as :<sha> and :latest, and install,
+  # redeploy and the in-app Update pulled it. A red commit now publishes
+  # nothing: the per-arch tags from container-scan are never promoted, and
+  # redeploy keeps waiting for an image that does not appear.
   # ---------------------------------------------------------------------------
   publish-manifest:
-    needs: container-scan
+    needs:
+      - container-scan
+      - lint-and-test
+      - frontend-test
+      - e2e
+      - database-tests
+      - migration-runner-tests
+      - mariadb-compatibility
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:

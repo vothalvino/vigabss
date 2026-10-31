@@ -74,15 +74,17 @@ const OFF_SESSION_PROVIDERS = ['stripe'];
  * @param {string} params.provider   - 'stripe' | 'conekta'
  * @param {number|string} params.gatewayId
  */
-async function loadGatewayWebhookContext({ provider, gatewayId }) {
+async function loadGatewayWebhookContext({ provider, gatewayId, organizationId }) {
   if (!/^\d+$/.test(String(gatewayId))) return { found: false };
+  const scoped = organizationId !== undefined && organizationId !== null;
 
   const [rows] = await db.query(
     `SELECT id, organization_id, webhook_secret_encrypted
        FROM payment_gateways
       WHERE id = ? AND provider = ? AND status = 'active' AND deleted_at IS NULL
+        ${scoped ? 'AND organization_id = ?' : ''}
       LIMIT 1`,
-    [gatewayId, provider],
+    scoped ? [gatewayId, provider, organizationId] : [gatewayId, provider],
   );
   if (rows.length === 0) return { found: false };
 
@@ -1065,12 +1067,13 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
     // Fallback: a Checkout Session carries transaction_id in its metadata, so if
     // the reference lookup misses (e.g. the gateway_reference_id UPDATE never
     // landed after the session was created) we can still recover the tx by id.
-    if (txRows.length === 0) {
+    // Only within a known organization: transaction ids are per database, and
+    // an id-only lookup on the install-wide route could settle another
+    // tenant's transaction that happens to share the number (WHK-11).
+    if (txRows.length === 0 && organizationId) {
       const metaTxId = payload?.data?.object?.metadata?.transaction_id;
       if (metaTxId) {
-        [txRows] = organizationId
-          ? await db.query('SELECT * FROM payment_transactions WHERE id = ? AND organization_id = ? LIMIT 1', [metaTxId, organizationId])
-          : await db.query('SELECT * FROM payment_transactions WHERE id = ? LIMIT 1', [metaTxId]);
+        [txRows] = await db.query('SELECT * FROM payment_transactions WHERE id = ? AND organization_id = ? LIMIT 1', [metaTxId, organizationId]);
       }
     }
 

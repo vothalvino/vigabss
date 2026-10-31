@@ -274,5 +274,5 @@ module.exports = {
   STORAGE_ROOT, entityDir, ALLOWED_EXTENSIONS,
   attachmentStorage, resolveStoredPath,
   ATTACHMENT_EXTENSIONS, attachmentFileFilter, attachmentMimeType,
-  contentDispositionAttachment,
+  contentDispositionAttachment, MAX_FILE_SIZE,
 };

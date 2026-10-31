@@ -181,7 +181,7 @@ describe('portalServiceRequestService.approveRequest() — pppoe_password_change
 
     db.query
       .mockResolvedValueOnce([[req]])          // SELECT for approveRequest
-      .mockResolvedValueOnce([{}])             // UPDATE (set approved)
+      .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE (set approved, from pending only)
       // applyPppoePasswordChange internals:
       .mockResolvedValueOnce([[req]])          // SELECT for applyPppoePasswordChange
       .mockResolvedValueOnce([{}])             // UPDATE radius password
@@ -214,7 +214,8 @@ describe('portalServiceRequestService.approveRequest() — plan_upgrade', () => 
 
     db.query
       .mockResolvedValueOnce([[req]])  // SELECT
-      .mockResolvedValueOnce([{}])     // UPDATE (set approved)
+      .mockResolvedValueOnce([[{ id: 3, name: 'Fiber Pro', price: '599.00' }]]) // plan still available (TNB-11)
+      .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE (set approved, from pending only)
       .mockResolvedValueOnce([{}])     // UPDATE contracts SET plan_id
       .mockResolvedValueOnce([{}])     // UPDATE status=completed
       .mockResolvedValueOnce([[{ ...req, status: 'completed', approved_by: 2 }]]); // final SELECT
@@ -222,10 +223,10 @@ describe('portalServiceRequestService.approveRequest() — plan_upgrade', () => 
     const result = await portalServiceRequestService.approveRequest(20, 1, 2, 'Upgrade approved');
     expect(result.status).toBe('completed');
 
-    // Verify contract plan_id was updated
-    const contractSql = db.query.mock.calls[2][0];
+    // Verify contract plan_id was updated, in the approver's organization
+    const contractSql = db.query.mock.calls[3][0];
     expect(contractSql).toMatch(/UPDATE contracts SET plan_id/);
-    expect(db.query.mock.calls[2][1]).toContain(3); // new_plan_id
+    expect(db.query.mock.calls[3][1]).toEqual([3, 8, 1]); // new_plan_id, contract, organization
   });
 });
 

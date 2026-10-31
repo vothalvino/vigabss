@@ -9,6 +9,7 @@ import { PortalPrivacy } from '../PortalPrivacy';
 
 vi.mock('@/auth/PortalAuthContext', () => ({
   portalTokenStore: { getAccess: () => 'portal-token' },
+  portalAuthedFetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init),
 }));
 
 type NoticeState = { accepted: boolean; accepted_at: string | null };

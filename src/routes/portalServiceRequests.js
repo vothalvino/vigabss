@@ -16,6 +16,7 @@
 
 const { Router } = require('express');
 const { authenticate } = require('../middleware/auth');
+const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const portalServiceRequestService = require('../services/portalServiceRequestService');
@@ -39,6 +40,10 @@ const rejectSchema = {
 // All routes require authenticated staff JWT
 // ---------------------------------------------------------------------------
 router.use(authenticate);
+// orgScope sets req.orgId (and the tenant-DB context). Without it every
+// handler bound `undefined`, mysql2 threw, and each endpoint returned 500,
+// so subscriber requests could never be approved (TNB-15).
+router.use(orgScope);
 
 // ---------------------------------------------------------------------------
 // GET / — list requests (admin)

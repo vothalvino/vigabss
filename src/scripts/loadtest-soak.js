@@ -111,7 +111,11 @@ function getJson(url) {
         hostname: u.hostname,
         port: u.port || (u.protocol === 'https:' ? 443 : 80),
         path: u.pathname + u.search,
-        headers: { accept: 'application/json' },
+        headers: {
+          accept: 'application/json',
+          // /health?detail=true needs it in production (OPS-01).
+          ...(process.env.METRICS_TOKEN ? { authorization: `Bearer ${process.env.METRICS_TOKEN}` } : {}),
+        },
       },
       res => {
         const chunks = [];

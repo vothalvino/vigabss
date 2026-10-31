@@ -83,6 +83,7 @@ describe('taskRunner — sla_breach_check', () => {
   });
 
   it('omits org filter when organizationId is null', async () => {
+    mockQuery.mockResolvedValueOnce([[]]); // isolated organizations: none (ASY-06 fan-out)
     mockQuery.mockResolvedValueOnce([[]]);
 
     await runTask('sla_breach_check', null);

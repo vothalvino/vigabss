@@ -38,7 +38,7 @@ const cpeSessionLogService = require('./cpeSessionLogService');
 const speedWindowService = require('./speedWindowService');
 const assetService = require('./assetService');
 const scheduledReportService = require('./scheduledReportService');
-const { forEachActiveOrganization } = require('./organizationFanOut');
+const { forEachActiveOrganization, forEachDatabaseScope, orgScopeFilter } = require('./organizationFanOut');
 const emailTemplates = require('../views/emailTemplates');
 const { backup: runBackup } = require('../scripts/backup');
 
@@ -148,23 +148,31 @@ async function listTasks(orgId = null) {
  * Run a single task by name. Dispatches to the appropriate service function.
  */
 async function runTask(taskName, organizationId = null) {
-  const start = Date.now();
-
   if (organizationId !== null && organizationId !== undefined && !ORGANIZATION_SCOPED_TASK_NAMES.has(taskName)) {
     const err = new Error(`Scheduled task "${taskName}" is not approved for organization-scoped execution`);
     err.code = 'INSTALL_SCOPE_REQUIRED';
     throw err;
   }
+  // A task row owned by one organization runs in that organization's
+  // database; cron and BullMQ callbacks carry no tenant context, so an
+  // isolated organization's own task used to run against the primary (ASY-06).
+  if (organizationId !== null && organizationId !== undefined && typeof db.withTenantContext === 'function') {
+    return db.withTenantContext(Number(organizationId), () => dispatchTask(taskName, organizationId));
+  }
+  return dispatchTask(taskName, organizationId);
+}
 
+async function dispatchTask(taskName, organizationId) {
+  const start = Date.now();
   switch (taskName) {
     case 'auto_generate_invoices':
-      return failIfInvoicingFailed(await runAutoInvoice(organizationId));
+      return inEveryDatabase(taskName, organizationId, async orgId => failIfInvoicingFailed(await runAutoInvoice(orgId)));
     case 'auto_suspend_overdue':
-      return runAutoSuspend(organizationId);
+      return inEveryDatabase(taskName, organizationId, runAutoSuspend);
     case 'billing_cycle':
-      return runBillingCycle(organizationId);
+      return inEveryDatabase(taskName, organizationId, runBillingCycle);
     case 'snmp_poll':
-      return snmpPoller.poll();
+      return inEveryDatabase(taskName, organizationId, () => snmpPoller.poll());
     // §6.1/§6.4: seeded by migration 254; routed through the interval-aware
     // poller so device_polling_configs and adaptive overrides take effect.
     // Migration 402 retimes the row to */1 — pollWithConfig skips devices not
@@ -257,7 +265,7 @@ async function runTask(taskName, organizationId = null) {
       // via the billing_followup_days setting (migration 445). Global sweep.
       return require('./billingFollowupService').dispatch();
     case 'csd_expiry_monitor':
-      return runCsdExpiryCheck(organizationId);
+      return inEveryDatabase(taskName, organizationId, runCsdExpiryCheck);
     case 'alert_evaluation':
       return runAlertEvaluation(organizationId);
     // Migration 400: closes out maintenance_windows past their ends_at. Seeded
@@ -267,9 +275,9 @@ async function runTask(taskName, organizationId = null) {
     case 'maintenance_window_expiry':
       return alertService.expireMaintenanceWindows(organizationId);
     case 'process_recurring_charges':
-      return checkoutService.processRecurringCharges(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => checkoutService.processRecurringCharges(orgId));
     case 'retry_failed_charges':
-      return paymentRetryService.processPendingRetries(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => paymentRetryService.processPendingRetries(orgId));
     // Migration 472: retry path for gateway captures that never became a
     // payment (failed reconcile / missed webhook). Seeded install-wide; with no
     // org it fans out over every active org, isolated tenants included.
@@ -288,11 +296,11 @@ async function runTask(taskName, organizationId = null) {
     case 'quarterly_dr_drill':
       return drDrillService.runDrill();
     case 'follow_up_reminders':
-      return interactionService.processDueReminders(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => interactionService.processDueReminders(orgId));
     case 'dispatch_satisfaction_surveys':
-      return interactionService.dispatchTicketSurveys(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => interactionService.dispatchTicketSurveys(orgId));
     case 'auto_escalate_tickets':
-      return interactionService.autoEscalateTickets(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => interactionService.autoEscalateTickets(orgId));
     case 'campaign_send':
       return campaignService.processQueue(organizationId);
     // ASY-02: these handlers bind `organization_id = ?`, so the seeded
@@ -327,7 +335,7 @@ async function runTask(taskName, organizationId = null) {
     case 'poll_pppoe_events':
       return runPppoeEventPoll(organizationId);
     case 'sla_breach_check':
-      return handleSlaBreachCheck(organizationId);
+      return inEveryDatabase(taskName, organizationId, handleSlaBreachCheck);
     case 'geofence_evaluation': {
       const geoFenceService = require('./geoFenceService');
       return perOrganization(taskName, organizationId, orgId => geoFenceService.evaluateAll(orgId));
@@ -335,7 +343,7 @@ async function runTask(taskName, organizationId = null) {
     case 'inventory_low_stock_check':
       return handleInventoryLowStockCheck(organizationId);
     case 'generate_scheduled_reports':
-      return scheduledReportService.processScheduledReports();
+      return inEveryDatabase(taskName, organizationId, () => scheduledReportService.processScheduledReports());
     case 'data_retention_compliance_check':
       return handleDataRetentionComplianceCheck(organizationId);
     // §18 Automation & Scripting tasks
@@ -456,8 +464,7 @@ async function runTask(taskName, organizationId = null) {
  * Sends an invoice notification email to the client after each successful generation.
  */
 async function runAutoInvoice(organizationId) {
-  const orgFilter = organizationId ? 'AND c.organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('c.organization_id', organizationId);
 
   const [contracts] = await db.query(
     `SELECT c.*, p.name AS plan_name, p.price AS plan_price, p.currency AS plan_currency
@@ -632,13 +639,9 @@ async function runSuspensionWarnings(organizationId) {
  * Sends a post-suspension notification email to the client after suspending.
  */
 async function runAutoSuspend(organizationId) {
-  let sql = 'SELECT id FROM organizations WHERE status = \'active\'';
-  const params = [];
-
-  if (organizationId) {
-    sql += ' AND id = ?';
-    params.push(organizationId);
-  }
+  const scope = orgScopeFilter('id', organizationId);
+  const sql = `SELECT id FROM organizations WHERE status = 'active'${scope.sql}`;
+  const params = scope.params;
 
   const [orgs] = await db.query(sql, params);
 
@@ -720,6 +723,15 @@ async function runAutoSuspend(organizationId) {
  * tenant's database context explicitly. One failed tenant does not prevent the
  * remaining organizations from being checked.
  */
+// Install-wide handlers that already cover every organization of one
+// database with organizationId null: run them in every database scope (the
+// primary, then each isolated organization's database). A task row owned by
+// one organization runs only for it (runTask has entered its database).
+function inEveryDatabase(taskName, organizationId, handler) {
+  if (organizationId !== null && organizationId !== undefined) return handler(Number(organizationId));
+  return forEachDatabaseScope(taskName, handler);
+}
+
 // Run an org-bound handler for one organization, or for every active one when
 // the task row is install-wide (organizationId null).
 function perOrganization(taskName, organizationId, handler) {
@@ -820,8 +832,7 @@ async function runBillingCycle(organizationId) {
  *   - flips lapsed certificates to status='expired' (and notifies once more)
  */
 async function runCsdExpiryCheck(organizationId) {
-  const orgFilter = organizationId ? 'AND organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('organization_id', organizationId);
 
   // Lapsed first. Only the IN-USE certificate earns the "stamping stopped"
   // error alert — a superseded (is_active=0) cert quietly lapsing is routine
@@ -960,8 +971,7 @@ async function markTaskRun(taskName, result = null, options = {}) {
  * Marks them as breached (is_breached = 1).
  */
 async function handleSlaBreachCheck(organizationId) {
-  const orgFilter = organizationId ? 'AND t.organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('t.organization_id', organizationId);
 
   const [events] = await db.query(
     `SELECT tse.id, tse.ticket_id, t.organization_id

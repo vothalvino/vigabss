@@ -2,8 +2,20 @@
 // VigaBSS 5.0 — Scheduler Service Unit Tests
 // =============================================================================
 
+// The no-Redis path claims each run with GET_LOCK + a per-minute UPDATE on a
+// dedicated connection (ASY-01); this connection grants both.
+const mockConnection = {
+  query: jest.fn(async (sql) => {
+    if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }]];
+    if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
+    return [{ affectedRows: 1 }];
+  }),
+  release: jest.fn(),
+  destroy: jest.fn(),
+};
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
+  getConnection: jest.fn(async () => mockConnection),
 }));
 
 jest.mock('node-cron', () => ({

@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { portalTokenStore } from '@/auth/PortalAuthContext';
+import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
 
@@ -47,21 +47,16 @@ interface Invoice {
 }
 
 async function portalGet<T>(path: string): Promise<T> {
-  const token = portalTokenStore.getAccess();
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await portalAuthedFetch(`${API_BASE}${path}`);
   if (!res.ok) throw new Error('Not found');
   return (await res.json() as { data: T }).data;
 }
 
 async function startPayment(invoiceId: number): Promise<{ payment_url: string }> {
-  const token = portalTokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/invoices/${invoiceId}/pay`, {
+  const res = await portalAuthedFetch(`${API_BASE}/invoices/${invoiceId}/pay`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({ return_url: window.location.href }),
   });
@@ -97,14 +92,12 @@ export function PortalInvoiceDetail() {
 
   const canPay = invoice.status === 'issued' || invoice.status === 'overdue';
 
-  const token = portalTokenStore.getAccess();
-
   function downloadFile(url: string, filename: string) {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     // For auth headers we fetch as blob
-    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    portalAuthedFetch(url)
       .then(r => r.blob())
       .then(blob => {
         const blobUrl = URL.createObjectURL(blob);

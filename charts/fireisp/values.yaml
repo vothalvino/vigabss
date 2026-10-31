@@ -3,8 +3,11 @@
 # selectors during an upgrade.
 # Override these in a values file or with --set flags.
 
-## Number of application replicas.
-replicaCount: 2
+## Number of application replicas. More than one needs a shared Redis
+## (secrets.REDIS_URL): rate limits, caches, websocket fan-out and the job
+## queue are per-process without it. The chart refuses to render more than
+## one replica, or an HPA that can scale past one, without REDIS_URL (ASY-01).
+replicaCount: 1
 
 image:
   ## What CI publishes, and what templates/cosign-policy.yaml verifies.
@@ -95,7 +98,7 @@ ingress:
   hostname: vigabss.example.com
   ## Annotations added to the Ingress resource.
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
   tls:
@@ -114,8 +117,9 @@ resources:
     memory: 512Mi
 
 ## Horizontal Pod Autoscaler
+## Enable only with secrets.REDIS_URL set (see replicaCount).
 hpa:
-  enabled: true
+  enabled: false
   minReplicas: 2
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70

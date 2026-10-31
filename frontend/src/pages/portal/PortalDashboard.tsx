@@ -7,7 +7,7 @@
 
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { usePortalAuth, portalTokenStore } from '@/auth/PortalAuthContext';
+import { usePortalAuth, portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
 
@@ -54,10 +54,7 @@ interface UsageDay {
 }
 
 async function portalFetch<T>(path: string): Promise<T> {
-  const token = portalTokenStore.getAccess();
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await portalAuthedFetch(`${API_BASE}${path}`);
   if (!res.ok) throw new Error('Request failed');
   return (await res.json()) as T;
 }

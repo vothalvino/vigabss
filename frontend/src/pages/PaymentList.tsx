@@ -20,13 +20,12 @@ import { Pagination } from '@/components/Pagination';
 import { RecordPaymentModal } from '@/components/RecordPaymentModal';
 import {
   Payment,
-  Client,
   extractList,
   fmtAmount,
-  fetchClients,
   fetchAllocations,
   PaymentActionButtons,
 } from './payments/PaymentActions';
+import { useClientNames } from '@/api/clientNames';
 
 // ---------------------------------------------------------------------------
 // Types (local to this file — list-level concerns)
@@ -369,14 +368,8 @@ export function PaymentList() {
     placeholderData: prev => prev,
   });
 
-  // Needed for the name column display (RecordPaymentModal fetches its own
-  // client list when unlocked, since it isn't given one here).
-  const { data: clients = [] } = useQuery({
-    queryKey: ['clients-slim'],
-    queryFn: fetchClients,
-  });
-
-  const clientMap = new Map(clients.map((c: Client) => [c.id, c.name]));
+  // Names for the clients on this page (FE-04).
+  const clientMap = useClientNames(extractList<Payment>(data).map(p => p.client_id));
 
   function handleFilterChange(newStatus: string) {
     setStatusFilter(newStatus);

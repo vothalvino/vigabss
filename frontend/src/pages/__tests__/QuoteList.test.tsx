@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { QuoteList } from '../QuoteList';
+import { pickClient } from '@/test/pickClient';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -116,16 +117,9 @@ describe('QuoteList page', () => {
     fireEvent.click(screen.getByText('+ New Quote'));
     await waitFor(() => expect(screen.getByRole('dialog', { name: 'Generate Quote' })).toBeInTheDocument());
 
-    // Pick the client, add a custom item (no product catalog needed here),
-    // fill it in, and submit — mirroring GenerateInvoiceModal's flow exactly.
-    // (The Client <label> isn't associated with its <select> — same
-    // pre-existing gap as GenerateInvoiceModal, which this modal clones — so
-    // find the select by its placeholder option rather than getByLabelText.
-    // Must wait for the clients query to resolve before changing the select,
-    // or the option doesn't exist yet and the change is silently dropped.)
-    await screen.findByRole('option', { name: 'María García' });
-    const clientSelect = screen.getByText('— select client —').closest('select')!;
-    fireEvent.change(clientSelect, { target: { value: '10' } });
+    // Pick the client (search box), add a custom item (no product catalog
+    // needed here), fill it in, and submit — mirroring GenerateInvoiceModal.
+    await pickClient('María García');
     await user.click(screen.getByTitle('Add Custom item'));
     fireEvent.change(screen.getByPlaceholderText('e.g. Site survey'), { target: { value: 'Site survey' } });
     fireEvent.change(screen.getByDisplayValue('1'), { target: { value: '2' } });

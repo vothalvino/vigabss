@@ -49,6 +49,21 @@ function pick(body, hyphenated, camelCase) {
   return unwrapRadiusValue(raw);
 }
 
+// FreeRADIUS 3 rlm_rest prints `date` attributes as text in the server's
+// local zone ('%b %e %Y %H:%M:%S %Z', e.g. "Oct 20 2026 12:00:00 CST"), so
+// the documented setup sent every Event-Timestamp that way and ingest
+// rejected the packet with 422 (REG-05). The zone abbreviation is ambiguous
+// (CST is UTC-6 or UTC+8), so the text is not trusted: it is dropped, and
+// ingest dates the event at receipt time minus Acct-Delay-Time, exactly as
+// for a packet that carries no Event-Timestamp.
+const RLM_REST_DATE_TEXT = /^[A-Z][a-z]{2} {1,2}\d{1,2} \d{4} \d{2}:\d{2}:\d{2}(?: [A-Za-z0-9+:-]{1,10})?$/;
+
+function pickEventTimestamp(body) {
+  const value = pick(body, 'Event-Timestamp', 'eventTimestamp');
+  if (typeof value === 'string' && RLM_REST_DATE_TEXT.test(value)) return null;
+  return value || null;
+}
+
 function secretMatches(expected, provided) {
   if (typeof provided !== 'string') return false;
   const expectedBuffer = Buffer.from(String(expected));
@@ -102,7 +117,7 @@ function normalizeAccountingBody(body = {}) {
     acctOutputGigawords: pickInt(body, 'Acct-Output-Gigawords', 'acctOutputGigawords'),
     acctSessionTime: pickInt(body, 'Acct-Session-Time', 'acctSessionTime'),
     acctTerminateCause: pick(body, 'Acct-Terminate-Cause', 'acctTerminateCause') || null,
-    eventTimestamp: pick(body, 'Event-Timestamp', 'eventTimestamp') || null,
+    eventTimestamp: pickEventTimestamp(body),
     acctDelayTime: pickInt(body, 'Acct-Delay-Time', 'acctDelayTime'),
   };
 }

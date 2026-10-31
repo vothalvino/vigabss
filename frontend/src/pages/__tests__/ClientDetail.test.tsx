@@ -2,7 +2,7 @@
 // VigaBSS 5.0 — ClientDetail page tests
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ClientDetail } from '../ClientDetail';
@@ -161,8 +161,10 @@ describe('ClientDetail page', () => {
     // Create modal opens locked to this client.
     fireEvent.click(screen.getByText('+ New Credit Note'));
     expect(await screen.findByRole('dialog', { name: 'New credit note' })).toBeInTheDocument();
-    const clientSelect = screen.getByDisplayValue('Acme Corp');
-    expect(clientSelect).toBeDisabled();
+    // The client is shown by name and cannot be changed.
+    const dialog = screen.getByRole('dialog', { name: 'New credit note' });
+    expect(within(dialog).getByText('Acme Corp')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /change/i })).not.toBeInTheDocument();
   });
 
   it('hides credit note write actions for readonly role', async () => {

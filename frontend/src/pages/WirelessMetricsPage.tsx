@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, fmtDate } from './crudStyles';
+import { listTotal, unwrapData, fmtFixed } from '@/api/envelope';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,8 +51,8 @@ interface SignalBucket {
 interface SignalDistributionResponse {
   device_id: number;
   hours: number;
-  total_clients: number;
-  avg_signal_dbm: number | null;
+  total_sessions: number;
+  avg_signal_dbm?: number | string | null;
   buckets: SignalBucket[];
 }
 
@@ -71,16 +72,17 @@ interface LinkCalcResult {
   distance_km: number;
   fspl_db: number;
   fresnel_radius_m: number;
-  fresnel_clearance_m: number;
-  link_budget_db: number;
+  clearance_required_m: number;
+  link_budget_db: number | null;
 }
 
 interface SavedLinkCalc {
   id: number;
   name: string;
   frequency_mhz: number | null;
-  distance_km: number | null;
-  link_budget_db: number | null;
+  // DECIMAL columns: mysql2 returns them as strings.
+  distance_km: number | string | null;
+  link_budget_db: number | string | null;
   created_at: string;
 }
 
@@ -159,13 +161,13 @@ async function fetchSignalDistribution(deviceId: number, hours: number): Promise
     params: { query: { device_id: deviceId, hours } as never },
   } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to load signal distribution');
-  return (res as { data: unknown }).data as unknown as SignalDistributionResponse;
+  return unwrapData<SignalDistributionResponse>((res as { data: unknown }).data);
 }
 
 async function calculateLinkBudget(input: LinkCalcInput): Promise<LinkCalcResult> {
   const res = await api.POST('/wireless/link-planning/calculate' as never, { body: input as never } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to calculate link budget');
-  return (res as { data: unknown }).data as unknown as LinkCalcResult;
+  return unwrapData<LinkCalcResult>((res as { data: unknown }).data);
 }
 
 async function fetchSavedCalcs(page: number): Promise<SavedLinkCalcsResponse> {
@@ -405,7 +407,7 @@ export function WirelessMetricsPage() {
     queryFn: () => fetchSavedCalcs(savedPage),
     enabled: tab === 'linkPlanning',
   });
-  const savedTotalPages = Math.ceil((savedQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const savedTotalPages = Math.ceil(listTotal(savedQ.data) / PAGE_SIZE) || 1;
 
   function applySelectedSite(which: 'A' | 'B', siteId: number | '') {
     if (siteId === '') return;
@@ -488,7 +490,7 @@ export function WirelessMetricsPage() {
     onError: (e: unknown) => setScanErr((e as { message?: string })?.message ?? 'Failed'),
   });
 
-  const scanTotalPages = Math.ceil((scanQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const scanTotalPages = Math.ceil(listTotal(scanQ.data) / PAGE_SIZE) || 1;
 
   // ---------------------------------------------------------------------------
   // Render
@@ -566,8 +568,8 @@ export function WirelessMetricsPage() {
               {/* Summary stats */}
               <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                 {[
-                  { label: t('wirelessMetrics.signalDistribution.totalClients'), value: String(signalQ.data.total_clients) },
-                  { label: t('wirelessMetrics.signalDistribution.avgSignal'), value: signalQ.data.avg_signal_dbm !== null ? `${signalQ.data.avg_signal_dbm.toFixed(1)} dBm` : '—' },
+                  { label: t('wirelessMetrics.signalDistribution.totalClients'), value: String(signalQ.data.total_sessions ?? 0) },
+                  { label: t('wirelessMetrics.signalDistribution.avgSignal'), value: fmtFixed(signalQ.data.avg_signal_dbm, 1) === '—' ? '—' : `${fmtFixed(signalQ.data.avg_signal_dbm, 1)} dBm` },
                 ].map(stat => (
                   <div
                     key={stat.label}
@@ -723,11 +725,12 @@ export function WirelessMetricsPage() {
               <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem', fontWeight: 700 }}>{t('wirelessMetrics.linkPlanning.results')}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem' }}>
                 {[
-                  { label: t('wirelessMetrics.linkPlanning.distance'), value: `${calcResult.distance_km.toFixed(3)} km` },
-                  { label: t('wirelessMetrics.linkPlanning.fspl'), value: `${calcResult.fspl_db.toFixed(1)} dB` },
-                  { label: t('wirelessMetrics.linkPlanning.fresnelRadius'), value: `${calcResult.fresnel_radius_m.toFixed(1)} m` },
-                  { label: t('wirelessMetrics.linkPlanning.fresnelClearance'), value: `${calcResult.fresnel_clearance_m.toFixed(1)} m` },
-                  { label: t('wirelessMetrics.linkPlanning.linkBudget'), value: `${calcResult.link_budget_db.toFixed(1)} dB` },
+                  { label: t('wirelessMetrics.linkPlanning.distance'), value: `${fmtFixed(calcResult.distance_km, 3)} km` },
+                  { label: t('wirelessMetrics.linkPlanning.fspl'), value: `${fmtFixed(calcResult.fspl_db, 1)} dB` },
+                  { label: t('wirelessMetrics.linkPlanning.fresnelRadius'), value: `${fmtFixed(calcResult.fresnel_radius_m, 1)} m` },
+                  { label: t('wirelessMetrics.linkPlanning.fresnelClearance'), value: `${fmtFixed(calcResult.clearance_required_m, 1)} m` },
+                  // null when tx power or an antenna gain was not given
+                  { label: t('wirelessMetrics.linkPlanning.linkBudget'), value: calcResult.link_budget_db === null ? '—' : `${fmtFixed(calcResult.link_budget_db, 1)} dB` },
                 ].map(item => (
                   <div key={item.label} style={{ borderLeft: '3px solid var(--accent, #2563eb)', paddingLeft: '0.75rem' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 2 }}>{item.label}</div>
@@ -787,8 +790,8 @@ export function WirelessMetricsPage() {
                         <td style={styles.tdNum}>{calc.id}</td>
                         <td style={styles.td}><strong>{calc.name}</strong></td>
                         <td style={styles.tdNum}>{calc.frequency_mhz ?? '—'}</td>
-                        <td style={styles.tdNum}>{calc.distance_km !== null ? `${calc.distance_km.toFixed(3)}` : '—'}</td>
-                        <td style={styles.tdNum}>{calc.link_budget_db !== null ? `${calc.link_budget_db.toFixed(1)}` : '—'}</td>
+                        <td style={styles.tdNum}>{fmtFixed(calc.distance_km, 3)}</td>
+                        <td style={styles.tdNum}>{fmtFixed(calc.link_budget_db, 1)}</td>
                         <td style={styles.td}>{fmtDate(calc.created_at)}</td>
                         <td style={styles.td}>
                           <button

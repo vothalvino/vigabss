@@ -4,6 +4,12 @@
 // Inserts sample data for development/testing: an organization, admin user,
 // a few clients, plans, and contracts. Safe to re-run — uses INSERT IGNORE.
 //
+// Development and tests only: it refuses NODE_ENV=production. The production
+// installer used to run it, so every install got a "Demo ISP" tenant with
+// admin@demo-isp.com, active 2025 contracts that were back-billed daily, and
+// an active NAS with the secret 'testing123' (OPS-03). Production installs
+// run src/scripts/bootstrap.js instead.
+//
 // Usage:  node src/scripts/seed.js
 //         npm run seed
 // =============================================================================
@@ -23,6 +29,9 @@ const product = require('../product');
 const DEMO_ORGANIZATION_ID = 100;
 
 async function seed() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('seed.js loads demo data and refuses NODE_ENV=production; use src/scripts/bootstrap.js');
+  }
   const pool = mysql.createPool({
     ...db.baseConnectionConfig,
     waitForConnections: true,
@@ -136,13 +145,14 @@ async function seed() {
         (4, ?, 2, 'pop', 'North OLT',       '10.0.1.2',   'olt',     'online', 1)
     `, Array(4).fill(seedOrganizationId));
 
-    // 8. NAS (RADIUS)
+    // 8. NAS (RADIUS) — inactive, with a random secret: a demo NAS must never
+    //    answer RADIUS with a well-known shared secret.
     logger.info('Seeding NAS...');
     await conn.execute(`
       INSERT IGNORE INTO nas (id, organization_id, name, ip_address, secret, type, status)
       VALUES
-        (1, ?, 'Main NAS', '10.0.0.1', 'testing123', 'mikrotik', 'active')
-    `, [seedOrganizationId]);
+        (1, ?, 'Main NAS', '10.0.0.1', ?, 'mikrotik', 'inactive')
+    `, [seedOrganizationId, crypto.randomBytes(16).toString('hex')]);
 
     // 9. A couple of tickets
     logger.info('Seeding tickets...');

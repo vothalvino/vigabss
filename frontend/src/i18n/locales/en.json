@@ -149,6 +149,7 @@
     "followUps": "Follow-ups",
     "surveys": "Surveys",
     "escalations": "Escalations",
+    "portalServiceRequests": "Portal Requests",
     "nocDashboard": "NOC Dashboard",
     "workOrders": "Work Orders",
     "devices": "Devices",
@@ -1786,6 +1787,52 @@
       "downloadKbps": "Throttled download speed (kbps)",
       "uploadKbps": "Throttled upload speed (kbps)"
     }
+  },
+  "portalServiceRequests": {
+    "title": "Portal Service Requests",
+    "allTypes": "All types",
+    "allStatuses": "All statuses",
+    "empty": "No service requests found.",
+    "notes": "Notes (optional)",
+    "actionFailed": "The action failed.",
+    "approveApplies": "Approving applies this change to the subscriber right away.",
+    "columns": {
+      "id": "ID",
+      "client": "Client",
+      "type": "Type",
+      "details": "Details",
+      "status": "Status",
+      "createdAt": "Requested"
+    },
+    "types": {
+      "plan_upgrade": "Plan change",
+      "pppoe_password_change": "PPPoE password",
+      "wifi_password_change": "Wi-Fi password",
+      "static_ip_request": "Static IP",
+      "cancellation": "Cancellation",
+      "visit_schedule": "Technician visit"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "complete": "Mark completed"
+    },
+    "details": {
+      "passwordProvided": "New password provided (hidden)",
+      "passwordMissing": "No password provided"
+    }
+  },
+  "errorBoundary": {
+    "title": "Something went wrong on this page",
+    "body": "The rest of the app still works. Try again, or open another page.",
+    "retry": "Try again"
   },
   "refundRequests": {
     "title": "Refund Requests",

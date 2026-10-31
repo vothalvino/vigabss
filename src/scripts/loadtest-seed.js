@@ -58,6 +58,11 @@ async function bulkInsert(conn, table, columns, rows) {
 }
 
 async function seedLoadTestFixture() {
+  // It creates an admin with a well-known default password unless one is
+  // given; never on a production database with that default (OPS-03).
+  if (process.env.NODE_ENV === 'production' && !process.env.LOADTEST_PASSWORD) {
+    throw new Error('loadtest-seed refuses NODE_ENV=production without LOADTEST_PASSWORD');
+  }
   const pool = mysql.createPool({
     ...db.baseConnectionConfig,
     waitForConnections: true,

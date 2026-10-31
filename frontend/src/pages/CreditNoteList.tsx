@@ -17,10 +17,11 @@ import { useOrgCurrency } from '@/auth/useOrgCurrency';
 import {
   styles,
   modalStyles,
-  RequiredMark,
   fmtMoney,
   capitalize,
 } from './crudStyles';
+import { ClientPicker } from '@/components/ClientPicker';
+import { useClientNames } from '@/api/clientNames';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,11 +51,6 @@ export interface CreditNote {
 interface CreditNotesResponse {
   data: CreditNote[];
   meta: { total: number; page: number; limit: number; totalPages: number };
-}
-
-interface Client {
-  id: number;
-  name: string;
 }
 
 interface CreditNoteBody {
@@ -116,12 +112,6 @@ async function fetchCreditNotes(page: number, statusFilter: string): Promise<Cre
   const res = await api.GET('/credit-notes', { params: { query: query as never } });
   if (res.error) throw new Error('Failed to load credit notes');
   return res.data as unknown as CreditNotesResponse;
-}
-
-async function fetchClients(): Promise<Client[]> {
-  const res = await api.GET('/clients', { params: { query: { limit: 500 } as never } });
-  if (res.error) throw new Error('Failed to load clients');
-  return (res.data as unknown as { data: Client[] }).data;
 }
 
 // Surface the backend's own message (e.g. the totals-consistency 422) instead
@@ -254,7 +244,8 @@ function StatusBadge({ status }: { status: string }) {
 
 interface CreditNoteModalProps {
   creditNote: CreditNote | null;
-  clients: Client[];
+  /** Name of the client already chosen (edit, or a locked client). */
+  clientName?: string;
   onClose: () => void;
   onSaved: () => void;
   /** Pin the credit note to one client (e.g. opened from that client's page):
@@ -262,7 +253,7 @@ interface CreditNoteModalProps {
   lockedClientId?: number;
 }
 
-export function CreditNoteModal({ creditNote, clients, onClose, onSaved, lockedClientId }: CreditNoteModalProps) {
+export function CreditNoteModal({ creditNote, clientName, onClose, onSaved, lockedClientId }: CreditNoteModalProps) {
   const isEdit = creditNote !== null;
   const [form, setForm] = useState({
     client_id: creditNote?.client_id != null
@@ -383,13 +374,14 @@ export function CreditNoteModal({ creditNote, clients, onClose, onSaved, lockedC
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
-          <label style={modalStyles.label}>
-            Client <RequiredMark />
-            <select style={modalStyles.select} value={form.client_id} onChange={e => setField('client_id', e.target.value)} required disabled={isEdit || lockedClientId != null}>
-              <option value="">— select client —</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </label>
+          {/* Search, not a <select>: the list returns at most 100 clients (FE-04). */}
+          <ClientPicker
+            label="Client"
+            value={form.client_id ? Number(form.client_id) : ''}
+            initialName={form.client_id ? (clientName ?? `#${form.client_id}`) : undefined}
+            disabled={isEdit || lockedClientId != null}
+            onChange={id => setField('client_id', id ? String(id) : '')}
+          />
 
           <label style={modalStyles.label}>
             Invoice ID (optional)
@@ -532,12 +524,6 @@ export function CreditNoteList() {
     queryFn: () => fetchCreditNotes(page, statusFilter),
   });
 
-  const clientsQ = useQuery({
-    queryKey: ['clients-lookup'],
-    queryFn: fetchClients,
-    staleTime: 60_000,
-  });
-
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteCreditNote(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['credit-notes'] }),
@@ -565,8 +551,9 @@ export function CreditNoteList() {
 
   const notes = notesQ.data?.data ?? [];
   const meta = notesQ.data?.meta;
-  const clients = clientsQ.data ?? [];
-  const clientName = (id: number) => clients.find(c => c.id === id)?.name ?? `#${id}`;
+  // Names for the clients on this page (FE-04).
+  const clientNames = useClientNames(notes.map(n => n.client_id));
+  const clientName = (id: number) => clientNames.get(id) ?? `#${id}`;
 
   return (
     <div style={styles.page}>
@@ -671,11 +658,11 @@ export function CreditNoteList() {
       </div>
 
       {showNew && (
-        <CreditNoteModal creditNote={null} clients={clients} onClose={() => setShowNew(false)} onSaved={invalidate} />
+        <CreditNoteModal creditNote={null} onClose={() => setShowNew(false)} onSaved={invalidate} />
       )}
 
       {editNote && (
-        <CreditNoteModal creditNote={editNote} clients={clients} onClose={() => setEditNote(null)} onSaved={invalidate} />
+        <CreditNoteModal creditNote={editNote} clientName={clientNames.get(editNote.client_id)} onClose={() => setEditNote(null)} onSaved={invalidate} />
       )}
 
       {deleteId !== null && (

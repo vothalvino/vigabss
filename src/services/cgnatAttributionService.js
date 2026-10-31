@@ -434,13 +434,13 @@ async function resolveSession(connection, organizationId, binding) {
   };
 }
 
-async function assertSessionCoversRelease(connection, organizationId, projection, binding) {
-  const grace = Math.min(Math.max(
-    Number.parseInt(process.env.CGNAT_ATTRIBUTION_SESSION_GRACE_SECONDS || '900', 10) || 900,
-    0,
-  ), 86400);
-  const certainReleaseEnd = new Date(binding.released_at.getTime()
-    + (binding.clock_uncertainty_ms ?? MAX_CLOCK_UNCERTAINTY_MS));
+// A release must belong to the same, still-consistent access session. It may
+// come after that session ended: a standalone CGNAT, or a long Interim
+// interval, routinely releases a block well after the Stop (or last Interim)
+// plus the grace, and those releases used to be refused (REG-04). That is
+// safe because a lookup never certifies past the access session's own end
+// (publicAttribution caps certain_until at the Stop / last accounting).
+async function assertSessionCoversRelease(connection, organizationId, projection, _binding) {
   const [rows] = await connection.execute(
     `SELECT cl.id
        FROM connection_logs cl
@@ -448,30 +448,14 @@ async function assertSessionCoversRelease(connection, organizationId, projection
         AND cl.attribution_evidence_complete = 1
         AND cl.session_instance_id = ?
         AND COALESCE(cl.framed_ip, cl.ip_address) = ?
-        AND (
-          (cl.event_type = 'stop' AND EXISTS (
-            SELECT 1 FROM radius_accounting_events stop_evidence
-             WHERE stop_evidence.organization_id = cl.organization_id
-               AND stop_evidence.session_instance_id = cl.session_instance_id
-               AND stop_evidence.status_type = 'stop'
-               AND stop_evidence.framed_ip = ?
-               AND DATE_ADD(stop_evidence.event_at, INTERVAL ? SECOND) >= ?
-               AND DATE_ADD(stop_evidence.observed_at, INTERVAL ? SECOND) >= ?
-          ))
-          OR
-          (cl.event_type <> 'stop'
-            AND DATE_ADD(COALESCE(cl.last_accounting_at, cl.event_at), INTERVAL ? SECOND) >= ?)
-        )
       LIMIT 1`,
     [Number(projection.connection_log_id), organizationId, projection.session_instance_id,
-      projection.private_ipv4, projection.private_ipv4, grace, certainReleaseEnd,
-      grace, certainReleaseEnd,
-      grace, certainReleaseEnd],
+      projection.private_ipv4],
   );
   if (rows.length !== 1) {
     throw new ValidationError('Release is not covered by the attributed access session', [{
       field: 'released_at',
-      message: 'the same RADIUS session and stored lifecycle evidence must cover the release time',
+      message: 'the attributed RADIUS session must still exist with consistent lifecycle evidence',
     }]);
   }
 }
@@ -630,7 +614,14 @@ async function ingestBatch(organizationId, payload, provenance = {}) {
   if (payload.bindings.length > limit) {
     throw new ValidationError('Binding batch too large', [{ field: 'bindings', message: `bindings may contain at most ${limit} records` }]);
   }
-  const bindings = payload.bindings.map(normalizeBinding);
+  // Every validation error names the record it is about (REG-04).
+  const bindings = payload.bindings.map((record, index) => {
+    try {
+      return normalizeBinding(record);
+    } catch (err) {
+      throw withRecordIndex(err, index);
+    }
+  });
   const batchHash = crypto.createHash('sha256')
     .update(canonicalJson(bindings.map(binding => canonicalPayloadHash(organizationId, binding))))
     .digest('hex');
@@ -646,67 +637,78 @@ async function ingestBatch(organizationId, payload, provenance = {}) {
   let released = 0;
   const sequence = { initial: 0, contiguous: 0, reset: 0, gap: 0, out_of_order: 0 };
   let incompleteMetadata = 0;
+  const rejected = [];
   try {
     await connection.beginTransaction();
-    for (const binding of bindings) {
-      const payloadHash = canonicalPayloadHash(organizationId, binding);
-      const exporter = await resolveExporterConfig(connection, organizationId, binding, provenance.apiTokenId);
-      const [existing] = await connection.execute(
-        `SELECT payload_hash, collector_api_token_id FROM cgnat_binding_events
+    for (const [index, binding] of bindings.entries()) {
+      // One record that cannot be correlated used to roll back the whole
+      // batch, and the collector could only drop it — which then showed as a
+      // permanent sequence gap for the pool (REG-04). Each record now runs
+      // under its own savepoint: a rejected one is undone, reported by index,
+      // and the rest are stored. Its sequence number is not consumed, so the
+      // gap stays visible (fail closed) until the collector resends it.
+      const counters = { inserted, allocated, released, incompleteMetadata, sequence: { ...sequence } };
+      await connection.query('SAVEPOINT cgnat_record');
+      try {
+        const payloadHash = canonicalPayloadHash(organizationId, binding);
+        const exporter = await resolveExporterConfig(connection, organizationId, binding, provenance.apiTokenId);
+        const [existing] = await connection.execute(
+          `SELECT payload_hash, collector_api_token_id FROM cgnat_binding_events
           WHERE organization_id = ? AND exporter_config_id = ? AND exporter_boot_id = ?
             AND event_id = ? LIMIT 1`,
-        [organizationId, Number(exporter.id), binding.exporter_boot_id, binding.event_id],
-      );
-      if (existing.length) {
-        if (Number(existing[0].collector_api_token_id) !== Number(provenance.apiTokenId)) {
-          throw new ForbiddenError('Collector token is not authorized to replay this exporter event');
+          [organizationId, Number(exporter.id), binding.exporter_boot_id, binding.event_id],
+        );
+        if (existing.length) {
+          if (Number(existing[0].collector_api_token_id) !== Number(provenance.apiTokenId)) {
+            throw new ForbiddenError('Collector token is not authorized to replay this exporter event');
+          }
+          if (existing[0].payload_hash !== payloadHash) {
+            throw new ConflictError('The same exporter boot/event identity was already stored with different content');
+          }
+          replayed += 1;
+          await connection.query('RELEASE SAVEPOINT cgnat_record');
+          continue;
         }
-        if (existing[0].payload_hash !== payloadHash) {
-          throw new ConflictError('The same exporter boot/event identity was already stored with different content');
-        }
-        replayed += 1;
-        continue;
-      }
 
-      let bootSeenBefore = false;
-      if (exporter.last_exporter_boot_id
+        let bootSeenBefore = false;
+        if (exporter.last_exporter_boot_id
           && exporter.last_exporter_boot_id !== binding.exporter_boot_id) {
-        const [seenBoot] = await connection.execute(
-          `SELECT id FROM cgnat_binding_events
+          const [seenBoot] = await connection.execute(
+            `SELECT id FROM cgnat_binding_events
             WHERE organization_id = ? AND exporter_config_id = ? AND exporter_boot_id = ?
             LIMIT 1`,
-          [organizationId, Number(exporter.id), binding.exporter_boot_id],
-        );
-        bootSeenBefore = seenBoot.length > 0;
-      }
-      const sequenceInfo = sequenceState(exporter, binding, { bootSeenBefore });
-      sequence[sequenceInfo.status] += 1;
-      if (!metadataComplete(binding)) incompleteMetadata += 1;
-      let projectionId;
-      let session;
-      let eventIntegrityHash;
+            [organizationId, Number(exporter.id), binding.exporter_boot_id],
+          );
+          bootSeenBefore = seenBoot.length > 0;
+        }
+        const sequenceInfo = sequenceState(exporter, binding, { bootSeenBefore });
+        sequence[sequenceInfo.status] += 1;
+        if (!metadataComplete(binding)) incompleteMetadata += 1;
+        let projectionId;
+        let session;
+        let eventIntegrityHash;
 
-      if (binding.event_type === 'allocate') {
-        const [sameKey] = await connection.execute(
-          `SELECT id FROM cgnat_attribution_bindings
+        if (binding.event_type === 'allocate') {
+          const [sameKey] = await connection.execute(
+            `SELECT id FROM cgnat_attribution_bindings
             WHERE organization_id = ? AND exporter_config_id = ? AND binding_key = ?
             LIMIT 1 FOR UPDATE`,
-          [organizationId, Number(exporter.id), binding.binding_key],
-        );
-        if (sameKey.length) {
-          throw new ConflictError('binding_key already identifies a different allocation event');
-        }
-        session = await resolveSession(connection, organizationId, binding);
-        await assertExclusivePublicAllocation(connection, organizationId, binding);
-        eventIntegrityHash = crypto.createHash('sha256').update(canonicalJson({
-          payload_hash: payloadHash,
-          organization_id: organizationId,
-          exporter_config_id: Number(exporter.id),
-          collector_api_token_id: Number(exporter.ingest_collector_api_token_id),
-          ...session,
-        })).digest('hex');
-        const [projectionResult] = await connection.execute(
-          `INSERT INTO cgnat_attribution_bindings
+            [organizationId, Number(exporter.id), binding.binding_key],
+          );
+          if (sameKey.length) {
+            throw new ConflictError('binding_key already identifies a different allocation event');
+          }
+          session = await resolveSession(connection, organizationId, binding);
+          await assertExclusivePublicAllocation(connection, organizationId, binding);
+          eventIntegrityHash = crypto.createHash('sha256').update(canonicalJson({
+            payload_hash: payloadHash,
+            organization_id: organizationId,
+            exporter_config_id: Number(exporter.id),
+            collector_api_token_id: Number(exporter.ingest_collector_api_token_id),
+            ...session,
+          })).digest('hex');
+          const [projectionResult] = await connection.execute(
+            `INSERT INTO cgnat_attribution_bindings
             (organization_id, exporter_config_id, connection_log_id,
              client_id, contract_id, username, radius_session_id, session_instance_id,
              radius_evidence_id, radius_evidence_event_at, radius_evidence_observed_at,
@@ -723,81 +725,81 @@ async function ingestBatch(organizationId, payload, provenance = {}) {
              metadata_complete, payload_hash, integrity_hash)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL,
                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?)`,
-          [organizationId, Number(exporter.id), session.connection_log_id,
-            session.client_id, session.contract_id, session.username,
-            session.radius_session_id, session.session_instance_id,
-            session.radius_evidence_id, session.radius_evidence_event_at,
-            session.radius_evidence_observed_at,
-            session.radius_evidence_integrity_hash,
-            binding.binding_key, binding.binding_type, binding.private_ipv4,
-            binding.private_port_start, binding.private_port_end,
-            binding.public_ipv4, binding.public_port_start, binding.public_port_end,
-            binding.protocol, binding.allocated_at, binding.exporter_nas_id,
-            Number(exporter.ingest_collector_api_token_id),
-            binding.exporter_id, binding.exporter_ip, binding.exporter_boot_id,
-            binding.nat_instance_id, binding.nat_pool_id, binding.nat_realm,
-            binding.event_id, binding.sequence_number, sequenceInfo.status,
-            binding.device_recorded_at, binding.clock_offset_ms,
-            binding.clock_uncertainty_ms, binding.records_lost_before,
-            metadataComplete(binding) ? 1 : 0, payloadHash, eventIntegrityHash],
-        );
-        projectionId = Number(projectionResult.insertId);
-        allocated += 1;
-      } else {
-        const [projectionRows] = await connection.execute(
-          `SELECT * FROM cgnat_attribution_bindings
+            [organizationId, Number(exporter.id), session.connection_log_id,
+              session.client_id, session.contract_id, session.username,
+              session.radius_session_id, session.session_instance_id,
+              session.radius_evidence_id, session.radius_evidence_event_at,
+              session.radius_evidence_observed_at,
+              session.radius_evidence_integrity_hash,
+              binding.binding_key, binding.binding_type, binding.private_ipv4,
+              binding.private_port_start, binding.private_port_end,
+              binding.public_ipv4, binding.public_port_start, binding.public_port_end,
+              binding.protocol, binding.allocated_at, binding.exporter_nas_id,
+              Number(exporter.ingest_collector_api_token_id),
+              binding.exporter_id, binding.exporter_ip, binding.exporter_boot_id,
+              binding.nat_instance_id, binding.nat_pool_id, binding.nat_realm,
+              binding.event_id, binding.sequence_number, sequenceInfo.status,
+              binding.device_recorded_at, binding.clock_offset_ms,
+              binding.clock_uncertainty_ms, binding.records_lost_before,
+              metadataComplete(binding) ? 1 : 0, payloadHash, eventIntegrityHash],
+          );
+          projectionId = Number(projectionResult.insertId);
+          allocated += 1;
+        } else {
+          const [projectionRows] = await connection.execute(
+            `SELECT * FROM cgnat_attribution_bindings
             WHERE organization_id = ? AND exporter_config_id = ? AND binding_key = ?
             LIMIT 2 FOR UPDATE`,
-          [organizationId, Number(exporter.id), binding.binding_key],
-        );
-        if (projectionRows.length !== 1) {
-          throw new ValidationError('Release event has no unique allocation', [{ field: 'binding_key', message: 'binding_key must identify one existing allocation' }]);
-        }
-        const projection = projectionRows[0];
-        if (projection.released_at) throw new ConflictError('CGNAT allocation is already released');
-        const mismatches = [
-          ['binding_type', binding.binding_type], ['private_ipv4', binding.private_ipv4],
-          ['private_port_start', binding.private_port_start], ['private_port_end', binding.private_port_end],
-          ['public_ipv4', binding.public_ipv4], ['public_port_start', binding.public_port_start],
-          ['public_port_end', binding.public_port_end], ['protocol', binding.protocol],
-          ['nat_instance_id', binding.nat_instance_id], ['nat_pool_id', binding.nat_pool_id],
-          ['nat_realm', binding.nat_realm],
-        ].filter(([field, value]) => String(projection[field] ?? '') !== String(value ?? ''));
-        const identityHints = [
-          ['client_id', binding.client_id], ['contract_id', binding.contract_id],
-          ['username', binding.username], ['radius_session_id', binding.radius_session_id],
-          ['session_instance_id', binding.session_instance_id],
-        ].filter(([, value]) => value !== null && value !== undefined)
-          .filter(([field, value]) => String(projection[field] ?? '') !== String(value));
-        if (mismatches.length || identityHints.length
+            [organizationId, Number(exporter.id), binding.binding_key],
+          );
+          if (projectionRows.length !== 1) {
+            throw new ValidationError('Release event has no unique allocation', [{ field: 'binding_key', message: 'binding_key must identify one existing allocation' }]);
+          }
+          const projection = projectionRows[0];
+          if (projection.released_at) throw new ConflictError('CGNAT allocation is already released');
+          const mismatches = [
+            ['binding_type', binding.binding_type], ['private_ipv4', binding.private_ipv4],
+            ['private_port_start', binding.private_port_start], ['private_port_end', binding.private_port_end],
+            ['public_ipv4', binding.public_ipv4], ['public_port_start', binding.public_port_start],
+            ['public_port_end', binding.public_port_end], ['protocol', binding.protocol],
+            ['nat_instance_id', binding.nat_instance_id], ['nat_pool_id', binding.nat_pool_id],
+            ['nat_realm', binding.nat_realm],
+          ].filter(([field, value]) => String(projection[field] ?? '') !== String(value ?? ''));
+          const identityHints = [
+            ['client_id', binding.client_id], ['contract_id', binding.contract_id],
+            ['username', binding.username], ['radius_session_id', binding.radius_session_id],
+            ['session_instance_id', binding.session_instance_id],
+          ].filter(([, value]) => value !== null && value !== undefined)
+            .filter(([field, value]) => String(projection[field] ?? '') !== String(value));
+          if (mismatches.length || identityHints.length
             || new Date(projection.allocated_at).getTime() !== binding.allocated_at.getTime()) {
-          throw new ConflictError('Release event tuple does not match the stored allocation');
-        }
-        if (binding.released_at.getTime() <= new Date(projection.allocated_at).getTime()) {
-          throw new ValidationError('Invalid release interval', [{ field: 'released_at', message: 'release must be after allocation' }]);
-        }
-        await assertSessionCoversRelease(connection, organizationId, projection, binding);
-        session = {
-          connection_log_id: Number(projection.connection_log_id),
-          client_id: Number(projection.client_id),
-          contract_id: Number(projection.contract_id),
-          username: projection.username,
-          radius_session_id: projection.radius_session_id,
-          session_instance_id: projection.session_instance_id,
-          radius_evidence_id: Number(projection.radius_evidence_id),
-          radius_evidence_event_at: projection.radius_evidence_event_at,
-          radius_evidence_observed_at: projection.radius_evidence_observed_at,
-          radius_evidence_integrity_hash: projection.radius_evidence_integrity_hash,
-        };
-        eventIntegrityHash = crypto.createHash('sha256').update(canonicalJson({
-          payload_hash: payloadHash,
-          organization_id: organizationId,
-          exporter_config_id: Number(exporter.id),
-          collector_api_token_id: Number(exporter.ingest_collector_api_token_id),
-          ...session,
-        })).digest('hex');
-        const [updateResult] = await connection.execute(
-          `UPDATE cgnat_attribution_bindings
+            throw new ConflictError('Release event tuple does not match the stored allocation');
+          }
+          if (binding.released_at.getTime() <= new Date(projection.allocated_at).getTime()) {
+            throw new ValidationError('Invalid release interval', [{ field: 'released_at', message: 'release must be after allocation' }]);
+          }
+          await assertSessionCoversRelease(connection, organizationId, projection, binding);
+          session = {
+            connection_log_id: Number(projection.connection_log_id),
+            client_id: Number(projection.client_id),
+            contract_id: Number(projection.contract_id),
+            username: projection.username,
+            radius_session_id: projection.radius_session_id,
+            session_instance_id: projection.session_instance_id,
+            radius_evidence_id: Number(projection.radius_evidence_id),
+            radius_evidence_event_at: projection.radius_evidence_event_at,
+            radius_evidence_observed_at: projection.radius_evidence_observed_at,
+            radius_evidence_integrity_hash: projection.radius_evidence_integrity_hash,
+          };
+          eventIntegrityHash = crypto.createHash('sha256').update(canonicalJson({
+            payload_hash: payloadHash,
+            organization_id: organizationId,
+            exporter_config_id: Number(exporter.id),
+            collector_api_token_id: Number(exporter.ingest_collector_api_token_id),
+            ...session,
+          })).digest('hex');
+          const [updateResult] = await connection.execute(
+            `UPDATE cgnat_attribution_bindings
               SET released_at = ?, release_event_id = ?, release_sequence_number = ?,
                   release_sequence_status = ?, release_device_recorded_at = ?,
                   release_received_at = NOW(3),
@@ -806,37 +808,37 @@ async function ingestBatch(organizationId, payload, provenance = {}) {
                   metadata_complete = metadata_complete AND ?,
                   integrity_hash = SHA2(CONCAT(integrity_hash, ':', ?), 256)
             WHERE id = ? AND organization_id = ? AND released_at IS NULL`,
-          [binding.released_at, binding.event_id, binding.sequence_number,
-            sequenceInfo.status, binding.device_recorded_at,
-            binding.clock_offset_ms, binding.clock_uncertainty_ms,
-            binding.records_lost_before, metadataComplete(binding) ? 1 : 0,
-            eventIntegrityHash,
-            projection.id, organizationId],
-        );
-        if (Number(updateResult.affectedRows) !== 1) throw new ConflictError('CGNAT allocation changed before release was recorded');
-        projectionId = Number(projection.id);
-        released += 1;
-      }
+            [binding.released_at, binding.event_id, binding.sequence_number,
+              sequenceInfo.status, binding.device_recorded_at,
+              binding.clock_offset_ms, binding.clock_uncertainty_ms,
+              binding.records_lost_before, metadataComplete(binding) ? 1 : 0,
+              eventIntegrityHash,
+              projection.id, organizationId],
+          );
+          if (Number(updateResult.affectedRows) !== 1) throw new ConflictError('CGNAT allocation changed before release was recorded');
+          projectionId = Number(projection.id);
+          released += 1;
+        }
 
-      await connection.execute(
-        `INSERT INTO cgnat_binding_events
+        await connection.execute(
+          `INSERT INTO cgnat_binding_events
           (organization_id, binding_id, exporter_config_id, collector_api_token_id,
            event_type, binding_key,
            exporter_id, exporter_boot_id, event_id, sequence_number, sequence_status,
            device_recorded_at, received_at, clock_offset_ms, clock_uncertainty_ms,
            records_lost_before, allocated_at, released_at, payload_hash, integrity_hash)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?, ?)`,
-        [organizationId, projectionId, Number(exporter.id), Number(exporter.ingest_collector_api_token_id), binding.event_type,
-          binding.binding_key, binding.exporter_id, binding.exporter_boot_id,
-          binding.event_id, binding.sequence_number, sequenceInfo.status,
-          binding.device_recorded_at, binding.clock_offset_ms,
-          binding.clock_uncertainty_ms, binding.records_lost_before,
-          binding.allocated_at, binding.released_at, payloadHash, eventIntegrityHash],
-      );
-      inserted += 1;
+          [organizationId, projectionId, Number(exporter.id), Number(exporter.ingest_collector_api_token_id), binding.event_type,
+            binding.binding_key, binding.exporter_id, binding.exporter_boot_id,
+            binding.event_id, binding.sequence_number, sequenceInfo.status,
+            binding.device_recorded_at, binding.clock_offset_ms,
+            binding.clock_uncertainty_ms, binding.records_lost_before,
+            binding.allocated_at, binding.released_at, payloadHash, eventIntegrityHash],
+        );
+        inserted += 1;
 
-      await connection.execute(
-        `UPDATE cgnat_exporter_configs
+        await connection.execute(
+          `UPDATE cgnat_exporter_configs
             SET last_binding_received_at = NOW(3),
                 last_device_recorded_at = CASE
                   WHEN ? = 1 AND (last_corrected_device_at IS NULL OR last_corrected_device_at < ?)
@@ -855,21 +857,40 @@ async function ingestBatch(organizationId, payload, provenance = {}) {
                 reported_lost_records = reported_lost_records + COALESCE(?, 0),
                 incomplete_metadata_events = incomplete_metadata_events + ?
           WHERE id = ? AND organization_id = ?`,
-        [sequenceInfo.advances ? 1 : 0, binding.corrected_device_at,
-          binding.device_recorded_at,
-          sequenceInfo.advances ? 1 : 0, binding.corrected_device_at,
-          binding.corrected_device_at,
-          sequenceInfo.advances ? 1 : 0, binding.coverage_horizon_at,
-          binding.coverage_horizon_at,
-          sequenceInfo.advances ? 1 : 0, binding.exporter_boot_id,
-          sequenceInfo.advances ? 1 : 0, binding.sequence_number,
-          sequenceInfo.status === 'gap' ? 1 : 0, sequenceInfo.missing,
-          sequenceInfo.status === 'out_of_order' ? 1 : 0,
-          binding.records_lost_before, metadataComplete(binding) ? 0 : 1,
-          Number(exporter.id), organizationId],
-      );
+          [sequenceInfo.advances ? 1 : 0, binding.corrected_device_at,
+            binding.device_recorded_at,
+            sequenceInfo.advances ? 1 : 0, binding.corrected_device_at,
+            binding.corrected_device_at,
+            sequenceInfo.advances ? 1 : 0, binding.coverage_horizon_at,
+            binding.coverage_horizon_at,
+            sequenceInfo.advances ? 1 : 0, binding.exporter_boot_id,
+            sequenceInfo.advances ? 1 : 0, binding.sequence_number,
+            sequenceInfo.status === 'gap' ? 1 : 0, sequenceInfo.missing,
+            sequenceInfo.status === 'out_of_order' ? 1 : 0,
+            binding.records_lost_before, metadataComplete(binding) ? 0 : 1,
+            Number(exporter.id), organizationId],
+        );
+        await connection.query('RELEASE SAVEPOINT cgnat_record');
+      } catch (err) {
+        // Authorization failures and database errors still abort the batch.
+        if (!(err instanceof ValidationError) && !(err instanceof ConflictError)) throw err;
+        await connection.query('ROLLBACK TO SAVEPOINT cgnat_record');
+        ({ inserted, allocated, released, incompleteMetadata } = counters);
+        Object.assign(sequence, counters.sequence);
+        withRecordIndex(err, index);
+        rejected.push({
+          index,
+          event_id: binding.event_id,
+          event_type: binding.event_type,
+          error: { code: err.code, message: err.message, details: err.details },
+          cause: err,
+        });
+      }
     }
 
+    // Nothing in the batch could be stored: fail it as before (the collector
+    // sees the first record's error, with its index).
+    if (rejected.length && inserted === 0 && replayed === 0) throw rejected[0].cause;
     await connection.execute(
       `INSERT INTO collector_ingest_receipts
         (organization_id, source, api_token_id, nas_id, event_type, action, bucket_at,
@@ -899,8 +920,19 @@ async function ingestBatch(organizationId, payload, provenance = {}) {
   }
   return {
     received: bindings.length, inserted, replayed, allocated, released,
+    rejected_count: rejected.length,
+    rejected: rejected.map(({ cause: _cause, ...entry }) => entry),
     incomplete_metadata: incompleteMetadata, sequence,
   };
+}
+
+function withRecordIndex(err, index) {
+  if (!(err instanceof ValidationError) && !(err instanceof ConflictError)) return err;
+  err.message = `bindings[${index}]: ${err.message}`;
+  if (Array.isArray(err.details)) {
+    err.details = err.details.map(detail => ({ ...detail, field: `bindings[${index}].${detail.field}` }));
+  }
+  return err;
 }
 
 function normalizeLookup(value) {

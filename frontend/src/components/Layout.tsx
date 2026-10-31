@@ -20,6 +20,7 @@ import { NavSection } from '@/components/NavSection';
 import { CommandPalette } from '@/components/CommandPalette';
 import { NotificationBell } from '@/components/NotificationBell';
 import { BrandLockup } from '@/components/BrandLockup';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
   SECTIONS,
   WORKSPACES,
@@ -467,7 +468,9 @@ export function Layout() {
         <EmailVerificationBanner />
         <UpdateAvailableBanner />
         <AdminIpAllowlistBanner />
-        <Outlet />
+        <ErrorBoundary key={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       {paletteOpen && (

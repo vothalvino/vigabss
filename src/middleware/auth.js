@@ -11,6 +11,7 @@ const User = require('../models/User');
 const { resolveOrgPrincipal } = require('../services/orgPrincipalService');
 const { verifyStaffAccessToken } = require('../utils/accessTokens');
 const { UnauthorizedError } = require('../utils/errors');
+const { bearerToken } = require('../utils/bearerToken');
 
 /**
  * Authenticate via API token (X-API-Key header).
@@ -147,15 +148,8 @@ async function authenticate(req, _res, next) {
     // so that programmatic API clients (tests, scripts) continue to work
     // unchanged.  The browser SPA falls back to the httpOnly cookie when no
     // Bearer header is present.
-    let token;
-    const header = req.headers.authorization;
-    if (header && header.startsWith('Bearer ')) {
-      token = header.slice(7);
-    } else if (req.cookies?.fireisp_access) {
-      token = req.cookies.fireisp_access;
-    } else {
-      throw new UnauthorizedError('Missing or invalid Authorization header');
-    }
+    const token = bearerToken(req) || req.cookies?.fireisp_access;
+    if (!token) throw new UnauthorizedError('Missing or invalid Authorization header');
     let payload;
     try {
       // Rejects subscriber-portal tokens: a client id must never be resolved
@@ -197,10 +191,9 @@ async function authenticate(req, _res, next) {
  * cookie is present so that cookie-authenticated SPA users are recognized.
  */
 async function optionalAuth(req, _res, next) {
-  const header = req.headers.authorization;
   const apiKey = req.headers['x-api-key'];
   const hasCookie = !!req.cookies?.fireisp_access;
-  if (!apiKey && (!header || !header.startsWith('Bearer ')) && !hasCookie) {
+  if (!apiKey && !bearerToken(req) && !hasCookie) {
     return next();
   }
   return authenticate(req, _res, next);

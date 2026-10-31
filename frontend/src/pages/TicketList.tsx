@@ -16,6 +16,8 @@ import { api } from '@/api/client';
 import { extractApiError } from '@/components/ClientFormModal';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { Pagination } from '@/components/Pagination';
+import { ClientPicker } from '@/components/ClientPicker';
+import { useClientNames } from '@/api/clientNames';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,11 +40,6 @@ interface Ticket {
 interface TicketsResponse {
   data: Ticket[];
   meta: { total: number; page: number; limit: number; totalPages: number };
-}
-
-interface Client {
-  id: number;
-  name: string;
 }
 
 interface User {
@@ -82,12 +79,6 @@ async function fetchTickets(
   const res = await api.GET('/tickets' as never, { params: { query: query as never } } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to load tickets');
   return res.data as unknown as TicketsResponse;
-}
-
-async function fetchClients(): Promise<Client[]> {
-  const res = await api.GET('/clients', { params: { query: { limit: 500 } as never } });
-  if (res.error) throw new Error('Failed to load clients');
-  return (res.data as unknown as { data: Client[] }).data;
 }
 
 async function fetchUsers(): Promise<User[]> {
@@ -156,7 +147,6 @@ function PriorityBadge({ priority }: { priority: string }) {
 // ---------------------------------------------------------------------------
 
 interface NewTicketModalProps {
-  clients: Client[];
   users: User[];
   onClose: () => void;
   onCreated: () => void;
@@ -167,7 +157,7 @@ const STATUSES = ['open', 'in_progress', 'waiting', 'resolved', 'closed'];
 // Mirrors the tickets.category ENUM (migration 394) — required on create.
 const CATEGORIES = ['technical', 'billing', 'installation', 'general'];
 
-function NewTicketModal({ clients, users, onClose, onCreated }: NewTicketModalProps) {
+function NewTicketModal({ users, onClose, onCreated }: NewTicketModalProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -220,12 +210,13 @@ function NewTicketModal({ clients, users, onClose, onCreated }: NewTicketModalPr
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <div>
-            <label style={labelStyle}>Client *</label>
-            {/* tickets.client_id is NOT NULL — a "none" option always 500'd */}
-            <select style={inputStyle} value={form.client_id} onChange={set('client_id')}>
-              <option value="" disabled>— select a client —</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            {/* tickets.client_id is NOT NULL. Search, not a <select>: the list
+                endpoint returns at most 100 clients (FE-04). */}
+            <ClientPicker
+              label="Client"
+              value={form.client_id ? Number(form.client_id) : ''}
+              onChange={id => setForm(f => ({ ...f, client_id: id ? String(id) : '' }))}
+            />
           </div>
           <div>
             <label style={labelStyle}>Assign to</label>
@@ -296,20 +287,16 @@ export function TicketList() {
     queryFn: () => fetchTickets(page, pageSize, statusFilter, priorityFilter, categoryFilter, sort.order_by, sort.order),
   });
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ['clients-mini'],
-    queryFn: fetchClients,
-  });
-
   const { data: users = [] } = useQuery({
     queryKey: ['users-mini'],
     queryFn: fetchUsers,
   });
 
-  const clientMap = Object.fromEntries(clients.map(c => [c.id, c.name]));
   const userMap = Object.fromEntries(users.map(u => [u.id, `${u.first_name} ${u.last_name}`]));
 
   const tickets = data?.data ?? [];
+  // Names for the clients on this page (FE-04).
+  const clientNames = useClientNames(tickets.map(tk => tk.client_id));
   const meta = data?.meta;
 
   function handleFilterChange(setter: (v: string) => void) {
@@ -364,7 +351,7 @@ export function TicketList() {
                 <tr>
                   <SortableTh label={t('ticketList.table.id')} col="id" sort={sort} style={th} />
                   <SortableTh label={t('ticketList.table.subject')} col="subject" sort={sort} style={th} />
-                  {/* client name is resolved client-side from clientMap (not a JOIN in the list endpoint) — client_id IS sortable */}
+                  {/* client names come from useClientNames for the ids on this page (not a JOIN) — client_id IS sortable */}
                   <SortableTh label={t('ticketList.table.client')} col="client_id" sort={sort} style={th} />
                   <SortableTh label={t('ticketList.table.priority')} col="priority" sort={sort} style={th} />
                   <SortableTh label={t('ticketList.table.status')} col="status" sort={sort} style={th} />
@@ -398,7 +385,7 @@ export function TicketList() {
                       <span style={{ fontWeight: 500 }}>{t.subject}</span>
                       {t.category && <span style={{ color: '#888', fontSize: '0.78rem', marginLeft: 6 }}>[{categoryLabels[t.category] ?? t.category}]</span>}
                     </td>
-                    <td style={td}>{t.client_id ? (clientMap[t.client_id] ?? `#${t.client_id}`) : '—'}</td>
+                    <td style={td}>{t.client_id ? (clientNames.get(t.client_id) ?? `#${t.client_id}`) : '—'}</td>
                     <td style={td}><PriorityBadge priority={t.priority} /></td>
                     <td style={td}><StatusBadge status={t.status} /></td>
                     <td style={td}>{t.assigned_to ? (userMap[t.assigned_to] ?? `#${t.assigned_to}`) : '—'}</td>
@@ -423,7 +410,6 @@ export function TicketList() {
 
       {showNew && (
         <NewTicketModal
-          clients={clients}
           users={users}
           onClose={() => setShowNew(false)}
           onCreated={() => setShowNew(false)}

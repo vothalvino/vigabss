@@ -2713,7 +2713,7 @@ CREATE TABLE IF NOT EXISTS connection_logs (
     usage_last_packets_in BIGINT UNSIGNED NULL              COMMENT 'Last raw inbound packet counter used by the usage-delta rollup (migration 457)',
     usage_last_packets_out BIGINT UNSIGNED NULL             COMMENT 'Last raw outbound packet counter used by the usage-delta rollup (migration 457)',
     usage_last_duration   INT UNSIGNED NULL                 COMMENT 'Last raw session-time counter used by the usage-delta rollup (migration 457)',
-    retention_at          DATETIME(3) GENERATED ALWAYS AS (COALESCE(last_accounting_received_at, last_accounting_at, event_at)) STORED COMMENT 'Indexed latest activity used by application retention (migration 457)',
+    retention_at          DATETIME(3)     NULL COMMENT 'Indexed latest activity used by application retention; kept by the connection_logs triggers (migrations 457, 479)',
     created_at            TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     acct_session_id       VARCHAR(64)     NULL              COMMENT 'FreeRADIUS Acct-Session-Id attribute (migration 230)',
     nas_port_id           VARCHAR(100)    NULL              COMMENT 'NAS-Port-Id string e.g. eth0/0/0.1 (migration 230)',
@@ -15883,6 +15883,16 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Connection log organization does not own its anchors';
   END IF;
   IF NEW.organization_id IS NULL THEN SET NEW.organization_id = v_candidate; END IF;
+  -- retention_at is maintained here, not as a STORED generated column (migration 479).
+  SET NEW.retention_at = COALESCE(NEW.last_accounting_received_at, NEW.last_accounting_at, NEW.event_at);
+END$$
+
+DROP TRIGGER IF EXISTS trg_connection_logs_before_update_retention$$
+CREATE TRIGGER trg_connection_logs_before_update_retention
+BEFORE UPDATE ON connection_logs
+FOR EACH ROW
+BEGIN
+  SET NEW.retention_at = COALESCE(NEW.last_accounting_received_at, NEW.last_accounting_at, NEW.event_at);
 END$$
 
 DROP TRIGGER IF EXISTS trg_connection_logs_after_insert_evidence$$

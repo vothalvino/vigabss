@@ -11,8 +11,9 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: fireisp
-  minReplicas: 2
-  maxReplicas: 10
+  # Scaling past one replica needs REDIS_URL (see deployment.yaml).
+  minReplicas: 1
+  maxReplicas: 1
   metrics:
     - type: Resource
       resource:

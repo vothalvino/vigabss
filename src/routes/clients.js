@@ -132,7 +132,7 @@ const CLIENT_SORTABLE = ['id', 'name', 'email', 'phone', 'client_type', 'status'
 
 router.get('/', requirePermission('clients.view'), httpCache('clients', 60), async (req, res, next) => {
   try {
-    const { search, client_group_id, page = 1, limit = 50, include_deleted, order_by, order } = req.query;
+    const { search, client_group_id, ids, page = 1, limit = 50, include_deleted, order_by, order } = req.query;
     const conditions = [];
     const params = [];
     if (Client.hasOrgScope && req.orgId) {
@@ -150,6 +150,17 @@ router.get('/', requirePermission('clients.view'), httpCache('clients', 60), asy
     if (client_group_id) {
       conditions.push('c.client_group_id = ?');
       params.push(client_group_id);
+    }
+    // ids=1,2,3: the names for the rows a list page is showing (FE-04). Pages
+    // built id->name maps from one capped page of clients, so any client
+    // outside the newest 100 showed as a bare id.
+    if (typeof ids === 'string' && ids.trim()) {
+      const idList = [...new Set(ids.split(',').map(v => Number(v.trim())))]
+        .filter(n => Number.isSafeInteger(n) && n > 0)
+        .slice(0, 100);
+      if (!idList.length) return res.json({ data: [], meta: { total: 0, page: 1, limit: 100 } });
+      conditions.push(`c.id IN (${idList.map(() => '?').join(', ')})`);
+      params.push(...idList);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';

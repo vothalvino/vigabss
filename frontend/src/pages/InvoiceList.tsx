@@ -17,6 +17,7 @@ import { readCsrfCookie } from '@/api/csrf';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { GenerateInvoiceModal } from '@/components/GenerateInvoiceModal';
 import { Pagination } from '@/components/Pagination';
+import { useClientNames } from '@/api/clientNames';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,20 +43,9 @@ interface InvoicesResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-interface Client {
-  id: number;
-  name: string;
-}
-
 // ---------------------------------------------------------------------------
 // Fetch / mutate helpers
 // ---------------------------------------------------------------------------
-
-async function fetchInvoiceClients(): Promise<Client[]> {
-  const res = await api.GET('/clients', { params: { query: { limit: 500 } as never } });
-  if (res.error) throw new Error('Failed to load clients');
-  return (res.data as unknown as { data: Client[] }).data;
-}
 
 async function fetchInvoices(
   page: number,
@@ -217,14 +207,8 @@ export function InvoiceList() {
     placeholderData: (prev) => prev,
   });
 
-  // Load all clients for the name display (no backend changes — client-side lookup).
-  const { data: clients = [] } = useQuery({
-    queryKey: ['invoice-clients'],
-    queryFn: fetchInvoiceClients,
-    staleTime: 60_000,
-  });
-
-  const clientMap = new Map(clients.map((c: Client) => [c.id, c.name]));
+  // Names for the clients on this page (FE-04).
+  const clientMap = useClientNames((data?.data ?? []).map(i => i.client_id));
 
   // Only voidable rows participate in selection / select-all.
   const voidableIds = (data?.data ?? []).filter((i) => isVoidable(i.status)).map((i) => i.id);

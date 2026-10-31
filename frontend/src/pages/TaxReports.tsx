@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { tokenStore } from '@/api/client';
+import { authedFetch } from '@/api/client';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,12 +29,8 @@ async function fetchTaxReport(
   type: ReportType,
   format: ReportFormat,
 ): Promise<{ blob: Blob; filename: string }> {
-  const token = tokenStore.getAccess();
   const params = new URLSearchParams({ from, to, type, format });
-  const res = await fetch(`${API}/billing/tax-reports?${params.toString()}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: 'include',
-  });
+  const res = await authedFetch(`${API}/billing/tax-reports?${params.toString()}`);
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
 
   const disposition = res.headers.get('content-disposition') || '';
