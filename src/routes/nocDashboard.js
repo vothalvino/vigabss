@@ -97,7 +97,7 @@ router.get('/outages', requirePermission('noc.view'), async (req, res, next) => 
     const [rows] = await db.query(
       `SELECT o.*, s.name AS site_name
        FROM outages o
-       LEFT JOIN sites s ON s.id = o.site_id
+       LEFT JOIN sites s ON s.id = o.site_id AND s.organization_id <=> o.organization_id
        WHERE (o.organization_id = ? OR o.organization_id IS NULL)
          AND o.status = 'ongoing' AND o.deleted_at IS NULL
        ORDER BY o.started_at DESC`,

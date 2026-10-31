@@ -12,7 +12,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
-const { buildInsert, buildUpdate } = require('../utils/sqlBuild');
+const { buildInsert, buildUpdate, columnsOf } = require('../utils/sqlBuild');
 const {
   createTransitionMechanism,
   updateTransitionMechanism,
@@ -110,7 +110,7 @@ function createHandler(tableName) {
   return async (req, res, next) => {
     try {
       const fields = stripProtected(req.body);
-      const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
+      const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createTransitionMechanism, 'organization_id'));
       const [result] = await db.query(
         `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`,
         values,
@@ -131,7 +131,7 @@ function updateHandler(tableName) {
       );
       if (!check.length) return res.status(404).json({ error: 'Not found' });
       const updateData = stripProtected(req.body);
-      const { assignments, values } = buildUpdate(updateData);
+      const { assignments, values } = buildUpdate(updateData, columnsOf(updateTransitionMechanism));
       const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
       await db.query(
         `UPDATE ${tableName} SET ${setClause} WHERE id = ? AND organization_id = ?`,

@@ -13,6 +13,7 @@ const { validate } = require('../middleware/validate');
 const db = require('../config/database');
 const routerDriverService = require('../services/routerDriverService');
 const { redactSecretParams } = require('../utils/secretRedaction');
+const { ownedReferences } = require('../utils/ownedReferences');
 
 const createDriverSchema = {
   vendor:       { type: 'string', required: true, enum: ['mikrotik','cisco_ios','cisco_iosxe','juniper_junos','zte','huawei','generic_rest'] },
@@ -97,7 +98,7 @@ router.get('/:id', requirePermission('router_driver_configs.view'), async (req, 
 });
 
 // POST /router-drivers
-router.post('/', requirePermission('router_driver_configs.create'), validate(createDriverSchema), async (req, res, next) => {
+router.post('/', requirePermission('router_driver_configs.create'), validate(createDriverSchema), ownedReferences({ device_id: 'devices' }), async (req, res, next) => {
   try {
     const config = await routerDriverService.createDriverConfig(req.orgId, req.body, req.user.id);
     res.status(201).json({ data: config });

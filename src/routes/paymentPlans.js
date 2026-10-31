@@ -9,6 +9,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 const {
   createPaymentPlan,
   updatePaymentPlan,
@@ -39,7 +40,7 @@ router.get('/:id', requirePermission('payment_plans.view'), async (req, res, nex
 });
 
 // Create plan
-router.post('/', requirePermission('payment_plans.create'), validate(createPaymentPlan), async (req, res, next) => {
+router.post('/', requirePermission('payment_plans.create'), validate(createPaymentPlan), ownedReferences({ client_id: 'clients' }), async (req, res, next) => {
   try {
     const {
       client_id,
@@ -68,7 +69,8 @@ router.post('/', requirePermission('payment_plans.create'), validate(createPayme
 });
 
 // Update notes/status only
-router.put('/:id', requirePermission('payment_plans.update'), validate(updatePaymentPlan), async (req, res, next) => {
+// Only notes and status: the strip keeps client_id / total_amount out (TNB-28).
+router.put('/:id', requirePermission('payment_plans.update'), validate(updatePaymentPlan, { strip: true }), async (req, res, next) => {
   try {
     const updated = await PaymentPlan.update(
       parseInt(req.params.id, 10),

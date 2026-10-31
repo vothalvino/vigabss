@@ -276,16 +276,18 @@ describe('automationService', () => {
     // createBatchJob call order:
     //   1. resolveBatchTargets SELECT contracts
     //   2. INSERT batch_job
-    //   3. INSERT batch_job_items (per target)
-    //   4. UPDATE batch_jobs processed_items (per target)
-    //   5. final UPDATE batch_jobs
-    //   6. SELECT batch_jobs (return value)
+    //   3. SELECT batch_jobs status (per target; stops on cancel)
+    //   4. INSERT batch_job_items (per target)
+    //   5. UPDATE batch_jobs processed_items (per target)
+    //   6. final UPDATE batch_jobs
+    //   7. SELECT batch_jobs (return value)
     test.each(['send_notification', 'apply_tag', 'remove_tag', 'rate_limit', 'send_email', 'send_sms'])(
       'operation "%s" results in failed batch item',
       async (operation) => {
         db.query
           .mockResolvedValueOnce(qResult([{ entity_id: 10, entity_type: 'contract' }])) // resolveBatchTargets
           .mockResolvedValueOnce(insertResult(1))        // INSERT batch_job
+          .mockResolvedValueOnce(qResult([{ status: 'running' }])) // per-item status check
           .mockResolvedValueOnce(insertResult(1))        // INSERT batch_job_items
           .mockResolvedValueOnce(updateResult())         // UPDATE batch_jobs processed_items
           .mockResolvedValueOnce(updateResult())         // final UPDATE batch_jobs

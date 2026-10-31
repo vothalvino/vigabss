@@ -10,7 +10,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
-const { buildInsert, buildUpdate } = require('../utils/sqlBuild');
+const { buildInsert, buildUpdate, columnsOf } = require('../utils/sqlBuild');
 const {
   createDhcpServer,
   updateDhcpServer,
@@ -61,7 +61,7 @@ router.get('/:id', requirePermission('dhcp_servers.view'), async (req, res, next
 router.post('/', requirePermission('dhcp_servers.create'), validate(createDhcpServer), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
-    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
+    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createDhcpServer, 'organization_id'));
     const [result] = await db.query(
       `INSERT INTO dhcp_servers (${columns}) VALUES (${placeholders})`,
       values,
@@ -79,7 +79,7 @@ router.put('/:id', requirePermission('dhcp_servers.update'), validate(updateDhcp
     );
     if (!check.length) return res.status(404).json({ error: 'Not found' });
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updateDhcpServer));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
     await db.query(
       `UPDATE dhcp_servers SET ${setClause} WHERE id = ? AND organization_id = ?`,
@@ -145,7 +145,7 @@ router.post('/:id/reservations', requirePermission('dhcp_reservations.create'), 
     if (!serverRows.length) return res.status(404).json({ error: 'DHCP server not found' });
 
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
-    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, dhcp_server_id: req.params.id, ...fields });
+    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, dhcp_server_id: req.params.id, ...fields }, columnsOf(createDhcpReservation, 'organization_id', 'dhcp_server_id'));
     const [result] = await db.query(
       `INSERT INTO dhcp_static_reservations (${columns}) VALUES (${placeholders})`,
       values,
@@ -167,7 +167,7 @@ router.put('/reservations/:rid', requirePermission('dhcp_reservations.update'), 
     );
     if (!check.length) return res.status(404).json({ error: 'Not found' });
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updateDhcpReservation));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
     await db.query(
       `UPDATE dhcp_static_reservations SET ${setClause} WHERE id = ? AND organization_id = ?`,

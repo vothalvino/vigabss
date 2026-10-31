@@ -51,16 +51,21 @@ async function getOltPorts(oltDeviceId, orgId) {
 /**
  * Get summary chassis status for an OLT: latest SNMP metrics row.
  * @param {number} oltDeviceId
+ * @param {number|null} orgId
  * @returns {Promise<object|null>}
  */
-async function getOltChassisSummary(oltDeviceId) {
+async function getOltChassisSummary(oltDeviceId, orgId) {
+  // Joined to the device so another tenant's OLT metrics never come back (TNB-20).
   const [rows] = await db.query(
-    `SELECT cpu_usage, memory_usage, temperature_c, if_oper_status, polled_at
-     FROM snmp_metrics
-     WHERE device_id = ?
-     ORDER BY polled_at DESC
+    `SELECT m.cpu_usage, m.memory_usage, m.temperature_c, m.if_oper_status, m.polled_at
+     FROM snmp_metrics m
+     JOIN devices d ON d.id = m.device_id
+     WHERE m.device_id = ?
+       AND (d.organization_id <=> ? OR d.organization_id IS NULL)
+       AND d.deleted_at IS NULL
+     ORDER BY m.polled_at DESC
      LIMIT 1`,
-    [oltDeviceId],
+    [oltDeviceId, orgId ?? null],
   );
   return rows[0] || null;
 }

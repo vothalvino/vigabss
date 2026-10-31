@@ -99,8 +99,11 @@ router.post('/:id/cancel', requirePermission('batch_jobs.cancel'), async (req, r
       [req.params.id, req.orgId],
     );
     if (!rows.length) return res.status(404).json({ error: { message: 'Batch job not found or not cancellable' } });
-    await db.query("UPDATE batch_jobs SET status = 'cancelled', completed_at = NOW() WHERE id = ?", [req.params.id]);
-    const [updated] = await db.query('SELECT * FROM batch_jobs WHERE id = ?', [req.params.id]);
+    await db.query(
+      "UPDATE batch_jobs SET status = 'cancelled', completed_at = NOW() WHERE id = ? AND organization_id = ? AND status IN ('pending','running')",
+      [req.params.id, req.orgId],
+    );
+    const [updated] = await db.query('SELECT * FROM batch_jobs WHERE id = ? AND organization_id = ?', [req.params.id, req.orgId]);
     res.json({ data: updated[0] });
   } catch (err) { next(err); }
 });

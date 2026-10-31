@@ -191,7 +191,10 @@ router.put('/escalation-chains/:id', requirePermission('alert_escalations.update
     if (fields.length === 0) return res.status(400).json({ error: { message: 'No fields to update' } });
     params.push(req.params.id, req.orgId);
     await db.query(`UPDATE alert_escalation_chains SET ${fields.join(', ')} WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`, params);
-    const [rows] = await db.query('SELECT * FROM alert_escalation_chains WHERE id = ? AND deleted_at IS NULL', [req.params.id]);
+    // Read back within the caller's organization: the scoped UPDATE matches
+    // nothing for another tenant's id, and an id-only read returned its row (TNA-19).
+    const [rows] = await db.query('SELECT * FROM alert_escalation_chains WHERE id = ? AND organization_id = ? AND deleted_at IS NULL', [req.params.id, req.orgId]);
+    if (!rows[0]) return res.status(404).json({ error: { message: 'Not found' } });
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -219,6 +222,13 @@ router.get('/escalation-chains/:id/steps', requirePermission('alert_escalations.
 
 router.post('/escalation-chains/:id/steps', requirePermission('alert_escalations.create'), validate(escalationSchemas.createStep), async (req, res, next) => {
   try {
+    // The chain must be this organization's: a step on another tenant's chain
+    // sent that tenant's alerts to a recipient of the caller's choosing (TNA-20).
+    const [chains] = await db.query(
+      'SELECT id FROM alert_escalation_chains WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.id, req.orgId],
+    );
+    if (!chains.length) return res.status(404).json({ error: { message: 'Escalation chain not found' } });
     const [result] = await db.query(
       'INSERT INTO alert_escalation_steps (chain_id, step_number, delay_minutes, notification_channel, recipient_email, recipient_phone, webhook_url, message_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [req.params.id, req.body.step_number, req.body.delay_minutes || 15, req.body.notification_channel,
@@ -300,7 +310,8 @@ router.put('/maintenance-windows/:id', requirePermission('maintenance_windows.up
     if (fields.length === 0) return res.status(400).json({ error: { message: 'No fields to update' } });
     params.push(req.params.id, req.orgId);
     await db.query(`UPDATE maintenance_windows SET ${fields.join(', ')} WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`, params);
-    const [rows] = await db.query('SELECT * FROM maintenance_windows WHERE id = ? AND deleted_at IS NULL', [req.params.id]);
+    const [rows] = await db.query('SELECT * FROM maintenance_windows WHERE id = ? AND organization_id = ? AND deleted_at IS NULL', [req.params.id, req.orgId]);
+    if (!rows[0]) return res.status(404).json({ error: { message: 'Not found' } });
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -364,9 +375,10 @@ router.put('/notification-channels/:id', requirePermission('alert_channels.updat
     params.push(req.params.id, req.orgId);
     await db.query(`UPDATE alert_notification_channels SET ${fields.join(', ')} WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`, params);
     const [rows] = await db.query(
-      'SELECT id, organization_id, name, channel_type, is_enabled, deleted_at, created_at, updated_at FROM alert_notification_channels WHERE id = ? AND deleted_at IS NULL',
-      [req.params.id],
+      'SELECT id, organization_id, name, channel_type, is_enabled, deleted_at, created_at, updated_at FROM alert_notification_channels WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [req.params.id, req.orgId],
     );
+    if (!rows[0]) return res.status(404).json({ error: { message: 'Not found' } });
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -426,7 +438,8 @@ router.put('/suppression-rules/:id', requirePermission('alert_suppression.update
     if (fields.length === 0) return res.status(400).json({ error: { message: 'No fields to update' } });
     params.push(req.params.id, req.orgId);
     await db.query(`UPDATE alert_suppression_rules SET ${fields.join(', ')} WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`, params);
-    const [rows] = await db.query('SELECT * FROM alert_suppression_rules WHERE id = ? AND deleted_at IS NULL', [req.params.id]);
+    const [rows] = await db.query('SELECT * FROM alert_suppression_rules WHERE id = ? AND organization_id = ? AND deleted_at IS NULL', [req.params.id, req.orgId]);
+    if (!rows[0]) return res.status(404).json({ error: { message: 'Not found' } });
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });

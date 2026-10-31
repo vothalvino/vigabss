@@ -78,6 +78,7 @@ describe('GET /api/sites/:id/timeline', () => {
 describe('work-order mutations write audit_log rows', () => {
   test('POST logs a create entry', async () => {
     db.query
+      .mockResolvedValueOnce([[{ id: 3 }]]) // site_id ownership
       .mockResolvedValueOnce([{ insertId: 42 }])
       .mockResolvedValueOnce([[{ id: 42, assigned_to: null, title: 'Tower fix' }]]);
     const res = await request(app)

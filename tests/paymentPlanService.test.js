@@ -119,7 +119,7 @@ describe('paymentPlanService', () => {
 
     test('when invoiceId provided, overrides totalAmount with invoice.total', async () => {
       // First call: SELECT invoice
-      db.query.mockResolvedValueOnce([[{ id: 50, total: '250.00', status: 'issued' }]]);
+      db.query.mockResolvedValueOnce([[{ id: 50, client_id: 5, total: '250.00', status: 'issued' }]]);
 
       mockConnection.execute
         .mockResolvedValueOnce([{ insertId: 20 }])  // plan

@@ -18,6 +18,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 const {
   createGeofence,
   updateGeofence,
@@ -218,7 +219,7 @@ router.get('/dependencies/:deviceId', requirePermission('topology.view'), async 
 });
 
 // POST /topology/dependencies
-router.post('/dependencies', requirePermission('topology.dependency_manage'), validate(createDependencyEdge), async (req, res, next) => {
+router.post('/dependencies', requirePermission('topology.dependency_manage'), validate(createDependencyEdge), ownedReferences({ parent_device_id: 'devices', child_device_id: 'devices' }), async (req, res, next) => {
   try {
     const row = await svc.createDependencyEdge(req.orgId, req.body);
     res.status(201).json({ data: row });

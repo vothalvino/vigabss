@@ -390,8 +390,9 @@ describe('automationService — additional branch coverage', () => {
         { id: 10, status: 'suspended', first_activated_at: '2025-01-01 00:00:00' },
       ]]);
 
+      // The actor is the job's creator (7); a body user_id (99) is ignored (ASY-15).
       await automationService.applyBatchOperation(
-        42, 'unsuspend', { entity_id: 10 }, { user_id: 7, invoice_id: 8 },
+        42, 'unsuspend', { entity_id: 10 }, { user_id: 99, invoice_id: 8 }, 7,
       );
 
       expect(reconnect).toHaveBeenCalledWith(10, 7, 8, { orgId: 42 });
@@ -408,6 +409,7 @@ describe('automationService — additional branch coverage', () => {
       db.query
         .mockResolvedValueOnce([[{ entity_id: 10, entity_type: 'contract' }], []])  // targets
         .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 }])  // INSERT batch_jobs
+        .mockResolvedValueOnce([[{ status: 'running' }], []])  // per-item status check
         .mockResolvedValueOnce([{ insertId: 50, affectedRows: 1 }])  // INSERT batch_job_items
         .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE processed_items
         .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE completed

@@ -9,6 +9,17 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { ValidationError } = require('../utils/errors');
+const { assertOwnedReferences } = require('../utils/ownedReferences');
+
+// A number may only be assigned to this tenant's client, contract and block
+// (TNB-28). numbering_blocks has no deleted_at, so it is checked here.
+async function assertPhoneNumberRefs(body, orgId) {
+  await assertOwnedReferences(body, orgId, { client_id: 'clients', contract_id: 'contracts' });
+  if (body.block_id) {
+    const [rows] = await db.query('SELECT id FROM numbering_blocks WHERE id = ? AND organization_id <=> ?', [body.block_id, orgId]);
+    if (!rows.length) throw new ValidationError('block_id does not belong to this organization');
+  }
+}
 
 const router = Router();
 
@@ -51,6 +62,7 @@ router.get('/phone-numbers', requirePermission('phone_number_inventory.view'), a
 router.post('/phone-numbers', requirePermission('phone_number_inventory.manage'), async (req, res, next) => {
   try {
     const { phone_number, number_type, lada, status, client_id, contract_id, block_id, notes } = req.body;
+    await assertPhoneNumberRefs(req.body, req.orgId);
 
     const [result] = await db.query(
       `INSERT INTO phone_number_inventory (organization_id, phone_number, number_type, lada, status, client_id, contract_id, block_id, notes)
@@ -84,6 +96,7 @@ router.put('/phone-numbers/:id', requirePermission('phone_number_inventory.manag
   try {
     const { id } = req.params;
     const { phone_number, number_type, lada, status, client_id, contract_id, block_id, notes } = req.body;
+    await assertPhoneNumberRefs(req.body, req.orgId);
 
     await db.query(
       `UPDATE phone_number_inventory SET phone_number = ?, number_type = ?, lada = ?, status = ?, client_id = ?, contract_id = ?, block_id = ?, notes = ?, updated_at = NOW()

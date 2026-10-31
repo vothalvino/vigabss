@@ -112,6 +112,8 @@ describe('POST /work-orders — ticket_id wiring', () => {
   test('creates a work order with ticket_id and client_id', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, role: 'admin', status: 'active', organization_id: 42 }]])
+      .mockResolvedValueOnce([[{ id: 3 }]])       // client_id ownership
+      .mockResolvedValueOnce([[{ id: 99 }]])      // ticket_id ownership
       .mockResolvedValueOnce([{ insertId: 10 }])  // INSERT
       .mockResolvedValueOnce([[{                   // SELECT after insert
         id: 10, ticket_id: 99, client_id: 3,

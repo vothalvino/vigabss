@@ -83,7 +83,8 @@ async function updateDriverConfig(configId, organizationId, data) {
      WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`,
     params,
   );
-  const [rows] = await db.query('SELECT * FROM router_driver_configs WHERE id = ?', [configId]);
+  // Scoped like the UPDATE: an id-only read returned another tenant's config (RTE-02).
+  const [rows] = await db.query('SELECT * FROM router_driver_configs WHERE id = ? AND organization_id = ? AND deleted_at IS NULL', [configId, organizationId]);
   return rows.length ? sanitizeConfig(rows[0]) : null;
 }
 
@@ -219,6 +220,11 @@ async function dispatchCommand(configId, organizationId, command, params = {}, e
 function sanitizeConfig(config) {
   if (!config) return null;
   const { encrypted_password, api_token, ...rest } = config;
+  // extra_params is free-form vendor config and can carry a secret (an enable
+  // password, a token); redact secret-named keys on the way out.
+  if (rest.extra_params !== undefined && rest.extra_params !== null) {
+    rest.extra_params = redactSecretParams(rest.extra_params);
+  }
   return { ...rest, has_password: Boolean(encrypted_password), has_api_token: Boolean(api_token) };
 }
 

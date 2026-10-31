@@ -515,6 +515,50 @@ describe('startOrder', () => {
     expect(result.order.status).toBe('in_process');
   });
 
+  test('an assignee who cannot work this organization\'s work orders is not dispatched the install visit (RTE-04)', async () => {
+    const User = require('../src/models/User');
+    const canWork = jest.spyOn(User, 'hasEffectivePermission').mockResolvedValue(false);
+    jest.spyOn(ServiceOrder, 'findById').mockResolvedValue({
+      id: 1, status: 'new', plan_id: 2, client_id: 50, lead_id: null, contract_id: null, order_type: 'new_install', assigned_to: 900,
+    });
+    jest.spyOn(Client, 'findById').mockResolvedValue({ id: 50, name: 'Acme' });
+
+    conn.query
+      .mockResolvedValueOnce([[{ id: 1, status: 'new', plan_id: 2, client_id: 50, lead_id: null, contract_id: null, order_type: 'new_install', assigned_to: 900 }]]) // FOR UPDATE lock
+      .mockResolvedValueOnce([[{ id: 50, name: 'Acme' }]]) // client lock + tenant validation
+      .mockResolvedValueOnce([[{ locale: 'global' }]]) // transactional jurisdiction precondition
+      .mockResolvedValueOnce([[{ id: 2 }]]) // plan is live + org-scoped
+      .mockResolvedValueOnce([{ insertId: 900 }]) // INSERT contracts
+      .mockResolvedValueOnce([[{ name: 'Acme' }]]) // seed lookup
+      .mockResolvedValueOnce([[{ id: 900, status: 'pending' }]]) // SELECT contract after insert
+      .mockResolvedValueOnce([{ affectedRows: 1 }]) // guarded UPDATE service_orders
+      .mockResolvedValueOnce([[]]) // no open install WO for this order yet
+      .mockResolvedValueOnce([{ insertId: 70 }]) // INSERT work_orders (installation)
+      .mockResolvedValueOnce([[{ id: 70, organization_id: 1, service_order_id: 1, work_type: 'installation', status: 'pending', assigned_to: null }]]) // SELECT WO
+      .mockResolvedValueOnce([[{ locale: 'global' }]]) // acknowledgment locale
+      .mockResolvedValueOnce([[{ id: 50, name: 'Acme' }]]) // document client context
+      .mockResolvedValueOnce([[{ id: 900, plan_id: 2, status: 'pending' }]])
+      .mockResolvedValueOnce([[{ id: 2, name: '50 Mbps' }]])
+      .mockResolvedValueOnce([[{ id: 1, order_number: 'SO-000001' }]])
+      .mockResolvedValueOnce([[{ id: 1, name: 'Global ISP' }]])
+      .mockResolvedValueOnce([[]])
+      .mockResolvedValueOnce([[]])
+      .mockResolvedValueOnce([{ insertId: 501 }]); // bundled global acknowledgment
+
+    db.query.mockResolvedValueOnce([[{ id: 1, status: 'in_process', contract_id: 900 }]]); // final re-fetch (pool, post-commit)
+    provisioningService.provisionNewContract.mockResolvedValue({ pppoe: { username: 'acme01', password: 'x' } });
+
+    await lifecycleService.startOrder(1, {
+      orgId: 1, userId: 9, canStartInstallation: true,
+    });
+
+    expect(canWork).toHaveBeenCalledWith(900, 1, 'work_orders.update');
+    const woInsert = conn.query.mock.calls.find(([sql]) => /INSERT INTO work_orders/.test(sql));
+    expect(woInsert[1][4]).toBeNull(); // assigned_to
+    expect(woInsert[1][8]).toBe('pending'); // status
+    canWork.mockRestore();
+  });
+
   test('auto-converts an unconverted lead before creating the contract', async () => {
     const order = {
       id: 1, status: 'new', plan_id: 2, client_id: null, lead_id: 5,

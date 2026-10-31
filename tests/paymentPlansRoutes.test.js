@@ -123,6 +123,8 @@ describe('POST /api/v1/payment-plans', () => {
       ],
     };
 
+    // client 5 is this organization's (ownership check, TNB-28)
+    db.query.mockImplementation(async (sql) => (/SELECT id FROM clients/.test(sql) ? [[{ id: 5 }]] : [[]]));
     paymentPlanService.createPlan.mockResolvedValueOnce(createdResult);
 
     const res = await request(app)
@@ -160,6 +162,8 @@ describe('POST /api/v1/payment-plans', () => {
   test('passes notes and createdBy to service', async () => {
     mockAuthUser();
 
+    // client 5 is this organization's (ownership check, TNB-28)
+    db.query.mockImplementation(async (sql) => (/SELECT id FROM clients/.test(sql) ? [[{ id: 5 }]] : [[]]));
     paymentPlanService.createPlan.mockResolvedValueOnce({
       plan: { id: 11, status: 'active' },
       installments: [],

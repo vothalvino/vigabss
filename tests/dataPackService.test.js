@@ -20,6 +20,7 @@ describe('dataPackService', () => {
   describe('purchasePack', () => {
     it('creates a purchase for an active pack', async () => {
       db.query
+        .mockResolvedValueOnce([[{ id: 10 }]]) // contract ownership
         .mockResolvedValueOnce([[{ id: 1, name: '10GB Pack', data_gb: '10.000', validity_days: 30 }]])
         .mockResolvedValueOnce([{ insertId: 5 }])
         .mockResolvedValueOnce([[{ id: 5, gb_applied: '10.000', pack_name: '10GB Pack' }]]);
@@ -29,7 +30,9 @@ describe('dataPackService', () => {
     });
 
     it('throws 404 when pack not found', async () => {
-      db.query.mockResolvedValueOnce([[]]); // empty pack result
+      db.query
+        .mockResolvedValueOnce([[{ id: 10 }]]) // contract ownership
+        .mockResolvedValueOnce([[]]); // empty pack result
 
       await expect(dataPackService.purchasePack(1, 10, 999, {}))
         .rejects.toMatchObject({ status: 404 });

@@ -29,7 +29,11 @@ async function revokeProfileBeforeDelete(profile, req, exec) {
   );
 }
 
-const ctrl = crudController(RecurringPaymentProfile, { beforeDelete: revokeProfileBeforeDelete });
+const ctrl = crudController(RecurringPaymentProfile, {
+  beforeDelete: revokeProfileBeforeDelete,
+  // A profile must charge this tenant's client through this tenant's gateway (TNB-28).
+  ownedRefs: { client_id: 'clients', payment_gateway_id: 'payment_gateways' },
+});
 
 router.use(authenticate);
 router.use(orgScope);

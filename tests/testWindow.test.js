@@ -76,6 +76,8 @@ const FUTURE = '2099-08-05T12:00:00.000Z';
 
 function authAndPermissions(sql, params) {
   if (isAuthLookup(sql)) return [[AUTH_USERS[Number(params?.[0])] || AUTH_USERS[1]]];
+  // Work-order ownership probes: the linked rows in these fixtures are the caller's.
+  if (/^SELECT id FROM \w+ WHERE id = \? AND organization_id <=> \?/.test(sql)) return [[{ id: params[0] }]];
   if (/SELECT g\.id AS group_id/.test(sql)) return [[]];
   if (/FROM organization_users ou/.test(sql) && /SELECT DISTINCT p\.name AS slug/.test(sql)) {
     const actorId = Number(params?.[0]);

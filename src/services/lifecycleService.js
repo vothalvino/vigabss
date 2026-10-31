@@ -29,6 +29,7 @@
 const db = require('../config/database');
 const Client = require('../models/Client');
 const ServiceOrder = require('../models/ServiceOrder');
+const User = require('../models/User');
 const eventBus = require('./eventBus');
 const provisioningService = require('./subscriberProvisioningService');
 const billingService = require('./billingService');
@@ -557,17 +558,25 @@ async function startOrder(orderId, {
           [orderId],
         );
         if (!existingWo.length) {
+          // Re-check the assignee: an order saved before assigned_to was
+          // validated could name any user (RTE-04). An unfit assignee leaves
+          // the visit unassigned rather than failing the start.
+          let assignee = order.assigned_to || null;
+          if (assignee && !await User.hasEffectivePermission(assignee, woOrgId, 'work_orders.update')) {
+            logger.warn({ orderId, assignedTo: assignee }, 'startOrder: assignee cannot work this organization\'s work orders — install work order left unassigned');
+            assignee = null;
+          }
           const [woIns] = await conn.query(
             `INSERT INTO work_orders
                (organization_id, client_id, contract_id, service_order_id, assigned_to,
                 created_by, title, description, status, priority, work_type, address)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'medium', 'installation', ?)`,
             [
-              woOrgId, clientId, contractIdToLink || null, orderId, order.assigned_to || null,
+              woOrgId, clientId, contractIdToLink || null, orderId, assignee,
               userId,
               `Installation — ${order.order_number}`,
               'Auto-created when the service order started: install and commission the subscriber service, then record the acceptance readings on completion.',
-              order.assigned_to ? 'assigned' : 'pending',
+              assignee ? 'assigned' : 'pending',
               order.address || null,
             ],
           );

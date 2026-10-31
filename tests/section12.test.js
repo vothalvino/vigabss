@@ -137,6 +137,7 @@ describe('GET /api/v1/tickets/:id/ai-triage', () => {
 describe('POST /api/v1/work-orders', () => {
   it('creates a work order', async () => {
     db.query
+      .mockResolvedValueOnce([[{ id: 3 }]]) // site_id ownership
       .mockResolvedValueOnce([{ insertId: 10 }])
       .mockResolvedValueOnce([[{ id: 10, organization_id: 1, title: 'Fix antenna', status: 'pending', priority: 'high', site_id: 3 }]]);
     const res = await request(app)

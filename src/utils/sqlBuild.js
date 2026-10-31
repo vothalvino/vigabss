@@ -23,10 +23,16 @@
 // `placeholders` string is interpolated, after the literal `VALUES` keyword —
 // so `pnpm run sql:check` can still statically resolve the column list.
 //
-// Identifiers are validated and backtick-quoted (defence-in-depth: the field
-// objects originate from request bodies whose keys are not strictly
-// column-whitelisted). Object/array values are JSON-stringified to mirror what
-// mysql2's `SET ?` did for JSON columns.
+// Identifiers are validated and backtick-quoted. Object/array values are
+// JSON-stringified to mirror what mysql2's `SET ?` did for JSON columns.
+//
+// buildInsert / buildUpdate REQUIRE an allowlist of writable columns and drop
+// every other key (DB-15). Their objects come from request bodies, and the
+// callers only stripped a handful of keys, so any other key — a foreign id
+// pointing at another tenant's row, an encrypted-credential column, a status
+// that has its own guarded endpoint — was written as a column. Pass the
+// route's validation schema (its keys are the writable fields) plus any
+// server-set columns: columnsOf(updateThing, 'organization_id').
 // =============================================================================
 
 // A plain SQL identifier: leading letter/underscore, then word chars. Rejects
@@ -55,12 +61,35 @@ function normaliseValue(v) {
 }
 
 /**
+ * The set of writable columns: a validation schema's fields (its keys) plus
+ * the server-set columns named in `extra`.
+ * @param {object|string[]|Set<string>} schema
+ * @param {...string} extra
+ * @returns {Set<string>}
+ */
+function columnsOf(schema, ...extra) {
+  const base = schema instanceof Set ? [...schema]
+    : Array.isArray(schema) ? schema
+      : Object.keys(schema || {});
+  return new Set([...base, ...extra]);
+}
+
+function allowedKeys(obj, allowed, fn) {
+  if (!allowed || (typeof allowed !== 'object')) {
+    throw new Error(`${fn}: an allowlist of writable columns is required (use columnsOf(schema, ...))`);
+  }
+  const set = allowed instanceof Set ? allowed : columnsOf(allowed);
+  return Object.keys(obj || {}).filter(key => set.has(key));
+}
+
+/**
  * Build an `INSERT INTO <table> (cols) VALUES (placeholders)` from an object.
  * @param {object} obj  column -> value
+ * @param {Set<string>|string[]|object} allowed  writable columns; others are dropped
  * @returns {{ columns: string, placeholders: string, values: any[] }}
  */
-function buildInsert(obj) {
-  const keys = Object.keys(obj || {});
+function buildInsert(obj, allowed) {
+  const keys = allowedKeys(obj, allowed, 'buildInsert');
   if (keys.length === 0) throw new Error('buildInsert: no columns to insert');
   return {
     columns: keys.map(quoteIdent).join(', '),
@@ -71,13 +100,14 @@ function buildInsert(obj) {
 
 /**
  * Build a `SET col = ?, ...` assignment clause from an object.
- * Returns an empty `assignments` string when obj has no keys, so callers can
- * fall back to a fixed clause (e.g. just `updated_at = NOW()`).
+ * Returns an empty `assignments` string when obj has no allowed keys, so
+ * callers can fall back to a fixed clause (e.g. just `updated_at = NOW()`).
  * @param {object} obj  column -> value
+ * @param {Set<string>|string[]|object} allowed  writable columns; others are dropped
  * @returns {{ assignments: string, values: any[] }}
  */
-function buildUpdate(obj) {
-  const keys = Object.keys(obj || {});
+function buildUpdate(obj, allowed) {
+  const keys = allowedKeys(obj, allowed, 'buildUpdate');
   return {
     assignments: keys.map((k) => `${quoteIdent(k)} = ?`).join(', '),
     values: keys.map((k) => normaliseValue(obj[k])),
@@ -149,4 +179,4 @@ function inPlaceholders(values) {
   return values.map(() => '?').join(', ');
 }
 
-module.exports = { buildInsert, buildUpdate, buildBulkValues, quoteIdent, inPlaceholders };
+module.exports = { buildInsert, buildUpdate, buildBulkValues, quoteIdent, inPlaceholders, columnsOf };

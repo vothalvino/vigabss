@@ -12,6 +12,10 @@
 
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'automationService' });
+const auditLog = require('./auditLog');
+const { assertPlanSelectable } = require('./planAvailability');
+const { assertOwnedReferences } = require('../utils/ownedReferences');
+const { ValidationError } = require('../utils/errors');
 const { SNMP_METRICS } = require('./alertService');
 
 // Lazily required to avoid circular deps at module load
@@ -147,6 +151,10 @@ async function dispatchAction(actionType, actionConfig, payload, organizationId)
  */
 async function createBatchJob(organizationId, data) {
   const { name, operation, filter_criteria, operation_params, created_by } = data;
+  // Operation parameters are checked once, before the job exists: a foreign or
+  // archived plan, or another tenant's invoice, used to be applied to every
+  // target (ASY-15).
+  const params = await checkBatchParams(organizationId, operation, operation_params || {});
 
   // Resolve matching contracts/clients
   const targets = await resolveBatchTargets(organizationId, operation, filter_criteria);
@@ -167,10 +175,13 @@ async function createBatchJob(organizationId, data) {
   let failCount = 0;
 
   for (const target of targets) {
+    // POST /batch-jobs/:id/cancel flips the status; stop before the next item.
+    const [[current]] = await db.query('SELECT status FROM batch_jobs WHERE id = ?', [jobId]);
+    if (current?.status !== 'running') break;
     let status = 'success';
     let msg = `${operation} applied`;
     try {
-      await applyBatchOperation(organizationId, operation, target, operation_params || {});
+      await applyBatchOperation(organizationId, operation, target, params, created_by || null);
     } catch (err) {
       status = 'failure';
       msg = err.message;
@@ -190,14 +201,26 @@ async function createBatchJob(organizationId, data) {
     );
   }
 
+  // A cancelled job keeps its status; only a job still running completes.
   await db.query(
     `UPDATE batch_jobs SET status = 'completed', completed_at = NOW(),
-       success_items = ?, failed_items = ? WHERE id = ?`,
+       success_items = ?, failed_items = ? WHERE id = ? AND status = 'running'`,
     [successCount, failCount, jobId],
   );
 
   const [rows] = await db.query('SELECT * FROM batch_jobs WHERE id = ?', [jobId]);
   return rows[0];
+}
+
+async function checkBatchParams(organizationId, operation, params) {
+  if (operation === 'change_plan') {
+    if (!params.plan_id) throw new ValidationError('change_plan requires operation_params.plan_id');
+    await assertPlanSelectable(db, params.plan_id, organizationId);
+  }
+  if (operation === 'suspend' || operation === 'unsuspend') {
+    await assertOwnedReferences(params, organizationId, { invoice_id: 'invoices' });
+  }
+  return params;
 }
 
 async function resolveBatchTargets(organizationId, operation, filterCriteria) {
@@ -237,7 +260,7 @@ async function resolveBatchTargets(organizationId, operation, filterCriteria) {
  *   rate_limit, send_notification, apply_tag, remove_tag, send_email, send_sms
  *   — these require additional service integrations not yet wired here.
  */
-async function applyBatchOperation(organizationId, operation, target, params) {
+async function applyBatchOperation(organizationId, operation, target, params, actorId = null) {
   const contractId = target.entity_id;
 
   switch (operation) {
@@ -251,7 +274,9 @@ async function applyBatchOperation(organizationId, operation, target, params) {
         throw new Error(`Contract ${contractId} not found in organization`);
       }
       const suspSvc = getSuspensionService();
-      await suspSvc.suspendContract(contractId, params.rule_id || null, params.user_id || null, params.invoice_id || null);
+      // An operator batch, not a rule run: the actor is the job's creator, and
+      // a body rule_id/user_id only forged the suspension log's attribution.
+      await suspSvc.suspendContract(contractId, null, actorId, params.invoice_id || null);
       logger.info({ organizationId, contractId, operation }, 'Batch suspend applied');
       return;
     }
@@ -273,7 +298,7 @@ async function applyBatchOperation(organizationId, operation, target, params) {
       const suspSvc = getSuspensionService();
       await suspSvc.reconnectContract(
         contractId,
-        params.user_id || null,
+        actorId,
         params.invoice_id || null,
         { orgId: organizationId },
       );
@@ -286,7 +311,7 @@ async function applyBatchOperation(organizationId, operation, target, params) {
         throw new Error('change_plan requires operation_params.plan_id');
       }
       const [rows] = await db.query(
-        'SELECT id FROM contracts WHERE id = ? AND organization_id = ?',
+        'SELECT id, plan_id FROM contracts WHERE id = ? AND organization_id = ?',
         [contractId, organizationId],
       );
       if (!rows.length) {
@@ -296,6 +321,10 @@ async function applyBatchOperation(organizationId, operation, target, params) {
         'UPDATE contracts SET plan_id = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?',
         [params.plan_id, contractId, organizationId],
       );
+      await auditLog.log({
+        userId: actorId, organizationId, action: 'update', tableName: 'contracts', recordId: contractId,
+        oldValues: { plan_id: rows[0].plan_id }, newValues: { plan_id: params.plan_id },
+      });
       logger.info({ organizationId, contractId, planId: params.plan_id, operation }, 'Batch plan change applied');
       return;
     }
