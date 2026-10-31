@@ -17,6 +17,21 @@ CALL test_begin('Synthetic closure evidence (REG-01)');
 
 INSERT INTO organizations (id, name, locale, status) VALUES (9100, 'Closure Test ISP', 'global', 'active');
 
+-- Diagnostic: the same row into a trigger-free copy of the table. If this
+-- succeeds and the next INSERT fails, the failure comes from the table's
+-- triggers together with its generated retention_at column.
+CREATE TEMPORARY TABLE __cl_probe LIKE connection_logs;
+INSERT INTO __cl_probe
+  (id, organization_id, contract_id, client_id, username, session_instance_id,
+   acct_session_id, session_id, event_type, event_at, last_accounting_at,
+   last_accounting_received_at, framed_ip, calling_station_id, attribution_evidence_complete)
+VALUES
+  (910001, 9100, 0, 0, 'closure-user', 'closure-0000-0000-0000-000000000001',
+   'sess-old', 'sess-old', 'interim-update', '2026-08-14 09:00:00', '2026-08-14 09:20:00.000',
+   '2026-08-14 09:20:01.000', '100.64.0.9', 'AA:AA:AA:AA:AA:AA', 1);
+SELECT 'probe insert without triggers: OK' AS diagnostic, retention_at FROM __cl_probe;
+SELECT @@version, @@sql_mode, @@explicit_defaults_for_timestamp, @@time_zone;
+
 -- A session that started at 09:00 and last reported (Interim) at 09:20.
 INSERT INTO connection_logs
   (id, organization_id, contract_id, client_id, username, session_instance_id,
