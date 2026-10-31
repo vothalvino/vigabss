@@ -110,7 +110,7 @@ const importRoutes = require('./routes/import');
 const firerelayRoutes = require('./routes/firerelay');
 const pdfRoutes = require('./routes/pdf');
 const { router: eventsRoutes } = require('./routes/events');
-const { router: metricsRoutes, metricsMiddleware } = require('./routes/metrics');
+const { router: metricsRoutes, metricsMiddleware, metricsAccessAllowed } = require('./routes/metrics');
 const paymentWebhookRoutes = require('./routes/paymentWebhooks');
 const whatsappWebhookRoutes = require('./routes/whatsappWebhook');
 const usageRoutes = require('./routes/usage');
@@ -503,8 +503,9 @@ app.get('/health', async (req, res) => {
     health.snmpTrap = { ready: false, reason: 'primary_schema_unavailable' };
   }
 
-  // Detailed mode: ?detail=true adds memory + DB latency
-  if (req.query.detail === 'true') {
+  // Detailed mode: ?detail=true adds memory + DB latency. Same access rule as
+  // /metrics (OPS-01); otherwise the plain health answer is returned.
+  if (req.query.detail === 'true' && metricsAccessAllowed(req)) {
     const mem = process.memoryUsage();
     health.memory = {
       rss: Math.round(mem.rss / 1048576),
