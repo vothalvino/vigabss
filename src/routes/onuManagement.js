@@ -178,7 +178,9 @@ router.get('/details', requirePermission('onu_management.view'), async (req, res
              p.port_name, np.name AS profile_name
       FROM onu_details od
       JOIN devices d ON d.id = od.device_id AND d.deleted_at IS NULL
+        AND (d.organization_id <=> od.organization_id OR d.organization_id IS NULL)
       LEFT JOIN olt_ports p ON p.id = od.olt_port_id
+        AND (p.organization_id <=> od.organization_id OR p.organization_id IS NULL)
       LEFT JOIN onu_profiles np ON np.id = od.onu_profile_id AND np.deleted_at IS NULL
       WHERE (od.organization_id = ? OR od.organization_id IS NULL) AND od.deleted_at IS NULL
     `;
@@ -205,7 +207,9 @@ router.get('/details/:id', requirePermission('onu_management.view'), async (req,
               p.port_name, np.name AS profile_name
        FROM onu_details od
        JOIN devices d ON d.id = od.device_id AND d.deleted_at IS NULL
+         AND (d.organization_id <=> od.organization_id OR d.organization_id IS NULL)
        LEFT JOIN olt_ports p ON p.id = od.olt_port_id
+         AND (p.organization_id <=> od.organization_id OR p.organization_id IS NULL)
        LEFT JOIN onu_profiles np ON np.id = od.onu_profile_id AND np.deleted_at IS NULL
        WHERE od.id = ? AND (od.organization_id = ? OR od.organization_id IS NULL) AND od.deleted_at IS NULL`,
       [req.params.id, req.orgId],

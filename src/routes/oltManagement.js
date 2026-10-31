@@ -88,7 +88,12 @@ router.post('/:id/ports', requirePermission('olt_ports.create'), validate(create
  */
 router.get('/:id/chassis', requirePermission('olt_management.view'), async (req, res, next) => {
   try {
-    const summary = await ftthService.getOltChassisSummary(req.params.id);
+    const [devRows] = await db.query(
+      'SELECT id FROM devices WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
+      [req.params.id, req.orgId],
+    );
+    if (!devRows.length) return res.status(404).json({ error: 'OLT device not found' });
+    const summary = await ftthService.getOltChassisSummary(req.params.id, req.orgId);
     res.json({ data: summary });
   } catch (err) { next(err); }
 });
@@ -110,8 +115,8 @@ router.get('/:id/onus', requirePermission('onu_management.view'), async (req, re
 router.get('/:id/vendor-caps', requirePermission('olt_management.view'), async (req, res, next) => {
   try {
     const [devRows] = await db.query(
-      'SELECT manufacturer, model FROM devices WHERE id = ? AND deleted_at IS NULL',
-      [req.params.id],
+      'SELECT manufacturer, model FROM devices WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
+      [req.params.id, req.orgId],
     );
     if (!devRows.length) return res.status(404).json({ error: 'OLT device not found' });
 
