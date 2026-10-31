@@ -10,7 +10,7 @@ const cookieParser = require('cookie-parser');
 const config = require('./config');
 const { AppError } = require('./utils/errors');
 const errorTracking = require('./utils/errorTracking');
-const { apiLimiter, authLimiter, passwordResetLimiter, verifyEmailResendLimiter, sessionLimiter, exportLimiter, sseLimiter, webhookLimiter, collectorIngressLimiter, isCollectorPath } = require('./middleware/rateLimit');
+const { apiLimiter, authLimiter, passwordResetLimiter, verifyEmailResendLimiter, sessionLimiter, exportLimiter, sseLimiter, webhookLimiter, acsLimiter, collectorIngressLimiter, isCollectorPath } = require('./middleware/rateLimit');
 const { requestLogger } = require('./middleware/requestLogger');
 const { requestId } = require('./middleware/requestId');
 const { firerelay } = require('./middleware/firerelay');
@@ -359,7 +359,13 @@ app.use('/api/', (req, res, next) => {
   return collectorIngressLimiter(req, res, () => collectorJsonParser(req, res, next));
 });
 
-app.use(express.json({
+// The ACS endpoint reads its body only as bounded XML text (NET-05), so the
+// global JSON/form parsers never run for it: a 10 MiB JSON body used to be
+// parsed here and then fed to the CWMP parser.
+const isAcsPath = req => (req.path || '').toLowerCase().startsWith('/acs/');
+const unlessAcs = middleware => (req, res, next) => (isAcsPath(req) ? next() : middleware(req, res, next));
+
+app.use(unlessAcs(express.json({
   limit: '10mb',
   // Preserve raw body for webhook signature verification (payment gateways +
   // WhatsApp/Meta X-Hub-Signature-256, which is an HMAC over the exact bytes).
@@ -370,8 +376,8 @@ app.use(express.json({
       req.rawBody = buf.toString('utf8');
     }
   },
-}));
-app.use(express.urlencoded({ extended: true }));
+})));
+app.use(unlessAcs(express.urlencoded({ extended: true })));
 app.use(cookieParser());
 // Security posture: no blanket input-side HTML-entity-encoding here. This app's
 // output sinks do their own escaping instead — React/JSX auto-escapes all
@@ -625,10 +631,14 @@ app.get('/health/ready', async (_req, res) => {
 
 // ---------------------------------------------------------------------------
 // ACS (CWMP/TR-069) endpoint — OUTSIDE authenticated /api/v1 surface
-// CPEs send text/xml; must NOT use JSON body parser here
+// CPEs send text/xml. The body is read only as bounded text; other content
+// types answer 415 (NET-05). Every message must authenticate (NET-04).
 // ---------------------------------------------------------------------------
-app.use('/acs', express.text({ type: '*/*' }));
-app.post('/acs/cwmp', acsService.handleCwmpRequest);
+app.post('/acs/cwmp',
+  acsLimiter,
+  acsService.requireCwmpContentType,
+  express.text({ type: acsService.isCwmpBody, limit: config.acs.maxBody }),
+  acsService.handleCwmpRequest);
 
 // ---------------------------------------------------------------------------
 // API routes — build a single v1 router, mount at /api and /api/v1

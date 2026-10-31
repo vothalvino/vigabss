@@ -111,7 +111,12 @@ server, and drains them on shutdown.
   with intentionally different liveness/readiness depth.
 - `/metrics` exposes Prometheus metrics outside the versioned API router.
 - `/acs/cwmp` is the text/XML TR-069 endpoint and intentionally sits outside
-  the JSON API/authentication surface.
+  the JSON API/authentication surface. It authenticates every CWMP message
+  itself (HTTP Basic: the CPE's own credentials, or `ACS_USERNAME`/
+  `ACS_PASSWORD` for first contact by a CPE with none), never resolves a device
+  by serial+OUI without that, has its own per-IP limiter, and reads its body
+  only as bounded XML text — the global JSON/form parsers skip it and the
+  CWMP parser is a linear tokenizer with no DTD/entity processing.
 - API documentation is mounted by `src/utils/openapi.js`.
 - The production backend serves `frontend/dist` and falls back to the SPA for
   non-API routes.

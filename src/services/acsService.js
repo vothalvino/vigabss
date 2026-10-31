@@ -3,22 +3,100 @@
 // =============================================================================
 // Handles incoming CWMP/TR-069 HTTP requests from CPE devices.
 // Endpoint: POST /acs/cwmp — mounted OUTSIDE the authenticated /api/v1 surface.
-// CPE authentication: HTTP Basic with per-CPE acs_username/acs_password_hash.
+// CPE authentication: HTTP Basic on EVERY message (NET-04) — with the CPE's
+// own acs_username/acs_password_hash, or with the ACS-wide credential
+// (ACS_USERNAME/ACS_PASSWORD) for first contact by a device that has no
+// credentials of its own yet. A missing or wrong credential gets a 401
+// challenge; the serial+OUI lookup never stands in for authentication.
 // §8.3: session events and errors are logged to cpe_session_logs.
 // §8.3: DiagnosticsComplete Inform events route to cpeDiagnosticsService.
 // §8.4: On Inform, tryAutoLinkSubscriber is called to match serial → subscriber.
 // =============================================================================
 'use strict';
 
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const config = require('../config');
 const db = require('../config/database');
 const CpeDevice = require('../models/CpeDevice');
-const { parseCwmpEnvelope, buildCwmpResponse } = require('./cwmpXml');
+const { parseCwmpEnvelope, buildCwmpResponse, CwmpParseError } = require('./cwmpXml');
 const cwmpSessionService = require('./cwmpSessionService');
 const cpeDiagnosticsService = require('./cpeDiagnosticsService');
 const cpeSessionLogService = require('./cpeSessionLogService');
 const cpeInventoryService = require('./cpeInventoryService');
 const logger = require('../utils/logger').child({ service: 'acsService' });
+
+// ---------------------------------------------------------------------------
+// Request guards (NET-05)
+// ---------------------------------------------------------------------------
+
+const CWMP_CONTENT_TYPES = ['text/xml', 'application/xml', 'application/soap+xml', 'text/plain'];
+
+/** Body parser type check: SOAP XML, or no Content-Type (some CPEs omit it). */
+function isCwmpBody(req) {
+  return !req.headers['content-type'] || Boolean(req.is(CWMP_CONTENT_TYPES));
+}
+
+/** 415 for a non-empty body of any other type, before anything reads it. */
+function requireCwmpContentType(req, res, next) {
+  const hasBody = Number(req.headers['content-length'] || 0) > 0 || req.headers['transfer-encoding'] !== undefined;
+  if (hasBody && !isCwmpBody(req)) return res.status(415).send('');
+  return next();
+}
+
+// ---------------------------------------------------------------------------
+// Authentication (NET-04)
+// ---------------------------------------------------------------------------
+
+const ACS_CHALLENGE = 'Basic realm="VigaBSS ACS", charset="UTF-8"';
+// An Inform normally carries a few dozen parameters; each one is an upsert.
+const MAX_INFORM_PARAMETERS = 256;
+
+function challenge(res) {
+  return res.status(401).set('WWW-Authenticate', ACS_CHALLENGE).send('');
+}
+
+function parseBasicAuth(header) {
+  if (!header || !header.startsWith('Basic ')) return null;
+  const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
+  const colonIdx = decoded.indexOf(':');
+  if (colonIdx === -1) return null;
+  return { username: decoded.slice(0, colonIdx), password: decoded.slice(colonIdx + 1) };
+}
+
+const digest = value => crypto.createHash('sha256').update(String(value)).digest();
+
+/** True when the credentials are the configured ACS-wide first-contact credential. */
+function isSharedAcsCredential(username, password) {
+  const { username: expectedUser, password: expectedPassword } = config.acs || {};
+  if (!expectedUser || !expectedPassword) return false;
+  const userOk = crypto.timingSafeEqual(digest(username), digest(expectedUser));
+  const passwordOk = crypto.timingSafeEqual(digest(password), digest(expectedPassword));
+  return userOk && passwordOk;
+}
+
+// Auto-registrations per source IP per hour, so one shared credential cannot
+// fill cpe_devices with invented serials.
+const AUTO_REGISTRATION_WINDOW_MS = 60 * 60 * 1000;
+const autoRegistrations = new Map();
+
+function takeAutoRegistration(ip) {
+  const limit = (config.acs && config.acs.autoRegistrationsPerHour) || 0;
+  const now = Date.now();
+  for (const [key, entry] of autoRegistrations) {
+    if (now - entry.start >= AUTO_REGISTRATION_WINDOW_MS) autoRegistrations.delete(key);
+  }
+  const key = ip || 'unknown';
+  const entry = autoRegistrations.get(key) || { start: now, count: 0 };
+  if (entry.count >= limit) return false;
+  entry.count += 1;
+  autoRegistrations.set(key, entry);
+  return true;
+}
+
+function resetAutoRegistrations() {
+  autoRegistrations.clear();
+}
 
 // ---------------------------------------------------------------------------
 // verifyAcsCredentials
@@ -58,49 +136,59 @@ async function handleCwmpRequest(req, res) {
       return res.status(200).send('');
     }
 
-    // 2. Normalize body to XML string early (needed for logging)
-    const xmlString = typeof body === 'string' ? body : JSON.stringify(body);
+    // Only the text parser fills the body (see app.js); anything else is not CWMP.
+    if (typeof body !== 'string') return res.status(415).send('');
+    const xmlString = body;
 
-    // 3. HTTP Basic authentication
+    // 2. Authenticate before the body is parsed. A device's own credentials
+    // identify it; the ACS-wide credential only allows first contact below.
     let cpeDevice = null;
-    const authHeader = req.headers['authorization'] || '';
-    if (authHeader.startsWith('Basic ')) {
-      const encoded = authHeader.slice(6);
-      const decoded = Buffer.from(encoded, 'base64').toString('utf8');
-      const colonIdx = decoded.indexOf(':');
-      if (colonIdx !== -1) {
-        const username = decoded.slice(0, colonIdx);
-        const password = decoded.slice(colonIdx + 1);
-        cpeDevice = await verifyAcsCredentials(username, password);
-        if (!cpeDevice) {
-          // §8.3: log auth failure
-          cpeSessionLogService.logSessionEvent({
-            eventType: 'auth_failure',
-            remoteIp: req.ip || null,
-            rawBody: xmlString,
-          }).catch(() => {});
-        }
+    let firstContact = false;
+    const credentials = parseBasicAuth(req.headers['authorization'] || '');
+    if (credentials) {
+      cpeDevice = await verifyAcsCredentials(credentials.username, credentials.password);
+      if (!cpeDevice) firstContact = isSharedAcsCredential(credentials.username, credentials.password);
+    }
+    if (!cpeDevice && !firstContact) {
+      if (credentials) {
+        // §8.3: log auth failure (the unauthenticated body is not stored)
+        cpeSessionLogService.logSessionEvent({
+          eventType: 'auth_failure',
+          remoteIp: req.ip || null,
+        }).catch(() => {});
       }
+      return challenge(res);
     }
 
-    // 4. Parse CWMP envelope
-    const { messageType, id: msgId, payload } = parseCwmpEnvelope(xmlString);
+    // 3. Parse CWMP envelope
+    let parsed;
+    try {
+      parsed = parseCwmpEnvelope(xmlString);
+    } catch (err) {
+      if (err instanceof CwmpParseError) return res.status(400).send('');
+      throw err;
+    }
+    const { messageType, id: msgId, payload } = parsed;
 
     logger.debug({ messageType, msgId }, 'CWMP message received');
 
-    // 5. Handle Inform and DiagnosticsComplete (device may not be authenticated yet — auto-register)
+    // 4. Handle Inform and DiagnosticsComplete. With the ACS-wide credential the
+    // device is resolved by serial+OUI, adopted or auto-registered — but only
+    // when it has no credentials of its own.
     if (messageType === 'Inform' || messageType === 'DiagnosticsComplete') {
       const { deviceId: cwmpDeviceId } = payload;
       const serialNumber = cwmpDeviceId.serialNumber || '';
       const oui = cwmpDeviceId.oui || '';
 
       // Auto-register or fetch existing device
-      if (!cpeDevice && serialNumber && oui) {
+      if (!cpeDevice && firstContact && serialNumber && oui) {
         const [existing] = await db.query(
           'SELECT * FROM cpe_devices WHERE serial_number = ? AND oui = ? AND deleted_at IS NULL LIMIT 1',
           [serialNumber, oui],
         );
         if (existing.length) {
+          // A device with its own credentials must use them.
+          if (existing[0].acs_password_hash) return challenge(res);
           cpeDevice = existing[0];
         } else {
           // Serial-only bridge for inventory-minted rows. Warehouse receive and
@@ -120,6 +208,7 @@ async function handleCwmpRequest(req, res) {
           const [invRows] = await db.query(
             `SELECT * FROM cpe_devices
              WHERE serial_number = ? AND oui IS NULL AND deleted_at IS NULL
+               AND acs_password_hash IS NULL
              ORDER BY (contract_id IS NULL), id
              LIMIT 1`,
             [serialNumber],
@@ -161,6 +250,10 @@ async function handleCwmpRequest(req, res) {
           }
         }
         if (!cpeDevice) {
+          if (!takeAutoRegistration(req.ip)) {
+            logger.warn({ remoteIp: req.ip, serialNumber }, 'CPE auto-registration limit reached for source');
+            return res.status(429).set('Retry-After', '3600').send('');
+          }
           // Auto-register
           const created = await CpeDevice.create({
             serial_number: serialNumber,
@@ -177,10 +270,11 @@ async function handleCwmpRequest(req, res) {
         }
       }
 
-      if (!cpeDevice) {
-        return res.status(401).set('Content-Type', 'text/xml').send(
-          buildCwmpResponse(msgId, 'Empty'),
-        );
+      if (!cpeDevice) return challenge(res);
+
+      if (Array.isArray(payload.parameters) && payload.parameters.length > MAX_INFORM_PARAMETERS) {
+        logger.warn({ cpeDeviceId: cpeDevice.id, count: payload.parameters.length }, 'Inform parameter list truncated');
+        payload.parameters = payload.parameters.slice(0, MAX_INFORM_PARAMETERS);
       }
 
       // Update last_inform_ip
@@ -247,10 +341,8 @@ async function handleCwmpRequest(req, res) {
         .send(buildCwmpResponse(msgId, 'InformResponse'));
     }
 
-    // 6. Handle task responses — need authenticated device
-    if (!cpeDevice) {
-      return res.status(401).set('Content-Type', 'text/xml').send('');
-    }
+    // 5. Handle task responses — only a device's own credentials identify it
+    if (!cpeDevice) return challenge(res);
 
     // Find in-progress task for this device
     const [inProgress] = await db.query(
@@ -326,4 +418,11 @@ async function handleCwmpRequest(req, res) {
   }
 }
 
-module.exports = { handleCwmpRequest, verifyAcsCredentials };
+module.exports = {
+  handleCwmpRequest,
+  verifyAcsCredentials,
+  isCwmpBody,
+  requireCwmpContentType,
+  isSharedAcsCredential,
+  resetAutoRegistrations,
+};
