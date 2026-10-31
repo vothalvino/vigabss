@@ -10,7 +10,7 @@ const db = require('../config/database');
 const User = require('../models/User');
 const { resolveOrgPrincipal } = require('../services/orgPrincipalService');
 const { verifyStaffAccessToken } = require('../utils/accessTokens');
-const { UnauthorizedError } = require('../utils/errors');
+const { UnauthorizedError, AppError } = require('../utils/errors');
 const { bearerToken } = require('../utils/bearerToken');
 
 /**
@@ -178,12 +178,23 @@ async function authenticate(req, _res, next) {
       hasGlobalOrganizationAccess: principal.hasGlobalOrganizationAccess,
     };
 
+    // An account that must replace its password (the installer-created
+    // administrator) may only read its profile, change the password, or log
+    // out until it does (migration 480).
+    if (Number(user.must_change_password) === 1 && !PASSWORD_CHANGE_ALLOWED.test(requestPath(req))) {
+      throw new AppError('Change your password before continuing', 403, 'PASSWORD_CHANGE_REQUIRED');
+    }
+
     req[AUTHENTICATED_REQUEST] = true;
     next();
   } catch (err) {
     next(err);
   }
 }
+
+// Session routes a must-change-password account can still use.
+const PASSWORD_CHANGE_ALLOWED = /^\/api(?:\/v1)?\/auth\/(?:me|change-password|logout)\/?$/;
+const requestPath = req => String(req.originalUrl || req.url || '').split('?')[0];
 
 /**
  * Optional auth — doesn't fail if no token is present.

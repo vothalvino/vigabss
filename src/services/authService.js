@@ -601,6 +601,9 @@ async function changePassword(userId, currentPassword, newPassword) {
   if (!newPassword || newPassword.length < 8) {
     throw new ValidationError('New password must be at least 8 characters');
   }
+  if (newPassword === currentPassword) {
+    throw new ValidationError('The new password must differ from the current one');
+  }
 
   const user = await User.findById(userId);
   if (!user) {
@@ -613,8 +616,9 @@ async function changePassword(userId, currentPassword, newPassword) {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  // Clears the forced-change flag (migration 480).
   await db.query(
-    'UPDATE users SET password_hash = ? WHERE id = ?',
+    'UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?',
     [passwordHash, user.id],
   );
 
