@@ -776,6 +776,28 @@ boundary. A database purge alone does not remove copies held elsewhere.
 | `CGNAT_ATTRIBUTION_OPEN_PORT_BLOCK_STALE_DAYS` | 31 | 1–3,650 days before an unreleased deterministic port block fails readiness |
 | `CGNAT_ATTRIBUTION_RETENTION_MONTHS` | 24 | Installation-wide 1–24 calendar-month ordinary-retention policy; values above 24 clamp to 24, locale cannot select it, and only scoped active holds extend preservation |
 
+**Per-record results.** A binding batch is stored record by record. A record
+that cannot be correlated (no single covering access session, no RADIUS
+evidence anchor before the allocation's uncertainty bound, a release whose
+tuple differs from its allocation, a conflicting key) is undone and listed in
+the response as `rejected: [{ index, event_id, event_type, error }]`; the
+other records are stored. Its sequence number is not consumed, so the pool
+shows a sequence gap (and fails closed) until the collector resends a
+corrected record. A batch in which nothing could be stored fails with the
+first record's error. Every validation error names its record as
+`bindings[<index>]`. A release may arrive after the access session ended:
+lookups never certify past the session's own Stop or last accounting.
+
+**Sizing the grace and uncertainty.** An allocation must be anchored by RADIUS
+evidence received at least `clock_uncertainty_ms` before `allocated_at`
+(300 s when the exporter sends none). On-demand port-block (PBA) CGNATs that
+allocate within seconds of the subscriber's Start must send a real, small
+`clock_uncertainty_ms` (NTP-synced devices: a few hundred milliseconds), or
+those allocations are rejected. `CGNAT_ATTRIBUTION_SESSION_GRACE_SECONDS`
+must cover the longest RADIUS Interim interval on any NAS plus delivery delay,
+or allocations late in a session find no live session to correlate with;
+standalone CGNATs with sparse accounting need the higher end of the range.
+
 Collector endpoints are rate-limited before JSON parsing and have a 2 MiB body
 ceiling; ordinary API routes retain the general 10 MiB JSON limit. These are
 safety ceilings, not capacity promises. IP-attribution lookup and export must
