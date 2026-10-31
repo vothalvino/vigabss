@@ -27,6 +27,7 @@ const { validate } = require('../middleware/validate');
 const { buildInsert, buildUpdate } = require('../utils/sqlBuild');
 const { sealSecret, sealSecretFields } = require('../utils/sealSecrets');
 const { redactSecretsInResponses, keepBlankSecrets } = require('../utils/secretRedaction');
+const { assertOwnedReferences } = require('../utils/ownedReferences');
 const {
   createOnuProfile, updateOnuProfile, patchOnuProfile,
 } = require('../middleware/schemas/onuProfiles');
@@ -55,6 +56,50 @@ router.use(orgScope);
 router.use(['/details', '/omci-configs'], redactSecretsInResponses(['loid_password_encrypted', 'wifi_password_encrypted']));
 const sealLoidPassword = [keepBlankSecrets(['loid_password']), sealSecretFields({ loid_password: 'loid_password_encrypted' })];
 const sealWifiPassword = [keepBlankSecrets(['wifi_password']), sealSecretFields({ wifi_password: 'wifi_password_encrypted' })];
+
+// Rows with organization_id NULL are installation-shared: every tenant reads
+// them, but no tenant may change or delete them. The write lookups used to
+// accept them, so one tenant's admin could edit or delete a profile every
+// other tenant provisions with. The null-safe `<=>` still lets a caller with
+// no organization (single-tenant install) manage its own NULL-org rows.
+async function writableRow(res, table, id, orgId, columns = 'id') {
+  const [rows] = await db.query(
+    `SELECT ${columns}, organization_id FROM ${table} WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL`,
+    [id, orgId],
+  );
+  if (!rows.length) {
+    res.status(404).json({ error: 'Not found' });
+    return null;
+  }
+  if (rows[0].organization_id === null && orgId !== null && orgId !== undefined) {
+    res.status(403).json({ error: 'Shared ONU records are read-only' });
+    return null;
+  }
+  return rows[0];
+}
+
+// Writes take only the fields the route's schema declares (plus a sealed
+// credential column). The profile edit form sends the whole row back, and
+// every undeclared key — last_provision_job_id, active_flag, timestamps —
+// used to reach the INSERT/UPDATE.
+function declaredFields(body, schema, extra = []) {
+  return Object.fromEntries(Object.entries(body || {})
+    .filter(([key]) => Object.hasOwn(schema, key) || extra.includes(key)));
+}
+
+// Referenced rows must belong to the caller (or, for profiles, be shared).
+const DEVICE_REFS = {
+  device_id: 'devices',
+  olt_device_id: 'devices',
+  olt_port_id: 'olt_ports',
+  onu_profile_id: { table: 'onu_profiles', allowShared: true },
+};
+const ownsReferences = refs => async (req, _res, next) => {
+  try {
+    await assertOwnedReferences(req.body, req.orgId, refs);
+    next();
+  } catch (err) { next(err); }
+};
 
 // ===========================================================================
 // ONU Profiles
@@ -92,9 +137,9 @@ router.get('/profiles/:id', requirePermission('onu_profiles.view'), async (req, 
   } catch (err) { next(err); }
 });
 
-router.post('/profiles', requirePermission('onu_profiles.create'), validate(createOnuProfile), async (req, res, next) => {
+router.post('/profiles', requirePermission('onu_profiles.create'), validate(createOnuProfile), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
+    const fields = declaredFields(req.body, createOnuProfile);
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
     const [result] = await db.query(
       `INSERT INTO onu_profiles (${columns}) VALUES (${placeholders})`,
@@ -105,33 +150,25 @@ router.post('/profiles', requirePermission('onu_profiles.create'), validate(crea
   } catch (err) { next(err); }
 });
 
-router.put('/profiles/:id', requirePermission('onu_profiles.update'), validate(updateOnuProfile), async (req, res, next) => {
+router.put('/profiles/:id', requirePermission('onu_profiles.update'), validate(updateOnuProfile), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_profiles WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
+    if (!await writableRow(res, 'onu_profiles', req.params.id, req.orgId)) return;
+    const updateData = declaredFields(req.body, updateOnuProfile);
     const { assignments, values } = buildUpdate(updateData);
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
-    await db.query(`UPDATE onu_profiles SET ${setClause} WHERE id = ?`, [...values, req.params.id]);
+    await db.query(`UPDATE onu_profiles SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_profiles WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });
 
-router.patch('/profiles/:id', requirePermission('onu_profiles.update'), validate(patchOnuProfile), async (req, res, next) => {
+router.patch('/profiles/:id', requirePermission('onu_profiles.update'), validate(patchOnuProfile), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_profiles WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
+    if (!await writableRow(res, 'onu_profiles', req.params.id, req.orgId)) return;
+    const updateData = declaredFields(req.body, patchOnuProfile);
     if (!Object.keys(updateData).length) return res.status(400).json({ error: 'No fields to update' });
     const { assignments, values } = buildUpdate(updateData);
-    await db.query(`UPDATE onu_profiles SET ${assignments}, updated_at = NOW() WHERE id = ?`, [...values, req.params.id]);
+    await db.query(`UPDATE onu_profiles SET ${assignments}, updated_at = NOW() WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_profiles WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -139,12 +176,8 @@ router.patch('/profiles/:id', requirePermission('onu_profiles.update'), validate
 
 router.delete('/profiles/:id', requirePermission('onu_profiles.delete'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_profiles WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    await db.query('UPDATE onu_profiles SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
+    if (!await writableRow(res, 'onu_profiles', req.params.id, req.orgId)) return;
+    await db.query('UPDATE onu_profiles SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?', [req.params.id, req.orgId]);
     res.status(204).send();
   } catch (err) { next(err); }
 });
@@ -202,9 +235,9 @@ router.get('/details/:id', requirePermission('onu_management.view'), async (req,
   } catch (err) { next(err); }
 });
 
-router.post('/details', requirePermission('onu_management.create'), validate(createOnuDetail), sealLoidPassword, async (req, res, next) => {
+router.post('/details', requirePermission('onu_management.create'), validate(createOnuDetail), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
   try {
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
+    const fields = declaredFields(req.body, createOnuDetail, ['loid_password_encrypted']);
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
     const [result] = await db.query(
       `INSERT INTO onu_details (${columns}) VALUES (${placeholders})`,
@@ -215,33 +248,25 @@ router.post('/details', requirePermission('onu_management.create'), validate(cre
   } catch (err) { next(err); }
 });
 
-router.put('/details/:id', requirePermission('onu_management.update'), validate(updateOnuDetail), sealLoidPassword, async (req, res, next) => {
+router.put('/details/:id', requirePermission('onu_management.update'), validate(updateOnuDetail), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_details WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, device_id: _____, ...updateData } = req.body;
+    if (!await writableRow(res, 'onu_details', req.params.id, req.orgId)) return;
+    const updateData = declaredFields(req.body, updateOnuDetail, ['loid_password_encrypted']);
     const { assignments, values } = buildUpdate(updateData);
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
-    await db.query(`UPDATE onu_details SET ${setClause} WHERE id = ?`, [...values, req.params.id]);
+    await db.query(`UPDATE onu_details SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_details WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });
 
-router.patch('/details/:id', requirePermission('onu_management.update'), validate(patchOnuDetail), sealLoidPassword, async (req, res, next) => {
+router.patch('/details/:id', requirePermission('onu_management.update'), validate(patchOnuDetail), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_details WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, device_id: _____, ...updateData } = req.body;
+    if (!await writableRow(res, 'onu_details', req.params.id, req.orgId)) return;
+    const updateData = declaredFields(req.body, patchOnuDetail, ['loid_password_encrypted']);
     if (!Object.keys(updateData).length) return res.status(400).json({ error: 'No fields to update' });
     const { assignments, values } = buildUpdate(updateData);
-    await db.query(`UPDATE onu_details SET ${assignments}, updated_at = NOW() WHERE id = ?`, [...values, req.params.id]);
+    await db.query(`UPDATE onu_details SET ${assignments}, updated_at = NOW() WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_details WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -249,12 +274,8 @@ router.patch('/details/:id', requirePermission('onu_management.update'), validat
 
 router.delete('/details/:id', requirePermission('onu_management.delete'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_details WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    await db.query('UPDATE onu_details SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
+    if (!await writableRow(res, 'onu_details', req.params.id, req.orgId)) return;
+    await db.query('UPDATE onu_details SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?', [req.params.id, req.orgId]);
     res.status(204).send();
   } catch (err) { next(err); }
 });
@@ -274,23 +295,20 @@ router.get('/details/:id/optical-metrics', requirePermission('onu_management.vie
 });
 
 // ONU provision action (creates/updates onu_details + provision job)
-router.post('/details/:id/provision', requirePermission('onu_management.create'), async (req, res, next) => {
+router.post('/details/:id/provision', requirePermission('onu_management.create'), ownsReferences(DEVICE_REFS), async (req, res, next) => {
   try {
-    const [detail] = await db.query(
-      'SELECT * FROM onu_details WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!detail.length) return res.status(404).json({ error: 'ONU detail not found' });
+    const detail = await writableRow(res, 'onu_details', req.params.id, req.orgId, '*');
+    if (!detail) return;
     const result = await ftthService.provisionOnu({
-      deviceId: detail[0].device_id,
-      oltDeviceId: req.body.olt_device_id || detail[0].olt_device_id,
-      oltPortId: req.body.olt_port_id || detail[0].olt_port_id,
-      onuProfileId: req.body.onu_profile_id || detail[0].onu_profile_id,
-      serialNumber: req.body.serial_number || detail[0].serial_number,
-      loid: req.body.loid || detail[0].loid,
+      deviceId: detail.device_id,
+      oltDeviceId: req.body.olt_device_id || detail.olt_device_id,
+      oltPortId: req.body.olt_port_id || detail.olt_port_id,
+      onuProfileId: req.body.onu_profile_id || detail.onu_profile_id,
+      serialNumber: req.body.serial_number || detail.serial_number,
+      loid: req.body.loid || detail.loid,
       loidPasswordEncrypted: typeof req.body.loid_password === 'string' && req.body.loid_password
         ? sealSecret(req.body.loid_password)
-        : detail[0].loid_password_encrypted,
+        : detail.loid_password_encrypted,
       orgId: req.orgId,
       createdBy: req.user?.id,
     });
@@ -301,14 +319,11 @@ router.post('/details/:id/provision', requirePermission('onu_management.create')
 // ONU reboot action
 router.post('/details/:id/reboot', requirePermission('onu_management.update'), async (req, res, next) => {
   try {
-    const [detail] = await db.query(
-      'SELECT device_id, olt_device_id FROM onu_details WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!detail.length) return res.status(404).json({ error: 'ONU detail not found' });
+    const detail = await writableRow(res, 'onu_details', req.params.id, req.orgId, 'device_id, olt_device_id');
+    if (!detail) return;
     const job = await ftthService.scheduleOnuReboot(
-      detail[0].device_id,
-      detail[0].olt_device_id,
+      detail.device_id,
+      detail.olt_device_id,
       req.orgId,
       req.user?.id,
     );
@@ -354,9 +369,9 @@ router.get('/whitelist/:id', requirePermission('onu_whitelist.view'), async (req
   } catch (err) { next(err); }
 });
 
-router.post('/whitelist', requirePermission('onu_whitelist.create'), validate(createOnuWhitelistEntry), async (req, res, next) => {
+router.post('/whitelist', requirePermission('onu_whitelist.create'), validate(createOnuWhitelistEntry), ownsReferences(DEVICE_REFS), async (req, res, next) => {
   try {
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
+    const fields = declaredFields(req.body, createOnuWhitelistEntry);
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
     const [result] = await db.query(
       `INSERT INTO onu_whitelist (${columns}) VALUES (${placeholders})`,
@@ -367,17 +382,13 @@ router.post('/whitelist', requirePermission('onu_whitelist.create'), validate(cr
   } catch (err) { next(err); }
 });
 
-router.put('/whitelist/:id', requirePermission('onu_whitelist.update'), validate(updateOnuWhitelistEntry), async (req, res, next) => {
+router.put('/whitelist/:id', requirePermission('onu_whitelist.update'), validate(updateOnuWhitelistEntry), ownsReferences(DEVICE_REFS), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_whitelist WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, olt_device_id: _____, entry_type: ______, entry_value: _______, ...updateData } = req.body;
+    if (!await writableRow(res, 'onu_whitelist', req.params.id, req.orgId)) return;
+    const updateData = declaredFields(req.body, updateOnuWhitelistEntry);
     const { assignments, values } = buildUpdate(updateData);
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
-    await db.query(`UPDATE onu_whitelist SET ${setClause} WHERE id = ?`, [...values, req.params.id]);
+    await db.query(`UPDATE onu_whitelist SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_whitelist WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -385,12 +396,8 @@ router.put('/whitelist/:id', requirePermission('onu_whitelist.update'), validate
 
 router.delete('/whitelist/:id', requirePermission('onu_whitelist.delete'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_whitelist WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    await db.query('UPDATE onu_whitelist SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
+    if (!await writableRow(res, 'onu_whitelist', req.params.id, req.orgId)) return;
+    await db.query('UPDATE onu_whitelist SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?', [req.params.id, req.orgId]);
     res.status(204).send();
   } catch (err) { next(err); }
 });
@@ -433,9 +440,9 @@ router.get('/omci-configs/:id', requirePermission('onu_omci_configs.view'), asyn
   } catch (err) { next(err); }
 });
 
-router.post('/omci-configs', requirePermission('onu_omci_configs.create'), validate(createOnuOmciConfig), sealWifiPassword, async (req, res, next) => {
+router.post('/omci-configs', requirePermission('onu_omci_configs.create'), validate(createOnuOmciConfig), ownsReferences(DEVICE_REFS), sealWifiPassword, async (req, res, next) => {
   try {
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, applied_at: _____, apply_error: ______, ...fields } = req.body;
+    const fields = declaredFields(req.body, createOnuOmciConfig, ['wifi_password_encrypted']);
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, apply_status: 'pending', ...fields });
     const [result] = await db.query(
       `INSERT INTO onu_omci_configs (${columns}) VALUES (${placeholders})`,
@@ -446,17 +453,13 @@ router.post('/omci-configs', requirePermission('onu_omci_configs.create'), valid
   } catch (err) { next(err); }
 });
 
-router.put('/omci-configs/:id', requirePermission('onu_omci_configs.update'), validate(updateOnuOmciConfig), sealWifiPassword, async (req, res, next) => {
+router.put('/omci-configs/:id', requirePermission('onu_omci_configs.update'), validate(updateOnuOmciConfig), ownsReferences(DEVICE_REFS), sealWifiPassword, async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_omci_configs WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, device_id: _____, ...updateData } = req.body;
+    if (!await writableRow(res, 'onu_omci_configs', req.params.id, req.orgId)) return;
+    const updateData = declaredFields(req.body, updateOnuOmciConfig, ['wifi_password_encrypted']);
     const { assignments, values } = buildUpdate(updateData);
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
-    await db.query(`UPDATE onu_omci_configs SET ${setClause} WHERE id = ?`, [...values, req.params.id]);
+    await db.query(`UPDATE onu_omci_configs SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_omci_configs WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -464,12 +467,8 @@ router.put('/omci-configs/:id', requirePermission('onu_omci_configs.update'), va
 
 router.delete('/omci-configs/:id', requirePermission('onu_omci_configs.delete'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_omci_configs WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    await db.query('UPDATE onu_omci_configs SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
+    if (!await writableRow(res, 'onu_omci_configs', req.params.id, req.orgId)) return;
+    await db.query('UPDATE onu_omci_configs SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?', [req.params.id, req.orgId]);
     res.status(204).send();
   } catch (err) { next(err); }
 });
@@ -512,7 +511,7 @@ router.get('/firmware-jobs/:id', requirePermission('onu_firmware_jobs.view'), as
   } catch (err) { next(err); }
 });
 
-router.post('/firmware-jobs', requirePermission('onu_firmware_jobs.create'), validate(createOnuFirmwareJob), async (req, res, next) => {
+router.post('/firmware-jobs', requirePermission('onu_firmware_jobs.create'), validate(createOnuFirmwareJob), ownsReferences({ ...DEVICE_REFS, onu_device_id: 'devices' }), async (req, res, next) => {
   try {
     const job = await ftthService.scheduleFirmwareUpgrade({
       scope: req.body.scope,
@@ -531,15 +530,11 @@ router.post('/firmware-jobs', requirePermission('onu_firmware_jobs.create'), val
 
 router.put('/firmware-jobs/:id', requirePermission('onu_firmware_jobs.update'), validate(updateOnuFirmwareJob), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id, status FROM onu_firmware_jobs WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
+    if (!await writableRow(res, 'onu_firmware_jobs', req.params.id, req.orgId)) return;
+    const updateData = declaredFields(req.body, updateOnuFirmwareJob);
     const { assignments, values } = buildUpdate(updateData);
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
-    await db.query(`UPDATE onu_firmware_jobs SET ${setClause} WHERE id = ?`, [...values, req.params.id]);
+    await db.query(`UPDATE onu_firmware_jobs SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.id, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_firmware_jobs WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -547,17 +542,14 @@ router.put('/firmware-jobs/:id', requirePermission('onu_firmware_jobs.update'), 
 
 router.post('/firmware-jobs/:id/cancel', requirePermission('onu_firmware_jobs.update'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id, status FROM onu_firmware_jobs WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    if (!['pending', 'queued'].includes(check[0].status)) {
-      return res.status(409).json({ error: `Cannot cancel a job in status '${check[0].status}'` });
+    const job = await writableRow(res, 'onu_firmware_jobs', req.params.id, req.orgId, 'id, status');
+    if (!job) return;
+    if (!['pending', 'queued'].includes(job.status)) {
+      return res.status(409).json({ error: `Cannot cancel a job in status '${job.status}'` });
     }
     await db.query(
-      "UPDATE onu_firmware_jobs SET status = 'cancelled', updated_at = NOW() WHERE id = ?",
-      [req.params.id],
+      "UPDATE onu_firmware_jobs SET status = 'cancelled', updated_at = NOW() WHERE id = ? AND organization_id <=> ?",
+      [req.params.id, req.orgId],
     );
     const [rows] = await db.query('SELECT * FROM onu_firmware_jobs WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
@@ -566,12 +558,8 @@ router.post('/firmware-jobs/:id/cancel', requirePermission('onu_firmware_jobs.up
 
 router.delete('/firmware-jobs/:id', requirePermission('onu_firmware_jobs.delete'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_firmware_jobs WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.id, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    await db.query('UPDATE onu_firmware_jobs SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
+    if (!await writableRow(res, 'onu_firmware_jobs', req.params.id, req.orgId)) return;
+    await db.query('UPDATE onu_firmware_jobs SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?', [req.params.id, req.orgId]);
     res.status(204).send();
   } catch (err) { next(err); }
 });
