@@ -691,7 +691,8 @@ router.post('/:id/unapply', requirePermission('payments.update'), async (req, re
 });
 
 // Send payment receipt PDF via email
-router.post('/:id/send-receipt', requirePermission('payments.view'), async (req, res, next) => {
+// Emailing a receipt is a mutation; readonly holds payments.view (FE-13).
+router.post('/:id/send-receipt', requirePermission('payments.update'), async (req, res, next) => {
   try {
     const paymentId = parseInt(req.params.id, 10);
     const pdfService = require('../services/pdfService');
