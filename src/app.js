@@ -637,7 +637,7 @@ app.get('/health/ready', async (_req, res) => {
 app.post('/acs/cwmp',
   acsLimiter,
   acsService.requireCwmpContentType,
-  express.text({ type: acsService.isCwmpBody, limit: config.acs.maxBody }),
+  express.text({ type: acsService.isCwmpBody, limit: config.acs?.maxBody || '512kb' }),
   acsService.handleCwmpRequest);
 
 // ---------------------------------------------------------------------------
