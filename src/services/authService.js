@@ -616,7 +616,7 @@ async function changePassword(userId, currentPassword, newPassword) {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  // Clears the forced-change flag (migration 479).
+  // Clears the forced-change flag (migration 480).
   await db.query(
     'UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?',
     [passwordHash, user.id],

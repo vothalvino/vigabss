@@ -180,7 +180,7 @@ async function authenticate(req, _res, next) {
 
     // An account that must replace its password (the installer-created
     // administrator) may only read its profile, change the password, or log
-    // out until it does (migration 479).
+    // out until it does (migration 480).
     if (Number(user.must_change_password) === 1 && !PASSWORD_CHANGE_ALLOWED.test(requestPath(req))) {
       throw new AppError('Change your password before continuing', 403, 'PASSWORD_CHANGE_REQUIRED');
     }

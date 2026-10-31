@@ -80,7 +80,7 @@ async function bootstrap(env = process.env) {
   // has to be given it here.
   const [result] = await db.query(
     // must_change_password: the initial password was printed on the console,
-    // so it is replaced at first login (migration 479).
+    // so it is replaced at first login (migration 480).
     `INSERT INTO users (first_name, last_name, email, password_hash, role, group_id, organization_id, status, is_install_operator, must_change_password)
      VALUES ('Admin', 'User', ?, ?, 'admin',
              (SELECT id FROM roles WHERE name = 'admin' AND deleted_at IS NULL LIMIT 1), ?, 'active', 1, 1)`,

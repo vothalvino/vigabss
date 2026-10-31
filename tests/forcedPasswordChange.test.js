@@ -1,5 +1,5 @@
 // =============================================================================
-// Forced password change at first login (migration 479)
+// Forced password change at first login (migration 480)
 // =============================================================================
 // The installer prints the first administrator's generated password on the
 // console; nothing made the operator replace it. That account is now created

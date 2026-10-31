@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration 479 — force a password change at first login
+-- Migration 480 — force a password change at first login
 -- =============================================================================
 -- The installer creates the first administrator with a generated password it
 -- prints on the console (OPS-03). Nothing made the operator replace it, so a
@@ -11,9 +11,9 @@
 -- MySQL DDL.
 -- =============================================================================
 
-DROP PROCEDURE IF EXISTS migration_479_users_must_change_password;
+DROP PROCEDURE IF EXISTS migration_480_users_must_change_password;
 DELIMITER //
-CREATE PROCEDURE migration_479_users_must_change_password()
+CREATE PROCEDURE migration_480_users_must_change_password()
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
@@ -21,11 +21,11 @@ BEGIN
   ) THEN
     ALTER TABLE users
       ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0
-        COMMENT '1 = the account must set a new password before doing anything else; set for the installer-created administrator (migration 479)'
+        COMMENT '1 = the account must set a new password before doing anything else; set for the installer-created administrator (migration 480)'
         AFTER is_install_operator;
   END IF;
 END //
 DELIMITER ;
 
-CALL migration_479_users_must_change_password();
-DROP PROCEDURE IF EXISTS migration_479_users_must_change_password;
+CALL migration_480_users_must_change_password();
+DROP PROCEDURE IF EXISTS migration_480_users_must_change_password;

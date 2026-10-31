@@ -126,7 +126,7 @@ working. New documentation uses the VigaBSS names.
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 362 tables + column additions)
-│   └── migrations/          # Individual numbered migration files (001–479)
+│   └── migrations/          # Individual numbered migration files (001–480)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -726,7 +726,7 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 
 > **Upgrade — encrypt existing gateway and PAC credentials (BIL-08):** Payment-gateway and PAC settings used to store the secret key, webhook secret and PAC username/password/token exactly as sent, so those `*_encrypted` columns hold plaintext on existing installs even with `ENCRYPTION_KEY` set. The settings APIs now take write-only fields (`secret_key`, `webhook_secret` for `/payment-gateways`; `username`, `password`, `token` for `/pac-providers`), encrypt them server-side (refusing in production without `ENCRYPTION_KEY`), reject a client-sent `*_encrypted` field with 422, and keep the stored value when a field is left blank. Existing rows keep working (reads pass legacy plaintext through); to remove the plaintext at rest run `pnpm run credentials:encrypt` (dry run) and then `pnpm run credentials:encrypt -- --apply` against the production database with its `ENCRYPTION_KEY` loaded. It is safe to rerun.
 
-> **Migration 479 — forced password change at first login:** Adds `users.must_change_password`. The administrator a fresh install creates gets it set, so the password the installer printed must be replaced at first login; until then that account can only view its profile, change its password, or log out (other requests answer 403 `PASSWORD_CHANGE_REQUIRED`). Existing accounts are not affected.
+> **Migration 480 — forced password change at first login:** Adds `users.must_change_password`. The administrator a fresh install creates gets it set, so the password the installer printed must be replaced at first login; until then that account can only view its profile, change its password, or log out (other requests answer 403 `PASSWORD_CHANGE_REQUIRED`). Existing accounts are not affected.
 
 > **Upgrade — scheduled work reaches isolated organizations (ASY-06):** Install-wide tasks ran against the primary database only, so an organization with its own (isolated) database was never invoiced, suspended, auto-charged, retried, sent reminders or scheduled reports, and its devices were never polled — while the stale copy of its rows left on the primary could be. Invoicing, suspension, the billing cycle, autopay, payment retries, follow-ups, surveys, escalations, CSD and SLA checks, scheduled reports and SNMP polling now run on the primary (isolated organizations excluded) and then inside each isolated organization's database. **If you run isolated organizations, expect their first runs after the upgrade to catch up** (for example, billing periods not yet invoiced). The nightly database backup still covers the primary database only; back up isolated databases separately.
 
