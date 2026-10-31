@@ -58,16 +58,16 @@ const DYN = '@@DYN@@';
 // Tables the app talks to that are intentionally NOT in schema.sql. Most
 // FreeRADIUS tables (radcheck, radreply, radusergroup, radgroupcheck,
 // radgroupreply, radpostauth) are actually MIRRORED in schema.sql — VigaBSS
-// writes them directly, so they must be checked like any other table. Only
-// `radacct` (FreeRADIUS's own accounting table, written by FreeRADIUS itself,
-// never by VigaBSS) and `nas` were originally listed here as "external" — that
-// was wrong for `nas`: VigaBSS owns a first-party `nas` table (device
-// inventory + RADIUS secrets) that IS in schema.sql, and excluding it meant
-// every INSERT/UPDATE against it went completely unchecked.
+// writes them directly, so they must be checked like any other table.
+// `radacct` (FreeRADIUS's own accounting table) and `nas` used to be listed
+// here. Both were wrong: VigaBSS owns a first-party `nas` table that IS in
+// schema.sql, and no install has `radacct` (VigaBSS never creates it), so the
+// exemption hid a portal query against it that failed for every subscriber
+// (DB-03). Any query against radacct now fails this check.
 // `information_schema` is MySQL's built-in system schema (used for runtime
 // `IF COLUMN EXISTS`-style guards, e.g. cpeInventoryService.js) — never a
 // table in our own schema.sql, and never checkable against it.
-const EXTERNAL_TABLES = new Set(['radacct', 'information_schema']);
+const EXTERNAL_TABLES = new Set(['information_schema']);
 
 // Words that may follow `UPDATE <table>` but are not a table alias.
 const NOT_AN_ALIAS = new Set(['set', 'join', 'inner', 'left', 'right', 'cross', 'straight_join', 'where']);

@@ -83,6 +83,7 @@ const whatsappService = require('../services/whatsappService');
 const config = require('../config');
 const logger = require('../utils/logger');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
+const radiusService = require('../services/radiusService');
 
 const router = Router();
 
@@ -826,31 +827,29 @@ router.get('/dashboard', async (req, res, next) => {
       [clientId, req.client.organizationId],
     );
 
-    // Current RADIUS session status
+    // Current RADIUS session status. This joined `radacct`, a FreeRADIUS SQL
+    // table VigaBSS never creates, with non-stock column names, so the
+    // dashboard 500ed for every subscriber with an active contract (DB-03).
+    // Live sessions come from VigaBSS's own connection_logs projection.
     let session = null;
     if (contract) {
-      const [sessions] = await db.query(
-        `SELECT r.username, r.status AS radius_status,
-                ra.acct_session_id, ra.framed_ip, ra.calling_station_id,
-                ra.acctsessiontime AS session_seconds,
-                ra.acctinputoctets AS bytes_in, ra.acctoutputoctets AS bytes_out
+      const [accounts] = await db.query(
+        `SELECT r.username, r.status AS radius_status
          FROM radius r
-         LEFT JOIN radacct ra ON ra.username = r.username
-           AND ra.acctstoptime IS NULL
-         WHERE r.contract_id = ?
+         WHERE r.contract_id = ? AND r.organization_id <=> ? AND r.deleted_at IS NULL
          LIMIT 1`,
-        [contract.contract_id],
+        [contract.contract_id, req.client.organizationId],
       );
-      if (sessions[0]) {
-        const s = sessions[0];
+      if (accounts[0]) {
+        const live = await radiusService.getSessionByContractId(contract.contract_id, req.client.organizationId);
         session = {
-          status: s.radius_status === 'active' ? 'connected' : 'disconnected',
-          username: s.username,
-          ip: s.framed_ip || null,
-          mac: s.calling_station_id || null,
-          session_seconds: s.session_seconds || 0,
-          bytes_in: s.bytes_in || 0,
-          bytes_out: s.bytes_out || 0,
+          status: live ? 'connected' : 'disconnected',
+          username: accounts[0].username,
+          ip: live?.ip || null,
+          mac: live?.calling_station_id || null,
+          session_seconds: Number(live?.session_duration) || 0,
+          bytes_in: Number(live?.bytes_in) || 0,
+          bytes_out: Number(live?.bytes_out) || 0,
         };
       }
     }
