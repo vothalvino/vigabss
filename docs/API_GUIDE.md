@@ -43,19 +43,9 @@ release is `0.1.0-alpha.1`.
 
 VigaBSS uses JWT (JSON Web Tokens) for authentication. Tokens are issued on login and must be included in every authenticated request.
 
-### Register
+### Accounts
 
-```http
-POST /api/v1/auth/register
-Content-Type: application/json
-
-{
-  "firstName": "John",
-  "lastName": "Doe",
-  "email": "john@example.com",
-  "password": "securePassword123"
-}
-```
+There is no public self-registration. An administrator creates staff accounts with `POST /api/v1/users`.
 
 ### Login
 

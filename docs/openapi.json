@@ -674,37 +674,6 @@
     }
   ],
   "paths": {
-    "/auth/register": {
-      "post": {
-        "tags": [
-          "Auth"
-        ],
-        "summary": "Register new user",
-        "operationId": "register",
-        "requestBody": {
-          "description": "auth_register",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "User",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/auth/login": {
       "post": {
         "tags": [

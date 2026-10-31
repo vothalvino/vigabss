@@ -410,7 +410,7 @@ app.use('/api/', csrfOriginCheck);
 // reloads 429 and bounce active users to the login screen. They stay on the general
 // apiLimiter (200/window, applied above). '/password-reset' also covers
 // '/password-reset/request' by prefix.
-for (const sub of ['/login', '/register', '/password-reset', '/change-password', '/verify-email']) {
+for (const sub of ['/login', '/password-reset', '/change-password', '/verify-email']) {
   app.use(`/api/auth${sub}`, authLimiter);
   app.use(`/api/v1/auth${sub}`, authLimiter);
 }
