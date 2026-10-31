@@ -129,6 +129,7 @@ describe('unread-count / mark read', () => {
 describe('work-order assignment emits', () => {
   test('POST with an assignee emits work_order.assigned', async () => {
     db.query
+      .mockResolvedValueOnce([[{ id: 3 }]]) // site_id ownership
       .mockResolvedValueOnce([{ insertId: 42 }]) // INSERT
       .mockResolvedValueOnce([[{ id: 42, assigned_to: 9, title: 'Tower fix' }]]); // fresh row
     const res = await request(app)
@@ -144,6 +145,7 @@ describe('work-order assignment emits', () => {
 
   test('POST without an assignee emits nothing', async () => {
     db.query
+      .mockResolvedValueOnce([[{ id: 3 }]]) // site_id ownership
       .mockResolvedValueOnce([{ insertId: 43 }])
       .mockResolvedValueOnce([[{ id: 43, assigned_to: null, title: 'Unassigned' }]]);
     const res = await request(app)
@@ -157,6 +159,7 @@ describe('work-order assignment emits', () => {
   test('PUT that changes the assignee emits; PUT keeping it does not', async () => {
     // change: before 5 → after 9
     db.query
+      .mockResolvedValueOnce([[{ id: 3 }]]) // site_id ownership
       .mockResolvedValueOnce([[{ assigned_to: 5 }]]) // before
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE
       .mockResolvedValueOnce([[{ id: 42, assigned_to: 9, title: 'Tower fix' }]]); // fresh
@@ -171,6 +174,7 @@ describe('work-order assignment emits', () => {
     mockAuthUser();
     // unchanged: before 9 → after 9
     db.query
+      .mockResolvedValueOnce([[{ id: 3 }]]) // site_id ownership
       .mockResolvedValueOnce([[{ assigned_to: 9 }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockResolvedValueOnce([[{ id: 42, assigned_to: 9, title: 'Tower fix' }]]);

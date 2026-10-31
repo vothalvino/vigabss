@@ -28,6 +28,8 @@ const isAuthLookup = (s) => typeof s === 'string' && /`users`/.test(s);
 const isWoBefore   = (s) => typeof s === 'string' && /SELECT \* FROM work_orders WHERE id = \? AND organization_id = \?/.test(s);
 const isWoUpdate   = (s) => typeof s === 'string' && /UPDATE work_orders SET/.test(s);
 const isWoRefetch  = (s) => typeof s === 'string' && /SELECT \* FROM work_orders WHERE id = \?$/.test(s.trim());
+// Ownership probes for the work order's linked ids: the fixture's rows are 42's.
+const isOwnedProbe = (s) => typeof s === 'string' && /^SELECT id FROM \w+ WHERE id = \? AND organization_id <=> \?/.test(s);
 
 const ADMIN_ROW = [[{ id: 1, email: 'admin@example.com', role: 'admin', status: 'active', organization_id: 42 }]];
 
@@ -43,8 +45,9 @@ const INSTALL_WO = {
 };
 
 function wire(beforeRow) {
-  db.query.mockImplementation(async (sql) => {
+  db.query.mockImplementation(async (sql, params = []) => {
     if (isAuthLookup(sql)) return ADMIN_ROW;
+    if (isOwnedProbe(sql)) return [[{ id: params[0] }]];
     if (isWoBefore(sql)) return [[{ ...beforeRow }]];
     if (isWoUpdate(sql)) return [{ affectedRows: 1 }];
     if (isWoRefetch(sql)) return [[{ ...beforeRow, status: 'completed' }]];
