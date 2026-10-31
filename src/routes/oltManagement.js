@@ -28,7 +28,8 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
-const { buildInsert, buildUpdate } = require('../utils/sqlBuild');
+const { buildInsert, buildUpdate, columnsOf } = require('../utils/sqlBuild');
+const { writableRow } = require('../utils/writableRow');
 const {
   createOltPort, updateOltPort, patchOltPort,
 } = require('../middleware/schemas/oltPorts');
@@ -72,7 +73,7 @@ router.post('/:id/ports', requirePermission('olt_ports.create'), validate(create
     if (devRows[0].type !== 'olt') return res.status(400).json({ error: 'Device is not an OLT' });
 
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
-    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, olt_device_id: req.params.id, ...fields });
+    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, olt_device_id: req.params.id, ...fields }, columnsOf(createOltPort, 'organization_id', 'olt_device_id'));
     const [result] = await db.query(
       `INSERT INTO olt_ports (${columns}) VALUES (${placeholders})`,
       values,
@@ -173,15 +174,11 @@ router.get('/ports/:portId', requirePermission('olt_ports.view'), async (req, re
  */
 router.put('/ports/:portId', requirePermission('olt_ports.update'), validate(updateOltPort), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM olt_ports WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.portId, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
+    if (!await writableRow(res, 'olt_ports', req.params.portId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, olt_device_id: _____, ...updateData } = req.body;
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updateOltPort));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
-    await db.query(`UPDATE olt_ports SET ${setClause} WHERE id = ?`, [...values, req.params.portId]);
+    await db.query(`UPDATE olt_ports SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.portId, req.orgId]);
     const [rows] = await db.query('SELECT * FROM olt_ports WHERE id = ?', [req.params.portId]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -192,15 +189,11 @@ router.put('/ports/:portId', requirePermission('olt_ports.update'), validate(upd
  */
 router.patch('/ports/:portId', requirePermission('olt_ports.update'), validate(patchOltPort), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM olt_ports WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.portId, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
+    if (!await writableRow(res, 'olt_ports', req.params.portId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, olt_device_id: _____, ...updateData } = req.body;
     if (!Object.keys(updateData).length) return res.status(400).json({ error: 'No fields to update' });
-    const { assignments, values } = buildUpdate(updateData);
-    await db.query(`UPDATE olt_ports SET ${assignments}, updated_at = NOW() WHERE id = ?`, [...values, req.params.portId]);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(patchOltPort));
+    await db.query(`UPDATE olt_ports SET ${assignments}, updated_at = NOW() WHERE id = ? AND organization_id <=> ?`, [...values, req.params.portId, req.orgId]);
     const [rows] = await db.query('SELECT * FROM olt_ports WHERE id = ?', [req.params.portId]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -211,12 +204,8 @@ router.patch('/ports/:portId', requirePermission('olt_ports.update'), validate(p
  */
 router.delete('/ports/:portId', requirePermission('olt_ports.delete'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM olt_ports WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.portId, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    await db.query('UPDATE olt_ports SET deleted_at = NOW() WHERE id = ?', [req.params.portId]);
+    if (!await writableRow(res, 'olt_ports', req.params.portId, req.orgId)) return;
+    await db.query('UPDATE olt_ports SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?', [req.params.portId, req.orgId]);
     res.status(204).send();
   } catch (err) { next(err); }
 });
@@ -270,7 +259,7 @@ router.get('/splitters/:splitterId', requirePermission('olt_splitters.view'), as
 router.post('/splitters', requirePermission('olt_splitters.create'), validate(createOltSplitter), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
-    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
+    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOltSplitter, 'organization_id'));
     const [result] = await db.query(
       `INSERT INTO olt_splitters (${columns}) VALUES (${placeholders})`,
       values,
@@ -285,15 +274,11 @@ router.post('/splitters', requirePermission('olt_splitters.create'), validate(cr
  */
 router.put('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(updateOltSplitter), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM olt_splitters WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.splitterId, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
+    if (!await writableRow(res, 'olt_splitters', req.params.splitterId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updateOltSplitter));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
-    await db.query(`UPDATE olt_splitters SET ${setClause} WHERE id = ?`, [...values, req.params.splitterId]);
+    await db.query(`UPDATE olt_splitters SET ${setClause} WHERE id = ? AND organization_id <=> ?`, [...values, req.params.splitterId, req.orgId]);
     const [rows] = await db.query('SELECT * FROM olt_splitters WHERE id = ?', [req.params.splitterId]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -304,15 +289,11 @@ router.put('/splitters/:splitterId', requirePermission('olt_splitters.update'), 
  */
 router.patch('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(patchOltSplitter), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM olt_splitters WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.splitterId, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
+    if (!await writableRow(res, 'olt_splitters', req.params.splitterId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
     if (!Object.keys(updateData).length) return res.status(400).json({ error: 'No fields to update' });
-    const { assignments, values } = buildUpdate(updateData);
-    await db.query(`UPDATE olt_splitters SET ${assignments}, updated_at = NOW() WHERE id = ?`, [...values, req.params.splitterId]);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(patchOltSplitter));
+    await db.query(`UPDATE olt_splitters SET ${assignments}, updated_at = NOW() WHERE id = ? AND organization_id <=> ?`, [...values, req.params.splitterId, req.orgId]);
     const [rows] = await db.query('SELECT * FROM olt_splitters WHERE id = ?', [req.params.splitterId]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -323,12 +304,8 @@ router.patch('/splitters/:splitterId', requirePermission('olt_splitters.update')
  */
 router.delete('/splitters/:splitterId', requirePermission('olt_splitters.delete'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM olt_splitters WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.splitterId, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    await db.query('UPDATE olt_splitters SET deleted_at = NOW() WHERE id = ?', [req.params.splitterId]);
+    if (!await writableRow(res, 'olt_splitters', req.params.splitterId, req.orgId)) return;
+    await db.query('UPDATE olt_splitters SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?', [req.params.splitterId, req.orgId]);
     res.status(204).send();
   } catch (err) { next(err); }
 });
@@ -510,18 +487,15 @@ router.post('/onu-migrations', requirePermission('onu_migration_jobs.create'), v
  */
 router.patch('/onu-migrations/:jobId', requirePermission('onu_migration_jobs.update'), validate(patchOnuMigrationJob), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id, status FROM onu_migration_jobs WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.jobId, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    if (check[0].status === 'completed') {
+    const job = await writableRow(res, 'onu_migration_jobs', req.params.jobId, req.orgId, 'id, status');
+    if (!job) return;
+    if (job.status === 'completed') {
       return res.status(409).json({ error: 'Cannot modify a completed migration job' });
     }
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
     if (!Object.keys(updateData).length) return res.status(400).json({ error: 'No fields to update' });
-    const { assignments, values } = buildUpdate(updateData);
-    await db.query(`UPDATE onu_migration_jobs SET ${assignments}, updated_at = NOW() WHERE id = ?`, [...values, req.params.jobId]);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(patchOnuMigrationJob));
+    await db.query(`UPDATE onu_migration_jobs SET ${assignments}, updated_at = NOW() WHERE id = ? AND organization_id <=> ?`, [...values, req.params.jobId, req.orgId]);
     const [rows] = await db.query('SELECT * FROM onu_migration_jobs WHERE id = ?', [req.params.jobId]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
@@ -532,12 +506,8 @@ router.patch('/onu-migrations/:jobId', requirePermission('onu_migration_jobs.upd
  */
 router.delete('/onu-migrations/:jobId', requirePermission('onu_migration_jobs.delete'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id FROM onu_migration_jobs WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.jobId, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    await db.query('UPDATE onu_migration_jobs SET deleted_at = NOW() WHERE id = ?', [req.params.jobId]);
+    if (!await writableRow(res, 'onu_migration_jobs', req.params.jobId, req.orgId)) return;
+    await db.query('UPDATE onu_migration_jobs SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?', [req.params.jobId, req.orgId]);
     res.status(204).send();
   } catch (err) { next(err); }
 });
@@ -547,17 +517,14 @@ router.delete('/onu-migrations/:jobId', requirePermission('onu_migration_jobs.de
  */
 router.post('/onu-migrations/:jobId/cancel', requirePermission('onu_migration_jobs.update'), async (req, res, next) => {
   try {
-    const [check] = await db.query(
-      'SELECT id, status FROM onu_migration_jobs WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-      [req.params.jobId, req.orgId],
-    );
-    if (!check.length) return res.status(404).json({ error: 'Not found' });
-    if (!['pending', 'queued'].includes(check[0].status)) {
+    const job = await writableRow(res, 'onu_migration_jobs', req.params.jobId, req.orgId, 'id, status');
+    if (!job) return;
+    if (!['pending', 'queued'].includes(job.status)) {
       return res.status(409).json({ error: 'Only pending or queued jobs can be cancelled' });
     }
     await db.query(
-      'UPDATE onu_migration_jobs SET status = \'cancelled\', updated_at = NOW() WHERE id = ?',
-      [req.params.jobId],
+      'UPDATE onu_migration_jobs SET status = \'cancelled\', updated_at = NOW() WHERE id = ? AND organization_id <=> ?',
+      [req.params.jobId, req.orgId],
     );
     const [rows] = await db.query('SELECT * FROM onu_migration_jobs WHERE id = ?', [req.params.jobId]);
     res.json({ data: rows[0] });

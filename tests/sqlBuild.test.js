@@ -2,50 +2,50 @@
 // VigaBSS 5.0 — sqlBuild helper tests
 // =============================================================================
 
-const { buildInsert, buildUpdate, buildBulkValues, quoteIdent } = require('../src/utils/sqlBuild');
+const { buildInsert, buildUpdate, columnsOf, buildBulkValues, quoteIdent } = require('../src/utils/sqlBuild');
 
 describe('sqlBuild.buildInsert', () => {
   test('produces quoted columns, matching placeholders, ordered values', () => {
-    const { columns, placeholders, values } = buildInsert({ organization_id: 1, name: 'r1', vlan: 10 });
+    const { columns, placeholders, values } = buildInsert({ organization_id: 1, name: 'r1', vlan: 10 }, Object.keys({ organization_id: 1, name: 'r1', vlan: 10 }));
     expect(columns).toBe('`organization_id`, `name`, `vlan`');
     expect(placeholders).toBe('?, ?, ?');
     expect(values).toEqual([1, 'r1', 10]);
   });
 
   test('JSON-stringifies object/array values (JSON columns)', () => {
-    const { values } = buildInsert({ name: 'x', options: { a: 1 }, tags: ['t'] });
+    const { values } = buildInsert({ name: 'x', options: { a: 1 }, tags: ['t'] }, Object.keys({ name: 'x', options: { a: 1 }, tags: ['t'] }));
     expect(values).toEqual(['x', JSON.stringify({ a: 1 }), JSON.stringify(['t'])]);
   });
 
   test('passes Date instances through as-is (mysql2 execute() binds Date natively; must not JSON.stringify it)', () => {
     const when = new Date('2026-01-01T00:00:00.000Z');
-    const { values } = buildInsert({ created_at: when });
+    const { values } = buildInsert({ created_at: when }, Object.keys({ created_at: when }));
     expect(values).toEqual([when]);
   });
 
   test('throws on empty object and on unsafe identifiers (SQLi guard)', () => {
-    expect(() => buildInsert({})).toThrow(/no columns/);
-    expect(() => buildInsert({ 'x`=1;--': 1 })).toThrow(/Unsafe SQL identifier/);
-    expect(() => buildInsert({ 'a b': 1 })).toThrow(/Unsafe SQL identifier/);
+    expect(() => buildInsert({}, Object.keys({}))).toThrow(/no columns/);
+    expect(() => buildInsert({ 'x`=1;--': 1 }, ['x`=1;--'])).toThrow(/Unsafe SQL identifier/);
+    expect(() => buildInsert({ 'a b': 1 }, Object.keys({ 'a b': 1 }))).toThrow(/Unsafe SQL identifier/);
   });
 });
 
 describe('sqlBuild.buildUpdate', () => {
   test('produces a parameterised assignment clause', () => {
-    const { assignments, values } = buildUpdate({ name: 'new', vlan: 20 });
+    const { assignments, values } = buildUpdate({ name: 'new', vlan: 20 }, Object.keys({ name: 'new', vlan: 20 }));
     expect(assignments).toBe('`name` = ?, `vlan` = ?');
     expect(values).toEqual(['new', 20]);
   });
 
   test('empty object yields empty assignments so callers can fall back', () => {
-    const { assignments, values } = buildUpdate({});
+    const { assignments, values } = buildUpdate({}, Object.keys({}));
     expect(assignments).toBe('');
     expect(values).toEqual([]);
   });
 
   test('coerces undefined to null and rejects unsafe identifiers', () => {
-    expect(buildUpdate({ a: undefined }).values).toEqual([null]);
-    expect(() => buildUpdate({ '`drop`': 1 })).toThrow(/Unsafe SQL identifier/);
+    expect(buildUpdate({ a: undefined }, Object.keys({ a: undefined })).values).toEqual([null]);
+    expect(() => buildUpdate({ '`drop`': 1 }, Object.keys({ '`drop`': 1 }))).toThrow(/Unsafe SQL identifier/);
   });
 });
 
@@ -101,5 +101,29 @@ describe('sqlBuild.quoteIdent', () => {
     expect(() => quoteIdent('1col')).toThrow();
     expect(() => quoteIdent('')).toThrow();
     expect(() => quoteIdent(null)).toThrow();
+  });
+});
+
+// DB-15: request bodies reached these helpers with only a few keys stripped,
+// so every other key — a foreign id, an encrypted column — became a column.
+describe('writable-column allowlist', () => {
+  test('keys outside the allowlist are dropped', () => {
+    const { columns, values } = buildInsert(
+      { organization_id: 1, name: 'pool', olt_port_id: 99, loid_password_encrypted: 'x' },
+      columnsOf({ name: { type: 'string' } }, 'organization_id'),
+    );
+    expect(columns).toBe('`organization_id`, `name`');
+    expect(values).toEqual([1, 'pool']);
+    const update = buildUpdate({ name: 'n', xgspon_mode: 'auto' }, ['name']);
+    expect(update.assignments).toBe('`name` = ?');
+  });
+
+  test('an allowlist is required', () => {
+    expect(() => buildInsert({ name: 'x' })).toThrow(/allowlist/);
+    expect(() => buildUpdate({ name: 'x' })).toThrow(/allowlist/);
+  });
+
+  test('nothing writable left is still refused on insert', () => {
+    expect(() => buildInsert({ olt_port_id: 9 }, ['name'])).toThrow(/no columns/);
   });
 });

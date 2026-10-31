@@ -10,7 +10,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
-const { buildInsert, buildUpdate } = require('../utils/sqlBuild');
+const { buildInsert, buildUpdate, columnsOf } = require('../utils/sqlBuild');
 const { createPtrRecord, updatePtrRecord } = require('../middleware/schemas/ptrRecords');
 
 const router = Router();
@@ -52,7 +52,7 @@ router.get('/:id', requirePermission('ptr_records.view'), async (req, res, next)
 router.post('/', requirePermission('ptr_records.create'), validate(createPtrRecord), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
-    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
+    const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createPtrRecord, 'organization_id'));
     const [result] = await db.query(
       `INSERT INTO ptr_records (${columns}) VALUES (${placeholders})`,
       values,
@@ -70,7 +70,7 @@ router.put('/:id', requirePermission('ptr_records.update'), validate(updatePtrRe
     );
     if (!check.length) return res.status(404).json({ error: 'Not found' });
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
-    const { assignments, values } = buildUpdate(updateData);
+    const { assignments, values } = buildUpdate(updateData, columnsOf(updatePtrRecord));
     const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
     await db.query(
       `UPDATE ptr_records SET ${setClause} WHERE id = ? AND organization_id = ?`,
