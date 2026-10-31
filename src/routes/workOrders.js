@@ -490,6 +490,9 @@ router.get('/', requirePermission('work_orders.view'), async (req, res, next) =>
               c.name AS client_name, s.name AS site_name, d.name AS device_name
        FROM work_orders wo
        LEFT JOIN users u ON u.id = wo.assigned_to
+         AND (u.organization_id = wo.organization_id OR EXISTS (
+           SELECT 1 FROM organization_users ou
+            WHERE ou.user_id = u.id AND ou.organization_id = wo.organization_id AND ou.deleted_at IS NULL))
        LEFT JOIN clients c ON c.id = wo.client_id AND c.organization_id = wo.organization_id
        LEFT JOIN sites s ON s.id = wo.site_id AND s.organization_id = wo.organization_id
        LEFT JOIN devices d ON d.id = wo.device_id AND d.organization_id = wo.organization_id
@@ -513,6 +516,9 @@ router.get('/:id', requirePermission('work_orders.view'), async (req, res, next)
               c.name AS client_name, s.name AS site_name, d.name AS device_name
        FROM work_orders wo
        LEFT JOIN users u ON u.id = wo.assigned_to
+         AND (u.organization_id = wo.organization_id OR EXISTS (
+           SELECT 1 FROM organization_users ou
+            WHERE ou.user_id = u.id AND ou.organization_id = wo.organization_id AND ou.deleted_at IS NULL))
        LEFT JOIN clients c ON c.id = wo.client_id AND c.organization_id = wo.organization_id
        LEFT JOIN sites s ON s.id = wo.site_id AND s.organization_id = wo.organization_id
        LEFT JOIN devices d ON d.id = wo.device_id AND d.organization_id = wo.organization_id

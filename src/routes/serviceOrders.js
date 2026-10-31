@@ -13,6 +13,7 @@ const ServiceOrder = require('../models/ServiceOrder');
 const Client = require('../models/Client');
 const Lead = require('../models/Lead');
 const Contract = require('../models/Contract');
+const User = require('../models/User');
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
@@ -57,6 +58,13 @@ async function assertServiceOrderFks(body, orgId) {
   if (body.contract_id !== undefined) {
     const contract = await Contract.findById(body.contract_id, orgId);
     if (!contract) throw new ValidationError('contract_id does not belong to this organization');
+  }
+  // The assignee becomes the install work order's technician on start, and
+  // that dispatch notifies them: any user id reached another tenant's staff
+  // (RTE-04). Same rule as a work order's assigned_to.
+  if (body.assigned_to) {
+    const ok = await User.hasEffectivePermission(body.assigned_to, orgId, 'work_orders.update');
+    if (!ok) throw new ValidationError('Assigned user is not authorized to work with work orders');
   }
 }
 
