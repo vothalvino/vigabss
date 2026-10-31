@@ -138,14 +138,19 @@ describe("stamp() with seal_mode='local'", () => {
 
   test('cancel for a local-sealed doc sends the CSD inline to /cfdi33/cancel/csd (no SW vault)', async () => {
     // SW's inline-CSD cancel: the CSD is sent in the request body (b64Cer/b64Key
-    // + passphrase), never registered in an SW vault. Capture the request and
-    // assert the endpoint + inline material; success maps to cancelado.
-    let cap;
+    // + passphrase), never registered in an SW vault. Capture the requests and
+    // assert the endpoint + inline material. EstatusUUID 201 only registers the
+    // request (CFD-01); the follow-up status check says it is cancelled.
+    const requests = [];
     const swServer = http.createServer((req, res) => {
       let b = ''; req.on('data', c => { b += c; });
       req.on('end', () => {
-        cap = { url: req.url, body: b };
+        requests.push({ url: req.url, body: b });
         res.setHeader('Content-Type', 'application/json');
+        if (/\/status$/.test(req.url)) {
+          res.end(JSON.stringify({ status: 'success', data: { estatus: 'Cancelado sin aceptación' } }));
+          return;
+        }
         res.end(JSON.stringify({ status: 'success', data: { acuse: '<Acuse><EstatusUUID>201</EstatusUUID></Acuse>', uuid: { 'AAAA1111-2222-4333-8444-555566667777': '201' } } }));
       });
     });
@@ -160,13 +165,79 @@ describe("stamp() with seal_mode='local'", () => {
       return [{ affectedRows: 1 }];
     });
     const result = await cfdiService.cancel(7, '02');
+    const cap = requests[0];
     expect(cap.url).toBe('/cfdi33/cancel/csd');
+    expect(requests[1].url).toBe('/cfdi33/cancel/aaaa1111-2222-4333-8444-555566667777/status');
     const payload = JSON.parse(cap.body);
     expect(payload).toMatchObject({ rfc: 'EKU9003173C9', motivo: '02', password: '12345678a' });
     expect(payload.b64Cer).toBeTruthy();
     expect(payload.b64Key).toBeTruthy();
     expect(result.status).toBe('cancelado');
     await new Promise(r => swServer.close(r));
+  });
+
+  // CFD-01: what SAT's answer to a cancellation request really means.
+  async function cancelAgainst({ code, status = null, doc = {} }) {
+    const requests = [];
+    const swServer = http.createServer((req, res) => {
+      let b = ''; req.on('data', c => { b += c; });
+      req.on('end', () => {
+        requests.push({ url: req.url, body: b });
+        res.setHeader('Content-Type', 'application/json');
+        if (/\/status$/.test(req.url)) {
+          res.end(JSON.stringify({ status: 'success', data: { estatus: status } }));
+          return;
+        }
+        res.end(JSON.stringify({ status: 'success', data: { acuse: `<Acuse><EstatusUUID>${code}</EstatusUUID></Acuse>`, uuid: { 'AAAA1111-2222-4333-8444-555566667777': String(code) } } }));
+      });
+    });
+    await new Promise(r => swServer.listen(0, '127.0.0.1', r));
+    const port = swServer.address().port;
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM cfdi_documents WHERE id/.test(sql)) return [[{ id: 7, organization_id: 5, uuid: 'aaaa1111-2222-4333-8444-555566667777', sat_status: 'vigente', invoice_id: null, ...doc }]];
+      if (/FROM pac_providers/.test(sql)) return [[localPac({ api_url: `http://127.0.0.1:${port}` })]];
+      if (/FROM csd_certificates/.test(sql)) return [[{ ...CSD_ROW }]];
+      if (/FROM organization_mx_profiles/.test(sql)) return [[{ rfc: 'EKU9003173C9', razon_social: 'E', regimen_fiscal: '601', codigo_postal_fiscal: '42501' }]];
+      if (/INSERT INTO cfdi_cancellations/.test(sql)) return [{ insertId: 1 }];
+      return [{ affectedRows: 1 }];
+    });
+    try {
+      return { result: await cfdiService.cancel(7, '02'), requests };
+    } finally {
+      await new Promise(r => swServer.close(r));
+    }
+  }
+  const docUpdates = () => db.query.mock.calls.filter(([sql]) => /^\s*UPDATE cfdi_documents/.test(sql));
+  const cancellationUpdate = () => db.query.mock.calls.find(([sql]) => /UPDATE cfdi_cancellations\s+SET cancellation_status/.test(sql));
+
+  test('201 while the receptor has not answered is cancel_pending, not cancelado', async () => {
+    const { result } = await cancelAgainst({ code: 201, status: 'En proceso' });
+    expect(result.status).toBe('cancel_pending');
+    expect(docUpdates()).toHaveLength(1);
+    expect(docUpdates()[0][0]).toContain("sat_status = 'cancel_pending'");
+    expect(docUpdates()[0][0]).toContain("AND sat_status = 'vigente'");
+  });
+
+  test('a refused request (SAT 205) keeps the CFDI vigente and records why', async () => {
+    const { result, requests } = await cancelAgainst({ code: 205 });
+    expect(result.status).toBe('rejected');
+    expect(result.error_message).toMatch(/^SAT 205/);
+    expect(requests).toHaveLength(1); // no status check for a refusal
+    expect(docUpdates()).toHaveLength(0);
+    const [, params] = cancellationUpdate();
+    expect(params[0]).toBe('rejected');
+    expect(params[4]).toMatch(/^SAT 205/);
+  });
+
+  test.each([300, 305, 310])('a %i (request-level SAT error) is a refusal', async (code) => {
+    const { result } = await cancelAgainst({ code });
+    expect(result.status).toBe('rejected');
+  });
+
+  test('a cancel_pending CFDI can be retried; SAT 202 plus the consulta settles it', async () => {
+    const { result } = await cancelAgainst({ code: 202, status: 'Cancelado con aceptación', doc: { sat_status: 'cancel_pending' } });
+    expect(result.status).toBe('cancelado');
+    expect(docUpdates()[0][0]).toContain("sat_status IN ('vigente', 'cancel_pending')");
   });
 
   test("seal_mode='pac' still uses the Emisión (issue) endpoint with plain-XML JSON", async () => {

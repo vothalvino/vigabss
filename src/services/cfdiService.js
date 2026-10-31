@@ -979,7 +979,9 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null) {
   const [docs] = await db.query('SELECT * FROM cfdi_documents WHERE id = ?', [cfdiDocumentId]);
   const doc = docs[0];
   if (!doc) throw new AppError('CFDI document not found', 404, 'CFDI_NOT_FOUND');
-  if (doc.sat_status !== 'vigente') {
+  // cancel_pending may be retried (CFD-01): SAT answers 202 for a request it
+  // already has, and the consulta below then reports where it stands.
+  if (!['vigente', 'cancel_pending'].includes(doc.sat_status)) {
     throw new AppError(`Can only cancel vigente documents — this one is ${doc.sat_status}.`, 409, 'CFDI_NOT_VIGENTE');
   }
   if (!doc.uuid) {
@@ -1084,8 +1086,23 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null) {
     await db.query('UPDATE cfdi_cancellations SET pac_provider_id = ? WHERE id = ?', [usedPac.id, cancellationId]);
   }
 
+  // 201/202 only say SAT registered the request: ask SAT where it stands now
+  // (cancelled without acceptance, en proceso, or refused) instead of booking
+  // it as cancelled (CFD-01). A failed consulta leaves it pending.
+  if (pacResult.registered) {
+    try {
+      const consulta = await callPacCancelStatus(usedPac, doc.uuid, null);
+      if (consulta && consulta.status && consulta.status !== 'pending') {
+        pacResult = { ...pacResult, status: consulta.status, error: consulta.error || pacResult.error };
+      }
+    } catch (err) {
+      logger.warn({ cfdiDocumentId, err: err.message }, 'SAT status check after cancellation failed — left pending');
+    }
+  }
+
   // Process PAC response
   const finalStatus = pacResult.status || 'pending';
+  const errorMessage = finalStatus === 'rejected' ? (pacResult.error || 'SAT rejected the cancellation request') : null;
   const acuseXml = pacResult.acuseXml || null;
   // PAC branches return acuseFecha in whatever form the provider gives
   // (simulator/dev: ISO-8601 with 'T'+'Z') — MySQL DATETIME rejects that form
@@ -1096,36 +1113,43 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null) {
   // Update cancellation record with PAC response
   await db.query(
     `UPDATE cfdi_cancellations
-     SET cancellation_status = ?, acuse_xml = ?, acuse_fecha = ?, responded_at = NOW()
+     SET cancellation_status = ?, acuse_xml = ?, acuse_fecha = ?, responded_at = ?, error_message = ?
      WHERE id = ?`,
-    [finalStatus, acuseXml, acuseFecha, cancellationId],
+    [finalStatus, acuseXml, acuseFecha, finalStatus === 'pending' ? null : new Date(), errorMessage, cancellationId],
   );
 
-  // Move the CFDI per the PAC response. The doc is still 'vigente' at this
-  // point (it is flipped only now that a PAC has actually answered).
+  // Move the CFDI per the outcome. Each write is conditional on the state the
+  // document can be in, so a concurrent cancel or status check cannot be
+  // overwritten (e.g. pending must not undo a cancelado another call booked).
+  let docStatus = doc.sat_status;
   if (finalStatus === 'accepted') {
-    await db.query(
-      'UPDATE cfdi_documents SET sat_status = ?, cancellation_reason = ?, cancellation_uuid = ?, cancelled_at = NOW() WHERE id = ?',
-      ['cancelado', reason, replacementUuid, cfdiDocumentId],
+    const [moved] = await db.query(
+      `UPDATE cfdi_documents SET sat_status = 'cancelado', cancellation_reason = ?, cancellation_uuid = ?, cancelled_at = NOW()
+        WHERE id = ? AND sat_status IN ('vigente', 'cancel_pending')`,
+      [reason, replacementUuid, cfdiDocumentId],
     );
-    await syncInvoiceCancelled(cfdiDocumentId);
-  } else if (finalStatus === 'rejected') {
-    // SAT rejected — the doc stays vigente (never moved). Nothing to do.
-  } else {
-    // pending (202 — awaiting receptor acceptance): now flip to cancel_pending;
-    // getCancellationStatus resolves it later.
+    if (moved.affectedRows === 1) await syncInvoiceCancelled(cfdiDocumentId);
+    docStatus = 'cancelado';
+  } else if (finalStatus === 'pending') {
+    // En proceso (awaiting the receptor's acceptance): getCancellationStatus
+    // and the poll_cfdi_cancellations task resolve it later.
     await db.query(
-      'UPDATE cfdi_documents SET sat_status = ?, cancellation_reason = ?, cancellation_uuid = ? WHERE id = ?',
-      ['cancel_pending', reason, replacementUuid, cfdiDocumentId],
+      `UPDATE cfdi_documents SET sat_status = 'cancel_pending', cancellation_reason = ?, cancellation_uuid = ?
+        WHERE id = ? AND sat_status = 'vigente'`,
+      [reason, replacementUuid, cfdiDocumentId],
     );
+    if (docStatus === 'vigente') docStatus = 'cancel_pending';
   }
+  // rejected: the CFDI stays as it was (vigente; a retried cancel_pending
+  // keeps waiting on its earlier request).
 
   logger.info({ cfdiDocumentId, cancellationId, finalStatus }, 'CFDI cancellation processed');
   return {
     cfdi_document_id: cfdiDocumentId,
     cancellation_id: cancellationId,
-    status: finalStatus === 'accepted' ? 'cancelado' : finalStatus === 'rejected' ? 'rejected' : 'cancel_pending',
+    status: finalStatus === 'rejected' ? 'rejected' : docStatus,
     reason,
+    error_message: errorMessage,
     acuse_xml: acuseXml,
   };
 }
@@ -1169,10 +1193,11 @@ async function callPacCancel(pac, uuid, reason, replacementUuid, doc) {
     if (!estatusUuid) {
       throw new Error(finkokIncidencia(resp) || finkokTag(resp, 'CodEstatus') || 'Finkok cancellation returned no EstatusUUID');
     }
+    // EstatusUUID 201/202 only says SAT registered the request; Finkok's
+    // EstatusCancelacion (when present) carries the outcome (CFD-01).
+    const outcome = classifyCancellation({ code: estatusUuid, cancellationStatus: finkokTag(resp, 'EstatusCancelacion') });
     return {
-      // Finkok EstatusUUID mirrors SAT's (201 cancelled / 202 pending); reuse
-      // the shared parser so downstream sat_status handling is provider-neutral.
-      status: parseCancellationStatus(estatusUuid || finkokTag(resp, 'EstatusCancelacion')),
+      ...outcome,
       acuseXml: finkokTag(resp, 'Acuse') ? decodeXmlEntities(finkokTag(resp, 'Acuse')) : null,
       acuseFecha: finkokTag(resp, 'Fecha') || null,
     };
@@ -1223,7 +1248,7 @@ async function callPacCancel(pac, uuid, reason, replacementUuid, doc) {
     const acuse = cancelData.data?.acuse || null;
     const estatusMatch = acuse ? acuse.match(/<EstatusUUID>(\d+)<\/EstatusUUID>/) : null;
     return {
-      status: parseCancellationStatus(perUuid || estatusMatch?.[1]),
+      ...classifyCancellation({ code: perUuid || estatusMatch?.[1] }),
       acuseXml: acuse,
       acuseFecha: cancelData.data?.fechaCancelacion || null,
     };
@@ -1270,18 +1295,67 @@ async function callPacCancel(pac, uuid, reason, replacementUuid, doc) {
   };
 }
 
+// SAT EstatusUUID codes of a cancellation request (CFD-01). 201 means the
+// request was REGISTERED and 202 that it already was — neither says the CFDI
+// is cancelled: one that needs the receptor's acceptance stays 'En proceso'
+// for up to 72 hours, and a receptor can refuse. The outcome comes from
+// EstatusCancelacion / Estado (the SAT consulta). 203–212 and 3xx refuse the
+// request; the CFDI stays vigente.
+const SAT_CANCEL_REJECTIONS = {
+  203: 'El folio fiscal no corresponde al emisor',
+  204: 'El folio fiscal no es aplicable a cancelación',
+  205: 'El folio fiscal no existe en el SAT',
+  206: 'El UUID no corresponde a un CFDI del sector primario',
+  207: 'No se especificó el motivo de cancelación o no es válido',
+  208: 'El folio de sustitución no es válido',
+  209: 'El folio de sustitución no es requerido para este motivo',
+  210: 'La fecha de solicitud es mayor a la fecha de declaración',
+  211: 'La fecha de solicitud excede el límite para la factura global',
+  212: 'La relación no es válida o no existe',
+};
+
 /**
- * Normalize PAC cancellation status strings to internal enum values.
+ * Classify a PAC/SAT cancellation answer.
+ *
+ * @param {object} answer
+ * @param {string|number|null} [answer.code]    EstatusUUID (201, 202, 203…, 3xx)
+ * @param {string|null} [answer.cancellationStatus] EstatusCancelacion text
+ * @param {string|null} [answer.estado]          SAT Estado (Vigente/Cancelado)
+ * @returns {{ status: 'accepted'|'pending'|'rejected', registered: boolean, error: string|null }}
+ *   registered = the request was taken but its outcome is not known yet
+ */
+function classifyCancellation({ code = null, cancellationStatus = null, estado = null } = {}) {
+  const text = `${cancellationStatus || ''} ${estado || ''}`.toLowerCase();
+  if (/cancelad|plazo vencido/.test(text)) return { status: 'accepted', registered: false, error: null };
+  if (/rechaz|no cancelable|denegad|no encontrado/.test(text)) {
+    return { status: 'rejected', registered: false, error: (cancellationStatus || 'Solicitud rechazada').trim() };
+  }
+  if (/en proceso/.test(text)) return { status: 'pending', registered: false, error: null };
+
+  const n = Number.parseInt(String(code ?? '').trim(), 10);
+  if (n === 201 || n === 202) return { status: 'pending', registered: true, error: null };
+  if ((n >= 203 && n <= 212) || (n >= 300 && n <= 399)) {
+    return {
+      status: 'rejected',
+      registered: false,
+      error: `SAT ${n}: ${SAT_CANCEL_REJECTIONS[n] || 'el SAT rechazó la solicitud de cancelación'}`,
+    };
+  }
+  return { status: 'pending', registered: !Number.isNaN(n), error: null };
+}
+
+/**
+ * Normalize a PAC cancellation status (code or text) to the internal value.
+ * 201/202 are 'pending': they only say the request was registered.
  */
 function parseCancellationStatus(rawStatus) {
   if (!rawStatus) return 'pending';
   const s = String(rawStatus).toLowerCase().trim();
-  if (s === '201' || s === 'cancelado' || s === 'accepted' || s === 'cancelled') return 'accepted';
-  if (s === '202' || s === 'en proceso' || s === 'pending' || s === 'in_progress') return 'pending';
-  if (s === '203' || s === 'rechazado' || s === 'rejected') return 'rejected';
-  if (s === '204' || s === 'no encontrado' || s === 'not_found') return 'rejected';
-  if (s === '205' || s === 'no cancelable') return 'rejected';
-  return 'pending';
+  if (s === 'accepted' || s === 'cancelled') return 'accepted';
+  if (s === 'rejected' || s === 'not_found') return 'rejected';
+  if (s === 'pending' || s === 'in_progress') return 'pending';
+  const asCode = /^\d+$/.test(s);
+  return classifyCancellation(asCode ? { code: s } : { cancellationStatus: s }).status;
 }
 
 /**
@@ -1348,24 +1422,26 @@ async function getCancellationStatus(cancellationId) {
     // Update cancellation record
     await db.query(
       `UPDATE cfdi_cancellations
-       SET cancellation_status = ?, acuse_xml = ?, acuse_fecha = ?, responded_at = NOW()
-       WHERE id = ?`,
+       SET cancellation_status = ?, acuse_xml = ?, acuse_fecha = ?, responded_at = NOW(), error_message = ?
+       WHERE id = ? AND cancellation_status = 'pending'`,
       // Same DATETIME normalization as cancel(): ISO-Z strings are rejected
       // by MySQL strict mode — bind a Date object.
-      [finalStatus, pacResult.acuseXml, pacResult.acuseFecha ? new Date(pacResult.acuseFecha) : null, cancellationId],
+      [finalStatus, pacResult.acuseXml, pacResult.acuseFecha ? new Date(pacResult.acuseFecha) : null,
+        finalStatus === 'rejected' ? (pacResult.error || 'SAT rejected the cancellation request') : null, cancellationId],
     );
 
-    // Update CFDI document status
+    // Update CFDI document status — only from the state it can be in.
     if (finalStatus === 'accepted') {
-      await db.query(
-        'UPDATE cfdi_documents SET sat_status = ?, cancelled_at = NOW() WHERE id = ?',
-        ['cancelado', cancellation.cfdi_document_id],
+      const [moved] = await db.query(
+        `UPDATE cfdi_documents SET sat_status = 'cancelado', cancelled_at = NOW()
+          WHERE id = ? AND sat_status IN ('vigente', 'cancel_pending')`,
+        [cancellation.cfdi_document_id],
       );
-      await syncInvoiceCancelled(cancellation.cfdi_document_id);
+      if (moved.affectedRows === 1) await syncInvoiceCancelled(cancellation.cfdi_document_id);
     } else if (finalStatus === 'rejected') {
       await db.query(
-        'UPDATE cfdi_documents SET sat_status = ? WHERE id = ?',
-        ['vigente', cancellation.cfdi_document_id],
+        "UPDATE cfdi_documents SET sat_status = 'vigente' WHERE id = ? AND sat_status = 'cancel_pending'",
+        [cancellation.cfdi_document_id],
       );
     }
   }
@@ -1374,10 +1450,48 @@ async function getCancellationStatus(cancellationId) {
     cancellation_id: cancellationId,
     cfdi_document_id: cancellation.cfdi_document_id,
     status: finalStatus,
+    error_message: finalStatus === 'rejected' ? (pacResult.error || 'SAT rejected the cancellation request') : null,
     acuse_xml: pacResult.acuseXml || cancellation.acuse_xml,
     acuse_fecha: pacResult.acuseFecha || cancellation.acuse_fecha,
     responded_at: finalStatus !== 'pending' ? new Date().toISOString() : null,
   };
+}
+
+/**
+ * Resolve this organization's cancellations that are still waiting on SAT
+ * (scheduled task poll_cfdi_cancellations). A cancellation needing the
+ * receptor's acceptance stays 'En proceso' for up to 72 hours and is accepted
+ * by default after that ('Plazo vencido'), so without polling a document sat
+ * in cancel_pending until someone opened it (CFD-01).
+ *
+ * @param {number} organizationId
+ * @param {{ limit?: number }} [options]
+ * @returns {Promise<{ checked: number, resolved: number, errors: number }>}
+ */
+async function pollPendingCancellations(organizationId, { limit = 200 } = {}) {
+  const [rows] = await db.query(
+    `SELECT c.id
+       FROM cfdi_cancellations c
+       JOIN cfdi_documents d ON d.id = c.cfdi_document_id
+      WHERE c.organization_id = ? AND c.cancellation_status = 'pending'
+        AND d.sat_status = 'cancel_pending'
+      ORDER BY c.requested_at ASC
+      LIMIT ?`,
+    [organizationId, limit],
+  );
+  const summary = { checked: 0, resolved: 0, errors: 0 };
+  for (const { id } of rows) {
+    summary.checked++;
+    try {
+      const result = await getCancellationStatus(id);
+      if (result.error) summary.errors++;
+      else if (result.status !== 'pending') summary.resolved++;
+    } catch (err) {
+      summary.errors++;
+      logger.warn({ cancellationId: id, err: err.message }, 'Cancellation status poll failed');
+    }
+  }
+  return summary;
 }
 
 /**
@@ -1411,11 +1525,8 @@ async function callPacCancelStatus(pac, uuid, _cancellation) {
     // cancel_pending doc back to 'vigente' only on a rejected result. A
     // receptor declining a Motivo-01/02 request leaves Estado=Vigente with
     // EstatusCancelacion like "Solicitud rechazada".
-    let status;
-    if (/cancelad/i.test(estado || '')) status = 'accepted';
-    else if (/rechaz|no cancelable|denegad/i.test(estatusCancel)) status = 'rejected';
-    else status = 'pending';
-    return { status, acuseXml: null, acuseFecha: null };
+    const { status, error } = classifyCancellation({ cancellationStatus: estatusCancel, estado });
+    return { status, error, acuseXml: null, acuseFecha: null };
   }
 
   if (pac.provider_name === 'sw_sapien') {
@@ -2133,7 +2244,8 @@ function lastDayOfMonth(year, month) {
 module.exports = {
   generateXml, buildCfdi40Xml, escapeXml, cfdiExpeditionTime, getEmisorProfile, swAuthToken, stamp, cancel,
   callPacStamp, callPacCancel, callPacCancelStatus,
-  parseCancellationStatus, getCancellationStatus, listCancellations,
+  parseCancellationStatus, classifyCancellation, getCancellationStatus, listCancellations,
+  pollPendingCancellations,
   generatePaymentComplement, buildPaymentComplementXml, enrichRelatedDocumentsWithTaxes, getPaymentComplement,
   getReconciliationReport,
   httpRequest, circuitBreaker, providerBreaker, receptorDataHint,

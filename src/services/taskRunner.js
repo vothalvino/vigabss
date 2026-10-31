@@ -58,7 +58,7 @@ const ORGANIZATION_SCOPED_TASK_NAMES = new Set([
   'inventory_low_stock_check', 'data_retention_compliance_check',
   'anomaly_detection', 'churn_score_computation', 'remediation_evaluation',
   'ai_support_metrics_rollup', 'rollover_balance_accrue', 'apply_speed_windows',
-  'poll_pppoe_events', 'reconcile_gateway_payments',
+  'poll_pppoe_events', 'reconcile_gateway_payments', 'poll_cfdi_cancellations',
 ]);
 
 const PPPoE_EVENT_POLL_TASK = 'poll_pppoe_events';
@@ -275,6 +275,10 @@ async function runTask(taskName, organizationId = null) {
     // org it fans out over every active org, isolated tenants included.
     case 'reconcile_gateway_payments':
       return require('./paymentGatewayService').reconcileOutstandingTransactions(organizationId);
+    // Migration 476: resolve CFDI cancellations still waiting on SAT
+    // (receptor acceptance / 72-hour plazo) — CFD-01.
+    case 'poll_cfdi_cancellations':
+      return perOrganization(taskName, organizationId, orgId => require('./cfdiService').pollPendingCancellations(orgId));
     case 'data_retention':
       return retentionService.runGeneral();
     case 'database_backup':
