@@ -1382,6 +1382,27 @@ describe('cancelOrder', () => {
     suspensionService.sendRadiusDisconnect.mockResolvedValue({ sent: true });
   });
 
+  // RTE-03: a relabelled or never-started order, or a caller without
+  // contracts.update, must not cancel the pending contract linked to it.
+  test.each([
+    ['an upgrade order', { order_type: 'upgrade', status: 'in_process' }, true],
+    ['a new_install that never started', { order_type: 'new_install', status: 'new' }, true],
+    ['a caller without contracts.update', { order_type: 'upgrade', status: 'in_process' }, false],
+  ])('%s leaves a linked pending contract alone', async (_label, order, canCancelContract) => {
+    conn.query.mockImplementation(async (sql) => {
+      if (/FROM service_orders WHERE id = \?/.test(sql)) return [[{ id: 1, contract_id: 900, organization_id: 1, ...order }]];
+      if (/FROM contracts WHERE id = \?/.test(sql)) return [[{ id: 900, status: 'pending', organization_id: 1 }]];
+      return [{ affectedRows: 1 }];
+    });
+    db.query.mockResolvedValueOnce([[{ id: 1, status: 'cancelled', contract_id: 900 }]]);
+
+    const result = await lifecycleService.cancelOrder(1, { orgId: 1, canCancelContract });
+
+    expect(result.contractCancelled).toBe(false);
+    expect(conn.query.mock.calls.some(([sql]) => /UPDATE contracts|UPDATE radius/.test(sql))).toBe(false);
+    expect(suspensionService.sendRadiusDisconnect).not.toHaveBeenCalled();
+  });
+
   test('rejects a terminal-status order and rolls back', async () => {
     conn.query.mockResolvedValueOnce([[{ id: 1, status: 'done', contract_id: null }]]);
     await expect(lifecycleService.cancelOrder(1, { orgId: 1 })).rejects.toThrow(/Invalid service order transition/);
@@ -1432,7 +1453,7 @@ describe('cancelOrder', () => {
     const finalize = jest.spyOn(testWindowService, 'finalizeMarkedCleanup')
       .mockResolvedValue({ nas_disabled: true, disconnect_confirmed: true });
     conn.query
-      .mockResolvedValueOnce([[{ id: 1, status: 'in_process', contract_id: 900 }]]) // lock order
+      .mockResolvedValueOnce([[{ id: 1, order_type: 'new_install', status: 'in_process', contract_id: 900 }]]) // lock order
       .mockResolvedValueOnce([[
         {
           id: 900, status: 'pending', organization_id: 1, connection_type: 'pppoe',
@@ -1468,7 +1489,7 @@ describe('cancelOrder', () => {
     };
     const finalize = jest.spyOn(testWindowService, 'finalizeMarkedCleanup');
     conn.query
-      .mockResolvedValueOnce([[{ id: 1, status: 'in_process', contract_id: 900 }]])
+      .mockResolvedValueOnce([[{ id: 1, order_type: 'new_install', status: 'in_process', contract_id: 900 }]])
       .mockResolvedValueOnce([[
         {
           id: 900, status: 'pending', organization_id: 1, connection_type: 'pppoe',
@@ -1506,7 +1527,7 @@ describe('cancelOrder', () => {
       .mockResolvedValue({ nas_disabled: true });
     conn.query
       .mockResolvedValueOnce([[{
-        id: 1, status: 'in_process', contract_id: 900, organization_id: 1,
+        id: 1, order_type: 'new_install', status: 'in_process', contract_id: 900, organization_id: 1,
       }]])
       .mockResolvedValueOnce([[
         {
@@ -1540,7 +1561,7 @@ describe('cancelOrder', () => {
 
   test('leaves an ACTIVE (manually-linked) contract completely untouched', async () => {
     conn.query
-      .mockResolvedValueOnce([[{ id: 1, status: 'in_process', contract_id: 900 }]]) // lock order
+      .mockResolvedValueOnce([[{ id: 1, order_type: 'new_install', status: 'in_process', contract_id: 900 }]]) // lock order
       .mockResolvedValueOnce([[{ id: 900, status: 'active' }]]) // lock contract — not pending
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // guarded UPDATE service_orders
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // pending signed documents -> cancelled

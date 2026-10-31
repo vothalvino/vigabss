@@ -68,9 +68,32 @@ async function assertServiceOrderFks(body, orgId) {
   }
 }
 
+// RTE-03: PUT/PATCH (service_orders.update) could relabel order_type or link
+// a contract_id, and cancel then cancelled whatever pending contract was
+// linked. Once an order has left 'new' the fields that decide what start and
+// cancel act on are frozen, and only someone who may run an installation
+// (installations.start) or change contracts (contracts.update) may make an
+// order a new installation, or stop it being one.
+const FROZEN_AFTER_START = ['order_type', 'contract_id', 'client_id', 'lead_id'];
+async function assertServiceOrderUpdate(old, req) {
+  const body = req.body || {};
+  const changes = f => body[f] !== undefined && String(body[f] ?? '') !== String(old[f] ?? '');
+  if (old.status !== 'new') {
+    const frozen = FROZEN_AFTER_START.filter(changes);
+    if (frozen.length) {
+      throw new ValidationError(`${frozen.join(', ')} cannot change once the order has started (status ${old.status})`);
+    }
+  }
+  if (changes('order_type') && (old.order_type === 'new_install' || body.order_type === 'new_install')
+      && !(await userHasPermission(req, 'installations.start') || await userHasPermission(req, 'contracts.update'))) {
+    throw new ForbiddenError('Making an order a new installation, or changing one, requires installations.start or contracts.update');
+  }
+  await assertServiceOrderFks(body, req.orgId);
+}
+
 const ctrl = crudController(ServiceOrder, {
   cacheResource: 'service-orders',
-  beforeUpdate: (_old, req) => assertServiceOrderFks(req.body, req.orgId),
+  beforeUpdate: assertServiceOrderUpdate,
 });
 
 router.use(authenticate);
@@ -291,12 +314,10 @@ router.post('/:id/complete', requirePermission('service_orders.update'), validat
 router.post('/:id/cancel', requirePermission('service_orders.update'), async (req, res, next) => {
   try {
     const candidate = await ServiceOrder.findByIdOrFail(req.params.id, req.orgId);
-    let canCancelContract = false;
-    if (candidate.order_type === 'new_install') {
-      canCancelContract = await userHasPermission(req, 'contracts.update');
-      if (!canCancelContract) {
-        throw new ForbiddenError('Cancelling a new installation requires contracts.update');
-      }
+    // Any contract mutation needs contracts.update, whatever the order type.
+    const canCancelContract = await userHasPermission(req, 'contracts.update');
+    if (candidate.order_type === 'new_install' && !canCancelContract) {
+      throw new ForbiddenError('Cancelling a new installation requires contracts.update');
     }
     const { order, contractCancelled } = await lifecycleService.cancelOrder(req.params.id, {
       orgId: req.orgId,
