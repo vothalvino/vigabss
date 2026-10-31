@@ -11,7 +11,16 @@
  * intentionally read-only; all subsequent write operations use the browser UI.
  */
 
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Locator } from '@playwright/test';
+
+// Client fields are a search box (ClientPicker), not a <select> of the
+// newest 100 clients (FE-04): type the name, then click the match.
+async function pickClient(scope: Locator, name: string): Promise<void> {
+  const input = scope.getByRole('textbox', { name: 'Client' });
+  await expect(input).toBeVisible({ timeout: 10_000 });
+  await input.fill(name);
+  await scope.getByRole('option', { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).click({ timeout: 10_000 });
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -168,13 +177,10 @@ test('full operator workflow smoke test', async ({ page, request }) => {
   // Scope all interactions to the New Contract dialog specifically
   const contractDialog = page.getByRole('dialog', { name: /new contract/i });
 
-  // Wait for the client dropdown to be populated
-  const clientSelect = contractDialog.locator('select').first();
-  await expect(clientSelect).toBeVisible({ timeout: 10_000 });
-  await clientSelect.selectOption({ label: clientName });
+  await pickClient(contractDialog, clientName);
 
-  // Select the first plan
-  const planSelect = contractDialog.locator('select').nth(1);
+  // Select the first plan (the first select now that the client is a search box)
+  const planSelect = contractDialog.locator('select').first();
   await planSelect.selectOption({ index: 1 }); // first real option after the placeholder
 
   // Start date is pre-filled with today — leave it as-is
@@ -197,10 +203,7 @@ test('full operator workflow smoke test', async ({ page, request }) => {
 
   const generateDialog = page.getByRole('dialog', { name: /generate invoice/i });
 
-  // Select client (first select in the dialog)
-  const invClientSelect = generateDialog.locator('select').first();
-  await expect(invClientSelect).toBeVisible({ timeout: 10_000 });
-  await invClientSelect.selectOption({ label: clientName });
+  await pickClient(generateDialog, clientName);
 
   // The modal starts with NO line items — GenerateInvoiceModal was redesigned
   // into a flexible builder ("Start with no line — the user picks the type"),
@@ -209,8 +212,8 @@ test('full operator workflow smoke test', async ({ page, request }) => {
   // for a second <select> that no longer existed until this click.
   await generateDialog.getByRole('button', { name: /contract charge/i }).click();
 
-  // Now the contract picker exists — the second select in the dialog.
-  const invContractSelect = generateDialog.locator('select').nth(1);
+  // Now the contract picker exists — the first select in the dialog.
+  const invContractSelect = generateDialog.locator('select').first();
   await expect(invContractSelect).toBeVisible({ timeout: 10_000 });
   await invContractSelect.selectOption({ index: 1 }); // first real option
 
@@ -228,9 +231,7 @@ test('full operator workflow smoke test', async ({ page, request }) => {
 
   const payDialog = page.getByRole('dialog', { name: /record payment/i });
 
-  const payClientSelect = payDialog.locator('select').first();
-  await expect(payClientSelect).toBeVisible({ timeout: 10_000 });
-  await payClientSelect.selectOption({ label: clientName });
+  await pickClient(payDialog, clientName);
 
   // Enter amount — overrides whatever the checklist auto-filled from this
   // client's open invoices (editing the amount never unchecks anything; the
@@ -266,8 +267,8 @@ test('full operator workflow smoke test', async ({ page, request }) => {
   const cnDialog = page.getByRole('dialog', { name: /new credit note/i });
   await expect(cnDialog).toBeVisible({ timeout: 10_000 });
 
-  // Client (first select) and the invoice this note credits (first number input).
-  await cnDialog.locator('select').first().selectOption({ label: clientName });
+  // Client and the invoice this note credits (first number input).
+  await pickClient(cnDialog, clientName);
   const cnNumbers = cnDialog.locator('input[type="number"]');
   await cnNumbers.nth(0).fill(String(invoice.id));   // invoice_id
 
@@ -315,15 +316,14 @@ test('full operator workflow smoke test', async ({ page, request }) => {
 
   // Link to client — NOT optional any more. TicketList.tsx:262 disables the
   // submit button unless subject, client AND category are all set.
-  const ticketClientSelect = ticketDialog.locator('select').first();
-  await ticketClientSelect.selectOption({ label: clientName });
+  await pickClient(ticketDialog, clientName);
 
   // Category became a required field with migration 394 (it mirrors the
   // tickets.category ENUM), which landed after this spec was written. Without
   // it the Create Ticket button stays `disabled` and the click hangs until the
   // test times out — which is exactly how this failed.
-  // Selects in the dialog, in order: client, assigned_to, priority, status, category.
-  const ticketCategorySelect = ticketDialog.locator('select').nth(4);
+  // Selects in the dialog, in order: assigned_to, priority, status, category.
+  const ticketCategorySelect = ticketDialog.locator('select').nth(3);
   await expect(ticketCategorySelect).toBeVisible({ timeout: 10_000 });
   await ticketCategorySelect.selectOption({ index: 1 }); // first real category
 
