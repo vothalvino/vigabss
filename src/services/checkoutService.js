@@ -101,7 +101,9 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
         description: `Invoice ${invoice.invoice_number}`,
         successUrl,
         cancelUrl,
-        metadata: { invoice_id: invoiceId, client_id: resolvedClientId, transaction_id: transactionId },
+        // organization_id: the install-wide webhook route resolves the owning
+        // tenant (and its database) from this signed metadata (WHK-11).
+        metadata: { invoice_id: invoiceId, client_id: resolvedClientId, transaction_id: transactionId, organization_id: organizationId },
       });
     } catch (err) {
       await db.query(
@@ -174,7 +176,9 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
         successUrl,
         failureUrl,
         expiresAt: conektaExpiresAt,
-        metadata: { invoice_id: invoiceId, client_id: resolvedClientId, transaction_id: transactionId },
+        // organization_id: the install-wide webhook route resolves the owning
+        // tenant (and its database) from this signed metadata (WHK-11).
+        metadata: { invoice_id: invoiceId, client_id: resolvedClientId, transaction_id: transactionId, organization_id: organizationId },
       });
     } catch (err) {
       await db.query(

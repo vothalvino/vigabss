@@ -8,6 +8,10 @@ const crypto = require('crypto');
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   getConnection: jest.fn(),
+  // Webhook processing runs inside the owning organization's database
+  // context (WHK-11); here both contexts are the one mocked database.
+  withTenantContext: jest.fn((_organizationId, fn) => fn()),
+  withPrimaryContext: jest.fn(fn => fn()),
 }));
 
 // Mock logger to prevent output noise
@@ -432,10 +436,12 @@ describe('Payment Webhooks & Idempotency', () => {
     });
 
     test('checkout.session.completed recovers a tx via metadata.transaction_id when the reference lookup misses', async () => {
+      // Within the organization the event belongs to (gateway route, or the
+      // env route reading metadata.organization_id) — WHK-11.
       const payload = {
         id: 'evt_cs_orphan',
         type: 'checkout.session.completed',
-        data: { object: { id: 'cs_orphan', payment_status: 'paid', metadata: { transaction_id: '201' } } },
+        data: { object: { id: 'cs_orphan', payment_status: 'paid', metadata: { transaction_id: '201', organization_id: '42' } } },
       };
       const tx = { id: 201, client_id: 5, invoice_id: 78, organization_id: 42, amount: '100.00', currency: 'MXN', gateway_reference_id: 'pending_stripe_x' };
 
@@ -454,10 +460,32 @@ describe('Payment Webhooks & Idempotency', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const result = await paymentGatewayService.handleWebhookEvent({
-        provider: 'stripe', providerEventId: 'evt_cs_orphan', eventType: 'checkout.session.completed', payload,
+        provider: 'stripe', providerEventId: 'evt_cs_orphan', eventType: 'checkout.session.completed', payload, organizationId: 42,
       });
       expect(result.status).toBe('processed');
       expect(result.transactionId).toBe(201);
+      const fallback = db.query.mock.calls.find(([sql]) => /FROM payment_transactions WHERE id = \?/.test(sql));
+      expect(fallback[0]).toMatch(/AND organization_id = \?/);
+      expect(fallback[1]).toEqual(['201', 42]);
+    });
+
+    test('without a known organization, metadata.transaction_id is never looked up by id alone', async () => {
+      const payload = {
+        id: 'evt_cs_foreign',
+        type: 'checkout.session.completed',
+        data: { object: { id: 'cs_foreign', payment_status: 'paid', metadata: { transaction_id: '201' } } },
+      };
+      db.query
+        .mockResolvedValueOnce([[]])                  // No duplicate
+        .mockResolvedValueOnce([{ insertId: 15 }])    // INSERT webhook_events
+        .mockResolvedValueOnce([[]])                  // find by gateway_reference_id -> MISS
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE webhook_events no match
+
+      const result = await paymentGatewayService.handleWebhookEvent({
+        provider: 'stripe', providerEventId: 'evt_cs_foreign', eventType: 'checkout.session.completed', payload,
+      });
+      expect(result.status).toBe('no_match');
+      expect(db.query.mock.calls.some(([sql]) => /FROM payment_transactions WHERE id = \?/.test(sql))).toBe(false);
     });
 
     test('checkout.session.completed in SETUP mode enrolls autopay (no payment reconcile)', async () => {
