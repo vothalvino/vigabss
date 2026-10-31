@@ -69,12 +69,12 @@ beforeEach(() => { jest.clearAllMocks(); captured = null; });
 
 describe('Finkok stamp (SOAP, pre-sealed)', () => {
   beforeEach(() => {
-    respond = () => `<senv:Envelope xmlns:senv="http://schemas.xmlsoap.org/soap/envelope/"><senv:Body>`
-      + `<stampResponse><stampResult>`
-      + `<UUID>fedcba98-7654-4321-8000-abcdefabcdef</UUID>`
-      + `<xml>&lt;cfdi:Comprobante&gt;&lt;tfd:TimbreFiscalDigital/&gt;&lt;/cfdi:Comprobante&gt;</xml>`
-      + `<SatSeal>SAT_SEAL_B64</SatSeal><CodEstatus>Comprobante timbrado satisfactoriamente</CodEstatus>`
-      + `</stampResult></stampResponse></senv:Body></senv:Envelope>`;
+    respond = () => '<senv:Envelope xmlns:senv="http://schemas.xmlsoap.org/soap/envelope/"><senv:Body>'
+      + '<stampResponse><stampResult>'
+      + '<UUID>fedcba98-7654-4321-8000-abcdefabcdef</UUID>'
+      + '<xml>&lt;cfdi:Comprobante&gt;&lt;tfd:TimbreFiscalDigital/&gt;&lt;/cfdi:Comprobante&gt;</xml>'
+      + '<SatSeal>SAT_SEAL_B64</SatSeal><CodEstatus>Comprobante timbrado satisfactoriamente</CodEstatus>'
+      + '</stampResult></stampResponse></senv:Body></senv:Envelope>';
     db.query.mockImplementation(async (sql) => {
       if (/FROM cfdi_documents WHERE id/.test(sql)) return [[{ id: 9, organization_id: 5, xml_content: UNSEALED_XML, sat_status: 'draft', invoice_id: null }]];
       if (/FROM pac_providers/.test(sql)) return [[finkokPac()]];
@@ -99,23 +99,40 @@ describe('Finkok stamp (SOAP, pre-sealed)', () => {
     expect(captured.body).toContain('<fin:username>user@x.com</fin:username>');
   });
 
-  test('surfaces a Finkok incidencia when no UUID comes back', async () => {
-    respond = () => `<senv:Envelope xmlns:senv="http://schemas.xmlsoap.org/soap/envelope/"><senv:Body>`
-      + `<stampResponse><stampResult><Incidencias><Incidencia>`
-      + `<CodigoError>307</CodigoError><MensajeIncidencia>Comprobante existente</MensajeIncidencia>`
-      + `</Incidencia></Incidencias></stampResult></stampResponse></senv:Body></senv:Envelope>`;
-    await expect(cfdiService.stamp(9)).rejects.toThrow(/PAC stamping failed.*Comprobante existente/s);
+  const incidencia = (code, message) => '<senv:Envelope xmlns:senv="http://schemas.xmlsoap.org/soap/envelope/"><senv:Body>'
+    + '<stampResponse><stampResult><Incidencias><Incidencia>'
+    + `<CodigoError>${code}</CodigoError><MensajeIncidencia>${message}</MensajeIncidencia>`
+    + '</Incidencia></Incidencias></stampResult></stampResponse></senv:Body></senv:Envelope>';
+
+  test('surfaces a Finkok incidencia when no UUID comes back, as a definite refusal', async () => {
+    respond = () => incidencia(705, 'XML mal formado');
+    await expect(cfdiService.stamp(9)).rejects.toThrow(/PAC stamping failed.*XML mal formado/s);
+    // CFD-02: the error is kept on the draft, and a refusal is not ambiguous.
+    const [, params] = db.query.mock.calls.find(([sql]) => /SET stamp_error = \?/.test(sql));
+    expect(params[0]).toContain('XML mal formado');
+    expect(params[1]).toBe(0);
+  });
+
+  test('307 (stamped before, e.g. after a timeout) fetches the earlier stamp instead of failing', async () => {
+    respond = (body) => (body.includes('<fin:stamped>')
+      ? '<senv:Envelope xmlns:senv="http://schemas.xmlsoap.org/soap/envelope/"><senv:Body><stampedResponse><stampedResult>'
+        + '<UUID>11111111-2222-4333-8444-555555555555</UUID><xml>&lt;cfdi:Comprobante/&gt;</xml>'
+        + '</stampedResult></stampedResponse></senv:Body></senv:Envelope>'
+      : incidencia(307, 'Comprobante existente'));
+    const res = await cfdiService.stamp(9);
+    expect(res.uuid).toBe('11111111-2222-4333-8444-555555555555');
+    expect(captured.soapAction).toBe('stamped');
   });
 });
 
 describe('Finkok cancel (SOAP, locally-signed with the CSD)', () => {
   beforeEach(() => {
-    respond = () => `<senv:Envelope xmlns:senv="http://schemas.xmlsoap.org/soap/envelope/"><senv:Body>`
-      + `<cancelResponse><cancelResult><Folios><Folio>`
-      + `<UUID>fedcba98-7654-4321-8000-abcdefabcdef</UUID><EstatusUUID>201</EstatusUUID>`
-      + `<EstatusCancelacion>Cancelado sin aceptación</EstatusCancelacion></Folio></Folios>`
-      + `<Acuse>&lt;Acuse/&gt;</Acuse><Fecha>2026-07-21T10:05:00</Fecha></cancelResult></cancelResponse>`
-      + `</senv:Body></senv:Envelope>`;
+    respond = () => '<senv:Envelope xmlns:senv="http://schemas.xmlsoap.org/soap/envelope/"><senv:Body>'
+      + '<cancelResponse><cancelResult><Folios><Folio>'
+      + '<UUID>fedcba98-7654-4321-8000-abcdefabcdef</UUID><EstatusUUID>201</EstatusUUID>'
+      + '<EstatusCancelacion>Cancelado sin aceptación</EstatusCancelacion></Folio></Folios>'
+      + '<Acuse>&lt;Acuse/&gt;</Acuse><Fecha>2026-07-21T10:05:00</Fecha></cancelResult></cancelResponse>'
+      + '</senv:Body></senv:Envelope>';
     db.query.mockImplementation(async (sql) => {
       if (/FROM cfdi_documents WHERE id/.test(sql)) return [[{ id: 9, organization_id: 5, uuid: 'fedcba98-7654-4321-8000-abcdefabcdef', sat_status: 'vigente', invoice_id: null, serie: 'A', folio: 9, total: '116.00' }]];
       if (/FROM pac_providers/.test(sql)) return [[finkokPac()]];

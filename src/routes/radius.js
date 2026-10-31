@@ -21,6 +21,7 @@ const {
 } = require('../services/radiusService');
 const { createRoute, updateWalledGarden } = require('../middleware/schemas/radius');
 const db = require('../config/database');
+const radiusService = require('../services/radiusService');
 const {
   exportCdr, listMacMoveEvents, ingestAccounting, recordInfrastructureAccounting,
 } = require('../services/radiusAccountingService');
@@ -49,7 +50,32 @@ const accountingIngestLimiter = rateLimit({
 // (see the /contract/:contractId/credentials and /:id/credentials routes
 // below) so a role like `support` can get credentials without also gaining
 // `devices.view`'s broader device-management surface.
-const ctrl = crudController(Radius, { serialize: Radius.sanitize });
+// External FreeRADIUS authenticates from the rad* tables, keyed by username,
+// and the periodic sync only rewrites active accounts (NET-03). Deleting an
+// account, renaming it or setting it non-active removes the rows of the OLD
+// username first (usernames are unique among live rows, so no other live
+// account owns it); an account left active is rewritten right away.
+async function purgeFreeradiusUsername(username) {
+  if (!username) return;
+  await db.query('DELETE FROM radcheck WHERE username = ?', [username]);
+  await db.query('DELETE FROM radreply WHERE username = ?', [username]);
+  await db.query('DELETE FROM radusergroup WHERE username = ?', [username]);
+}
+
+const ctrl = crudController(Radius, {
+  serialize: Radius.sanitize,
+  beforeUpdate: async (old, req) => {
+    const renamed = req.body.username !== undefined && req.body.username !== old.username;
+    const deactivated = req.body.status !== undefined && req.body.status !== 'active';
+    if (renamed || deactivated) await purgeFreeradiusUsername(old.username);
+  },
+  afterUpdate: async (record, req) => {
+    if (record.status === 'active' && record.contract_id) {
+      await radiusService.syncFreeradiusTables(req.orgId, { contractId: record.contract_id });
+    }
+  },
+  beforeDelete: async locked => purgeFreeradiusUsername(locked.username),
+});
 
 router.use(authenticate);
 router.use(orgScope);

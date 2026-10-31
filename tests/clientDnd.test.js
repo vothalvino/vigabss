@@ -38,6 +38,7 @@ jest.mock('../src/middleware/rbac', () => ({
 
 // Mock rateLimit middleware to avoid Redis dependency
 jest.mock('../src/middleware/rateLimit', () => ({
+  acsLimiter: (_req, _res, next) => next(),
   tenantApiLimiter: (_req, _res, next) => next(),
   apiLimiter: (_req, _res, next) => next(),
   sessionLimiter: (_req, _res, next) => next(),

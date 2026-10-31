@@ -28,6 +28,7 @@ const db = require('../config/database');
 const Invoice = require('../models/Invoice');
 const { invoiceTaxFraction } = require('./billingService');
 const { AppError } = require('../utils/errors');
+const { allocateLineTaxes } = require('../utils/cfdiAmounts');
 const cfdiService = require('./cfdiService');
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'invoiceCfdi' });
@@ -100,7 +101,7 @@ async function resolveStampInputs(exec, invoiceId, orgId, opts) {
   if (existing[0]) {
     throw new AppError(
       existing[0].sat_status === 'draft'
-        ? `A draft CFDI (#${existing[0].id}) already exists for this invoice — retry stamping it from the CFDI page instead of converting again.`
+        ? `A draft CFDI (#${existing[0].id}) already exists for this invoice — retry stamping it, or rebuild it from the invoice if its data was wrong.`
         : `This invoice already has a live CFDI (#${existing[0].id}).`,
       409, 'CFDI_EXISTS',
     );
@@ -275,10 +276,20 @@ async function stampInvoice(invoiceId, orgId, opts = {}) {
     );
     docId = docResult.insertId;
 
-    // Conceptos + per-line IVA. Reconcile rounding on the LAST line so the
-    // traslado importes sum exactly to the invoice's stored tax_amount —
-    // never recompute invoice totals (they are the billing source of truth).
-    let taxRemaining = taxAmount;
+    // Conceptos + per-line IVA. The traslado importes sum exactly to the
+    // invoice's stored tax_amount — never recompute invoice totals (they are
+    // the billing source of truth). The split gives each line the floor or
+    // ceiling of base × rate, so every line stays inside its Anexo 20 limits;
+    // the old last-line plug could fall outside them (CFD-03).
+    const lineTaxes = taxRate > 0
+      ? allocateLineTaxes(items.map(item => Number(item.amount || 0)), taxRate, taxAmount)
+      : null;
+    if (taxRate > 0 && !lineTaxes) {
+      throw new AppError(
+        `The invoice tax (${Number(taxAmount).toFixed(2)}) cannot be split over its lines at ${(taxRate * 100).toFixed(2)}% within SAT's limits — correct the invoice tax amount.`,
+        422, 'CFDI_TAX_OUT_OF_BOUNDS',
+      );
+    }
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const importe = Number(item.amount || 0);
@@ -297,11 +308,7 @@ async function stampInvoice(invoiceId, orgId, opts = {}) {
       );
 
       if (taxRate > 0) {
-        const isLast = i === items.length - 1;
-        const lineTax = isLast
-          ? Math.round(taxRemaining * 100) / 100
-          : Math.round(importe * taxRate * 100) / 100;
-        taxRemaining = Math.round((taxRemaining - lineTax) * 100) / 100;
+        const lineTax = lineTaxes[i];
         await conn.execute(
           `INSERT INTO cfdi_concepto_impuestos
              (cfdi_concepto_id, tax_type, impuesto, tipo_factor, base, tasa_o_cuota, importe)
@@ -354,4 +361,34 @@ async function stampInvoice(invoiceId, orgId, opts = {}) {
   }
 }
 
-module.exports = { stampInvoice, nextCfdiFolio, STAMPABLE_STATUSES };
+/**
+ * Rebuild an invoice's refused draft CFDI (CFD-02). Retrying a draft resends
+ * the XML it was built with — the same Fecha, receptor name/régimen/CP,
+ * UsoCFDI and conceptos — so a rejection those caused (a corrected client
+ * fiscal profile, a retry more than 72 hours after Fecha) could never be
+ * fixed. This discards the draft (refused while its last stamp attempt may
+ * have been stamped) and converts the invoice again from what it says now,
+ * with a new folio and Fecha, then submits it.
+ *
+ * @param {number} cfdiDocumentId
+ * @param {number} orgId
+ * @param {{ userId?: number|null, uso_cfdi?: string, forma_pago?: string }} [opts]
+ */
+async function rebuildDraft(cfdiDocumentId, orgId, opts = {}) {
+  const [rows] = await db.query(
+    'SELECT id, invoice_id, tipo_comprobante FROM cfdi_documents WHERE id = ? AND organization_id = ?',
+    [cfdiDocumentId, orgId],
+  );
+  const doc = rows[0];
+  if (!doc) throw new AppError('CFDI document not found', 404, 'CFDI_NOT_FOUND');
+  if (!doc.invoice_id || doc.tipo_comprobante !== 'I') {
+    throw new AppError(
+      'Only an invoice (ingreso) draft can be rebuilt — discard this draft and issue the document again.',
+      422, 'CFDI_NOT_REBUILDABLE',
+    );
+  }
+  await cfdiService.discardDraft(cfdiDocumentId, orgId, { userId: opts.userId ?? null });
+  return stampInvoice(doc.invoice_id, orgId, opts);
+}
+
+module.exports = { stampInvoice, rebuildDraft, nextCfdiFolio, STAMPABLE_STATUSES };

@@ -7,6 +7,12 @@
 
 const db = require('../config/database');
 const product = require('../product');
+const { rosQuote, rosToken, PORT_RANGE_PATTERN } = require('../utils/routerosScript');
+
+const PRIORITY_PATTERN = /^[1-8]$/;
+const QUEUE_KIND_PATTERN = /^[a-z0-9-]{1,32}$/;
+const PROTOCOL_PATTERN = /^[a-z0-9-]{1,16}$/;
+const DSCP_PATTERN = /^[0-9]{1,2}$/;
 
 // ---------------------------------------------------------------------------
 // Rate-string builders (mirrors radiusAttributeService logic but for templates)
@@ -15,7 +21,9 @@ const product = require('../product');
 /**
  * Build a MikroTik Mikrotik-Rate-Limit string from individual fields.
  *
- * Full format: "CIR-dl/CIR-ul burst-dl/burst-ul threshold-dl/threshold-ul burst-time"
+ * Full format: "CIR-ul/CIR-dl burst-ul/burst-dl threshold-ul/threshold-dl burst-time".
+ * RouterOS reads each pair as rx/tx from the router's side, so the first value
+ * caps what the client sends (upload) and the second what it receives.
  *
  * @param {object} params
  * @param {number} params.download_mbps
@@ -34,7 +42,7 @@ function buildMikrotikRateString(params) {
   const threshDl = params.burst_threshold_mbps || dl;
   const threshUl = params.burst_threshold_mbps || ul;
   const burstTime = params.burst_time_seconds || 8;
-  return `${dl}M/${ul}M ${burstDl}M/${burstUl}M ${threshDl}M/${threshUl}M ${burstTime}`;
+  return `${ul}M/${dl}M ${burstUl}M/${burstDl}M ${threshUl}M/${threshDl}M ${burstTime}`;
 }
 
 /**
@@ -101,12 +109,12 @@ function buildMikrotikQueueTreeScript(nodes) {
     const burstLimit = node.burst_limit_mbps ? `${node.burst_limit_mbps}M` : '0';
     const burstThresh = node.burst_threshold_mbps ? `${node.burst_threshold_mbps}M` : '0';
     const burstTime = node.burst_time_seconds ? `${node.burst_time_seconds}s` : '0s';
-    const parent = node.parent_name || 'none';
+    const parent = node.parent_name ? rosQuote(node.parent_name) : 'none';
     lines.push(
-      `add name="${node.name}" parent=${parent}` +
+      `add name=${rosQuote(node.name)} parent=${parent}` +
       ` max-limit=${maxLimit} burst-limit=${burstLimit}` +
       ` burst-threshold=${burstThresh} burst-time=${burstTime}` +
-      ` priority=${node.priority} queue=${node.queue_kind}` +
+      ` priority=${rosToken(node.priority, PRIORITY_PATTERN, 'priority')} queue=${rosToken(node.queue_kind, QUEUE_KIND_PATTERN, 'queue_kind')}` +
       (node.interface ? ' packet-mark=""' : '') +
       ' comment="VigaBSS auto-generated"',
     );
@@ -118,9 +126,9 @@ function buildMikrotikQueueTreeScript(nodes) {
     if (node.queue_type !== 'simple') continue;
     const maxLimit = node.max_limit_mbps ? `${node.max_limit_mbps}M/${node.max_limit_mbps}M` : '0/0';
     lines.push(
-      `add name="${node.name}" max-limit=${maxLimit}` +
-      ` priority=${node.priority}/${node.priority}` +
-      ` queue=${node.queue_kind}/${node.queue_kind}` +
+      `add name=${rosQuote(node.name)} max-limit=${maxLimit}` +
+      ` priority=${rosToken(node.priority, PRIORITY_PATTERN, 'priority')}/${node.priority}` +
+      ` queue=${rosToken(node.queue_kind, QUEUE_KIND_PATTERN, 'queue_kind')}/${node.queue_kind}` +
       ' comment="VigaBSS auto-generated"',
     );
   }
@@ -196,13 +204,14 @@ async function exportShapingRulesConfig(organizationId, planId = null) {
     if (rule.action === 'drop') {
       // Drop rule → filter instead
       lines.push(
-        `# SKIP (drop rules belong in /ip firewall filter, not mangle): ${rule.name}`,
+        `# SKIP (drop rules belong in /ip firewall filter, not mangle): rule ${rule.id}`,
       );
       continue;
     }
-    const proto = rule.protocol !== 'any' ? ` protocol=${rule.protocol}` : '';
-    const dstPort = rule.dst_port_range ? ` dst-port=${rule.dst_port_range}` : '';
-    const srcPort = rule.src_port_range ? ` src-port=${rule.src_port_range}` : '';
+    const proto = rule.protocol && rule.protocol !== 'any'
+      ? ` protocol=${rosToken(rule.protocol, PROTOCOL_PATTERN, 'protocol')}` : '';
+    const dstPort = rule.dst_port_range ? ` dst-port=${rosToken(rule.dst_port_range, PORT_RANGE_PATTERN, 'dst_port_range')}` : '';
+    const srcPort = rule.src_port_range ? ` src-port=${rosToken(rule.src_port_range, PORT_RANGE_PATTERN, 'src_port_range')}` : '';
     const chain = rule.direction === 'download' ? 'forward' : 'forward';
     const markConn = `mangle-${rule.id}-conn`;
     const markPkt = `mangle-${rule.id}-pkt`;
@@ -210,7 +219,7 @@ async function exportShapingRulesConfig(organizationId, planId = null) {
     if (rule.dscp_mark) {
       lines.push(
         `add chain=${chain} action=mark-connection${proto}${dstPort}${srcPort}` +
-        ` new-connection-mark=${markConn} passthrough=yes comment="${rule.name}"`,
+        ` new-connection-mark=${markConn} passthrough=yes comment=${rosQuote(rule.name)}`,
       );
       lines.push(
         `add chain=${chain} action=mark-packet connection-mark=${markConn}` +
@@ -219,7 +228,7 @@ async function exportShapingRulesConfig(organizationId, planId = null) {
     } else if (rule.limit_download_mbps || rule.limit_upload_mbps) {
       lines.push(
         `add chain=${chain} action=mark-connection${proto}${dstPort}${srcPort}` +
-        ` new-connection-mark=${markConn} passthrough=yes comment="${rule.name}"`,
+        ` new-connection-mark=${markConn} passthrough=yes comment=${rosQuote(rule.name)}`,
       );
       lines.push(
         `add chain=${chain} action=mark-packet connection-mark=${markConn}` +
@@ -262,7 +271,7 @@ async function exportDscpConfig(organizationId, format = 'json') {
     for (const r of rows) {
       const mark = r.dscp_name ? r.dscp_name : `mark_${r.dscp_value}`;
       lines.push(
-        `/ip firewall mangle add chain=prerouting action=mark-connection new-connection-mark=${mark} passthrough=yes comment="${r.name}" dscp=${r.dscp_value}`,
+        `/ip firewall mangle add chain=prerouting action=mark-connection new-connection-mark=${rosQuote(mark)} passthrough=yes comment=${rosQuote(r.name)} dscp=${rosToken(r.dscp_value, DSCP_PATTERN, 'dscp_value')}`,
       );
     }
     return lines.join('\n');

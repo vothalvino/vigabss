@@ -259,9 +259,9 @@ function ProfileForm({ initial, onSave, onClose, saving, editMode }: ProfileForm
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={modalStyles.label}>{t('pppoe_service_profiles.rate_limit_override', 'Rate Limit Override')}</label>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-              {t('pppoe_service_profiles.rate_limit_override_hint', "Vendor rate-limit string (e.g. MikroTik: '10M/5M'). MikroTik-specific.")}
+              {t('pppoe_service_profiles.rate_limit_override_hint', "Vendor rate-limit string (e.g. MikroTik, upload/download: '5M/10M'). MikroTik-specific.")}
             </div>
-            <input style={inp} value={rateLimitOverride} onChange={e => setRateLimitOverride(e.target.value)} placeholder="10M/5M" />
+            <input style={inp} value={rateLimitOverride} onChange={e => setRateLimitOverride(e.target.value)} placeholder="5M/10M" />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>

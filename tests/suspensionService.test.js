@@ -26,6 +26,10 @@ describe('suspensionService', () => {
       release: jest.fn(),
     };
     db.getConnection.mockResolvedValue(mockConnection);
+    // FreeRADIUS row writes (NET-03) are covered in freeradiusServiceState.test.js.
+    const radiusService = require('../src/services/radiusService');
+    jest.spyOn(radiusService, 'syncFreeradiusContract').mockResolvedValue({ found: false, enabled: false });
+    jest.spyOn(radiusService, 'syncFreeradiusTables').mockResolvedValue({ synced: 1, errors: 0, purged: 0 });
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -103,7 +107,7 @@ describe('suspensionService', () => {
   // suspendContract
   // =========================================================================
   describe('suspendContract', () => {
-    test('suspends contract and logs event within transaction', async () => {
+    test('suspends contract in a transaction, then disconnects and logs the event', async () => {
       // The contract is locked and, for a rule, the overdue invoice re-checked
       // before any write (BIL-11).
       mockConnection.execute.mockImplementation(async (sql) => {
@@ -119,7 +123,7 @@ describe('suspensionService', () => {
       await suspensionService.suspendContract(10, 1, 5, 50);
 
       expect(mockConnection.beginTransaction).toHaveBeenCalled();
-      expect(mockConnection.execute).toHaveBeenCalledTimes(5);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(4);
 
       // First the contract lock, then the overdue-invoice re-check.
       expect(mockConnection.execute.mock.calls[0][0]).toContain('FOR UPDATE');
@@ -135,9 +139,15 @@ describe('suspensionService', () => {
       expect(mockConnection.execute.mock.calls[3][0]).toContain("'suspended'");
       expect(mockConnection.execute.mock.calls[3][1]).toEqual([10]);
 
-      // INSERT suspension_logs (includes coa_sent and coa_response columns)
-      expect(mockConnection.execute.mock.calls[4][0]).toContain('INSERT INTO suspension_logs');
-      expect(mockConnection.execute.mock.calls[4][1]).toContain(10);
+      // The FreeRADIUS rows go in the same transaction (NET-03).
+      const radiusService = require('../src/services/radiusService');
+      expect(radiusService.syncFreeradiusContract).toHaveBeenCalledWith(10, expect.objectContaining({ enabled: false, runner: mockConnection }));
+
+      // INSERT suspension_logs after the commit (includes coa_sent and coa_response columns)
+      const logInsert = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO suspension_logs'));
+      expect(logInsert[1]).toContain(10);
+      expect(mockConnection.commit.mock.invocationCallOrder[0])
+        .toBeLessThan(db.query.mock.invocationCallOrder[db.query.mock.calls.indexOf(logInsert)]);
 
       expect(mockConnection.commit).toHaveBeenCalled();
       expect(mockConnection.release).toHaveBeenCalled();

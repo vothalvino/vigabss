@@ -69,6 +69,9 @@ describe('E2E Workflow: Suspension Lifecycle', () => {
       release: jest.fn(),
     };
     db.getConnection.mockResolvedValue(mockConnection);
+    // FreeRADIUS row writes (NET-03) are covered in freeradiusServiceState.test.js.
+    jest.spyOn(require('../src/services/radiusService'), 'syncFreeradiusContract').mockResolvedValue({ found: false, enabled: false });
+    jest.spyOn(require('../src/services/radiusService'), 'syncFreeradiusTables').mockResolvedValue({ synced: 0, errors: 0, purged: 0 });
   });
 
   test('evaluateRules finds overdue contracts for suspension', async () => {
@@ -117,7 +120,9 @@ describe('E2E Workflow: Suspension Lifecycle', () => {
 
     // Verify transaction flow
     expect(mockConnection.beginTransaction).toHaveBeenCalled();
-    expect(mockConnection.execute).toHaveBeenCalledTimes(5);
+    // Lock, overdue re-check, contract and RADIUS updates; the suspension log
+    // is written after the commit, once the disconnect result is known.
+    expect(mockConnection.execute).toHaveBeenCalledTimes(4);
     expect(mockConnection.execute.mock.calls[3][0]).toContain('UPDATE radius SET status');
     expect(mockConnection.commit).toHaveBeenCalled();
     expect(mockConnection.release).toHaveBeenCalled();
@@ -172,6 +177,9 @@ describe('E2E Workflow: Full Suspension → Reconnect cycle', () => {
       release: jest.fn(),
     };
     db.getConnection.mockResolvedValue(mockConnection);
+    // FreeRADIUS row writes (NET-03) are covered in freeradiusServiceState.test.js.
+    jest.spyOn(require('../src/services/radiusService'), 'syncFreeradiusContract').mockResolvedValue({ found: false, enabled: false });
+    jest.spyOn(require('../src/services/radiusService'), 'syncFreeradiusTables').mockResolvedValue({ synced: 0, errors: 0, purged: 0 });
   });
 
   test('contract survives full lifecycle: evaluate → suspend → reconnect', async () => {

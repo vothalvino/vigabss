@@ -375,7 +375,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
               maxLength={200}
               value={form.radius_rate_limit_template}
               onChange={e => setField('radius_rate_limit_template', e.target.value)}
-              placeholder="e.g. 10M/2M"
+              placeholder="e.g. 2M/10M (upload/download)"
             />
           </label>
 

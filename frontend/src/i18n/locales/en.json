@@ -2044,7 +2044,7 @@
     "session_timeout": "Session Timeout (seconds)",
     "idle_timeout": "Idle Timeout (seconds)",
     "rate_limit_override": "Rate Limit Override",
-    "rate_limit_override_hint": "Vendor rate-limit string (e.g. MikroTik: '10M/5M'). When set, replaces the plan speed attribute for subscribers using this profile. MikroTik-specific.",
+    "rate_limit_override_hint": "Vendor rate-limit string (e.g. MikroTik, upload/download: '5M/10M'). When set, replaces the plan speed attribute for subscribers using this profile. MikroTik-specific.",
     "address_list": "MikroTik Address List",
     "address_list_hint": "MikroTik firewall address-list name. Sent as Mikrotik-Address-List reply attribute.",
     "filter_id": "Filter-Id",

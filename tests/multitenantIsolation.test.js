@@ -57,6 +57,7 @@ jest.mock('../src/middleware/orgScope', () => ({
 
 jest.mock('../src/services/auditLog', () => ({ log: jest.fn() }));
 jest.mock('../src/middleware/rateLimit', () => ({
+  acsLimiter: (_req, _res, next) => next(),
   apiLimiter:       (_r, _s, n) => n(),
   sessionLimiter:   (_r, _s, n) => n(),
   authLimiter:      (_r, _s, n) => n(),

@@ -122,7 +122,7 @@ describe('cfdiService', () => {
       const xml = cfdiService.buildCfdi40Xml(doc, EMISOR, [concepto], [impuesto]);
       expect(xml).toContain('ObjetoImp="02"');
       // concepto-level Exento traslado has NO TasaOCuota/Importe
-      expect(xml).toContain('<cfdi:Traslado Base="500" Impuesto="002" TipoFactor="Exento" />');
+      expect(xml).toContain('<cfdi:Traslado Base="500.00" Impuesto="002" TipoFactor="Exento" />');
       // Comprobante-level Impuestos node present but WITHOUT TotalImpuestosTrasladados (SAT rejects "0.00" for all-Exento)
       const comprobante = xml.slice(xml.indexOf('</cfdi:Conceptos>'));
       expect(comprobante).toContain('<cfdi:Impuestos>');
@@ -455,18 +455,22 @@ describe('cfdiService', () => {
       db.query
         .mockResolvedValueOnce([[doc]])   // SELECT document
         .mockResolvedValueOnce([[{ pac_environment: 'sandbox' }]]) // SELECT pac_environment
-        .mockResolvedValueOnce([[pac]]);  // SELECT pac_providers
+        .mockResolvedValueOnce([[pac]])   // SELECT pac_providers
+        .mockResolvedValue([{ affectedRows: 1 }]); // in-flight marker, failed-attempt record
 
       // callPacStamp → httpRequest fails (no network); exercises the retry path.
       await expect(cfdiService.stamp(1)).rejects.toThrow(/PAC stamping failed/);
 
-      const sqlIssued = db.query.mock.calls.map(([sql]) => sql).join('\n');
-      expect(sqlIssued).not.toContain('stamp_error');
+      // The failure goes to the stamp_error column (migration 477, CFD-02);
+      // sat_status is never set to a value outside its ENUM.
       const wroteSatStatus = db.query.mock.calls.some(
         ([sql, params]) => /UPDATE cfdi_documents/i.test(sql)
           && Array.isArray(params) && params.includes('stamp_error'),
       );
       expect(wroteSatStatus).toBe(false);
+      const record = db.query.mock.calls.find(([sql]) => /SET stamp_error = \?, stamp_attempted_at = NOW\(\)/.test(sql));
+      expect(record[0]).toContain("AND sat_status = 'draft'");
+      expect(record[0]).not.toMatch(/sat_status = \?/);
     }, 30000);
 
     test('rejects when circuit breaker is open', async () => {

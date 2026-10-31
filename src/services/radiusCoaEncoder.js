@@ -110,7 +110,7 @@ function encodeVSA(vendorId, vendorType, vendorValue) {
 
 /**
  * Encode Mikrotik-Rate-Limit (vendor 14988, attr 8).
- * Value is a string like "10M/5M" (download/upload).
+ * Value is a string like "5M/10M" (upload/download: RouterOS rx/tx).
  * @param {string} rateLimit
  * @returns {Buffer}
  */

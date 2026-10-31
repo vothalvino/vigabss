@@ -111,7 +111,12 @@ server, and drains them on shutdown.
   with intentionally different liveness/readiness depth.
 - `/metrics` exposes Prometheus metrics outside the versioned API router.
 - `/acs/cwmp` is the text/XML TR-069 endpoint and intentionally sits outside
-  the JSON API/authentication surface.
+  the JSON API/authentication surface. It authenticates every CWMP message
+  itself (HTTP Basic: the CPE's own credentials, or `ACS_USERNAME`/
+  `ACS_PASSWORD` for first contact by a CPE with none), never resolves a device
+  by serial+OUI without that, has its own per-IP limiter, and reads its body
+  only as bounded XML text — the global JSON/form parsers skip it and the
+  CWMP parser is a linear tokenizer with no DTD/entity processing.
 - API documentation is mounted by `src/utils/openapi.js`.
 - The production backend serves `frontend/dist` and falls back to the SPA for
   non-API routes.
@@ -310,7 +315,14 @@ that inevitably fail, but they never replace server-side authorization.
   `password`, ...) and seal it with `src/utils/sealSecrets.js`
   (`encryptStrict` in production); a client-sent `*_encrypted` key is a 422, a
   blank write-only field keeps the stored value, and responses expose only
-  `has_*` booleans. Readers always go through `decrypt()`.
+  `has_*` booleans. Readers always go through `decrypt()`. The same applies
+  to network credentials that are not named `*_encrypted` (`devices` and
+  `discovery_scans.snmp_community`, `bandwidth_test_servers.auth_token`):
+  sealed on write, redacted with `src/utils/secretRedaction.js`, decrypted by
+  their one reader (snmpPoller). `nas.secret` is the exception: external
+  FreeRADIUS reads it from the table, so it stays plaintext at rest, is
+  redacted to `has_secret`, and only `GET /nas/:id/secret` with
+  `radius.credentials.view` returns it.
 - Output encoding happens at the sink: React escapes text, the knowledge-base
   HTML sink uses DOMPurify, XML builders escape XML, and email templates escape
   interpolated HTML. Do not reintroduce blanket input-side HTML encoding.
@@ -702,6 +714,14 @@ verify each one's upgrade and interoperability contract first.
   was never added to `src/utils/openapi.js`.
 - **Scheduled-task half-wiring:** a seeded name without cron, scope allowlist,
   dispatcher case, or test never does useful work.
+- **Stale FreeRADIUS rows:** external FreeRADIUS authenticates from the
+  `radcheck`/`radreply`/`radusergroup` tables keyed by username, not from
+  `radius.status`. Any path that turns service off (suspend, terminate,
+  cancel, account delete/rename/deactivate) must remove those rows with
+  `radiusService.syncFreeradiusContract(id, { enabled: false })` before it
+  disconnects the session; turning service back on rewrites them with
+  `syncFreeradiusTables(orgId, { contractId })`. The periodic full sync also
+  purges rows of accounts that may no longer authenticate.
 - **Transaction split:** taking a lock on one connection and reading/writing on
   another defeats the lock and can deadlock or return stale data.
 - **Route shadowing:** `/:id` mounted before a literal path captures the literal.

@@ -21,7 +21,7 @@ const config = require('../config');
 const logger = require('../utils/logger').child({ service: 'radiusServer' });
 const codec = require('./radiusServerCodec');
 const coa = require('./radiusCoaEncoder');
-const { generateAttributes } = require('./radiusAttributeService');
+const { generateAttributes, generateThrottleAttributes, hasThrottle } = require('./radiusAttributeService');
 const speedWindowService = require('./speedWindowService');
 const { resolveNasByIp } = require('./tenantNasResolverService');
 
@@ -94,6 +94,7 @@ async function findSubscriber(username, organizationId) {
   const [rows] = await db.query(
     `SELECT r.id, r.client_id, r.contract_id, r.username, r.password, r.ip_address,
             c.plan_id, c.status AS contract_status,
+            c.soft_suspend_download_kbps, c.soft_suspend_upload_kbps,
             CASE WHEN c.status = 'pending'
                  THEN GREATEST(TIMESTAMPDIFF(SECOND, NOW(), c.test_window_expires_at), 1)
                  ELSE NULL END AS test_window_seconds_remaining
@@ -207,7 +208,11 @@ function buildAcceptAttributes(subscriber, plan, withMessageAuth) {
     }
   }
   if (plan) {
-    const attrMap = generateAttributes(plan);
+    // A soft-suspended contract (NPR-01) gets its throttle instead of the
+    // plan (or speed-window) rate.
+    const attrMap = subscriber.contract_status === 'active' && hasThrottle(subscriber)
+      ? generateThrottleAttributes(plan.radius_vendor, subscriber.soft_suspend_download_kbps, subscriber.soft_suspend_upload_kbps)
+      : generateAttributes(plan);
     const named = [];
     for (const [name, val] of Object.entries(attrMap)) {
       if (Array.isArray(val)) val.forEach((v) => named.push({ name, value: String(v) }));

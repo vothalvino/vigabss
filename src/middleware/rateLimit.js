@@ -131,6 +131,9 @@ const sseLimiter = makeLimiter(rl.sse, 'Too many SSE connections, please try aga
 /** Payment webhook endpoints — configurable via RATE_LIMIT_WEBHOOK (default 100). */
 const webhookLimiter = makeLimiter(rl.webhook, 'Too many webhook requests, please try again later');
 
+/** TR-069 ACS endpoint, per source IP — configurable via RATE_LIMIT_ACS (default 3000). */
+const acsLimiter = makeLimiter(rl.acs, 'Too many ACS requests, please try again later');
+
 // =============================================================================
 // Per-tenant rate limiting
 // =============================================================================
@@ -394,6 +397,7 @@ module.exports = {
   exportLimiter,
   sseLimiter,
   webhookLimiter,
+  acsLimiter,
   trapForwardingTestLimiter,
   emailSettingsTestLimiter,
   tenantApiLimiter,

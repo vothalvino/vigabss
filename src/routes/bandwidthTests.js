@@ -4,6 +4,8 @@
 // Covers: bandwidth test server registry and subscriber speed test jobs.
 // =============================================================================
 
+const { sealSecret } = require('../utils/sealSecrets');
+const { redactSecretsInResponses } = require('../utils/secretRedaction');
 const { Router } = require('express');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
@@ -70,6 +72,21 @@ async function requireOwnedServer(id, orgId) {
 
 router.use(['/bandwidth-test-servers', '/subscriber-speed-test-jobs'], authenticate, orgScope);
 
+// The iperf auth token is write-only (NET-10): bandwidth_test_servers.view
+// returned it, including the tokens of install-wide servers, to every tenant.
+// It is encrypted at rest; a blank value on update keeps the stored one.
+router.use('/bandwidth-test-servers', redactSecretsInResponses(['auth_token']));
+function sealAuthToken(req, _res, next) {
+  try {
+    const value = req.body ? req.body.auth_token : undefined;
+    if (value === '' || value === null) delete req.body.auth_token;
+    else if (typeof value === 'string') req.body.auth_token = sealSecret(value);
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Bandwidth Test Servers
 // ---------------------------------------------------------------------------
@@ -106,7 +123,7 @@ router.get('/bandwidth-test-servers/:id', requirePermission('bandwidth_test_serv
 });
 
 // POST /bandwidth-test-servers
-router.post('/bandwidth-test-servers', requirePermission('bandwidth_test_servers.create'), validate(createBandwidthTestServer), async (req, res, next) => {
+router.post('/bandwidth-test-servers', requirePermission('bandwidth_test_servers.create'), validate(createBandwidthTestServer), sealAuthToken, async (req, res, next) => {
   try {
     const { name, description, host, port = 5201, protocol = 'iperf3', region, site_id, is_active = true, auth_token, max_bandwidth_mbps } = req.body;
     await assertServerFks(req.body, req.orgId);
@@ -125,7 +142,7 @@ router.post('/bandwidth-test-servers', requirePermission('bandwidth_test_servers
 });
 
 // PUT /bandwidth-test-servers/:id
-router.put('/bandwidth-test-servers/:id', requirePermission('bandwidth_test_servers.update'), validate(updateBandwidthTestServer), async (req, res, next) => {
+router.put('/bandwidth-test-servers/:id', requirePermission('bandwidth_test_servers.update'), validate(updateBandwidthTestServer), sealAuthToken, async (req, res, next) => {
   try {
     const allowed = ['name','description','host','port','protocol','region','site_id','is_active','auth_token','max_bandwidth_mbps'];
     const fields = [];

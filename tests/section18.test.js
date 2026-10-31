@@ -17,6 +17,7 @@ jest.mock('../src/middleware/rbac', () => ({
   requireRole: () => (_req, _res, next) => next(),
 }));
 jest.mock('../src/middleware/rateLimit', () => ({
+  acsLimiter: (_req, _res, next) => next(),
   apiLimiter: (_req, _res, next) => next(),
   sessionLimiter: (_req, _res, next) => next(),
   authLimiter: (_req, _res, next) => next(),

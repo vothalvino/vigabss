@@ -225,15 +225,14 @@ async function applySpeedWindows(organizationId) {
         else named.push({ name, value: String(value) });
       }
 
-      // Walled-garden and soft-suspended contracts keep status='active' and
-      // ARE swept here — harmless today: walled garden enforces via the
-      // per-user address-list (never touched by this CoA), and soft-suspend
-      // sends no rate attributes yet (TODO in suspensionService). If
-      // soft-suspend rate-limiting ever lands, exclude soft-suspended
-      // contracts from this fan-out or the window CoA would lift the throttle.
+      // Walled-garden contracts keep status='active' and are swept here —
+      // harmless: walled garden enforces via the per-user address-list, which
+      // this CoA never touches. Soft-suspended contracts (NPR-01) are skipped:
+      // the window rate would lift their throttle.
       const [contracts] = await db.query(
         `SELECT id FROM contracts
-         WHERE plan_id = ? AND status = 'active' AND deleted_at IS NULL`,
+         WHERE plan_id = ? AND status = 'active' AND deleted_at IS NULL
+           AND soft_suspend_download_kbps IS NULL`,
         [plan.id],
       );
 

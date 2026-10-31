@@ -146,7 +146,7 @@ describe('radiusServerService — embedded RADIUS server', () => {
       expect(vsa.value.readUInt32BE(0)).toBe(14988); // Mikrotik PEN
       expect(vsa.value[4]).toBe(8);                  // vendor-type = Mikrotik-Rate-Limit
       const rateLimit = vsa.value.subarray(6).toString('utf8');
-      expect(rateLimit.startsWith('50M/10M')).toBe(true);
+      expect(rateLimit.startsWith('10M/50M')).toBe(true);
 
       // The Response-Authenticator must equal MD5(response + secret) with the
       // original request authenticator placed back in the auth field.
@@ -210,9 +210,29 @@ describe('radiusServerService — embedded RADIUS server', () => {
       const vsa = resp.attributes.find((a) => a.type === codec.ATTR.VENDOR_SPECIFIC);
       expect(vsa).toBeTruthy();
       const rateLimit = vsa.value.subarray(6).toString('utf8');
-      // Window CIR 25M/5M with bursts re-derived from the window speeds —
-      // NOT the plan's 50M/10M.
-      expect(rateLimit).toBe('25M/5M 50M/10M 25M/5M 8');
+      // Window CIR 5M/25M with bursts re-derived from the window speeds —
+      // NOT the plan's 10M/50M.
+      expect(rateLimit).toBe('5M/25M 10M/50M 5M/25M 8');
+    });
+
+    test("a soft-suspended contract's Access-Accept carries its throttle, not the plan rate (NPR-01)", async () => {
+      db.query.mockImplementation((sql) => {
+        if (/FROM nas/.test(sql)) return Promise.resolve([[NAS_ROW]]);
+        if (/FROM radius/.test(sql)) {
+          return Promise.resolve([[{ ...SUBSCRIBER_ROW, contract_status: 'active', soft_suspend_download_kbps: 512, soft_suspend_upload_kbps: 256 }]]);
+        }
+        if (/FROM plans/.test(sql)) return Promise.resolve([[PLAN_ROW]]);
+        return Promise.resolve([[]]);
+      });
+
+      const { pkt } = buildPapRequest({ id: 10 });
+      let captured = null;
+      await svc.handleAuth(pkt, { address: NAS_IP, port: 1812 }, (buf) => { captured = buf; });
+
+      const resp = codec.decodePacket(captured);
+      expect(resp.code).toBe(codec.CODE.ACCESS_ACCEPT);
+      const vsa = resp.attributes.find((a) => a.type === codec.ATTR.VENDOR_SPECIFIC);
+      expect(vsa.value.subarray(6).toString('utf8')).toBe('256k/512k');
     });
   });
 

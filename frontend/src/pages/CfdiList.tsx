@@ -31,6 +31,8 @@ interface CfdiDocument {
   total: string;
   moneda: string | null;
   sat_status: string;
+  stamp_error?: string | null;
+  stamp_ambiguous?: number | boolean | null;
   cancelled_at: string | null;
   pac_provider: string | null;
   created_at: string;
@@ -84,7 +86,12 @@ async function stampCfdi(id: number): Promise<void> {
   }
 }
 
-async function cancelCfdi(id: number, reason: string, replacementUuid?: string): Promise<void> {
+interface CancelResult {
+  status: string;
+  error_message?: string | null;
+}
+
+async function cancelCfdi(id: number, reason: string, replacementUuid?: string): Promise<CancelResult> {
   const body: Record<string, unknown> = { cfdi_document_id: id, reason };
   if (replacementUuid) body.replacement_uuid = replacementUuid;
   const res = await authedFetch(`${API_BASE}/cfdi/cancel`, {
@@ -96,6 +103,28 @@ async function cancelCfdi(id: number, reason: string, replacementUuid?: string):
     const resBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
     throw new Error(resBody.error?.message ?? 'Failed to cancel CFDI');
   }
+  const resBody = await res.json().catch(() => ({})) as { data?: CancelResult };
+  return resBody.data ?? { status: 'cancel_pending' };
+}
+
+// Delete an unstamped draft. The server refuses while the last stamp attempt
+// may have been registered at SAT (retry it first).
+async function discardDraft(id: number): Promise<void> {
+  const res = await authedFetch(`${API_BASE}/cfdi-documents/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const resBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+    throw new Error(resBody.error?.message ?? 'Failed to discard the draft');
+  }
+}
+
+// Ask SAT (through the PAC) where a pending cancellation stands. SAT answers
+// 201 when it only registered the request; a CFDI that needs the receptor's
+// acceptance stays pending for up to 72 hours.
+async function checkCancellationStatus(id: number): Promise<CancelResult> {
+  const res = await authedFetch(`${API_BASE}/cfdi/${id}/cancellation-status`);
+  const resBody = await res.json().catch(() => ({})) as { data?: CancelResult; error?: { message?: string } };
+  if (!res.ok) throw new Error(resBody.error?.message ?? 'Failed to check the cancellation status');
+  return resBody.data ?? { status: 'pending' };
 }
 
 function downloadFile(url: string, filename: string) {
@@ -191,8 +220,14 @@ function CancelModal({ doc, onClose, onCancelled }: CancelModalProps) {
     setSubmitting(true);
     setError('');
     try {
-      await cancelCfdi(doc.id, reason, reason === '01' ? replacementUuid : undefined);
+      const result = await cancelCfdi(doc.id, reason, reason === '01' ? replacementUuid : undefined);
       onCancelled();
+      if (result.status === 'rejected') {
+        // SAT refused the request (e.g. 205 UUID not found, 3xx signature
+        // problems); the CFDI stays as it was.
+        setError(`SAT refused the cancellation: ${result.error_message ?? 'no reason given'}`);
+        return;
+      }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to cancel CFDI');
@@ -325,6 +360,31 @@ export function CfdiList() {
     void qc.invalidateQueries({ queryKey: ['cfdi'] });
   }
 
+  const [statusNotice, setStatusNotice] = useState('');
+  async function handleDiscard(doc: CfdiDocument) {
+    if (!window.confirm(`Discard draft CFDI #${doc.id}? It was never stamped; its invoice can then be edited, voided or stamped again.`)) return;
+    setStatusNotice('');
+    try {
+      await discardDraft(doc.id);
+      setStatusNotice(`Draft CFDI #${doc.id} discarded.`);
+      refresh();
+    } catch (err) {
+      setStatusNotice(err instanceof Error ? err.message : 'Failed to discard the draft');
+    }
+  }
+  async function handleCheckStatus(doc: CfdiDocument) {
+    setStatusNotice('');
+    try {
+      const result = await checkCancellationStatus(doc.id);
+      setStatusNotice(result.status === 'pending'
+        ? `CFDI ${doc.uuid ?? doc.id}: still waiting for the receptor (SAT allows up to 72 hours).`
+        : `CFDI ${doc.uuid ?? doc.id}: cancellation ${result.status}${result.error_message ? ` — ${result.error_message}` : ''}.`);
+      refresh();
+    } catch (err) {
+      setStatusNotice(err instanceof Error ? err.message : 'Failed to check the cancellation status');
+    }
+  }
+
   function handleFilterChange(newStatus: string) {
     setStatusFilter(newStatus);
     setPage(1);
@@ -393,6 +453,7 @@ export function CfdiList() {
       {/* Table */}
       {isLoading && <p style={{ color: '#888' }}>Loading…</p>}
       {isError && <p style={{ color: 'var(--accent)' }}>Failed to load CFDI documents.</p>}
+      {statusNotice && <p role="status" style={{ fontSize: '0.85rem' }}>{statusNotice}</p>}
       {data && (
         <>
           <div style={{ background: '#fff', borderRadius: 8, boxShadow: '0 0 0 1px var(--border)', overflow: 'auto' }}>
@@ -476,14 +537,36 @@ export function CfdiList() {
                           </button>
                         )}
 
-                        {/* Cancel — only for stamped (vigente) docs */}
-                        {doc.sat_status === 'vigente' && (
+                        {/* Discard — an unstamped draft whose stamp was definitely refused */}
+                        {doc.sat_status === 'draft' && !doc.uuid && !Number(doc.stamp_ambiguous) && (
+                          <button
+                            onClick={() => { void handleDiscard(doc); }}
+                            style={{ ...actionBtn, color: '#991b1b', borderColor: '#fca5a5' }}
+                            title={doc.stamp_error ? `Last stamp attempt: ${doc.stamp_error}` : 'Delete this unstamped draft'}
+                          >
+                            🗑 Discard
+                          </button>
+                        )}
+
+                        {/* Cancel — for stamped (vigente) docs; a pending one may be retried */}
+                        {(doc.sat_status === 'vigente' || doc.sat_status === 'cancel_pending') && (
                           <button
                             onClick={() => setCancelTarget(doc)}
                             style={{ ...actionBtn, color: '#991b1b', borderColor: '#fca5a5' }}
                             title="Request cancellation via SAT/PAC"
                           >
-                            ✕ Cancel
+                            {doc.sat_status === 'cancel_pending' ? '✕ Retry cancel' : '✕ Cancel'}
+                          </button>
+                        )}
+
+                        {/* Pending cancellation — ask SAT where it stands */}
+                        {doc.sat_status === 'cancel_pending' && (
+                          <button
+                            onClick={() => { void handleCheckStatus(doc); }}
+                            style={actionBtn}
+                            title="Ask SAT whether the receptor accepted or refused the cancellation"
+                          >
+                            ↻ Check status
                           </button>
                         )}
 
