@@ -26,6 +26,10 @@ const paymentRetryService = require('../src/services/paymentRetryService');
 describe('paymentRetryService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Drop queued mockResolvedValueOnce answers so one test's leftovers can't
+    // feed the next test's queries.
+    db.query.mockReset();
+    paymentGatewayService.charge.mockReset();
   });
 
   // =========================================================================
@@ -163,11 +167,14 @@ describe('paymentRetryService', () => {
         max_attempts: 3,
         status: 'pending',
         payment_method_token: 'tok_123',
+        payment_gateway_id: 3,
         created_at: new Date(Date.now() - 5 * 60 * 60 * 1000),
       };
 
       // SELECT pending retries
       db.query.mockResolvedValueOnce([[retryRow]]);
+      // Live balance of invoice 50
+      db.query.mockResolvedValueOnce([[{ balance_due: '500.00' }]]);
       // UPDATE status to processing
       db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
 
@@ -219,7 +226,8 @@ describe('paymentRetryService', () => {
         attempt_number: 2,
         max_attempts: 3,
         status: 'pending',
-        payment_method_token: null,
+        payment_method_token: 'tok_123',
+        payment_gateway_id: 3,
         created_at: new Date(Date.now() - 73 * 60 * 60 * 1000),
       };
 
@@ -253,7 +261,8 @@ describe('paymentRetryService', () => {
         attempt_number: 0,
         max_attempts: 3,
         status: 'pending',
-        payment_method_token: null,
+        payment_method_token: 'tok_123',
+        payment_gateway_id: 3,
         created_at: new Date(),
       };
 
@@ -282,6 +291,7 @@ describe('paymentRetryService', () => {
       attempt_number: 0,
       max_attempts: 3,
       payment_method_token: 'tok_123',
+      payment_gateway_id: 3,
       created_at: new Date(Date.now() - 5 * 60 * 60 * 1000),
     };
 
@@ -306,6 +316,9 @@ describe('paymentRetryService', () => {
           amount: 500,
           currency: 'MXN',
           paymentMethodToken: 'tok_123',
+          // Charged through the stored card's own gateway, off-session.
+          gatewayId: 3,
+          offSession: true,
         }),
       );
     });
@@ -391,7 +404,8 @@ describe('paymentRetryService', () => {
       await paymentRetryService.executeRetry(baseRetry);
 
       const chargeCall = paymentGatewayService.charge.mock.calls[0][0];
-      expect(chargeCall.idempotencyKey).toMatch(/^retry_1_attempt_1_\d+$/);
+      // Deterministic per retry attempt, so a duplicate run replays instead of charging.
+      expect(chargeCall.idempotencyKey).toBe('retry:1:1');
     });
 
     test('includes retry description in charge', async () => {
@@ -549,6 +563,7 @@ describe('paymentRetryService', () => {
         attempt_number: 0,
         max_attempts: 3,
         payment_method_token: 'tok_123',
+        payment_gateway_id: 3,
         created_at: createdAt,
       };
 
@@ -565,6 +580,96 @@ describe('paymentRetryService', () => {
       // Should include a Date object for next_retry_at
       const nextRetry = updateCall[1][2]; // third param is the next_retry_at Date
       expect(nextRetry).toBeInstanceOf(Date);
+    });
+  });
+
+  // =========================================================================
+  // BIL-06 / WHK-01 / DAL-01 — a retry only charges a live card, through its
+  // own gateway, for what is still owed
+  // =========================================================================
+  describe('retry guards (BIL-06, WHK-01, DAL-01)', () => {
+    const liveRetry = {
+      id: 7,
+      organization_id: 1,
+      transaction_id: 100,
+      client_id: 10,
+      invoice_id: 50,
+      recurring_profile_id: 5,
+      amount: '500.00',
+      currency: 'MXN',
+      attempt_number: 0,
+      max_attempts: 3,
+      payment_method_token: 'pm_saved',
+      payment_gateway_id: 3,
+      stripe_customer_id: 'cus_1',
+      created_at: new Date(Date.now() - 5 * 60 * 60 * 1000),
+    };
+
+    test('the pending-retry query only joins live profiles and live gateways', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+
+      await paymentRetryService.processPendingRetries(1);
+
+      const sql = db.query.mock.calls[0][0];
+      expect(sql).toMatch(/rp\.status = 'active' AND rp\.deleted_at IS NULL/);
+      expect(sql).toMatch(/pg\.status = 'active' AND pg\.deleted_at IS NULL/);
+      expect(sql).toContain('pg.id AS payment_gateway_id');
+    });
+
+    test('a retry whose card or gateway is gone is cancelled, never charged', async () => {
+      db.query.mockResolvedValueOnce([{ affectedRows: 1 }]); // cancel
+
+      const result = await paymentRetryService.executeRetry({ ...liveRetry, payment_gateway_id: null });
+
+      expect(result.status).toBe('cancelled');
+      expect(paymentGatewayService.charge).not.toHaveBeenCalled();
+      expect(db.query.mock.calls[0][0]).toContain("status = 'cancelled'");
+    });
+
+    test('a retry for an invoice that is paid or deleted is cancelled, never charged', async () => {
+      db.query
+        .mockResolvedValueOnce([[]]) // invoice no longer payable
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // cancel
+
+      const result = await paymentRetryService.executeRetry(liveRetry);
+
+      expect(result.status).toBe('cancelled');
+      expect(paymentGatewayService.charge).not.toHaveBeenCalled();
+      expect(db.query.mock.calls[0][0]).toContain('i.deleted_at IS NULL');
+    });
+
+    test('charges only what is still owed, through the profile gateway and saved customer', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ balance_due: '120.50' }]]) // part-paid since the failure
+        .mockResolvedValueOnce([{ affectedRows: 1 }]) // processing
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // succeeded
+      paymentGatewayService.charge.mockResolvedValue({ transaction_id: 300, status: 'succeeded' });
+
+      await paymentRetryService.executeRetry(liveRetry);
+
+      expect(paymentGatewayService.charge).toHaveBeenCalledWith(expect.objectContaining({
+        amount: 120.5,
+        gatewayId: 3,
+        customer: 'cus_1',
+        offSession: true,
+        invoiceId: 50,
+        idempotencyKey: 'retry:7:1',
+      }));
+    });
+
+    test('a second failed charge for the same profile and invoice reuses the live schedule', async () => {
+      db.query.mockResolvedValueOnce([[{ id: 42 }]]);
+
+      const result = await paymentRetryService.scheduleRetry({
+        transactionId: 101, organizationId: 1, clientId: 10, amount: 500,
+        invoiceId: 50, recurringProfileId: 5,
+      });
+
+      expect(result).toEqual({ id: 42, already_scheduled: true });
+      const [sql, params] = db.query.mock.calls[0];
+      expect(sql).toContain('recurring_profile_id = ? AND invoice_id = ?');
+      expect(params).toEqual([101, 5, 50]);
+      expect(db.query).toHaveBeenCalledTimes(1);
     });
   });
 });

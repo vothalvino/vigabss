@@ -17,11 +17,6 @@ const { PaymentGatewayError, ValidationError } = require('../utils/errors');
 // Default idempotency key TTL: 24 hours
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
-// Maximum rounding difference (in currency units) to consider two amounts
-// equal during auto-reconciliation. Accounts for floating-point arithmetic
-// when converting between cents and currency units.
-const RECONCILE_AMOUNT_TOLERANCE = 0.01;
-
 // Circuit breaker for external payment gateway calls (Stripe, Conekta)
 const paymentCircuitBreaker = createCircuitBreaker({
   name: 'PaymentGateway',
@@ -30,15 +25,39 @@ const paymentCircuitBreaker = createCircuitBreaker({
 });
 
 /**
- * Get the active payment gateway for an organization.
+ * Get the active payment gateway for an organization: the default one first,
+ * then the oldest. A soft-deleted gateway is never live, whatever its status.
  */
 async function getActiveGateway(organizationId) {
   const [rows] = await db.query(
-    'SELECT * FROM payment_gateways WHERE organization_id = ? AND status = \'active\' LIMIT 1',
+    `SELECT * FROM payment_gateways
+      WHERE organization_id = ? AND status = 'active' AND deleted_at IS NULL
+      ORDER BY is_default DESC, id ASC LIMIT 1`,
     [organizationId],
   );
   return rows[0] || null;
 }
+
+/**
+ * Load one specific live gateway of an organization (active, not deleted).
+ * Used for charges that must go through the gateway that issued a stored
+ * token (autopay, retries) rather than whichever gateway happens to be first.
+ */
+async function getGatewayById(organizationId, gatewayId) {
+  const [rows] = await db.query(
+    `SELECT * FROM payment_gateways
+      WHERE id = ? AND organization_id = ? AND status = 'active' AND deleted_at IS NULL
+      LIMIT 1`,
+    [gatewayId, organizationId],
+  );
+  return rows[0] || null;
+}
+
+// Providers that can charge a stored card without the customer present.
+// 'manual' and 'other' move no money; Conekta's charge path does not use the
+// stored payment source yet, so an off-session Conekta charge would not
+// collect from the saved card either.
+const OFF_SESSION_PROVIDERS = ['stripe'];
 
 /**
  * Resolve the per-gateway webhook context for an inbound, provider-scoped
@@ -138,7 +157,7 @@ async function storeIdempotencyKey(organizationId, key, statusCode, responseBody
  * If an idempotencyKey is provided and a cached result exists, the cached
  * result is returned instead of charging again.
  */
-async function charge({ organizationId, clientId, amount, currency, description, paymentMethodToken, customer, offSession, invoiceId, idempotencyKey }) {
+async function charge({ organizationId, gatewayId, clientId, amount, currency, description, paymentMethodToken, customer, offSession, invoiceId, idempotencyKey }) {
   // --- Idempotency check ---
   if (idempotencyKey) {
     const cached = await checkIdempotencyKey(organizationId, idempotencyKey);
@@ -150,9 +169,19 @@ async function charge({ organizationId, clientId, amount, currency, description,
     }
   }
 
-  const gateway = await getActiveGateway(organizationId);
+  // A charge against a stored token must use the gateway that issued it.
+  const gateway = gatewayId
+    ? await getGatewayById(organizationId, gatewayId)
+    : await getActiveGateway(organizationId);
   if (!gateway) {
-    throw new Error('No active payment gateway configured');
+    throw new Error(gatewayId
+      ? 'The payment gateway for this payment method is no longer active'
+      : 'No active payment gateway configured');
+  }
+  if (offSession && !OFF_SESSION_PROVIDERS.includes(gateway.provider)) {
+    throw new PaymentGatewayError(
+      `Payment provider '${gateway.provider}' cannot charge a stored payment method automatically`,
+    );
   }
 
   // Column is `payment_gateway_id`; there is no `description` column. And
@@ -183,16 +212,19 @@ async function charge({ organizationId, clientId, amount, currency, description,
     switch (gateway.provider) {
       case 'stripe':
         result = await paymentCircuitBreaker.call(() =>
-          chargeStripe(gateway, amount, currency || 'MXN', description, paymentMethodToken, { customer, offSession }));
+          chargeStripe(gateway, amount, currency || 'MXN', description, paymentMethodToken, { customer, offSession, idempotencyKey }));
         break;
       case 'conekta':
         result = await paymentCircuitBreaker.call(() =>
           chargeConekta(gateway, amount, currency || 'MXN', description, paymentMethodToken));
         break;
       case 'manual':
-        // Manual / offline-recorded payment: no API call needed; record as succeeded.
-        result = { gatewayRef: `manual_${Date.now()}`, status: 'succeeded' };
-        break;
+        // A manual gateway moves no money, so a "charge" through it must never
+        // be recorded as succeeded. Offline payments are recorded with
+        // POST /payments instead.
+        throw new PaymentGatewayError(
+          'A manual payment gateway cannot process charges; record the payment with POST /payments instead',
+        );
       default:
         // Provider is configured in the schema but not yet implemented.
         throw new PaymentGatewayError(
@@ -272,6 +304,9 @@ async function chargeStripe(gateway, amount, currency, description, paymentMetho
         'Authorization': `Bearer ${secretKey}`,
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(body),
+        // Stripe dedupes a repeated request with the same key, so a second
+        // replica or a retried run for the same invoice/day cannot charge twice.
+        ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
       },
       timeout: 30000,
     }, (res) => {
@@ -317,7 +352,13 @@ async function createStripeCheckoutSession(gateway, { amount, currency, descript
     cancel_url: cancelUrl,
   };
   for (const [k, v] of Object.entries(metadata)) {
-    if (v !== null && v !== undefined) params[`metadata[${k}]`] = String(v);
+    if (v !== null && v !== undefined) {
+      params[`metadata[${k}]`] = String(v);
+      // Copy onto the PaymentIntent too: payment_intent.* and charge.* events
+      // carry the PI's metadata, not the session's, and would otherwise not
+      // match the pending transaction (WHK-03).
+      params[`payment_intent_data[metadata][${k}]`] = String(v);
+    }
   }
   const body = new URLSearchParams(params).toString();
 
@@ -486,7 +527,10 @@ async function createStripeSetupSession(gateway, { customerId, successUrl, cance
     cancel_url: cancelUrl,
   };
   for (const [k, v] of Object.entries(metadata)) {
-    if (v !== null && v !== undefined) params[`metadata[${k}]`] = String(v);
+    if (v !== null && v !== undefined) {
+      params[`metadata[${k}]`] = String(v);
+      params[`setup_intent_data[metadata][${k}]`] = String(v);
+    }
   }
   const data = await stripeRequest(secretKey, 'POST', '/v1/checkout/sessions', new URLSearchParams(params).toString());
   return { id: data.id, url: data.url };
@@ -851,29 +895,54 @@ function verifyStripeSignature(rawBody, sigHeader, secret, tolerance = 300) {
 }
 
 /**
- * Verify a Conekta webhook signature (Digest header).
+ * Parse a Conekta webhook-key public key (the `public_key` PEM returned by
+ * POST https://api.conekta.io/webhook_keys). Accepts a real PEM or the JSON-
+ * escaped form with literal "\n" sequences (as copied from the API response).
+ * Returns a crypto KeyObject, or null when the value is not an RSA public key
+ * (for example an old shared-secret string): the caller treats null as "not
+ * configured" and fails closed.
  *
- * Conekta uses HMAC-SHA256 with the webhook key. The Digest header
- * is the hex-encoded HMAC of the raw body.
+ * @param {string|null|undefined} value
+ * @returns {crypto.KeyObject|null}
+ */
+function parseConektaPublicKey(value) {
+  if (!value || typeof value !== 'string') return null;
+  const pem = value.includes('\\n') ? value.replace(/\\n/g, '\n') : value;
+  if (!/-----BEGIN (RSA )?PUBLIC KEY-----/.test(pem)) return null;
+  try {
+    const key = crypto.createPublicKey(pem);
+    return key.asymmetricKeyType === 'rsa' ? key : null;
+  } catch (_err) {
+    return null;
+  }
+}
+
+/**
+ * Verify a Conekta webhook signature (DIGEST header).
  *
- * @param {string} rawBody    - The raw request body string
- * @param {string} digestHeader - Value of the Digest header
- * @param {string} secret     - The webhook signing key
+ * Conekta signs the SHA-256 of the raw UTF-8 request body with the private
+ * half of the company's webhook key (RSA, PKCS#1 v1.5) and sends the
+ * signature base64-encoded in the `DIGEST` header ("Verificar firmas",
+ * developers.conekta.com). Only the webhook key's PUBLIC key can verify it;
+ * there is no shared secret.
+ *
+ * @param {string} rawBody       - The raw request body string
+ * @param {string} digestHeader  - Value of the DIGEST header (base64)
+ * @param {string|crypto.KeyObject} publicKey - PEM or parsed public key
  * @returns {boolean} True if the signature is valid
  */
-function verifyConektaSignature(rawBody, digestHeader, secret) {
-  if (!digestHeader || !secret) return false;
+function verifyConektaSignature(rawBody, digestHeader, publicKey) {
+  if (!digestHeader || !publicKey || typeof rawBody !== 'string') return false;
+  const key = typeof publicKey === 'string' ? parseConektaPublicKey(publicKey) : publicKey;
+  if (!key) return false;
 
-  const expected = crypto
-    .createHmac('sha256', secret)
-    .update(rawBody, 'utf8')
-    .digest('hex');
+  const encoded = String(digestHeader).trim();
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) return false;
+  const signature = Buffer.from(encoded, 'base64');
+  if (signature.length === 0) return false;
 
   try {
-    return crypto.timingSafeEqual(
-      Buffer.from(digestHeader, 'hex'),
-      Buffer.from(expected, 'hex'),
-    );
+    return crypto.verify('RSA-SHA256', Buffer.from(rawBody, 'utf8'), key, signature);
   } catch (_err) {
     return false;
   }
@@ -913,18 +982,34 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
     [provider, providerEventId, orgDedup],
   );
 
+  let webhookEventId;
   if (existing.length > 0) {
-    return { status: 'duplicate', webhookEventId: existing[0].id };
+    // A redelivery of an event whose processing FAILED (the receiver answered
+    // 500, e.g. reconciliation threw) is processed again — that redelivery is
+    // the provider's retry. Claim it atomically so two concurrent redeliveries
+    // cannot both run. Anything else (processed/ignored/processing) is a true
+    // duplicate.
+    if (existing[0].status !== 'failed') {
+      return { status: 'duplicate', webhookEventId: existing[0].id };
+    }
+    const [claim] = await db.query(
+      "UPDATE webhook_events SET status = 'processing', error_message = NULL WHERE id = ? AND status = 'failed'",
+      [existing[0].id],
+    );
+    if (!claim || claim.affectedRows !== 1) {
+      return { status: 'duplicate', webhookEventId: existing[0].id };
+    }
+    webhookEventId = existing[0].id;
+  } else {
+    // Insert the event record — organization_id set at insert for gateway events
+    // (NULL for the global route → org_dedup 0). org_dedup is a generated column.
+    const [insertResult] = await db.query(
+      `INSERT INTO webhook_events (organization_id, provider, provider_event_id, event_type, payload, status)
+       VALUES (?, ?, ?, ?, ?, 'processing')`,
+      [orgKey, provider, providerEventId, eventType, JSON.stringify(payload)],
+    );
+    webhookEventId = insertResult.insertId;
   }
-
-  // Insert the event record — organization_id set at insert for gateway events
-  // (NULL for the global route → org_dedup 0). org_dedup is a generated column.
-  const [insertResult] = await db.query(
-    `INSERT INTO webhook_events (organization_id, provider, provider_event_id, event_type, payload, status)
-     VALUES (?, ?, ?, ?, ?, 'processing')`,
-    [orgKey, provider, providerEventId, eventType, JSON.stringify(payload)],
-  );
-  const webhookEventId = insertResult.insertId;
 
   try {
     // Autopay card capture (Stripe Checkout in setup mode) has no payment
@@ -999,10 +1084,30 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
 
     const tx = txRows[0];
 
-    // Update the transaction status
+    // Providers do not guarantee delivery order. A late payment_failed (an
+    // earlier declined attempt inside the same Checkout Session) must never
+    // demote a captured payment, and nothing may resurrect a refunded one.
+    if (!isAllowedGatewayTransition(tx.gateway_status, newStatus)) {
+      await db.query(
+        'UPDATE webhook_events SET transaction_id = ?, status = \'ignored\', error_message = ?, processed_at = NOW() WHERE id = ?',
+        [tx.id, `Stale event: transaction is ${tx.gateway_status}, not moving to ${newStatus}`, webhookEventId],
+      );
+      return { status: 'ignored', webhookEventId, transactionId: tx.id, reason: 'stale_transition' };
+    }
+
+    // Update the transaction status. A completed Stripe Checkout Session also
+    // names its PaymentIntent: store that pi_ id as the gateway reference, so
+    // charge.refunded / charge.dispute.created (keyed by payment_intent) match
+    // and refundStripe() refunds a real PaymentIntent instead of a cs_ id.
+    // Later checkout.session.* events still match via metadata.transaction_id.
+    const piRef = provider === 'stripe' && eventType.startsWith('checkout.session.')
+      && typeof payload?.data?.object?.payment_intent === 'string'
+      && payload.data.object.payment_intent.startsWith('pi_')
+      ? payload.data.object.payment_intent
+      : null;
     await db.query(
-      'UPDATE payment_transactions SET gateway_status = ?, webhook_payload = ? WHERE id = ?',
-      [newStatus, JSON.stringify(payload), tx.id],
+      'UPDATE payment_transactions SET gateway_status = ?, webhook_payload = ?, gateway_reference_id = COALESCE(?, gateway_reference_id) WHERE id = ?',
+      [newStatus, JSON.stringify(payload), piRef, tx.id],
     );
 
     // Update the webhook event with the transaction link. NOTE: organization_id
@@ -1015,9 +1120,14 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
       [tx.id, webhookEventId],
     );
 
-    // Auto-reconciliation for successful payments
+    // Auto-reconciliation for successful payments. reconcilePayment throws when
+    // it cannot post the payment; the catch below then marks this event failed
+    // and the route answers 500, so the provider redelivers it (a failed event
+    // is re-processed above). The reconcile_gateway_payments task also sweeps
+    // any succeeded transaction still without a payment.
+    let reconciliation = null;
     if (newStatus === 'succeeded') {
-      await reconcilePayment(tx.id);
+      reconciliation = await reconcilePayment(tx.id);
 
       // Cancel any pending retries for this transaction
       try {
@@ -1048,7 +1158,9 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
            ON DUPLICATE KEY UPDATE updated_at = NOW()`,
           [
             tx.organization_id,
-            tx.id,
+            // chargebacks.payment_id is a payments.id. A disputed charge that was
+            // never reconciled into a payment has none.
+            tx.payment_id || null,
             provider,
             gatewayRef,
             tx.amount,
@@ -1064,7 +1176,10 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
 
     logger.info({ provider, eventType, transactionId: tx.id }, 'Webhook event processed');
 
-    return { status: 'processed', webhookEventId, transactionId: tx.id, newStatus };
+    return {
+      status: 'processed', webhookEventId, transactionId: tx.id, newStatus,
+      ...(reconciliation && { reconciliation: reconciliation.status, paymentId: reconciliation.paymentId ?? null }),
+    };
   } catch (err) {
     await db.query(
       'UPDATE webhook_events SET status = \'failed\', error_message = ?, processed_at = NOW() WHERE id = ?',
@@ -1123,7 +1238,10 @@ function mapProviderEvent(provider, eventType, payload) {
 
   if (provider === 'conekta') {
     const obj = payload.data?.object || {};
-    const gatewayRef = obj.id || null;
+    // order.* events carry the order (ord_…), which is what checkout/charge
+    // store as the reference; charge.* events carry a charge whose order_id
+    // names that order.
+    const gatewayRef = (eventType.startsWith('charge.') && obj.order_id) || obj.id || null;
 
     const statusMap = {
       'order.paid': 'succeeded',
@@ -1142,144 +1260,308 @@ function mapProviderEvent(provider, eventType, payload) {
 // Auto-reconciliation
 // ---------------------------------------------------------------------------
 
+// Gateway transaction status moves a webhook may make. Providers redeliver and
+// reorder events, so a captured payment only moves on to refunded/disputed and a
+// refund is terminal; anything still pending/failed/cancelled may move freely
+// (a declined first attempt followed by a successful retry is normal).
+const GATEWAY_TRANSITIONS = {
+  succeeded: ['succeeded', 'refunded', 'disputed'],
+  disputed: ['disputed', 'refunded'],
+  refunded: ['refunded'],
+};
+
+function isAllowedGatewayTransition(from, to) {
+  const allowed = GATEWAY_TRANSITIONS[from];
+  return !allowed || allowed.includes(to);
+}
+
+function parseJsonColumn(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  try { return JSON.parse(value); } catch (_err) { return null; }
+}
+
 /**
- * When a payment transaction is confirmed as succeeded, find the corresponding
- * invoice (via the payment_transactions → client linkage) and:
- *  1. Mark the invoice as 'paid' if the amounts match
- *  2. Credit the client balance ledger
+ * Map a captured gateway transaction to a payments.payment_method value (ENUM
+ * in database/schema.sql). The method drives the SAT forma de pago stamped on
+ * the REP, so prefer what the provider actually reports in the success payload:
+ * Conekta's charge payment_method (card credit/debit, OXXO cash, SPEI) and a
+ * Stripe session/intent restricted to OXXO. Everything else captured by a card
+ * processor is a card payment.
+ */
+function resolveGatewayPaymentMethod(provider, webhookPayload) {
+  const obj = parseJsonColumn(webhookPayload)?.data?.object || {};
+  if (provider === 'conekta') {
+    const pm = obj.charges?.data?.[0]?.payment_method || obj.payment_method || {};
+    const kind = `${pm.type || ''} ${pm.object || ''}`.toLowerCase();
+    if (/\bdebit\b/.test(kind)) return 'debit_card';
+    if (/\bcredit\b/.test(kind)) return 'credit_card';
+    if (/oxxo|cash/.test(kind)) return 'oxxo_pay';
+    if (/spei|bank_transfer/.test(kind)) return 'spei';
+    return 'card';
+  }
+  if (provider === 'stripe') {
+    const types = Array.isArray(obj.payment_method_types) ? obj.payment_method_types : [];
+    if (types.length === 1 && types[0] === 'oxxo') return 'oxxo_pay';
+    return 'card';
+  }
+  if (provider === 'manual') return 'other';
+  return 'online';
+}
+
+/**
+ * Turn a SUCCEEDED gateway transaction into a payment, exactly once.
  *
- * This is intentionally best-effort — failures are logged but don't block
- * webhook processing.
+ * In one transaction, holding the payment_transactions row FOR UPDATE:
+ *   1. insert a 'completed' payments row (method + sat_forma_pago mapped from
+ *      the provider, reference_number = gateway reference) and link it through
+ *      payment_transactions.payment_id;
+ *   2. write the payment's client_balance_ledger credit (the same
+ *      billingService.recordPaymentCredit a staff-recorded payment writes);
+ *   3. allocate it with paymentAllocationService.allocateAcrossInvoices, the
+ *      allocate-auto waterfall: to the transaction's own invoice when it has
+ *      one (checkout / payment link / autopay), otherwise FIFO over the
+ *      client's payable invoices. A fully covered invoice is marked paid with
+ *      paid_at; anything left over stays on the payment as client credit.
+ * After commit, best-effort like the staff routes: reconnect a suspended
+ * contract of each invoice that became paid, cancel pending charge retries for
+ * it, and generate the REP (Complemento de Pago) for each allocation.
+ *
+ * Idempotent: a transaction that already has payment_id (a replayed webhook,
+ * both checkout.session.completed and payment_intent.succeeded, the sweep) is a
+ * no-op, as is one reconciled by the pre-migration-472 code (it carries a
+ * 'payment_transaction' ledger credit and was settled without a payment row).
+ *
+ * Throws when posting fails, after rolling back, so the caller can retry: the
+ * webhook answers 500 (the provider redelivers) and the sweep counts a failure.
+ *
+ * @param {number} transactionId
+ * @returns {Promise<{status: string, paymentId?: number, allocations?: object[], remainingCredit?: number}>}
  */
 async function reconcilePayment(transactionId) {
+  // Lazy requires: these services pull in large dependency graphs, and
+  // paymentRetryService requires this module.
+  const paymentAllocationService = require('./paymentAllocationService');
+  const billingService = require('./billingService');
+
   const conn = await db.getConnection();
+  let posted;
   try {
     await conn.beginTransaction();
+    const exec = conn.execute.bind(conn);
 
-    const [txRows] = await conn.execute('SELECT * FROM payment_transactions WHERE id = ? FOR UPDATE', [transactionId]);
+    const [txRows] = await exec('SELECT * FROM payment_transactions WHERE id = ? FOR UPDATE', [transactionId]);
     const tx = txRows[0];
     if (!tx) {
       await conn.rollback();
-      return;
+      return { status: 'not_found' };
     }
-
-    // Resolve the invoice this payment settles. Prefer the EXPLICIT linkage —
-    // hosted checkout / payment links store payment_transactions.invoice_id — so
-    // we settle exactly the invoice the customer chose and never strand captured
-    // money on the wrong invoice (or none). Legacy charge()/autopay transactions
-    // have no linkage and fall back to the old "oldest issued invoice of matching
-    // amount" heuristic.
-    let invoice = null;
-    let shouldCredit = false;
-    let markPaid = false;
-
-    if (tx.invoice_id) {
-      const [linked] = await conn.execute(
-        'SELECT * FROM invoices WHERE id = ? AND client_id = ? AND organization_id = ? FOR UPDATE',
-        [tx.invoice_id, tx.client_id, tx.organization_id],
-      );
-      invoice = linked[0] || null;
-      // The money was captured for THIS invoice — always credit it, even if the
-      // invoice was since deleted or already settled (an overpayment becomes a
-      // client credit); mark it paid only if it is still in a payable state.
-      shouldCredit = true;
-      markPaid = Boolean(invoice) && (invoice.status === 'issued' || invoice.status === 'sent');
-    } else {
-      const [oldest] = await conn.execute(
-        `SELECT * FROM invoices
-           WHERE client_id = ? AND organization_id = ? AND status = 'issued'
-           ORDER BY due_date ASC LIMIT 1 FOR UPDATE`,
-        [tx.client_id, tx.organization_id],
-      );
-      invoice = oldest[0] || null;
-      if (invoice && Math.abs(parseFloat(tx.amount) - parseFloat(invoice.total)) <= RECONCILE_AMOUNT_TOLERANCE) {
-        shouldCredit = true;
-        markPaid = true;
-      } else {
-        invoice = null;
-      }
-    }
-
-    if (!shouldCredit) {
+    if (tx.payment_id) {
       await conn.rollback();
-      return;
+      return { status: 'already_reconciled', paymentId: tx.payment_id };
+    }
+    if (tx.gateway_status !== 'succeeded') {
+      await conn.rollback();
+      return { status: 'not_succeeded' };
+    }
+    const [legacy] = await exec(
+      `SELECT id FROM client_balance_ledger
+        WHERE reference_type = 'payment_transaction' AND reference_id = ? AND entry_type = 'credit' LIMIT 1`,
+      [tx.id],
+    );
+    if (legacy.length > 0) {
+      await conn.rollback();
+      return { status: 'legacy_reconciled' };
     }
 
-    if (invoice && markPaid) {
-      await conn.execute('UPDATE invoices SET status = \'paid\' WHERE id = ?', [invoice.id]);
-      // Record which invoice this payment actually settled — refund reversal keys
-      // off this, NOT invoice_id (the merely-intended invoice). Overpayments
-      // (markPaid=false) leave it NULL so a refund never re-opens an invoice that
-      // a different payment is holding paid.
-      await conn.execute('UPDATE payment_transactions SET settled_invoice_id = ? WHERE id = ?', [invoice.id, tx.id]);
-    }
+    const orgId = tx.organization_id;
+    const [gwRows] = await exec(
+      'SELECT provider FROM payment_gateways WHERE id = ? AND organization_id = ? LIMIT 1',
+      [tx.payment_gateway_id, orgId],
+    );
+    const provider = gwRows[0]?.provider || null;
+    const paymentMethod = resolveGatewayPaymentMethod(provider, tx.webhook_payload);
+    const { FORMA_PAGO_BY_METHOD } = require('./repService');
 
-    // Credit client balance ledger
-    await conn.execute(
-      `INSERT INTO client_balance_ledger
-       (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-       VALUES (?, ?, 'credit', ?, ?, 'payment_transaction', ?, ?)`,
-      [tx.client_id, tx.organization_id, tx.amount, tx.currency, tx.id,
-        `Gateway payment ${tx.gateway_reference_id}`],
+    // Target invoices, locked: the linked invoice only (still payable, same
+    // org + client), or every payable invoice of the client, oldest first.
+    const invoices = await paymentAllocationService.getInvoicesWithBalance(
+      exec, orgId, tx.client_id, tx.invoice_id ? [tx.invoice_id] : null, true,
+    );
+    const linkedInvoice = tx.invoice_id ? (invoices[0] || null) : null;
+
+    const reference = String(tx.gateway_reference_id || `transaction ${tx.id}`).slice(0, 100);
+    const [payResult] = await exec(
+      `INSERT INTO payments
+         (organization_id, client_id, invoice_id, amount, currency, payment_method,
+          sat_forma_pago, reference_number, notes, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')`,
+      [orgId, tx.client_id, linkedInvoice ? linkedInvoice.id : null, tx.amount, tx.currency,
+        paymentMethod, FORMA_PAGO_BY_METHOD[paymentMethod] || null, reference,
+        `Online payment via ${provider || 'payment gateway'} (gateway transaction #${tx.id})`],
+    );
+    const paymentId = payResult.insertId;
+
+    await exec('UPDATE payment_transactions SET payment_id = ? WHERE id = ?', [paymentId, tx.id]);
+
+    await billingService.recordPaymentCredit(
+      { id: paymentId, client_id: tx.client_id, amount: tx.amount, currency: tx.currency, reference_number: reference },
+      orgId, exec,
     );
 
+    const { allocations, justPaidInvoices, remainder } = await paymentAllocationService.allocateAcrossInvoices(
+      exec, { paymentId, amount: tx.amount, invoices },
+    );
+
+    // settled_invoice_id records the invoice this capture turned paid (kept for
+    // the legacy refund path and reporting); NULL when it settled none.
+    if (justPaidInvoices.length > 0) {
+      await exec('UPDATE payment_transactions SET settled_invoice_id = ? WHERE id = ?', [justPaidInvoices[0].id, tx.id]);
+    }
+
     await conn.commit();
-    logger.info({ transactionId, invoiceId: invoice ? invoice.id : null }, 'Payment auto-reconciled');
+    posted = { tx, orgId, paymentId, allocations, justPaidInvoices, remainder };
   } catch (err) {
-    await conn.rollback();
-    // Reconciliation is best-effort; don't fail the webhook
-    logger.error({ err, transactionId }, 'Auto-reconciliation failed');
+    try { await conn.rollback(); } catch (_rollbackErr) { /* keep the original error */ }
+    logger.error({ err, transactionId }, 'Gateway payment reconciliation failed');
+    throw err;
   } finally {
     conn.release();
+  }
+
+  const { tx, orgId, paymentId, allocations, justPaidInvoices, remainder } = posted;
+  logger.info({ transactionId, paymentId, allocated: allocations.length, remainder }, 'Gateway payment reconciled');
+
+  // Post-commit side effects, best-effort: the money is already posted.
+  for (const invoice of justPaidInvoices) {
+    try {
+      await paymentAllocationService.reconnectIfSuspended(invoice, null, orgId);
+    } catch (err) {
+      logger.error({ err, transactionId, invoiceId: invoice.id }, 'Reconnect after gateway payment failed');
+    }
+    try {
+      await require('./paymentRetryService').cancelRetries({ invoiceId: invoice.id });
+    } catch (err) {
+      logger.error({ err, transactionId, invoiceId: invoice.id }, 'Cancelling charge retries after gateway payment failed');
+    }
+  }
+  const repService = require('./repService');
+  for (const a of allocations) {
+    await repService.maybeGenerateRep(paymentId, a.invoice_id, a.amount, orgId, null);
+  }
+
+  return {
+    status: 'reconciled', paymentId, transactionId: tx.id,
+    allocations, remainingCredit: remainder,
+  };
+}
+
+/**
+ * Re-derive an invoice's paid status from its live allocations on the open
+ * transaction (same rule as billingService.refreshInvoicePaidStatus).
+ */
+async function refreshInvoicePaidStatusOn(exec, invoiceId) {
+  const [rows] = await exec(
+    `SELECT i.total,
+            COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
+                       WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0) AS allocated
+       FROM invoices i WHERE i.id = ?`,
+    [invoiceId],
+  );
+  const inv = rows[0];
+  if (!inv) return;
+  if (parseFloat(inv.allocated) >= parseFloat(inv.total)) {
+    await exec("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status <> 'paid'", [invoiceId]);
+  } else {
+    await exec("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
   }
 }
 
 /**
- * Reverse the bookkeeping of a REFUNDED gateway payment: revert the invoice this
- * payment settled back to a payable state (so it is owed again) and write an
- * offsetting debit to the ledger. Without this a refunded online payment leaves
- * the invoice showing 'paid' and the client balance understated (the invoice
- * status is what computeClientBalance reads).
+ * Reverse the bookkeeping of a REFUNDED gateway payment.
  *
- * Idempotent + safe: only reverses when a reconcile CREDIT exists for this tx and
- * no reversal DEBIT has been written yet, so a refund()+charge.refunded double
- * fire (or a webhook redelivery) never double-reverses. Best-effort — logs, never
- * throws (mirrors reconcilePayment).
+ * Reconciled through a payment (payment_id set): mark that payment refunded,
+ * soft-delete its allocations, re-open each invoice they had paid, and append
+ * an offsetting ledger debit. The computed balance counts only completed
+ * payments, so the refunded money stops counting either as a settlement or as
+ * client credit.
+ *
+ * Legacy (reconciled before migration 472, a 'payment_transaction' ledger
+ * credit and no payment): re-open settled_invoice_id and append the debit.
+ *
+ * Idempotent: a payment already 'refunded', or a legacy transaction that
+ * already has its reversal debit, is left alone, so refund() + charge.refunded
+ * (or a redelivery) never double-reverse. Best-effort — logs, never throws.
  */
 async function reverseRefund(transactionId) {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
-    const [txRows] = await conn.execute('SELECT * FROM payment_transactions WHERE id = ? FOR UPDATE', [transactionId]);
+    const exec = conn.execute.bind(conn);
+    const [txRows] = await exec('SELECT * FROM payment_transactions WHERE id = ? FOR UPDATE', [transactionId]);
     const tx = txRows[0];
     if (!tx) { await conn.rollback(); return; }
 
-    // Only reverse a payment we actually reconciled (a credit ledger entry exists)...
-    const [credits] = await conn.execute(
+    if (tx.payment_id) {
+      const [payRows] = await exec(
+        'SELECT * FROM payments WHERE id = ? AND organization_id <=> ? FOR UPDATE',
+        [tx.payment_id, tx.organization_id],
+      );
+      const payment = payRows[0];
+      if (!payment || payment.status === 'refunded') { await conn.commit(); return; }
+
+      await exec("UPDATE payments SET status = 'refunded' WHERE id = ?", [payment.id]);
+      const [allocs] = await exec(
+        'SELECT DISTINCT invoice_id FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
+        [payment.id],
+      );
+      if (allocs.length > 0) {
+        await exec('UPDATE payment_allocations SET deleted_at = NOW() WHERE payment_id = ? AND deleted_at IS NULL', [payment.id]);
+        for (const { invoice_id: invoiceId } of allocs) {
+          await refreshInvoicePaidStatusOn(exec, invoiceId);
+        }
+      }
+      // A soft-deleted payment already had its ledger credit removed by the
+      // payments DELETE hook; only offset a credit that still stands.
+      if (!payment.deleted_at) {
+        await exec(
+          `INSERT INTO client_balance_ledger
+             (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
+           VALUES (?, ?, 'debit', ?, ?, 'payment', ?, ?)`,
+          [payment.client_id, payment.organization_id, payment.amount, payment.currency, payment.id,
+            `Refund of gateway payment ${payment.reference_number || payment.id}`],
+        );
+      }
+      await conn.commit();
+      logger.info({ transactionId, paymentId: payment.id }, 'Refund reversed the gateway payment and its allocations');
+      return;
+    }
+
+    // Legacy path: only reverse a payment we actually reconciled (a credit
+    // ledger entry exists)...
+    const [credits] = await exec(
       `SELECT id FROM client_balance_ledger
         WHERE reference_type = 'payment_transaction' AND reference_id = ? AND entry_type = 'credit' LIMIT 1`,
       [tx.id],
     );
     // ...and only once (no prior reversal debit for this tx).
-    const [debits] = await conn.execute(
+    const [debits] = await exec(
       `SELECT id FROM client_balance_ledger
         WHERE reference_type = 'payment_transaction' AND reference_id = ? AND entry_type = 'debit' LIMIT 1`,
       [tx.id],
     );
     if (credits.length === 0 || debits.length > 0) { await conn.commit(); return; }
 
-    // Re-open ONLY the invoice this payment actually settled (recorded by
-    // reconcile). Never a same-invoice overpayment that another payment is holding
-    // paid, and this works for legacy txs that had no intended invoice_id. When
-    // settled_invoice_id is NULL the payment settled nothing (a standing credit)
-    // so there is nothing to re-open — we still write the offsetting debit.
+    // Re-open ONLY the invoice this payment actually settled. When
+    // settled_invoice_id is NULL the payment settled nothing (a standing
+    // credit), so there is nothing to re-open — we still write the debit.
     if (tx.settled_invoice_id) {
-      await conn.execute(
+      await exec(
         "UPDATE invoices SET status = 'issued' WHERE id = ? AND status = 'paid'",
         [tx.settled_invoice_id],
       );
     }
-    await conn.execute(
+    await exec(
       `INSERT INTO client_balance_ledger
          (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
        VALUES (?, ?, 'debit', ?, ?, 'payment_transaction', ?, ?)`,
@@ -1296,8 +1578,105 @@ async function reverseRefund(transactionId) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Reconciliation retry sweep (scheduled task reconcile_gateway_payments)
+// ---------------------------------------------------------------------------
+
+const RECONCILE_SWEEP_LIMIT = 200;
+
+/**
+ * Reconcile the succeeded transactions of one organization that still have no
+ * payment (a reconcile that failed, or a webhook that never arrived after a
+ * synchronous capture). Runs in the caller's database context.
+ */
+async function reconcileOutstandingForOrganization(orgId, limit = RECONCILE_SWEEP_LIMIT) {
+  const safeLimit = Math.max(1, Math.min(1000, Number.parseInt(limit, 10) || RECONCILE_SWEEP_LIMIT));
+  const [rows] = await db.query(
+    `SELECT pt.id FROM payment_transactions pt
+      WHERE pt.organization_id = ? AND pt.gateway_status = 'succeeded' AND pt.payment_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM client_balance_ledger l
+                         WHERE l.reference_type = 'payment_transaction' AND l.reference_id = pt.id
+                           AND l.entry_type = 'credit')
+      ORDER BY pt.id ASC
+      LIMIT ${safeLimit}`,
+    [orgId],
+  );
+  const summary = { candidates: rows.length, reconciled: 0, skipped: 0, failed: 0, failures: [] };
+  for (const { id } of rows) {
+    try {
+      const result = await reconcilePayment(id);
+      if (result.status === 'reconciled') summary.reconciled += 1;
+      else summary.skipped += 1;
+    } catch (err) {
+      summary.failed += 1;
+      summary.failures.push({ transaction_id: id, error: err.message });
+    }
+  }
+  return summary;
+}
+
+/**
+ * Retry path for gateway reconciliation. With an organization id, sweep that
+ * organization in its database context. Without one (the seeded install-wide
+ * task), fan out over every active organization: shared-database orgs on the
+ * primary, isolated tenants inside their own database context, one org's
+ * failure never stopping the rest (same shape as taskRunner's alert fan-out).
+ */
+async function reconcileOutstandingTransactions(organizationId = null, { limit } = {}) {
+  const withPrimary = (callback) => (
+    typeof db.withPrimaryContext === 'function' ? db.withPrimaryContext(callback) : callback()
+  );
+  const withTenant = (orgId, callback) => (
+    typeof db.withTenantContext === 'function' ? db.withTenantContext(orgId, callback) : callback()
+  );
+
+  if (organizationId !== null && organizationId !== undefined) {
+    const orgId = Number(organizationId);
+    return withTenant(orgId, () => reconcileOutstandingForOrganization(orgId, limit));
+  }
+
+  const [organizations] = await withPrimary(() => db.query(
+    `SELECT o.id,
+            CASE WHEN odc.isolation_mode = 'isolated' THEN 'isolated' ELSE 'shared' END AS database_scope
+       FROM organizations o
+       LEFT JOIN organization_database_configs odc ON odc.organization_id = o.id
+      WHERE o.status = 'active' AND o.deleted_at IS NULL
+      ORDER BY o.id`,
+  ));
+
+  const summary = {
+    organizations_total: organizations.length, organizations_failed: 0,
+    candidates: 0, reconciled: 0, skipped: 0, failed: 0, failures: [],
+  };
+  for (const organization of organizations) {
+    const orgId = Number(organization.id);
+    try {
+      const run = () => reconcileOutstandingForOrganization(orgId, limit);
+      const result = organization.database_scope === 'isolated'
+        ? await withTenant(orgId, run)
+        : await withPrimary(run);
+      summary.candidates += result.candidates;
+      summary.reconciled += result.reconciled;
+      summary.skipped += result.skipped;
+      summary.failed += result.failed;
+      summary.failures.push(...result.failures.map((f) => ({ organization_id: orgId, ...f })));
+    } catch (err) {
+      summary.organizations_failed += 1;
+      summary.failures.push({ organization_id: orgId, error: err.message });
+      logger.warn({ err, organizationId: orgId }, 'Gateway reconciliation sweep failed for organization; continuing');
+    }
+  }
+  if (summary.organizations_total > 0 && summary.organizations_failed === summary.organizations_total) {
+    const err = new Error('Gateway reconciliation sweep failed for every active organization');
+    err.failures = summary.failures;
+    throw err;
+  }
+  return summary;
+}
+
 module.exports = {
   getActiveGateway,
+  getGatewayById,
   loadGatewayWebhookContext,
   charge,
   refund,
@@ -1312,8 +1691,13 @@ module.exports = {
   checkIdempotencyKey,
   storeIdempotencyKey,
   verifyStripeSignature,
+  parseConektaPublicKey,
   verifyConektaSignature,
   handleWebhookEvent,
+  isAllowedGatewayTransition,
+  resolveGatewayPaymentMethod,
   reconcilePayment,
+  reverseRefund,
+  reconcileOutstandingTransactions,
   paymentCircuitBreaker,
 };

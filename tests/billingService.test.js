@@ -343,7 +343,7 @@ describe('billingService', () => {
   describe('generateInvoice', () => {
     const billingPeriod = { id: 10, period_start: '2026-03-01', period_end: '2026-03-31' };
     const contract = { id: 1, client_id: 100, price_override: null, tax_rate_id: null };
-    const plan = { name: 'Basic 50Mbps', price: '500.00', currency: 'MXN' };
+    const plan = { id: 7, name: 'Basic 50Mbps', price: '500.00', currency: 'MXN', trial_days: null, overage_mode: 'none' }; // a plans row
     const orgId = 42;
 
     test('creates invoice with correct totals inside a transaction', async () => {

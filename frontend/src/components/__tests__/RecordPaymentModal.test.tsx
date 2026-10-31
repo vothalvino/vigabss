@@ -178,6 +178,30 @@ describe('RecordPaymentModal', () => {
     expect(onRecorded).toHaveBeenCalled();
   });
 
+  // DAL-02: a pending/failed payment applied to invoices marked them paid,
+  // reconnected service and stamped a REP for money that never arrived.
+  it('a non-completed payment is recorded without applying it to any invoice', async () => {
+    const user = userEvent.setup();
+    renderModal();
+    await screen.findByText('INV-10');
+    await user.selectOptions(screen.getByDisplayValue('Completed'), 'pending');
+
+    const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+    expect(boxes.every(b => b.disabled && !b.checked)).toBe(true);
+    expect(screen.getByText(/Only a completed payment can be applied to invoices/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() => expect(authedFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/payments'),
+      expect.objectContaining({ method: 'POST' }),
+    ));
+    const createCall = (authedFetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .find((c) => String(c[0]).endsWith('/api/v1/payments'));
+    expect(JSON.parse((createCall![1] as RequestInit).body as string).status).toBe('pending');
+    expect((authedFetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .some((c) => String(c[0]).includes('/allocate-auto'))).toBe(false);
+  });
+
   it('lockedInvoiceId pre-checks only that invoice; the other stays listed, unchecked', async () => {
     renderModal({ lockedInvoiceId: 11 });
     await screen.findByText('INV-10');

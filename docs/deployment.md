@@ -151,11 +151,21 @@ falling back to the shared primary database.
 > returns **503 `WEBHOOK_NOT_CONFIGURED`** instead of trusting the request. If you
 > miss this, `/payment-webhooks/*` will 503 and invoices will stop auto-reconciling
 > from payment callbacks — with no in-app alert, so check the provider's webhook
-> dashboard or the app logs. Note the receiver reads the **env var**, not the
-> per-gateway "Webhook Secret" field in Settings (that field is not yet wired to the
-> receiver). `ALLOW_UNSIGNED_WEBHOOKS=true` re-enables the old unsigned behavior only
+> dashboard or the app logs. The global `/payment-webhooks/<provider>` URL reads
+> the **env var**; the per-gateway `/payment-webhooks/<provider>/<gatewayId>` URL
+> reads that gateway's "Webhook Secret" field in Settings. `ALLOW_UNSIGNED_WEBHOOKS=true` re-enables the old unsigned behavior only
 > when `NODE_ENV` is explicitly `development` or `test`; deployed environments ignore
 > the flag and continue to fail closed.
+
+> **Release note — Conekta webhook verification and Stripe events (migration
+> 472).** Conekta webhooks are now verified the way Conekta signs them: RSA-SHA256
+> over the raw body, base64 in the `DIGEST` header, checked against the webhook
+> key's **public key**. The old HMAC check could never succeed. Set
+> `CONEKTA_WEBHOOK_KEY` (global URL) or the Conekta gateway's Webhook Secret
+> field (per-gateway URL) to the `public_key` PEM returned by Conekta's
+> `POST /webhook_keys`; a non-PEM value answers **503**. For Stripe, add the
+> `checkout.session.*` events listed in `docs/api-and-integrations.md` to the
+> endpoint, or portal card payments and autopay enrollment will not reconcile.
 
 For a non-standard install path, set `VIGABSS_DIR` inside a root shell
 (`sudo -i`) — as a `sudo` prefix it is stripped, see the rollback note below.

@@ -59,7 +59,7 @@ describe('POST /payments/:id/allocate → auto-reconnect of a suspended contract
 
     db.query.mockImplementation((sql) => {
       if (/FROM payments/i.test(sql)) {
-        return [[{ id: 1, client_id: 5, amount: '500.00', organization_id: 1 }]];
+        return [[{ id: 1, client_id: 5, amount: '500.00', organization_id: 1, status: 'completed' }]];
       }
       if (/FROM invoices/i.test(sql)) return [[SUSPENDED_INVOICE]];
       if (/INSERT INTO payment_allocations/i.test(sql)) return [{ insertId: 99 }];
@@ -121,7 +121,7 @@ describe('POST /payments/:id/allocate → auto-reconnect of a suspended contract
 
   test('an unsuspended contract is left alone', async () => {
     db.query.mockImplementation((sql) => {
-      if (/FROM payments/i.test(sql)) return [[{ id: 1, client_id: 5, amount: '500.00', organization_id: 1 }]];
+      if (/FROM payments/i.test(sql)) return [[{ id: 1, client_id: 5, amount: '500.00', organization_id: 1, status: 'completed' }]];
       if (/FROM invoices/i.test(sql)) return [[SUSPENDED_INVOICE]];
       if (/INSERT INTO payment_allocations/i.test(sql)) return [{ insertId: 99 }];
       if (/FROM payment_allocations WHERE id/i.test(sql)) return [[{ id: 99 }]];

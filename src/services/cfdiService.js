@@ -91,9 +91,13 @@ function cfdiExpeditionTime(now = new Date()) {
  * user: undefined on real rows.
  */
 async function swAuthToken(pac, baseUrl) {
-  if (pac.token_encrypted) return pac.token_encrypted;
+  // The credential columns hold ciphertext; decrypt() passes legacy plaintext
+  // rows through unchanged.
+  if (pac.token_encrypted) return encryption.decrypt(pac.token_encrypted);
+  const user = pac.username_encrypted ? encryption.decrypt(pac.username_encrypted) : pac.username;
+  const password = pac.password_encrypted ? encryption.decrypt(pac.password_encrypted) : pac.password_encrypted;
   const authResponse = await httpRequest(`${baseUrl}/security/authenticate`, 'POST',
-    JSON.stringify({ user: pac.username_encrypted || pac.username, password: pac.password_encrypted }),
+    JSON.stringify({ user, password }),
     { 'Content-Type': 'application/json' },
   );
   const authData = JSON.parse(authResponse.body);

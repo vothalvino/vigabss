@@ -50,12 +50,22 @@ async function scheduleRetry({
   recurringProfileId = null,
   errorMessage = null,
 }) {
-  // Check if a retry schedule already exists for this transaction
-  const [existing] = await db.query(
-    `SELECT id FROM payment_retries
-     WHERE transaction_id = ? AND status IN ('pending', 'processing')`,
-    [transactionId],
-  );
+  // One live retry schedule per transaction, and per (profile, invoice): a
+  // second failed charge for the same invoice must not start a parallel
+  // schedule that charges the card again.
+  const [existing] = invoiceId && recurringProfileId
+    ? await db.query(
+      `SELECT id FROM payment_retries
+        WHERE status IN ('pending', 'processing')
+          AND (transaction_id = ? OR (recurring_profile_id = ? AND invoice_id = ?))
+        LIMIT 1`,
+      [transactionId, recurringProfileId, invoiceId],
+    )
+    : await db.query(
+      `SELECT id FROM payment_retries
+        WHERE transaction_id = ? AND status IN ('pending', 'processing')`,
+      [transactionId],
+    );
 
   if (existing.length > 0) {
     logger.info({ transactionId, retryId: existing[0].id }, 'Retry already scheduled for transaction');
@@ -97,10 +107,18 @@ async function processPendingRetries(organizationId = null) {
   const orgFilter = organizationId ? 'AND pr.organization_id = ?' : '';
   const params = organizationId ? [organizationId] : [];
 
+  // The profile and its gateway must still be live: a revoked, expired or
+  // deleted card (or a deleted gateway) is never charged again.
   const [retries] = await db.query(`
-    SELECT pr.*, rp.token_reference AS payment_method_token
+    SELECT pr.*, rp.token_reference AS payment_method_token,
+           pg.id AS payment_gateway_id, rp.stripe_customer_id
     FROM payment_retries pr
-    LEFT JOIN recurring_payment_profiles rp ON rp.id = pr.recurring_profile_id AND rp.status = 'active'
+    LEFT JOIN recurring_payment_profiles rp
+      ON rp.id = pr.recurring_profile_id AND rp.status = 'active' AND rp.deleted_at IS NULL
+      AND rp.organization_id <=> pr.organization_id
+    LEFT JOIN payment_gateways pg
+      ON pg.id = rp.payment_gateway_id AND pg.organization_id = pr.organization_id
+      AND pg.status = 'active' AND pg.deleted_at IS NULL
     WHERE pr.status = 'pending'
       AND pr.next_retry_at <= NOW()
       ${orgFilter}
@@ -111,12 +129,14 @@ async function processPendingRetries(organizationId = null) {
   let succeeded = 0;
   let failed = 0;
   let exhausted = 0;
+  let cancelled = 0;
 
   for (const retry of retries) {
     try {
       const result = await executeRetry(retry);
       if (result.status === 'succeeded') succeeded++;
       else if (result.status === 'exhausted') exhausted++;
+      else if (result.status === 'cancelled') cancelled++;
       else failed++;
     } catch (err) {
       failed++;
@@ -125,11 +145,11 @@ async function processPendingRetries(organizationId = null) {
   }
 
   logger.info(
-    { total: retries.length, succeeded, failed, exhausted },
+    { total: retries.length, succeeded, failed, exhausted, cancelled },
     'Payment retry batch processed',
   );
 
-  return { processed: retries.length, succeeded, failed, exhausted };
+  return { processed: retries.length, succeeded, failed, exhausted, cancelled };
 }
 
 /**
@@ -138,8 +158,51 @@ async function processPendingRetries(organizationId = null) {
  * @param {object} retry - The payment_retries row
  * @returns {object} { status: 'succeeded' | 'failed' | 'exhausted' }
  */
+async function cancelRetry(retry, reason) {
+  await db.query(
+    `UPDATE payment_retries
+        SET status = 'cancelled', last_error = ?, completed_at = NOW(), next_retry_at = NULL
+      WHERE id = ? AND status IN ('pending', 'processing')`,
+    [reason, retry.id],
+  );
+  logger.info({ retryId: retry.id, reason }, 'Payment retry cancelled');
+  return { status: 'cancelled', reason };
+}
+
+// What is still owed on the retry's invoice, or null when the invoice is gone
+// (deleted) or no longer payable (paid, void, cancelled).
+async function liveInvoiceBalance(retry) {
+  const [rows] = await db.query(
+    `SELECT (i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
+                                  WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)) AS balance_due
+       FROM invoices i
+      WHERE i.id = ? AND i.organization_id = ? AND i.deleted_at IS NULL
+        AND i.status IN ('issued', 'sent', 'overdue')`,
+    [retry.invoice_id, retry.organization_id],
+  );
+  if (rows.length === 0) return null;
+  return Math.round(parseFloat(rows[0].balance_due) * 100) / 100;
+}
+
 async function executeRetry(retry) {
   const attemptNumber = retry.attempt_number + 1;
+
+  // Nothing to charge with: the stored card was revoked/expired/deleted, its
+  // gateway is gone, or the retry was never tied to a stored card. Charging
+  // without a token cannot succeed and must not hit the gateway's fallback.
+  if (!retry.payment_method_token || !retry.payment_gateway_id) {
+    return cancelRetry(retry, 'The stored payment method or its gateway is no longer active');
+  }
+
+  let amount = parseFloat(retry.amount);
+  if (retry.invoice_id) {
+    const balance = await liveInvoiceBalance(retry);
+    if (balance === null || balance <= 0) {
+      return cancelRetry(retry, 'The invoice is no longer payable');
+    }
+    // Never charge more than is still owed (a cash payment may have landed).
+    amount = Math.min(amount, balance);
+  }
 
   // Mark as processing
   await db.query(
@@ -147,17 +210,22 @@ async function executeRetry(retry) {
     [retry.id],
   );
 
-  // Generate a unique idempotency key for this retry attempt
-  const idempotencyKey = `retry_${retry.id}_attempt_${attemptNumber}_${Date.now()}`;
+  // Deterministic per retry attempt, so a duplicate run replays instead of
+  // charging the card a second time.
+  const idempotencyKey = `retry:${retry.id}:${attemptNumber}`;
 
   try {
     const chargeResult = await paymentGatewayService.charge({
       organizationId: retry.organization_id,
+      gatewayId: retry.payment_gateway_id,
       clientId: retry.client_id,
-      amount: parseFloat(retry.amount),
+      amount,
       currency: retry.currency,
       description: `Retry #${attemptNumber} for transaction ${retry.transaction_id}`,
-      paymentMethodToken: retry.payment_method_token || null,
+      paymentMethodToken: retry.payment_method_token,
+      customer: retry.stripe_customer_id || undefined,
+      offSession: true,
+      invoiceId: retry.invoice_id || undefined,
       idempotencyKey,
     });
 

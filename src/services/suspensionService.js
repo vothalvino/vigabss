@@ -26,48 +26,99 @@ const {
   describeTrigger,
 } = require('./suspensionLogConstants');
 
+// Rule actions the scheduler actually carries out. 'notify_only' and
+// 'auto_disconnect' were accepted and stored but never did anything; they are
+// now refused by validation, and a stored rule with one of them is skipped.
+const ENFORCED_RULE_ACTIONS = ['auto_suspend', 'soft_suspend', 'walled_garden'];
+
+// Money still owed on an invoice, above rounding noise.
+const OPEN_BALANCE_SQL = `(i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
+                                     WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)) > 0.005`;
+
+// apply_to_plan_ids: NULL (or an empty list) = every plan.
+function rulePlanIds(rule) {
+  let ids = rule.apply_to_plan_ids;
+  if (typeof ids === 'string') {
+    try { ids = JSON.parse(ids); } catch (_e) { ids = null; }
+  }
+  if (!Array.isArray(ids)) return null;
+  const clean = ids.map(Number).filter(n => Number.isSafeInteger(n) && n > 0);
+  return clean.length ? clean : null;
+}
+
+// A rule acts once the oldest unpaid invoice is overdue by at least
+// days_past_due + grace_period_days. There is no upper bound: the grace is
+// extra waiting time, not the length of a window (with the default grace of 0
+// the old "< days_past_due + grace" bound meant a rule could never fire).
+function ruleThresholdDays(rule) {
+  return Number(rule.days_past_due || 0) + Number(rule.grace_period_days || 0);
+}
+
+/**
+ * Active contracts of the org whose oldest live, unpaid invoice is at least
+ * `minDays` overdue (and fewer than `maxDays` when given), one row per
+ * contract, optionally limited to some plans. Archived and suspension-exempt
+ * clients are excluded.
+ */
+async function findOverdueContracts(organizationId, { minDays, maxDays = null, planIds = null }) {
+  const planFilter = planIds ? `AND c.plan_id IN (${planIds.map(() => '?').join(', ')})` : '';
+  const maxFilter = maxDays === null ? '' : 'AND DATEDIFF(NOW(), i.due_date) < ?';
+  const [rows] = await db.query(`
+    SELECT c.*, i.id AS invoice_id, i.invoice_number, i.due_date, i.total, i.currency,
+           DATEDIFF(NOW(), i.due_date) AS days_overdue
+    FROM contracts c
+    JOIN clients cl ON cl.id = c.client_id AND cl.deleted_at IS NULL
+    JOIN invoices i ON i.id = (
+      SELECT i.id FROM invoices i
+       WHERE i.contract_id = c.id AND i.organization_id = ? AND i.deleted_at IS NULL
+         AND i.status IN ('issued', 'sent', 'overdue')
+         AND ${OPEN_BALANCE_SQL}
+       ORDER BY i.due_date ASC, i.id ASC
+       LIMIT 1
+    )
+    WHERE c.organization_id = ?
+      AND c.status = 'active'
+      AND c.deleted_at IS NULL
+      AND COALESCE(cl.suspension_exempt, 0) = 0
+      AND DATEDIFF(NOW(), i.due_date) >= ?
+      ${maxFilter}
+      ${planFilter}
+  `, [
+    organizationId, organizationId, minDays,
+    ...(maxDays === null ? [] : [maxDays]),
+    ...(planIds || []),
+  ]);
+  return rows;
+}
+
 /**
  * Evaluate suspension rules for an organization and return contracts to act on.
+ * A contract matched by several rules is acted on once, by the rule with the
+ * highest threshold.
  */
 async function evaluateRules(organizationId) {
-  // Column is `is_active`, not `is_enabled` (database/schema.sql) — this made
-  // the scheduled dunning pipeline (taskRunner's 'auto_suspend' task, the
-  // entire point of the suspension feature) throw on every run, for every
-  // organization, regardless of the INSERT fixes elsewhere in this file.
-  // Also exclude soft-deleted rules (`deleted_at`), matching
-  // taskRunner.runSuspensionWarnings's suspension_rules query, which already
-  // got both of these right.
+  // Column is `is_active`, not `is_enabled` (database/schema.sql). Also
+  // exclude soft-deleted rules (`deleted_at`).
   const [rules] = await db.query(
     'SELECT * FROM suspension_rules WHERE organization_id = ? AND is_active = TRUE AND deleted_at IS NULL ORDER BY days_past_due ASC',
     [organizationId],
   );
 
-  const results = [];
-
-  for (const rule of rules) {
-    // Find contracts with past-due invoices exceeding the rule's threshold.
-    // Exclude contracts whose client has suspension_exempt set.
-    const [contracts] = await db.query(`
-      SELECT c.*, i.id AS invoice_id, i.due_date, i.total,
-             DATEDIFF(NOW(), i.due_date) AS days_overdue
-      FROM contracts c
-      JOIN invoices i ON i.contract_id = c.id AND i.organization_id = ?
-      JOIN clients cl ON cl.id = c.client_id
-      WHERE c.organization_id = ?
-        AND c.status = 'active'
-        AND i.status = 'issued'
-        AND DATEDIFF(NOW(), i.due_date) >= ?
-        AND DATEDIFF(NOW(), i.due_date) < ? + ?
-        AND COALESCE(cl.suspension_exempt, 0) = 0
-    `, [organizationId, organizationId, rule.days_past_due,
-      rule.days_past_due, rule.grace_period_days || 0]);
-
-    for (const contract of contracts) {
-      results.push({ rule, contract });
+  const byContract = new Map();
+  const ordered = [...rules].sort((a, b) => ruleThresholdDays(a) - ruleThresholdDays(b));
+  for (const rule of ordered) {
+    if (!ENFORCED_RULE_ACTIONS.includes(rule.action)) {
+      logger.warn({ ruleId: rule.id, action: rule.action }, 'Suspension rule action is not enforced — rule skipped');
+      continue;
     }
+    const contracts = await findOverdueContracts(organizationId, {
+      minDays: ruleThresholdDays(rule),
+      planIds: rulePlanIds(rule),
+    });
+    for (const contract of contracts) byContract.set(contract.id, { rule, contract });
   }
 
-  return results;
+  return [...byContract.values()];
 }
 
 /**
@@ -201,6 +252,34 @@ async function suspendContract(contractId, ruleId, userId, invoiceId) {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
+
+    // Lock the contract and re-check under the lock: the rule run picked it
+    // from a read moments earlier, and a payment or a manual change can land
+    // in between. Only an active contract is suspended, and a rule only
+    // suspends while an overdue invoice is still unpaid.
+    const [lockedRows] = await conn.execute(
+      'SELECT id, status FROM contracts WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
+      [contractId],
+    );
+    if (!lockedRows[0] || lockedRows[0].status !== 'active') {
+      await conn.rollback();
+      return { skipped: true, reason: 'CONTRACT_NOT_ACTIVE' };
+    }
+    if (ruleId) {
+      const [owed] = await conn.execute(
+        `SELECT i.id FROM invoices i
+          WHERE i.contract_id = ? AND i.deleted_at IS NULL
+            AND i.status IN ('issued', 'sent', 'overdue')
+            AND i.due_date < CURDATE()
+            AND ${OPEN_BALANCE_SQL}
+          LIMIT 1`,
+        [contractId],
+      );
+      if (!owed[0]) {
+        await conn.rollback();
+        return { skipped: true, reason: 'NO_OVERDUE_BALANCE' };
+      }
+    }
 
     await conn.execute(
       'UPDATE contracts SET status = ? WHERE id = ?',
@@ -909,7 +988,11 @@ async function sendWithFailover(nas, code, username, extraAttributes = []) {
 }
 
 module.exports = {
+  ENFORCED_RULE_ACTIONS,
   evaluateRules,
+  findOverdueContracts,
+  rulePlanIds,
+  ruleThresholdDays,
   logSuspensionEvent,
   closeOpenSuspensionAndGetStart,
   suspendContract,

@@ -12,6 +12,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createPacProvider, updatePacProvider } = require('../middleware/schemas/pacProviders');
 const { assertSafeOutboundUrl } = require('../utils/safeOutboundUrl');
+const { sealSecretFields } = require('../utils/sealSecrets');
 const db = require('../config/database');
 const auditLog = require('../services/auditLog');
 const { AppError } = require('../utils/errors');
@@ -137,8 +138,14 @@ router.put('/environment', requirePermission('pac_providers.update'), async (req
 
 router.get('/', requirePermission('pac_providers.view'), ctrl.list);
 router.get('/:id', requirePermission('pac_providers.view'), ctrl.get);
-router.post('/', requirePermission('pac_providers.create'), validate(createPacProvider), guardApiUrl, ctrl.create);
-router.put('/:id', requirePermission('pac_providers.update'), validate(updatePacProvider), guardApiUrl, ctrl.update);
+const sealPacCredentials = sealSecretFields({
+  username: 'username_encrypted',
+  password: 'password_encrypted',
+  token: 'token_encrypted',
+});
+
+router.post('/', requirePermission('pac_providers.create'), validate(createPacProvider), guardApiUrl, sealPacCredentials, ctrl.create);
+router.put('/:id', requirePermission('pac_providers.update'), validate(updatePacProvider), guardApiUrl, sealPacCredentials, ctrl.update);
 router.delete('/:id', requirePermission('pac_providers.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('pac_providers.update'), ctrl.restore);
 

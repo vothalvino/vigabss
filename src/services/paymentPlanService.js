@@ -164,6 +164,9 @@ async function payInstallment(planId, sequence, paymentId, orgId) {
   );
   const payment = payRows[0];
   if (!payment) throw new NotFoundError('payments');
+  if (payment.status !== 'completed') {
+    throw new ValidationError(`Only a completed payment can settle an installment (this payment is ${payment.status}).`);
+  }
 
   const conn = await db.getConnection();
   let connReleased = false;

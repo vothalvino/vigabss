@@ -10,6 +10,7 @@ const db = require('../config/database');
 const config = require('../config');
 const paymentGatewayService = require('./paymentGatewayService');
 const paymentRetryService = require('./paymentRetryService');
+const paymentAllocationService = require('./paymentAllocationService');
 const logger = require('../utils/logger');
 const { ValidationError } = require('../utils/errors');
 
@@ -50,7 +51,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
   // not a 500.
   const [gateways] = await db.query(
     `SELECT id, provider, secret_key_encrypted FROM payment_gateways
-     WHERE organization_id = ? AND status = 'active'
+     WHERE organization_id = ? AND status = 'active' AND deleted_at IS NULL
      ORDER BY is_default DESC, id ASC
      LIMIT 1`,
     [organizationId],
@@ -232,36 +233,74 @@ async function generatePaymentLink({ organizationId, invoiceId }) {
   };
 }
 
+// A charge for this invoice is already in flight or has collected money that
+// is not reconciled yet: a pending/succeeded transaction with no payment
+// recorded against it, or a retry that is still scheduled. Charging again
+// before the webhook settles it would bill the card twice.
+async function hasChargeInFlight(organizationId, invoiceId) {
+  const [rows] = await db.query(
+    `SELECT 1 FROM payment_transactions
+      WHERE organization_id = ? AND invoice_id = ?
+        AND gateway_status IN ('pending', 'succeeded') AND payment_id IS NULL
+     UNION ALL
+     SELECT 1 FROM payment_retries
+      WHERE organization_id = ? AND invoice_id = ? AND status IN ('pending', 'processing')
+     LIMIT 1`,
+    [organizationId, invoiceId, organizationId, invoiceId],
+  );
+  return rows.length > 0;
+}
+
+function utcDayStamp(date = new Date()) {
+  return date.toISOString().slice(0, 10).replace(/-/g, '');
+}
+
 /**
  * Process a recurring charge for a stored payment profile.
+ *
+ * @param {number} profileId
+ * @param {number} [organizationId] - when given, the profile must belong to it
  */
-async function chargeRecurringProfile(profileId) {
+async function chargeRecurringProfile(profileId, organizationId) {
   const [profiles] = await db.query(
     `SELECT rp.*, pg.provider, pg.organization_id, pg.id AS gateway_id
      FROM recurring_payment_profiles rp
      JOIN payment_gateways pg ON pg.id = rp.payment_gateway_id
-     WHERE rp.id = ? AND rp.status = 'active'`,
-    [profileId],
+     WHERE rp.id = ? AND rp.status = 'active' AND rp.deleted_at IS NULL
+       AND pg.status = 'active' AND pg.deleted_at IS NULL
+       ${organizationId ? 'AND pg.organization_id = ?' : ''}`,
+    organizationId ? [profileId, organizationId] : [profileId],
   );
 
   if (profiles.length === 0) throw new Error('Active recurring profile not found');
   const profile = profiles[0];
 
-  // Find the next unpaid invoice for this client
-  const [invoices] = await db.query(
-    `SELECT * FROM invoices
-     WHERE client_id = ? AND organization_id = ? AND status = 'issued'
-     ORDER BY due_date ASC LIMIT 1`,
-    [profile.client_id, profile.organization_id],
-  );
+  // The oldest payable invoice with money still owed. Soft-deleted invoices
+  // keep their status, so deleted_at must be filtered explicitly.
+  const invoices = (await paymentAllocationService.getInvoicesWithBalance(
+    db.query.bind(db), profile.organization_id, profile.client_id, null, false,
+  )).filter(inv => parseFloat(inv.balance_due) > 0);
 
   if (invoices.length === 0) {
     return { charged: false, skipped: true, message: 'No pending invoices for this client' };
   }
 
   const invoice = invoices[0];
-  const idempotencyKey = `recurring_${profileId}_${invoice.id}_${Date.now()}`;
-  const amount = parseFloat(invoice.total);
+  if (await hasChargeInFlight(profile.organization_id, invoice.id)) {
+    return {
+      charged: false,
+      skipped: true,
+      invoice_id: invoice.id,
+      message: 'A charge for this invoice is already in progress',
+    };
+  }
+
+  // Deterministic per profile, invoice and UTC day: a second run the same day
+  // (another replica, a re-run) replays the first attempt instead of charging.
+  const idempotencyKey = `recurring:${profileId}:${invoice.id}:${utcDayStamp()}`;
+  // Charge what is still owed, not the invoice total: a partly paid invoice
+  // must not be billed for the part already paid.
+  const amount = Math.round(parseFloat(invoice.balance_due) * 100) / 100;
   const description = `Recurring payment for invoice ${invoice.invoice_number}`;
 
   // recurring_payment_profiles has no `gateway_token` column — the stored card
@@ -298,6 +337,8 @@ async function chargeRecurringProfile(profileId) {
   } else {
     result = await paymentGatewayService.charge({
       organizationId: profile.organization_id,
+      // The stored token only exists at the gateway that issued it.
+      gatewayId: profile.gateway_id,
       clientId: profile.client_id,
       amount,
       currency: invoice.currency,
@@ -349,7 +390,7 @@ async function chargeRecurringProfile(profileId) {
     profile_id: profileId,
     invoice_id: invoice.id,
     invoice_number: invoice.invoice_number,
-    amount: invoice.total,
+    amount,
     currency: invoice.currency,
     transaction: result,
   };
@@ -366,7 +407,10 @@ async function processRecurringCharges(organizationId) {
     SELECT rp.id
     FROM recurring_payment_profiles rp
     JOIN payment_gateways pg ON pg.id = rp.payment_gateway_id
-    WHERE rp.status = 'active' AND rp.is_default = TRUE ${orgFilter}
+    -- Never charge an archived client's card (DAL-03).
+    JOIN clients cl ON cl.id = rp.client_id AND cl.deleted_at IS NULL
+    WHERE rp.status = 'active' AND rp.is_default = TRUE AND rp.deleted_at IS NULL
+      AND pg.status = 'active' AND pg.deleted_at IS NULL ${orgFilter}
   `, params);
 
   let charged = 0;
@@ -375,7 +419,7 @@ async function processRecurringCharges(organizationId) {
 
   for (const profile of profiles) {
     try {
-      const result = await chargeRecurringProfile(profile.id);
+      const result = await chargeRecurringProfile(profile.id, organizationId || undefined);
       // `skipped` means there was nothing to charge (no pending invoice) — not
       // "we tried and the gateway didn't collect". An attempted-but-uncharged
       // outcome (declined, no token, still pending) is a `failed` run so it

@@ -21,10 +21,19 @@ jest.mock('../src/services/billingService', () => ({
   generateInvoice: jest.fn(),
 }));
 
-jest.mock('../src/services/suspensionService', () => ({
-  evaluateRules: jest.fn(),
-  suspendContract: jest.fn(),
-}));
+jest.mock('../src/services/suspensionService', () => {
+  // The rule helpers stay real (plain functions survive resetAllMocks); the
+  // overdue-contract query runs against the mocked db like before.
+  const actual = jest.requireActual('../src/services/suspensionService');
+  return {
+    evaluateRules: jest.fn(),
+    suspendContract: jest.fn(),
+    ENFORCED_RULE_ACTIONS: actual.ENFORCED_RULE_ACTIONS,
+    ruleThresholdDays: rule => actual.ruleThresholdDays(rule),
+    rulePlanIds: rule => actual.rulePlanIds(rule),
+    findOverdueContracts: (...args) => actual.findOverdueContracts(...args),
+  };
+});
 
 jest.mock('../src/services/emailTransport', () => ({
   sendEmail: jest.fn(),
@@ -280,6 +289,7 @@ describe('runSuspensionWarnings — advance warning emails', () => {
       organization_id: 42,
       days_past_due: 30,
       notify_before_days: 7,
+      action: 'auto_suspend',
       is_active: true,
     };
     const contract = {
@@ -317,7 +327,7 @@ describe('runSuspensionWarnings — advance warning emails', () => {
 
   test('skips warning when client has no email', async () => {
     const rule = {
-      id: 1, org_id: 42, days_past_due: 30, notify_before_days: 7, is_active: true,
+      id: 1, org_id: 42, days_past_due: 30, notify_before_days: 7, action: 'auto_suspend', is_active: true,
     };
     const contract = {
       contract_id: 10, client_id: 50, organization_id: 42,
@@ -345,7 +355,7 @@ describe('runSuspensionWarnings — advance warning emails', () => {
 
   test('silently skips warning when email send fails', async () => {
     const rule = {
-      id: 1, org_id: 42, days_past_due: 30, notify_before_days: 7, is_active: true,
+      id: 1, org_id: 42, days_past_due: 30, notify_before_days: 7, action: 'auto_suspend', is_active: true,
     };
     const contract = {
       contract_id: 10, client_id: 50, organization_id: 42,
@@ -365,18 +375,20 @@ describe('runSuspensionWarnings — advance warning emails', () => {
     expect(result.warnings_sent).toBe(0);  // failed silently
   });
 
-  test('skips rules where notify_before_days >= days_past_due (no valid window)', async () => {
+  test('a notice window longer than the rule threshold warns from the due date on', async () => {
     const rule = {
-      id: 1, org_id: 42, days_past_due: 5, notify_before_days: 10, is_active: true,
+      id: 1, org_id: 42, days_past_due: 5, notify_before_days: 10, action: 'auto_suspend', is_active: true,
     };
 
-    db.query.mockResolvedValueOnce([[rule]]);
+    db.query
+      .mockResolvedValueOnce([[rule]])
+      .mockResolvedValueOnce([[]]); // no contracts in the window
 
     const result = await taskRunner.runSuspensionWarnings(42);
-    // warningStart = 5-10 = -5 < 0, so the rule is skipped
     expect(result.warnings_sent).toBe(0);
-    // Should not have queried for contracts
-    expect(db.query).toHaveBeenCalledTimes(1);
+    // The window is clamped to [0, 5) days overdue instead of skipping the rule.
+    const [, params] = db.query.mock.calls[1];
+    expect(params.slice(2, 4)).toEqual([0, 5]);
   });
 
   test('works without organizationId filter', async () => {
@@ -507,6 +519,8 @@ describe('runBillingCycle — full billing engine orchestration', () => {
       invoices_generated: 0,
       emails_sent: 0,
       contracts_checked: 0,
+      contracts_failed: 0,
+      errors: [],
       contracts_suspended: 0,
       warnings_sent: 0,
     });

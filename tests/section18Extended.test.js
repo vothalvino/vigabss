@@ -182,10 +182,17 @@ describe('taskRunner — §18 scheduled task dispatch', () => {
       expect(result.anomalies_detected).toBe(1);
     });
 
-    it('runs without orgId (null)', async () => {
-      db.query.mockResolvedValueOnce(mockRows([]));
+    // ASY-02: the seeded install-wide row (no org) runs once per active
+    // organization instead of passing a NULL org that matched nothing.
+    it('without an orgId, runs once per active organization', async () => {
+      db.query
+        .mockResolvedValueOnce(mockRows([{ id: 3, database_scope: 'shared' }])) // active orgs
+        .mockResolvedValueOnce(mockRows([]));
       const result = await taskRunner.runTask('anomaly_detection', null);
-      expect(result).toHaveProperty('combos_checked');
+      expect(result.organizations_total).toBe(1);
+      expect(result.results[0].organization_id).toBe(3);
+      expect(result.results[0].result).toHaveProperty('combos_checked');
+      expect(db.query.mock.calls[1][1]).toContain(3);
     });
   });
 
@@ -217,10 +224,17 @@ describe('taskRunner — §18 scheduled task dispatch', () => {
       expect(result.clients_scored).toBe(1);
     });
 
-    it('runs without orgId (null)', async () => {
-      db.query.mockResolvedValueOnce(mockRows([]));
+    // ASY-02: the seeded install-wide row (no org) runs once per active
+    // organization instead of passing a NULL org that matched nothing.
+    it('without an orgId, runs once per active organization', async () => {
+      db.query
+        .mockResolvedValueOnce(mockRows([{ id: 3, database_scope: 'shared' }])) // active orgs
+        .mockResolvedValueOnce(mockRows([]));
       const result = await taskRunner.runTask('churn_score_computation', null);
-      expect(result).toHaveProperty('clients_scored');
+      expect(result.organizations_total).toBe(1);
+      expect(result.results[0].organization_id).toBe(3);
+      expect(result.results[0].result).toHaveProperty('clients_scored');
+      expect(db.query.mock.calls[1][1]).toContain(3);
     });
   });
 
@@ -274,10 +288,17 @@ describe('taskRunner — §18 scheduled task dispatch', () => {
       expect(result.triggered).toBe(1);
     });
 
-    it('runs without orgId (null)', async () => {
-      db.query.mockResolvedValueOnce(mockRows([]));
+    // ASY-02: the seeded install-wide row (no org) runs once per active
+    // organization instead of passing a NULL org that matched nothing.
+    it('without an orgId, runs once per active organization', async () => {
+      db.query
+        .mockResolvedValueOnce(mockRows([{ id: 3, database_scope: 'shared' }])) // active orgs
+        .mockResolvedValueOnce(mockRows([]));
       const result = await taskRunner.runTask('remediation_evaluation', null);
-      expect(result).toHaveProperty('evaluated');
+      expect(result.organizations_total).toBe(1);
+      expect(result.results[0].organization_id).toBe(3);
+      expect(result.results[0].result).toHaveProperty('evaluated');
+      expect(db.query.mock.calls[1][1]).toContain(3);
     });
   });
 });

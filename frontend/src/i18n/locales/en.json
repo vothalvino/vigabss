@@ -589,6 +589,7 @@
     },
     "restore": "Restore",
     "archive": "Archive",
+    "archiveRequirements": "A client can only be archived once its contracts are cancelled or terminated, its invoices are settled and autopay is off.",
     "archiving": "Archiving…",
     "view": "View →",
     "noClients": "No clients found.",
@@ -949,6 +950,7 @@
     "noOpenInvoices": "No open invoices for this client. This payment will be recorded as unallocated credit.",
     "loadClientsError": "Failed to load clients.",
     "excessCreditHint": "The amount above the checked invoices' balance stays as client credit.",
+    "notSettledHint": "Only a completed payment can be applied to invoices. This payment will be recorded without applying it; apply it once it is completed.",
     "table": {
       "invoice": "Invoice",
       "issueDate": "Issue Date",
@@ -1679,7 +1681,7 @@
     "feeAmount": "Fee Amount",
     "gracePeriodDays": "Grace Period (days)",
     "maxApplications": "Max Applications",
-    "maxApplicationsUnlimited": "Unlimited",
+    "maxApplicationsUnlimited": "Unlimited (once a month)",
     "isActive": "Active",
     "deleteConfirm": "Delete this late fee rule?",
     "noRules": "No late fee rules configured."

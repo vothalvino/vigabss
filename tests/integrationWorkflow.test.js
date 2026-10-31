@@ -41,7 +41,7 @@ describe('Integration Workflow: Billing → CFDI → Suspension', () => {
   describe('Billing Cycle', () => {
     test('generates period → invoice → records payment credit', async () => {
       const contract = { id: 1, start_date: '2026-01-01', billing_day: 15, client_id: 100, plan_id: 5, price_override: null, tax_rate_id: null };
-      const plan = { name: 'Basic 50Mbps', price: '500.00', currency: 'MXN' };
+      const plan = { id: 7, name: 'Basic 50Mbps', price: '500.00', currency: 'MXN', trial_days: null, overage_mode: 'none' }; // a plans row
 
       // Step 1: Generate billing period
       const pendingPeriod = { id: 10, contract_id: 1, status: 'pending', period_start: '2026-01-01', period_end: '2026-01-31' };
@@ -158,8 +158,13 @@ describe('Integration Workflow: Billing → CFDI → Suspension', () => {
       expect(results).toHaveLength(1);
       expect(results[0].contract.days_overdue).toBe(20);
 
-      // Step 2: Suspend
-      mockConnection.execute.mockResolvedValue([{ affectedRows: 1 }]);
+      // Step 2: Suspend (the contract is locked and the overdue invoice
+      // re-checked before the write — BIL-11)
+      mockConnection.execute.mockImplementation(async (sql) => {
+        if (/FOR UPDATE/.test(sql)) return [[{ id: 10, status: 'active' }]];
+        if (/^\s*SELECT i\.id FROM invoices i/.test(sql)) return [[{ id: 50 }]];
+        return [{ affectedRows: 1 }];
+      });
       db.query.mockResolvedValueOnce([[]]);  // RADIUS lookup (none)
 
       await suspensionService.suspendContract(10, 1, 5, 50);

@@ -117,6 +117,9 @@ router.post('/:id/allocate', requirePermission('payments.create'), validate(allo
     if (!paymentRows[0]) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Payment not found.' } });
     }
+    if (!paymentAllocationService.isPaymentSettled(paymentRows[0])) {
+      return res.status(422).json({ error: paymentAllocationService.paymentNotSettledError(paymentRows[0]) });
+    }
 
     // Validate invoice exists (same org — same hole as above: this had no
     // organization_id filter either) and is not void BEFORE inserting the
@@ -212,6 +215,10 @@ router.post('/:id/allocate-auto', requirePermission('payments.create'), validate
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Payment not found.' } });
     }
     const payment = payRows[0];
+    if (!paymentAllocationService.isPaymentSettled(payment)) {
+      await conn.rollback();
+      return res.status(422).json({ error: paymentAllocationService.paymentNotSettledError(payment) });
+    }
 
     // Unallocated remainder for THIS payment (live allocations only).
     const [remRows] = await conn.execute(
@@ -246,51 +253,25 @@ router.post('/:id/allocate-auto', requirePermission('payments.create'), validate
       }
     }
 
-    const allocations = [];
-    const justPaidInvoices = [];
-    for (const invoice of invoiceRows) {
-      if (remainder <= 0) break;
-
-      const balanceDue = Math.max(0, Math.round(Number(invoice.balance_due) * 100) / 100);
-      if (balanceDue <= 0) continue; // already fully covered — skip, don't insert a zero row
-
-      const applyAmount = Math.round(Math.min(remainder, balanceDue) * 100) / 100;
-      if (applyAmount <= 0) continue;
-
-      let insertResult;
-      try {
-        [insertResult] = await conn.execute(
-          'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
-          [paymentId, invoice.id, applyAmount],
-        );
-      } catch (allocErr) {
-        // Over-allocation guard trigger (migration 126) → SQLSTATE 45000.
-        if (allocErr.sqlState === '45000' || allocErr.errno === 1644) {
-          await conn.rollback();
-          return res.status(422).json({
-            error: { code: 'OVER_ALLOCATION', message: 'Allocation would exceed the invoice or payment total.' },
-          });
-        }
-        // The soft-delete-aware UNIQUE (migration 361) rejects a second live
-        // allocation of this SAME payment to this SAME invoice — e.g.
-        // allocate-auto called twice with overlapping invoice_ids. Skip
-        // rather than fail the whole batch; the earlier live allocation
-        // already covers this invoice from this payment.
-        if (allocErr.code === 'ER_DUP_ENTRY' || allocErr.errno === 1062) {
-          continue;
-        }
-        throw allocErr;
+    // FIFO apply — shared with gateway reconciliation so a staff-recorded and
+    // a gateway-captured payment post money identically.
+    let applied;
+    try {
+      applied = await paymentAllocationService.allocateAcrossInvoices(
+        conn.execute.bind(conn), { paymentId, amount: remainder, invoices: invoiceRows },
+      );
+    } catch (allocErr) {
+      // Over-allocation guard trigger (migration 126) → SQLSTATE 45000.
+      if (paymentAllocationService.isOverAllocationError(allocErr)) {
+        await conn.rollback();
+        return res.status(422).json({
+          error: { code: 'OVER_ALLOCATION', message: 'Allocation would exceed the invoice or payment total.' },
+        });
       }
-
-      allocations.push({
-        id: insertResult.insertId, payment_id: paymentId, invoice_id: invoice.id,
-        invoice_number: invoice.invoice_number, amount: applyAmount,
-      });
-      remainder = Math.round((remainder - applyAmount) * 100) / 100;
-
-      const becamePaid = await paymentAllocationService.finalizeIfFullyPaid(conn.execute.bind(conn), invoice);
-      if (becamePaid) justPaidInvoices.push(invoice);
+      throw allocErr;
     }
+    const { allocations, justPaidInvoices } = applied;
+    remainder = applied.remainder;
 
     await conn.commit();
 
@@ -426,6 +407,10 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Payment not found.' } });
     }
     const payment = payRows[0];
+    if (!paymentAllocationService.isPaymentSettled(payment)) {
+      await conn.rollback();
+      return res.status(422).json({ error: paymentAllocationService.paymentNotSettledError(payment) });
+    }
 
     // Load the live allocation from → invoice
     const [allocRows] = await conn.execute(

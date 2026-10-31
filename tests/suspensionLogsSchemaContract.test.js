@@ -63,7 +63,13 @@ describe('suspension_logs write contract', () => {
     jest.clearAllMocks();
     conn = {
       beginTransaction: jest.fn(),
-      execute: jest.fn().mockResolvedValue([{ affectedRows: 1 }]),
+      // suspendContract locks the contract and re-checks the overdue invoice
+      // first (BIL-11): answer those reads; every write affects one row.
+      execute: jest.fn(async (sql) => {
+        if (/FROM contracts WHERE id = \? AND deleted_at IS NULL FOR UPDATE/.test(sql)) return [[{ id: 10, status: 'active' }]];
+        if (/^\s*SELECT i\.id FROM invoices i/.test(sql)) return [[{ id: 50 }]];
+        return [{ affectedRows: 1 }];
+      }),
       commit: jest.fn(),
       rollback: jest.fn(),
       release: jest.fn(),

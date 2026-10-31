@@ -38,6 +38,7 @@ const cpeSessionLogService = require('./cpeSessionLogService');
 const speedWindowService = require('./speedWindowService');
 const assetService = require('./assetService');
 const scheduledReportService = require('./scheduledReportService');
+const { forEachActiveOrganization } = require('./organizationFanOut');
 const emailTemplates = require('../views/emailTemplates');
 const { backup: runBackup } = require('../scripts/backup');
 
@@ -57,7 +58,7 @@ const ORGANIZATION_SCOPED_TASK_NAMES = new Set([
   'inventory_low_stock_check', 'data_retention_compliance_check',
   'anomaly_detection', 'churn_score_computation', 'remediation_evaluation',
   'ai_support_metrics_rollup', 'rollover_balance_accrue', 'apply_speed_windows',
-  'poll_pppoe_events',
+  'poll_pppoe_events', 'reconcile_gateway_payments',
 ]);
 
 const PPPoE_EVENT_POLL_TASK = 'poll_pppoe_events';
@@ -157,7 +158,7 @@ async function runTask(taskName, organizationId = null) {
 
   switch (taskName) {
     case 'auto_generate_invoices':
-      return runAutoInvoice(organizationId);
+      return failIfInvoicingFailed(await runAutoInvoice(organizationId));
     case 'auto_suspend_overdue':
       return runAutoSuspend(organizationId);
     case 'billing_cycle':
@@ -269,6 +270,11 @@ async function runTask(taskName, organizationId = null) {
       return checkoutService.processRecurringCharges(organizationId);
     case 'retry_failed_charges':
       return paymentRetryService.processPendingRetries(organizationId);
+    // Migration 472: retry path for gateway captures that never became a
+    // payment (failed reconcile / missed webhook). Seeded install-wide; with no
+    // org it fans out over every active org, isolated tenants included.
+    case 'reconcile_gateway_payments':
+      return require('./paymentGatewayService').reconcileOutstandingTransactions(organizationId);
     case 'data_retention':
       return retentionService.runGeneral();
     case 'database_backup':
@@ -285,10 +291,13 @@ async function runTask(taskName, organizationId = null) {
       return interactionService.autoEscalateTickets(organizationId);
     case 'campaign_send':
       return campaignService.processQueue(organizationId);
+    // ASY-02: these handlers bind `organization_id = ?`, so the seeded
+    // install-wide row (organization_id NULL) matched nothing and reported
+    // success. With no org they now run once per active organization.
     case 'apply_late_fees':
-      return lateFeeService.applyLateFees(organizationId);
+      return perOrganization(taskName, organizationId, orgId => lateFeeService.applyLateFees(orgId));
     case 'send_payment_reminders':
-      return paymentReminderService.sendPaymentReminders(organizationId);
+      return perOrganization(taskName, organizationId, orgId => paymentReminderService.sendPaymentReminders(orgId));
     case 'purge_radius_accounting': {
       const radiusAccountingService = require('./radiusAccountingService');
       return radiusAccountingService.purgeRadiusAccounting();
@@ -317,7 +326,7 @@ async function runTask(taskName, organizationId = null) {
       return handleSlaBreachCheck(organizationId);
     case 'geofence_evaluation': {
       const geoFenceService = require('./geoFenceService');
-      return geoFenceService.evaluateAll(organizationId);
+      return perOrganization(taskName, organizationId, orgId => geoFenceService.evaluateAll(orgId));
     }
     case 'inventory_low_stock_check':
       return handleInventoryLowStockCheck(organizationId);
@@ -327,15 +336,16 @@ async function runTask(taskName, organizationId = null) {
       return handleDataRetentionComplianceCheck(organizationId);
     // §18 Automation & Scripting tasks
     case 'anomaly_detection':
-      return analyticsService.detectAnomalies(organizationId);
+      return perOrganization(taskName, organizationId, orgId => analyticsService.detectAnomalies(orgId));
     case 'churn_score_computation':
-      return analyticsService.computeChurnScores(organizationId);
+      return perOrganization(taskName, organizationId, orgId => analyticsService.computeChurnScores(orgId));
     case 'remediation_evaluation':
-      return automationService.evaluateRemediationRules(organizationId);
+      return perOrganization(taskName, organizationId, orgId => automationService.evaluateRemediationRules(orgId));
     // §21 AI Customer Support tasks
     case 'ai_support_metrics_rollup': {
+      // With no org it used to INSERT a NULL organization_id and fail nightly.
       const aiSupportMetricsService = require('./aiSupportMetricsService');
-      return aiSupportMetricsService.rollupMetrics(organizationId);
+      return perOrganization(taskName, organizationId, orgId => aiSupportMetricsService.rollupMetrics(orgId));
     }
     // §7.1/§7.2 FTTH OLT/ONU tasks (seeded by migration 269)
     //
@@ -449,15 +459,20 @@ async function runAutoInvoice(organizationId) {
     `SELECT c.*, p.name AS plan_name, p.price AS plan_price, p.currency AS plan_currency
      FROM contracts c
      JOIN plans p ON p.id = c.plan_id
-     WHERE c.status = 'active' ${orgFilter}`,
+     -- Never bill an archived client or a deleted contract (DAL-03).
+     JOIN clients cl ON cl.id = c.client_id AND cl.deleted_at IS NULL
+     WHERE c.status = 'active' AND c.deleted_at IS NULL ${orgFilter}`,
     params,
   );
 
   let generated = 0;
   let emailed = 0;
+  let failed = 0;
+  const errors = [];
   for (const contract of contracts) {
     try {
       const period = await billingService.generateBillingPeriod(contract);
+      if (!period) continue;
       // generateBillingPeriod may pre-create the NEXT (future) window. Only invoice
       // a pending period once its scheduled billing day has actually arrived —
       // otherwise next cycle's invoice is generated way ahead of time.
@@ -505,12 +520,32 @@ async function runAutoInvoice(organizationId) {
           // Email failure must not block the billing cycle
         }
       }
-    } catch (_err) {
-      // Skip contracts that fail (already invoiced, etc.)
+    } catch (err) {
+      // One contract must not stop the run, but a failure must not vanish
+      // either: it is logged, counted and returned, and the task is marked
+      // failed (failIfInvoicingFailed). An already-invoiced period is not an
+      // error — generateInvoice returns the existing invoice for it.
+      failed++;
+      if (errors.length < 50) errors.push({ contract_id: contract.id, error: err.message });
+      logger.error({ err, contractId: contract.id, organizationId: contract.organization_id }, 'Scheduled invoice generation failed for contract');
     }
   }
 
-  return { invoices_generated: generated, emails_sent: emailed, contracts_checked: contracts.length };
+  return {
+    invoices_generated: generated,
+    emails_sent: emailed,
+    contracts_checked: contracts.length,
+    contracts_failed: failed,
+    errors,
+  };
+}
+
+function failIfInvoicingFailed(result) {
+  if (!result.contracts_failed) return result;
+  const err = new Error(`Invoice generation failed for ${result.contracts_failed} of ${result.contracts_checked} contract(s)`);
+  err.result = result;
+  err.failures = result.errors;
+  throw err;
 }
 
 /**
@@ -524,6 +559,7 @@ async function runSuspensionWarnings(organizationId) {
              WHERE sr.notify_before_days IS NOT NULL
                AND sr.notify_before_days > 0
                AND sr.is_active = TRUE
+               AND sr.deleted_at IS NULL
                AND o.status = 'active'`;
   const params = [];
 
@@ -536,25 +572,17 @@ async function runSuspensionWarnings(organizationId) {
 
   let warnings_sent = 0;
   for (const rule of rules) {
-    // Contracts approaching suspension: overdue but not yet past the days_past_due threshold,
-    // within the notify_before_days window.
-    const warningStart = rule.days_past_due - rule.notify_before_days;
-    const warningEnd = rule.days_past_due;
-    if (warningStart < 0) continue;
+    if (!suspensionService.ENFORCED_RULE_ACTIONS.includes(rule.action)) continue;
+    // Contracts approaching suspension: overdue, within notify_before_days of
+    // the day the rule acts (days_past_due + grace), and in the rule's plans.
+    const warningEnd = suspensionService.ruleThresholdDays(rule);
+    const warningStart = Math.max(0, warningEnd - rule.notify_before_days);
 
-    const [contracts] = await db.query(
-      `SELECT c.id AS contract_id, c.client_id, c.organization_id,
-              i.id AS invoice_id, i.invoice_number, i.total, i.currency, i.due_date,
-              DATEDIFF(NOW(), i.due_date) AS days_overdue
-       FROM contracts c
-       JOIN invoices i ON i.contract_id = c.id AND i.organization_id = ?
-       WHERE c.organization_id = ?
-         AND c.status = 'active'
-         AND i.status = 'issued'
-         AND DATEDIFF(NOW(), i.due_date) >= ?
-         AND DATEDIFF(NOW(), i.due_date) < ?`,
-      [rule.org_id, rule.org_id, warningStart, warningEnd],
-    );
+    const contracts = (await suspensionService.findOverdueContracts(rule.org_id, {
+      minDays: warningStart,
+      maxDays: warningEnd,
+      planIds: suspensionService.rulePlanIds(rule),
+    })).map(c => ({ ...c, contract_id: c.id }));
 
     for (const contract of contracts) {
       try {
@@ -631,9 +659,10 @@ async function runAutoSuspend(organizationId) {
         continue;
       }
       if (rule.action === 'auto_suspend') {
-        await suspensionService.suspendContract(
+        const outcome = await suspensionService.suspendContract(
           contract.id, rule.id, null, contract.invoice_id,
         );
+        if (outcome?.skipped) continue;
         suspended++;
 
         // Send post-suspension notification email
@@ -687,6 +716,13 @@ async function runAutoSuspend(organizationId) {
  * tenant's database context explicitly. One failed tenant does not prevent the
  * remaining organizations from being checked.
  */
+// Run an org-bound handler for one organization, or for every active one when
+// the task row is install-wide (organizationId null).
+function perOrganization(taskName, organizationId, handler) {
+  if (organizationId !== null && organizationId !== undefined) return handler(Number(organizationId));
+  return forEachActiveOrganization(taskName, handler);
+}
+
 async function runAlertEvaluation(organizationId = null) {
   const withPrimary = callback => (
     typeof db.withPrimaryContext === 'function' ? db.withPrimaryContext(callback) : callback()
@@ -755,15 +791,19 @@ async function runAlertEvaluation(organizationId = null) {
  */
 async function runBillingCycle(organizationId) {
   const invoiceResult = await runAutoInvoice(organizationId);
+  // Suspension still runs when some invoices failed; the cycle is then
+  // reported as failed with both results.
   const suspendResult = await runAutoSuspend(organizationId);
 
-  return {
+  return failIfInvoicingFailed({
     invoices_generated: invoiceResult.invoices_generated,
     emails_sent: invoiceResult.emails_sent,
     contracts_checked: invoiceResult.contracts_checked,
+    contracts_failed: invoiceResult.contracts_failed,
+    errors: invoiceResult.errors,
     contracts_suspended: suspendResult.contracts_suspended,
     warnings_sent: suspendResult.warnings_sent,
-  };
+  });
 }
 
 /**

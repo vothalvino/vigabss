@@ -152,9 +152,10 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
         status: form.status,
       };
       // Write-only three-state: blank = keep the stored credential.
-      if (form.username.trim()) body.username_encrypted = form.username.trim();
-      if (form.password.trim()) body.password_encrypted = form.password.trim();
-      if (form.token.trim()) body.token_encrypted = form.token.trim();
+      // The server encrypts these into the *_encrypted columns.
+      if (form.username.trim()) body.username = form.username.trim();
+      if (form.password.trim()) body.password = form.password.trim();
+      if (form.token.trim()) body.token = form.token.trim();
 
       const res = existing
         ? await api.PUT('/pac-providers/{id}', { params: { path: { id: existing.id } }, body: body as never })
