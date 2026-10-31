@@ -65,4 +65,33 @@ function keepBlankSecrets(fields) {
   };
 }
 
-module.exports = { redactSecretColumns, redactSecretsInResponses, keepBlankSecrets };
+// Router command parameters are kept in device_command_executions and listed
+// to every device_command_executions.view holder. pppoe_create's
+// secretPassword was stored exactly as sent, so the command history exposed
+// every PPPoE password dispatched through it (rest of NET-10).
+const SECRET_PARAM = /password|passwd|passphrase|secret|token|private_?key|preshared|psk|api_?key/i;
+const REDACTED = '[REDACTED]';
+
+/**
+ * Copy of a command's params with every credential-named key replaced, at
+ * any depth. A JSON string (MariaDB returns JSON columns as text) comes back
+ * as a JSON string.
+ * @param {*} params
+ */
+function redactSecretParams(params) {
+  if (typeof params === 'string') {
+    let parsed;
+    try { parsed = JSON.parse(params); } catch { return params; }
+    return JSON.stringify(redactSecretParams(parsed));
+  }
+  if (Array.isArray(params)) return params.map(redactSecretParams);
+  if (!params || typeof params !== 'object') return params;
+  return Object.fromEntries(Object.entries(params).map(([key, value]) => [
+    key,
+    SECRET_PARAM.test(key) && value !== null && value !== undefined && value !== '' && typeof value !== 'object'
+      ? REDACTED
+      : redactSecretParams(value),
+  ]));
+}
+
+module.exports = { redactSecretColumns, redactSecretsInResponses, keepBlankSecrets, redactSecretParams };
