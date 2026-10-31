@@ -288,7 +288,9 @@ router.get('/:id/health', requirePermission('nas.health'), async (req, res, next
   }
 });
 
-router.post('/:id/health-check', requirePermission('nas.health'), async (req, res, next) => {
+// A probe that writes nas.health_status is not a read: it needs
+// nas.health_check, not the nas.health read slug readonly holds (DB-23).
+router.post('/:id/health-check', requirePermission('nas.health_check'), async (req, res, next) => {
   try {
     const { runHealthChecks } = require('../services/nasHealthService');
     const result = await runHealthChecks(req.orgId);

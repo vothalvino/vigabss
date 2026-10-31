@@ -35,7 +35,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     // already granted to the technician role by migrations 298, 377, and 447.
     'work_orders.update', 'speed_tests.create',
     'signed_documents.view', 'signed_documents.sign',
-    'nas.health',
+    'nas.health', 'nas.health_check', 'tickets.comment',
+    'cpe_diagnostics.view', 'provisioning_pipelines.view',
     'interactions.view', 'follow_ups.view', 'follow_ups.update', 'escalations.view',
     'campaigns.view', 'dnd.view',
     'subscriber_consents.view',

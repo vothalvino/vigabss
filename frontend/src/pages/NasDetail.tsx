@@ -142,7 +142,8 @@ export function NasDetail() {
 
   // Mirror the backend route guards: health-check requires nas.health,
   // seed/test/voip/edit require devices.update, delete requires devices.delete.
-  const canHealthCheck = can(user, 'nas.health');
+  // The probe writes health status: nas.health_check, not the read slug (DB-23).
+  const canHealthCheck = can(user, 'nas.health_check');
   const canTestConn = can(user, 'devices.update');
   const canManage = can(user, 'devices.update');
   const canDelete = can(user, 'devices.delete');
