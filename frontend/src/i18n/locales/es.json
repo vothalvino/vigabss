@@ -1829,6 +1829,11 @@
       "passwordMissing": "Sin contraseña"
     }
   },
+  "errorBoundary": {
+    "title": "Algo salió mal en esta página",
+    "body": "El resto de la aplicación sigue funcionando. Inténtalo de nuevo o abre otra página.",
+    "retry": "Reintentar"
+  },
   "refundRequests": {
     "title": "Solicitudes de Reembolso",
     "newRequest": "Nueva Solicitud de Reembolso",

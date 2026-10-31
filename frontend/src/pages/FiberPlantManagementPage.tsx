@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, fmtDate } from './crudStyles';
+import { listTotal, unwrapData } from '@/api/envelope';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -203,7 +204,7 @@ async function fetchOdfFrameWithPorts(id: number): Promise<OdfFrame> {
     params: { path: { id } },
   } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to load ODF frame');
-  return (res as { data: unknown }).data as unknown as OdfFrame;
+  return unwrapData<OdfFrame>((res as { data: unknown }).data);
 }
 
 async function createOdfFrame(body: { name: string; location_detail?: string; total_ports?: number; frame_type?: string }): Promise<void> {
@@ -265,7 +266,7 @@ async function fetchSfpDiagnostics(id: number): Promise<SfpDiagnostics> {
     params: { path: { id } },
   } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to load SFP diagnostics');
-  return (res as { data: unknown }).data as unknown as SfpDiagnostics;
+  return unwrapData<SfpDiagnostics>((res as { data: unknown }).data);
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +333,7 @@ export function FiberPlantManagementPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['fiberPlant', 'fiberRoutes'] }),
   });
 
-  const frTotalPages = Math.ceil((frQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const frTotalPages = Math.ceil(listTotal(frQ.data) / PAGE_SIZE) || 1;
 
   // ============================== ODF ==============================
 
@@ -369,7 +370,7 @@ export function FiberPlantManagementPage() {
     },
   });
 
-  const odfTotalPages = Math.ceil((odfQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const odfTotalPages = Math.ceil(listTotal(odfQ.data) / PAGE_SIZE) || 1;
 
   // ============================== OTDR TESTS ==============================
 
@@ -397,7 +398,7 @@ export function FiberPlantManagementPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['fiberPlant', 'otdr'] }),
   });
 
-  const otdrTotalPages = Math.ceil((otdrQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const otdrTotalPages = Math.ceil(listTotal(otdrQ.data) / PAGE_SIZE) || 1;
 
   // ============================== SFP INVENTORY ==============================
 
@@ -431,7 +432,7 @@ export function FiberPlantManagementPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['fiberPlant', 'sfp'] }),
   });
 
-  const sfpTotalPages = Math.ceil((sfpQ.data?.meta.total ?? 0) / PAGE_SIZE) || 1;
+  const sfpTotalPages = Math.ceil(listTotal(sfpQ.data) / PAGE_SIZE) || 1;
 
   // ---------------------------------------------------------------------------
   // Render

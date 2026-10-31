@@ -1829,6 +1829,11 @@
       "passwordMissing": "No password provided"
     }
   },
+  "errorBoundary": {
+    "title": "Something went wrong on this page",
+    "body": "The rest of the app still works. Try again, or open another page.",
+    "retry": "Try again"
+  },
   "refundRequests": {
     "title": "Refund Requests",
     "newRequest": "New Refund Request",
