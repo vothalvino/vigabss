@@ -646,7 +646,8 @@ describe('the image is published for every architecture people self-host on', ()
   });
 
   it('the manifest job waits for every architecture', () => {
-    expect(manifest.needs).toBe('container-scan');
+    // It also waits for the test jobs (OPS-02, tests/ciPublishGate.test.js).
+    expect([].concat(manifest.needs)).toContain('container-scan');
     expect(manifest.if).toContain('refs/heads/main');
   });
 
