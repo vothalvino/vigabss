@@ -957,8 +957,8 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # File uploads (10MB max)
-        client_max_body_size 10m;
+        # Uploads: the app accepts 20 MB files, plus multipart overhead
+        client_max_body_size 25m;
     }
 
     # Metrics: never through the public proxy — scrape the app directly

@@ -95,7 +95,7 @@ ingress:
   hostname: vigabss.example.com
   ## Annotations added to the Ingress resource.
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
   tls:
