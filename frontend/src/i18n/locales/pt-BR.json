@@ -74,7 +74,8 @@
     "totpPrompt": "Insira o código do seu aplicativo autenticador ou um dos seus códigos de backup.",
     "totpVerify": "Verificar",
     "totpBack": "Voltar para o login",
-    "forgotPasswordLink": "Esqueceu a senha?"
+    "forgotPasswordLink": "Esqueceu a senha?",
+    "passwordChanged": "Senha alterada. Entre com a nova senha."
   },
   "forgotPassword": {
     "title": "Esqueci minha senha",
@@ -1833,6 +1834,19 @@
     "title": "Algo deu errado nesta página",
     "body": "O restante do aplicativo continua funcionando. Tente novamente ou abra outra página.",
     "retry": "Tentar novamente"
+  },
+  "forcePasswordChange": {
+    "title": "Defina uma nova senha",
+    "intro": "A senha de {{email}} foi gerada pelo instalador. Escolha a sua antes de continuar.",
+    "current": "Senha atual",
+    "new": "Nova senha (pelo menos 8 caracteres)",
+    "confirm": "Repita a nova senha",
+    "submit": "Alterar senha",
+    "logout": "Sair",
+    "tooShort": "A nova senha deve ter pelo menos 8 caracteres.",
+    "mismatch": "As duas novas senhas não coincidem.",
+    "sameAsCurrent": "Escolha uma senha diferente da atual.",
+    "failed": "Não foi possível alterar a senha."
   },
   "refundRequests": {
     "title": "Solicitações de Reembolso",

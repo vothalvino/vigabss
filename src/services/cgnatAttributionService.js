@@ -1234,6 +1234,34 @@ async function findDirectAssignments(organizationId, lookup) {
   return rows;
 }
 
+// REG-01: a certain direct match is only certain if no other session row for
+// the same address could also cover the instant. findDirectAssignments only
+// sees complete, current-evidence lifecycles; a row it skips (attribution
+// evidence incomplete, a legacy row without a session instance, an open
+// session whose accounting went stale) may still have held the address then.
+// Such a row blocks the answer when its known life reaches the instant (a
+// closed row) or when it started after the matched session's assignment (an
+// open row: the address cannot have moved to the matched session after it,
+// so it is a competing claim). An open row that started earlier is not a
+// blocker: the address was reassigned to the matched session afterwards.
+async function countOverlappingUnverifiedSessions(organizationId, lookup, matched) {
+  const [rows] = await db.query(
+    `SELECT COUNT(*) AS blockers
+       FROM connection_logs cl
+      WHERE cl.organization_id = ?
+        AND COALESCE(cl.framed_ip, cl.ip_address) = ?
+        AND cl.id <> ?
+        AND cl.event_at <= ?
+        AND (
+          (cl.event_type = 'stop' AND COALESCE(cl.last_accounting_at, cl.event_at) >= ?)
+          OR (cl.event_type <> 'stop' AND cl.event_at >= ?)
+        )`,
+    [organizationId, lookup.public_ipv4, Number(matched.connection_log_id),
+      lookup.observed_at, lookup.observed_at, matched.assignment_evidence_event_at],
+  );
+  return Number(rows[0]?.blockers || 0);
+}
+
 function directAttribution(organizationId, row) {
   const certainFrom = new Date(Math.max(
     new Date(row.assignment_evidence_event_at).getTime(),
@@ -1424,6 +1452,10 @@ async function lookupAttribution(organizationId, body, { actorId = null, pin = t
     return { ...base, status: 'ambiguous', reason: 'multiple_attribution_candidates', candidate_count: totalCandidates, attributionMethod: null };
   }
   if (directRows.length === 1) {
+    const blockers = await countOverlappingUnverifiedSessions(organizationId, lookup, directRows[0]);
+    if (blockers > 0) {
+      return { ...base, status: 'ambiguous', reason: 'overlapping_unverified_session', candidate_count: 1 + blockers, attributionMethod: null };
+    }
     const attribution = directAttribution(organizationId, directRows[0]);
     assertAuthorizedCaseSubject(authorizedCase, attribution);
     let evidenceSnapshotHash = null;

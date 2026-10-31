@@ -9,6 +9,7 @@
 
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { ForcePasswordChange } from './ForcePasswordChange';
 
 // ---------------------------------------------------------------------------
 // Role hierarchy — higher index = broader privilege
@@ -69,6 +70,12 @@ export function PrivateRoute({ requiredRole }: PrivateRouteProps) {
   // Not authenticated — send to login, preserving the intended destination.
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // The installer-created administrator must replace the printed password
+  // before anything else; the server refuses every other request until then.
+  if (user.must_change_password) {
+    return <ForcePasswordChange />;
   }
 
   // Authenticated but lacks the required role.

@@ -74,7 +74,8 @@
     "totpPrompt": "Ingresa el código de tu app de autenticación o uno de tus códigos de respaldo.",
     "totpVerify": "Verificar",
     "totpBack": "Volver a iniciar sesión",
-    "forgotPasswordLink": "¿Olvidaste tu contraseña?"
+    "forgotPasswordLink": "¿Olvidaste tu contraseña?",
+    "passwordChanged": "Contraseña cambiada. Inicia sesión con tu nueva contraseña."
   },
   "forgotPassword": {
     "title": "Recuperar contraseña",
@@ -1833,6 +1834,19 @@
     "title": "Algo salió mal en esta página",
     "body": "El resto de la aplicación sigue funcionando. Inténtalo de nuevo o abre otra página.",
     "retry": "Reintentar"
+  },
+  "forcePasswordChange": {
+    "title": "Elige una nueva contraseña",
+    "intro": "La contraseña de {{email}} la generó el instalador. Elige la tuya antes de continuar.",
+    "current": "Contraseña actual",
+    "new": "Nueva contraseña (al menos 8 caracteres)",
+    "confirm": "Repite la nueva contraseña",
+    "submit": "Cambiar contraseña",
+    "logout": "Cerrar sesión",
+    "tooShort": "La nueva contraseña debe tener al menos 8 caracteres.",
+    "mismatch": "Las dos contraseñas nuevas no coinciden.",
+    "sameAsCurrent": "Elige una contraseña distinta de la actual.",
+    "failed": "No se pudo cambiar la contraseña."
   },
   "refundRequests": {
     "title": "Solicitudes de Reembolso",
