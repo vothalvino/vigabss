@@ -258,7 +258,7 @@ async function suspendContract(contractId, ruleId, userId, invoiceId) {
     // in between. Only an active contract is suspended, and a rule only
     // suspends while an overdue invoice is still unpaid.
     const [lockedRows] = await conn.execute(
-      'SELECT id, status FROM contracts WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
+      'SELECT id, status, organization_id FROM contracts WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
       [contractId],
     );
     if (!lockedRows[0] || lockedRows[0].status !== 'active') {
@@ -296,29 +296,14 @@ async function suspendContract(contractId, ruleId, userId, invoiceId) {
       "UPDATE radius SET status = 'suspended' WHERE contract_id = ? AND deleted_at IS NULL AND status = 'active'",
       [contractId],
     );
-
-    // Send RADIUS CoA to disconnect the subscriber
-    let coaSent = false;
-    let coaResponse = null;
-    try {
-      const coaResult = await sendRadiusDisconnect(contractId);
-      coaSent = coaResult.sent;
-      coaResponse = coaResult.response;
-    } catch (_coaErr) {
-      // CoA failure should not block the suspension
-      coaResponse = 'CoA send failed';
-    }
-
-    await logSuspensionEvent(conn.execute.bind(conn), {
-      contractId,
-      ruleId,
-      action: 'suspended',
-      reason: describeTrigger('suspension', ruleId, userId, invoiceId),
-      triggeredByValue: triggeredBy(userId),
-      userId,
-      coaSent,
-      coaResponse,
-      invoiceId,
+    // External FreeRADIUS authenticates from the rad* tables, which the
+    // periodic sync only rewrites for active accounts — remove this
+    // subscriber's rows in the same transaction (NET-03).
+    const radiusService = require('./radiusService');
+    await radiusService.syncFreeradiusContract(contractId, {
+      organizationId: lockedRows[0].organization_id ?? null,
+      enabled: false,
+      runner: conn,
     });
 
     await conn.commit();
@@ -328,6 +313,31 @@ async function suspendContract(contractId, ruleId, userId, invoiceId) {
   } finally {
     conn.release();
   }
+
+  // Disconnect only after the commit: until then FreeRADIUS still sees the
+  // old rows and a re-dial would be accepted again.
+  let coaSent = false;
+  let coaResponse;
+  try {
+    const coaResult = await sendRadiusDisconnect(contractId);
+    coaSent = coaResult.sent;
+    coaResponse = coaResult.response;
+  } catch (_coaErr) {
+    // CoA failure should not block the suspension
+    coaResponse = 'CoA send failed';
+  }
+
+  await logSuspensionEvent(db.query.bind(db), {
+    contractId,
+    ruleId,
+    action: 'suspended',
+    reason: describeTrigger('suspension', ruleId, userId, invoiceId),
+    triggeredByValue: triggeredBy(userId),
+    userId,
+    coaSent,
+    coaResponse,
+    invoiceId,
+  });
 }
 
 /**
@@ -504,6 +514,14 @@ async function reconnectContract(contractId, userId, invoiceId, { orgId = null }
     }
     return { contract_id: Number(contractId), status: 'pending', activation_required: true };
   }
+
+  // Write the subscriber's FreeRADIUS rows back now instead of at the next
+  // periodic sync, so a paid reconnect works immediately (NET-03).
+  const radiusSync = require('./radiusService');
+  await radiusSync.syncFreeradiusTables(orgId ?? null, { contractId: Number(contractId) }).catch(err => logger.warn(
+    { err: err.message, contractId },
+    'Reconnected; FreeRADIUS rows will be restored by the next periodic sync',
+  ));
 
   // Lift any open walled-garden restriction so the next re-auth leaves the
   // address list (lazy require — radiusService requires this module too)

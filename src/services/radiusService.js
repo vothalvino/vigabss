@@ -5,6 +5,7 @@
 // FreeRADIUS SQL integration helpers.
 // =============================================================================
 
+const net = require('net');
 const db = require('../config/database');
 const config = require('../config');
 const { sendRadiusDisconnect, sendRadiusCoA } = require('./suspensionService');
@@ -519,11 +520,18 @@ async function syncFreeradiusContract(contractId, {
  *                            vendor speed attributes
  *   • For EAP-TLS          → radcheck TLS-Cert-Serial == <serial>
  *
+ * A full run also removes the rows of accounts that may no longer
+ * authenticate (suspended, inactive, deleted, or whose contract is not live),
+ * so every path that turns service off converges here even if it did not
+ * purge itself (NET-03). With `contractId` only that contract's accounts are
+ * written — used to restore a reconnected subscriber immediately.
+ *
  * @param {number|null} organizationId - scope to org; null = all orgs
- * @returns {{ synced: number, errors: number, plans_synced: number }}
+ * @param {{ contractId?: number|null }} [options]
+ * @returns {{ synced: number, errors: number, plans_synced: number, purged: number }}
  */
-async function syncFreeradiusTables(organizationId) {
-  logger.info({ organizationId }, 'Syncing FreeRADIUS SQL tables');
+async function syncFreeradiusTables(organizationId, { contractId = null } = {}) {
+  logger.info({ organizationId, contractId }, 'Syncing FreeRADIUS SQL tables');
 
   // 1. Per-org MAB password mode (organization_settings — migration 443 split
   // this off the install-level table, where one tenant's change used to apply
@@ -545,8 +553,12 @@ async function syncFreeradiusTables(organizationId) {
   // Scope by the contract's organization — the radius table has neither an
   // organization_id column (Radius.hasOrgScope === false) nor a password_hash
   // column (migration 189 renamed password_hash → password).
-  const orgFilter = organizationId ? 'AND c.organization_id = ?' : '';
-  const orgParams = organizationId ? [organizationId] : [];
+  const orgFilter = (organizationId ? 'AND c.organization_id = ?' : '')
+    + (contractId !== null ? ' AND r.contract_id = ?' : '');
+  const orgParams = [
+    ...(organizationId ? [organizationId] : []),
+    ...(contractId !== null ? [contractId] : []),
+  ];
 
   const [subscribers] = await db.query(
     `SELECT r.id, r.username, r.password AS cleartext_password,
@@ -554,7 +566,7 @@ async function syncFreeradiusTables(organizationId) {
             r.simultaneous_use AS account_sim_use,
             r.vlan_id, r.inner_vlan_id,
             r.service_profile_id AS account_profile_id,
-            r.ipv4_pool_id,
+            r.ipv4_pool_id, r.ip_address AS static_ip,
             ip.service_profile_id AS pool_profile_id,
             -- The account's own org first: radius.organization_id is populated
             -- (migration 426) and contract_id is NULLABLE, so a MAB account
@@ -796,6 +808,20 @@ async function syncFreeradiusTables(organizationId) {
         [username, 'Simultaneous-Use', ':=', String(simUse)],
       );
 
+      // Static IPv4 (NPR-02): the account's fixed address, as the embedded
+      // server and syncFreeradiusContract already send it. Without it the
+      // delete above erased any Framed-IP-Address every sync.
+      if (sub.static_ip && net.isIPv4(String(sub.static_ip))) {
+        await db.query(
+          'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
+          [username, 'Framed-IP-Address', ':=', sub.static_ip],
+        );
+        await db.query(
+          'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
+          [username, 'Framed-IP-Netmask', ':=', '255.255.255.255'],
+        );
+      }
+
       // Item 13: VLAN assignment via RADIUS — per-user radreply tunnel attributes
       if (sub.vlan_id) {
         await db.query(
@@ -983,6 +1009,44 @@ async function syncFreeradiusTables(organizationId) {
     }
   }
 
+  // 5b. Remove the rows of accounts that may no longer authenticate (NET-03).
+  // Only usernames that still have a radcheck row are touched, and never one
+  // a live, eligible account now owns (usernames are unique only among live
+  // rows, so a deleted account's name can be reused).
+  let purged = 0;
+  if (contractId === null) {
+    // Same eligibility as the subscriber query above, for contract alias `c`.
+    const eligible = c => `(${c}.id IS NULL OR ${c}.status = 'active' OR (
+        ${c}.status = 'pending' AND ${c}.test_window_cleanup_pending = 0
+        AND ${c}.test_window_expires_at > NOW()))`;
+    const [stale] = await db.query(
+      `SELECT DISTINCT r.username
+         FROM radius r
+         LEFT JOIN contracts c ON c.id = r.contract_id
+        WHERE (r.status <> 'active' OR r.deleted_at IS NOT NULL OR NOT ${eligible('c')})
+          ${organizationId ? 'AND COALESCE(r.organization_id, c.organization_id) = ?' : ''}
+          AND EXISTS (SELECT 1 FROM radcheck rc WHERE rc.username = r.username)
+          AND NOT EXISTS (
+            SELECT 1 FROM radius r2
+              LEFT JOIN contracts c2 ON c2.id = r2.contract_id
+             WHERE r2.username = r.username AND r2.status = 'active'
+               AND r2.deleted_at IS NULL AND ${eligible('c2')}
+          )`,
+      organizationId ? [organizationId] : [],
+    );
+    for (const { username } of stale) {
+      try {
+        await db.query('DELETE FROM radcheck WHERE username = ?', [username]);
+        await db.query('DELETE FROM radreply WHERE username = ?', [username]);
+        await db.query('DELETE FROM radusergroup WHERE username = ?', [username]);
+        purged++;
+      } catch (err) {
+        logger.error({ err, username }, 'Error removing FreeRADIUS rows for an inactive account');
+        errors++;
+      }
+    }
+  }
+
   // 6. Sync plan-level group rows: delete existing, rewrite
   for (const [planId, plan] of planSet) {
     try {
@@ -1038,11 +1102,11 @@ async function syncFreeradiusTables(organizationId) {
   }
 
   logger.info(
-    { synced, errors, plans_synced: planSet.size, organizationId },
+    { synced, errors, purged, plans_synced: planSet.size, organizationId, contractId },
     'FreeRADIUS SQL table sync complete',
   );
 
-  return { synced, errors, plans_synced: planSet.size };
+  return { synced, errors, plans_synced: planSet.size, purged };
 }
 
 // =============================================================================

@@ -2,6 +2,7 @@
 // VigaBSS 5.0 — Contract Routes
 // =============================================================================
 
+const net = require('net');
 const { Router } = require('express');
 const Contract = require('../models/Contract');
 const Client = require('../models/Client');
@@ -16,6 +17,7 @@ const {
 } = require('../middleware/schemas/contracts');
 const db = require('../config/database');
 const suspensionService = require('../services/suspensionService');
+const radiusService = require('../services/radiusService');
 const inventorySerialService = require('../services/inventorySerialService');
 const topologyContextService = require('../services/topologyContextService');
 const provisioningService = require('../services/subscriberProvisioningService');
@@ -30,6 +32,18 @@ const { ValidationError, ForbiddenError } = require('../utils/errors');
 const logger = require('../utils/logger').child({ service: 'routes/contracts' });
 
 const router = Router();
+
+// Turning service off must also remove the subscriber's FreeRADIUS SQL rows:
+// the periodic sync only rewrites active accounts, so external FreeRADIUS kept
+// authenticating suspended and terminated subscribers (NET-03). The full sync
+// also clears them, so a failure here is logged rather than undoing the change.
+async function purgeFreeradiusRows(contractId, orgId) {
+  try {
+    await radiusService.syncFreeradiusContract(contractId, { organizationId: orgId, enabled: false });
+  } catch (err) {
+    logger.error({ err: err.message, contractId }, 'Could not remove FreeRADIUS rows; the next sync will');
+  }
+}
 const ctrl = crudController(Contract);
 
 const ACTIVATION_FROZEN_FIELDS = new Set([
@@ -341,6 +355,22 @@ async function updateContractHandler(req, res, next) {
       record = await updateContractWithActivationGuard(old, req.body, req.orgId);
     }
 
+    // A PPPoE static IP is set on the contract; RADIUS sends the account's
+    // ip_address as Framed-IP-Address, so keep the two in step (NPR-02).
+    // Framed-IP-Address is IPv4 only, so an IPv6 contract address clears it.
+    if (req.body.ip_address !== undefined && (req.body.ip_address || null) !== (old.ip_address || null)) {
+      await db.query(
+        'UPDATE radius SET ip_address = ? WHERE contract_id = ? AND deleted_at IS NULL',
+        [net.isIPv4(String(req.body.ip_address || '')) ? req.body.ip_address : null, record.id],
+      );
+      if (record.status === 'active') {
+        await radiusService.syncFreeradiusTables(req.orgId, { contractId: record.id }).catch(err => logger.warn(
+          { err: err.message, contractId: record.id },
+          'Static IP saved; FreeRADIUS rows will be updated by the next sync',
+        ));
+      }
+    }
+
     // Generic transitions that turn service OFF retain their historical
     // RADIUS/audit side effects. All transitions INTO active were removed
     // above and belong to /activate, /unsuspend, or /renew.
@@ -351,6 +381,9 @@ async function updateContractHandler(req, res, next) {
           "UPDATE radius SET status = 'suspended' WHERE contract_id = ? AND deleted_at IS NULL AND status = 'active'",
           [record.id],
         );
+        // External FreeRADIUS reads the rad* tables: remove the rows before
+        // the disconnect so the subscriber cannot re-dial (NET-03).
+        await purgeFreeradiusRows(record.id, req.orgId);
         let coaSent = false;
         let coaResponse = null;
         try {
@@ -378,6 +411,7 @@ async function updateContractHandler(req, res, next) {
           "UPDATE radius SET status = 'inactive' WHERE contract_id = ? AND deleted_at IS NULL",
           [record.id],
         );
+        await purgeFreeradiusRows(record.id, req.orgId);
         suspensionService.sendRadiusDisconnect(record.id).catch(() => {});
         // Inventory Phase 3 (migration 391): if this contract still has
         // rented equipment out (ownership='rented', assigned/active), auto-
@@ -1086,6 +1120,7 @@ router.post('/:id/terminate', requirePermission('contracts.update'), async (req,
       "UPDATE radius SET status = 'inactive' WHERE contract_id = ? AND deleted_at IS NULL",
       [req.params.id],
     );
+    await purgeFreeradiusRows(record.id, req.orgId);
     // Fire RADIUS disconnect best-effort (don't fail the terminate if CoA fails)
     suspensionService.sendRadiusDisconnect(parseInt(req.params.id, 10)).catch(() => {});
     // Inventory Phase 3 (migration 391) — see updateContractHandler's identical hook.

@@ -28,6 +28,9 @@ describe('suspensionService — soft suspend & exemption', () => {
       release: jest.fn(),
     };
     db.getConnection.mockResolvedValue(mockConnection);
+    // FreeRADIUS row writes (NET-03) are covered in freeradiusServiceState.test.js.
+    jest.spyOn(require('../src/services/radiusService'), 'syncFreeradiusContract').mockResolvedValue({ found: false, enabled: false });
+    jest.spyOn(require('../src/services/radiusService'), 'syncFreeradiusTables').mockResolvedValue({ synced: 0, errors: 0, purged: 0 });
   });
 
   // ===========================================================================

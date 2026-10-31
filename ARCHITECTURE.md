@@ -714,6 +714,14 @@ verify each one's upgrade and interoperability contract first.
   was never added to `src/utils/openapi.js`.
 - **Scheduled-task half-wiring:** a seeded name without cron, scope allowlist,
   dispatcher case, or test never does useful work.
+- **Stale FreeRADIUS rows:** external FreeRADIUS authenticates from the
+  `radcheck`/`radreply`/`radusergroup` tables keyed by username, not from
+  `radius.status`. Any path that turns service off (suspend, terminate,
+  cancel, account delete/rename/deactivate) must remove those rows with
+  `radiusService.syncFreeradiusContract(id, { enabled: false })` before it
+  disconnects the session; turning service back on rewrites them with
+  `syncFreeradiusTables(orgId, { contractId })`. The periodic full sync also
+  purges rows of accounts that may no longer authenticate.
 - **Transaction split:** taking a lock on one connection and reading/writing on
   another defeats the lock and can deadlock or return stale data.
 - **Route shadowing:** `/:id` mounted before a literal path captures the literal.
