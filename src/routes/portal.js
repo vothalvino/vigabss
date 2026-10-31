@@ -205,28 +205,29 @@ router.post('/auth/password-reset/request', authLimiter, portalPasswordResetLimi
       // { message } with none, so the send below can never fire for it.
       res.json({ message: result.message || 'If that email exists, a reset link has been sent' });
 
-      if (result.token) {
+      // One email per account at the address (WHK-10).
+      for (const reset of result.resets || []) {
         try {
           const emailTransport = require('../services/emailTransport');
           const templates = require('../views/emailTemplates');
           const config = require('../config');
-          const resetUrl = `${config.appUrl}/portal/reset-password?token=${result.token}`;
+          const resetUrl = `${config.appUrl}/portal/reset-password?token=${reset.token}`;
           const template = templates.passwordResetEmail({
-            userName: result.userName,
+            userName: reset.userName,
             resetUrl,
             expiresIn: '1 hour',
           });
           emailTransport.sendEmail({
-            organizationId: result.organizationId,
-            clientId: result.clientId,
+            organizationId: reset.organizationId,
+            clientId: reset.clientId,
             messageClass: 'security',
-            to: result.email,
+            to: reset.email,
             subject: template.subject,
             html: template.html,
           })
             .then((sendResult) => {
               if (!sendResult || !sendResult.success) {
-                logger.warn(`Portal password reset email failed to send to ${result.email}: ${sendResult && sendResult.error}`);
+                logger.warn(`Portal password reset email failed to send to ${reset.email}: ${sendResult && sendResult.error}`);
               }
             })
             .catch((emailErr) => {

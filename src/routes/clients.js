@@ -415,7 +415,20 @@ router.put('/:id/portal-password', requirePermission('clients.update'), async (r
     if (!rows[0]) throw new NotFoundError('Client');
 
     await portalAuthService.setPassword(req.params.id, password);
-    res.json({ message: 'Portal password updated' });
+    // Portal login picks the account by password when an email is shared
+    // across clients (WHK-10): tell staff, so each account keeps a distinct
+    // password. The count spans the install — portal login does too.
+    const [[shared]] = await db.query(
+      `SELECT COUNT(*) AS n FROM clients c
+        JOIN clients me ON me.id = ?
+       WHERE c.email = me.email AND c.id <> me.id AND c.deleted_at IS NULL AND c.portal_password_hash IS NOT NULL`,
+      [req.params.id],
+    );
+    const others = Number(shared?.n || 0);
+    res.json({
+      message: 'Portal password updated',
+      ...(others > 0 ? { warning: `This email is also used by ${others} other portal account(s); give each a different password so login can tell them apart.` } : {}),
+    });
   } catch (err) { next(err); }
 });
 

@@ -21,6 +21,8 @@ const { revokePortalSessions } = require('./sessionRevocation');
 const SALT_ROUNDS = 12;
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
+// Portal accounts sharing one email that login and reset will consider.
+const MAX_SHARED_EMAIL_ACCOUNTS = 10;
 const ACCESS_SECONDS = 900;    // 15 minutes
 const REFRESH_SECONDS = 604800; // 7 days
 
@@ -52,39 +54,55 @@ async function login({ email, password }) {
             portal_password_hash, portal_login_attempts, portal_locked_until, portal_token_version
      FROM clients
      WHERE email = ? AND deleted_at IS NULL
-     LIMIT 2`,
-    [email.toLowerCase().trim()],
+     LIMIT ?`,
+    [email.toLowerCase().trim(), MAX_SHARED_EMAIL_ACCOUNTS + 1],
   );
-
-  const client = rows.length === 1 ? rows[0] : null;
 
   // One answer, after the same bcrypt work, for an unknown email, an inactive
   // client, a client without portal access and a locked account, so neither
   // the message nor the timing reveals which (SEC-11). A locked account is not
   // checked against the password, and failures during a lock do not extend it.
   const invalidCreds = () => new UnauthorizedError('Invalid email or password');
-  const locked = client?.portal_locked_until && new Date(client.portal_locked_until) > new Date();
-  if (!client || client.status === 'inactive' || !client.portal_password_hash || locked) {
+  const isLocked = c => c.portal_locked_until && new Date(c.portal_locked_until) > new Date();
+
+  // An email is not unique across clients (a family, a business with several
+  // accounts, two ISPs on one install), and treating two rows as a miss locked
+  // every one of them out of the portal for good (WHK-10). The password picks
+  // the account: it is checked against each portal-enabled candidate, and the
+  // login succeeds only when exactly one matches. Two matches stay ambiguous
+  // and fail closed.
+  const candidates = rows.length <= MAX_SHARED_EMAIL_ACCOUNTS
+    ? rows.filter(c => c.status !== 'inactive' && c.portal_password_hash && !isLocked(c))
+    : [];
+  if (!candidates.length) {
     await burnPasswordCheck(password);
     throw invalidCreds();
   }
 
-  const valid = await bcrypt.compare(password, client.portal_password_hash);
+  const matches = [];
+  for (const candidate of candidates) {
+    if (await bcrypt.compare(password, candidate.portal_password_hash)) matches.push(candidate);
+  }
+  if (matches.length > 1) throw invalidCreds();
 
-  if (!valid) {
-    // Atomic, and an expired lock restarts the count (see authService).
-    await db.query(
-      `UPDATE clients SET
-         portal_login_attempts = CASE WHEN portal_locked_until IS NOT NULL AND portal_locked_until <= NOW() THEN 1
-                                      ELSE portal_login_attempts + 1 END,
-         portal_locked_until = CASE WHEN portal_locked_until IS NOT NULL AND portal_locked_until > NOW() THEN portal_locked_until
-                                    WHEN portal_login_attempts >= ? THEN DATE_ADD(NOW(), INTERVAL ? MINUTE)
-                                    ELSE NULL END
-       WHERE id = ?`,
-      [MAX_ATTEMPTS, LOCKOUT_MINUTES, client.id],
-    );
+  if (!matches.length) {
+    // Atomic, and an expired lock restarts the count (see authService). Every
+    // candidate the password was tried against counts the failure.
+    for (const candidate of candidates) {
+      await db.query(
+        `UPDATE clients SET
+           portal_login_attempts = CASE WHEN portal_locked_until IS NOT NULL AND portal_locked_until <= NOW() THEN 1
+                                        ELSE portal_login_attempts + 1 END,
+           portal_locked_until = CASE WHEN portal_locked_until IS NOT NULL AND portal_locked_until > NOW() THEN portal_locked_until
+                                      WHEN portal_login_attempts >= ? THEN DATE_ADD(NOW(), INTERVAL ? MINUTE)
+                                      ELSE NULL END
+         WHERE id = ?`,
+        [MAX_ATTEMPTS, LOCKOUT_MINUTES, candidate.id],
+      );
+    }
     throw invalidCreds();
   }
+  const [client] = matches;
 
   // Reset lockout on success
   await db.query(
@@ -245,38 +263,38 @@ async function requestPasswordReset(email) {
     `SELECT id, organization_id, name, email, status, portal_password_hash
      FROM clients
      WHERE email = ? AND deleted_at IS NULL
-     LIMIT 2`,
-    [email.toLowerCase().trim()],
+     LIMIT ?`,
+    [email.toLowerCase().trim(), MAX_SHARED_EMAIL_ACCOUNTS + 1],
   );
 
-  // Client email is not globally unique. Ambiguity must follow the same
-  // anti-enumeration branch as a miss; selecting an arbitrary first row could
-  // issue a reset token for the wrong tenant's portal account.
-  const client = rows.length === 1 ? rows[0] : null;
+  const generic = { message: 'If that email exists, a reset link has been sent' };
+  // Client email is not globally unique. Each portal-enabled account at the
+  // address gets its own reset token (and its own email, sent by the caller
+  // through that account's organization), so a shared address no longer
+  // blocks reset for all of them (WHK-10). A token resets only the account it
+  // was minted for.
+  if (rows.length > MAX_SHARED_EMAIL_ACCOUNTS) return generic;
+  const eligible = rows.filter(c => c.portal_password_hash && c.status !== 'inactive');
 
-  if (!client || !client.portal_password_hash || client.status === 'inactive') {
-    return { message: 'If that email exists, a reset link has been sent' };
+  const resets = [];
+  for (const client of eligible) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const [updated] = await db.query(
+      `UPDATE clients SET portal_reset_token_hash = ?, portal_reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR)
+       WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL`,
+      [tokenHash, client.id, client.organization_id],
+    );
+    if (updated.affectedRows !== 1) continue;
+    resets.push({
+      token,
+      email: client.email,
+      clientId: client.id,
+      organizationId: client.organization_id,
+      userName: client.name,
+    });
   }
-
-  const token = crypto.randomBytes(32).toString('hex');
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-  const [updated] = await db.query(
-    `UPDATE clients SET portal_reset_token_hash = ?, portal_reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR)
-     WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL`,
-    [tokenHash, client.id, client.organization_id],
-  );
-  if (updated.affectedRows !== 1) {
-    return { message: 'If that email exists, a reset link has been sent' };
-  }
-
-  return {
-    token,
-    email: client.email,
-    clientId: client.id,
-    organizationId: client.organization_id,
-    userName: client.name,
-  };
+  return resets.length ? { ...generic, resets } : generic;
 }
 
 // ---------------------------------------------------------------------------
