@@ -359,7 +359,7 @@ describe('syncFreeradiusTables — EAP-TLS subscriber with certificate', () => {
     );
     expect(mikrotikRow).toBeDefined();
     // dl100/ul50, burst→2x, threshold→CIR, burst-time 8, priority 2
-    expect(mikrotikRow.params[3]).toBe('100M/50M 200M/100M 100M/50M 8 2');
+    expect(mikrotikRow.params[3]).toBe('50M/100M 100M/200M 50M/100M 8 2');
   });
 
   test('carries burst_threshold_mbps and burst_time_seconds into the rate string (writer-parity regression)', async () => {
@@ -377,7 +377,7 @@ describe('syncFreeradiusTables — EAP-TLS subscriber with certificate', () => {
       c => c.sql.includes('INSERT INTO radgroupreply') && c.params && c.params[1] === 'Mikrotik-Rate-Limit',
     );
     expect(mikrotikRow).toBeDefined();
-    expect(mikrotikRow.params[3]).toBe('100M/50M 200M/100M 90M/90M 4');
+    expect(mikrotikRow.params[3]).toBe('50M/100M 100M/200M 90M/90M 4');
   });
 
   test('writes the ACTIVE speed window speeds instead of plan speeds (§10.2 — sync must not flip a window back)', async () => {
@@ -395,8 +395,8 @@ describe('syncFreeradiusTables — EAP-TLS subscriber with certificate', () => {
       c => c.sql.includes('INSERT INTO radgroupreply') && c.params && c.params[1] === 'Mikrotik-Rate-Limit',
     );
     expect(mikrotikRow).toBeDefined();
-    // Window CIR 30M/15M, bursts re-derived from the window, not the plan's 100M/50M
-    expect(mikrotikRow.params[3]).toBe('30M/15M 60M/30M 30M/15M 8');
+    // Window CIR 15M/30M, bursts re-derived from the window, not the plan's 50M/100M
+    expect(mikrotikRow.params[3]).toBe('15M/30M 30M/60M 15M/30M 8');
   });
 });
 

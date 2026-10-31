@@ -2044,7 +2044,7 @@
     "session_timeout": "Tiempo de Sesión (segundos)",
     "idle_timeout": "Tiempo de Inactividad (segundos)",
     "rate_limit_override": "Anulación de Límite de Velocidad",
-    "rate_limit_override_hint": "Cadena de límite de velocidad del proveedor (ej. MikroTik: '10M/5M'). Cuando se establece, reemplaza el atributo de velocidad del plan. Específico para MikroTik.",
+    "rate_limit_override_hint": "Cadena de límite de velocidad del proveedor (ej. MikroTik, subida/bajada: '5M/10M'). Cuando se establece, reemplaza el atributo de velocidad del plan. Específico para MikroTik.",
     "address_list": "Lista de Direcciones MikroTik",
     "address_list_hint": "Nombre de la lista de direcciones del firewall MikroTik. Se envía como atributo de respuesta Mikrotik-Address-List.",
     "filter_id": "Filter-Id",

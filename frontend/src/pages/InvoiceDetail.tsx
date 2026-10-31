@@ -72,6 +72,10 @@ interface CfdiDoc {
   id: number;
   uuid: string | null;
   sat_status: 'draft' | 'vigente' | 'cancelado' | 'cancel_pending' | null;
+  /** Last failed stamp attempt (draft only). */
+  stamp_error?: string | null;
+  /** 1 = the last attempt got no definite answer and may be stamped: retry first. */
+  stamp_ambiguous?: number | boolean | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -868,6 +872,41 @@ export function InvoiceDetail() {
     onError: (err: Error) => showToast(`Error: ${err.message}`),
   });
 
+  // A refused draft is rebuilt from the invoice as it is now (new Fecha,
+  // current client fiscal data) or discarded, which also unfreezes the invoice.
+  const rebuildDraftMutation = useMutation({
+    mutationFn: async (cfdiDocumentId: number) => {
+      const res = await authedFetch(`${API_BASE}/cfdi-documents/${cfdiDocumentId}/rebuild`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const body = await res.json().catch(() => ({})) as { data?: { uuid?: string; stamped?: boolean; stamp_error?: string }; error?: { message?: string } };
+      if (!res.ok) throw new Error(body.error?.message ?? 'Failed to rebuild the CFDI');
+      return body.data;
+    },
+    onSuccess: (d) => {
+      showToast(d?.stamped ? `CFDI rebuilt and stamped — UUID ${d.uuid ?? ''}` : `CFDI rebuilt; stamping failed: ${d?.stamp_error ?? ''}`);
+      qc.invalidateQueries({ queryKey: ['invoice-cfdi', id] });
+      qc.invalidateQueries({ queryKey: ['invoice', id] });
+    },
+    onError: (err: Error) => showToast(`Error: ${err.message}`),
+  });
+
+  const discardDraftMutation = useMutation({
+    mutationFn: async (cfdiDocumentId: number) => {
+      const res = await authedFetch(`${API_BASE}/cfdi-documents/${cfdiDocumentId}`, { method: 'DELETE' });
+      const body = await res.json().catch(() => ({})) as { error?: { message?: string } };
+      if (!res.ok) throw new Error(body.error?.message ?? 'Failed to discard the draft CFDI');
+    },
+    onSuccess: () => {
+      showToast('Draft CFDI discarded');
+      qc.invalidateQueries({ queryKey: ['invoice-cfdi', id] });
+      qc.invalidateQueries({ queryKey: ['invoice', id] });
+    },
+    onError: (err: Error) => showToast(`Error: ${err.message}`),
+  });
+
   const voidMutation = useMutation({
     mutationFn: () => updateInvoice(Number(id), { status: 'void' }),
     onSuccess: () => {
@@ -997,10 +1036,36 @@ export function InvoiceDetail() {
                   onClick={() => retryStampMutation.mutate(draftCfdi.id)}
                   disabled={retryStampMutation.isPending}
                   style={actionBtn('#b45309')}
-                  title="A CFDI was created but PAC stamping failed — retry submitting it"
+                  title={Number(draftCfdi.stamp_ambiguous)
+                    ? 'The last attempt got no definite answer from the PAC and may already be stamped — retry before rebuilding or discarding'
+                    : `A CFDI was created but PAC stamping failed${draftCfdi.stamp_error ? `: ${draftCfdi.stamp_error}` : ''} — retry submitting it`}
                 >
                   {retryStampMutation.isPending ? 'Stamping…' : '🔁 Retry stamp (SAT)'}
                 </button>
+              )}
+              {isMxOrg && draftCfdi && !liveCfdi && !Number(draftCfdi.stamp_ambiguous) && (
+                <>
+                  <button
+                    onClick={() => rebuildDraftMutation.mutate(draftCfdi.id)}
+                    disabled={rebuildDraftMutation.isPending}
+                    style={actionBtn('#047857')}
+                    title="Build the CFDI again from the invoice and the client's current fiscal data (new date), then stamp it"
+                  >
+                    {rebuildDraftMutation.isPending ? 'Rebuilding…' : '🛠 Rebuild CFDI'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Discard this unstamped draft CFDI? The invoice can then be edited, voided or stamped again.')) {
+                        discardDraftMutation.mutate(draftCfdi.id);
+                      }
+                    }}
+                    disabled={discardDraftMutation.isPending}
+                    style={actionBtn('#991b1b')}
+                    title="Delete the unstamped draft CFDI"
+                  >
+                    🗑 Discard draft
+                  </button>
+                </>
               )}
               {liveCfdi ? (
                 // Stamped invoice: the CFDI is registered at SAT, so an internal

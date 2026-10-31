@@ -77,6 +77,9 @@ const config = {
     export: parseIntEnv('RATE_LIMIT_EXPORT', 20),
     sse: parseIntEnv('RATE_LIMIT_SSE', 10),
     webhook: parseIntEnv('RATE_LIMIT_WEBHOOK', 100),
+    // POST /acs/cwmp per source IP. A CPE session is a handful of requests and
+    // periodic Informs are hourly, but many CPEs can share one NAT address.
+    acs: parseIntEnv('RATE_LIMIT_ACS', 3000),
     // POST /bulk/email only — a mass-send action reaching real client
     // inboxes, the same rationale passwordReset/verifyEmailResend already
     // get their own tighter per-IP budget on top of the shared `api` bucket.
@@ -94,6 +97,17 @@ const config = {
     // Per-tenant limits — apply to all authenticated/org-scoped requests
     tenantWindowMs: parseIntEnv('RATE_LIMIT_TENANT_WINDOW_MS', 15 * 60 * 1000),
     tenantApi: parseIntEnv('RATE_LIMIT_TENANT_API', 2000),
+  },
+
+  // TR-069 ACS (/acs/cwmp). Every CWMP message must authenticate (NET-04):
+  // with the CPE's own acs_username/password, or — for first contact by a
+  // device that has no credentials of its own yet — with this ACS-wide
+  // credential. Without it, unknown CPEs cannot auto-register.
+  acs: {
+    username: process.env.ACS_USERNAME || '',
+    password: process.env.ACS_PASSWORD || '',
+    autoRegistrationsPerHour: parseIntEnv('ACS_AUTO_REGISTRATIONS_PER_HOUR', 30),
+    maxBody: process.env.ACS_MAX_BODY || '512kb',
   },
 
   // Request timeout in milliseconds (0 = disabled)

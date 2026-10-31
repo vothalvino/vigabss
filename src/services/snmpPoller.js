@@ -705,7 +705,8 @@ function createSnmpSession(device) {
 
   // SNMPv1 / SNMPv2c
   const version = device.snmp_version === 'v1' ? snmp.Version1 : snmp.Version2c;
-  return snmp.createSession(device.ip_address, device.snmp_community || 'public', {
+  // The community is stored encrypted (NET-10); legacy plaintext passes through.
+  return snmp.createSession(device.ip_address, decrypt(device.snmp_community) || 'public', {
     port,
     version,
     timeout,

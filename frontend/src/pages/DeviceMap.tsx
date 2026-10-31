@@ -59,7 +59,8 @@ export interface Device {
   ip_address: string | null;
   status: string;
   snmp_enabled: boolean | number;
-  snmp_community?: string | null;
+  /** Write-only: the API returns has_snmp_community instead of the value. */
+  has_snmp_community?: boolean;
   snmp_version?: string | null;
   snmp_port?: number | null;
   snmp_profile_id?: number | null;
@@ -499,7 +500,7 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
     mac_address: device?.mac_address ?? '',
     ip_address: device?.ip_address ?? '',
     snmp_enabled: Boolean(device?.snmp_enabled),
-    snmp_community: device?.snmp_community ?? '',
+    snmp_community: '',
     snmp_version: device?.snmp_version ?? 'v2c',
     snmp_port: device?.snmp_port != null ? String(device.snmp_port) : '161',
     snmp_profile_id: device?.snmp_profile_id != null ? String(device.snmp_profile_id) : '',
@@ -663,7 +664,7 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
                   </div>
                 </div>
                 <label style={labelStyle}>Community</label>
-                <input style={inputStyle} type="text" value={form.snmp_community} onChange={set('snmp_community')} maxLength={100} placeholder="public" />
+                <input style={inputStyle} type="password" autoComplete="new-password" value={form.snmp_community} onChange={set('snmp_community')} maxLength={96} placeholder={device?.has_snmp_community ? 'Leave blank to keep the current community' : 'public'} />
                 <label style={labelStyle}>Profile (what to record)</label>
                 <select style={inputStyle} value={form.snmp_profile_id} onChange={set('snmp_profile_id')}>
                   <option value="">— No profile (not polled) —</option>

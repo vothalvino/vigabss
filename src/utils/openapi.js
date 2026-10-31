@@ -615,6 +615,7 @@ function generateSpec() {
 
       // ---- CFDI Documents ----
       ...crudPaths('cfdi-documents', 'CFDI Documents', 'CfdiDocument'),
+      '/cfdi-documents/{id}/rebuild': { post: { tags: ['CFDI Documents'], summary: 'Rebuild an invoice draft CFDI from the invoice (new Fecha, current receptor and conceptos) and submit it; refused while the last stamp attempt may have been stamped', operationId: 'rebuildCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Stamp result for the rebuilt CFDI') } },
 
       // ---- SAT Catalogs ----
       '/sat-catalogs/regimen-fiscal': { get: { tags: ['SAT Catalogs'], summary: 'List fiscal regimens', operationId: 'listRegimenFiscal', security: [{ bearerAuth: [] }], responses: r200('Catalog[]') } },
@@ -673,6 +674,7 @@ function generateSpec() {
 
       // ---- NAS ----
       ...crudPaths('nas', 'NAS', 'Nas'),
+      '/nas/{id}/secret': { get: { tags: ['NAS'], summary: 'Read the RADIUS shared secret of a NAS (requires radius.credentials.view; NAS responses only carry has_secret)', operationId: 'getNasSecret', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('NAS RADIUS shared secret') } },
       '/nas/{id}/health': { get: { tags: ['NAS'], summary: 'Get health status for a NAS device', operationId: 'getNasHealth', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('NAS health status') } },
       '/nas/{id}/health-check': { post: { tags: ['NAS'], summary: 'Trigger manual health check probe for org NAS devices', operationId: 'triggerNasHealthCheck', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Health check results') } },
       '/nas/{id}/test-connection': { post: { tags: ['NAS'], summary: 'Test the direct RouterOS API connection to a NAS (uses its configured api_port/credentials)', operationId: 'testNasConnection', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Connection result (version, board, identity)') } },

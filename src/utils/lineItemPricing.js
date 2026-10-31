@@ -26,8 +26,14 @@ const { ValidationError } = require('./errors');
  * @returns {{qty:number, unitPrice:number, amount:number}}
  * @throws {ValidationError}
  */
+const round2 = n => Math.round(n * 100) / 100;
+
 function resolveLineItemPricing(item) {
-  const qty = Math.max(parseFloat(item.quantity) || 1, 0.01);
+  // Quantity and price are stored as DECIMAL(10,2): round them FIRST, so the
+  // amount is exactly the stored quantity × unit_price (a 1.333 quantity was
+  // stored as 1.33 while the amount used 1.333 — the CFDI Importe then failed
+  // Cantidad × ValorUnitario, CFD-03).
+  const qty = Math.max(round2(parseFloat(item.quantity) || 1), 0.01);
   const hasUnitPrice = item.unit_price !== undefined && item.unit_price !== null;
   const hasAmount = item.amount !== undefined && item.amount !== null;
   if (!hasUnitPrice && !hasAmount) {
@@ -38,7 +44,7 @@ function resolveLineItemPricing(item) {
   }
   let unitPrice;
   if (hasUnitPrice) {
-    unitPrice = Math.max(parseFloat(item.unit_price) || 0, 0);
+    unitPrice = Math.max(round2(parseFloat(item.unit_price) || 0), 0);
     if (hasAmount) {
       const expected = Math.round(qty * unitPrice * 100) / 100;
       const amt = parseFloat(item.amount) || 0;

@@ -7,6 +7,7 @@
 //   • File upload: POST multipart/form-data with field "file" (.csv)
 // =============================================================================
 
+const { sealSecret } = require('../utils/sealSecrets');
 const db = require('../config/database');
 const billingService = require('../services/billingService');
 const Organization = require('../models/Organization');
@@ -151,7 +152,7 @@ async function importDevices(req, res, next) {
           `INSERT INTO devices (organization_id, name, ip_address, type, site_id, mac_address, snmp_community, status)
            VALUES (?, ?, ?, ?, ?, ?, ?, 'offline')`,
           [req.orgId, row.name, row.ip_address, row.type || 'router',
-            row.site_id || null, row.mac_address || null, row.snmp_community || null],
+            row.site_id || null, row.mac_address || null, row.snmp_community ? sealSecret(String(row.snmp_community)) : null],
         );
         imported++;
       } catch (err) {
@@ -468,7 +469,7 @@ async function importDevicesFile(req, res, next) {
           `INSERT INTO devices (organization_id, name, ip_address, type, site_id, mac_address, snmp_community, status)
            VALUES (?, ?, ?, ?, ?, ?, ?, 'offline')`,
           [req.orgId, row.name, row.ip_address, row.type || 'router',
-            row.site_id || null, row.mac_address || null, row.snmp_community || null],
+            row.site_id || null, row.mac_address || null, row.snmp_community ? sealSecret(String(row.snmp_community)) : null],
         );
         imported++;
       } catch (err) {

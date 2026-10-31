@@ -13,6 +13,7 @@ const { validate } = require('../middleware/validate');
 const { createCfdiDocument, updateCfdiDocument, cancelCfdiDocument } = require('../middleware/schemas/cfdiDocuments');
 const { AppError, NotFoundError } = require('../utils/errors');
 const cfdiService = require('../services/cfdiService');
+const invoiceCfdiService = require('../services/invoiceCfdiService');
 const db = require('../config/database');
 
 const router = Router();
@@ -70,10 +71,49 @@ async function assertLinkedRecordsOwned(req, _res, next) {
   }
 }
 
+// An invoice CFDI is built from the invoice by POST /invoices/:id/stamp,
+// which takes the row lock and derives receptor and conceptos. A bare row
+// linked to an invoice froze that invoice with a hand-made draft (CFD-02).
+function refuseInvoiceLink(req, _res, next) {
+  if (req.body && req.body.invoice_id !== undefined && req.body.invoice_id !== null) {
+    return next(new AppError(
+      'An invoice CFDI is created from the invoice (POST /invoices/:id/stamp), not here.',
+      422, 'CFDI_INVOICE_LINK_NOT_ALLOWED',
+    ));
+  }
+  return next();
+}
+
 router.get('/', requirePermission('cfdi_documents.view'), ctrl.list);
 router.get('/:id', requirePermission('cfdi_documents.view'), ctrl.get);
-router.post('/', requirePermission('cfdi_documents.create'), validate(createCfdiDocument), assertLinkedRecordsOwned, ctrl.create);
+router.post('/', requirePermission('cfdi_documents.create'), refuseInvoiceLink, validate(createCfdiDocument), assertLinkedRecordsOwned, ctrl.create);
 router.put('/:id', requirePermission('cfdi_documents.update'), validate(updateCfdiDocument, { strip: true }), ctrl.update);
+
+// Discard an unstamped draft (CFD-02). Refused for stamped documents and for
+// a draft whose last stamp attempt may have been registered at SAT.
+router.delete('/:id', requirePermission('cfdi_documents.update'), async (req, res, next) => {
+  try {
+    const result = await cfdiService.discardDraft(req.params.id, req.orgId, { userId: req.user?.id ?? null });
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Rebuild an invoice's draft from the invoice as it is now: new Fecha,
+// current receptor data and conceptos (CFD-02).
+router.post('/:id/rebuild', requireMxLocale, requirePermission('cfdi_documents.create'), async (req, res, next) => {
+  try {
+    const result = await invoiceCfdiService.rebuildDraft(req.params.id, req.orgId, {
+      userId: req.user?.id ?? null,
+      uso_cfdi: req.body?.uso_cfdi,
+      forma_pago: req.body?.forma_pago,
+    });
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Get CFDI conceptos
 router.get('/:id/conceptos', requirePermission('cfdi_documents.view'), async (req, res, next) => {

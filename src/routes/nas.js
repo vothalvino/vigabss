@@ -13,6 +13,7 @@ const { createNas, updateNas, seedNas, confirmWgRoutes } = require('../middlewar
 const { httpCache } = require('../middleware/httpCache');
 const { encrypt } = require('../utils/encryption');
 const { ValidationError } = require('../utils/errors');
+const { redactSecretColumns, keepBlankSecrets } = require('../utils/secretRedaction');
 const routerProvisioningService = require('../services/routerProvisioningService');
 const wgProvisioningService = require('../services/wgProvisioningService');
 const wireguardServerService = require('../services/wireguardServerService');
@@ -21,10 +22,14 @@ const db = require('../config/database');
 
 const router = Router();
 
-// Never expose the encrypted API password in any response body.
+// Never expose the encrypted API password in any response body. The RADIUS
+// shared secret is write-only too (NET-10): devices.view, which the read-only
+// role holds, used to return it. It stays plaintext at rest because external
+// FreeRADIUS reads `nas.secret` directly (docs/freeradius); holders of
+// radius.credentials.view can read it through GET /nas/:id/secret.
 function redactNas(row) {
   if (!row || typeof row !== 'object') return row;
-  const rest = { ...row };
+  const rest = redactSecretColumns(row, ['secret']);
   delete rest.api_password_encrypted;
   return rest;
 }
@@ -42,7 +47,8 @@ function redactTunnel(row) {
 // unreachable / mid-operation-dropped router is a 502. Shared by the
 // test-connection and seed routes so the classification can't drift between them.
 function sendRouterError(res, next, e) {
-  if (e instanceof ValidationError || e.statusCode === 422) return next(e);
+  // Our own client errors (422, a 409 route overlap, 404) are not router faults.
+  if (e instanceof ValidationError || (e.statusCode >= 400 && e.statusCode < 500 && e.code)) return next(e);
   if (e.routerAuthFailed) {
     return res.status(422).json({ error: { code: 'ROUTER_AUTH_FAILED', message: e.message } });
   }
@@ -164,8 +170,16 @@ router.use(orgScope);
 
 router.get('/', requirePermission('devices.view'), httpCache('nas', 300), ctrl.list);
 router.get('/:id', requirePermission('devices.view'), ctrl.get);
+router.get('/:id/secret', requirePermission('radius.credentials.view'), async (req, res, next) => {
+  try {
+    const nas = await Nas.findByIdOrFail(req.params.id, req.orgId);
+    res.json({ data: { id: nas.id, secret: nas.secret } });
+  } catch (err) {
+    next(err);
+  }
+});
 router.post('/', requirePermission('devices.create'), validate(createNas), validateNasIpAddress, preallocateNatedTunnelIp, encryptApiPassword, ctrl.create);
-router.put('/:id', requirePermission('devices.update'), validate(updateNas), encryptApiPassword, ctrl.update);
+router.put('/:id', requirePermission('devices.update'), keepBlankSecrets(['secret']), validate(updateNas), encryptApiPassword, ctrl.update);
 router.delete('/:id', requirePermission('devices.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('devices.update'), ctrl.restore);
 

@@ -35,7 +35,13 @@ jest.mock('../src/services/cpeDiagnosticsService', () => ({
 }));
 
 const db = require('../src/config/database');
+const config = require('../src/config');
 const app = require('../src/app');
+
+// First contact by a CPE with no credentials of its own uses the ACS-wide
+// credential (NET-04); an unauthenticated Inform is challenged.
+config.acs.username = 'acs-shared';
+config.acs.password = 'shared-secret';
 const cpeInventoryService = require('../src/services/cpeInventoryService');
 
 const INFORM = (serial, oui) => `<?xml version="1.0" encoding="UTF-8"?>
@@ -88,6 +94,7 @@ describe('Inform resolution', () => {
     const res = await request(app)
       .post('/acs/cwmp')
       .set('Content-Type', 'text/xml')
+      .auth('acs-shared', 'shared-secret')
       .send(INFORM('RGEW-0001', 'EC1724'));
 
     expect(res.status).toBe(200);
@@ -120,6 +127,7 @@ describe('Inform resolution', () => {
     const res = await request(app)
       .post('/acs/cwmp')
       .set('Content-Type', 'text/xml')
+      .auth('acs-shared', 'shared-secret')
       .send(INFORM('RGEW-0001', 'AABBCC'));
 
     expect(res.status).toBe(200);

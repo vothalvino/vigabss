@@ -15,6 +15,7 @@
 // atomically inside the same transaction as the contract write.
 // =============================================================================
 
+const net = require('net');
 const crypto = require('crypto');
 const { ConflictError } = require('../utils/errors');
 const logger = require('../utils/logger').child({ service: 'provisioning' });
@@ -241,9 +242,12 @@ async function provisionNewContract(runner, contract, { seed, pppoeUsername, ppp
       // until the technician's bounded test window or formal activation —
       // radiusServerService.findSubscriber authenticates on radius.status
       // alone, so 'active' here meant free unbounded internet pre-activation.
-      `INSERT INTO radius (organization_id, client_id, contract_id, username, password, ipv4_pool_id, ipv6_pool_id, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'inactive')`,
-      [organizationId, contract.client_id, contract.id, username, password, ipv4PoolId, ipv6PoolId],
+      // ip_address: the contract form is the only UI for a PPPoE static IP,
+      // and RADIUS sends radius.ip_address as Framed-IP-Address (NPR-02).
+      `INSERT INTO radius (organization_id, client_id, contract_id, username, password, ipv4_pool_id, ipv6_pool_id, ip_address, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'inactive')`,
+      [organizationId, contract.client_id, contract.id, username, password, ipv4PoolId, ipv6PoolId,
+        net.isIPv4(String(contract.ip_address || '')) ? contract.ip_address : null],
     );
 
     result.pppoe = {

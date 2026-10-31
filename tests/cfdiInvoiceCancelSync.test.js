@@ -33,6 +33,8 @@ beforeEach(() => {
     if (/SELECT \* FROM cfdi_documents WHERE id = \?/.test(sql)) return Promise.resolve([[DOC]]);
     if (/FROM pac_providers/.test(sql)) return Promise.resolve([[PAC]]);
     if (/INSERT INTO cfdi_cancellations/.test(sql)) return Promise.resolve([{ insertId: 900 }]);
+    // The document moves only from vigente/cancel_pending (CFD-01).
+    if (/^\s*UPDATE cfdi_documents/.test(sql)) return Promise.resolve([{ affectedRows: 1 }]);
     return Promise.resolve([[]]);
   });
 });

@@ -13,7 +13,7 @@ const createBandwidthTestServer = {
   region:             { type: 'string', max: 100 },
   site_id:            { type: 'number', min: 1 },
   is_active:          { type: 'boolean' },
-  auth_token:         { type: 'string', max: 255 },
+  auth_token:         { type: 'string', max: 96 },
   max_bandwidth_mbps: { type: 'number', min: 0 },
   status:             { type: 'string', enum: ['active', 'inactive', 'maintenance'] },
 };
@@ -27,7 +27,7 @@ const updateBandwidthTestServer = {
   region:             { type: 'string', max: 100 },
   site_id:            { type: 'number', min: 1 },
   is_active:          { type: 'boolean' },
-  auth_token:         { type: 'string', max: 255 },
+  auth_token:         { type: 'string', max: 96 },
   max_bandwidth_mbps: { type: 'number', min: 0 },
   status:             { type: 'string', enum: ['active', 'inactive', 'maintenance'] },
 };

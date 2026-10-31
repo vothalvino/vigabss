@@ -665,6 +665,21 @@ describe('seedDevice', () => {
   });
 
   // ── §4 Business/Residential priority simple queues ─────────────────────────
+  test('the POP max-limit is upload/download, so an asymmetric POP is not swapped (NPR-03)', async () => {
+    const { client, calls } = makeSeedClient();
+    ros.createClient.mockResolvedValue(client);
+
+    await seedDevice(SEED_NAS, {
+      radiusAddress: '203.0.113.10',
+      seedPriorityQueues: true,
+      totalDownloadMbps: 1000,
+      totalUploadMbps: 200,
+    });
+
+    const adds = calls.filter((c) => c[0] === '/queue/simple/add');
+    for (const add of adds) expect(add).toContain('=max-limit=200M/1000M');
+  });
+
   test('seeds the Business/Residential priority simple-queue hierarchy (§4)', async () => {
     const { client, calls } = makeSeedClient();
     ros.createClient.mockResolvedValue(client);

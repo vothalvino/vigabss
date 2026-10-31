@@ -23,7 +23,7 @@ const wg = require('./wireguardServerService');
 const { nasToConn } = require('./routerProvisioningService');
 const NasWgTunnel = require('../models/NasWgTunnel');
 const { encrypt, decrypt } = require('../utils/encryption');
-const { ValidationError } = require('../utils/errors');
+const { ValidationError, ConflictError } = require('../utils/errors');
 const config = require('../config');
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'wgProvisioningService' });
@@ -224,7 +224,7 @@ async function provisionDesiredState(nas, opts = {}) {
   }
 
   // Sync host-side peer (/32 only; subnets are added later via confirmRoutes)
-  const subnets = parseJsonField(tunnel.routed_subnets, []);
+  const subnets = storedRoutedSubnets(tunnel.routed_subnets);
   const syncResult = await wg.syncPeer({
     publicKey: tunnel.nas_public_key,
     tunnelIp: tunnel.tunnel_address,
@@ -284,7 +284,7 @@ async function bootstrap(nas) {
   // SECURITY: privateKey is decrypted for use in RouterOS API calls and the
   // snippet body but is NEVER logged.
   const privateKey = decrypt(tunnel.nas_private_key_encrypted);
-  const subnets    = parseJsonField(tunnel.routed_subnets, []);
+  const subnets    = storedRoutedSubnets(tunnel.routed_subnets);
 
   const serverCfg = {
     endpoint:  config.wireguard.serverEndpoint,
@@ -439,13 +439,81 @@ async function discoverSubnets(nas) {
 // confirmRoutes
 // =============================================================================
 
+// Routed subnets become `allowed-ips` and `ip route replace` on the shared
+// wg-fireisp hub (NET-08), so each must be a canonical IPv4 network that no
+// other tunnel, tunnel address or the hub subnet already covers: an overlap
+// (equal, wider or narrower) would pull another NAS's traffic — possibly
+// another tenant's — into this tunnel.
+const MAX_ROUTED_SUBNETS = 64;
+const MIN_ROUTED_PREFIX = 8;
+const CIDR_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/;
+const RESERVED_NETWORKS = ['0.0.0.0/8', '127.0.0.0/8', '169.254.0.0/16', '224.0.0.0/4', '240.0.0.0/4'];
+
+/**
+ * Validate the confirmed subnet list: canonical IPv4 CIDRs (host bits zero),
+ * prefix /8–/32, no reserved ranges, no duplicates or overlaps within the list.
+ * @param {unknown} subnets
+ * @returns {string[]}
+ */
+function normalizeRoutedSubnets(subnets) {
+  if (!Array.isArray(subnets)) {
+    throw new ValidationError('subnets must be an array of CIDR strings');
+  }
+  if (subnets.length > MAX_ROUTED_SUBNETS) {
+    throw new ValidationError(`At most ${MAX_ROUTED_SUBNETS} routed subnets are allowed`);
+  }
+  const result = [];
+  for (const raw of subnets) {
+    const m = typeof raw === 'string' ? CIDR_RE.exec(raw.trim()) : null;
+    const octets = m ? m.slice(1, 5).map(Number) : [];
+    const prefix = m ? Number(m[5]) : NaN;
+    if (!m || octets.some(o => o > 255) || prefix < MIN_ROUTED_PREFIX || prefix > 32) {
+      throw new ValidationError(`"${String(raw).slice(0, 50)}" is not an IPv4 network between /${MIN_ROUTED_PREFIX} and /32`);
+    }
+    const mask = (~0 << (32 - prefix)) >>> 0;
+    const network = (ipToInt(octets.join('.')) & mask) >>> 0;
+    const canonical = `${[24, 16, 8, 0].map(shift => (network >>> shift) & 255).join('.')}/${prefix}`;
+    if (canonical !== `${octets.join('.')}/${prefix}`) {
+      throw new ValidationError(`${raw} has host bits set; use ${canonical}`);
+    }
+    if (RESERVED_NETWORKS.some(r => overlapsSubnet(r, canonical))) {
+      throw new ValidationError(`${canonical} is a reserved range and cannot be routed`);
+    }
+    const clash = result.find(r => overlapsSubnet(r, canonical));
+    if (clash) throw new ValidationError(`${canonical} overlaps ${clash} in the same list`);
+    result.push(canonical);
+  }
+  return result;
+}
+
+/**
+ * Routed subnets as stored, keeping only valid networks. Rows written before
+ * NET-08 may hold anything; a bad entry is dropped (and logged) rather than
+ * pushed into `wg set`/`ip route` or a RouterOS script.
+ * @param {*} value nas_wg_tunnels.routed_subnets
+ * @returns {string[]}
+ */
+function storedRoutedSubnets(value) {
+  const valid = [];
+  const stored = parseJsonField(value, []);
+  for (const cidr of Array.isArray(stored) ? stored : []) {
+    try {
+      valid.push(...normalizeRoutedSubnets([cidr]));
+    } catch {
+      logger.warn({ cidr: String(cidr).slice(0, 50) }, 'Ignoring invalid stored WireGuard routed subnet');
+    }
+  }
+  return valid;
+}
+
 /**
  * Commit confirmed subnets, re-sync the host-side peer, and refresh user scopes.
  *
- * Stores `subnets` in `nas_wg_tunnels.routed_subnets`, calls syncPeer with
- * [tunnelIp/32, ...subnets], and emits a warning step for any CIDR that already
- * appears in another live tunnel's routed_subnets (per-NAS source routing is a
- * FOLLOW-UP; overlapping on wg-fireisp will break routing for one of them).
+ * Validates `subnets` (normalizeRoutedSubnets), refuses with 409 any subnet
+ * that overlaps the hub subnet or another live tunnel's address or routed
+ * subnets, stores them in `nas_wg_tunnels.routed_subnets` and calls syncPeer
+ * with [tunnelIp/32, ...subnets]. The check and the write run under a lock on
+ * the tunnel rows so two confirmations cannot both claim the same range.
  *
  * Also calls `userTunnelService.refreshAffectedByNas(nas.id)` so live user
  * scopes track the route change. The userTunnelService require is lazy (it
@@ -455,52 +523,51 @@ async function discoverSubnets(nas) {
  * @param {{ subnets: string[] }} body
  * @returns {Promise<{ steps: Array<{step,status,detail}>, tunnel: object }>}
  */
-async function confirmRoutes(nas, { subnets }) {
+async function confirmRoutes(nas, { subnets: requested }) {
   const steps = [];
   const record = (step, status, detail) => steps.push({ step, status, detail });
 
-  if (!Array.isArray(subnets)) {
-    throw new ValidationError('subnets must be an array of CIDR strings');
-  }
+  const subnets = normalizeRoutedSubnets(requested);
 
   const tunnel = await loadTunnel(nas.id);
   if (!tunnel) {
     throw new ValidationError('No WireGuard tunnel found for this NAS — call bootstrap first');
   }
 
-  // ── Overlap guard (MVP: warn, do not block) ────────────────────────────────
-  if (subnets.length > 0) {
-    const [otherTunnels] = await db.query(
-      'SELECT id, nas_id, routed_subnets FROM nas_wg_tunnels WHERE id != ? AND deleted_at IS NULL AND routed_subnets IS NOT NULL',
-      [tunnel.id],
+  // ── Overlap guard + persist, under a lock on the live tunnel rows ──────────
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [liveTunnels] = await conn.query(
+      'SELECT id, tunnel_address, routed_subnets FROM nas_wg_tunnels WHERE deleted_at IS NULL FOR UPDATE',
     );
-    const warnings = [];
-    for (const other of otherTunnels) {
-      const otherSubnets = parseJsonField(other.routed_subnets, []);
-      const overlap = subnets.filter((s) => otherSubnets.includes(s));
-      if (overlap.length) {
-        warnings.push(
-          `CIDRs [${overlap.join(', ')}] already routed by tunnel ${other.id} (NAS ${other.nas_id})`,
-        );
+    const taken = [];
+    if (config.wireguard.serverSubnet) taken.push(config.wireguard.serverSubnet);
+    for (const other of liveTunnels) {
+      if (Number(other.id) === Number(tunnel.id)) continue;
+      if (other.tunnel_address) taken.push(`${String(other.tunnel_address).split('/')[0]}/32`);
+      taken.push(...storedRoutedSubnets(other.routed_subnets));
+    }
+    for (const cidr of subnets) {
+      // Never name the other tunnel: it may belong to another organization.
+      if (taken.some(t => overlapsSubnet(t, cidr))) {
+        throw new ConflictError(`${cidr} overlaps a network already routed through the WireGuard hub`);
       }
     }
-    if (warnings.length) {
-      record('overlap-check', 'warning',
-        `Potential route collision on wg-fireisp: ${warnings.join('; ')}. ` +
-        'Per-NAS source routing is a FOLLOW-UP; resolve before confirming.',
-      );
-    } else {
-      record('overlap-check', 'ok', 'No overlapping subnets in other tunnels');
-    }
-  } else {
-    record('overlap-check', 'skipped', 'No subnets to check');
-  }
+    record('overlap-check', subnets.length ? 'ok' : 'skipped',
+      subnets.length ? 'No overlap with the hub or other tunnels' : 'No subnets to check');
 
-  // ── Persist confirmed subnets ──────────────────────────────────────────────
-  await db.query(
-    'UPDATE nas_wg_tunnels SET routed_subnets = ?, updated_at = NOW() WHERE id = ?',
-    [JSON.stringify(subnets), tunnel.id],
-  );
+    await conn.query(
+      'UPDATE nas_wg_tunnels SET routed_subnets = ?, updated_at = NOW() WHERE id = ?',
+      [JSON.stringify(subnets), tunnel.id],
+    );
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
+  }
   record('store-subnets', 'ok', `Stored ${subnets.length} subnet(s) in nas_wg_tunnels`);
 
   // ── Re-sync host-side peer (tunnelIp/32 + all confirmed subnets) ───────────
@@ -625,7 +692,7 @@ async function rehydrateNasPeers() {
   let rehydrated = 0;
   for (const tunnel of tunnels) {
     try {
-      const subnets = parseJsonField(tunnel.routed_subnets, []);
+      const subnets = storedRoutedSubnets(tunnel.routed_subnets);
       await wg.syncPeer({
         publicKey: tunnel.nas_public_key,
         tunnelIp:  tunnel.tunnel_address,
@@ -677,7 +744,7 @@ async function teardownNas(nasId) {
 
   let tornDown = 0;
   for (const tunnel of tunnels) {
-    const subnets = parseJsonField(tunnel.routed_subnets, []);
+    const subnets = storedRoutedSubnets(tunnel.routed_subnets);
     // Remove the hub peer + every route it owns (its /32 plus routed subnets).
     try {
       await wg.removePeer({
@@ -762,7 +829,7 @@ async function restoreNas(nasId) {
 
   // Re-add the hub peer + its routes (no-op when WG disabled).
   try {
-    const subnets = parseJsonField(tunnel.routed_subnets, []);
+    const subnets = storedRoutedSubnets(tunnel.routed_subnets);
     await wg.syncPeer({
       publicKey: tunnel.nas_public_key,
       tunnelIp:  tunnel.tunnel_address,
@@ -793,6 +860,7 @@ module.exports = {
   bootstrap,
   discoverSubnets,
   confirmRoutes,
+  normalizeRoutedSubnets,
   buildSnippet,
   rehydrateNasPeers,
   teardownNas,

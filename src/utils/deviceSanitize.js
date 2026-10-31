@@ -14,6 +14,24 @@
 // src/utils/radiusSanitize.js.
 // =============================================================================
 
+const { redactSecretColumns } = require('./secretRedaction');
+const { sealSecret } = require('./sealSecrets');
+
+/**
+ * Encrypt a plaintext `snmp_community` in a create/update body; a blank one is
+ * dropped so an edit keeps the stored community. snmpPoller decrypts it.
+ */
+function sealSnmpCommunity(req, _res, next) {
+  try {
+    const value = req.body ? req.body.snmp_community : undefined;
+    if (value === '' || value === null) delete req.body.snmp_community;
+    else if (typeof value === 'string') req.body.snmp_community = sealSecret(value);
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 /**
  * Return a shallow copy of a devices row with the encrypted SNMPv3 columns
  * replaced by `has_snmp_v3_auth_key` / `has_snmp_v3_priv_key` booleans.
@@ -24,7 +42,8 @@
  */
 function redactDevice(row) {
   if (!row || typeof row !== 'object') return row;
-  const rest = { ...row };
+  // The v1/v2c community is a credential too (NET-10): has_snmp_community.
+  const rest = redactSecretColumns(row, ['snmp_community']);
   const hasAuthKey = Boolean(rest.snmp_v3_auth_key_encrypted);
   const hasPrivKey = Boolean(rest.snmp_v3_priv_key_encrypted);
   delete rest.snmp_v3_auth_key_encrypted;
@@ -32,4 +51,4 @@ function redactDevice(row) {
   return { ...rest, has_snmp_v3_auth_key: hasAuthKey, has_snmp_v3_priv_key: hasPrivKey };
 }
 
-module.exports = { redactDevice };
+module.exports = { redactDevice, sealSnmpCommunity };

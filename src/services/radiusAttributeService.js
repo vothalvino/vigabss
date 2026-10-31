@@ -46,7 +46,9 @@ function generateAttributes(plan) {
 /**
  * MikroTik Mikrotik-Rate-Limit format (full form):
  *   rx/tx burst-rx/burst-tx burst-threshold-rx/burst-threshold-tx burst-time priority min-rx/min-tx
- * Emitted as: "CIR-DL/CIR-UL burst-DL/burst-UL threshold-DL/threshold-UL burst-time [priority]"
+ * rx/tx are from the router's side: rx is what the client sends (upload), tx is
+ * what it receives (download). So the string is upload-first:
+ * Emitted as: "CIR-UL/CIR-DL burst-UL/burst-DL threshold-UL/threshold-DL burst-time [priority]"
  *
  * The optional 5th field is the queue PRIORITY (1 = highest … 8 = lowest). When the
  * plan sets one it is appended so the session's dynamic queue carries it — this is
@@ -59,7 +61,7 @@ function generateAttributes(plan) {
  * @param {number|string|null|undefined} [priority] Plan queue priority 1-8
  */
 function generateMikrotikAttributes(dl, ul, burstDl, burstUl, burstThreshDl, burstThreshUl, burstTime, priority) {
-  let rateLimit = `${dl}M/${ul}M ${burstDl}M/${burstUl}M ${burstThreshDl}M/${burstThreshUl}M ${burstTime}`;
+  let rateLimit = `${ul}M/${dl}M ${burstUl}M/${burstDl}M ${burstThreshUl}M/${burstThreshDl}M ${burstTime}`;
   if (priority !== null && priority !== undefined && priority !== '') {
     rateLimit += ` ${priority}`;
   }
@@ -98,4 +100,46 @@ function generateGenericAttributes(dl, ul) {
   };
 }
 
-module.exports = { generateAttributes };
+/**
+ * Vendor attributes for a soft-suspension throttle (NPR-01), in kbps.
+ * MikroTik and WISPr carry the exact rate; Cisco and Juniper name a QoS
+ * policy/profile (ISP_DL_<n>K / ISP_<dl>K_<ul>K) that must exist on the BNG,
+ * the same convention generateAttributes uses for plan speeds.
+ *
+ * @param {string|null} vendor plan radius_vendor
+ * @param {number} downloadKbps
+ * @param {number} uploadKbps
+ * @returns {object} attribute map
+ */
+function generateThrottleAttributes(vendor, downloadKbps, uploadKbps) {
+  const dl = Math.max(1, Math.round(Number(downloadKbps) || 0));
+  const ul = Math.max(1, Math.round(Number(uploadKbps) || 0));
+  switch (vendor) {
+    case 'mikrotik':
+      // rx/tx from the router's side: upload first (see generateMikrotikAttributes).
+      return { 'Mikrotik-Rate-Limit': `${ul}k/${dl}k` };
+    case 'cisco':
+      return { 'Cisco-AVPair': [`sub-qos-policy-in=ISP_DL_${dl}K`, `sub-qos-policy-out=ISP_UL_${ul}K`] };
+    case 'juniper':
+      return { 'ERX-Qos-Profile-Name': `ISP_${dl}K_${ul}K` };
+    default:
+      return { 'WISPr-Bandwidth-Max-Down': dl * 1000, 'WISPr-Bandwidth-Max-Up': ul * 1000 };
+  }
+}
+
+/** A contract row carries a soft-suspension throttle (migration 475). */
+function hasThrottle(row) {
+  return Boolean(row && Number(row.soft_suspend_download_kbps) > 0 && Number(row.soft_suspend_upload_kbps) > 0);
+}
+
+/** Attribute map as the [{ name, value }] list the CoA/Accept encoders take. */
+function toNamedAttributes(attrMap) {
+  const named = [];
+  for (const [name, value] of Object.entries(attrMap)) {
+    if (Array.isArray(value)) value.forEach(v => named.push({ name, value: String(v) }));
+    else named.push({ name, value: String(value) });
+  }
+  return named;
+}
+
+module.exports = { generateAttributes, generateThrottleAttributes, hasThrottle, toNamedAttributes };

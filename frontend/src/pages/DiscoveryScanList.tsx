@@ -22,7 +22,7 @@ interface DiscoveryScan {
   name: string;
   cidr_ranges: string;
   snmp_version: string;
-  snmp_community: string | null;
+  has_snmp_community?: boolean;
   snmp_port: number;
   status: string;
   scanned_hosts: number;

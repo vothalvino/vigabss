@@ -76,6 +76,9 @@ describe('suspension_logs write contract', () => {
     };
     db.getConnection.mockResolvedValue(conn);
     db.query.mockResolvedValue([[]]);
+    // FreeRADIUS row writes (NET-03) are covered in freeradiusServiceState.test.js.
+    jest.spyOn(radiusService, 'syncFreeradiusContract').mockResolvedValue({ found: false, enabled: false });
+    jest.spyOn(radiusService, 'syncFreeradiusTables').mockResolvedValue({ synced: 0, errors: 0, purged: 0 });
   });
 
   test('the schema fixture itself is what we think it is', () => {
@@ -105,7 +108,7 @@ describe('suspension_logs write contract', () => {
     test('writes only columns that exist, with an ENUM-legal action', async () => {
       await suspensionService.suspendContract(10, 3, 5, 50);
 
-      const [sql, params] = calls(conn.execute, 'INSERT INTO suspension_logs')[0];
+      const [sql, params] = calls(db.query, 'INSERT INTO suspension_logs')[0];
       for (const col of insertedColumns(sql)) {
         expect(SCHEMA.columns.has(col)).toBe(true);
       }
@@ -132,7 +135,7 @@ describe('suspension_logs write contract', () => {
 
     test('triggered_by is manual when a user did it', async () => {
       await suspensionService.suspendContract(10, null, 5, null);
-      const [sql, params] = calls(conn.execute, 'INSERT INTO suspension_logs')[0];
+      const [sql, params] = calls(db.query, 'INSERT INTO suspension_logs')[0];
       const idx = insertedColumns(sql).indexOf('triggered_by');
       // columns → SELECT projection is positional; params fill the '?' placeholders
       // in projection order, so triggered_by is the 2nd bound param here.
@@ -143,14 +146,14 @@ describe('suspension_logs write contract', () => {
 
     test('triggered_by is system when the scheduler did it (no user id)', async () => {
       await suspensionService.suspendContract(10, 3, null, 50);
-      const [, params] = calls(conn.execute, 'INSERT INTO suspension_logs')[0];
+      const [, params] = calls(db.query, 'INSERT INTO suspension_logs')[0];
       expect(params).toContain('system');
       expect(params).not.toContain('manual');
     });
 
     test('every bound value is a legal ENUM value where the column is an ENUM', async () => {
       await suspensionService.suspendContract(10, 3, 5, 50);
-      const [, params] = calls(conn.execute, 'INSERT INTO suspension_logs')[0];
+      const [, params] = calls(db.query, 'INSERT INTO suspension_logs')[0];
       const triggeredBy = params.find((p) => p === 'manual' || p === 'system');
       expect(SCHEMA.enums.get('triggered_by').has(triggeredBy)).toBe(true);
     });

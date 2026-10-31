@@ -5,48 +5,161 @@
 // Handles: Inform, GetParameterValues/Names/Response, SetParameterValues/Response,
 //          Download/Response, TransferComplete, Fault envelopes,
 //          FactoryReset, IPPingDiagnostics, TraceRouteDiagnostics (§8.3).
+//
+// /acs/cwmp is reachable without a session, so parsing must stay linear in
+// the body size (NET-05): the old regex helpers rescanned from every '<' and
+// a 100 KB body of '<' blocked the event loop for ~25 s. The tokenizer below
+// walks the input once with indexOf, ignores namespace prefixes, refuses
+// DOCTYPE/ENTITY declarations and caps elements and depth.
 // =============================================================================
 
 'use strict';
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Tokenizer
 // ---------------------------------------------------------------------------
 
-/**
- * Extract text content from the FIRST occurrence of a tag.
- * Handles CDATA sections and plain text. Returns null if tag not found.
- */
-function extractTag(xml, tag) {
-  // Try with namespace prefix first, then without
-  const patterns = [
-    new RegExp(`<[^>]*:${tag}[^>]*>([\\s\\S]*?)<\\/[^>]*:${tag}>`, 'i'),
-    new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'),
-  ];
-  for (const re of patterns) {
-    const m = xml.match(re);
-    if (m) {
-      let val = m[1].trim();
-      // Strip CDATA
-      const cdata = val.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
-      if (cdata) val = cdata[1];
-      return val;
+const MAX_ELEMENTS = 20000;
+const MAX_DEPTH = 64;
+
+class CwmpParseError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'CwmpParseError';
+  }
+}
+
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+
+function decodeEntities(text) {
+  if (text.indexOf('&') === -1) return text;
+  return text.replace(/&(#x[0-9a-fA-F]{1,6}|#[0-9]{1,7}|[a-zA-Z]{2,4});/g, (whole, ref) => {
+    if (ref[0] === '#') {
+      const code = ref[1] === 'x' || ref[1] === 'X' ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
     }
+    return ENTITIES[ref] !== undefined ? ENTITIES[ref] : whole;
+  });
+}
+
+const localName = qname => {
+  const colon = qname.indexOf(':');
+  return (colon === -1 ? qname : qname.slice(colon + 1)).toLowerCase();
+};
+
+// Index of the '>' that closes the tag starting at `from`, skipping quoted
+// attribute values. Each character is visited once.
+function tagEnd(xml, from) {
+  let quote = null;
+  for (let i = from; i < xml.length; i++) {
+    const ch = xml[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === '>') {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Parse XML into a light element tree: { name (local, lower-case), children, text }.
+ * Lenient like the old parser (unclosed or stray end tags are tolerated) but
+ * linear, with no entity or DTD processing beyond the five XML entities.
+ */
+function parseTree(xml) {
+  const root = { name: '#document', children: [], text: '' };
+  const stack = [root];
+  let elements = 0;
+  let i = 0;
+  while (i < xml.length) {
+    const lt = xml.indexOf('<', i);
+    const textEnd = lt === -1 ? xml.length : lt;
+    if (textEnd > i) stack[stack.length - 1].text += decodeEntities(xml.slice(i, textEnd));
+    if (lt === -1) break;
+
+    if (xml.startsWith('<!--', lt)) {
+      const close = xml.indexOf('-->', lt + 4);
+      i = close === -1 ? xml.length : close + 3;
+    } else if (xml.startsWith('<![CDATA[', lt)) {
+      const close = xml.indexOf(']]>', lt + 9);
+      stack[stack.length - 1].text += xml.slice(lt + 9, close === -1 ? xml.length : close);
+      i = close === -1 ? xml.length : close + 3;
+    } else if (xml.startsWith('<!', lt)) {
+      throw new CwmpParseError('DOCTYPE and ENTITY declarations are not accepted');
+    } else if (xml.startsWith('<?', lt)) {
+      const close = xml.indexOf('?>', lt + 2);
+      i = close === -1 ? xml.length : close + 2;
+    } else {
+      const gt = tagEnd(xml, lt + 1);
+      if (gt === -1) break; // truncated tag: ignore the rest
+      const inner = xml.slice(lt + 1, gt);
+      i = gt + 1;
+      if (inner[0] === '/') {
+        const name = localName(inner.slice(1).trim());
+        // Close up to the matching open element; ignore a stray end tag.
+        for (let depth = stack.length - 1; depth > 0; depth--) {
+          if (stack[depth].name === name) {
+            stack.length = depth;
+            break;
+          }
+        }
+        continue;
+      }
+      const selfClosing = inner.endsWith('/');
+      const qname = inner.slice(0, selfClosing ? -1 : undefined).trim().split(/\s/, 1)[0];
+      if (!qname) continue;
+      if (++elements > MAX_ELEMENTS) throw new CwmpParseError('Too many XML elements');
+      const node = { name: localName(qname), children: [], text: '' };
+      stack[stack.length - 1].children.push(node);
+      if (!selfClosing) {
+        if (stack.length > MAX_DEPTH) throw new CwmpParseError('XML nesting is too deep');
+        stack.push(node);
+      }
+    }
+  }
+  return root;
+}
+
+// ---------------------------------------------------------------------------
+// Tree helpers (tag names match without namespace prefix, case-insensitively)
+// ---------------------------------------------------------------------------
+
+/** First descendant element named `tag`, depth-first in document order. */
+function findFirst(node, tag) {
+  if (!node) return null;
+  const want = tag.toLowerCase();
+  const pending = [...node.children].reverse();
+  while (pending.length) {
+    const current = pending.pop();
+    if (current.name === want) return current;
+    for (let k = current.children.length - 1; k >= 0; k--) pending.push(current.children[k]);
   }
   return null;
 }
 
-/**
- * Extract all occurrences of a tag, returning an array of inner content strings.
- */
-function extractAllTags(xml, tag) {
+/** All descendants named `tag` that are not nested inside another match. */
+function findAll(node, tag) {
+  const want = tag.toLowerCase();
   const results = [];
-  const re = new RegExp(`<[^>]*:?${tag}[^>]*>([\\s\\S]*?)<\\/[^>]*:?${tag}>`, 'gi');
-  let m;
-  while ((m = re.exec(xml)) !== null) {
-    results.push(m[1].trim());
+  const pending = [...node.children].reverse();
+  while (pending.length) {
+    const current = pending.pop();
+    if (current.name === want) {
+      results.push(current);
+      continue;
+    }
+    for (let k = current.children.length - 1; k >= 0; k--) pending.push(current.children[k]);
   }
   return results;
+}
+
+/** Trimmed text of the first descendant named `tag`, or null. */
+function textOf(node, tag) {
+  const found = findFirst(node, tag);
+  return found ? found.text.trim() : null;
 }
 
 /**
@@ -62,111 +175,82 @@ function xmlEscape(str) {
     .replace(/'/g, '&apos;');
 }
 
-/**
- * Extract the SOAP message ID from the header.
- */
-function extractMessageId(xml) {
-  return extractTag(xml, 'ID') || `ID-${Date.now()}`;
-}
+const MESSAGE_TYPES = [
+  'Inform', 'GetParameterValuesResponse', 'SetParameterValuesResponse',
+  'GetParameterNamesResponse', 'DownloadResponse', 'TransferCompleteResponse', 'Fault',
+];
+const MESSAGE_TYPE_BY_NAME = new Map(MESSAGE_TYPES.map(t => [t.toLowerCase(), t]));
 
 /**
- * Detect the CWMP message type from the SOAP body.
+ * Detect the CWMP message type: the first known RPC element in the SOAP Body
+ * (or anywhere, when there is no Body).
  */
-function detectMessageType(xml) {
-  // §8.3: Check DiagnosticsComplete BEFORE the generic Inform check,
-  // since a DiagnosticsComplete arrives as an Inform with event code '8 DIAGNOSTICS COMPLETE'.
-  if (xml.includes('8 DIAGNOSTICS COMPLETE') || xml.includes('DiagnosticsComplete')) {
-    return 'DiagnosticsComplete';
+function detectMessageType(tree) {
+  const body = findFirst(tree, 'Body') || tree;
+  const pending = [...body.children].reverse();
+  while (pending.length) {
+    const current = pending.pop();
+    const type = MESSAGE_TYPE_BY_NAME.get(current.name);
+    if (type) return { type, node: current };
+    for (let k = current.children.length - 1; k >= 0; k--) pending.push(current.children[k]);
   }
-
-  const types = [
-    'Inform', 'GetParameterValuesResponse', 'SetParameterValuesResponse',
-    'GetParameterNamesResponse', 'DownloadResponse', 'TransferCompleteResponse', 'Fault',
-  ];
-  for (const t of types) {
-    // Match with or without namespace prefix
-    if (new RegExp(`<[^>]*:?${t}[\\s>]`, 'i').test(xml) || xml.includes(`<${t}`)) {
-      return t;
-    }
-  }
-  return 'Unknown';
+  return { type: 'Unknown', node: body };
 }
 
 // ---------------------------------------------------------------------------
 // Parsers
 // ---------------------------------------------------------------------------
 
-function parseInform(xml) {
-  // DeviceId
-  const devIdBlock = extractTag(xml, 'DeviceId') || '';
+function parseParameterValues(node) {
+  return findAll(node, 'ParameterValueStruct').map(block => ({
+    name: textOf(block, 'Name') || '',
+    value: textOf(block, 'Value') || '',
+  }));
+}
+
+function parseInform(node) {
+  const devIdBlock = findFirst(node, 'DeviceId');
+  const pick = tag => (devIdBlock && textOf(devIdBlock, tag)) || textOf(node, tag) || '';
   const deviceId = {
-    manufacturer: extractTag(devIdBlock, 'Manufacturer') || extractTag(xml, 'Manufacturer') || '',
-    oui: extractTag(devIdBlock, 'OUI') || extractTag(xml, 'OUI') || '',
-    productClass: extractTag(devIdBlock, 'ProductClass') || extractTag(xml, 'ProductClass') || '',
-    serialNumber: extractTag(devIdBlock, 'SerialNumber') || extractTag(xml, 'SerialNumber') || '',
-    hwVersion: extractTag(xml, 'HardwareVersion') || '',
-    swVersion: extractTag(xml, 'SoftwareVersion') || '',
+    manufacturer: pick('Manufacturer'),
+    oui: pick('OUI'),
+    productClass: pick('ProductClass'),
+    serialNumber: pick('SerialNumber'),
+    hwVersion: textOf(node, 'HardwareVersion') || '',
+    swVersion: textOf(node, 'SoftwareVersion') || '',
   };
 
-  // Events
-  const events = [];
-  const eventBlocks = extractAllTags(xml, 'EventStruct');
-  for (const block of eventBlocks) {
-    events.push({
-      code: extractTag(block, 'EventCode') || '',
-      commandKey: extractTag(block, 'CommandKey') || '',
-    });
-  }
+  const events = findAll(node, 'EventStruct').map(block => ({
+    code: textOf(block, 'EventCode') || '',
+    commandKey: textOf(block, 'CommandKey') || '',
+  }));
 
-  // Parameters from ParameterList
-  const parameters = [];
-  const paramBlocks = extractAllTags(xml, 'ParameterValueStruct');
-  for (const block of paramBlocks) {
-    parameters.push({
-      name: extractTag(block, 'Name') || '',
-      value: extractTag(block, 'Value') || '',
-    });
-  }
-
-  return { deviceId, events, parameters };
+  return { deviceId, events, parameters: parseParameterValues(node) };
 }
 
-function parseGetParameterValuesResponse(xml) {
-  const parameterList = [];
-  const blocks = extractAllTags(xml, 'ParameterValueStruct');
-  for (const block of blocks) {
-    parameterList.push({
-      name: extractTag(block, 'Name') || '',
-      value: extractTag(block, 'Value') || '',
-    });
-  }
-  return { parameterList };
+function parseGetParameterValuesResponse(node) {
+  return { parameterList: parseParameterValues(node) };
 }
 
-function parseSetParameterValuesResponse(xml) {
-  const statusStr = extractTag(xml, 'Status') || '0';
+function parseSetParameterValuesResponse(node) {
+  const statusStr = textOf(node, 'Status') || '0';
   return { status: parseInt(statusStr, 10) || 0 };
 }
 
-function parseGetParameterNamesResponse(xml) {
-  const parameterList = [];
-  const blocks = extractAllTags(xml, 'ParameterInfoStruct');
-  for (const block of blocks) {
-    parameterList.push({
-      name: extractTag(block, 'Name') || '',
-      writable: extractTag(block, 'Writable') === '1' || extractTag(block, 'Writable') === 'true',
-    });
-  }
+function parseGetParameterNamesResponse(node) {
+  const parameterList = findAll(node, 'ParameterInfoStruct').map((block) => {
+    const writable = textOf(block, 'Writable');
+    return { name: textOf(block, 'Name') || '', writable: writable === '1' || writable === 'true' };
+  });
   return { parameterList };
 }
 
-function parseFault(xml) {
-  // Extract the CWMP <Fault> element inside <detail>, avoiding the outer SOAP <faultcode>
-  const detailMatch = xml.match(/<detail>([\s\S]*?)<\/detail>/i);
-  const inner = detailMatch ? detailMatch[1] : xml;
+function parseFault(node) {
+  // The CWMP fault sits inside <detail>; the outer SOAP <faultcode> is generic.
+  const inner = findFirst(node, 'detail') || node;
   return {
-    faultCode: extractTag(inner, 'FaultCode') || '',
-    faultString: extractTag(inner, 'FaultString') || '',
+    faultCode: textOf(inner, 'FaultCode') || '',
+    faultString: textOf(inner, 'FaultString') || '',
   };
 }
 
@@ -178,30 +262,35 @@ function parseFault(xml) {
  * Parse a CWMP SOAP envelope string.
  * @param {string} xmlString
  * @returns {{ messageType: string, id: string, payload: object }}
+ * @throws {CwmpParseError} on a DOCTYPE/ENTITY declaration or an oversized tree
  */
 function parseCwmpEnvelope(xmlString) {
-  const xml = xmlString || '';
-  const messageType = detectMessageType(xml);
-  const id = extractMessageId(xml);
+  const tree = parseTree(String(xmlString || ''));
+  const { type, node } = detectMessageType(tree);
+  const id = textOf(tree, 'ID') || `ID-${Date.now()}`;
 
+  let messageType = type;
   let payload;
-  switch (messageType) {
+  switch (type) {
     case 'Inform':
-    case 'DiagnosticsComplete':
-      // DiagnosticsComplete arrives as an Inform with event code '8 DIAGNOSTICS COMPLETE'
-      payload = parseInform(xml);
+      payload = parseInform(node);
+      // §8.3: a DiagnosticsComplete arrives as an Inform with event code
+      // '8 DIAGNOSTICS COMPLETE'.
+      if (payload.events.some(e => e.code.toUpperCase() === '8 DIAGNOSTICS COMPLETE')) {
+        messageType = 'DiagnosticsComplete';
+      }
       break;
     case 'GetParameterValuesResponse':
-      payload = parseGetParameterValuesResponse(xml);
+      payload = parseGetParameterValuesResponse(node);
       break;
     case 'SetParameterValuesResponse':
-      payload = parseSetParameterValuesResponse(xml);
+      payload = parseSetParameterValuesResponse(node);
       break;
     case 'GetParameterNamesResponse':
-      payload = parseGetParameterNamesResponse(xml);
+      payload = parseGetParameterNamesResponse(node);
       break;
     case 'Fault':
-      payload = parseFault(xml);
+      payload = parseFault(node);
       break;
     default:
       payload = {};
@@ -370,6 +459,7 @@ function buildCwmpResponse(messageId, type, params = {}) {
 
 module.exports = {
   parseCwmpEnvelope,
+  CwmpParseError,
   buildCwmpResponse,
   // Export individual builders for diagnostics service
   buildStartPingDiagnostic,

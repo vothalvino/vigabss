@@ -707,7 +707,7 @@ async function pppoeDelete(conn, params) {
  * @param {{ host: string, port?: number, user: string, password: string }} conn
  * @param {{ name: string, target: string, maxLimit?: string, burstLimit?: string,
  *            burstThreshold?: string, burstTime?: string, comment?: string }} params
- *  maxLimit / burstLimit format: "<download>/<upload>" e.g. "10M/5M"
+ *  maxLimit / burstLimit format: "<upload>/<download>" (target upload first), e.g. "5M/10M"
  * @returns {Promise<{ id: string, created: boolean }>}
  */
 async function queueSet(conn, params) {

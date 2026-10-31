@@ -497,6 +497,10 @@ CREATE TABLE IF NOT EXISTS contracts (
     status         ENUM('pending','active','suspended','expired','cancelled','terminated') NOT NULL DEFAULT 'pending',
     first_activated_at DATETIME NULL
                        COMMENT 'First successful activation or grandfathered non-cancelled legacy service; NULL means no activation has been recorded (migration 450)',
+    soft_suspend_download_kbps INT UNSIGNED NULL DEFAULT NULL
+                       COMMENT 'Soft-suspension download throttle in kbps; NULL = not soft-suspended (migration 475)',
+    soft_suspend_upload_kbps INT UNSIGNED NULL DEFAULT NULL
+                       COMMENT 'Soft-suspension upload throttle in kbps; NULL = not soft-suspended (migration 475)',
     escalation_enabled TINYINT(1) NOT NULL DEFAULT 1
                        COMMENT 'Master switch for AI-diagnostic auto-escalation (creates a real technician ticket) on this contract; 0 = never auto-escalate regardless of fault (migration 387)',
     escalate_on_disconnect TINYINT(1) NOT NULL DEFAULT 0
@@ -5302,6 +5306,12 @@ CREATE TABLE IF NOT EXISTS cfdi_documents (
                                 COMMENT 'PAC that stamped this CFDI (e.g. Finkok, TimbraSoft)',
     stamp_date              DATETIME        NULL
                                 COMMENT 'FechaTimbrado from the PAC timbrado complement',
+    stamp_error             TEXT            NULL
+                                COMMENT 'Last failed stamp attempt: the PAC error shown on the draft (migration 477)',
+    stamp_attempted_at      DATETIME        NULL
+                                COMMENT 'When the last failed stamp attempt ran (migration 477)',
+    stamp_ambiguous         TINYINT(1)      NOT NULL DEFAULT 0
+                                COMMENT '1 = the last attempt timed out or got no definite answer, so it may be stamped; retry before discarding (migration 477)',
     certificate_number      VARCHAR(30)     NULL
                                 COMMENT 'NoCertificadoSAT from the PAC timbrado complement',
     sat_seal                TEXT            NULL

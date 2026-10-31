@@ -146,6 +146,10 @@ describe('Integration Workflow: Billing → CFDI → Suspension', () => {
   // =========================================================================
   describe('Suspension → Reconnect', () => {
     test('evaluates rules → suspends → reconnects', async () => {
+      // FreeRADIUS row writes (NET-03) are covered in freeradiusServiceState.test.js.
+      const radiusService = require('../src/services/radiusService');
+      jest.spyOn(radiusService, 'syncFreeradiusContract').mockResolvedValue({ found: false, enabled: false });
+      jest.spyOn(radiusService, 'syncFreeradiusTables').mockResolvedValue({ synced: 0, errors: 0, purged: 0 });
       // Step 1: Evaluate rules
       const rule = { id: 1, days_past_due: 15, grace_period_days: 5, action: 'auto_suspend', is_enabled: true };
       const contract = { id: 10, status: 'active', invoice_id: 50, days_overdue: 20 };

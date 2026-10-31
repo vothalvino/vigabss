@@ -351,8 +351,10 @@ router.post('/', requirePermission('invoices.create'), validate(createInvoice), 
       }
       cleanItems = req.body.items.map((it, i) => {
         const description = typeof it?.description === 'string' ? it.description.trim() : '';
-        const quantity = it?.quantity === undefined ? 1 : Number(it.quantity);
-        const unitPrice = Number(it?.unit_price);
+        // Stored as DECIMAL(10,2): round quantity and price before the amount
+        // so amount = stored quantity × unit_price (CFD-03).
+        const quantity = it?.quantity === undefined ? 1 : Math.round(Number(it.quantity) * 100) / 100;
+        const unitPrice = Math.round(Number(it?.unit_price) * 100) / 100;
         const amount = it?.amount === undefined
           ? Math.round(quantity * unitPrice * 100) / 100
           : Number(it.amount);
@@ -610,7 +612,7 @@ async function assertNoLiveCfdi(exec, invoiceId, remedy = 'Cancel or substitute 
   );
   if (rows && rows[0]) {
     throw new AppError(
-      `Invoice has a stamped CFDI — amounts are fiscally frozen. ${remedy}`,
+      `Invoice has a CFDI (draft or stamped) — amounts are fiscally frozen. ${remedy} An unstamped draft can be discarded.`,
       422, 'CFDI_STAMPED',
     );
   }

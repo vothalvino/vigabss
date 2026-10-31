@@ -9376,6 +9376,42 @@
         }
       }
     },
+    "/cfdi-documents/{id}/rebuild": {
+      "post": {
+        "tags": [
+          "CFDI Documents"
+        ],
+        "summary": "Rebuild an invoice draft CFDI from the invoice (new Fecha, current receptor and conceptos) and submit it; refused while the last stamp attempt may have been stamped",
+        "operationId": "rebuildCfdiDocument",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stamp result for the rebuilt CFDI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sat-catalogs/regimen-fiscal": {
       "get": {
         "tags": [
@@ -11046,6 +11082,42 @@
         "responses": {
           "204": {
             "description": "No content"
+          }
+        }
+      }
+    },
+    "/nas/{id}/secret": {
+      "get": {
+        "tags": [
+          "NAS"
+        ],
+        "summary": "Read the RADIUS shared secret of a NAS (requires radius.credentials.view; NAS responses only carry has_secret)",
+        "operationId": "getNasSecret",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "NAS RADIUS shared secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         }
       }
@@ -59888,7 +59960,7 @@
           },
           "auth_token": {
             "type": "string",
-            "maximum": 255
+            "maximum": 96
           },
           "max_bandwidth_mbps": {
             "type": "number",
@@ -59951,7 +60023,7 @@
           },
           "auth_token": {
             "type": "string",
-            "maximum": 255
+            "maximum": 96
           },
           "max_bandwidth_mbps": {
             "type": "number",
@@ -63276,7 +63348,7 @@
           },
           "snmp_community": {
             "type": "string",
-            "maximum": 100
+            "maximum": 96
           },
           "snmp_version": {
             "type": "string",
@@ -63395,7 +63467,7 @@
           },
           "snmp_community": {
             "type": "string",
-            "maximum": 100
+            "maximum": 96
           },
           "snmp_version": {
             "type": "string",
@@ -63510,7 +63582,7 @@
           },
           "snmp_community": {
             "type": "string",
-            "maximum": 100
+            "maximum": 96
           },
           "snmp_version": {
             "type": "string",
@@ -63764,7 +63836,8 @@
             ]
           },
           "snmp_community": {
-            "type": "string"
+            "type": "string",
+            "maximum": 96
           },
           "snmp_v3_security_name": {
             "type": "string"
@@ -63824,7 +63897,8 @@
             ]
           },
           "snmp_community": {
-            "type": "string"
+            "type": "string",
+            "maximum": 96
           },
           "snmp_v3_security_name": {
             "type": "string"
@@ -63877,7 +63951,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -63890,7 +63965,8 @@
           },
           "dscp_name": {
             "type": "string",
-            "maximum": 20
+            "maximum": 20,
+            "pattern": "^(?:[A-Za-z0-9_.-]{1,20})?$"
           },
           "traffic_class": {
             "type": "string",
@@ -63907,11 +63983,13 @@
           },
           "match_dst_port": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "match_src_port": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "match_l7": {
             "type": "string",
@@ -63956,7 +64034,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -63969,7 +64048,8 @@
           },
           "dscp_name": {
             "type": "string",
-            "maximum": 20
+            "maximum": 20,
+            "pattern": "^(?:[A-Za-z0-9_.-]{1,20})?$"
           },
           "traffic_class": {
             "type": "string",
@@ -63986,11 +64066,13 @@
           },
           "match_dst_port": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "match_src_port": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "match_l7": {
             "type": "string",
@@ -68770,9 +68852,9 @@
             "type": "string",
             "maximum": 64
           },
-          "loid_password_encrypted": {
+          "loid_password": {
             "type": "string",
-            "maximum": 255
+            "maximum": 64
           },
           "onu_state": {
             "type": "string",
@@ -68844,9 +68926,9 @@
             "type": "string",
             "maximum": 64
           },
-          "loid_password_encrypted": {
+          "loid_password": {
             "type": "string",
-            "maximum": 255
+            "maximum": 64
           },
           "onu_state": {
             "type": "string",
@@ -68915,9 +68997,9 @@
             "type": "string",
             "maximum": 64
           },
-          "loid_password_encrypted": {
+          "loid_password": {
             "type": "string",
-            "maximum": 255
+            "maximum": 64
           },
           "onu_state": {
             "type": "string",
@@ -69177,9 +69259,9 @@
             "type": "string",
             "maximum": 64
           },
-          "wifi_password_encrypted": {
+          "wifi_password": {
             "type": "string",
-            "maximum": 512
+            "maximum": 64
           },
           "wifi_band": {
             "type": "string",
@@ -69269,9 +69351,9 @@
             "type": "string",
             "maximum": 64
           },
-          "wifi_password_encrypted": {
+          "wifi_password": {
             "type": "string",
-            "maximum": 512
+            "maximum": 64
           },
           "wifi_band": {
             "type": "string",
@@ -69368,9 +69450,9 @@
             "type": "string",
             "maximum": 64
           },
-          "wifi_password_encrypted": {
+          "wifi_password": {
             "type": "string",
-            "maximum": 512
+            "maximum": 64
           },
           "wifi_band": {
             "type": "string",
@@ -72032,7 +72114,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -72057,11 +72140,13 @@
           },
           "dst_port_range": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "src_port_range": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "l7_pattern": {
             "type": "string",
@@ -72115,7 +72200,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -72140,11 +72226,13 @@
           },
           "dst_port_range": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "src_port_range": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "l7_pattern": {
             "type": "string",
@@ -72584,7 +72672,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -72660,7 +72749,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",

@@ -2,9 +2,12 @@
 // VigaBSS 5.0 — QueueTreeNode Validation Schemas
 // =============================================================================
 
+// Names, ports and marks are written into exported RouterOS scripts.
+const { SAFE_NAME_PATTERN } = require('../../utils/routerosScript');
+
 const createQueueTreeNode = {
   parent_id: { type: 'number', min: 1 },
-  name: { type: 'string', required: true, min: 1, max: 100 },
+  name: { type: 'string', required: true, min: 1, max: 100, pattern: SAFE_NAME_PATTERN },
   description: { type: 'string', max: 5000 },
   queue_type: { type: 'string', enum: ['tree', 'simple'] },
   interface: { type: 'string', max: 100 },
@@ -20,7 +23,7 @@ const createQueueTreeNode = {
 
 const updateQueueTreeNode = {
   parent_id: { type: 'number', min: 1 },
-  name: { type: 'string', min: 1, max: 100 },
+  name: { type: 'string', min: 1, max: 100, pattern: SAFE_NAME_PATTERN },
   description: { type: 'string', max: 5000 },
   queue_type: { type: 'string', enum: ['tree', 'simple'] },
   interface: { type: 'string', max: 100 },

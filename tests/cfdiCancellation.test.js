@@ -20,8 +20,11 @@ describe('CFDI Cancellation Flow', () => {
   // parseCancellationStatus
   // ===========================================================================
   describe('parseCancellationStatus()', () => {
-    test('returns "accepted" for SAT code 201', () => {
-      expect(cfdiService.parseCancellationStatus('201')).toBe('accepted');
+    // CFD-01: 201 = "Solicitud de cancelación exitosa" — SAT registered the
+    // request. It is not a cancellation: one that needs the receptor's
+    // acceptance stays en proceso, so 201 alone is pending.
+    test('returns "pending" for SAT code 201 (request registered, outcome unknown)', () => {
+      expect(cfdiService.parseCancellationStatus('201')).toBe('pending');
     });
 
     test('returns "accepted" for "cancelado"', () => {
@@ -145,8 +148,8 @@ describe('CFDI Cancellation Flow', () => {
         .rejects.toThrow('Can only cancel vigente documents');
     });
 
-    test('throws when document is cancel_pending', async () => {
-      db.query.mockResolvedValueOnce([[{ ...vigentDoc, sat_status: 'cancel_pending' }]]);
+    test('throws when document is a draft', async () => {
+      db.query.mockResolvedValueOnce([[{ ...vigentDoc, sat_status: 'draft' }]]);
       await expect(cfdiService.cancel(1, '02'))
         .rejects.toThrow('Can only cancel vigente documents');
     });
@@ -255,7 +258,7 @@ describe('CFDI Cancellation Flow', () => {
       // the doc is moved (accepted → cancelado) and only after the request row exists
       expect(docUpdateIdx).toBeGreaterThan(insertIdx);
       const docUpdate = db.query.mock.calls.find(([sql]) => /UPDATE cfdi_documents/i.test(sql));
-      expect(docUpdate[1]).toContain('cancelado');
+      expect(docUpdate[0]).toContain("sat_status = 'cancelado'");
     });
 
     test('handles all valid motivo codes (02, 03, 04)', async () => {
@@ -506,7 +509,9 @@ describe('CFDI Cancellation Flow', () => {
       // Verify cfdi_documents was updated
       const lastCall = db.query.mock.calls[3];
       expect(lastCall[0]).toContain('UPDATE cfdi_documents');
-      expect(lastCall[1]).toContain('cancelado');
+      expect(lastCall[0]).toContain("sat_status = 'cancelado'");
+      expect(lastCall[0]).toContain("sat_status IN ('vigente', 'cancel_pending')");
+      expect(lastCall[1]).toEqual([7]);
     });
   });
 

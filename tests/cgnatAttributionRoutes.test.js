@@ -48,6 +48,7 @@ jest.mock('../src/middleware/rbac', () => ({
 }));
 
 jest.mock('../src/middleware/rateLimit', () => ({
+  acsLimiter: (_req, _res, next) => next(),
   CacheStore: class CacheStore {},
   exportLimiter: (_req, _res, next) => next(),
   apiTokenConfiguredLimiter: (_req, _res, next) => next(),

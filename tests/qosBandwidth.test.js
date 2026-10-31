@@ -176,7 +176,7 @@ describe('GET /api/queue-tree-nodes/export/config', () => {
 describe('GET /api/rate-limit-templates', () => {
   it('returns list with 200', async () => {
     db.query
-      .mockResolvedValueOnce([[{ id: 1, name: 'Basic 10M', service_type: 'pppoe', radius_vendor: 'mikrotik', download_mbps: 10, upload_mbps: 5, rate_string: '10M/5M 20M/10M 10M/5M 8', status: 'active' }]])
+      .mockResolvedValueOnce([[{ id: 1, name: 'Basic 10M', service_type: 'pppoe', radius_vendor: 'mikrotik', download_mbps: 10, upload_mbps: 5, rate_string: '5M/10M 10M/20M 5M/10M 8', status: 'active' }]])
       .mockResolvedValueOnce([[{ total: 1 }]]);
     const res = await request(app).get('/api/rate-limit-templates').set('X-Org-Id', '1');
     expect(res.status).toBe(200);
@@ -186,7 +186,7 @@ describe('GET /api/rate-limit-templates', () => {
 
 describe('POST /api/rate-limit-templates', () => {
   it('creates a template with auto-rendered rate_string', async () => {
-    const tmpl = { id: 2, organization_id: 1, name: 'PPPoE 20M', service_type: 'pppoe', radius_vendor: 'mikrotik', download_mbps: 20, upload_mbps: 10, rate_string: '20M/10M 40M/20M 20M/10M 8', status: 'active' };
+    const tmpl = { id: 2, organization_id: 1, name: 'PPPoE 20M', service_type: 'pppoe', radius_vendor: 'mikrotik', download_mbps: 20, upload_mbps: 10, rate_string: '10M/20M 20M/40M 10M/20M 8', status: 'active' };
     db.query
       .mockResolvedValueOnce([{ insertId: 2 }])
       .mockResolvedValueOnce([[tmpl]]);
@@ -195,7 +195,7 @@ describe('POST /api/rate-limit-templates', () => {
       .set('X-Org-Id', '1')
       .send({ name: 'PPPoE 20M', service_type: 'pppoe', radius_vendor: 'mikrotik', download_mbps: 20, upload_mbps: 10 });
     expect(res.status).toBe(201);
-    expect(res.body.data.rate_string).toContain('20M/10M');
+    expect(res.body.data.rate_string).toContain('10M/20M');
   });
 
   it('returns 422 when download_mbps or upload_mbps is missing', async () => {
@@ -214,7 +214,7 @@ describe('POST /api/rate-limit-templates/preview', () => {
       .set('X-Org-Id', '1')
       .send({ radius_vendor: 'mikrotik', download_mbps: 50, upload_mbps: 25, burst_download_mbps: 100, burst_upload_mbps: 50, burst_threshold_mbps: 40, burst_time_seconds: 12 });
     expect(res.status).toBe(200);
-    expect(res.body.data.rate_string).toBe('50M/25M 100M/50M 40M/40M 12');
+    expect(res.body.data.rate_string).toBe('25M/50M 50M/100M 40M/40M 12');
   });
 
   it('returns rendered rate string with default burst values', async () => {
@@ -224,7 +224,7 @@ describe('POST /api/rate-limit-templates/preview', () => {
       .send({ radius_vendor: 'mikrotik', download_mbps: 10, upload_mbps: 5 });
     expect(res.status).toBe(200);
     // Default: burst = 2x CIR, threshold = CIR, time = 8s
-    expect(res.body.data.rate_string).toBe('10M/5M 20M/10M 10M/5M 8');
+    expect(res.body.data.rate_string).toBe('5M/10M 10M/20M 5M/10M 8');
   });
 });
 
@@ -296,7 +296,7 @@ describe('radiusAttributeService.generateAttributes() — MikroTik full burst', 
       radius_vendor: 'mikrotik',
     });
     // burst defaults: 2x CIR; threshold defaults: CIR; time defaults: 8
-    expect(attrs['Mikrotik-Rate-Limit']).toBe('20M/10M 40M/20M 20M/10M 8');
+    expect(attrs['Mikrotik-Rate-Limit']).toBe('10M/20M 20M/40M 10M/20M 8');
   });
 
   it('uses explicit burst_threshold_mbps and burst_time_seconds', () => {
@@ -306,7 +306,7 @@ describe('radiusAttributeService.generateAttributes() — MikroTik full burst', 
       burst_threshold_mbps: 80, burst_time_seconds: 16,
       radius_vendor: 'mikrotik',
     });
-    expect(attrs['Mikrotik-Rate-Limit']).toBe('100M/50M 200M/100M 80M/80M 16');
+    expect(attrs['Mikrotik-Rate-Limit']).toBe('50M/100M 100M/200M 80M/80M 16');
   });
 
   it('falls back to CIR threshold when burst_threshold_mbps is null', () => {
@@ -316,7 +316,7 @@ describe('radiusAttributeService.generateAttributes() — MikroTik full burst', 
       burst_threshold_mbps: null, burst_time_seconds: 10,
       radius_vendor: 'mikrotik',
     });
-    expect(attrs['Mikrotik-Rate-Limit']).toBe('50M/20M 100M/40M 50M/20M 10');
+    expect(attrs['Mikrotik-Rate-Limit']).toBe('20M/50M 40M/100M 20M/50M 10');
   });
 
   it('generates generic WISPr attributes when vendor is null', () => {
@@ -338,7 +338,7 @@ describe('qosService.buildRateString()', () => {
 
   it('builds MikroTik rate string with defaults', () => {
     const s = buildRateString({ radius_vendor: 'mikrotik', download_mbps: 30, upload_mbps: 15 });
-    expect(s).toBe('30M/15M 60M/30M 30M/15M 8');
+    expect(s).toBe('15M/30M 30M/60M 15M/30M 8');
   });
 
   it('builds MikroTik rate string with explicit burst params', () => {
@@ -347,7 +347,7 @@ describe('qosService.buildRateString()', () => {
       burst_download_mbps: 150, burst_upload_mbps: 75,
       burst_threshold_mbps: 90, burst_time_seconds: 12,
     });
-    expect(s).toBe('100M/50M 150M/75M 90M/90M 12');
+    expect(s).toBe('50M/100M 75M/150M 90M/90M 12');
   });
 
   it('builds Cisco rate string', () => {

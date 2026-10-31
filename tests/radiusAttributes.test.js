@@ -28,8 +28,8 @@ describe('radiusAttributeService.generateAttributes()', () => {
   it('returns MikroTik rate-limit attribute for mikrotik vendor', () => {
     const attrs = generateAttributes({ ...basePlan, radius_vendor: 'mikrotik' });
     expect(attrs).toHaveProperty('Mikrotik-Rate-Limit');
-    expect(attrs['Mikrotik-Rate-Limit']).toMatch(/10M\/2M/);
-    expect(attrs['Mikrotik-Rate-Limit']).toMatch(/20M\/4M/);
+    expect(attrs['Mikrotik-Rate-Limit']).toMatch(/2M\/10M/);
+    expect(attrs['Mikrotik-Rate-Limit']).toMatch(/4M\/20M/);
   });
 
   it('formats MikroTik burst speeds correctly', () => {
@@ -40,7 +40,7 @@ describe('radiusAttributeService.generateAttributes()', () => {
       burst_upload_mbps: 40,
       radius_vendor: 'mikrotik',
     });
-    expect(attrs['Mikrotik-Rate-Limit']).toBe('100M/20M 200M/40M 100M/20M 8');
+    expect(attrs['Mikrotik-Rate-Limit']).toBe('20M/100M 40M/200M 20M/100M 8');
   });
 
   it('defaults burst to 2x speed when burst fields are null', () => {
@@ -51,7 +51,7 @@ describe('radiusAttributeService.generateAttributes()', () => {
       burst_upload_mbps: null,
       radius_vendor: 'mikrotik',
     });
-    expect(attrs['Mikrotik-Rate-Limit']).toBe('10M/2M 20M/4M 10M/2M 8');
+    expect(attrs['Mikrotik-Rate-Limit']).toBe('2M/10M 4M/20M 2M/10M 8');
   });
 
   it('appends the plan priority as the 5th rate-limit field when set', () => {
@@ -65,7 +65,7 @@ describe('radiusAttributeService.generateAttributes()', () => {
       radius_vendor: 'mikrotik',
       priority: 2,
     });
-    expect(attrs['Mikrotik-Rate-Limit']).toBe('100M/20M 200M/40M 100M/20M 8 2');
+    expect(attrs['Mikrotik-Rate-Limit']).toBe('20M/100M 40M/200M 20M/100M 8 2');
   });
 
   it('omits the priority field when the plan has no priority (legacy 4-field form)', () => {
@@ -78,7 +78,7 @@ describe('radiusAttributeService.generateAttributes()', () => {
         radius_vendor: 'mikrotik',
         priority,
       });
-      expect(attrs['Mikrotik-Rate-Limit']).toBe('10M/2M 20M/4M 10M/2M 8');
+      expect(attrs['Mikrotik-Rate-Limit']).toBe('2M/10M 4M/20M 2M/10M 8');
     }
   });
 

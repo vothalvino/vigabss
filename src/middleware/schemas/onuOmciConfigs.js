@@ -6,7 +6,8 @@ const createOnuOmciConfig = {
   device_id: { type: 'number', required: true, min: 1 },
   config_type: { type: 'string', enum: ['wifi', 'wan', 'lan', 'voip', 'omci_raw', 'tr069', 'other'] },
   wifi_ssid: { type: 'string', max: 64 },
-  wifi_password_encrypted: { type: 'string', max: 512 },
+  // Write-only; sealed into wifi_password_encrypted by the route (NET-10).
+  wifi_password: { type: 'string', max: 64 },
   wifi_band: { type: 'string', enum: ['2.4ghz', '5ghz', 'both'] },
   wifi_channel: { type: 'number', min: 1, max: 165 },
   wifi_security: { type: 'string', enum: ['open', 'wep', 'wpa2', 'wpa3'] },
@@ -22,7 +23,8 @@ const createOnuOmciConfig = {
 const updateOnuOmciConfig = {
   config_type: { type: 'string', enum: ['wifi', 'wan', 'lan', 'voip', 'omci_raw', 'tr069', 'other'] },
   wifi_ssid: { type: 'string', max: 64 },
-  wifi_password_encrypted: { type: 'string', max: 512 },
+  // Write-only; sealed into wifi_password_encrypted by the route (NET-10).
+  wifi_password: { type: 'string', max: 64 },
   wifi_band: { type: 'string', enum: ['2.4ghz', '5ghz', 'both'] },
   wifi_channel: { type: 'number', min: 1, max: 165 },
   wifi_security: { type: 'string', enum: ['open', 'wep', 'wpa2', 'wpa3'] },

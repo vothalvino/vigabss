@@ -14,7 +14,8 @@ const { createDiscoveryScan, updateDiscoveryScan } = require('../middleware/sche
 const { encrypt } = require('../utils/encryption');
 const db = require('../config/database');
 const { assertDeviceClientFk } = require('../services/deviceAuthz');
-const { redactDevice } = require('../utils/deviceSanitize');
+const { redactDevice, sealSnmpCommunity } = require('../utils/deviceSanitize');
+const { redactSecretColumns } = require('../utils/secretRedaction');
 
 const router = Router();
 router.use(authenticate);
@@ -27,7 +28,7 @@ router.use(orgScope);
 // operator-entered SNMPv3 key to probe the scanned CIDR range with).
 function redactDiscoveryScan(row) {
   if (!row || typeof row !== 'object') return row;
-  const rest = { ...row };
+  const rest = redactSecretColumns(row, ['snmp_community']);
   const hasAuthKey = Boolean(rest.snmp_v3_auth_key_encrypted);
   const hasPrivKey = Boolean(rest.snmp_v3_priv_key_encrypted);
   delete rest.snmp_v3_auth_key_encrypted;
@@ -52,7 +53,7 @@ function encryptV3Keys(req, _res, next) {
 
 router.get('/',    requirePermission('discovery_scans.view'),   ctrl.list);
 router.get('/:id', requirePermission('discovery_scans.view'),   ctrl.get);
-router.post('/',   requirePermission('discovery_scans.create'), validate(createDiscoveryScan), encryptV3Keys, async (req, res, next) => {
+router.post('/',   requirePermission('discovery_scans.create'), validate(createDiscoveryScan), encryptV3Keys, sealSnmpCommunity, async (req, res, next) => {
   try {
     req.body.organization_id = req.orgId;
     req.body.created_by = req.user.id;
@@ -65,7 +66,7 @@ router.post('/',   requirePermission('discovery_scans.create'), validate(createD
     res.status(201).json({ data: redactDiscoveryScan(created) });
   } catch (err) { next(err); }
 });
-router.put('/:id',  requirePermission('discovery_scans.update'), validate(updateDiscoveryScan), encryptV3Keys, ctrl.update);
+router.put('/:id',  requirePermission('discovery_scans.update'), validate(updateDiscoveryScan), encryptV3Keys, sealSnmpCommunity, ctrl.update);
 router.delete('/:id', requirePermission('discovery_scans.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('discovery_scans.update'), ctrl.restore);
 
@@ -78,7 +79,7 @@ router.get('/:id/results', requirePermission('discovery_scans.view'), async (req
 });
 
 // POST /:id/results/:resultId/onboard — create a Device from a discovery result
-router.post('/:id/results/:resultId/onboard', requirePermission('discovery_scans.update'), async (req, res, next) => {
+router.post('/:id/results/:resultId/onboard', requirePermission('discovery_scans.update'), sealSnmpCommunity, async (req, res, next) => {
   try {
     const [resultRows] = await db.query(
       'SELECT * FROM discovery_results WHERE id = ? AND scan_id = ? AND organization_id = ?',
