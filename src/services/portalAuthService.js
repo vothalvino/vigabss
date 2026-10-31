@@ -35,6 +35,12 @@ function generateRefreshToken() {
 // login — validate email + password, return tokens
 // ---------------------------------------------------------------------------
 
+let dummyHash = null;
+async function burnPasswordCheck(password) {
+  if (!dummyHash) dummyHash = await bcrypt.hash('vigabss-dummy-password', SALT_ROUNDS);
+  await bcrypt.compare(String(password ?? ''), dummyHash);
+}
+
 async function login({ email, password }) {
   if (!email || !password) {
     throw new ValidationError('email and password are required');
@@ -51,39 +57,30 @@ async function login({ email, password }) {
 
   const client = rows.length === 1 ? rows[0] : null;
 
-  // Generic error to avoid email enumeration
+  // One answer, after the same bcrypt work, for an unknown email, an inactive
+  // client, a client without portal access and a locked account, so neither
+  // the message nor the timing reveals which (SEC-11). A locked account is not
+  // checked against the password, and failures during a lock do not extend it.
   const invalidCreds = () => new UnauthorizedError('Invalid email or password');
-
-  if (!client) throw invalidCreds();
-
-  if (client.status === 'inactive') {
-    throw new UnauthorizedError('Account is not active');
-  }
-
-  if (!client.portal_password_hash) {
-    throw new UnauthorizedError('Portal access is not enabled for this account');
-  }
-
-  // Lockout check
-  if (client.portal_locked_until && new Date(client.portal_locked_until) > new Date()) {
-    throw new UnauthorizedError('Account temporarily locked. Please try again later');
+  const locked = client?.portal_locked_until && new Date(client.portal_locked_until) > new Date();
+  if (!client || client.status === 'inactive' || !client.portal_password_hash || locked) {
+    await burnPasswordCheck(password);
+    throw invalidCreds();
   }
 
   const valid = await bcrypt.compare(password, client.portal_password_hash);
 
   if (!valid) {
-    const attempts = (client.portal_login_attempts || 0) + 1;
-    if (attempts >= MAX_ATTEMPTS) {
-      const lockedUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
-      await db.query(
-        'UPDATE clients SET portal_login_attempts = ?, portal_locked_until = ? WHERE id = ?',
-        [attempts, lockedUntil, client.id],
-      );
-      throw new UnauthorizedError('Account temporarily locked due to too many failed attempts');
-    }
+    // Atomic, and an expired lock restarts the count (see authService).
     await db.query(
-      'UPDATE clients SET portal_login_attempts = ? WHERE id = ?',
-      [attempts, client.id],
+      `UPDATE clients SET
+         portal_login_attempts = CASE WHEN portal_locked_until IS NOT NULL AND portal_locked_until <= NOW() THEN 1
+                                      ELSE portal_login_attempts + 1 END,
+         portal_locked_until = CASE WHEN portal_locked_until IS NOT NULL AND portal_locked_until > NOW() THEN portal_locked_until
+                                    WHEN portal_login_attempts >= ? THEN DATE_ADD(NOW(), INTERVAL ? MINUTE)
+                                    ELSE NULL END
+       WHERE id = ?`,
+      [MAX_ATTEMPTS, LOCKOUT_MINUTES, client.id],
     );
     throw invalidCreds();
   }

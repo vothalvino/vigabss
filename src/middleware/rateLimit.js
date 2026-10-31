@@ -85,6 +85,13 @@ const sessionLimiter = makeLimiter(rl.session, 'Too many session requests, pleas
 const authLimiter = makeLimiter(rl.auth, 'Too many authentication attempts, please try again later');
 
 /**
+ * The subscriber portal's credential endpoints. A separate instance from
+ * authLimiter (same RATE_LIMIT_AUTH budget), so portal and staff logins from
+ * one address no longer drain each other's allowance (SEC-11).
+ */
+const portalAuthLimiter = makeLimiter(rl.auth, 'Too many authentication attempts, please try again later');
+
+/**
  * POST /auth/password-reset/request only — configurable via
  * RATE_LIMIT_PASSWORD_RESET (default 5). Stacks ON TOP of the shared
  * authLimiter above (which already covers this route by prefix): this one is
@@ -423,6 +430,7 @@ const tenantApiLimiter = oncePerRequest(
 module.exports = {
   apiLimiter,
   authLimiter,
+  portalAuthLimiter,
   passwordResetLimiter,
   verifyEmailResendLimiter,
   bulkEmailLimiter,

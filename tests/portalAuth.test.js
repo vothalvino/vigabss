@@ -88,10 +88,27 @@ describe('portalAuthService.login()', () => {
     await expect(portalAuthService.login({ email: 'alice@example.com', password: 'wrong' }))
       .rejects.toMatchObject({ code: 'UNAUTHORIZED' });
 
+    // One atomic UPDATE: the database increments the counter (SEC-11).
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE clients SET portal_login_attempts'),
-      expect.any(Array),
+      expect.stringContaining('ELSE portal_login_attempts + 1 END'),
+      [5, 15, 1],
     );
+  });
+
+  test.each([
+    ['an inactive client', { status: 'inactive' }],
+    ['a client without portal access', { portal_password_hash: null }],
+    ['a locked account', { portal_locked_until: new Date(Date.now() + 600000) }],
+  ])('%s gets the generic message and no counter write (SEC-11)', async (_label, extra) => {
+    db.query.mockResolvedValueOnce([[{
+      id: 1, organization_id: 1, name: 'Alice', email: 'alice@example.com',
+      status: 'active', portal_password_hash: '$2a$12$x', portal_login_attempts: 0, portal_locked_until: null, ...extra,
+    }]]);
+    bcrypt.compare.mockResolvedValue(true);
+
+    await expect(portalAuthService.login({ email: 'alice@example.com', password: 'correct' }))
+      .rejects.toThrow('Invalid email or password');
+    expect(db.query.mock.calls.some(([sql]) => /UPDATE clients/.test(sql))).toBe(false);
   });
 
   test('locks account after MAX_ATTEMPTS failures', async () => {

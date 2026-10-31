@@ -68,7 +68,7 @@ const { validate } = require('../middleware/validate');
 // passwordResetLimiter (see its doc comment in middleware/rateLimit.js) —
 // sharing one instance across the staff and portal routes would silently
 // merge their budgets since express-rate-limit's default store keys by IP.
-const { authLimiter, portalPasswordResetLimiter } = require('../middleware/rateLimit');
+const { portalAuthLimiter: authLimiter, portalPasswordResetLimiter } = require('../middleware/rateLimit');
 const portalAuthService = require('../services/portalAuthService');
 const checkoutService = require('../services/checkoutService');
 const db = require('../config/database');

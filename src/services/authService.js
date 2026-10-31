@@ -190,19 +190,37 @@ function requiresSecondFactor(user) {
  * the account after MAX_LOGIN_ATTEMPTS. Both factors share the counter, so a
  * stolen password cannot be used to grind through TOTP codes.
  */
+//
+// One atomic UPDATE (SEC-11): the old read-modify-write let parallel guesses
+// all write the same count, and a counter that was never reset after a lock
+// expired re-locked the account on every later failure. A lock that has
+// expired restarts the count at 1; MySQL evaluates the SET list left to
+// right, so locked_until sees the new count.
 async function recordFailedLoginAttempt(user) {
-  const attempts = (user.failed_login_attempts || 0) + 1;
-  if (attempts >= MAX_LOGIN_ATTEMPTS) {
-    await db.query(
-      'UPDATE users SET failed_login_attempts = ?, locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?',
-      [attempts, LOCKOUT_MINUTES, user.id],
-    );
-  } else {
-    await db.query(
-      'UPDATE users SET failed_login_attempts = ? WHERE id = ?',
-      [attempts, user.id],
-    );
-  }
+  await db.query(
+    `UPDATE users SET
+       failed_login_attempts = CASE WHEN locked_until IS NOT NULL AND locked_until <= NOW() THEN 1
+                                    ELSE failed_login_attempts + 1 END,
+       locked_until = CASE WHEN locked_until IS NOT NULL AND locked_until > NOW() THEN locked_until
+                           WHEN failed_login_attempts >= ? THEN DATE_ADD(NOW(), INTERVAL ? MINUTE)
+                           ELSE NULL END
+     WHERE id = ?`,
+    [MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, user.id],
+  );
+}
+
+// Unknown, inactive and locked accounts are answered exactly like a wrong
+// password, after the same bcrypt work, so neither the message nor the
+// timing says whether an account exists or what state it is in (SEC-11).
+const INVALID_LOGIN = 'Invalid email or password';
+let dummyHash = null;
+async function burnPasswordCheck(password) {
+  if (!dummyHash) dummyHash = await bcrypt.hash('vigabss-dummy-password', SALT_ROUNDS);
+  await bcrypt.compare(String(password ?? ''), dummyHash);
+}
+
+function isLocked(user) {
+  return Boolean(user.locked_until && new Date(user.locked_until) > new Date());
 }
 
 /**
@@ -272,24 +290,19 @@ async function resolveLoginOrganizations(user) {
  */
 async function login({ email, password }) {
   const user = await User.findByEmail(email);
-  if (!user) {
-    throw new UnauthorizedError('Invalid email or password');
-  }
-
-  if (user.status !== 'active') {
-    throw new UnauthorizedError('Account is inactive');
-  }
-
-  // Check brute-force lockout
-  if (user.locked_until && new Date(user.locked_until) > new Date()) {
-    throw new UnauthorizedError('Account temporarily locked due to too many failed login attempts');
+  // A locked account is not checked against the password at all: a different
+  // answer for the right password would let guessing continue through the
+  // lock. Failures during a lock do not extend it.
+  if (!user || user.status !== 'active' || isLocked(user)) {
+    await burnPasswordCheck(password);
+    throw new UnauthorizedError(INVALID_LOGIN);
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
     // Increment failed attempts and potentially lock the account
     await recordFailedLoginAttempt(user);
-    throw new UnauthorizedError('Invalid email or password');
+    throw new UnauthorizedError(INVALID_LOGIN);
   }
 
   if (requiresSecondFactor(user)) {
