@@ -20,6 +20,7 @@ import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { gatewayPayload, type GatewayForm } from './paymentGatewayPayload';
 import { authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 
@@ -68,10 +69,12 @@ interface AlertRule {
 interface PaymentGateway {
   id: number;
   provider: string;
-  label: string | null;
+  name: string;
   environment: string;
   public_key: string | null;
-  webhook_secret: string | null;
+  // Secrets are write-only: the API only says whether one is stored.
+  has_secret_key: boolean;
+  has_webhook_secret: boolean;
   status: string;
   created_at: string;
 }
@@ -497,9 +500,9 @@ function AlertRulesTab() {
 // Payment Gateways tab
 // ---------------------------------------------------------------------------
 
-const EMPTY_GW = {
-  provider: 'stripe', label: '', environment: 'sandbox',
-  public_key: '', secret_key_encrypted: '', webhook_secret: '', status: 'active',
+const EMPTY_GW: GatewayForm = {
+  provider: 'stripe', name: '', environment: 'sandbox',
+  public_key: '', secret_key: '', webhook_secret: '', status: 'active',
 };
 
 function PaymentGatewaysTab() {
@@ -518,7 +521,7 @@ function PaymentGatewaysTab() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (body: typeof form) =>
+    mutationFn: (body: Record<string, string>) =>
       editing
         ? apiFetch(`${API_BASE}/payment-gateways/${editing.id}`, { method: 'PUT', body: JSON.stringify(body) })
         : apiFetch(`${API_BASE}/payment-gateways`, { method: 'POST', body: JSON.stringify(body) }),
@@ -535,9 +538,9 @@ function PaymentGatewaysTab() {
   function openEdit(gw: PaymentGateway) {
     setEditing(gw);
     setForm({
-      provider: gw.provider, label: gw.label ?? '', environment: gw.environment,
-      public_key: gw.public_key ?? '', secret_key_encrypted: '',
-      webhook_secret: gw.webhook_secret ?? '', status: gw.status,
+      provider: gw.provider, name: gw.name ?? '', environment: gw.environment,
+      public_key: gw.public_key ?? '', secret_key: '',
+      webhook_secret: '', status: gw.status,
     });
     setFormError(''); setShowModal(true);
   }
@@ -546,7 +549,7 @@ function PaymentGatewaysTab() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError('');
-    saveMutation.mutate(form);
+    saveMutation.mutate(gatewayPayload(form));
   }
 
   const gateways = data?.data ?? [];
@@ -565,14 +568,16 @@ function PaymentGatewaysTab() {
       {gateways.length > 0 && (
         <table style={sty.table}>
           <thead>
-            <tr>{['Provider', 'Label', 'Environment', 'Status', ''].map(h => <th key={h} style={sty.th}>{h}</th>)}</tr>
+            <tr>{['Provider', 'Name', 'Environment', 'Secret key', 'Webhook secret', 'Status', ''].map(h => <th key={h} style={sty.th}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {gateways.map(gw => (
               <tr key={gw.id}>
                 <td style={sty.td}><span style={channelBadge(gw.provider)}>{gw.provider}</span></td>
-                <td style={sty.td}>{gw.label ?? <em style={sty.muted}>—</em>}</td>
+                <td style={sty.td}>{gw.name}</td>
                 <td style={sty.td}>{gw.environment}</td>
+                <td style={sty.td}>{gw.has_secret_key ? 'Set' : <em style={sty.muted}>Not set</em>}</td>
+                <td style={sty.td}>{gw.has_webhook_secret ? 'Set' : <em style={sty.muted}>Not set</em>}</td>
                 <td style={sty.td}><span style={statusBadge(gw.status)}>{gw.status}</span></td>
                 <td style={sty.td}>
                   <span style={sty.rowActions}>
@@ -597,9 +602,9 @@ function PaymentGatewaysTab() {
                 </select>
                 {editing && <span style={sty.hint}>Provider is fixed for an existing gateway (it drives webhook/charge routing) — create a new gateway to switch.</span>}
               </label>
-              <label style={sty.label}>Label
-                <input style={sty.input} value={form.label} placeholder="e.g. Stripe MX"
-                  onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
+              <label style={sty.label}>Name *
+                <input style={sty.input} value={form.name} placeholder="e.g. Stripe MX" required maxLength={100}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
               </label>
             </div>
             <div style={sty.row2}>
@@ -620,14 +625,25 @@ function PaymentGatewaysTab() {
                 onChange={e => setForm(f => ({ ...f, public_key: e.target.value }))} />
             </label>
             <label style={sty.label}>
-              Secret Key {editing && <span style={sty.hint}>(leave blank to keep existing)</span>}
-              <input style={sty.input} type="password" value={form.secret_key_encrypted}
-                placeholder={editing ? '••••••••' : 'sk_live_…'}
-                onChange={e => setForm(f => ({ ...f, secret_key_encrypted: e.target.value }))} />
+              Secret Key {editing?.has_secret_key && <span style={sty.hint}>(leave blank to keep existing)</span>}
+              <input style={sty.input} type="password" value={form.secret_key} autoComplete="new-password"
+                placeholder={editing?.has_secret_key ? '••••••••' : 'sk_live_…'}
+                onChange={e => setForm(f => ({ ...f, secret_key: e.target.value }))} />
             </label>
-            <label style={sty.label}>Webhook Secret
-              <input style={sty.input} value={form.webhook_secret} placeholder="whsec_…"
-                onChange={e => setForm(f => ({ ...f, webhook_secret: e.target.value }))} />
+            <label style={sty.label}>
+              {form.provider === 'conekta' ? 'Webhook Public Key (PEM)' : 'Webhook Secret'}
+              {editing?.has_webhook_secret && <span style={sty.hint}> (leave blank to keep existing)</span>}
+              {form.provider === 'conekta' ? (
+                // Conekta signs webhooks with RSA; the verifier needs the
+                // multi-line public key from POST /webhook_keys.
+                <textarea style={{ ...sty.input, minHeight: 96, fontFamily: 'monospace' }} value={form.webhook_secret}
+                  placeholder={editing?.has_webhook_secret ? '••••••••' : '-----BEGIN PUBLIC KEY-----'}
+                  onChange={e => setForm(f => ({ ...f, webhook_secret: e.target.value }))} />
+              ) : (
+                <input style={sty.input} type="password" value={form.webhook_secret} autoComplete="new-password"
+                  placeholder={editing?.has_webhook_secret ? '••••••••' : 'whsec_…'}
+                  onChange={e => setForm(f => ({ ...f, webhook_secret: e.target.value }))} />
+              )}
             </label>
             {editing && (editing.provider === 'stripe' || editing.provider === 'conekta') && (() => {
               const webhookUrl = `${window.location.origin}/api/v1/payment-webhooks/${editing.provider}/${editing.id}`;
@@ -648,6 +664,11 @@ function PaymentGatewaysTab() {
                     }}>{copied === 'ok' ? 'Copied!' : copied === 'fail' ? 'Select it ↑' : 'Copy'}</button>
                   </div>
                   <span style={sty.hint}>Set this as the webhook endpoint in {editing.provider}, then paste the signing secret it returns into “Webhook Secret” above. Until a secret is saved here, incoming webhooks are rejected (503) — payments won’t auto-reconcile.</span>
+                  <span style={sty.hint}>
+                    Subscribe it to: {editing.provider === 'stripe'
+                      ? 'checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, checkout.session.expired, payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, charge.dispute.created'
+                      : 'order.paid, order.payment_failed, charge.refunded, charge.chargeback.created'}
+                  </span>
                 </div>
               );
             })()}

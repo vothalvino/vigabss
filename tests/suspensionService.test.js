@@ -59,7 +59,7 @@ describe('suspensionService', () => {
     });
 
     test('returns multiple contracts per rule', async () => {
-      const rule = { id: 1, days_past_due: 15, grace_period_days: 0 };
+      const rule = { id: 1, days_past_due: 15, grace_period_days: 0, action: 'auto_suspend' };
       const contracts = [
         { id: 10, days_overdue: 20 },
         { id: 11, days_overdue: 18 },
@@ -104,7 +104,13 @@ describe('suspensionService', () => {
   // =========================================================================
   describe('suspendContract', () => {
     test('suspends contract and logs event within transaction', async () => {
-      mockConnection.execute.mockResolvedValue([{ affectedRows: 1 }]);
+      // The contract is locked and, for a rule, the overdue invoice re-checked
+      // before any write (BIL-11).
+      mockConnection.execute.mockImplementation(async (sql) => {
+        if (/FOR UPDATE/.test(sql)) return [[{ id: 10, status: 'active' }]];
+        if (/^\s*SELECT i\.id FROM invoices i/.test(sql)) return [[{ id: 50 }]];
+        return [{ affectedRows: 1 }];
+      });
       // isClientSuspensionExempt: client NOT exempt
       db.query.mockResolvedValueOnce([[{ suspension_exempt: 0, suspension_exempt_reason: null }]]);
       // RADIUS lookup returns empty (no RADIUS account)
@@ -113,21 +119,25 @@ describe('suspensionService', () => {
       await suspensionService.suspendContract(10, 1, 5, 50);
 
       expect(mockConnection.beginTransaction).toHaveBeenCalled();
-      expect(mockConnection.execute).toHaveBeenCalledTimes(3);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(5);
 
-      // First call: UPDATE contracts
-      expect(mockConnection.execute.mock.calls[0][0]).toContain('UPDATE contracts SET status');
-      expect(mockConnection.execute.mock.calls[0][1]).toEqual(['suspended', 10]);
+      // First the contract lock, then the overdue-invoice re-check.
+      expect(mockConnection.execute.mock.calls[0][0]).toContain('FOR UPDATE');
+      expect(mockConnection.execute.mock.calls[1][0]).toContain('FROM invoices i');
 
-      // Second call: deactivate the RADIUS account (Bug 2 — a suspended
+      // Then: UPDATE contracts
+      expect(mockConnection.execute.mock.calls[2][0]).toContain('UPDATE contracts SET status');
+      expect(mockConnection.execute.mock.calls[2][1]).toEqual(['suspended', 10]);
+
+      // Deactivate the RADIUS account (Bug 2 — a suspended
       // contract's PPPoE credentials must stop authenticating NEW sessions)
-      expect(mockConnection.execute.mock.calls[1][0]).toContain('UPDATE radius SET status');
-      expect(mockConnection.execute.mock.calls[1][0]).toContain("'suspended'");
-      expect(mockConnection.execute.mock.calls[1][1]).toEqual([10]);
+      expect(mockConnection.execute.mock.calls[3][0]).toContain('UPDATE radius SET status');
+      expect(mockConnection.execute.mock.calls[3][0]).toContain("'suspended'");
+      expect(mockConnection.execute.mock.calls[3][1]).toEqual([10]);
 
-      // Third call: INSERT suspension_logs (includes coa_sent and coa_response columns)
-      expect(mockConnection.execute.mock.calls[2][0]).toContain('INSERT INTO suspension_logs');
-      expect(mockConnection.execute.mock.calls[2][1]).toContain(10);
+      // INSERT suspension_logs (includes coa_sent and coa_response columns)
+      expect(mockConnection.execute.mock.calls[4][0]).toContain('INSERT INTO suspension_logs');
+      expect(mockConnection.execute.mock.calls[4][1]).toContain(10);
 
       expect(mockConnection.commit).toHaveBeenCalled();
       expect(mockConnection.release).toHaveBeenCalled();

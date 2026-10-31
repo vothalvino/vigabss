@@ -257,6 +257,19 @@ describe('autopay and consent are bound to the subscriber\'s organization', () =
     expect(T.recurring_payment_profiles[0].status).toBe('active');
   });
 
+  // BIL-06: turning autopay off must also stop the retries already scheduled
+  // for the card, or they keep charging it for up to three more days.
+  test('disabling autopay cancels the subscriber\'s scheduled retries, bound to their org', async () => {
+    const del = await portal('delete', '/api/v1/portal/autopay');
+    expect(del.status).toBe(200);
+
+    const [cancel] = writesTo('payment_retries');
+    expect(cancel).toBeDefined();
+    expect(cancel.sql).toContain("pr.status = 'cancelled'");
+    expect(cancel.sql).toContain('rp.client_id = ? AND rp.organization_id <=> ?');
+    expect(cancel.params).toEqual([10, ORG_A]);
+  });
+
   test('a foreign-org consent row does not read as acceptance', async () => {
     const res = await portal('get', '/api/v1/portal/privacy-notice');
     expect(res.status).toBe(200);

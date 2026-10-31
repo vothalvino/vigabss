@@ -305,6 +305,12 @@ that inevitably fail, but they never replace server-side authorization.
   transactions. Use its extension points before forking a second CRUD pattern.
 - Put multi-record invariants, external I/O, and reusable domain decisions in a
   service. Route handlers should remain transport-oriented.
+- Stored credentials (`*_encrypted` columns) are written only by the server.
+  Settings routes accept a write-only plaintext field (`secret_key`,
+  `password`, ...) and seal it with `src/utils/sealSecrets.js`
+  (`encryptStrict` in production); a client-sent `*_encrypted` key is a 422, a
+  blank write-only field keeps the stored value, and responses expose only
+  `has_*` booleans. Readers always go through `decrypt()`.
 - Output encoding happens at the sink: React escapes text, the knowledge-base
   HTML sink uses DOMPurify, XML builders escape XML, and email templates escape
   interpolated HTML. Do not reintroduce blanket input-side HTML encoding.
@@ -361,7 +367,22 @@ nothing; a note created already issued/applied and the refund path
 inserts the note) post at creation. A posted note cannot return to draft,
 `cancelled` is terminal, and cancelling or deleting a note with a live CFDI de
 Egreso is refused until the CFDI is cancelled. `billing_adjustments` is an
-audit record and feeds no balance. Ledger history is corrected by appending
+audit record and feeds no balance.
+
+A succeeded gateway capture is money like any other payment:
+`paymentGatewayService.reconcilePayment` posts one `completed` `payments` row,
+links it through `payment_transactions.payment_id` (set in the same transaction,
+under the transaction row lock, which is also the idempotency guard), writes the
+ledger credit with `billingService.recordPaymentCredit`, and allocates through
+`paymentAllocationService.allocateAcrossInvoices`, the same waterfall as
+`POST /payments/:id/allocate-auto`; reconnect, retry cancellation and REP
+generation run after commit. A succeeded transaction with `payment_id IS NULL`
+is unposted money: reconcile throws on failure (the webhook answers 500 and the
+redelivered failed event is reprocessed) and the install-wide
+`reconcile_gateway_payments` task sweeps the rest. Rows reconciled before
+migration 472 carry a `payment_transaction` ledger credit and no payment, and
+are skipped. Stripe webhooks use the HMAC signing secret; Conekta webhooks are
+RSA-SHA256 verified against the webhook key's public key PEM. Ledger history is corrected by appending
 compensating rows, not by editing old ones.
 
 `pnpm run sql:check` statically checks resolvable SQL in `src/` against
@@ -376,6 +397,12 @@ The scheduler reads `scheduled_tasks`, but executable task names must also be
 registered in the `switch` in `src/services/taskRunner.js`. A seed row without a
 cron expression, dispatcher case, scope classification, and dispatch test is a
 dead feature. Keep global versus organization-scoped execution explicit.
+A seeded install-wide row runs with `organizationId = null`; a handler that
+binds `organization_id = ?` must then be fanned out with
+`forEachActiveOrganization` (`src/services/organizationFanOut.js`) — it reads
+the org list on the primary, enters each isolated tenant's context, isolates
+per-org failures and throws only when every org failed. Passing NULL straight
+through matches nothing and records a successful no-op.
 
 Redis-backed caching and BullMQ workers are optional. Code must preserve the
 documented no-Redis fallback unless a deployment requirement is intentionally

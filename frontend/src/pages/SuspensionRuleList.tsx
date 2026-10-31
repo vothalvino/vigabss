@@ -4,7 +4,7 @@
 // Full CRUD for suspension / dunning rules. Each rule defines:
 //   • days_past_due      — how many overdue days trigger the rule
 //   • grace_period_days  — extra days to wait before executing the action
-//   • action             — auto_suspend | auto_disconnect | notify_only
+//   • action             — auto_suspend | soft_suspend | walled_garden
 //   • notify_before_days — advance warning notification window
 // =============================================================================
 
@@ -57,7 +57,9 @@ interface RuleFormBody {
 }
 
 const DEFAULT_PAGE_SIZE = 50;
-const ACTIONS = ['auto_suspend', 'auto_disconnect', 'notify_only', 'soft_suspend'] as const;
+// Actions the scheduler carries out. 'notify_only' and 'auto_disconnect' were
+// never enforced and are refused by the API; notify_before_days sends notices.
+const ACTIONS = ['auto_suspend', 'soft_suspend', 'walled_garden'] as const;
 
 // ---------------------------------------------------------------------------
 // Fetch helpers
@@ -193,6 +195,9 @@ function RuleFormModal({
           <select style={inputStyle} value={form.action}
             onChange={e => setForm(p => ({ ...p, action: e.target.value }))}>
             {ACTIONS.map(a => <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>)}
+            {!(ACTIONS as readonly string[]).includes(form.action) && (
+              <option value={form.action} disabled>{form.action.replace(/_/g, ' ')} (not enforced)</option>
+            )}
           </select>
 
           {form.action === 'soft_suspend' && (

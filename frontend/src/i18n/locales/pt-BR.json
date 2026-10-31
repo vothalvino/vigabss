@@ -589,6 +589,7 @@
     },
     "restore": "Restaurar",
     "archive": "Arquivar",
+    "archiveRequirements": "Um cliente só pode ser arquivado quando seus contratos estiverem cancelados ou encerrados, suas faturas quitadas e o pagamento automático desativado.",
     "archiving": "Arquivando…",
     "view": "Ver →",
     "noClients": "Nenhum cliente encontrado.",
@@ -949,6 +950,7 @@
     "noOpenInvoices": "Este cliente não possui faturas pendentes. O pagamento será registrado como crédito não alocado.",
     "loadClientsError": "Falha ao carregar clientes.",
     "excessCreditHint": "O valor que exceder o saldo das faturas marcadas permanece como crédito do cliente.",
+    "notSettledHint": "Somente um pagamento concluído pode ser aplicado a faturas. Este pagamento será registrado sem ser aplicado; aplique-o quando estiver concluído.",
     "table": {
       "invoice": "Fatura",
       "issueDate": "Data de Emissão",
@@ -1679,7 +1681,7 @@
     "feeAmount": "Valor da Multa",
     "gracePeriodDays": "Dias de Carência",
     "maxApplications": "Aplicações Máximas",
-    "maxApplicationsUnlimited": "Ilimitado",
+    "maxApplicationsUnlimited": "Ilimitado (uma vez por mês)",
     "isActive": "Ativo",
     "deleteConfirm": "Excluir esta regra de multa por atraso?",
     "noRules": "Nenhuma regra de multa por atraso configurada."

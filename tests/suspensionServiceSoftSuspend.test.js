@@ -18,6 +18,8 @@ describe('suspensionService — soft suspend & exemption', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Drop answers a previous test queued but never consumed.
+    db.query.mockReset();
     mockConnection = {
       beginTransaction: jest.fn(),
       execute: jest.fn(),
@@ -186,7 +188,7 @@ describe('suspensionService — soft suspend & exemption', () => {
     });
 
     test('returns non-exempt contracts normally', async () => {
-      const rule = { id: 1, days_past_due: 15, grace_period_days: 5 };
+      const rule = { id: 1, days_past_due: 15, grace_period_days: 5, action: 'auto_suspend' };
       const contract = { id: 20, status: 'active', days_overdue: 18 };
 
       db.query
@@ -199,7 +201,7 @@ describe('suspensionService — soft suspend & exemption', () => {
     });
 
     test('uses COALESCE for suspension_exempt to handle NULL values', async () => {
-      const rule = { id: 1, days_past_due: 10, grace_period_days: 0 };
+      const rule = { id: 1, days_past_due: 10, grace_period_days: 0, action: 'auto_suspend' };
 
       db.query
         .mockResolvedValueOnce([[rule]])
@@ -249,6 +251,8 @@ describe('suspensionService — soft suspend & exemption', () => {
       db.query.mockResolvedValueOnce([[]]); // no RADIUS
 
       mockConnection.execute
+        .mockResolvedValueOnce([[{ id: 10, status: 'active' }]]) // lock the contract (BIL-11)
+        .mockResolvedValueOnce([[{ id: 50 }]])         // overdue invoice still unpaid
         .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE contracts
         .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE radius (Bug 2)
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // INSERT suspension_logs

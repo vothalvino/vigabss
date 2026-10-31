@@ -1258,7 +1258,7 @@ describe('Payment Routes — /api/payments', () => {
 
   // --- POST /:id/allocate ---
   describe('POST /api/payments/:id/allocate', () => {
-    const PAYMENT_ROW = { id: 1, client_id: 9, amount: 578.84, organization_id: 1 };
+    const PAYMENT_ROW = { id: 1, client_id: 9, amount: 578.84, organization_id: 1, status: 'completed' };
 
     test('allocates payment to invoice and returns 201', async () => {
       mockAuthUser();

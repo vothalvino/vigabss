@@ -77,6 +77,7 @@ describe('E2E Workflow: Suspension Lifecycle', () => {
       organization_id: 1,
       days_past_due: 14,
       grace_period_days: 7,
+      action: 'auto_suspend',
       is_enabled: true,
     };
 
@@ -106,6 +107,8 @@ describe('E2E Workflow: Suspension Lifecycle', () => {
     db.query.mockResolvedValueOnce([[]]);  // sendRadiusDisconnect query returns no rows
 
     mockConnection.execute
+      .mockResolvedValueOnce([[{ id: 100, status: 'active' }]]) // lock the contract (BIL-11)
+      .mockResolvedValueOnce([[{ id: 500 }]])        // overdue invoice still unpaid
       .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE contracts → suspended
       .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE radius → suspended (Bug 2)
       .mockResolvedValueOnce([{ insertId: 1 }]);      // INSERT suspension_log
@@ -114,8 +117,8 @@ describe('E2E Workflow: Suspension Lifecycle', () => {
 
     // Verify transaction flow
     expect(mockConnection.beginTransaction).toHaveBeenCalled();
-    expect(mockConnection.execute).toHaveBeenCalledTimes(3);
-    expect(mockConnection.execute.mock.calls[1][0]).toContain('UPDATE radius SET status');
+    expect(mockConnection.execute).toHaveBeenCalledTimes(5);
+    expect(mockConnection.execute.mock.calls[3][0]).toContain('UPDATE radius SET status');
     expect(mockConnection.commit).toHaveBeenCalled();
     expect(mockConnection.release).toHaveBeenCalled();
   });
@@ -174,7 +177,7 @@ describe('E2E Workflow: Full Suspension → Reconnect cycle', () => {
   test('contract survives full lifecycle: evaluate → suspend → reconnect', async () => {
     // Phase 1: Evaluate rules — set mocks then call
     db.query
-      .mockResolvedValueOnce([[{ id: 1, organization_id: 1, days_past_due: 14, grace_period_days: 7, is_enabled: true }]])
+      .mockResolvedValueOnce([[{ id: 1, organization_id: 1, days_past_due: 14, grace_period_days: 7, action: 'auto_suspend', is_enabled: true }]])
       .mockResolvedValueOnce([[{ id: 100, client_id: 50, status: 'active', invoice_id: 500, days_overdue: 15 }]]);
 
     const evaluateResult = await suspensionService.evaluateRules(1);
@@ -183,6 +186,8 @@ describe('E2E Workflow: Full Suspension → Reconnect cycle', () => {
     // Phase 2: Suspend (no RADIUS account → graceful skip)
     db.query.mockResolvedValueOnce([[]]);  // sendRadiusDisconnect — no RADIUS rows
     mockConnection.execute
+      .mockResolvedValueOnce([[{ id: 100, status: 'active' }]]) // lock the contract (BIL-11)
+      .mockResolvedValueOnce([[{ id: 500 }]])         // overdue invoice still unpaid
       .mockResolvedValueOnce([{ affectedRows: 1 }])   // UPDATE contracts → suspended
       .mockResolvedValueOnce([{ affectedRows: 1 }])   // UPDATE radius → suspended (Bug 2)
       .mockResolvedValueOnce([{ insertId: 1 }]);       // INSERT suspension_log

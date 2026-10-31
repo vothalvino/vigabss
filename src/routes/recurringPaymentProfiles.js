@@ -12,7 +12,24 @@ const { validate } = require('../middleware/validate');
 const { createRecurringPaymentProfile, updateRecurringPaymentProfile } = require('../middleware/schemas/recurringPaymentProfiles');
 
 const router = Router();
-const ctrl = crudController(RecurringPaymentProfile);
+// Deleting a saved card revokes it (soft-delete alone left status 'active',
+// which is what autopay and retries filter on) and cancels its retries.
+async function revokeProfileBeforeDelete(profile, req, exec) {
+  await exec(
+    `UPDATE recurring_payment_profiles SET status = 'revoked'
+      WHERE id = ? AND organization_id <=> ?`,
+    [profile.id, req.orgId],
+  );
+  await exec(
+    `UPDATE payment_retries
+        SET status = 'cancelled', completed_at = NOW(), next_retry_at = NULL,
+            last_error = 'Payment method deleted'
+      WHERE recurring_profile_id = ? AND status IN ('pending', 'processing')`,
+    [profile.id],
+  );
+}
+
+const ctrl = crudController(RecurringPaymentProfile, { beforeDelete: revokeProfileBeforeDelete });
 
 router.use(authenticate);
 router.use(orgScope);

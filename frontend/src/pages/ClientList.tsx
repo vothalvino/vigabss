@@ -107,7 +107,12 @@ async function fetchClientGroupOptions(): Promise<ClientGroupOption[]> {
 
 async function deleteClient(id: number): Promise<void> {
   const { error } = await api.DELETE('/clients/{id}', { params: { path: { id } } });
-  if (error) throw new Error(extractApiError(error, 'clientList.error'));
+  if (error) {
+    // A refused archive lists what still has to be closed (CLIENT_HAS_OPEN_ACCOUNT).
+    const details = (error as { error?: { details?: { message?: string }[] } }).error?.details ?? [];
+    const lines = details.map(d => d.message).filter(Boolean);
+    throw new Error([extractApiError(error, 'clientList.error'), ...lines].join('\n'));
+  }
 }
 
 async function restoreClient(id: number): Promise<void> {
@@ -167,10 +172,13 @@ function DeleteClientModal({ client, onClose, onDeleted }: DeleteModalProps) {
     <div style={overlay} role="dialog" aria-modal="true" aria-label="Delete Client">
       <div style={modalBox}>
         <h3 style={{ margin: '0 0 0.75rem' }}>{t('clientList.archive')}?</h3>
-        {error && <div style={errorBox}>{error}</div>}
+        {error && <div style={{ ...errorBox, whiteSpace: 'pre-line' }}>{error}</div>}
         <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginTop: 0 }}>
           <strong>{client.name}</strong> will be archived (soft-deleted). You can restore it
           later from the "Show archived" view.
+        </p>
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 0 }}>
+          {t('clientList.archiveRequirements')}
         </p>
         <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
           <button type="button" onClick={onClose} style={cancelBtn}>{t('common.cancel')}</button>

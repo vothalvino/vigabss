@@ -29,6 +29,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../src/config');
 const PaymentGateway = require('../src/models/PaymentGateway');
 const User = require('../src/models/User');
+const { decrypt } = require('../src/utils/encryption');
 const app = require('../src/app');
 
 function makeToken(payload = {}) {
@@ -168,22 +169,23 @@ describe('Payment Gateway routes — secret redaction', () => {
           name: 'Stripe Producción',
           provider: 'stripe',
           environment: 'production',
-          secret_key_encrypted: 'sk_live_SUPER_SECRET_VALUE',
-          webhook_secret_encrypted: 'whsec_SUPER_SECRET_VALUE',
+          // Write-only plaintext fields (BIL-08): the route seals them into
+          // the *_encrypted columns; clients cannot write those directly.
+          secret_key: 'sk_live_SUPER_SECRET_VALUE',
+          webhook_secret: 'whsec_SUPER_SECRET_VALUE',
         });
 
       expect(res.status).toBe(201);
       assertRedacted(res.body.data);
       expect(res.body.data.has_secret_key).toBe(true);
 
-      // The write path must still persist the real secret — only the
+      // The write path must still persist the real secret (sealed) — only the
       // response is redacted.
-      expect(PaymentGateway.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          secret_key_encrypted: 'sk_live_SUPER_SECRET_VALUE',
-          webhook_secret_encrypted: 'whsec_SUPER_SECRET_VALUE',
-        }),
-      );
+      const stored = PaymentGateway.create.mock.calls[0][0];
+      expect(decrypt(stored.secret_key_encrypted)).toBe('sk_live_SUPER_SECRET_VALUE');
+      expect(decrypt(stored.webhook_secret_encrypted)).toBe('whsec_SUPER_SECRET_VALUE');
+      expect(stored).not.toHaveProperty('secret_key');
+      expect(stored).not.toHaveProperty('webhook_secret');
     });
   });
 

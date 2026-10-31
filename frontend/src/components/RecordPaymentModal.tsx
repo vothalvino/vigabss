@@ -194,6 +194,9 @@ export function RecordPaymentModal({
   // diverge the form from the saved payment (the retry only re-attempts the
   // allocation, it never re-sends the money fields).
   const paymentLocked = createdId != null;
+  // Only a completed payment may settle invoices (the server refuses others
+  // with PAYMENT_NOT_SETTLED); a pending/failed one is recorded unapplied.
+  const canAllocate = form.status === 'completed';
 
   const setField = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -275,7 +278,7 @@ export function RecordPaymentModal({
         });
         setCreatedId(pid);
       }
-      if (checkedIds.size > 0) {
+      if (canAllocate && checkedIds.size > 0) {
         const allocResult = await allocateAutoReq(pid, [...checkedIds]);
         setResult(allocResult);
       } else {
@@ -419,6 +422,11 @@ export function RecordPaymentModal({
               {t('recordPayment.noOpenInvoices')}
             </p>
           )}
+          {numericClientId != null && !loadingInvoices && openInvoices.length > 0 && !canAllocate && (
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+              {t('recordPayment.notSettledHint')}
+            </p>
+          )}
           {numericClientId != null && !loadingInvoices && openInvoices.length > 0 && (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', marginTop: 6 }}>
               <thead>
@@ -436,7 +444,8 @@ export function RecordPaymentModal({
                     <td style={{ padding: '4px 6px' }}>
                       <input
                         type="checkbox"
-                        checked={checkedIds.has(inv.id)}
+                        checked={canAllocate && checkedIds.has(inv.id)}
+                        disabled={!canAllocate}
                         onChange={() => toggleInvoice(inv.id)}
                         aria-label={inv.invoice_number || `#${inv.id}`}
                       />

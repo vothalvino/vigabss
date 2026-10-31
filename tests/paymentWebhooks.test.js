@@ -37,6 +37,12 @@ jest.mock('../src/utils/encryption', () => ({
 const db = require('../src/config/database');
 const paymentGatewayService = require('../src/services/paymentGatewayService');
 
+// Test stand-in for a Conekta webhook key (POST /webhook_keys): Conekta keeps
+// the private half and signs; the receiver is configured with the public PEM.
+const CONEKTA_KEYS = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+const CONEKTA_PUBLIC_PEM = CONEKTA_KEYS.publicKey.export({ type: 'spki', format: 'pem' });
+const conektaDigest = (body) => crypto.sign('RSA-SHA256', Buffer.from(body, 'utf8'), CONEKTA_KEYS.privateKey).toString('base64');
+
 describe('Payment Webhooks & Idempotency', () => {
   let mockConnection;
 
@@ -132,44 +138,68 @@ describe('Payment Webhooks & Idempotency', () => {
   // =========================================================================
   // Conekta Signature Verification
   // =========================================================================
+  // Conekta signs SHA-256 of the raw body with the webhook key's RSA private
+  // key and sends it base64 in DIGEST; only the public key verifies it (BIL-25).
+  // These tests previously built an HMAC-hex digest with the same (wrong)
+  // scheme the receiver used, so they could never detect it. They now sign
+  // with a generated RSA key pair, plus the vendor's own published sample.
   describe('verifyConektaSignature()', () => {
-    const secret = 'conekta_webhook_key_123';
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const publicPem = publicKey.export({ type: 'spki', format: 'pem' });
+    const other = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const otherPem = other.publicKey.export({ type: 'spki', format: 'pem' });
 
-    function buildDigest(body, key) {
-      return crypto.createHmac('sha256', key).update(body, 'utf8').digest('hex');
+    function buildDigest(body, key = privateKey) {
+      return crypto.sign('RSA-SHA256', Buffer.from(body, 'utf8'), key).toString('base64');
     }
 
-    test('returns true for valid digest', () => {
-      const body = '{"id":"evt_conekta_1","type":"order.paid"}';
-      const digest = buildDigest(body, secret);
-      expect(paymentGatewayService.verifyConektaSignature(body, digest, secret)).toBe(true);
+    test('verifies Conekta\'s own published sample (docs "Verificar firmas")', () => {
+      const vendor = require('./fixtures/conektaWebhookSignature.json');
+      expect(paymentGatewayService.verifyConektaSignature(vendor.payload, vendor.digest, vendor.public_key)).toBe(true);
+      expect(paymentGatewayService.verifyConektaSignature(`${vendor.payload} `, vendor.digest, vendor.public_key)).toBe(false);
     });
 
-    test('returns false for wrong key', () => {
+    test('returns true for a valid RSA-SHA256 base64 digest', () => {
+      const body = '{"id":"evt_conekta_1","type":"order.paid"}';
+      expect(paymentGatewayService.verifyConektaSignature(body, buildDigest(body), publicPem)).toBe(true);
+    });
+
+    test('accepts the JSON-escaped PEM copied from the /webhook_keys response', () => {
       const body = '{"id":"evt_conekta_1"}';
-      const digest = buildDigest(body, secret);
-      expect(paymentGatewayService.verifyConektaSignature(body, digest, 'wrong_key')).toBe(false);
+      const escaped = publicPem.replace(/\n/g, '\\n');
+      expect(paymentGatewayService.verifyConektaSignature(body, buildDigest(body), escaped)).toBe(true);
+    });
+
+    test('returns false for a different key pair', () => {
+      const body = '{"id":"evt_conekta_1"}';
+      expect(paymentGatewayService.verifyConektaSignature(body, buildDigest(body), otherPem)).toBe(false);
     });
 
     test('returns false for tampered body', () => {
       const body = '{"id":"evt_conekta_1"}';
-      const digest = buildDigest(body, secret);
-      expect(paymentGatewayService.verifyConektaSignature('{"id":"tampered"}', digest, secret)).toBe(false);
+      expect(paymentGatewayService.verifyConektaSignature('{"id":"tampered"}', buildDigest(body), publicPem)).toBe(false);
     });
 
     test('returns false when digest header is missing', () => {
-      expect(paymentGatewayService.verifyConektaSignature('body', null, secret)).toBe(false);
-      expect(paymentGatewayService.verifyConektaSignature('body', '', secret)).toBe(false);
+      expect(paymentGatewayService.verifyConektaSignature('body', null, publicPem)).toBe(false);
+      expect(paymentGatewayService.verifyConektaSignature('body', '', publicPem)).toBe(false);
     });
 
-    test('returns false when secret is missing', () => {
+    test('returns false when the key is missing', () => {
       const body = '{"id":"evt_conekta_1"}';
-      const digest = buildDigest(body, secret);
-      expect(paymentGatewayService.verifyConektaSignature(body, digest, null)).toBe(false);
+      expect(paymentGatewayService.verifyConektaSignature(body, buildDigest(body), null)).toBe(false);
     });
 
-    test('returns false for non-hex digest', () => {
-      expect(paymentGatewayService.verifyConektaSignature('body', 'not-hex!@#', secret)).toBe(false);
+    test('an HMAC "secret" is not a key: the old hex HMAC digest never verifies', () => {
+      const body = '{"id":"evt_conekta_1"}';
+      const hmac = crypto.createHmac('sha256', 'conekta_webhook_key_123').update(body, 'utf8').digest('hex');
+      expect(paymentGatewayService.parseConektaPublicKey('conekta_webhook_key_123')).toBeNull();
+      expect(paymentGatewayService.verifyConektaSignature(body, hmac, 'conekta_webhook_key_123')).toBe(false);
+      expect(paymentGatewayService.verifyConektaSignature(body, hmac, publicPem)).toBe(false);
+    });
+
+    test('returns false for a non-base64 digest', () => {
+      expect(paymentGatewayService.verifyConektaSignature('body', 'not-base64!@#', publicPem)).toBe(false);
     });
   });
 
@@ -235,10 +265,24 @@ describe('Payment Webhooks & Idempotency', () => {
         expect(db.query).toHaveBeenCalledTimes(1);
       });
 
+      // A 'manual' gateway no longer records a "charge" as succeeded (WHK-01),
+      // so these idempotency checks run against a stubbed Stripe call.
+      function stubStripeSucceeded() {
+        const https = require('https');
+        const EventEmitter = require('events');
+        const mockReq = new EventEmitter(); mockReq.write = jest.fn(); mockReq.end = jest.fn(); mockReq.destroy = jest.fn();
+        const mockRes = new EventEmitter(); mockRes.statusCode = 200;
+        return jest.spyOn(https, 'request').mockImplementation((_opts, cb) => {
+          process.nextTick(() => { cb(mockRes); mockRes.emit('data', JSON.stringify({ id: 'pi_1', status: 'succeeded' })); mockRes.emit('end'); });
+          return mockReq;
+        });
+      }
+
       test('processes normally when key is new', async () => {
+        const spy = stubStripeSucceeded();
         db.query
           .mockResolvedValueOnce([[]])                  // checkIdempotencyKey — not found
-          .mockResolvedValueOnce([[ { id: 1, provider: 'manual', status: 'active' }]])  // getActiveGateway
+          .mockResolvedValueOnce([[ { id: 1, provider: 'stripe', status: 'active', secret_key_encrypted: 'sk' }]])  // getActiveGateway
           .mockResolvedValueOnce([{ insertId: 200 }])   // INSERT transaction
           .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE succeeded
           .mockResolvedValueOnce([{ affectedRows: 1 }]); // storeIdempotencyKey
@@ -251,10 +295,12 @@ describe('Payment Webhooks & Idempotency', () => {
         expect(result.status).toBe('succeeded');
         expect(result.transaction_id).toBe(200);
         expect(result.idempotent_replay).toBeUndefined();
+        spy.mockRestore();
       });
 
       test('charge without idempotency key works normally', async () => {
-        const gw = { id: 1, provider: 'manual', status: 'active' };
+        const spy = stubStripeSucceeded();
+        const gw = { id: 1, provider: 'stripe', status: 'active', secret_key_encrypted: 'sk' };
         db.query
           .mockResolvedValueOnce([[gw]])           // getActiveGateway
           .mockResolvedValueOnce([{ insertId: 300 }])  // INSERT transaction
@@ -266,6 +312,7 @@ describe('Payment Webhooks & Idempotency', () => {
 
         expect(result.status).toBe('succeeded');
         expect(result.transaction_id).toBe(300);
+        spy.mockRestore();
       });
 
       test('handles cached response_body as parsed object', async () => {
@@ -346,20 +393,25 @@ describe('Payment Webhooks & Idempotency', () => {
         data: { object: { id: 'cs_test_123', payment_status: 'paid', amount_total: 50000 } },
       };
       // The transaction is linked (invoice_id=77) to the invoice the customer chose.
-      const linkedTx = { id: 200, client_id: 5, invoice_id: 77, organization_id: 42, amount: '500.00', currency: 'MXN', gateway_reference_id: 'cs_test_123' };
+      const linkedTx = { id: 200, client_id: 5, invoice_id: 77, organization_id: 42, payment_gateway_id: 7, amount: '500.00', currency: 'MXN', gateway_reference_id: 'cs_test_123', gateway_status: 'succeeded', payment_id: null };
 
       db.query
         .mockResolvedValueOnce([[]])                  // No duplicate
         .mockResolvedValueOnce([{ insertId: 12 }])    // INSERT webhook_events
         .mockResolvedValueOnce([[linkedTx]])          // Find transaction by cs_ session id
         .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE payment_transactions
-        .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE webhook_events processed
+        .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE webhook_events processed
+        .mockResolvedValue([{ affectedRows: 0 }]);    // post-commit side effects
 
-      mockConnection.execute
-        .mockResolvedValueOnce([[linkedTx]])                                          // SELECT tx FOR UPDATE
-        .mockResolvedValueOnce([[{ id: 77, status: 'issued', total: '500.00' }]])     // SELECT LINKED invoice by id
-        .mockResolvedValueOnce([{ affectedRows: 1 }])                                 // UPDATE invoices SET paid
-        .mockResolvedValueOnce([{ affectedRows: 1 }]);                                // INSERT ledger
+      mockConnection.execute.mockImplementation(async (sql) => {
+        if (/FROM payment_transactions WHERE id = \? FOR UPDATE/.test(sql)) return [[linkedTx]];
+        if (/FROM client_balance_ledger/.test(sql)) return [[]];
+        if (/FROM payment_gateways/.test(sql)) return [[{ provider: 'stripe' }]];
+        if (/FROM invoices i/.test(sql)) return [[{ id: 77, status: 'issued', total: '500.00', balance_due: '500.00' }]];
+        if (/SUM\(amount\) AS total_allocated/.test(sql)) return [[{ total_allocated: '500.00' }]];
+        if (/^\s*INSERT/.test(sql)) return [{ insertId: 901 }];
+        return [{ affectedRows: 1 }];
+      });
 
       const result = await paymentGatewayService.handleWebhookEvent({
         provider: 'stripe', providerEventId: 'evt_cs_1', eventType: 'checkout.session.completed', payload,
@@ -367,10 +419,16 @@ describe('Payment Webhooks & Idempotency', () => {
 
       expect(result.status).toBe('processed');
       expect(result.newStatus).toBe('succeeded');
-      // The linked invoice (77) is looked up by id and marked paid — NOT an oldest-by-due-date heuristic.
-      expect(mockConnection.execute.mock.calls[1][0]).toMatch(/FROM invoices WHERE id = \?/);
-      expect(mockConnection.execute.mock.calls[1][1]).toEqual([77, 5, 42]);
-      expect(mockConnection.execute.mock.calls[2][1]).toEqual([77]); // UPDATE invoices ... WHERE id = 77
+      expect(result.reconciliation).toBe('reconciled');
+      // Only the LINKED invoice (77) is a target — NOT a FIFO/oldest heuristic —
+      // and it is paid through a payment allocation.
+      const target = mockConnection.execute.mock.calls.find((c) => /FROM invoices i/.test(c[0]));
+      expect(target[0]).toMatch(/AND i\.id IN \(\?\)/);
+      expect(target[1]).toEqual([5, 42, 'issued', 'sent', 'overdue', 77]);
+      const alloc = mockConnection.execute.mock.calls.find((c) => /INSERT INTO payment_allocations/.test(c[0]));
+      expect(alloc[1]).toEqual([901, 77, 500]);
+      const paid = mockConnection.execute.mock.calls.find((c) => /UPDATE invoices SET status = \?, paid_at/.test(c[0]));
+      expect(paid[1]).toEqual(['paid', 77]);
     });
 
     test('checkout.session.completed recovers a tx via metadata.transaction_id when the reference lookup misses', async () => {
@@ -722,89 +780,83 @@ describe('Payment Webhooks & Idempotency', () => {
   // =========================================================================
   // Auto-reconciliation
   // =========================================================================
+  // Rewritten for BIL-05. The old tests encoded the defect: reconcile only
+  // flipped invoices.status and wrote a 'payment_transaction' ledger credit, so
+  // no payment/allocation ever existed (no REP, no reconnect, no portal
+  // history), a capture with no same-amount issued invoice was silently
+  // dropped, and errors were swallowed so nothing retried. The detailed
+  // behaviour lives in tests/gatewayPaymentReconcile.test.js; these keep the
+  // contract visible next to the webhook tests.
   describe('reconcilePayment()', () => {
-    test('marks invoice as paid and credits balance when amounts match', async () => {
-      mockConnection.execute
-        .mockResolvedValueOnce([[{
-          id: 100, client_id: 5, organization_id: 42,
-          amount: '500.00', currency: 'MXN',
-          gateway_reference_id: 'pi_abc123',
-        }]])
-        .mockResolvedValueOnce([[{ id: 50, total: '500.00' }]])
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE invoices
-        .mockResolvedValueOnce([{ affectedRows: 1 }]); // INSERT ledger credit
+    // SQL-routing connection: answers by statement, tracks inserted allocations.
+    function routeConn({ tx, invoices = [], legacy = [], failOn } = {}) {
+      let nextId = 900;
+      const allocated = {};
+      mockConnection.execute.mockImplementation(async (sql, params) => {
+        if (failOn && failOn.test(sql)) throw new Error('DB error');
+        if (/FROM payment_transactions WHERE id = \? FOR UPDATE/.test(sql)) return [tx ? [tx] : []];
+        if (/FROM client_balance_ledger/.test(sql)) return [legacy];
+        if (/FROM payment_gateways/.test(sql)) return [[{ provider: 'stripe' }]];
+        if (/FROM invoices i/.test(sql)) return [invoices];
+        if (/INSERT INTO payment_allocations/.test(sql)) {
+          allocated[params[1]] = (allocated[params[1]] || 0) + params[2];
+          return [{ insertId: ++nextId }];
+        }
+        if (/SUM\(amount\) AS total_allocated/.test(sql)) return [[{ total_allocated: String(allocated[params[0]] || 0) }]];
+        if (/^\s*INSERT/.test(sql)) return [{ insertId: ++nextId }];
+        return [{ affectedRows: 1 }];
+      });
+      db.query.mockResolvedValue([{ affectedRows: 0 }]); // post-commit side effects
+    }
+    const calls = (re) => mockConnection.execute.mock.calls.filter((c) => re.test(c[0]));
+    const capturedTx = { id: 100, client_id: 5, organization_id: 42, payment_gateway_id: 7, amount: '500.00', currency: 'MXN', gateway_reference_id: 'pi_abc123', gateway_status: 'succeeded', payment_id: null, invoice_id: null };
 
-      await paymentGatewayService.reconcilePayment(100);
+    test('posts a completed payment, links payment_id, credits the ledger and marks the covered invoice paid', async () => {
+      routeConn({ tx: capturedTx, invoices: [{ id: 50, total: '500.00', balance_due: '500.00' }] });
 
-      // Verify invoice was marked as paid
-      expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE invoices SET status'),
-        [50],
-      );
+      const res = await paymentGatewayService.reconcilePayment(100);
 
-      // Verify ledger credit was created
-      expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO client_balance_ledger'),
-        expect.arrayContaining([5, 42, '500.00', 'MXN']),
-      );
-
+      expect(res.status).toBe('reconciled');
+      const pay = calls(/INSERT INTO payments/)[0];
+      expect(pay[1]).toEqual(expect.arrayContaining([42, 5, '500.00', 'MXN', 'card', '04', 'pi_abc123']));
+      expect(calls(/UPDATE payment_transactions SET payment_id = \?/)[0][1]).toEqual([res.paymentId, 100]);
+      expect(calls(/INSERT INTO client_balance_ledger/)[0][1]).toEqual(expect.arrayContaining([5, 42, '500.00', 'MXN', res.paymentId]));
+      expect(calls(/INSERT INTO payment_allocations/)[0][1]).toEqual([res.paymentId, 50, 500]);
+      expect(calls(/UPDATE invoices SET status = \?, paid_at = NOW\(\)/)[0][1]).toEqual(['paid', 50]);
       expect(mockConnection.commit).toHaveBeenCalled();
       expect(mockConnection.release).toHaveBeenCalled();
     });
 
-    test('skips reconciliation when no matching invoice found', async () => {
-      mockConnection.execute
-        .mockResolvedValueOnce([[{
-          id: 100, client_id: 5, organization_id: 42,
-          amount: '500.00', currency: 'MXN',
-        }]])
-        .mockResolvedValueOnce([[]]); // No unpaid invoices
-
-      await paymentGatewayService.reconcilePayment(100);
-
-      // Should have 2 execute calls (tx lookup + invoice lookup) then rollback
-      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
-      expect(mockConnection.rollback).toHaveBeenCalled();
-      expect(mockConnection.release).toHaveBeenCalled();
+    test('with no payable invoice the capture is still posted, kept as client credit (was silently dropped)', async () => {
+      routeConn({ tx: capturedTx, invoices: [] });
+      const res = await paymentGatewayService.reconcilePayment(100);
+      expect(res).toMatchObject({ status: 'reconciled', remainingCredit: 500 });
+      expect(calls(/INSERT INTO payments/)).toHaveLength(1);
+      expect(calls(/INSERT INTO payment_allocations/)).toHaveLength(0);
+      expect(mockConnection.commit).toHaveBeenCalled();
     });
 
-    test('skips reconciliation when amounts do not match', async () => {
-      mockConnection.execute
-        .mockResolvedValueOnce([[{
-          id: 100, client_id: 5, organization_id: 42,
-          amount: '500.00', currency: 'MXN',
-        }]])
-        .mockResolvedValueOnce([[{ id: 50, total: '750.00' }]]); // Different amount
-
-      await paymentGatewayService.reconcilePayment(100);
-
-      // Should have 2 execute calls then rollback
-      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
-      expect(mockConnection.rollback).toHaveBeenCalled();
-      expect(mockConnection.release).toHaveBeenCalled();
+    test('amounts that differ are applied up to the balance due, the rest stays as credit (was skipped)', async () => {
+      routeConn({ tx: capturedTx, invoices: [{ id: 50, total: '750.00', balance_due: '750.00' }] });
+      const res = await paymentGatewayService.reconcilePayment(100);
+      expect(calls(/INSERT INTO payment_allocations/)[0][1]).toEqual([res.paymentId, 50, 500]);
+      expect(calls(/UPDATE invoices SET status = \?, paid_at/)).toHaveLength(0); // 500 of 750: not paid yet
+      expect(res.remainingCredit).toBe(0);
     });
 
     test('skips reconciliation when transaction not found', async () => {
-      mockConnection.execute.mockResolvedValueOnce([[]]); // Transaction not found
-
-      await paymentGatewayService.reconcilePayment(999);
+      routeConn({ tx: null });
+      await expect(paymentGatewayService.reconcilePayment(999)).resolves.toEqual({ status: 'not_found' });
       expect(mockConnection.execute).toHaveBeenCalledTimes(1);
       expect(mockConnection.rollback).toHaveBeenCalled();
       expect(mockConnection.release).toHaveBeenCalled();
     });
 
-    test('does not throw on reconciliation error (best-effort)', async () => {
-      mockConnection.execute
-        .mockResolvedValueOnce([[{
-          id: 100, client_id: 5, organization_id: 42,
-          amount: '500.00', currency: 'MXN',
-          gateway_reference_id: 'pi_abc',
-        }]])
-        .mockRejectedValueOnce(new Error('DB error'));
-
-      // Should not throw — reconciliation is best-effort
-      await expect(paymentGatewayService.reconcilePayment(100)).resolves.toBeUndefined();
+    test('rolls back and THROWS on a reconciliation error so the webhook/sweep retries (was swallowed)', async () => {
+      routeConn({ tx: capturedTx, invoices: [], failOn: /INSERT INTO payments/ });
+      await expect(paymentGatewayService.reconcilePayment(100)).rejects.toThrow('DB error');
       expect(mockConnection.rollback).toHaveBeenCalled();
+      expect(mockConnection.commit).not.toHaveBeenCalled();
       expect(mockConnection.release).toHaveBeenCalled();
     });
   });
@@ -894,10 +946,10 @@ describe('Payment Webhooks & Idempotency', () => {
       }
     });
 
-    test('POST /api/payment-webhooks/conekta rejects invalid signature when secret is set', async () => {
+    test('POST /api/payment-webhooks/conekta rejects invalid signature when the public key is set', async () => {
       const originalEnv = process.env.CONEKTA_WEBHOOK_KEY;
       try {
-        process.env.CONEKTA_WEBHOOK_KEY = 'conekta_key_test';
+        process.env.CONEKTA_WEBHOOK_KEY = CONEKTA_PUBLIC_PEM;
 
         const payload = {
           id: 'evt_conekta_sig',
@@ -1087,9 +1139,9 @@ describe('Payment Webhooks & Idempotency', () => {
     // Conekta-specific wiring break (wrong header/key/verify) is caught.
     test('Conekta accepts a validly SIGNED event (no opt-in needed)', async () => {
       delete process.env.ALLOW_UNSIGNED_WEBHOOKS;
-      const key = 'conekta_route_ok';
       const orig = process.env.CONEKTA_WEBHOOK_KEY;
-      process.env.CONEKTA_WEBHOOK_KEY = key;
+      // Env form: the PEM with literal \n escapes, as it fits on one .env line.
+      process.env.CONEKTA_WEBHOOK_KEY = CONEKTA_PUBLIC_PEM.replace(/\n/g, '\\n');
       try {
         db.query
           .mockResolvedValueOnce([[]])                 // No duplicate
@@ -1099,12 +1151,12 @@ describe('Payment Webhooks & Idempotency', () => {
 
         const payload = { id: 'evt_conekta_signed_1', type: 'order.paid', data: { object: { id: 'ord_signed_1' } } };
         const body = JSON.stringify(payload);
-        const digest = crypto.createHmac('sha256', key).update(body, 'utf8').digest('hex');
+        const digest = conektaDigest(body);
 
         const res = await request(app)
           .post('/api/payment-webhooks/conekta')
           .set('Content-Type', 'application/json')
-          .set('Digest', digest)     // real HMAC over the exact rawBody
+          .set('Digest', digest)     // real RSA-SHA256 signature over the exact rawBody
           .send(body);
 
         expect(res.status).toBe(200);
@@ -1241,7 +1293,7 @@ describe('Payment Webhooks & Idempotency', () => {
 
     test('Conekta gateway route verifies with the DB key', async () => {
       db.query.mockImplementation(async (sql) => {
-        if (/FROM payment_gateways/.test(sql)) return [[{ id: 9, organization_id: 6, webhook_secret_encrypted: 'conekta_gw9' }]];
+        if (/FROM payment_gateways/.test(sql)) return [[{ id: 9, organization_id: 6, webhook_secret_encrypted: CONEKTA_PUBLIC_PEM }]];
         if (/FROM webhook_events/.test(sql)) return [[]];
         if (/INSERT INTO webhook_events/.test(sql)) return [{ insertId: 50 }];
         if (/FROM payment_transactions/.test(sql)) return [[]];
@@ -1251,7 +1303,7 @@ describe('Payment Webhooks & Idempotency', () => {
 
       const payload = { id: 'evt_conekta_gw_1', type: 'order.paid', data: { object: { id: 'ord_gw_1' } } };
       const body = JSON.stringify(payload);
-      const digest = crypto.createHmac('sha256', 'conekta_gw9').update(body, 'utf8').digest('hex');
+      const digest = conektaDigest(body);
 
       const res = await request(app)
         .post('/api/payment-webhooks/conekta/9')
@@ -1289,7 +1341,7 @@ describe('Payment Webhooks & Idempotency', () => {
 
     test('Conekta gateway key set but digest invalid → 401', async () => {
       db.query.mockImplementation(async (sql) => (/FROM payment_gateways/.test(sql)
-        ? [[{ id: 9, organization_id: 6, webhook_secret_encrypted: 'conekta_gw9' }]] : [[]]));
+        ? [[{ id: 9, organization_id: 6, webhook_secret_encrypted: CONEKTA_PUBLIC_PEM }]] : [[]]));
       const res = await request(app)
         .post('/api/payment-webhooks/conekta/9')
         .send({ id: 'evt_x', type: 'order.paid', data: { object: { id: 'ord_x' } } })
@@ -1297,6 +1349,37 @@ describe('Payment Webhooks & Idempotency', () => {
         .set('Digest', 'not-a-valid-digest');
       expect(res.status).toBe(401);
       expect(res.body.error.code).toBe('WEBHOOK_SIGNATURE_INVALID');
+    });
+
+    test('Conekta digest signed by a different key → 401', async () => {
+      db.query.mockImplementation(async (sql) => (/FROM payment_gateways/.test(sql)
+        ? [[{ id: 9, organization_id: 6, webhook_secret_encrypted: CONEKTA_PUBLIC_PEM }]] : [[]]));
+      const intruder = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+      const body = JSON.stringify({ id: 'evt_forged', type: 'order.paid', data: { object: { id: 'ord_x' } } });
+      const res = await request(app)
+        .post('/api/payment-webhooks/conekta/9')
+        .set('Content-Type', 'application/json')
+        .set('Digest', crypto.sign('RSA-SHA256', Buffer.from(body), intruder.privateKey).toString('base64'))
+        .send(body);
+      expect(res.status).toBe(401);
+      expect(db.query.mock.calls.some(c => /webhook_events/.test(c[0]))).toBe(false);
+    });
+
+    // An old HMAC-style shared secret stored before BIL-25 can never verify a
+    // Conekta signature. Fail closed as "not configured" (operator action),
+    // never process, and never answer a misleading 401.
+    test('Conekta gateway configured with a non-PEM secret → 503, nothing processed', async () => {
+      db.query.mockImplementation(async (sql) => (/FROM payment_gateways/.test(sql)
+        ? [[{ id: 9, organization_id: 6, webhook_secret_encrypted: 'conekta_gw9' }]] : [[]]));
+      const body = JSON.stringify({ id: 'evt_x', type: 'order.paid', data: { object: { id: 'ord_x' } } });
+      const res = await request(app)
+        .post('/api/payment-webhooks/conekta/9')
+        .set('Content-Type', 'application/json')
+        .set('Digest', crypto.createHmac('sha256', 'conekta_gw9').update(body, 'utf8').digest('hex'))
+        .send(body);
+      expect(res.status).toBe(503);
+      expect(res.body.error.code).toBe('WEBHOOK_NOT_CONFIGURED');
+      expect(db.query.mock.calls.some(c => /webhook_events/.test(c[0]))).toBe(false);
     });
   });
 

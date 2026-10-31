@@ -447,9 +447,30 @@ async function nextQuoteNumber(conn, orgId) {
  * @param {object} plan - Plan row with trial_days
  * @returns {boolean}
  */
+async function resolveFullPlan(contract, plan, orgId) {
+  // A plans row (it has an id) is used as is; a hand-built {name, price,
+  // currency} or a missing plan is replaced by the row.
+  if (plan && plan.id !== undefined && plan.id !== null) return plan;
+  const [rows] = await db.query(
+    'SELECT * FROM plans WHERE id = ? AND organization_id <=> ?',
+    [contract.plan_id, orgId ?? contract.organization_id ?? null],
+  );
+  if (!rows[0]) {
+    throw new Error(`Plan ${contract.plan_id} of contract ${contract.id} was not found`);
+  }
+  return rows[0];
+}
+
+// When service actually started: the first activation, or the contract's
+// start date for a contract that predates activation tracking.
+function serviceStartDate(contract) {
+  const anchor = new Date(contract.first_activated_at || contract.start_date);
+  return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+}
+
 function isContractInTrial(contract, plan) {
   if (!plan.trial_days || plan.trial_days <= 0) return false;
-  const startDate = new Date(contract.start_date);
+  const startDate = serviceStartDate(contract);
   const trialEnd = new Date(startDate);
   trialEnd.setDate(trialEnd.getDate() + plan.trial_days);
   return new Date() < trialEnd;
@@ -514,12 +535,6 @@ async function calculateOverageCharges(contractId, periodStart, periodEnd) {
 async function generateBillingPeriod(contract) {
   logger.info({ contractId: contract.id }, 'Generating billing period');
 
-  // Skip trial contracts — no billing period during trial
-  if (contract._plan && isContractInTrial(contract, contract._plan)) {
-    logger.info({ contractId: contract.id }, 'Contract is in trial period, skipping billing period generation');
-    return null;
-  }
-
   // Check if there's already a pending period
   const [existing] = await db.query(
     `SELECT * FROM billing_periods
@@ -546,7 +561,9 @@ async function generateBillingPeriod(contract) {
     periodStart = new Date(lastPeriod[0].period_end);
     periodStart.setDate(periodStart.getDate() + 1);
   } else {
-    periodStart = new Date(contract.start_date);
+    // Bill from when service started, not from the order date: a contract
+    // ordered weeks before the install was billed for the weeks with no service.
+    periodStart = serviceStartDate(contract);
   }
 
   const periodEnd = new Date(periodStart);
@@ -572,6 +589,13 @@ async function generateBillingPeriod(contract) {
  */
 async function generateInvoice(billingPeriod, contract, plan, orgId) {
   logger.info({ contractId: contract.id, periodId: billingPeriod.id, orgId }, 'Generating invoice');
+
+  // Trial pricing and data overage read trial_days / trial_price /
+  // overage_mode / overage_price_per_gb from the plan. The scheduled and bulk
+  // callers passed only {name, price, currency}, so trials were billed at full
+  // price and overage was never charged (BIL-13). Load the full row whenever a
+  // caller hands over a partial one.
+  plan = await resolveFullPlan(contract, plan, orgId);
 
   const conn = await db.getConnection();
   try {
@@ -892,11 +916,16 @@ function calculateProration({ oldPrice, newPrice, changeDate, periodStart, perio
 
 /**
  * Record a payment and update client balance.
+ *
+ * @param {object} payment
+ * @param {number|null} orgId
+ * @param {Function} [exec] - bound query function; pass `conn.execute.bind(conn)`
+ *   to write the credit inside the caller's transaction (gateway reconcile).
  */
-async function recordPaymentCredit(payment, orgId) {
+async function recordPaymentCredit(payment, orgId, exec = db.query.bind(db)) {
   logger.info({ paymentId: payment.id, clientId: payment.client_id, amount: payment.amount }, 'Recording payment credit');
   const currency = payment.currency || await Organization.getCurrency(orgId);
-  await db.query(
+  await exec(
     `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
      VALUES (?, ?, 'credit', ?, ?, 'payment', ?, ?)`,
     [payment.client_id, orgId, payment.amount, currency, payment.id, 'Payment ' + (payment.reference_number || payment.id)],

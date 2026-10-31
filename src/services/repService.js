@@ -65,8 +65,8 @@ async function generateRepForAllocation(paymentId, invoiceId, allocatedAmount, o
     return { generated: false, reason: 'NON_MXN' };
   }
   // Never report a payment SAT-side unless it actually settled: a REP for a
-  // failed/refunded/cancelled payment tells SAT money arrived that didn't.
-  if (payment.status && !['completed', 'pending'].includes(payment.status)) {
+  // pending/failed/refunded/cancelled payment tells SAT money arrived that didn't.
+  if (payment.status !== 'completed') {
     return { generated: false, reason: 'PAYMENT_NOT_SETTLED' };
   }
 
@@ -250,4 +250,4 @@ async function maybeGenerateRep(paymentId, invoiceId, allocatedAmount, orgId, us
   }
 }
 
-module.exports = { generateRepForAllocation, maybeGenerateRep };
+module.exports = { generateRepForAllocation, maybeGenerateRep, FORMA_PAGO_BY_METHOD };

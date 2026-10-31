@@ -35,7 +35,7 @@ const AUTH = 'Bearer ' + jwt.sign(
   { expiresIn: '1h' },
 );
 
-const PAYMENT_ROW = { id: 1, client_id: 5, amount: '250.00', organization_id: 1 };
+const PAYMENT_ROW = { id: 1, client_id: 5, amount: '250.00', organization_id: 1, status: 'completed' };
 
 function makeConn() {
   return {

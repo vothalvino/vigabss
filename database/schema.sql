@@ -6790,7 +6790,7 @@ CREATE TABLE IF NOT EXISTS suspension_rules (
     name                VARCHAR(150)     NOT NULL                         COMMENT 'Descriptive rule name, e.g. "Suspensión 30 días"',
     days_past_due       INT UNSIGNED     NOT NULL                         COMMENT 'Number of days overdue before this rule triggers',
     grace_period_days   INT UNSIGNED     NOT NULL DEFAULT 0               COMMENT 'Additional grace days after trigger before action is executed',
-    action              ENUM('auto_suspend','notify_only','auto_disconnect','soft_suspend')
+    action              ENUM('auto_suspend','notify_only','auto_disconnect','soft_suspend','walled_garden')
                                          NOT NULL                         COMMENT 'Action to perform when rule fires',
     soft_suspend_download_kbps INT UNSIGNED NULL DEFAULT 128              COMMENT 'Throttled download speed (kbps) applied during soft suspension; NULL = inherit plan default',
     soft_suspend_upload_kbps   INT UNSIGNED NULL DEFAULT 128              COMMENT 'Throttled upload speed (kbps) applied during soft suspension; NULL = inherit plan default',
@@ -7953,6 +7953,23 @@ VALUES
      TRUE,
      5,
      NULL);
+
+-- ---------------------------------------------------------------------------
+-- Seed: gateway payment reconciliation retry sweep (migration 472)
+-- ---------------------------------------------------------------------------
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, description, cron_expression, is_enabled, priority)
+SELECT NULL,
+       'reconcile_gateway_payments',
+       'Post succeeded gateway transactions that have no payment yet (retry of failed or missed reconciliation)',
+       '*/15 * * * *',
+       TRUE,
+       'high'
+  FROM DUAL
+ WHERE NOT EXISTS (
+   SELECT 1 FROM scheduled_tasks
+    WHERE task_name = 'reconcile_gateway_payments' AND organization_id IS NULL
+ );
 
 -- ---------------------------------------------------------------------------
 -- Seed: billing cycle orchestrator scheduled task (migration 155)
@@ -9708,8 +9725,10 @@ CREATE TABLE IF NOT EXISTS invoice_late_fees (
     applied_at          DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
     applied_by          BIGINT UNSIGNED  NULL,
     invoice_item_id     BIGINT UNSIGNED  NULL,
+    period_key          VARCHAR(32)      NOT NULL                    COMMENT 'Calendar month (UTC YYYY-MM) this application belongs to; legacy-<id> for rows before migration 473',
     created_at          TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    UNIQUE KEY uq_invoice_late_fees_period (invoice_id, late_fee_rule_id, period_key),
     KEY idx_invoice_late_fees_invoice (invoice_id),
     KEY idx_invoice_late_fees_rule (late_fee_rule_id),
     KEY idx_invoice_late_fees_org (organization_id),

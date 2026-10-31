@@ -168,7 +168,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     const conn = makeConn();
     conn.execute
       // load payment
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', reference_number: 'REF-1' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed', reference_number: 'REF-1' }]])
       // load existing allocation from→invoice A
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
       // load both invoices (both client_id = 5)
@@ -205,7 +205,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
   test('returns 422 when payment has no allocation to from_invoice_id', async () => {
     const conn = makeConn();
     conn.execute
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[]]); // no matching allocation
 
     db.getConnection.mockResolvedValue(conn);
@@ -223,7 +223,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
   test('returns 422 when to_invoice_id belongs to a different client', async () => {
     const conn = makeConn();
     conn.execute
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
       // to_invoice belongs to client_id = 99 (different!)
       .mockResolvedValueOnce([[
@@ -259,7 +259,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
   test('surfaces DB trigger over-allocation error as 422', async () => {
     const conn = makeConn();
     conn.execute
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5 },
@@ -282,7 +282,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
   test('surfaces a duplicate-allocation (UNIQUE) collision as 422 ALLOCATION_EXISTS', async () => {
     const conn = makeConn();
     conn.execute
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
       .mockResolvedValueOnce([[{ id: 30, client_id: 5 }, { id: 31, client_id: 5 }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])
@@ -337,7 +337,7 @@ describe('POST /payments/:id/reassign (Capability 3)', () => {
     const conn = makeConn();
     conn.execute
       // load payment
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN', reference_number: 'REF-2' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN', status: 'completed', reference_number: 'REF-2' }]])
       // validate new client
       .mockResolvedValueOnce([[{ id: 7 }]])
       // check live allocations — none
@@ -353,7 +353,7 @@ describe('POST /payments/:id/reassign (Capability 3)', () => {
 
     // db.query for the final SELECT
     db.query.mockResolvedValueOnce([[
-      { id: 20, client_id: 7, organization_id: 1, amount: '200.00', currency: 'MXN' },
+      { id: 20, client_id: 7, organization_id: 1, amount: '200.00', currency: 'MXN', status: 'completed' },
     ]]);
 
     const res = await request(app)
@@ -382,7 +382,7 @@ describe('POST /payments/:id/reassign (Capability 3)', () => {
   test('returns 422 when payment has live allocations', async () => {
     const conn = makeConn();
     conn.execute
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[{ id: 7 }]])       // new client exists
       .mockResolvedValueOnce([[{ cnt: 2 }]]);     // 2 live allocations
 
@@ -401,7 +401,7 @@ describe('POST /payments/:id/reassign (Capability 3)', () => {
   test('returns 404 when new_client_id does not exist in org', async () => {
     const conn = makeConn();
     conn.execute
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[]]); // new client not found
 
     db.getConnection.mockResolvedValue(conn);
@@ -456,7 +456,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
   // Payment.allocate calls db.query for INSERT + SELECT. The route now
   // org-verifies the payment FIRST (see the payments.js org-scoping fix),
   // then does the void guard, so db.query[0] is always the payment lookup.
-  const PAYMENT_ROW = { id: 1, client_id: 5, amount: '9999.00', organization_id: 1 };
+  const PAYMENT_ROW = { id: 1, client_id: 5, amount: '9999.00', organization_id: 1, status: 'completed' };
 
   test('returns 422 INVOICE_VOID when invoice.status is void', async () => {
     // db.query[0] = SELECT payment (org-verify), [1] = SELECT invoice → void
@@ -567,7 +567,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/reallocate', () => {
     const conn = makeConn();
     conn.execute
       // load payment
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
       // load existing allocation from→invoice A
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
       // load both invoices: toInv is void
@@ -592,7 +592,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/reallocate', () => {
   test('allows reallocating AWAY from a void from_invoice', async () => {
     const conn = makeConn();
     conn.execute
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', reference_number: 'R' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed', reference_number: 'R' }]])
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
       // from_invoice is void — that is fine; only to_invoice void is blocked
       .mockResolvedValueOnce([[
@@ -633,7 +633,7 @@ describe('POST /payments/:id/unapply (Capability 5)', () => {
     const conn = makeConn();
     conn.execute
       // load payment (org-scoped)
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN', status: 'completed' }]])
       // find live allocation
       .mockResolvedValueOnce([[{ id: 55, payment_id: 20, invoice_id: 10, amount: '200.00' }]])
       // soft-delete allocation
@@ -672,7 +672,7 @@ describe('POST /payments/:id/unapply (Capability 5)', () => {
   test('returns 422 ALLOCATION_NOT_FOUND when no live allocation exists', async () => {
     const conn = makeConn();
     conn.execute
-      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN' }]])
+      .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[]]); // no live allocation
 
     db.getConnection.mockResolvedValue(conn);

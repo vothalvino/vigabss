@@ -446,6 +446,10 @@ describe('Client Routes — /api/clients', () => {
       db.query
         // findByIdOrFail (old)
         .mockResolvedValueOnce([[{ id: 3, name: 'To Delete', organization_id: 1 }]])
+        // archive guard (DAL-03): no open contracts, invoices or autopay
+        .mockResolvedValueOnce([[{ n: 0 }]])
+        .mockResolvedValueOnce([[{ n: 0 }]])
+        .mockResolvedValueOnce([[{ n: 0 }]])
         // delete query
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         // auditLog

@@ -68,10 +68,10 @@ async function generateInvoice(req, res, next) {
 async function bulkGenerate(req, res, next) {
   try {
     const [contracts] = await db.query(
-      `SELECT c.*, p.name AS plan_name, p.price AS plan_price, p.currency AS plan_currency
+      `SELECT c.*
        FROM contracts c
-       JOIN plans p ON p.id = c.plan_id
-       WHERE c.status = 'active' AND c.organization_id = ?`,
+       JOIN clients cl ON cl.id = c.client_id AND cl.deleted_at IS NULL
+       WHERE c.status = 'active' AND c.organization_id = ? AND c.deleted_at IS NULL`,
       [req.orgId],
     );
 
@@ -81,9 +81,12 @@ async function bulkGenerate(req, res, next) {
     for (const contract of contracts) {
       try {
         const period = await billingService.generateBillingPeriod(contract);
-        if (period.status === 'pending') {
-          const plan = { name: contract.plan_name, price: contract.plan_price, currency: contract.plan_currency };
-          await billingService.generateInvoice(period, contract, plan, req.orgId);
+        // Same rule as the scheduled run: only a period whose billing day has
+        // arrived is invoiced (generateBillingPeriod may pre-create the next one).
+        const periodDue = !period?.scheduled_at || new Date(period.scheduled_at) <= new Date();
+        if (period && period.status === 'pending' && periodDue) {
+          // generateInvoice loads the full plan row (trial pricing, overage).
+          await billingService.generateInvoice(period, contract, null, req.orgId);
           generated++;
         }
       } catch (err) {
