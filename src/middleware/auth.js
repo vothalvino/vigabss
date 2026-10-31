@@ -169,6 +169,8 @@ async function authenticate(req, _res, next) {
     if (tokenVersionStale(payload.tv, user.token_version)) {
       throw new UnauthorizedError('Session has been revoked');
     }
+    // Long-lived streams end with the token and re-check the version (SEC-09).
+    req.authSession = { expiresAt: Number(payload.exp) * 1000, tokenVersion: payload.tv };
     const targetOrganizationId = payload.orgId || user.organization_id;
     const principal = await resolveOrgPrincipal(user, targetOrganizationId);
     if (!principal) throw new UnauthorizedError('User no longer has access to the selected organization');
