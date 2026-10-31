@@ -17,6 +17,7 @@ const { orgScope } = require('../middleware/orgScope');
 const db = require('../config/database');
 const { userHasPermission } = require('../middleware/rbac');
 const realtimeAccess = require('../services/realtimeAccess');
+const { streamGuard } = require('../middleware/streamGuard');
 const logger = require('../utils/logger');
 // Lazy-required to avoid circular-module issues at startup
 let _wsHub;
@@ -112,31 +113,8 @@ function registerSseClient(req, res, channel, clients) {
     }
   }, 30000);
 
-  // A stream outlives the request that opened it: end it when the access
-  // token expires, and re-check the account so a deactivated, archived or
-  // revoked (token version) principal loses it (SEC-09).
-  const principal = {
-    userId: req.user.id,
-    tokenVersion: req.authSession?.tokenVersion,
-    apiTokenId: req.user.apiTokenId || null,
-  };
-  const end = () => { try { res.end(); } catch (_err) { /* already closed */ } };
-  const expiresAt = req.authSession?.expiresAt;
-  const expiry = Number.isFinite(expiresAt)
-    ? setTimeout(end, Math.max(0, Math.min(expiresAt - Date.now(), 2147483647)))
-    : null;
-  const revalidate = setInterval(() => {
-    realtimeAccess.stillAuthorized(principal)
-      .then(ok => { if (!ok) end(); })
-      .catch(err => logger.warn({ err: err.message }, 'SSE revalidation failed'));
-  }, realtimeAccess.REVALIDATE_MS);
-  if (revalidate.unref) revalidate.unref();
-  if (expiry && expiry.unref) expiry.unref();
-
   req.on('close', () => {
     clearInterval(keepalive);
-    clearInterval(revalidate);
-    if (expiry) clearTimeout(expiry);
     clients.delete(res);
     if (clients.size === 0) channels.delete(channel);
   });
@@ -160,7 +138,7 @@ function requireChannel(kind) {
  * GET /api/events/stream
  * Authenticated SSE stream for the current user's organization notifications.
  */
-router.get('/stream', authenticate, orgScope, async (req, res, next) => {
+router.get('/stream', authenticate, orgScope, streamGuard(), async (req, res, next) => {
   let grants;
   try {
     grants = await realtimeAccess.resolveGrants(req);
@@ -184,7 +162,7 @@ router.get('/stream', authenticate, orgScope, async (req, res, next) => {
  * Real-time SNMP metrics stream (admin only).
  * Broadcasts latest poll results as they arrive.
  */
-router.get('/metrics', authenticate, orgScope, requireChannel('metrics'), (req, res) => {
+router.get('/metrics', authenticate, orgScope, streamGuard(), requireChannel('metrics'), (req, res) => {
   initSseResponse(res);
 
   const channel = `org:${req.orgId}:metrics`;
@@ -199,7 +177,7 @@ router.get('/metrics', authenticate, orgScope, requireChannel('metrics'), (req, 
  * Real-time updates for a specific ticket (comments, status changes).
  * The ticket ID is validated as a numeric integer to prevent injection.
  */
-router.get('/tickets/:id', authenticate, orgScope, requireChannel('ticket'), async (req, res, next) => {
+router.get('/tickets/:id', authenticate, orgScope, streamGuard(), requireChannel('ticket'), async (req, res, next) => {
   // Validate and sanitize the ticket ID (integer only)
   if (!/^[1-9]\d*$/.test(String(req.params.id))) {
     return res.status(400).json({ error: { code: 'INVALID_ID', message: 'Ticket ID must be a positive integer' } });
@@ -231,7 +209,7 @@ router.get('/tickets/:id', authenticate, orgScope, requireChannel('ticket'), asy
  * GET /api/events/outages
  * Real-time outage alerts for the organization.
  */
-router.get('/outages', authenticate, orgScope, requireChannel('outages'), (req, res) => {
+router.get('/outages', authenticate, orgScope, streamGuard(), requireChannel('outages'), (req, res) => {
   initSseResponse(res);
 
   const channel = `org:${req.orgId}:outages`;

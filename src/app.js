@@ -206,6 +206,7 @@ const nocAiRoutes = require('./routes/nocAi');
 const wgPeerRoutes = require('./routes/wgPeers');
 const acsService = require('./services/acsService');
 const graphqlMiddleware = require('./graphql');
+const { streamGuard, isEventStream } = require('./middleware/streamGuard');
 
 const crypto = require('crypto');
 
@@ -443,6 +444,7 @@ app.use('/api/pdf', exportLimiter);
 app.use('/api/v1/pdf', exportLimiter);
 app.use('/api/events', sseLimiter);
 app.use('/api/v1/events', sseLimiter);
+app.use('/api/v1/graphql', (req, res, next) => (isEventStream(req) ? sseLimiter(req, res, next) : next()));
 app.use('/api/payment-webhooks', webhookLimiter);
 app.use('/api/v1/payment-webhooks', webhookLimiter);
 app.use('/api/whatsapp/webhook', webhookLimiter);
@@ -844,7 +846,9 @@ v1.use('/noc-ai', nocAiRoutes);
 // WireGuard user-access tunnels (§6) — beside work-orders
 v1.use('/wg-peers', wgPeerRoutes);
 
-v1.use('/graphql', authenticate, orgScope, graphqlMiddleware);
+// GraphQL subscriptions stream over text/event-stream: they get the SSE
+// limiter, the concurrent-stream caps and a bounded lifetime (GQL-06).
+v1.use('/graphql', authenticate, orgScope, streamGuard({ when: isEventStream }), graphqlMiddleware);
 
 // Mount v1 at both /api (backward compat) and /api/v1 (versioned)
 app.use('/api/v1', v1);
