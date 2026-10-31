@@ -253,7 +253,8 @@ interface BandwidthTestServer {
   protocol: string;
   region: string | null;
   site_id: number | null;
-  status: string;
+  // The table has no status column; the server is either active or not.
+  is_active: number | boolean;
 }
 
 interface BandwidthTestServerBody {
@@ -263,7 +264,7 @@ interface BandwidthTestServerBody {
   protocol?: string;
   region?: string;
   site_id?: number;
-  status?: string;
+  is_active?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -581,7 +582,7 @@ async function createBandwidthTestServer(body: BandwidthTestServerBody): Promise
 }
 
 async function updateBandwidthTestServer(id: number, body: Partial<BandwidthTestServerBody>): Promise<void> {
-  const res = await api.PATCH('/bandwidth-test-servers/{id}' as never, {
+  const res = await api.PUT('/bandwidth-test-servers/{id}' as never, {
     params: { path: { id } },
     body: body as never,
   } as never);
@@ -1052,8 +1053,8 @@ export function QosBandwidthPage() {
   function openBwtModal(item?: BandwidthTestServer) {
     setEditingBwt(item ?? null);
     setBwtForm(item
-      ? { name: item.name, host: item.host, port: item.port, protocol: item.protocol, region: item.region ?? '', status: item.status }
-      : { port: 5201, protocol: 'iperf3', status: 'active' });
+      ? { name: item.name, host: item.host, port: item.port, protocol: item.protocol, region: item.region ?? '', is_active: Boolean(item.is_active) }
+      : { port: 5201, protocol: 'iperf3', is_active: true });
     setBwtErr('');
     setShowBwtModal(true);
   }
@@ -2184,8 +2185,8 @@ export function QosBandwidthPage() {
                         <td style={styles.td}>{item.protocol}</td>
                         <td style={styles.td}>{item.region ?? '—'}</td>
                         <td style={styles.td}>
-                          <span style={{ color: item.status === 'active' ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
-                            {item.status}
+                          <span style={{ color: item.is_active ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
+                            {item.is_active ? 'active' : 'inactive'}
                           </span>
                         </td>
                         <td style={styles.td}>
@@ -2439,8 +2440,8 @@ export function QosBandwidthPage() {
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.status')}
-                    <select style={modalStyles.select} value={bwtForm.status ?? 'active'} onChange={e => setBwtForm(f => ({ ...f, status: e.target.value }))}>
-                      {STATUSES.map(v => <option key={v} value={v}>{v}</option>)}
+                    <select style={modalStyles.select} value={bwtForm.is_active === false ? 'inactive' : 'active'} onChange={e => setBwtForm(f => ({ ...f, is_active: e.target.value === 'active' }))}>
+                      {['active', 'inactive'].map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   </label>
                 </div>
