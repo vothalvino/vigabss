@@ -36,6 +36,7 @@ function emitResolved(organizationId, outage) {
 }
 
 const ctrl = crudController(Outage, {
+  ownedRefs: { site_id: 'sites', device_id: 'devices' },
   afterCreate: async (record, req) => {
     emitReported(req.orgId, record);
   },

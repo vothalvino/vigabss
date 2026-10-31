@@ -10,6 +10,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 const {
   createFirewallRule,
   createDdosRule,
@@ -407,7 +408,7 @@ router.get('/cpe-security-scans', requirePermission('cpe_security_scans.view'), 
 });
 
 // POST /cpe-security-scans — trigger scan (stub: set status=pending)
-router.post('/cpe-security-scans', requirePermission('cpe_security_scans.create'), validate(triggerCpeScan), async (req, res, next) => {
+router.post('/cpe-security-scans', requirePermission('cpe_security_scans.create'), validate(triggerCpeScan), ownedReferences({ device_id: 'devices', cpe_device_id: 'cpe_devices' }), async (req, res, next) => {
   try {
     const { scan_type, device_id, cpe_device_id } = req.body;
 

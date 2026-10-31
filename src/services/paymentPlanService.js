@@ -75,6 +75,11 @@ async function createPlan({
     );
     const invoice = invRows[0];
     if (!invoice) throw new NotFoundError('invoices');
+    // The plan is the client's: an invoice of another client cannot be split
+    // into it (TNB-28).
+    if (Number(invoice.client_id) !== Number(clientId)) {
+      throw new ValidationError('invoice_id does not belong to client_id', [{ field: 'invoice_id', message: 'the invoice must belong to the plan\'s client' }]);
+    }
     resolvedTotal = parseFloat(invoice.total);
   }
 

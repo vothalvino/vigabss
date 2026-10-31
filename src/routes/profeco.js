@@ -28,7 +28,7 @@ const { createProfecoComplaint, updateProfecoComplaint, patchProfecoComplaint } 
 const { buildReport }    = require('../services/profecoService');
 
 const router = Router();
-const ctrl   = crudController(ProfecoComplaint);
+const ctrl   = crudController(ProfecoComplaint, { ownedRefs: { client_id: 'clients', ticket_id: 'tickets' } });
 
 router.use(authenticate);
 router.use(orgScope);
