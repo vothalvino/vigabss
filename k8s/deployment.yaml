@@ -7,7 +7,10 @@ metadata:
     app.kubernetes.io/name: fireisp
     app.kubernetes.io/component: api
 spec:
-  replicas: 2
+  # One replica unless REDIS_URL is set in secret.yaml: rate limits, caches,
+  # websocket fan-out and the job queue are per-process without a shared
+  # Redis (ASY-01). Raise this (and hpa.yaml) only after setting it.
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: fireisp
