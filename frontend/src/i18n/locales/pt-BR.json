@@ -149,6 +149,7 @@
     "followUps": "Acompanhamentos",
     "surveys": "Pesquisas",
     "escalations": "Escalonamentos",
+    "portalServiceRequests": "Solicitações do portal",
     "nocDashboard": "Painel NOC",
     "workOrders": "Ordens de Trabalho",
     "devices": "Dispositivos",
@@ -1785,6 +1786,47 @@
     "softSuspend": {
       "downloadKbps": "Velocidade de download limitada (kbps)",
       "uploadKbps": "Velocidade de upload limitada (kbps)"
+    }
+  },
+  "portalServiceRequests": {
+    "title": "Solicitações de serviço do portal",
+    "allTypes": "Todos os tipos",
+    "allStatuses": "Todos os status",
+    "empty": "Nenhuma solicitação de serviço.",
+    "notes": "Observações (opcional)",
+    "actionFailed": "A ação falhou.",
+    "approveApplies": "Ao aprovar, a alteração é aplicada ao assinante imediatamente.",
+    "columns": {
+      "id": "ID",
+      "client": "Cliente",
+      "type": "Tipo",
+      "details": "Detalhes",
+      "status": "Status",
+      "createdAt": "Solicitada"
+    },
+    "types": {
+      "plan_upgrade": "Troca de plano",
+      "pppoe_password_change": "Senha PPPoE",
+      "wifi_password_change": "Senha Wi-Fi",
+      "static_ip_request": "IP fixo",
+      "cancellation": "Cancelamento",
+      "visit_schedule": "Visita técnica"
+    },
+    "status": {
+      "pending": "Pendente",
+      "approved": "Aprovada",
+      "rejected": "Rejeitada",
+      "completed": "Concluída",
+      "cancelled": "Cancelada"
+    },
+    "actions": {
+      "approve": "Aprovar",
+      "reject": "Rejeitar",
+      "complete": "Marcar concluída"
+    },
+    "details": {
+      "passwordProvided": "Nova senha recebida (oculta)",
+      "passwordMissing": "Sem senha"
     }
   },
   "refundRequests": {
