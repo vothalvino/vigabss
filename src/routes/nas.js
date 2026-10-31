@@ -42,7 +42,8 @@ function redactTunnel(row) {
 // unreachable / mid-operation-dropped router is a 502. Shared by the
 // test-connection and seed routes so the classification can't drift between them.
 function sendRouterError(res, next, e) {
-  if (e instanceof ValidationError || e.statusCode === 422) return next(e);
+  // Our own client errors (422, a 409 route overlap, 404) are not router faults.
+  if (e instanceof ValidationError || (e.statusCode >= 400 && e.statusCode < 500 && e.code)) return next(e);
   if (e.routerAuthFailed) {
     return res.status(422).json({ error: { code: 'ROUTER_AUTH_FAILED', message: e.message } });
   }
