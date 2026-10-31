@@ -615,6 +615,7 @@ function generateSpec() {
 
       // ---- CFDI Documents ----
       ...crudPaths('cfdi-documents', 'CFDI Documents', 'CfdiDocument'),
+      '/cfdi-documents/{id}/rebuild': { post: { tags: ['CFDI Documents'], summary: 'Rebuild an invoice draft CFDI from the invoice (new Fecha, current receptor and conceptos) and submit it; refused while the last stamp attempt may have been stamped', operationId: 'rebuildCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Stamp result for the rebuilt CFDI') } },
 
       // ---- SAT Catalogs ----
       '/sat-catalogs/regimen-fiscal': { get: { tags: ['SAT Catalogs'], summary: 'List fiscal regimens', operationId: 'listRegimenFiscal', security: [{ bearerAuth: [] }], responses: r200('Catalog[]') } },

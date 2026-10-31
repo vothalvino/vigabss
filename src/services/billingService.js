@@ -1172,7 +1172,7 @@ async function voidInvoiceById(invoiceId, orgId, userId) {
   if (live.length > 0) {
     throw new AppError(
       live[0].sat_status === 'draft'
-        ? `This invoice has a draft CFDI (#${live[0].id}) awaiting stamping. Delete the draft on the CFDI page first, then void.`
+        ? `This invoice has a draft CFDI (#${live[0].id}) awaiting stamping. Discard the draft first, then void.`
         : 'This invoice has a stamped CFDI that is still valid at SAT. Cancel the CFDI at SAT (with a motivo) instead of voiding it.',
       422,
       'INVOICE_STAMPED',

@@ -9376,6 +9376,42 @@
         }
       }
     },
+    "/cfdi-documents/{id}/rebuild": {
+      "post": {
+        "tags": [
+          "CFDI Documents"
+        ],
+        "summary": "Rebuild an invoice draft CFDI from the invoice (new Fecha, current receptor and conceptos) and submit it; refused while the last stamp attempt may have been stamped",
+        "operationId": "rebuildCfdiDocument",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stamp result for the rebuilt CFDI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sat-catalogs/regimen-fiscal": {
       "get": {
         "tags": [

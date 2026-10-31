@@ -610,7 +610,7 @@ async function assertNoLiveCfdi(exec, invoiceId, remedy = 'Cancel or substitute 
   );
   if (rows && rows[0]) {
     throw new AppError(
-      `Invoice has a stamped CFDI — amounts are fiscally frozen. ${remedy}`,
+      `Invoice has a CFDI (draft or stamped) — amounts are fiscally frozen. ${remedy} An unstamped draft can be discarded.`,
       422, 'CFDI_STAMPED',
     );
   }

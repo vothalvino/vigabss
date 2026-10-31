@@ -286,13 +286,22 @@ describe('POST /cfdi-documents — linked-record org ownership', () => {
     expect(sqls).not.toMatch(/INSERT INTO cfdi_documents/);
   });
 
-  test('404s a foreign invoice_id even when the client is owned', async () => {
+  test('404s a foreign payment_id even when the client is owned', async () => {
     db.query
       .mockResolvedValueOnce([[{ locale: 'MX' }]])
       .mockResolvedValueOnce([[{ id: 55 }]])  // client owned
-      .mockResolvedValueOnce([[]]);           // invoice NOT owned
-    const res = await request(app).post('/api/v1/cfdi-documents').send({ ...CFDI_BODY, invoice_id: 999 });
+      .mockResolvedValueOnce([[]]);           // payment NOT owned
+    const res = await request(app).post('/api/v1/cfdi-documents').send({ ...CFDI_BODY, payment_id: 999 });
     expect(res.status).toBe(404);
+    const sqls = db.query.mock.calls.map(c => c[0]).join('\n');
+    expect(sqls).not.toMatch(/INSERT INTO cfdi_documents/);
+  });
+
+  test('any invoice_id is refused: an invoice CFDI comes from POST /invoices/:id/stamp (CFD-02)', async () => {
+    db.query.mockResolvedValueOnce([[{ locale: 'MX' }]]);
+    const res = await request(app).post('/api/v1/cfdi-documents').send({ ...CFDI_BODY, invoice_id: 999 });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('CFDI_INVOICE_LINK_NOT_ALLOWED');
     const sqls = db.query.mock.calls.map(c => c[0]).join('\n');
     expect(sqls).not.toMatch(/INSERT INTO cfdi_documents/);
   });

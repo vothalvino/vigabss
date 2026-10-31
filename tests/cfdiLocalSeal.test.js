@@ -131,7 +131,7 @@ describe("stamp() with seal_mode='local'", () => {
     await expect(cfdiService.stamp(7)).rejects.toMatchObject({ statusCode: 422, code: 'CSD_TEST_IN_PRODUCTION' });
   });
 
-  test("422 SEAL_MODE_UNSUPPORTED for providers without a local-seal adapter yet", async () => {
+  test('422 SEAL_MODE_UNSUPPORTED for providers without a local-seal adapter yet', async () => {
     wireDb({ pac: localPac({ provider_name: 'facturapi' }) });
     await expect(cfdiService.stamp(7)).rejects.toMatchObject({ statusCode: 422, code: 'SEAL_MODE_UNSUPPORTED' });
   });

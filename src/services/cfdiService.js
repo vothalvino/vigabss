@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const cfdiSealService = require('./cfdiSealService');
 const encryption = require('../utils/encryption');
 const db = require('../config/database');
+const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
 
@@ -59,6 +60,17 @@ function providerBreaker(pacId) {
 const UNREACHABLE_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'ENETUNREACH']);
 function isUnreachable(err) {
   return !!err && (UNREACHABLE_CODES.has(err.code) || err.pacUnreachable === true);
+}
+
+// A PAC that answered and refused the document (validation, receptor data,
+// Anexo 20 arithmetic, credentials) gives a DEFINITE outcome: nothing was
+// stamped. Anything else after the request may have left — a timeout, a
+// reset, an unparseable or 5xx answer — is ambiguous (CFD-02).
+function pacRefusal(message, code = null) {
+  return Object.assign(new Error(message), { pacRejected: true, pacCode: code });
+}
+function isDefiniteRefusal(err) {
+  return !!err && (err.pacRejected === true || isUnreachable(err));
 }
 
 /**
@@ -578,7 +590,7 @@ async function stamp(cfdiDocumentId) {
     const invStatus = invRows[0]?.status;
     if (invStatus === 'void' || invStatus === 'cancelled') {
       throw new AppError(
-        `The linked invoice is ${invStatus} — a terminal invoice must not be stamped. Delete this draft CFDI instead.`,
+        `The linked invoice is ${invStatus} — a terminal invoice must not be stamped. Discard this draft CFDI instead.`,
         422, 'INVOICE_TERMINAL',
       );
     }
@@ -599,6 +611,18 @@ async function stamp(cfdiDocumentId) {
       `No active PAC provider configured for this organization in ${pacEnv} mode — add or activate a ${pacEnv} PAC, or change the fiscal environment under Organization → Fiscal (SAT).`,
       422, 'CFDI_NO_ACTIVE_PAC',
     );
+  }
+
+  // Mark the draft as possibly stamped for the duration of the attempt: if
+  // this process dies mid-request, the draft cannot be discarded until a
+  // retry settles it. It also fails a stamp racing a discard (CFD-02).
+  const [marked] = await db.query(
+    `UPDATE cfdi_documents SET stamp_ambiguous = 1
+      WHERE id = ? AND sat_status = 'draft' AND uuid IS NULL`,
+    [cfdiDocumentId],
+  );
+  if (marked && marked.affectedRows === 0) {
+    throw new AppError('This CFDI is no longer an unstamped draft — reload it.', 409, 'CFDI_NOT_DRAFT');
   }
 
   // NOTE: callPacStamp also returns cadenaOriginal, but cfdi_documents has no
@@ -669,13 +693,27 @@ async function stamp(cfdiDocumentId) {
     circuitBreaker.recordFailure();
     // sat_status is ENUM('draft','vigente','cancelado','cancel_pending') — there is
     // no 'stamp_error' value (database/schema.sql), so the doc stays 'draft'
-    // (not fiscally valid) and the caller gets the actual PAC error.
+    // (not fiscally valid) and the caller gets the actual PAC error. The error
+    // and whether the outcome was definite are stored on the draft (CFD-02):
+    // only a definitely refused draft may be discarded or rebuilt.
     const failMsg = lastErr ? lastErr.message : 'no provider succeeded';
+    await db.query(
+      `UPDATE cfdi_documents SET stamp_error = ?, stamp_attempted_at = NOW(), stamp_ambiguous = ?
+        WHERE id = ? AND sat_status = 'draft'`,
+      [String(failMsg).slice(0, 2000), isDefiniteRefusal(lastErr) ? 0 : 1, cfdiDocumentId],
+    ).catch(err => logger.error({ cfdiDocumentId, err: err.message }, 'Could not record the failed stamp attempt'));
     throw new CfdiStampingError(
       `PAC stamping failed: ${receptorDataHint(failMsg, pacEnv)}`,
       { cfdiDocumentId, providersTried: pacs.length, cause: lastErr && lastErr.message },
     );
   }
+
+  // The CFDI exists at SAT from here on. Log the UUID BEFORE the write, so a
+  // failed write still leaves a record of the folio fiscal to recover (CFD-02).
+  logger.info(
+    { cfdiDocumentId, uuid, provider: stampedProvider && stampedProvider.provider_name },
+    'CFDI stamped by the PAC — saving',
+  );
 
   // Real columns: stamp_date (not stamped_at) and sat_seal (not sello_sat). There
   // is no cadena_original column — the original chain is reproducible from
@@ -685,7 +723,8 @@ async function stamp(cfdiDocumentId) {
   await db.query(
     `UPDATE cfdi_documents
      SET uuid = ?, sat_status = ?, stamp_date = NOW(),
-         signed_xml = ?, sat_seal = ?, pac_provider = ?
+         signed_xml = ?, sat_seal = ?, pac_provider = ?,
+         stamp_error = NULL, stamp_ambiguous = 0
      WHERE id = ?`,
     [uuid, 'vigente', signedXml, selloSat, stampedProvider && stampedProvider.provider_name, cfdiDocumentId],
   );
@@ -760,6 +799,15 @@ function decodeXmlEntities(s) {
     .replace(/&#39;/g, "'").replace(/&apos;/g, "'").replace(/&amp;/g, '&');
 }
 
+// SW's error answer is a refusal, except 307 "previously stamped": that
+// attempt may have stamped, and SW does not return the earlier stamp here.
+function swStampError(stampData, message) {
+  if (/\b307\b/.test(`${stampData.message || ''} ${stampData.messageDetail || ''}`)) {
+    return new Error(`SW reports this CFDI was already stamped (307): ${message}. Look it up in the SW portal before rebuilding the draft.`);
+  }
+  return stampData.status === 'error' ? pacRefusal(message) : new Error(message);
+}
+
 async function callPacStamp(pac, xmlContent) {
   if (pac.provider_name === 'finkok') {
     // Finkok SOAP (the old branch POSTed JSON at a SOAP URL — never worked).
@@ -775,10 +823,24 @@ async function callPacStamp(pac, xmlContent) {
       + `<fin:username>${escapeXml(username)}</fin:username>`
       + `<fin:password>${escapeXml(password)}</fin:password>`
       + '</fin:stamp>';
-    const resp = await finkokSoapCall(`${baseUrl}/stamp`, 'stamp', 'http://facturacion.finkok.com/stamp', soapBody);
-    const uuid = finkokTag(resp, 'UUID');
+    let resp = await finkokSoapCall(`${baseUrl}/stamp`, 'stamp', 'http://facturacion.finkok.com/stamp', soapBody);
+    let uuid = finkokTag(resp, 'UUID');
+    // 307 = this exact XML was stamped before (an earlier attempt that timed
+    // out on our side). Fetch that stamp instead of treating it as a failure.
+    if (!uuid && String(finkokTag(resp, 'CodigoError') || '').trim() === '307') {
+      const stampedBody = soapBody.replace('<fin:stamp>', '<fin:stamped>').replace('</fin:stamp>', '</fin:stamped>');
+      resp = await finkokSoapCall(`${baseUrl}/stamp`, 'stamped', 'http://facturacion.finkok.com/stamp', stampedBody);
+      uuid = finkokTag(resp, 'UUID');
+      if (!uuid) {
+        throw new Error('Finkok reports this CFDI was already stamped (307) but did not return it — retry the stamp, or look it up in the Finkok portal');
+      }
+    }
     if (!uuid) {
-      throw new Error(finkokIncidencia(resp) || 'Finkok stamping returned no UUID');
+      const code = String(finkokTag(resp, 'CodigoError') || '').trim() || null;
+      const message = finkokIncidencia(resp) || 'Finkok stamping returned no UUID';
+      // A fault or an Incidencia is Finkok's answer; an empty body is not.
+      if (finkokIncidencia(resp)) throw pacRefusal(message, code);
+      throw new Error(message);
     }
     return {
       uuid,
@@ -816,7 +878,7 @@ async function callPacStamp(pac, xmlContent) {
       const stampData = JSON.parse(stampResponse.body);
       if (!stampData.data?.uuid) {
         const detail = [stampData.message, stampData.messageDetail].filter(Boolean).join(' — ');
-        throw new Error(detail || 'SW Sapien timbrado (stamp) failed');
+        throw swStampError(stampData, detail || 'SW Sapien timbrado (stamp) failed');
       }
       return {
         uuid: stampData.data.uuid,
@@ -846,7 +908,7 @@ async function callPacStamp(pac, xmlContent) {
     // SW error shape: { message, messageDetail } with status != 'success'.
     if (!stampData.data?.uuid) {
       const detail = [stampData.message, stampData.messageDetail].filter(Boolean).join(' — ');
-      throw new Error(detail || 'SW Sapien emisión (issue) failed');
+      throw swStampError(stampData, detail || 'SW Sapien emisión (issue) failed');
     }
 
     return {
@@ -2241,11 +2303,70 @@ function lastDayOfMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 
+/**
+ * Discard an unstamped draft CFDI (CFD-02). A draft whose stamp was refused
+ * froze its invoice (no edit, no void) and could not be removed. Refused when
+ * the document was stamped, or when its last stamp attempt got no definite
+ * answer — that one may be registered at SAT, and an identical retry returns
+ * the existing stamp, so the retry must come first.
+ *
+ * @param {number} cfdiDocumentId
+ * @param {number} orgId
+ * @param {{ userId?: number|null }} [opts]
+ * @returns {Promise<{ cfdi_document_id: number, invoice_id: number|null, discarded: true }>}
+ */
+async function discardDraft(cfdiDocumentId, orgId, { userId = null } = {}) {
+  const conn = await db.getConnection();
+  let doc;
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.execute(
+      `SELECT id, organization_id, sat_status, uuid, stamp_ambiguous, invoice_id, serie, folio
+         FROM cfdi_documents WHERE id = ? AND organization_id = ? FOR UPDATE`,
+      [cfdiDocumentId, orgId],
+    );
+    doc = rows[0];
+    if (!doc) throw new AppError('CFDI document not found', 404, 'CFDI_NOT_FOUND');
+    if (doc.sat_status !== 'draft' || doc.uuid) {
+      throw new AppError(
+        'Only an unstamped draft can be discarded — a stamped CFDI must be cancelled at SAT.',
+        409, 'CFDI_NOT_DRAFT',
+      );
+    }
+    if (Number(doc.stamp_ambiguous) === 1) {
+      throw new AppError(
+        'The last stamp attempt got no definite answer from the PAC, so this CFDI may already be stamped. '
+          + 'Retry the stamp first: the PAC returns the existing CFDI if it was stamped, or refuses it again.',
+        409, 'CFDI_STAMP_UNCONFIRMED',
+      );
+    }
+    // Conceptos and their taxes cascade.
+    await conn.execute(
+      "DELETE FROM cfdi_documents WHERE id = ? AND sat_status = 'draft' AND uuid IS NULL",
+      [cfdiDocumentId],
+    );
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
+  }
+
+  await auditLog.log({
+    userId, organizationId: orgId, action: 'delete', tableName: 'cfdi_documents', recordId: cfdiDocumentId,
+    summary: `Discarded unstamped draft CFDI #${cfdiDocumentId} (${doc.serie || ''}${doc.folio || ''})`,
+  }).catch(err => logger.warn({ cfdiDocumentId, err: err.message }, 'Audit log for a discarded draft failed'));
+  logger.info({ cfdiDocumentId, invoiceId: doc.invoice_id }, 'Draft CFDI discarded');
+  return { cfdi_document_id: Number(cfdiDocumentId), invoice_id: doc.invoice_id ?? null, discarded: true };
+}
+
 module.exports = {
   generateXml, buildCfdi40Xml, escapeXml, cfdiExpeditionTime, getEmisorProfile, swAuthToken, stamp, cancel,
   callPacStamp, callPacCancel, callPacCancelStatus,
   parseCancellationStatus, classifyCancellation, getCancellationStatus, listCancellations,
   pollPendingCancellations,
+  discardDraft,
   generatePaymentComplement, buildPaymentComplementXml, enrichRelatedDocumentsWithTaxes, getPaymentComplement,
   getReconciliationReport,
   httpRequest, circuitBreaker, providerBreaker, receptorDataHint,

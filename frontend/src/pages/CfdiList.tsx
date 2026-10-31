@@ -31,6 +31,8 @@ interface CfdiDocument {
   total: string;
   moneda: string | null;
   sat_status: string;
+  stamp_error?: string | null;
+  stamp_ambiguous?: number | boolean | null;
   cancelled_at: string | null;
   pac_provider: string | null;
   created_at: string;
@@ -103,6 +105,16 @@ async function cancelCfdi(id: number, reason: string, replacementUuid?: string):
   }
   const resBody = await res.json().catch(() => ({})) as { data?: CancelResult };
   return resBody.data ?? { status: 'cancel_pending' };
+}
+
+// Delete an unstamped draft. The server refuses while the last stamp attempt
+// may have been registered at SAT (retry it first).
+async function discardDraft(id: number): Promise<void> {
+  const res = await authedFetch(`${API_BASE}/cfdi-documents/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const resBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+    throw new Error(resBody.error?.message ?? 'Failed to discard the draft');
+  }
 }
 
 // Ask SAT (through the PAC) where a pending cancellation stands. SAT answers
@@ -349,6 +361,17 @@ export function CfdiList() {
   }
 
   const [statusNotice, setStatusNotice] = useState('');
+  async function handleDiscard(doc: CfdiDocument) {
+    if (!window.confirm(`Discard draft CFDI #${doc.id}? It was never stamped; its invoice can then be edited, voided or stamped again.`)) return;
+    setStatusNotice('');
+    try {
+      await discardDraft(doc.id);
+      setStatusNotice(`Draft CFDI #${doc.id} discarded.`);
+      refresh();
+    } catch (err) {
+      setStatusNotice(err instanceof Error ? err.message : 'Failed to discard the draft');
+    }
+  }
   async function handleCheckStatus(doc: CfdiDocument) {
     setStatusNotice('');
     try {
@@ -511,6 +534,17 @@ export function CfdiList() {
                             title="Stamp (timbrar) this CFDI with the PAC"
                           >
                             📤 Stamp
+                          </button>
+                        )}
+
+                        {/* Discard — an unstamped draft whose stamp was definitely refused */}
+                        {doc.sat_status === 'draft' && !doc.uuid && !Number(doc.stamp_ambiguous) && (
+                          <button
+                            onClick={() => { void handleDiscard(doc); }}
+                            style={{ ...actionBtn, color: '#991b1b', borderColor: '#fca5a5' }}
+                            title={doc.stamp_error ? `Last stamp attempt: ${doc.stamp_error}` : 'Delete this unstamped draft'}
+                          >
+                            🗑 Discard
                           </button>
                         )}
 

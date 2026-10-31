@@ -5306,6 +5306,12 @@ CREATE TABLE IF NOT EXISTS cfdi_documents (
                                 COMMENT 'PAC that stamped this CFDI (e.g. Finkok, TimbraSoft)',
     stamp_date              DATETIME        NULL
                                 COMMENT 'FechaTimbrado from the PAC timbrado complement',
+    stamp_error             TEXT            NULL
+                                COMMENT 'Last failed stamp attempt: the PAC error shown on the draft (migration 477)',
+    stamp_attempted_at      DATETIME        NULL
+                                COMMENT 'When the last failed stamp attempt ran (migration 477)',
+    stamp_ambiguous         TINYINT(1)      NOT NULL DEFAULT 0
+                                COMMENT '1 = the last attempt timed out or got no definite answer, so it may be stamped; retry before discarding (migration 477)',
     certificate_number      VARCHAR(30)     NULL
                                 COMMENT 'NoCertificadoSAT from the PAC timbrado complement',
     sat_seal                TEXT            NULL

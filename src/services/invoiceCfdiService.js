@@ -100,7 +100,7 @@ async function resolveStampInputs(exec, invoiceId, orgId, opts) {
   if (existing[0]) {
     throw new AppError(
       existing[0].sat_status === 'draft'
-        ? `A draft CFDI (#${existing[0].id}) already exists for this invoice — retry stamping it from the CFDI page instead of converting again.`
+        ? `A draft CFDI (#${existing[0].id}) already exists for this invoice — retry stamping it, or rebuild it from the invoice if its data was wrong.`
         : `This invoice already has a live CFDI (#${existing[0].id}).`,
       409, 'CFDI_EXISTS',
     );
@@ -354,4 +354,34 @@ async function stampInvoice(invoiceId, orgId, opts = {}) {
   }
 }
 
-module.exports = { stampInvoice, nextCfdiFolio, STAMPABLE_STATUSES };
+/**
+ * Rebuild an invoice's refused draft CFDI (CFD-02). Retrying a draft resends
+ * the XML it was built with — the same Fecha, receptor name/régimen/CP,
+ * UsoCFDI and conceptos — so a rejection those caused (a corrected client
+ * fiscal profile, a retry more than 72 hours after Fecha) could never be
+ * fixed. This discards the draft (refused while its last stamp attempt may
+ * have been stamped) and converts the invoice again from what it says now,
+ * with a new folio and Fecha, then submits it.
+ *
+ * @param {number} cfdiDocumentId
+ * @param {number} orgId
+ * @param {{ userId?: number|null, uso_cfdi?: string, forma_pago?: string }} [opts]
+ */
+async function rebuildDraft(cfdiDocumentId, orgId, opts = {}) {
+  const [rows] = await db.query(
+    'SELECT id, invoice_id, tipo_comprobante FROM cfdi_documents WHERE id = ? AND organization_id = ?',
+    [cfdiDocumentId, orgId],
+  );
+  const doc = rows[0];
+  if (!doc) throw new AppError('CFDI document not found', 404, 'CFDI_NOT_FOUND');
+  if (!doc.invoice_id || doc.tipo_comprobante !== 'I') {
+    throw new AppError(
+      'Only an invoice (ingreso) draft can be rebuilt — discard this draft and issue the document again.',
+      422, 'CFDI_NOT_REBUILDABLE',
+    );
+  }
+  await cfdiService.discardDraft(cfdiDocumentId, orgId, { userId: opts.userId ?? null });
+  return stampInvoice(doc.invoice_id, orgId, opts);
+}
+
+module.exports = { stampInvoice, rebuildDraft, nextCfdiFolio, STAMPABLE_STATUSES };
