@@ -102,6 +102,10 @@ describe('speedWindowService', () => {
       expect(result.transitions).toBe(1);
       expect(result.coa_sent).toBe(2);
       expect(result.unchanged).toBe(0);
+      // Soft-suspended contracts are not swept: the window rate would lift
+      // their throttle (NPR-01).
+      const contractsCall = db.query.mock.calls.find(([sql]) => /FROM contracts/.test(sql));
+      expect(contractsCall[0]).toContain('soft_suspend_download_kbps IS NULL');
 
       expect(conn.beginTransaction).toHaveBeenCalledTimes(1);
       expect(conn.commit).toHaveBeenCalledTimes(1);

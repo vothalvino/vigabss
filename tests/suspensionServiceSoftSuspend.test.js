@@ -122,6 +122,12 @@ describe('suspensionService — soft suspend & exemption', () => {
     });
 
     test('calls db.query for RADIUS lookup and inserts suspension_log for non-exempt client', async () => {
+      // The contract is locked and its throttle stored first (NPR-01).
+      mockConnection.execute.mockImplementation(async (sql) => {
+        if (/FOR UPDATE/.test(sql)) return [[{ id: 10, status: 'active', organization_id: 1, plan_id: 4 }]];
+        if (/FROM plans/.test(sql)) return [[{ radius_vendor: 'mikrotik' }]];
+        return [{ affectedRows: 1 }];
+      });
       // isClientSuspensionExempt: not exempt
       db.query.mockResolvedValueOnce([[{ suspension_exempt: 0, suspension_exempt_reason: null }]]);
       // sendRadiusCoA → sendRadiusDisconnect → db.query for RADIUS lookup (no RADIUS account)
@@ -142,9 +148,17 @@ describe('suspensionService — soft suspend & exemption', () => {
       expect(insertCall[0]).toContain("'suspended'");
       expect(insertCall[0]).not.toContain("'soft_suspend'");
       expect(insertCall[1].some(p => typeof p === 'string' && p.startsWith('soft_suspend:'))).toBe(true);
+
+      const stored = mockConnection.execute.mock.calls.find(([sql]) => /SET soft_suspend_download_kbps/.test(sql));
+      expect(stored[1]).toEqual([512, 256, 10]);
     });
 
     test('inserts suspension_log with correct contractId and ruleId', async () => {
+      mockConnection.execute.mockImplementation(async (sql) => {
+        if (/FOR UPDATE/.test(sql)) return [[{ id: 15, status: 'active', organization_id: 1, plan_id: 4 }]];
+        if (/FROM plans/.test(sql)) return [[{ radius_vendor: 'mikrotik' }]];
+        return [{ affectedRows: 1 }];
+      });
       db.query
         .mockResolvedValueOnce([[{ suspension_exempt: 0, suspension_exempt_reason: null }]])
         .mockResolvedValueOnce([[]])  // no RADIUS

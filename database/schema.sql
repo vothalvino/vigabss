@@ -497,6 +497,10 @@ CREATE TABLE IF NOT EXISTS contracts (
     status         ENUM('pending','active','suspended','expired','cancelled','terminated') NOT NULL DEFAULT 'pending',
     first_activated_at DATETIME NULL
                        COMMENT 'First successful activation or grandfathered non-cancelled legacy service; NULL means no activation has been recorded (migration 450)',
+    soft_suspend_download_kbps INT UNSIGNED NULL DEFAULT NULL
+                       COMMENT 'Soft-suspension download throttle in kbps; NULL = not soft-suspended (migration 475)',
+    soft_suspend_upload_kbps INT UNSIGNED NULL DEFAULT NULL
+                       COMMENT 'Soft-suspension upload throttle in kbps; NULL = not soft-suspended (migration 475)',
     escalation_enabled TINYINT(1) NOT NULL DEFAULT 1
                        COMMENT 'Master switch for AI-diagnostic auto-escalation (creates a real technician ticket) on this contract; 0 = never auto-escalate regardless of fault (migration 387)',
     escalate_on_disconnect TINYINT(1) NOT NULL DEFAULT 0

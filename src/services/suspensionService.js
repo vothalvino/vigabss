@@ -11,6 +11,9 @@ const db = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'suspension' });
 const { ValidationError } = require('../utils/errors');
 const mxRegisteredTemplateService = require('./mxRegisteredContractTemplateService');
+const {
+  generateAttributes, generateThrottleAttributes, hasThrottle, toNamedAttributes,
+} = require('./radiusAttributeService');
 const config = require('../config');
 const SESSION_LIVENESS_MINUTES = Number.isSafeInteger(config.radiusSessionLivenessMinutes)
   && config.radiusSessionLivenessMinutes > 0
@@ -366,7 +369,8 @@ async function reconnectContract(contractId, userId, invoiceId, { orgId = null }
       `SELECT id, status, first_activated_at, organization_id, client_id,
               contract_template_mx_id, mx_contract_environment,
               connection_type, test_window_expires_at,
-              test_window_cleanup_pending, test_window_cleanup_attempted_at
+              test_window_cleanup_pending, test_window_cleanup_attempted_at,
+              plan_id, soft_suspend_download_kbps, soft_suspend_upload_kbps
          FROM contracts
         WHERE id = ? AND deleted_at IS NULL${orgClause} FOR UPDATE`,
       [contractId, ...orgParams],
@@ -452,13 +456,24 @@ async function reconnectContract(contractId, userId, invoiceId, { orgId = null }
       }
     }
 
+    // Lift a soft suspension's throttle (NPR-01); the CoA below then carries
+    // the plan rate so the live session gets its speed back.
+    const wasThrottled = hasThrottle(lockedState);
+    if (wasThrottled) {
+      await conn.execute(
+        'UPDATE contracts SET soft_suspend_download_kbps = NULL, soft_suspend_upload_kbps = NULL WHERE id = ?',
+        [contractId],
+      );
+    }
+
     // Send RADIUS CoA only when service was previously activated. A reset to
     // pending is intentionally offline and must never receive reconnect CoA.
     let coaSent = false;
     let coaResponse = activationRequired ? 'activation_required' : null;
     if (!activationRequired) {
       try {
-        const coaResult = await sendRadiusCoA(contractId, 'reconnect');
+        const restoreRate = wasThrottled ? await planRateAttributes(conn, lockedState.plan_id) : [];
+        const coaResult = await sendRadiusCoA(contractId, 'reconnect', restoreRate);
         coaSent = coaResult.sent;
         coaResponse = coaResult.response;
       } catch (_coaErr) {
@@ -538,6 +553,25 @@ async function reconnectContract(contractId, userId, invoiceId, { orgId = null }
 }
 
 /**
+ * The plan's rate attributes (with any speed window in force) as a named list
+ * for a CoA, or [] when the contract has no plan.
+ */
+async function planRateAttributes(conn, planId) {
+  if (!planId) return [];
+  const [plans] = await conn.execute('SELECT * FROM plans WHERE id = ?', [planId]);
+  let plan = plans[0];
+  if (!plan) return [];
+  try {
+    const speedWindowService = require('./speedWindowService');
+    const win = await speedWindowService.getActiveWindow(plan.id);
+    if (win) plan = speedWindowService.windowEffectivePlan(plan, win);
+  } catch (err) {
+    logger.warn({ err: err.message, planId }, 'Speed-window lookup failed — restoring plan speeds');
+  }
+  return toNamedAttributes(generateAttributes(plan));
+}
+
+/**
  * Soft-suspend a contract: send RADIUS CoA with throttled speeds but leave the
  * contract status as 'active'. Records a 'soft_suspend' entry in suspension_logs.
  *
@@ -559,19 +593,71 @@ async function softSuspendContract(contractId, ruleId, userId, invoiceId, downlo
 
   logger.info({ contractId, ruleId, invoiceId, downloadKbps, uploadKbps }, 'Soft-suspending contract');
 
+  const dl = Math.round(Number(downloadKbps));
+  const ul = Math.round(Number(uploadKbps));
+  if (!(dl > 0 && ul > 0)) {
+    throw new ValidationError('A soft suspension needs download and upload throttle rates in kbps');
+  }
+
+  // Persist the throttle on the contract (NPR-01): it used to exist only in
+  // the log text, so the next re-authentication came back at full speed.
+  let organizationId;
+  let vendor;
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [locked] = await conn.execute(
+      `SELECT id, status, organization_id, plan_id, soft_suspend_download_kbps, soft_suspend_upload_kbps
+         FROM contracts WHERE id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [contractId],
+    );
+    if (!locked[0] || locked[0].status !== 'active') {
+      await conn.rollback();
+      return { skipped: true, reason: 'CONTRACT_NOT_ACTIVE' };
+    }
+    // A daily rule run must not re-throttle (and re-log) the same contract.
+    if (Number(locked[0].soft_suspend_download_kbps) === dl && Number(locked[0].soft_suspend_upload_kbps) === ul) {
+      await conn.rollback();
+      return { skipped: true, reason: 'ALREADY_SOFT_SUSPENDED' };
+    }
+    organizationId = locked[0].organization_id ?? null;
+    const [plans] = await conn.execute('SELECT radius_vendor FROM plans WHERE id = ?', [locked[0].plan_id]);
+    vendor = plans[0]?.radius_vendor ?? null;
+    await conn.execute(
+      'UPDATE contracts SET soft_suspend_download_kbps = ?, soft_suspend_upload_kbps = ? WHERE id = ?',
+      [dl, ul, contractId],
+    );
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+
+  // FreeRADIUS serves the throttle on re-authentication (the embedded server
+  // reads the contract columns directly).
+  const radiusService = require('./radiusService');
+  await radiusService.syncFreeradiusTables(organizationId, { contractId: Number(contractId) }).catch(err => logger.warn(
+    { err: err.message, contractId },
+    'Soft suspension saved; FreeRADIUS rows will carry the throttle after the next sync',
+  ));
+
+  // Move the live session now: the CoA carries the vendor rate attributes.
+  const throttle = toNamedAttributes(generateThrottleAttributes(vendor, dl, ul));
   let coaSent = false;
   let coaResponse;
   try {
-    const coaResult = await sendRadiusCoA(contractId, 'soft_suspend');
+    const coaResult = await sendRadiusCoA(contractId, 'soft_suspend', throttle);
     coaSent = coaResult.sent;
     coaResponse = JSON.stringify({
       action: 'soft_suspend',
-      download_kbps: downloadKbps,
-      upload_kbps: uploadKbps,
+      download_kbps: dl,
+      upload_kbps: ul,
       result: coaResult.response,
     });
   } catch (_coaErr) {
-    coaResponse = JSON.stringify({ action: 'soft_suspend', download_kbps: downloadKbps, upload_kbps: uploadKbps, result: 'CoA send failed' });
+    coaResponse = JSON.stringify({ action: 'soft_suspend', download_kbps: dl, upload_kbps: ul, result: 'CoA send failed' });
   }
 
   // action = 'suspended' (NOT 'disconnected'): a soft suspension throttles the
@@ -584,7 +670,7 @@ async function softSuspendContract(contractId, ruleId, userId, invoiceId, downlo
     ruleId,
     action: 'suspended',
     reason: `${SOFT_SUSPEND_REASON_PREFIX} ${describeTrigger('soft suspension', ruleId, userId, invoiceId)}`
-      + ` (throttled to ${downloadKbps || '?'}/${uploadKbps || '?'} kbps)`,
+      + ` (throttled to ${dl}/${ul} kbps${coaSent ? '' : '; the live session changes when it reconnects'})`,
     triggeredByValue: triggeredBy(userId),
     userId,
     coaSent,
@@ -834,11 +920,9 @@ async function sendRadiusCoA(contractId, _action, extraAttributes = []) {
     return { sent: false, response: 'No target NAS (no open-session NAS and no home NAS configured)', outcome: 'no_target' };
   }
 
-  // Callers can shape the session by passing named attributes (e.g.
-  // Mikrotik-Rate-Limit — see speedWindowService.applySpeedWindows).
-  // TODO: the 'soft_suspend' action still sends a bare CoA; wire the
-  // suspension rule's soft_suspend_download_kbps / upload_kbps through here
-  // the same way.
+  // Callers shape the session by passing named attributes (e.g.
+  // Mikrotik-Rate-Limit — speedWindowService.applySpeedWindows, the
+  // soft-suspension throttle, and the plan rate restored on reconnect).
 
   return sendToTargets(43, account.username, targets, extraAttributes);
 }
