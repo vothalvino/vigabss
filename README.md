@@ -1504,7 +1504,7 @@ docker compose up -d
 | `pnpm --filter vigabss-frontend run lint` | Run frontend type-check / lint step |
 | `pnpm --filter vigabss-frontend build` | Build the frontend bundle |
 | `pnpm --filter vigabss-e2e test` | Run Playwright smoke tests |
-| `VIGABSS_ADMIN_PASSWORD='...' pnpm run admin -- create-user --email admin@example.com --role admin` | Create admin user — the password comes from `VIGABSS_ADMIN_PASSWORD` (legacy `FIREISP_ADMIN_PASSWORD` remains accepted), or is prompted for when run in a terminal. Never pass it as a flag: argv is world-readable via `/proc/<pid>/cmdline` |
+| `VIGABSS_ADMIN_PASSWORD='...' pnpm run admin -- create-user --email admin@example.com --role admin [--org <id>]` | Create a user in an organization (`--org` is required when the install has more than one) — the password comes from `VIGABSS_ADMIN_PASSWORD` (legacy `FIREISP_ADMIN_PASSWORD` remains accepted), or is prompted for when run in a terminal. Never pass it as a flag: argv is world-readable via `/proc/<pid>/cmdline` |
 | `pnpm run backup` | Back up the database |
 
 ## Contributing

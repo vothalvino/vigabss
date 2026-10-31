@@ -9,7 +9,7 @@
 //   node src/scripts/admin.js <command> [options]
 //
 // Commands:
-//   create-user    --email <email> [--role admin|support|billing|technician|readonly]
+//   create-user    --email <email> [--role admin|support|billing|technician|readonly] [--org <id>]
 //   reset-password --email <email>
 //   list-users     [--role <role>] [--status active|inactive]
 //   db-health      Check database connectivity and table counts
@@ -120,9 +120,43 @@ function parseArgs(argv) {
 // Commands
 // =============================================================================
 
+/**
+ * The organization a new account belongs to. An account with no organization
+ * and no membership logs in to a JWT with no orgId and cannot use the API
+ * (DB-17), so create-user always resolves one: --org <id>, or the only active
+ * organization on a single-tenant install.
+ */
+async function resolveOrganization(args) {
+  if (args.org !== undefined && args.org !== true) {
+    if (!/^[1-9]\d*$/.test(String(args.org))) {
+      logger.error({ org: args.org }, '--org must be an organization id');
+      process.exit(1);
+    }
+    const [rows] = await db.query(
+      "SELECT id, name FROM organizations WHERE id = ? AND status = 'active' AND deleted_at IS NULL",
+      [Number(args.org)],
+    );
+    if (!rows.length) {
+      logger.error({ org: args.org }, 'No active organization with that id');
+      process.exit(1);
+    }
+    return rows[0];
+  }
+  const [rows] = await db.query(
+    "SELECT id, name FROM organizations WHERE status = 'active' AND deleted_at IS NULL ORDER BY id LIMIT 2",
+  );
+  if (rows.length === 1) return rows[0];
+  logger.error(
+    rows.length
+      ? 'Several active organizations exist; pass --org <id> to choose the one this account belongs to'
+      : 'No active organization exists; create one before adding users',
+  );
+  process.exit(1);
+}
+
 async function createUser(args) {
   if (!args.email) {
-    logger.error('Usage: VIGABSS_ADMIN_PASSWORD=<password> admin.js create-user --email <email> [--role admin]');
+    logger.error('Usage: VIGABSS_ADMIN_PASSWORD=<password> admin.js create-user --email <email> [--role admin] [--org <id>]');
     process.exit(1);
   }
 
@@ -141,6 +175,8 @@ async function createUser(args) {
     process.exit(1);
   }
 
+  const org = await resolveOrganization(args);
+
   const password = await resolvePassword(args, { confirm: true });
   if (password.length < 8) {
     logger.error('Password must be at least 8 characters');
@@ -149,12 +185,17 @@ async function createUser(args) {
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   const [result] = await db.query(
-    `INSERT INTO users (first_name, last_name, email, password_hash, role, group_id, status)
-     VALUES (?, ?, ?, ?, ?, (SELECT id FROM roles WHERE name = ? AND deleted_at IS NULL LIMIT 1), 'active')`,
-    [args['first-name'] || 'Admin', args['last-name'] || 'User', args.email, passwordHash, role, role],
+    `INSERT INTO users (organization_id, first_name, last_name, email, password_hash, role, group_id, status)
+     VALUES (?, ?, ?, ?, ?, ?, (SELECT id FROM roles WHERE name = ? AND deleted_at IS NULL LIMIT 1), 'active')`,
+    [org.id, args['first-name'] || 'Admin', args['last-name'] || 'User', args.email, passwordHash, role, role],
+  );
+  // The membership row is what login and permission resolution read.
+  await db.query(
+    'INSERT IGNORE INTO organization_users (organization_id, user_id, role, is_primary_org) VALUES (?, ?, ?, 1)',
+    [org.id, result.insertId, role],
   );
 
-  logger.info({ id: result.insertId, email: args.email, role }, 'User created successfully');
+  logger.info({ id: result.insertId, email: args.email, role, organizationId: org.id }, 'User created successfully');
 }
 
 async function resetPassword(args) {
@@ -178,7 +219,11 @@ async function resetPassword(args) {
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, users[0].id]);
+  // A reset is how an operator recovers a locked-out account, so it clears the lockout too.
+  await db.query(
+    'UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
+    [passwordHash, users[0].id],
+  );
 
   // Invalidate all sessions
   await db.query('DELETE FROM user_sessions WHERE user_id = ?', [users[0].id]);
@@ -341,6 +386,8 @@ async function main() {
       --role <role>          User role (admin|support|billing|technician|readonly)
       --first-name <name>    First name (default: Admin)
       --last-name <name>     Last name (default: User)
+      --org <id>             Organization the account belongs to (required
+                             unless the install has exactly one)
 
     reset-password     Reset a user's password
       --email <email>        (required) User email
@@ -398,4 +445,6 @@ async function main() {
   }
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { createUser, resetPassword, resolveOrganization };
