@@ -218,8 +218,8 @@ async function sendSurvey(surveyId, orgId = null) {
   const updated = await SatisfactionSurvey.update(surveyId, { status: 'sent', sent_at: new Date() }, orgId);
 
   const [clientRows] = await db.query(
-    'SELECT id, name, email FROM clients WHERE id = ?',
-    [survey.client_id],
+    'SELECT id, name, email FROM clients WHERE id = ? AND organization_id <=> ?',
+    [survey.client_id, survey.organization_id ?? null],
   );
   eventBus.emit('survey.requested', {
     organizationId: survey.organization_id ?? null,
