@@ -17,37 +17,6 @@ CALL test_begin('Synthetic closure evidence (REG-01)');
 
 INSERT INTO organizations (id, name, locale, status) VALUES (9100, 'Closure Test ISP', 'global', 'active');
 
--- Diagnostic (temporary): the same row into a partitioned copy without
--- triggers, then into a copy with a no-op BEFORE INSERT trigger.
-SELECT @@version, @@sql_mode, @@explicit_defaults_for_timestamp, @@time_zone;
-DROP TABLE IF EXISTS __cl_probe_plain;
-DROP TABLE IF EXISTS __cl_probe_trig;
-CREATE TABLE __cl_probe_plain LIKE connection_logs;
-CREATE TABLE __cl_probe_trig LIKE connection_logs;
-DELIMITER $$
-CREATE TRIGGER __cl_probe_trig_bi BEFORE INSERT ON __cl_probe_trig FOR EACH ROW BEGIN SET @__probe_fired = 1; END$$
-DELIMITER ;
-INSERT INTO __cl_probe_plain
-  (id, organization_id, contract_id, client_id, username, session_instance_id,
-   acct_session_id, session_id, event_type, event_at, last_accounting_at,
-   last_accounting_received_at, framed_ip, calling_station_id, attribution_evidence_complete)
-VALUES
-  (910001, 9100, 0, 0, 'closure-user', 'closure-0000-0000-0000-000000000001',
-   'sess-old', 'sess-old', 'interim-update', '2026-08-14 09:00:00', '2026-08-14 09:20:00.000',
-   '2026-08-14 09:20:01.000', '100.64.0.9', 'AA:AA:AA:AA:AA:AA', 1);
-SELECT 'PROBE: partitioned copy, no trigger: OK' AS diagnostic;
-INSERT INTO __cl_probe_trig
-  (id, organization_id, contract_id, client_id, username, session_instance_id,
-   acct_session_id, session_id, event_type, event_at, last_accounting_at,
-   last_accounting_received_at, framed_ip, calling_station_id, attribution_evidence_complete)
-VALUES
-  (910001, 9100, 0, 0, 'closure-user', 'closure-0000-0000-0000-000000000001',
-   'sess-old', 'sess-old', 'interim-update', '2026-08-14 09:00:00', '2026-08-14 09:20:00.000',
-   '2026-08-14 09:20:01.000', '100.64.0.9', 'AA:AA:AA:AA:AA:AA', 1);
-SELECT 'PROBE: partitioned copy, no-op BEFORE INSERT trigger: OK' AS diagnostic;
-DROP TABLE __cl_probe_plain;
-DROP TABLE __cl_probe_trig;
-
 -- A session that started at 09:00 and last reported (Interim) at 09:20.
 INSERT INTO connection_logs
   (id, organization_id, contract_id, client_id, username, session_instance_id,
@@ -57,6 +26,12 @@ VALUES
   (910001, 9100, 0, 0, 'closure-user', 'closure-0000-0000-0000-000000000001',
    'sess-old', 'sess-old', 'interim-update', '2026-08-14 09:00:00', '2026-08-14 09:20:00.000',
    '2026-08-14 09:20:01.000', '100.64.0.9', 'AA:AA:AA:AA:AA:AA', 1);
+
+-- Migration 479: the insert above used to fail on MySQL 8.4 (partitioned table
+-- + STORED generated retention_at + BEFORE INSERT trigger). The trigger now
+-- sets retention_at.
+SELECT DATE_FORMAT(retention_at, '%Y-%m-%d %H:%i:%s') INTO @retention FROM connection_logs WHERE id = 910001;
+CALL assert_equal('2026-08-14 09:20:01', @retention, 'R0: the row is stored and retention_at is the latest receipt');
 
 -- Its Stop was lost; the subscriber reconnects from another MAC at 10:00 and
 -- the old lifecycle is closed exactly as radiusAccountingService does.
