@@ -485,9 +485,10 @@ async function seedDevice(nas, opts = {}) {
       if (!popDl && !popUl) {
         record('priority-queues', 'skipped', 'no total download/upload bandwidth provided for the POP limit');
       } else {
-        // "<download>/<upload>"; fall back to whichever side was supplied so a
-        // one-sided cap still forms a valid RouterOS rate pair.
-        const popLimit = `${popDl || popUl}/${popUl || popDl}`;
+        // Simple-queue max-limit is "<upload>/<download>" (target upload first);
+        // fall back to whichever side was supplied so a one-sided cap still
+        // forms a valid RouterOS rate pair.
+        const popLimit = `${popUl || popDl}/${popDl || popUl}`;
         // priority on /queue/simple is a DUAL upload/download field (confirmed on ROS
         // 7.21: a single "=priority=2" is stored as "2/8", prioritising only one
         // direction). Send "2/2" / "5/5" so both directions are prioritised — the

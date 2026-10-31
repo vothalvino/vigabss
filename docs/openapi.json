@@ -63877,7 +63877,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -63890,7 +63891,8 @@
           },
           "dscp_name": {
             "type": "string",
-            "maximum": 20
+            "maximum": 20,
+            "pattern": "^(?:[A-Za-z0-9_.-]{1,20})?$"
           },
           "traffic_class": {
             "type": "string",
@@ -63907,11 +63909,13 @@
           },
           "match_dst_port": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "match_src_port": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "match_l7": {
             "type": "string",
@@ -63956,7 +63960,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -63969,7 +63974,8 @@
           },
           "dscp_name": {
             "type": "string",
-            "maximum": 20
+            "maximum": 20,
+            "pattern": "^(?:[A-Za-z0-9_.-]{1,20})?$"
           },
           "traffic_class": {
             "type": "string",
@@ -63986,11 +63992,13 @@
           },
           "match_dst_port": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "match_src_port": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "match_l7": {
             "type": "string",
@@ -72032,7 +72040,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -72057,11 +72066,13 @@
           },
           "dst_port_range": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "src_port_range": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "l7_pattern": {
             "type": "string",
@@ -72115,7 +72126,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -72140,11 +72152,13 @@
           },
           "dst_port_range": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "src_port_range": {
             "type": "string",
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^(?:[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*)?$"
           },
           "l7_pattern": {
             "type": "string",
@@ -72584,7 +72598,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",
@@ -72660,7 +72675,8 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "pattern": "^[^\u0000-\u001f\"\\\\$]+$"
           },
           "description": {
             "type": "string",

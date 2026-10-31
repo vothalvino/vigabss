@@ -146,7 +146,7 @@ describe('radiusServerService — embedded RADIUS server', () => {
       expect(vsa.value.readUInt32BE(0)).toBe(14988); // Mikrotik PEN
       expect(vsa.value[4]).toBe(8);                  // vendor-type = Mikrotik-Rate-Limit
       const rateLimit = vsa.value.subarray(6).toString('utf8');
-      expect(rateLimit.startsWith('50M/10M')).toBe(true);
+      expect(rateLimit.startsWith('10M/50M')).toBe(true);
 
       // The Response-Authenticator must equal MD5(response + secret) with the
       // original request authenticator placed back in the auth field.
@@ -210,9 +210,9 @@ describe('radiusServerService — embedded RADIUS server', () => {
       const vsa = resp.attributes.find((a) => a.type === codec.ATTR.VENDOR_SPECIFIC);
       expect(vsa).toBeTruthy();
       const rateLimit = vsa.value.subarray(6).toString('utf8');
-      // Window CIR 25M/5M with bursts re-derived from the window speeds —
-      // NOT the plan's 50M/10M.
-      expect(rateLimit).toBe('25M/5M 50M/10M 25M/5M 8');
+      // Window CIR 5M/25M with bursts re-derived from the window speeds —
+      // NOT the plan's 10M/50M.
+      expect(rateLimit).toBe('5M/25M 10M/50M 5M/25M 8');
     });
   });
 

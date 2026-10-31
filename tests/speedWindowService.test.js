@@ -25,7 +25,7 @@ const db = require('../src/config/database');
 const radiusService = require('../src/services/radiusService');
 const { getActiveWindow, windowEffectivePlan, applySpeedWindows } = require('../src/services/speedWindowService');
 
-// Mikrotik plan: 100M/20M CIR → plan rate string "100M/20M 200M/40M 100M/20M 8"
+// Mikrotik plan 100 down / 20 up → upload-first rate string "20M/100M 40M/200M 20M/100M 8"
 const PLAN = {
   id: 5,
   download_speed_mbps: 100,
@@ -37,11 +37,11 @@ const PLAN = {
   radius_vendor: 'mikrotik',
   priority: null,
 };
-const PLAN_RATE = '100M/20M 200M/40M 100M/20M 8';
+const PLAN_RATE = '20M/100M 40M/200M 20M/100M 8';
 
-// Night window 50M/10M → "50M/10M 100M/20M 50M/10M 8"
+// Night window 50 down / 10 up → "10M/50M 20M/100M 10M/50M 8"
 const WINDOW = { id: 1, plan_id: 5, label: 'Night', download_speed_mbps: 50, upload_speed_mbps: 10, priority: 10 };
-const WINDOW_RATE = '50M/10M 100M/20M 50M/10M 8';
+const WINDOW_RATE = '10M/50M 20M/100M 10M/50M 8';
 
 let conn;
 
