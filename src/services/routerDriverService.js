@@ -14,6 +14,7 @@
 
 const db = require('../config/database');
 const { encrypt, decrypt } = require('../utils/encryption');
+const { redactSecretParams } = require('../utils/secretRedaction');
 const logger = require('../utils/logger').child({ service: 'routerDriverService' });
 
 // Lazily require routerosService to avoid circular deps at module load
@@ -197,7 +198,7 @@ async function dispatchCommand(configId, organizationId, command, params = {}, e
         status, response, error_message, duration_ms, executed_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [organizationId, configId, config.device_id, config.vendor, command,
-      JSON.stringify(params), status, response ? JSON.stringify(response) : null,
+      JSON.stringify(redactSecretParams(params)), status, response ? JSON.stringify(response) : null,
       errorMessage, duration, executedBy || null],
   );
 

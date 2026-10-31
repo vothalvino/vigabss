@@ -12,6 +12,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const db = require('../config/database');
 const routerDriverService = require('../services/routerDriverService');
+const { redactSecretParams } = require('../utils/secretRedaction');
 
 const createDriverSchema = {
   vendor:       { type: 'string', required: true, enum: ['mikrotik','cisco_ios','cisco_iosxe','juniper_junos','zte','huawei','generic_rest'] },
@@ -184,7 +185,10 @@ router.get('/command-executions/list', requirePermission('device_command_executi
       params,
     );
     const [countResult] = await db.query(`SELECT COUNT(*) AS total FROM device_command_executions WHERE ${where}`, params);
-    res.json({ data: rows, meta: { total: countResult[0].total, page: pageNum, limit: limitNum } });
+    // Rows written before params were redacted on insert (migration 478 scrubs
+    // the known keys; this covers anything it could not name).
+    const data = rows.map(row => ({ ...row, params: redactSecretParams(row.params) }));
+    res.json({ data, meta: { total: countResult[0].total, page: pageNum, limit: limitNum } });
   } catch (err) { next(err); }
 });
 

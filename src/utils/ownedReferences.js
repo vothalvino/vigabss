@@ -36,7 +36,7 @@ const OWNED_TABLES = new Set([
   'clients', 'contracts', 'devices', 'tickets', 'client_interactions',
   'sites', 'olt_ports', 'olt_splitters', 'onu_details', 'fiber_routes',
   'odf_frames', 'odf_ports', 'inventory_items', 'warehouses', 'vendors',
-  'assets', 'purchase_orders', 'cpe_devices',
+  'assets', 'purchase_orders', 'cpe_devices', 'onu_profiles', 'plans',
 ]);
 
 function normalizeSpec(spec) {

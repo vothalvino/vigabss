@@ -109,6 +109,7 @@ describe('SNMP community', () => {
 describe('ONU passwords', () => {
   test('a LOID password is sealed on write and never returned', async () => {
     db.query.mockImplementation(async (sql) => {
+      if (/^SELECT id FROM devices WHERE id = \?/.test(sql)) return [[{ id: 4 }]]; // device 4 is org 1's
       if (/^INSERT INTO onu_details/.test(sql)) return [{ insertId: 11 }];
       if (/SELECT \* FROM onu_details WHERE id = \?/.test(sql)) return [[{ id: 11, loid: 'L1', loid_password_encrypted: 'cipher' }]];
       return [[]];
