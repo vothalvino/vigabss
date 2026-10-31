@@ -524,8 +524,14 @@ async function calculateOverageCharges(contractId, periodStart, periodEnd) {
 
   if (overageGb <= 0) return { overage_gb: 0, amount: 0 };
 
-  const amount = Math.round(overageGb * parseFloat(r.overage_price_per_gb) * 100) / 100;
-  return { overage_gb: parseFloat(overageGb.toFixed(3)), amount };
+  // The line stores quantity and unit_price as DECIMAL(10,2): bill exactly the
+  // stored GB × stored price, so the CFDI Importe equals Cantidad ×
+  // ValorUnitario (CFD-03).
+  const gb = Math.round(overageGb * 100) / 100;
+  const pricePerGb = Math.round(parseFloat(r.overage_price_per_gb) * 100) / 100;
+  if (gb <= 0) return { overage_gb: 0, amount: 0 };
+  const amount = Math.round(gb * pricePerGb * 100) / 100;
+  return { overage_gb: gb, price_per_gb: pricePerGb, amount };
 }
 
 /**
@@ -677,8 +683,8 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
         await conn.execute(
           `INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, amount)
            VALUES (?, ?, ?, ?, ?)`,
-          [invoiceId, `Data overage — ${overage.overage_gb} GB @ ${currency} ${plan.overage_price_per_gb}/GB`,
-            overage.overage_gb, parseFloat(plan.overage_price_per_gb), overage.amount],
+          [invoiceId, `Data overage — ${overage.overage_gb} GB @ ${currency} ${overage.price_per_gb}/GB`,
+            overage.overage_gb, overage.price_per_gb, overage.amount],
         );
         runningSubtotal += overage.amount;
       }

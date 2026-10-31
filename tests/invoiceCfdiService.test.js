@@ -186,6 +186,36 @@ describe('stampInvoice — conversion', () => {
     expect(sum).toBe(16.00); // never drifts from the invoice's stored tax
   });
 
+  test('every line IVA stays within its Anexo 20 limits (no last-line plug) — CFD-03', async () => {
+    // 816.35 + 3 × 133.87 + 824.19 at 16 %: invoice tax 326.74. The old plug
+    // put 131.86 on the last line, outside its 131.87–131.88 range.
+    const lines = [816.35, 133.87, 133.87, 133.87, 824.19];
+    Invoice.findByIdOrFail.mockResolvedValue({ ...INVOICE, subtotal: '2042.15', tax_amount: '326.74', total: '2368.89' });
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM cfdi_documents/.test(sql)) return [[]];
+      if (/FROM client_mx_profiles/.test(sql)) return [[{ ...RECEPTOR }]];
+      if (/FROM invoice_items/.test(sql)) {
+        return [lines.map((amount, i) => ({ id: i + 1, description: `L${i}`, quantity: '1', unit_price: String(amount), amount: String(amount), clave_prod_serv: null, clave_unidad: null }))];
+      }
+      return [[]];
+    });
+    const conn = makeConn();
+    db.getConnection.mockResolvedValue(conn);
+    await invoiceCfdiService.stampInvoice(60, 1);
+    const taxInserts = conn.executed.filter(([sql]) => sql.includes('INSERT INTO cfdi_concepto_impuestos'));
+    expect(taxInserts).toHaveLength(5);
+    // Each line is the floor or ceiling (in cents) of base × rate — inside the
+    // limits whatever precision the Base is written with.
+    taxInserts.forEach(([, p], i) => {
+      const exactCents = Math.round(lines[i] * 100) * 0.16;
+      const cents = Math.round(Number(p[p.length - 1]) * 100);
+      expect(cents).toBeGreaterThanOrEqual(Math.floor(exactCents));
+      expect(cents).toBeLessThanOrEqual(Math.ceil(exactCents));
+    });
+    const sum = Math.round(taxInserts.reduce((a, [, p]) => a + Number(p[p.length - 1]), 0) * 100) / 100;
+    expect(sum).toBe(326.74);
+  });
+
   test('zero-tax invoice emits conceptos with ObjetoImp 01 and no impuestos rows', async () => {
     Invoice.findByIdOrFail.mockResolvedValue({ ...INVOICE, tax_rate: '0.0000', tax_amount: '0.00' });
     const conn = makeConn();

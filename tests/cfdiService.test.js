@@ -122,7 +122,7 @@ describe('cfdiService', () => {
       const xml = cfdiService.buildCfdi40Xml(doc, EMISOR, [concepto], [impuesto]);
       expect(xml).toContain('ObjetoImp="02"');
       // concepto-level Exento traslado has NO TasaOCuota/Importe
-      expect(xml).toContain('<cfdi:Traslado Base="500" Impuesto="002" TipoFactor="Exento" />');
+      expect(xml).toContain('<cfdi:Traslado Base="500.00" Impuesto="002" TipoFactor="Exento" />');
       // Comprobante-level Impuestos node present but WITHOUT TotalImpuestosTrasladados (SAT rejects "0.00" for all-Exento)
       const comprobante = xml.slice(xml.indexOf('</cfdi:Conceptos>'));
       expect(comprobante).toContain('<cfdi:Impuestos>');

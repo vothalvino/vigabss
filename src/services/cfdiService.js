@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const cfdiSealService = require('./cfdiSealService');
 const encryption = require('../utils/encryption');
 const db = require('../config/database');
+const { formatMoney, formatQuantity, formatUnitValue, anexo20Violations } = require('../utils/cfdiAmounts');
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
@@ -317,6 +318,17 @@ async function generateXml(cfdiDocumentId) {
     [cfdiDocumentId],
   );
 
+  // Anexo 20 limits (CFD-03): every Importe must match Cantidad ×
+  // ValorUnitario and every IVA its Base × TasaOCuota, as written. Refuse here
+  // with the lines at fault instead of a PAC rejection.
+  const violations = anexo20Violations(conceptos, impuestos);
+  if (violations.length) {
+    throw new AppError(
+      `The CFDI amounts are outside SAT's Anexo 20 limits: ${violations.join('; ')}`,
+      422, 'CFDI_ANEXO20_LIMITS',
+    );
+  }
+
   // Build minimal CFDI 4.0 XML structure
   const xml = buildCfdi40Xml(doc, emisor, conceptos, impuestos, relacionados);
 
@@ -374,8 +386,8 @@ function buildCfdi40Xml(doc, emisor, conceptos, impuestos, relacionados = []) {
           ${taxes.filter(t => t.tax_type === 'traslado').map(t => (
     t.tipo_factor === 'Exento'
       // An Exento traslado carries NO TasaOCuota/Importe (SAT rejects them).
-      ? `<cfdi:Traslado Base="${t.base}" Impuesto="${t.impuesto}" TipoFactor="Exento" />`
-      : `<cfdi:Traslado Base="${t.base}" Impuesto="${t.impuesto}" TipoFactor="${t.tipo_factor}" TasaOCuota="${t.tasa_o_cuota}" Importe="${t.importe}" />`
+      ? `<cfdi:Traslado Base="${formatMoney(t.base)}" Impuesto="${t.impuesto}" TipoFactor="Exento" />`
+      : `<cfdi:Traslado Base="${formatMoney(t.base)}" Impuesto="${t.impuesto}" TipoFactor="${t.tipo_factor}" TasaOCuota="${Number(t.tasa_o_cuota).toFixed(6)}" Importe="${formatMoney(t.importe)}" />`
   )).join('\n          ')}
         </cfdi:Traslados>
       </cfdi:Impuestos>` : '';
@@ -384,7 +396,10 @@ function buildCfdi40Xml(doc, emisor, conceptos, impuestos, relacionados = []) {
     // violates the XSD pattern (live SW reject: "The 'NoIdentificacion'
     // attribute is invalid ... The Pattern constraint failed").
     const noIdent = c.no_identificacion ? ` NoIdentificacion="${escapeXml(c.no_identificacion)}"` : '';
-    return `    <cfdi:Concepto ClaveProdServ="${c.clave_prod_serv || ''}"${noIdent} Cantidad="${c.cantidad}" ClaveUnidad="${c.clave_unidad || ''}" Descripcion="${escapeXml(c.descripcion || '')}" ValorUnitario="${c.valor_unitario}" Importe="${c.importe}" ObjetoImp="${c.objeto_imp || '02'}">${taxesXml}
+    // Amounts at the precision they were computed with, not the DECIMAL(x,4)
+    // column scale: Anexo 20 derives each limit from the decimals written
+    // ("824.1900" narrows it), CFD-03.
+    return `    <cfdi:Concepto ClaveProdServ="${c.clave_prod_serv || ''}"${noIdent} Cantidad="${formatQuantity(c.cantidad)}" ClaveUnidad="${c.clave_unidad || ''}" Descripcion="${escapeXml(c.descripcion || '')}" ValorUnitario="${formatUnitValue(c.valor_unitario)}" Importe="${formatMoney(c.importe)}" ObjetoImp="${c.objeto_imp || '02'}">${taxesXml}
     </cfdi:Concepto>`;
   }).join('\n');
 
@@ -454,8 +469,8 @@ ${optAttrs}
   Exportacion="${doc.exportacion || '01'}"
   LugarExpedicion="${escapeXml(emisor.codigo_postal_fiscal)}"
   Moneda="${doc.moneda || 'MXN'}"
-  SubTotal="${doc.subtotal || 0}"
-  Total="${doc.total || 0}">${informacionGlobalXml(doc, fecha)}${cfdiRelacionadosXml(relacionados)}
+  SubTotal="${formatMoney(doc.subtotal)}"
+  Total="${formatMoney(doc.total)}">${informacionGlobalXml(doc, fecha)}${cfdiRelacionadosXml(relacionados)}
   <cfdi:Emisor Rfc="${escapeXml(emisor.rfc)}" Nombre="${escapeXml(emisor.razon_social)}" RegimenFiscal="${escapeXml(emisor.regimen_fiscal)}" />
   <cfdi:Receptor Rfc="${escapeXml(doc.receptor_rfc || '')}" Nombre="${escapeXml(doc.receptor_nombre || '')}" DomicilioFiscalReceptor="${escapeXml(doc.receptor_cp || '')}" RegimenFiscalReceptor="${escapeXml(doc.receptor_regimen || '')}" UsoCFDI="${doc.uso_cfdi || ''}" />
   <cfdi:Conceptos>

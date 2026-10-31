@@ -24,6 +24,7 @@
 const db = require('../config/database');
 const { invoiceTaxFraction } = require('./billingService');
 const { AppError } = require('../utils/errors');
+const { allocateLineTaxes } = require('../utils/cfdiAmounts');
 const cfdiService = require('./cfdiService');
 const { nextCfdiFolio } = require('./invoiceCfdiService');
 const auditLog = require('./auditLog');
@@ -283,9 +284,19 @@ async function stampCreditNote(creditNoteId, orgId, opts = {}) {
         importe: subtotal,
       }];
 
-    // Per-line IVA with last-line reconcile so traslados sum EXACTLY to the
-    // stored tax_amount (totals are the billing source of truth — never recompute).
-    let taxRemaining = taxAmount;
+    // Per-line IVA summing EXACTLY to the stored tax_amount (totals are the
+    // billing source of truth — never recompute), split so each line is the
+    // floor or ceiling of base × rate and stays inside its Anexo 20 limits
+    // (CFD-03; the old last-line plug could fall outside them).
+    const lineTaxes = taxRate > 0
+      ? allocateLineTaxes(conceptLines.map(line => Number(line.importe || 0)), taxRate, taxAmount)
+      : null;
+    if (taxRate > 0 && !lineTaxes) {
+      throw new AppError(
+        `The credit note tax (${Number(taxAmount).toFixed(2)}) cannot be split over its lines at ${(taxRate * 100).toFixed(2)}% within SAT's limits — correct the credit note tax amount.`,
+        422, 'CFDI_TAX_OUT_OF_BOUNDS',
+      );
+    }
     for (let i = 0; i < conceptLines.length; i++) {
       const line = conceptLines[i];
       const objetoImp = (taxRate > 0 || clientExempt) ? '02' : '01';
@@ -298,11 +309,7 @@ async function stampCreditNote(creditNoteId, orgId, opts = {}) {
       );
 
       if (taxRate > 0) {
-        const isLast = i === conceptLines.length - 1;
-        const lineTax = isLast
-          ? Math.round(taxRemaining * 100) / 100
-          : Math.round(line.importe * taxRate * 100) / 100;
-        taxRemaining = Math.round((taxRemaining - lineTax) * 100) / 100;
+        const lineTax = lineTaxes[i];
         await conn.execute(
           `INSERT INTO cfdi_concepto_impuestos
              (cfdi_concepto_id, tax_type, impuesto, tipo_factor, base, tasa_o_cuota, importe)

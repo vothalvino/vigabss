@@ -28,6 +28,7 @@ const db = require('../config/database');
 const Invoice = require('../models/Invoice');
 const { invoiceTaxFraction } = require('./billingService');
 const { AppError } = require('../utils/errors');
+const { allocateLineTaxes } = require('../utils/cfdiAmounts');
 const cfdiService = require('./cfdiService');
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'invoiceCfdi' });
@@ -275,10 +276,20 @@ async function stampInvoice(invoiceId, orgId, opts = {}) {
     );
     docId = docResult.insertId;
 
-    // Conceptos + per-line IVA. Reconcile rounding on the LAST line so the
-    // traslado importes sum exactly to the invoice's stored tax_amount —
-    // never recompute invoice totals (they are the billing source of truth).
-    let taxRemaining = taxAmount;
+    // Conceptos + per-line IVA. The traslado importes sum exactly to the
+    // invoice's stored tax_amount — never recompute invoice totals (they are
+    // the billing source of truth). The split gives each line the floor or
+    // ceiling of base × rate, so every line stays inside its Anexo 20 limits;
+    // the old last-line plug could fall outside them (CFD-03).
+    const lineTaxes = taxRate > 0
+      ? allocateLineTaxes(items.map(item => Number(item.amount || 0)), taxRate, taxAmount)
+      : null;
+    if (taxRate > 0 && !lineTaxes) {
+      throw new AppError(
+        `The invoice tax (${Number(taxAmount).toFixed(2)}) cannot be split over its lines at ${(taxRate * 100).toFixed(2)}% within SAT's limits — correct the invoice tax amount.`,
+        422, 'CFDI_TAX_OUT_OF_BOUNDS',
+      );
+    }
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const importe = Number(item.amount || 0);
@@ -297,11 +308,7 @@ async function stampInvoice(invoiceId, orgId, opts = {}) {
       );
 
       if (taxRate > 0) {
-        const isLast = i === items.length - 1;
-        const lineTax = isLast
-          ? Math.round(taxRemaining * 100) / 100
-          : Math.round(importe * taxRate * 100) / 100;
-        taxRemaining = Math.round((taxRemaining - lineTax) * 100) / 100;
+        const lineTax = lineTaxes[i];
         await conn.execute(
           `INSERT INTO cfdi_concepto_impuestos
              (cfdi_concepto_id, tax_type, impuesto, tipo_factor, base, tasa_o_cuota, importe)
