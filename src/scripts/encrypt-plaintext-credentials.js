@@ -1,11 +1,14 @@
 // =============================================================================
-// VigaBSS 5.0 — One-off backfill: encrypt plaintext gateway and PAC credentials
+// VigaBSS 5.0 — One-off backfill: encrypt plaintext stored credentials
 // =============================================================================
 // Before the write-only credential fields (src/utils/sealSecrets.js), the
 // payment-gateway and PAC settings routes stored whatever the client sent in
 // the *_encrypted columns, so they hold PLAINTEXT secrets even on installs that
 // set ENCRYPTION_KEY. Readers use decrypt(), which passes plaintext through, so
 // those rows keep working — this script only removes the plaintext at rest.
+// NET-10 added the network credentials that used to be stored as sent: SNMP
+// communities, ONU LOID/Wi-Fi passwords and bandwidth test server tokens.
+// (nas.secret stays plaintext: external FreeRADIUS reads it directly.)
 //
 // A value counts as already encrypted when decryptStrict() authenticates it
 // with the current ENCRYPTION_KEY; anything else non-empty is encrypted. Each
@@ -21,9 +24,16 @@
 
 const { encryptStrict, decryptStrict, isConfigured } = require('../utils/encryption');
 
+// maxLength: the column size; a value whose ciphertext would not fit is
+// reported and left as it is.
 const TARGETS = [
   { table: 'payment_gateways', columns: ['secret_key_encrypted', 'webhook_secret_encrypted'] },
   { table: 'pac_providers', columns: ['username_encrypted', 'password_encrypted', 'api_key_encrypted', 'token_encrypted'] },
+  { table: 'devices', columns: ['snmp_community'], maxLength: 255 },
+  { table: 'discovery_scans', columns: ['snmp_community'], maxLength: 255 },
+  { table: 'onu_details', columns: ['loid_password_encrypted'], maxLength: 255 },
+  { table: 'onu_omci_configs', columns: ['wifi_password_encrypted'], maxLength: 512 },
+  { table: 'bandwidth_test_servers', columns: ['auth_token'], maxLength: 255 },
 ];
 
 function isEncrypted(value) {
@@ -51,9 +61,10 @@ async function encryptPlaintextCredentials({ db, apply = false }) {
   let found = 0;
   let encrypted = 0;
   let skipped = 0;
+  let tooLong = 0;
   const details = [];
 
-  for (const { table, columns } of TARGETS) {
+  for (const { table, columns, maxLength } of TARGETS) {
     const [rows] = await db.query(`SELECT id, ${columns.join(', ')} FROM ${table}`);
     for (const row of rows) {
       for (const column of columns) {
@@ -61,11 +72,17 @@ async function encryptPlaintextCredentials({ db, apply = false }) {
         if (value === null || value === undefined || value === '') continue;
         if (isEncrypted(value)) continue;
         found++;
+        const sealed = encryptStrict(value);
+        if (maxLength && sealed.length > maxLength) {
+          tooLong++;
+          details.push({ table, id: row.id, column, tooLong: true });
+          continue;
+        }
         details.push({ table, id: row.id, column });
         if (!apply) continue;
         const [result] = await db.query(
           `UPDATE ${table} SET ${column} = ? WHERE id = ? AND ${column} = ?`,
-          [encryptStrict(value), row.id, value],
+          [sealed, row.id, value],
         );
         if (result.affectedRows === 1) encrypted++;
         else skipped++; // changed since it was read
@@ -73,7 +90,7 @@ async function encryptPlaintextCredentials({ db, apply = false }) {
     }
   }
 
-  return { found, encrypted, skipped, details };
+  return { found, encrypted, skipped, tooLong, details };
 }
 
 async function main() {
@@ -83,9 +100,12 @@ async function main() {
   const apply = process.argv.includes('--apply');
   try {
     const result = await encryptPlaintextCredentials({ db, apply });
-    for (const d of result.details) logger.info(d, apply ? 'Encrypted plaintext credential' : 'Plaintext credential found');
+    for (const d of result.details) {
+      if (d.tooLong) logger.warn(d, 'Plaintext credential too long to encrypt in place — re-enter it in the UI');
+      else logger.info(d, apply ? 'Encrypted plaintext credential' : 'Plaintext credential found');
+    }
     logger.info(
-      { found: result.found, encrypted: result.encrypted, skipped: result.skipped, apply },
+      { found: result.found, encrypted: result.encrypted, skipped: result.skipped, tooLong: result.tooLong, apply },
       apply ? 'Credential backfill complete' : 'Dry run complete — rerun with --apply to encrypt',
     );
     process.exitCode = 0;

@@ -11050,6 +11050,42 @@
         }
       }
     },
+    "/nas/{id}/secret": {
+      "get": {
+        "tags": [
+          "NAS"
+        ],
+        "summary": "Read the RADIUS shared secret of a NAS (requires radius.credentials.view; NAS responses only carry has_secret)",
+        "operationId": "getNasSecret",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "NAS RADIUS shared secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/nas/{id}/health": {
       "get": {
         "tags": [
@@ -59888,7 +59924,7 @@
           },
           "auth_token": {
             "type": "string",
-            "maximum": 255
+            "maximum": 96
           },
           "max_bandwidth_mbps": {
             "type": "number",
@@ -59951,7 +59987,7 @@
           },
           "auth_token": {
             "type": "string",
-            "maximum": 255
+            "maximum": 96
           },
           "max_bandwidth_mbps": {
             "type": "number",
@@ -63276,7 +63312,7 @@
           },
           "snmp_community": {
             "type": "string",
-            "maximum": 100
+            "maximum": 96
           },
           "snmp_version": {
             "type": "string",
@@ -63395,7 +63431,7 @@
           },
           "snmp_community": {
             "type": "string",
-            "maximum": 100
+            "maximum": 96
           },
           "snmp_version": {
             "type": "string",
@@ -63510,7 +63546,7 @@
           },
           "snmp_community": {
             "type": "string",
-            "maximum": 100
+            "maximum": 96
           },
           "snmp_version": {
             "type": "string",
@@ -63764,7 +63800,8 @@
             ]
           },
           "snmp_community": {
-            "type": "string"
+            "type": "string",
+            "maximum": 96
           },
           "snmp_v3_security_name": {
             "type": "string"
@@ -63824,7 +63861,8 @@
             ]
           },
           "snmp_community": {
-            "type": "string"
+            "type": "string",
+            "maximum": 96
           },
           "snmp_v3_security_name": {
             "type": "string"
@@ -68778,9 +68816,9 @@
             "type": "string",
             "maximum": 64
           },
-          "loid_password_encrypted": {
+          "loid_password": {
             "type": "string",
-            "maximum": 255
+            "maximum": 64
           },
           "onu_state": {
             "type": "string",
@@ -68852,9 +68890,9 @@
             "type": "string",
             "maximum": 64
           },
-          "loid_password_encrypted": {
+          "loid_password": {
             "type": "string",
-            "maximum": 255
+            "maximum": 64
           },
           "onu_state": {
             "type": "string",
@@ -68923,9 +68961,9 @@
             "type": "string",
             "maximum": 64
           },
-          "loid_password_encrypted": {
+          "loid_password": {
             "type": "string",
-            "maximum": 255
+            "maximum": 64
           },
           "onu_state": {
             "type": "string",
@@ -69185,9 +69223,9 @@
             "type": "string",
             "maximum": 64
           },
-          "wifi_password_encrypted": {
+          "wifi_password": {
             "type": "string",
-            "maximum": 512
+            "maximum": 64
           },
           "wifi_band": {
             "type": "string",
@@ -69277,9 +69315,9 @@
             "type": "string",
             "maximum": 64
           },
-          "wifi_password_encrypted": {
+          "wifi_password": {
             "type": "string",
-            "maximum": 512
+            "maximum": 64
           },
           "wifi_band": {
             "type": "string",
@@ -69376,9 +69414,9 @@
             "type": "string",
             "maximum": 64
           },
-          "wifi_password_encrypted": {
+          "wifi_password": {
             "type": "string",
-            "maximum": 512
+            "maximum": 64
           },
           "wifi_band": {
             "type": "string",

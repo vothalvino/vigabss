@@ -6,7 +6,7 @@ const createDiscoveryScan = {
   name: { type: 'string', minLength: 1, maxLength: 200, required: true },
   cidr_ranges: { type: 'array', items: { type: 'string', maxLength: 50 }, minItems: 1, maxItems: 100, required: true },
   snmp_version: { type: 'string', enum: ['v1', 'v2c', 'v3'] },
-  snmp_community: { type: 'string', maxLength: 255 },
+  snmp_community: { type: 'string', max: 96 },
   snmp_v3_security_name: { type: 'string', maxLength: 255 },
   snmp_v3_auth_protocol: { type: 'string', enum: ['none', 'md5', 'sha', 'sha256', 'sha512'] },
   snmp_v3_auth_key: { type: 'string', maxLength: 255 }, // plaintext in request, encrypted before store

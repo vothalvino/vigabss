@@ -25,6 +25,8 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { buildInsert, buildUpdate } = require('../utils/sqlBuild');
+const { sealSecret, sealSecretFields } = require('../utils/sealSecrets');
+const { redactSecretsInResponses, keepBlankSecrets } = require('../utils/secretRedaction');
 const {
   createOnuProfile, updateOnuProfile, patchOnuProfile,
 } = require('../middleware/schemas/onuProfiles');
@@ -45,6 +47,14 @@ const ftthService = require('../services/ftthService');
 const router = Router();
 router.use(authenticate);
 router.use(orgScope);
+
+// LOID and Wi-Fi passwords are write-only (NET-10): onu_management.view and
+// onu_omci_configs.view, which the read-only role holds, used to return them,
+// and they were stored exactly as sent. Plaintext comes in as loid_password /
+// wifi_password and is encrypted here; responses carry has_* flags.
+router.use(['/details', '/omci-configs'], redactSecretsInResponses(['loid_password_encrypted', 'wifi_password_encrypted']));
+const sealLoidPassword = [keepBlankSecrets(['loid_password']), sealSecretFields({ loid_password: 'loid_password_encrypted' })];
+const sealWifiPassword = [keepBlankSecrets(['wifi_password']), sealSecretFields({ wifi_password: 'wifi_password_encrypted' })];
 
 // ===========================================================================
 // ONU Profiles
@@ -192,7 +202,7 @@ router.get('/details/:id', requirePermission('onu_management.view'), async (req,
   } catch (err) { next(err); }
 });
 
-router.post('/details', requirePermission('onu_management.create'), validate(createOnuDetail), async (req, res, next) => {
+router.post('/details', requirePermission('onu_management.create'), validate(createOnuDetail), sealLoidPassword, async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields });
@@ -205,7 +215,7 @@ router.post('/details', requirePermission('onu_management.create'), validate(cre
   } catch (err) { next(err); }
 });
 
-router.put('/details/:id', requirePermission('onu_management.update'), validate(updateOnuDetail), async (req, res, next) => {
+router.put('/details/:id', requirePermission('onu_management.update'), validate(updateOnuDetail), sealLoidPassword, async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM onu_details WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -221,7 +231,7 @@ router.put('/details/:id', requirePermission('onu_management.update'), validate(
   } catch (err) { next(err); }
 });
 
-router.patch('/details/:id', requirePermission('onu_management.update'), validate(patchOnuDetail), async (req, res, next) => {
+router.patch('/details/:id', requirePermission('onu_management.update'), validate(patchOnuDetail), sealLoidPassword, async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM onu_details WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
@@ -278,7 +288,9 @@ router.post('/details/:id/provision', requirePermission('onu_management.create')
       onuProfileId: req.body.onu_profile_id || detail[0].onu_profile_id,
       serialNumber: req.body.serial_number || detail[0].serial_number,
       loid: req.body.loid || detail[0].loid,
-      loidPasswordEncrypted: req.body.loid_password_encrypted || detail[0].loid_password_encrypted,
+      loidPasswordEncrypted: typeof req.body.loid_password === 'string' && req.body.loid_password
+        ? sealSecret(req.body.loid_password)
+        : detail[0].loid_password_encrypted,
       orgId: req.orgId,
       createdBy: req.user?.id,
     });
@@ -421,7 +433,7 @@ router.get('/omci-configs/:id', requirePermission('onu_omci_configs.view'), asyn
   } catch (err) { next(err); }
 });
 
-router.post('/omci-configs', requirePermission('onu_omci_configs.create'), validate(createOnuOmciConfig), async (req, res, next) => {
+router.post('/omci-configs', requirePermission('onu_omci_configs.create'), validate(createOnuOmciConfig), sealWifiPassword, async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, applied_at: _____, apply_error: ______, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, apply_status: 'pending', ...fields });
@@ -434,7 +446,7 @@ router.post('/omci-configs', requirePermission('onu_omci_configs.create'), valid
   } catch (err) { next(err); }
 });
 
-router.put('/omci-configs/:id', requirePermission('onu_omci_configs.update'), validate(updateOnuOmciConfig), async (req, res, next) => {
+router.put('/omci-configs/:id', requirePermission('onu_omci_configs.update'), validate(updateOnuOmciConfig), sealWifiPassword, async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM onu_omci_configs WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',

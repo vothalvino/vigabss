@@ -315,7 +315,14 @@ that inevitably fail, but they never replace server-side authorization.
   `password`, ...) and seal it with `src/utils/sealSecrets.js`
   (`encryptStrict` in production); a client-sent `*_encrypted` key is a 422, a
   blank write-only field keeps the stored value, and responses expose only
-  `has_*` booleans. Readers always go through `decrypt()`.
+  `has_*` booleans. Readers always go through `decrypt()`. The same applies
+  to network credentials that are not named `*_encrypted` (`devices` and
+  `discovery_scans.snmp_community`, `bandwidth_test_servers.auth_token`):
+  sealed on write, redacted with `src/utils/secretRedaction.js`, decrypted by
+  their one reader (snmpPoller). `nas.secret` is the exception: external
+  FreeRADIUS reads it from the table, so it stays plaintext at rest, is
+  redacted to `has_secret`, and only `GET /nas/:id/secret` with
+  `radius.credentials.view` returns it.
 - Output encoding happens at the sink: React escapes text, the knowledge-base
   HTML sink uses DOMPurify, XML builders escape XML, and email templates escape
   interpolated HTML. Do not reintroduce blanket input-side HTML encoding.
