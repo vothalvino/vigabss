@@ -685,6 +685,7 @@ describe('automationService — createBatchJob', () => {
     db.query
       .mockResolvedValueOnce([[{ entity_id: 100, entity_type: 'contract' }], []])  // targets
       .mockResolvedValueOnce([{ insertId: 3, affectedRows: 1 }])  // INSERT batch_jobs
+      .mockResolvedValueOnce([[{ status: 'running' }], []])  // per-item status check
       .mockResolvedValueOnce([{ insertId: 50, affectedRows: 1 }])  // INSERT batch_job_items
       .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE processed_items
       .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE completed
