@@ -1001,6 +1001,8 @@ function generateSpec() {
 
       // ---- Expenses ----
       ...crudPaths('expenses', 'Expenses', 'Expense'),
+      '/expenses/{id}/approve': { post: { tags: ['Expenses'], summary: 'Approve a pending expense (not your own)', operationId: 'approveExpense', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Expense') } },
+      '/expenses/{id}/reject': { post: { tags: ['Expenses'], summary: 'Reject a pending expense (not your own)', operationId: 'rejectExpense', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Expense') } },
 
       // ---- Revenue Summary ----
       '/revenue-summary': { get: { tags: ['Revenue Summary'], summary: 'List revenue summaries', operationId: 'listRevenueSummaries', security: [{ bearerAuth: [] }], responses: r200('RevenueSummary[]') } },

@@ -10,7 +10,6 @@ const createExpense = {
   receipt_url: { type: 'string', max: 500 },
   expense_date: { type: 'string' },
   notes: { type: 'string', max: 5000 },
-  status: { type: 'string', enum: ['pending', 'approved', 'rejected'] },
 };
 
 const updateExpense = {
@@ -21,7 +20,6 @@ const updateExpense = {
   receipt_url: { type: 'string', max: 500 },
   expense_date: { type: 'string' },
   notes: { type: 'string', max: 5000 },
-  status: { type: 'string', enum: ['pending', 'approved', 'rejected'] },
 };
 
 module.exports = { createExpense, updateExpense };
