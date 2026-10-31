@@ -7,7 +7,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { portalTokenStore } from '@/auth/PortalAuthContext';
+import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
 
@@ -31,12 +31,10 @@ interface ChatReply {
 }
 
 async function portalPost<T>(path: string, body?: unknown): Promise<T> {
-  const token = portalTokenStore.getAccess();
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await portalAuthedFetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });

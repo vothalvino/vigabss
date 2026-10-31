@@ -15,6 +15,7 @@ import { PortalKb } from '../PortalKb';
 
 vi.mock('@/auth/PortalAuthContext', () => ({
   portalTokenStore: { getAccess: () => 'portal-token' },
+  portalAuthedFetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init),
 }));
 
 const listArticle = {

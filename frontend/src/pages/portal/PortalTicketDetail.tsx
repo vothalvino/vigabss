@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { portalTokenStore } from '@/auth/PortalAuthContext';
+import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
 
@@ -31,21 +31,16 @@ interface Ticket {
 }
 
 async function portalGet<T>(path: string): Promise<T> {
-  const token = portalTokenStore.getAccess();
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await portalAuthedFetch(`${API_BASE}${path}`);
   if (!res.ok) throw new Error('Not found');
   return (await res.json() as { data: T }).data;
 }
 
 async function addComment(ticketId: number, body: string): Promise<Comment> {
-  const token = portalTokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/tickets/${ticketId}/comments`, {
+  const res = await portalAuthedFetch(`${API_BASE}/tickets/${ticketId}/comments`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({ body }),
   });
