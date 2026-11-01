@@ -101,6 +101,7 @@ Settlement is idempotent per transaction (the second delivery answers
    | `payment_intent.payment_failed` | Failed autopay charges (drives the retry queue) |
    | `charge.refunded` | Refunds made in the Stripe dashboard (full refunds only) |
    | `charge.dispute.created` | Chargebacks |
+   | `charge.dispute.closed` | Chargeback outcome. A lost dispute reverses the payment and re-opens its invoices, like a refund. |
 
 4. Stripe shows a signing secret (`whsec_…`). Paste it into the gateway's
    **Webhook Secret** field in Settings and save.

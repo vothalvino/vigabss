@@ -1040,7 +1040,7 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
     }
 
     // Extract the gateway reference ID and new status from the event
-    const { gatewayRef, newStatus } = mapProviderEvent(provider, eventType, payload);
+    const { gatewayRef, newStatus, dispute = null } = mapProviderEvent(provider, eventType, payload);
 
     if (!gatewayRef || !newStatus) {
       // Event type we don't handle — mark as ignored
@@ -1147,8 +1147,9 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
       await reverseRefund(tx.id);
     }
 
-    // Auto-create a chargeback record when a dispute is received — §2.5.3
-    if (newStatus === 'disputed') {
+    // Auto-create a chargeback record when a dispute is received — §2.5.3 —
+    // and record its outcome when it closes.
+    if (newStatus === 'disputed' || dispute) {
       try {
         // payment_transactions.currency is NOT NULL so the fallback should
         // never fire — but when it does, use the org's currency, never 'USD'.
@@ -1157,18 +1158,23 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
         await db.query(
           `INSERT INTO chargebacks
              (organization_id, payment_id, gateway, gateway_dispute_id, amount, currency, reason_code, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'received')
-           ON DUPLICATE KEY UPDATE updated_at = NOW()`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             status = IF(VALUES(status) = 'received', status, VALUES(status)),
+             updated_at = NOW()`,
           [
             tx.organization_id,
             // chargebacks.payment_id is a payments.id. A disputed charge that was
             // never reconciled into a payment has none.
             tx.payment_id || null,
             provider,
-            gatewayRef,
+            // The provider's dispute id, so created and closed land on one row;
+            // the charge reference when the event carries none (Conekta).
+            dispute?.id || gatewayRef,
             tx.amount,
             cbCurrency,
-            eventType,
+            dispute?.reason || eventType,
+            dispute?.outcome || 'received',
           ],
         );
         logger.info({ transactionId: tx.id, provider, gatewayRef }, 'Chargeback auto-created from webhook');
@@ -1224,11 +1230,26 @@ function mapProviderEvent(provider, eventType, payload) {
       return { gatewayRef: obj.payment_intent || obj.id, newStatus: fully ? 'refunded' : null };
     }
 
+    // A dispute event's object is the dispute (du_…); its charge's
+    // PaymentIntent is what the transaction holds. A dispute the merchant
+    // loses returns the money to the cardholder for good, so the settlement is
+    // reversed like a refund; a won one leaves the transaction disputed and
+    // only records the outcome on the chargeback.
+    if (eventType === 'charge.dispute.created' || eventType === 'charge.dispute.closed') {
+      const outcome = eventType === 'charge.dispute.created' ? 'received'
+        : ({ lost: 'lost', won: 'won' }[obj.status] || null);
+      if (!outcome) return { gatewayRef: null, newStatus: null };
+      return {
+        gatewayRef: obj.payment_intent || obj.charge || null,
+        newStatus: outcome === 'lost' ? 'refunded' : 'disputed',
+        dispute: { id: obj.id || null, outcome, reason: obj.reason || null },
+      };
+    }
+
     const gatewayRef = obj.id || null;
     const statusMap = {
       'payment_intent.succeeded': 'succeeded',
       'payment_intent.payment_failed': 'failed',
-      'charge.dispute.created': 'disputed',
     };
 
     // For charge events, the gateway reference may be the payment_intent
