@@ -691,7 +691,7 @@ If the optional RAG sidecar (`VECTOR_RETRIEVAL_ENABLED=true`) is enabled:
 
 ```bash
 # Confirm the ChromaDB container is reachable
-curl http://chromadb:8000/api/v1/heartbeat
+curl http://chromadb:8000/api/v2/heartbeat
 
 # Start the sidecar if it is not running
 docker compose --profile rag up -d chromadb

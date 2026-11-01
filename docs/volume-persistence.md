@@ -35,7 +35,7 @@ persistent:
 | MySQL replica | `/var/lib/mysql` | `db_replica_data` | — |
 | Redis (AOF) | `/data` | `redis_data` | `redis_data` |
 | App storage | `/app/storage` | `storage` (named volume) | `./storage` (bind) |
-| ChromaDB | `/chroma/chroma` | `chroma_data` | `chroma_data` |
+| ChromaDB | `/data` | `chroma_data` | `chroma_data` |
 
 See [`docker-compose.prod.yml`](../docker-compose.prod.yml) and
 [`docker-compose.yml`](../docker-compose.yml).

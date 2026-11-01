@@ -276,6 +276,53 @@ jobs:
           done
           echo "All SQL tests passed on the migrated database"
 
+  vector-store-tests:
+    # The vector-store client against the pinned ChromaDB image. The unit
+    # tests mock fetch, which is how a client still on Chroma's removed v1 API
+    # and a healthcheck that could never pass both went unnoticed. The
+    # container uses the compose healthcheck, so a broken one fails here too.
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      CHROMA_INTEGRATION_URL: http://127.0.0.1:8000
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start ChromaDB with the compose image and healthcheck
+        run: |
+          set -euo pipefail
+          IMAGE=$(grep -E '^\s+image:\s+chromadb/chroma:' docker-compose.prod.yml | awk '{print $2}')
+          HEALTH=$(python3 -c "import yaml; print(yaml.safe_load(open('docker-compose.prod.yml'))['services']['chromadb']['healthcheck']['test'][3])")
+          docker run -d --name ci-chroma -p 8000:8000 -e ANONYMIZED_TELEMETRY=FALSE \
+            --health-cmd "bash -c '$HEALTH'" --health-interval 2s --health-retries 30 \
+            "$IMAGE"
+
+      - name: Wait for the ChromaDB healthcheck
+        run: |
+          for i in $(seq 1 45); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' ci-chroma)
+            [ "$status" = healthy ] && echo "ChromaDB is healthy" && exit 0
+            sleep 2
+          done
+          echo "::error::ChromaDB never became healthy (status: $status)"
+          docker logs ci-chroma | tail -50
+          exit 1
+
+      - name: Run the vector-store integration test
+        run: pnpm exec jest tests/integration/vectorStore.chroma.test.js --ci
+
   migration-runner-tests:
     # Exercises the real Node migration tooling (migrate.js / rollback.js /
     # migration-smoke-test.js) rather than the raw mysql CLI path used by
