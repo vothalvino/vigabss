@@ -547,6 +547,16 @@ async function syncFreeradiusContract(contractId, {
  * @param {{ contractId?: number|null }} [options]
  * @returns {{ synced: number, errors: number, plans_synced: number, purged: number }}
  */
+/** "prefix/len" for an account's delegated IPv6 prefix, or null. */
+function delegatedPrefix(row) {
+  const raw = String(row.ipv6_delegated_prefix || '').trim();
+  if (!raw) return null;
+  const [address, lenText] = raw.split('/');
+  const len = Number(lenText ?? row.ipv6_prefix_len);
+  if (!net.isIPv6(address) || !Number.isInteger(len) || len < 1 || len > 128) return null;
+  return `${address}/${len}`;
+}
+
 async function syncFreeradiusTables(organizationId, { contractId = null } = {}) {
   logger.info({ organizationId, contractId }, 'Syncing FreeRADIUS SQL tables');
 
@@ -584,6 +594,7 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
             r.vlan_id, r.inner_vlan_id,
             r.service_profile_id AS account_profile_id,
             r.ipv4_pool_id, r.ip_address AS static_ip,
+            r.ipv6_address, r.ipv6_delegated_prefix, r.ipv6_prefix_len,
             ip.service_profile_id AS pool_profile_id,
             -- The account's own org first: radius.organization_id is populated
             -- (migration 426) and contract_id is NULLABLE, so a MAB account
@@ -857,6 +868,22 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
         );
       }
 
+      // IPv6 (NET-17): the account's static WAN address and delegated prefix
+      // never reached the NAS from VigaBSS, only from the custom-query README.
+      if (sub.ipv6_address && net.isIPv6(String(sub.ipv6_address))) {
+        await db.query(
+          'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
+          [username, 'Framed-IPv6-Address', ':=', sub.ipv6_address],
+        );
+      }
+      const delegated = delegatedPrefix(sub);
+      if (delegated) {
+        await db.query(
+          'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
+          [username, 'Delegated-IPv6-Prefix', ':=', delegated],
+        );
+      }
+
       // Item 13: VLAN assignment via RADIUS — per-user radreply tunnel attributes
       if (sub.vlan_id) {
         await db.query(
@@ -975,14 +1002,8 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
           );
         }
 
-        // IPv6CP / DHCPv6-PD: emit Delegated-IPv6-Prefix-Pool when the profile enables
-        // IPv6CP and an IPv6 pool is configured on the account.
-        if (profile.ipv6cp_enabled && sub.ipv6_pool_name) {
-          await db.query(
-            'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
-            [username, 'Delegated-IPv6-Prefix-Pool', ':=', sub.ipv6_pool_name],
-          );
-        }
+        // Delegated-IPv6-Prefix-Pool is emitted below for every account with an
+        // IPv6 pool; a profile only turns it off (ipv6cp_enabled = 0).
 
         // IPv6 DNS via RFC 6911 attribute
         if (profile.dns_primary_v6) {
@@ -998,6 +1019,17 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
           );
         }
         // NAT64/DNS64: dns64_prefix is configured on the DNS64 resolver, not sent via RADIUS
+      }
+
+      // DHCPv6-PD from the account's IPv6 pool (NET-17). It used to need a
+      // PPPoE profile with ipv6cp_enabled, which a pppoe_dual contract does
+      // not imply, so dual-stack subscribers without one came up IPv4-only.
+      // A profile can still turn it off.
+      if (sub.ipv6_pool_name && (!profile || profile.ipv6cp_enabled)) {
+        await db.query(
+          'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
+          [username, 'Delegated-IPv6-Prefix-Pool', ':=', sub.ipv6_pool_name],
+        );
       }
 
       if (sub.contract_status === 'pending') {

@@ -143,6 +143,8 @@ function withNasTenant(nas, callback) {
 async function findSubscriber(username, organizationId) {
   const [rows] = await db.query(
     `SELECT r.id, r.client_id, r.contract_id, r.username, r.password, r.ip_address,
+            r.ipv6_address, r.ipv6_delegated_prefix, r.ipv6_prefix_len,
+            ipv6_pool.name AS ipv6_pool_name,
             c.plan_id, c.status AS contract_status,
             c.soft_suspend_download_kbps, c.soft_suspend_upload_kbps,
             CASE WHEN c.status = 'pending'
@@ -150,6 +152,7 @@ async function findSubscriber(username, organizationId) {
                  ELSE NULL END AS test_window_seconds_remaining
        FROM radius r
        LEFT JOIN contracts c ON c.id = r.contract_id
+       LEFT JOIN ip_pools ipv6_pool ON ipv6_pool.id = r.ipv6_pool_id AND ipv6_pool.deleted_at IS NULL
       WHERE r.username = ? AND r.organization_id <=> ?
         AND r.deleted_at IS NULL AND r.status = 'active'
         AND (
@@ -243,14 +246,35 @@ function persistAuthOutcome({
 // Reply attribute assembly
 // ---------------------------------------------------------------------------
 
+function ipv6AcceptAttributes(subscriber) {
+  const out = [];
+  if (subscriber.ipv6_address) {
+    const attr = codec.encodeIpv6AddressAttr(ATTR.FRAMED_IPV6_ADDRESS, subscriber.ipv6_address);
+    if (attr) out.push(attr);
+  }
+  if (subscriber.ipv6_delegated_prefix) {
+    const [address, lenText] = String(subscriber.ipv6_delegated_prefix).split('/');
+    const attr = codec.encodeIpv6PrefixAttr(ATTR.DELEGATED_IPV6_PREFIX, address, Number(lenText ?? subscriber.ipv6_prefix_len));
+    if (attr) out.push(attr);
+  }
+  if (subscriber.ipv6_pool_name) {
+    const attr = codec.encodeStringAttr(ATTR.DELEGATED_IPV6_PREFIX_POOL, subscriber.ipv6_pool_name);
+    if (attr) out.push(attr);
+  }
+  return out;
+}
+
 function buildAcceptAttributes(subscriber, plan, withMessageAuth) {
   const parts = [
     codec.encodeIntAttr(ATTR.SERVICE_TYPE, 2),     // Framed-User
     codec.encodeIntAttr(ATTR.FRAMED_PROTOCOL, 1),  // PPP
   ];
   if (isIpv4(subscriber.ip_address)) {
-    parts.push(coa.encodeFramedIPAddress(subscriber.ip_address)); // static Framed-IP (IPv4 only)
+    parts.push(coa.encodeFramedIPAddress(subscriber.ip_address)); // static Framed-IP (IPv4)
   }
+  // IPv6 (NET-17): a dual-stack account's static WAN address, delegated
+  // prefix and DHCPv6-PD pool, which the embedded server never sent.
+  for (const attr of ipv6AcceptAttributes(subscriber)) parts.push(attr);
   if (subscriber.contract_status === 'pending') {
     const remaining = Math.floor(Number(subscriber.test_window_seconds_remaining));
     if (Number.isSafeInteger(remaining) && remaining > 0) {

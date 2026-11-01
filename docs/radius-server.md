@@ -91,7 +91,10 @@ while the server is past half its in-flight cap).
 
 ## Current limitations (embedded server)
 
-- Reply policy is **bandwidth-only** (Mikrotik-Rate-Limit / WISPr bandwidth).
+- Reply policy is bandwidth (Mikrotik-Rate-Limit / WISPr bandwidth) plus the
+  account's addresses: static IPv4 (Framed-IP-Address) and, for dual-stack
+  accounts, Framed-IPv6-Address, Delegated-IPv6-Prefix and
+  Delegated-IPv6-Prefix-Pool from the account's IPv6 pool.
   Session-Timeout / Idle-Timeout / VLAN attributes are emitted by the external
   FreeRADIUS sync path but not yet by the embedded server.
 - Vendor reply-attribute support: **MikroTik**, **Cisco**, **generic (WISPr)**. A
