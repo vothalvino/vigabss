@@ -96,9 +96,9 @@ function verifyMfaChallengeToken(token) {
 /**
  * Sign a subscriber-portal access JWT.
  */
-function signPortalAccessToken({ clientId, organizationId }, expiresInSeconds) {
+function signPortalAccessToken({ clientId, organizationId, tokenVersion = 0 }, expiresInSeconds) {
   return jwt.sign(
-    { sub: clientId, orgId: organizationId, type: 'portal' },
+    { sub: clientId, orgId: organizationId, type: 'portal', tv: Number(tokenVersion ?? 0) },
     portalSigningKey(),
     { expiresIn: expiresInSeconds, algorithm: config.jwt.algorithm, audience: PORTAL_AUDIENCE },
   );

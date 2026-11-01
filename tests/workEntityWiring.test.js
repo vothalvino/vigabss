@@ -147,7 +147,9 @@ describe('POST /work-orders — ticket_id wiring', () => {
 // ---------------------------------------------------------------------------
 describe('PATCH /service-orders/:id — contract_id linking', () => {
   test('sets contract_id on the service order', async () => {
-    const existing = { id: 10, status: 'in_process', client_id: 3, organization_id: 42, deleted_at: null };
+    // A contract is linked while the order is still new: once started, the
+    // link is frozen (RTE-03).
+    const existing = { id: 10, status: 'new', client_id: 3, organization_id: 42, deleted_at: null };
     const updated  = { ...existing, contract_id: 77 };
 
     db.query

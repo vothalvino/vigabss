@@ -1086,19 +1086,24 @@ function PortalPasswordModal({
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Set when the email is shared with other portal accounts (WHK-10).
+  const [sharedWarning, setSharedWarning] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (sharedWarning) { onSaved(); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (password !== confirm) { setError('Passwords do not match.'); return; }
     setSaving(true);
     setError(null);
-    const { error: apiError } = await api.PUT('/clients/{id}/portal-password', {
+    const { data, error: apiError } = await api.PUT('/clients/{id}/portal-password', {
       params: { path: { id: Number(clientId) } },
       body: { password } as never,
     });
     setSaving(false);
     if (apiError) { setError(extractApiError(apiError, 'Failed to set portal password.')); return; }
+    const warning = (data as { warning?: string } | undefined)?.warning;
+    if (warning) { setSharedWarning(warning); return; }
     onSaved();
   }
 
@@ -1107,6 +1112,11 @@ function PortalPasswordModal({
       <form style={modalBox} onSubmit={handleSubmit}>
         <h2 style={modalTitle}>Set Portal Password</h2>
         {error && <div style={errorBox}>{error}</div>}
+        {sharedWarning && (
+          <div role="status" style={{ ...errorBox, background: '#fef3c7', color: '#92400e' }}>
+            Password set. {sharedWarning}
+          </div>
+        )}
         <label style={labelStyle}>Portal username</label>
         {username ? (
           <>
@@ -1127,7 +1137,7 @@ function PortalPasswordModal({
         <input style={inputStyle} type="password" value={confirm} onChange={e => setConfirm(e.target.value)} />
         <div style={modalActions}>
           <button type="button" style={cancelBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="submit" style={submitBtn} disabled={saving}>{saving ? 'Saving…' : 'Set Password'}</button>
+          <button type="submit" style={submitBtn} disabled={saving}>{saving ? 'Saving…' : sharedWarning ? 'Done' : 'Set Password'}</button>
         </div>
       </form>
     </div>

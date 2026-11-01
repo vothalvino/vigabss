@@ -208,7 +208,6 @@ function generateSpec() {
     ],
     paths: {
       // ---- Auth ----
-      '/auth/register': { post: { tags: ['Auth'], summary: 'Register new user', operationId: 'register', requestBody: jsonBody('auth_register'), responses: r201('User') } },
       '/auth/login': { post: { tags: ['Auth'], summary: 'Login', description: 'For an account with TOTP two-factor enabled no session is created and no cookies are set: the response is `{ data: { mfa_required: true, mfa_token, expires_in } }`. Complete it with POST /auth/login/2fa. Otherwise returns the token pair and user and sets the session cookies.', operationId: 'login', requestBody: jsonBody('auth_login'), responses: r200('Token + User, or a two-factor challenge') } },
       '/auth/login/2fa': { post: { tags: ['Auth'], summary: 'Complete a two-factor login', description: 'Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.', operationId: 'loginTwoFactor', requestBody: typedJsonBody({ type: 'object', required: ['mfa_token', 'code'], properties: { mfa_token: { type: 'string', maxLength: 2048 }, code: { type: 'string', minLength: 4, maxLength: 10 } } }, 'Two-factor challenge and code'), responses: { ...r200('Token + User'), 401: errorResponse('Invalid or expired challenge, wrong or reused code, or locked account') } } },
       '/auth/logout': { post: { tags: ['Auth'], summary: 'Logout — revokes the presented refresh token (cookie or body) and clears auth cookies; no bearer required, so it still works after the access token expires', operationId: 'logout', requestBody: jsonBody('auth_refreshToken'), responses: r200('Message') } },
@@ -1001,6 +1000,8 @@ function generateSpec() {
 
       // ---- Expenses ----
       ...crudPaths('expenses', 'Expenses', 'Expense'),
+      '/expenses/{id}/approve': { post: { tags: ['Expenses'], summary: 'Approve a pending expense (not your own)', operationId: 'approveExpense', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Expense') } },
+      '/expenses/{id}/reject': { post: { tags: ['Expenses'], summary: 'Reject a pending expense (not your own)', operationId: 'rejectExpense', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Expense') } },
 
       // ---- Revenue Summary ----
       '/revenue-summary': { get: { tags: ['Revenue Summary'], summary: 'List revenue summaries', operationId: 'listRevenueSummaries', security: [{ bearerAuth: [] }], responses: r200('RevenueSummary[]') } },

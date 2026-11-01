@@ -25,8 +25,9 @@ vi.mock('@/api/client', () => ({
   tokenStore: { getAccess: () => 'tok', setAccess: vi.fn(), getRefresh: () => null, setRefresh: vi.fn(), clear: vi.fn() },
 }));
 
+const authState: { user: { id: number; role: string; permissions?: string[] } } = { user: { id: 1, role: 'admin' } };
 vi.mock('@/auth/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 1, role: 'admin' } }),
+  useAuth: () => ({ user: authState.user }),
 }));
 
 const gqlPayment = {
@@ -60,6 +61,7 @@ function renderPaymentDetail(id = '42') {
 describe('PaymentDetail page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.user = { id: 1, role: 'admin' };
     mockGql.mockResolvedValue({ payment: gqlPayment });
     mockApiGet.mockResolvedValue({ data: { data: [] }, error: undefined });
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
@@ -91,6 +93,17 @@ describe('PaymentDetail page', () => {
   it('renders the Send receipt email button', async () => {
     renderPaymentDetail();
     await waitFor(() => expect(screen.getByTitle('Send receipt email to client')).toBeInTheDocument());
+  });
+
+  // FE-13: readonly saw (and could use) every payment action, including
+  // emailing a receipt to the client.
+  it('a read-only user gets only the receipt download', async () => {
+    authState.user = { id: 1, role: 'readonly', permissions: ['payments.view', 'invoices.view'] };
+    renderPaymentDetail();
+    await waitFor(() => expect(screen.getByTitle('Download receipt PDF')).toBeInTheDocument());
+    for (const title of ['Send receipt email to client', 'Allocate payment to an invoice', 'Edit payment', 'Delete payment']) {
+      expect(screen.queryByTitle(title)).not.toBeInTheDocument();
+    }
   });
 
   it('renders the Allocate action button', async () => {

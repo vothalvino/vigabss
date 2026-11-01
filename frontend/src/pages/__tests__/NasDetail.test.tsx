@@ -183,21 +183,34 @@ describe('NasDetail page', () => {
     expect(screen.getByRole('button', { name: 'Test connection' })).toBeInTheDocument();
   });
 
-  it('shows the health-check button for a technician (has nas.health)', async () => {
+  it('shows the health-check button for a technician (has nas.health_check)', async () => {
     mockRole = 'technician';
     renderDetail();
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: 'Core-Router' })).toBeInTheDocument(),
     );
     screen.getByRole('button', { name: 'Health' }).click();
-    // technician has nas.health (health-check) and devices.update (test-connection)
+    // technician has nas.health_check (the probe) and devices.update (test-connection)
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Run health check' })).toBeInTheDocument(),
     );
     expect(screen.getByRole('button', { name: 'Test connection' })).toBeInTheDocument();
   });
 
-  it('hides action buttons for a role without nas.health / devices.update (billing)', async () => {
+  // DB-23: readonly holds the nas.health read slug, but the probe writes
+  // health status and needs nas.health_check.
+  it('hides the health-check probe from readonly, which can only read health', async () => {
+    mockRole = 'readonly';
+    renderDetail();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Core-Router' })).toBeInTheDocument(),
+    );
+    screen.getByRole('button', { name: 'Health' }).click();
+    await waitFor(() => expect(screen.getByText('up')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Run health check' })).not.toBeInTheDocument();
+  });
+
+  it('hides action buttons for a role without nas.health_check / devices.update (billing)', async () => {
     mockRole = 'billing';
     renderDetail();
     await waitFor(() =>

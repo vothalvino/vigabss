@@ -16,6 +16,7 @@ import { api, tokenStore, authedFetch } from '@/api/client';
 import { useWebSocket } from '@/api/useWebSocket';
 import { useGraphQLSubscription } from '@/api/useGraphQLSubscription';
 import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
@@ -531,6 +532,9 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
 }
 
 function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
+  // POST /tickets/:id/comments accepts tickets.comment or tickets.update (DB-23).
+  const { user } = useAuth();
+  const canComment = can(user, 'tickets.comment') || can(user, 'tickets.update');
   const [body, setBody] = useState('');
   const [isInternal, setIsInternal] = useState(false);
   const [err, setErr] = useState('');
@@ -556,7 +560,7 @@ function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
       </div>
 
       {/* Add comment form */}
-      <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
+      {canComment && <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
         <label style={labelStyle}>Add Comment</label>
         {err && <div style={errStyle}>{err}</div>}
         <textarea
@@ -582,7 +586,7 @@ function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
             {mutation.isPending ? 'Posting…' : 'Post Comment'}
           </button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

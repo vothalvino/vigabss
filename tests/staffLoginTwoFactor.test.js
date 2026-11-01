@@ -161,9 +161,10 @@ describe('SEC-03 — staff login with TOTP enabled', () => {
     await expect(authService.completeMfaLogin({ mfaToken, code: '000000' }))
       .rejects.toMatchObject({ statusCode: 401 });
     expect(calls.some(c => /INSERT INTO user_sessions/.test(c.sql))).toBe(false);
-    const lock = calls.find(c => /locked_until = DATE_ADD/.test(c.sql));
+    // The shared counter is incremented atomically and locks at 5 (SEC-11).
+    const lock = calls.find(c => /failed_login_attempts \+ 1/.test(c.sql) && /DATE_ADD/.test(c.sql));
     expect(lock).toBeDefined();
-    expect(lock.params[0]).toBe(5);
+    expect(lock.params).toEqual([5, 15, 7]);
   });
 
   test('a replayed TOTP code (same step) cannot complete a second login', async () => {

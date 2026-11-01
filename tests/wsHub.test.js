@@ -10,6 +10,19 @@ jest.mock('../src/config/database', () => ({
   pool: { end: jest.fn() },
 }));
 
+// The hub resolves the account behind the JWT (SEC-09): a valid, active member
+// with every realtime permission unless a test says otherwise.
+jest.mock('../src/models/User', () => ({
+  findById: jest.fn(async (id) => ({ id, status: 'active', role: 'admin', organization_id: 1, token_version: 0 })),
+}));
+jest.mock('../src/services/orgPrincipalService', () => ({
+  resolveOrgPrincipal: jest.fn(async (_user, orgId) => ({
+    authorizationRole: 'admin', membershipRole: 'admin', organizationId: orgId,
+    isInstallOperator: false, isSuperAdmin: false, hasGlobalOrganizationAccess: false,
+  })),
+}));
+jest.mock('../src/middleware/rbac', () => ({ userHasPermission: jest.fn(async () => true) }));
+
 const http = require('http');
 const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
@@ -32,6 +45,7 @@ jest.mock('../src/config', () => ({
 }));
 
 const { WsHub, wsHub: singletonHub, BROWSER_WS_PATH } = require('../src/services/wsHub');
+const db = require('../src/config/database');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -298,6 +312,7 @@ describe('WsHub', () => {
     });
 
     it('subscribes to ticket:<id> channel', async () => {
+      db.query.mockResolvedValueOnce([[{ id: 42, category: 'support' }]]);
       const ws = await authAndGetWs(7);
       ws.send(JSON.stringify({ type: 'subscribe', channel: 'ticket:42' }));
       const msg = await waitForMessage(ws, m => m.type === 'subscribed');
@@ -348,15 +363,16 @@ describe('WsHub', () => {
       const ws1 = await authAndSubscribe(1, 'notifications');
       const ws2 = await authAndSubscribe(1, 'notifications');
 
-      hub.broadcastWs('org:1:notifications', 'invoice', { id: 99 });
+      // A real feed event: unmapped names are not delivered at all (SEC-09).
+      hub.broadcastWs('org:1:notifications', 'invoice.created', { id: 99 });
 
       const [m1, m2] = await Promise.all([
         waitForMessage(ws1, m => m.type === 'event'),
         waitForMessage(ws2, m => m.type === 'event'),
       ]);
-      expect(m1.event).toBe('invoice');
+      expect(m1.event).toBe('invoice.created');
       expect(m1.data.id).toBe(99);
-      expect(m2.event).toBe('invoice');
+      expect(m2.event).toBe('invoice.created');
       ws1.close();
       ws2.close();
     });
@@ -371,7 +387,7 @@ describe('WsHub', () => {
         if (m.type === 'event') got2 = true;
       });
 
-      hub.broadcastWs('org:1:notifications', 'test', { x: 1 });
+      hub.broadcastWs('org:1:notifications', 'device.offline', { x: 1 });
       await waitForMessage(ws1, m => m.type === 'event');
 
       // Give ws2 a tick to incorrectly receive

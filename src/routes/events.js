@@ -14,6 +14,10 @@
 const { Router } = require('express');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
+const db = require('../config/database');
+const { userHasPermission } = require('../middleware/rbac');
+const realtimeAccess = require('../services/realtimeAccess');
+const { streamGuard } = require('../middleware/streamGuard');
 const logger = require('../utils/logger');
 // Lazy-required to avoid circular-module issues at startup
 let _wsHub;
@@ -52,6 +56,9 @@ function broadcast(channel, event, data) {
   if (clients && clients.size > 0) {
     const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     for (const res of clients) {
+      // Notification-feed events go only to subscribers holding the event's
+      // slug (SEC-09); other channels were permission-checked at join.
+      if (res._grants && !realtimeAccess.mayReceive(res._grants, event, data)) continue;
       try {
         res.write(message);
       } catch (_err) {
@@ -113,6 +120,16 @@ function registerSseClient(req, res, channel, clients) {
   });
 }
 
+/** 403 unless the caller holds what the channel kind needs. */
+function requireChannel(kind) {
+  return async (req, res, next) => {
+    try {
+      if (await realtimeAccess.mayJoinChannel(req, kind)) return next();
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions for this stream' } });
+    } catch (err) { return next(err); }
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
@@ -121,8 +138,13 @@ function registerSseClient(req, res, channel, clients) {
  * GET /api/events/stream
  * Authenticated SSE stream for the current user's organization notifications.
  */
-router.get('/stream', authenticate, orgScope, (req, res) => {
+router.get('/stream', authenticate, orgScope, streamGuard(), async (req, res, next) => {
+  let grants;
+  try {
+    grants = await realtimeAccess.resolveGrants(req);
+  } catch (err) { return next(err); }
   initSseResponse(res);
+  res._grants = grants;
 
   const channel = `org:${req.orgId}:notifications`;
   const clients = getChannel(channel);
@@ -140,7 +162,7 @@ router.get('/stream', authenticate, orgScope, (req, res) => {
  * Real-time SNMP metrics stream (admin only).
  * Broadcasts latest poll results as they arrive.
  */
-router.get('/metrics', authenticate, orgScope, (req, res) => {
+router.get('/metrics', authenticate, orgScope, streamGuard(), requireChannel('metrics'), (req, res) => {
   initSseResponse(res);
 
   const channel = `org:${req.orgId}:metrics`;
@@ -155,12 +177,24 @@ router.get('/metrics', authenticate, orgScope, (req, res) => {
  * Real-time updates for a specific ticket (comments, status changes).
  * The ticket ID is validated as a numeric integer to prevent injection.
  */
-router.get('/tickets/:id', authenticate, orgScope, (req, res) => {
+router.get('/tickets/:id', authenticate, orgScope, streamGuard(), requireChannel('ticket'), async (req, res, next) => {
   // Validate and sanitize the ticket ID (integer only)
-  const ticketId = parseInt(req.params.id, 10);
-  if (!Number.isFinite(ticketId) || ticketId <= 0) {
+  if (!/^[1-9]\d*$/.test(String(req.params.id))) {
     return res.status(400).json({ error: { code: 'INVALID_ID', message: 'Ticket ID must be a positive integer' } });
   }
+  const ticketId = Number(req.params.id);
+
+  // The ticket must be this organization's, and a billing ticket needs
+  // tickets.view_billing — the same rule as GET /tickets/:id (SEC-09).
+  try {
+    const [[ticket]] = await db.query(
+      'SELECT id, category FROM tickets WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [ticketId, req.orgId],
+    );
+    if (!ticket || (ticket.category === 'billing' && !(await userHasPermission(req, 'tickets.view_billing')))) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found' } });
+    }
+  } catch (err) { return next(err); }
 
   initSseResponse(res);
 
@@ -175,7 +209,7 @@ router.get('/tickets/:id', authenticate, orgScope, (req, res) => {
  * GET /api/events/outages
  * Real-time outage alerts for the organization.
  */
-router.get('/outages', authenticate, orgScope, (req, res) => {
+router.get('/outages', authenticate, orgScope, streamGuard(), requireChannel('outages'), (req, res) => {
   initSseResponse(res);
 
   const channel = `org:${req.orgId}:outages`;
@@ -193,12 +227,19 @@ router.get('/outages', authenticate, orgScope, (req, res) => {
  * GET /api/events/stats
  * Returns current SSE connection stats (admin debug).
  */
-router.get('/stats', authenticate, orgScope, (_req, res) => {
+router.get('/stats', authenticate, orgScope, (req, res) => {
+  // Only the caller's organization's channels; the install operator sees all
+  // (the map named every tenant's ticket channels, SEC-09).
+  const all = Boolean(req.user?.isInstallOperator);
+  const prefix = `org:${req.orgId}:`;
   const stats = {};
+  let total = 0;
   for (const [name, clients] of channels.entries()) {
+    if (!all && !name.startsWith(prefix)) continue;
     stats[name] = clients.size;
+    total += clients.size;
   }
-  res.json({ channels: stats, totalConnections: [...channels.values()].reduce((s, c) => s + c.size, 0) });
+  res.json({ channels: stats, totalConnections: total });
 });
 
 module.exports = { router, broadcast, sendEvent, getChannel, channels };

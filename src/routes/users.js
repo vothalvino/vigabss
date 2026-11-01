@@ -4,6 +4,7 @@
 
 const { Router } = require('express');
 const User = require('../models/User');
+const { revokeUserSessions } = require('../services/sessionRevocation');
 const { sanitizeUser } = require('../utils/userSanitize');
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
@@ -62,6 +63,21 @@ async function syncUserOrgAccess(user, req) {
   }
 }
 
+// An admin changing who the account is or what it may do ends its sessions:
+// before this, PUT/PATCH and archive left every refresh session and access
+// token working (SEC-10). Compared by value, because the edit form re-sends
+// unchanged fields.
+const SESSION_BOUND_FIELDS = ['password_hash', 'email', 'status', 'group_id', 'role'];
+function sessionBoundChange(old, updated) {
+  if (!old || !updated) return false;
+  return SESSION_BOUND_FIELDS.some(f => String(old[f] ?? '') !== String(updated[f] ?? ''));
+}
+
+async function afterUserUpdate(user, req) {
+  if (sessionBoundChange(req._userBeforeUpdate, user)) await revokeUserSessions(user.id);
+  await syncUserOrgAccess(user, req);
+}
+
 // Strip password hash + 2FA secrets from every user record in responses.
 const ctrl = crudController(User, {
   serialize: sanitizeUser,
@@ -71,8 +87,15 @@ const ctrl = crudController(User, {
   // Revoke the deleted user's WireGuard peers (kernel + nft + DB) so a removed
   // user can't keep a live tunnel. Advisory — caught + logged, never fails the
   // delete. req.user?.id stamps revoked_by.
-  afterDelete: (user, req) => userTunnelService.revokeAllForUser(user.id, req.user?.id ?? null),
+  afterDelete: async (user, req) => {
+    try {
+      await revokeUserSessions(user.id);
+    } finally {
+      await userTunnelService.revokeAllForUser(user.id, req.user?.id ?? null);
+    }
+  },
   beforeUpdate: async (old, req) => {
+    req._userBeforeUpdate = old;
     // Global identities are intentionally visible in every organization, but
     // visibility must not let an ordinary tenant administrator rewrite one.
     await assertCanManageGlobalIdentity(req, old);
@@ -89,7 +112,7 @@ const ctrl = crudController(User, {
     }
   },
   afterCreate: syncUserOrgAccess,
-  afterUpdate: syncUserOrgAccess,
+  afterUpdate: afterUserUpdate,
 });
 
 router.use(authenticate);

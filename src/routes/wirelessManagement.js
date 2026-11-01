@@ -211,11 +211,48 @@ router.get('/clients', requirePermission('wireless_clients.view'), async (req, r
  * Ingest a batch of client session snapshots from a poller.
  * Expects { sessions: [...] } body.
  */
-router.post('/clients/batch', requirePermission('wireless_clients.view'), async (req, res, next) => {
+// Ingest is a write: it was guarded by the read slug wireless_clients.view and
+// took any device_id and field values (TNB-21).
+const MAX_SESSIONS_PER_BATCH = 1000;
+const MAC_RE = /^[0-9A-Fa-f]{2}([:-]?)[0-9A-Fa-f]{2}(\1[0-9A-Fa-f]{2}){4}$/;
+const SESSION_RANGES = {
+  signal_dbm: [-150, 0], noise_floor_dbm: [-150, 0], snr_db: [0, 150], ccq_pct: [0, 100],
+  tx_rate_mbps: [0, 100000], rx_rate_mbps: [0, 100000], distance_m: [0, 1000000],
+};
+
+function sessionError(s, i) {
+  if (!s || typeof s !== 'object') return `sessions[${i}] must be an object`;
+  if (!Number.isInteger(Number(s.device_id)) || Number(s.device_id) < 1) return `sessions[${i}].device_id must be a positive integer`;
+  if (typeof s.mac_address !== 'string' || !MAC_RE.test(s.mac_address)) return `sessions[${i}].mac_address must be a MAC address`;
+  for (const [field, [min, max]] of Object.entries(SESSION_RANGES)) {
+    const v = s[field];
+    if (v === undefined || v === null) continue;
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) return `sessions[${i}].${field} must be a number between ${min} and ${max}`;
+  }
+  return null;
+}
+
+router.post('/clients/batch', requirePermission('wireless_clients.ingest'), async (req, res, next) => {
   try {
     const { sessions } = req.body;
     if (!Array.isArray(sessions)) {
       return res.status(400).json({ error: 'sessions must be an array' });
+    }
+    if (sessions.length > MAX_SESSIONS_PER_BATCH) {
+      return res.status(422).json({ error: `at most ${MAX_SESSIONS_PER_BATCH} sessions per batch` });
+    }
+    const invalid = sessions.map(sessionError).find(Boolean);
+    if (invalid) return res.status(422).json({ error: invalid });
+    const deviceIds = [...new Set(sessions.map(s => Number(s.device_id)))];
+    if (deviceIds.length) {
+      const db = require('../config/database');
+      const [owned] = await db.query(
+        `SELECT id FROM devices WHERE id IN (${deviceIds.map(() => '?').join(',')}) AND organization_id <=> ? AND deleted_at IS NULL`,
+        [...deviceIds, req.orgId],
+      );
+      const ownedIds = new Set(owned.map(r => Number(r.id)));
+      const foreign = deviceIds.filter(id => !ownedIds.has(id));
+      if (foreign.length) return res.status(422).json({ error: `device_id(s) not in this organization: ${foreign.join(', ')}` });
     }
     const count = await wirelessService.recordClientSessions(req.orgId, sessions);
     res.status(201).json({ data: { recorded: count } });

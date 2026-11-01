@@ -13,6 +13,7 @@
 const db = require('../config/database');
 const { UnauthorizedError } = require('../utils/errors');
 const { verifyPortalAccessToken } = require('../utils/accessTokens');
+const { tokenVersionStale } = require('../services/sessionRevocation');
 
 /**
  * Require portal authentication.
@@ -34,13 +35,16 @@ async function portalAuthenticate(req, _res, next) {
     }
 
     const [rows] = await db.query(
-      'SELECT id, organization_id, name, email, status FROM clients WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+      'SELECT id, organization_id, name, email, status, portal_token_version FROM clients WHERE id = ? AND deleted_at IS NULL LIMIT 1',
       [payload.sub],
     );
 
     const client = rows[0];
     if (!client || client.status === 'inactive') {
       throw new UnauthorizedError('Client not found or inactive');
+    }
+    if (tokenVersionStale(payload.tv, client.portal_token_version)) {
+      throw new UnauthorizedError('Session has been revoked');
     }
 
     req.client = {

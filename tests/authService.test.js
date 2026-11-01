@@ -259,12 +259,15 @@ describe('authService', () => {
       ).rejects.toThrow('Invalid email or password');
     });
 
-    test('throws UnauthorizedError for inactive account', async () => {
-      db.query.mockResolvedValueOnce([[{ id: 1, email: 'john@example.com', status: 'inactive' }]]);
+    // SEC-11: an inactive account gets the same answer as a wrong password, so
+    // the response does not reveal that the account exists or its state.
+    test('refuses an inactive account with the generic message, without checking the password', async () => {
+      db.query.mockResolvedValueOnce([[{ id: 1, email: 'john@example.com', status: 'inactive', password_hash: '$2a$12$real' }]]);
 
       await expect(
         authService.login({ email: 'john@example.com', password: 'password' }),
-      ).rejects.toThrow('Account is inactive');
+      ).rejects.toThrow('Invalid email or password');
+      expect(bcrypt.compare).not.toHaveBeenCalledWith('password', '$2a$12$real');
     });
 
     test('throws UnauthorizedError for wrong password', async () => {
@@ -296,10 +299,11 @@ describe('authService', () => {
 
       await expect(authService.login({ email: 'john@example.com', password: 'wrong' })).rejects.toThrow();
 
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE users SET failed_login_attempts'),
-        [3, 1],
-      );
+      // One atomic UPDATE (SEC-11): the database increments the counter, so
+      // parallel guesses cannot all write the same value.
+      const update = db.query.mock.calls.find(([sql]) => /UPDATE users SET/.test(sql));
+      expect(update[0]).toMatch(/failed_login_attempts \+ 1/);
+      expect(update[1]).toEqual([5, 15, 1]);
     });
 
     test('locks account after MAX_LOGIN_ATTEMPTS failed attempts', async () => {
@@ -331,9 +335,28 @@ describe('authService', () => {
       };
       db.query.mockResolvedValueOnce([[user]]);
 
+      // SEC-11: the generic answer, the password is not checked (so a correct
+      // guess during the lock looks like any other), and the lock is not extended.
       await expect(
         authService.login({ email: 'john@example.com', password: 'anything' }),
-      ).rejects.toThrow('Account temporarily locked');
+      ).rejects.toThrow('Invalid email or password');
+      // One compare (the dummy one, for equal timing) and no counter write.
+      expect(bcrypt.compare).toHaveBeenCalledTimes(1);
+      expect(db.query.mock.calls.some(([sql]) => /UPDATE users SET/.test(sql))).toBe(false);
+    });
+
+    test('an expired lock restarts the failure count instead of re-locking at once', async () => {
+      const pastDate = new Date(Date.now() - 60000).toISOString();
+      const user = {
+        id: 1, email: 'john@example.com', password_hash: '$2a$12$hashedpassword',
+        status: 'active', role: 'admin', failed_login_attempts: 5, locked_until: pastDate,
+      };
+      db.query.mockResolvedValueOnce([[user]]).mockResolvedValueOnce([]);
+      bcrypt.compare.mockResolvedValueOnce(false);
+
+      await expect(authService.login({ email: 'john@example.com', password: 'wrong' })).rejects.toThrow('Invalid email or password');
+      const [sql] = db.query.mock.calls.find(([s]) => /UPDATE users SET/.test(s));
+      expect(sql).toMatch(/WHEN locked_until IS NOT NULL AND locked_until <= NOW\(\) THEN 1/);
     });
 
     test('allows login after lockout expires', async () => {

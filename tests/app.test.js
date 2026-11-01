@@ -231,8 +231,9 @@ describe('Global Error Handler', () => {
   // Instead, test via the exported app's error-handling middleware indirectly.
 
   test('handles MySQL duplicate key error (ER_DUP_ENTRY)', async () => {
-    // POST to /api/auth/register triggers the route. Mock User.findByEmail then User.create to throw ER_DUP_ENTRY.
-    // Simplest: make db.query throw the MySQL-shaped error in the chain.
+    // POST /api/auth/login reaches db.query first (the account lookup), so a
+    // MySQL-shaped error thrown there exercises the global handler. (These
+    // used /auth/register, which no longer exists — SEC-12.)
     const dupError = new Error('Duplicate entry');
     dupError.code = 'ER_DUP_ENTRY';
     dupError.errno = 1062;
@@ -240,11 +241,8 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(dupError); // findByEmail throws
 
     const res = await request(app)
-      .post('/api/auth/register')
-      .send({
-        firstName: 'Test', lastName: 'User', email: 'dup@example.com',
-        password: 'password123',
-      });
+      .post('/api/auth/login')
+      .send({ email: 'dup@example.com', password: 'password123' });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('CONFLICT');
   });
@@ -258,11 +256,8 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(triggerError);
 
     const res = await request(app)
-      .post('/api/auth/register')
-      .send({
-        firstName: 'Test', lastName: 'User', email: 'trigger@example.com',
-        password: 'password123',
-      });
+      .post('/api/auth/login')
+      .send({ email: 'trigger@example.com', password: 'password123' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('DB_RULE_VIOLATION');
   });
@@ -275,11 +270,8 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(fkError);
 
     const res = await request(app)
-      .post('/api/auth/register')
-      .send({
-        firstName: 'Test', lastName: 'User', email: 'fk@example.com',
-        password: 'password123',
-      });
+      .post('/api/auth/login')
+      .send({ email: 'fk@example.com', password: 'password123' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('FK_VIOLATION');
   });
@@ -292,11 +284,8 @@ describe('Global Error Handler', () => {
       db.query.mockRejectedValueOnce(connError);
 
       const res = await request(app)
-        .post('/api/auth/register')
-        .send({
-          firstName: 'Test', lastName: 'User', email: 'conn@example.com',
-          password: 'password123',
-        });
+        .post('/api/auth/login')
+        .send({ email: 'conn@example.com', password: 'password123' });
       expect(res.status).toBe(503);
       expect(res.body.error.code).toBe('DB_UNAVAILABLE');
     },
@@ -309,11 +298,8 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(authError);
 
     const res = await request(app)
-      .post('/api/auth/register')
-      .send({
-        firstName: 'Test', lastName: 'User', email: 'authfail@example.com',
-        password: 'password123',
-      });
+      .post('/api/auth/login')
+      .send({ email: 'authfail@example.com', password: 'password123' });
     expect(res.status).toBe(503);
     expect(res.body.error.code).toBe('DB_AUTH_ERROR');
   });
@@ -325,11 +311,8 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(tableError);
 
     const res = await request(app)
-      .post('/api/auth/register')
-      .send({
-        firstName: 'Test', lastName: 'User', email: 'migrate@example.com',
-        password: 'password123',
-      });
+      .post('/api/auth/login')
+      .send({ email: 'migrate@example.com', password: 'password123' });
     expect(res.status).toBe(503);
     expect(res.body.error.code).toBe('DB_MIGRATIONS_REQUIRED');
   });
@@ -344,12 +327,11 @@ describe('Auth Routes', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  test('POST /api/auth/register validates required fields', async () => {
+  test('POST /api/auth/register is not a route (SEC-12)', async () => {
     const res = await request(app)
       .post('/api/auth/register')
       .send({ email: 'test@example.com' });
-    expect(res.status).toBe(422);
-    expect(res.body.error.details).toBeDefined();
+    expect(res.status).toBe(404);
   });
 
   test('GET /api/auth/me without token returns 401', async () => {

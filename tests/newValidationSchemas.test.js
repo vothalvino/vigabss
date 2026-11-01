@@ -462,13 +462,15 @@ describe('Expense validation schemas', () => {
     expect(fields).toContain('amount');
   });
 
-  test('createExpense rejects invalid status', () => {
-    const next = run(createExpense, { category: 'office', amount: 500, status: 'paid' });
-    expectReject(next);
+  // TNA-28: the status is not a create/update field; the route files every
+  // new expense as pending and only /approve and /reject change it.
+  test('createExpense and updateExpense do not declare a status', () => {
+    expect(createExpense.status).toBeUndefined();
+    expect(require('../src/middleware/schemas/expenses').updateExpense.status).toBeUndefined();
   });
 
   test('createExpense accepts valid data', () => {
-    const next = run(createExpense, { category: 'office', amount: 500, status: 'pending' });
+    const next = run(createExpense, { category: 'office', amount: 500 });
     expectPass(next);
   });
 

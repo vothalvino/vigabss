@@ -17,6 +17,8 @@ import { api, tokenStore } from '@/api/client';
 import { readCsrfCookie } from '@/api/csrf';
 import { extractApiError } from '@/components/ClientFormModal';
 import { ClientPicker } from '@/components/ClientPicker';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -856,6 +858,11 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
   const [sendingReceipt, setSendingReceipt] = useState(false);
   const [toast, setToast] = useState('');
   const qc = useQueryClient();
+  // Each action shows only to holders of the slug its route checks (FE-13).
+  const { user } = useAuth();
+  const canCreate = can(user, 'payments.create');
+  const canUpdate = can(user, 'payments.update');
+  const canDelete = can(user, 'payments.delete');
 
   function showToast(msg: string) {
     setToast(msg);
@@ -897,63 +904,77 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
         >
           🧾
         </button>
-        <button
-          style={{ ...iconBtn, background: '#fef3c7', color: '#92400e' }}
-          onClick={() => sendReceiptMut.mutate()}
-          disabled={sendingReceipt}
-          title="Send receipt email to client"
-          aria-label="Send receipt email to client"
-        >
-          {sendingReceipt ? '…' : '📧'}
-        </button>
-        <button
-          style={{ ...iconBtn, background: '#e0f2fe', color: '#075985' }}
-          onClick={() => setAllocateOpen(true)}
-          title="Allocate payment to an invoice"
-          aria-label="Allocate payment to an invoice"
-        >
-          ➕
-        </button>
-        <button
-          style={{ ...iconBtn, background: '#ede9fe', color: '#5b21b6' }}
-          onClick={() => setReallocateOpen(true)}
-          title="Move allocation from one invoice to another (same client)"
-          aria-label="Reallocate payment"
-        >
-          ↔
-        </button>
-        <button
-          style={{ ...iconBtn, background: '#fee2e2', color: '#991b1b' }}
-          onClick={() => setUnapplyOpen(true)}
-          title="Remove this payment from an invoice (keeps credit on account)"
-          aria-label="Un-apply payment from an invoice"
-        >
-          ✕
-        </button>
-        <button
-          style={{ ...iconBtn, background: '#fef9c3', color: '#854d0e' }}
-          onClick={() => setReassignOpen(true)}
-          title="Reassign payment to a different client (unallocated only)"
-          aria-label="Reassign payment to a different client"
-        >
-          ↗
-        </button>
-        <button
-          style={{ ...iconBtn, background: '#f3f4f6', color: '#374151' }}
-          onClick={() => setEditOpen(true)}
-          title="Edit payment"
-          aria-label="Edit payment"
-        >
-          ✏️
-        </button>
-        <button
-          style={{ ...iconBtn, background: '#fee2e2', color: '#991b1b' }}
-          onClick={() => setDeleteOpen(true)}
-          title="Delete payment"
-          aria-label="Delete payment"
-        >
-          🗑
-        </button>
+        {canUpdate && (
+          <button
+            style={{ ...iconBtn, background: '#fef3c7', color: '#92400e' }}
+            onClick={() => sendReceiptMut.mutate()}
+            disabled={sendingReceipt}
+            title="Send receipt email to client"
+            aria-label="Send receipt email to client"
+          >
+            {sendingReceipt ? '…' : '📧'}
+          </button>
+        )}
+        {canCreate && (
+          <button
+            style={{ ...iconBtn, background: '#e0f2fe', color: '#075985' }}
+            onClick={() => setAllocateOpen(true)}
+            title="Allocate payment to an invoice"
+            aria-label="Allocate payment to an invoice"
+          >
+            ➕
+          </button>
+        )}
+        {canUpdate && (
+          <button
+            style={{ ...iconBtn, background: '#ede9fe', color: '#5b21b6' }}
+            onClick={() => setReallocateOpen(true)}
+            title="Move allocation from one invoice to another (same client)"
+            aria-label="Reallocate payment"
+          >
+            ↔
+          </button>
+        )}
+        {canUpdate && (
+          <button
+            style={{ ...iconBtn, background: '#fee2e2', color: '#991b1b' }}
+            onClick={() => setUnapplyOpen(true)}
+            title="Remove this payment from an invoice (keeps credit on account)"
+            aria-label="Un-apply payment from an invoice"
+          >
+            ✕
+          </button>
+        )}
+        {canUpdate && (
+          <button
+            style={{ ...iconBtn, background: '#fef9c3', color: '#854d0e' }}
+            onClick={() => setReassignOpen(true)}
+            title="Reassign payment to a different client (unallocated only)"
+            aria-label="Reassign payment to a different client"
+          >
+            ↗
+          </button>
+        )}
+        {canUpdate && (
+          <button
+            style={{ ...iconBtn, background: '#f3f4f6', color: '#374151' }}
+            onClick={() => setEditOpen(true)}
+            title="Edit payment"
+            aria-label="Edit payment"
+          >
+            ✏️
+          </button>
+        )}
+        {canDelete && (
+          <button
+            style={{ ...iconBtn, background: '#fee2e2', color: '#991b1b' }}
+            onClick={() => setDeleteOpen(true)}
+            title="Delete payment"
+            aria-label="Delete payment"
+          >
+            🗑
+          </button>
+        )}
       </div>
 
       {/* ── Modals ── */}

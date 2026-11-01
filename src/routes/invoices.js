@@ -1016,7 +1016,9 @@ router.get('/:id/receipt', requirePermission('invoices.view'), async (req, res, 
 });
 
 // Send invoice email with PDF attachment to the client
-router.post('/:id/send-email', requirePermission('invoices.view'), async (req, res, next) => {
+// Sending mail to the client is a mutation, not a read: readonly holds every
+// *.view slug and could email invoices to any client (FE-13).
+router.post('/:id/send-email', requirePermission('invoices.update'), async (req, res, next) => {
   try {
     const invoiceId = parseInt(req.params.id, 10);
     const pdfService = require('../services/pdfService');

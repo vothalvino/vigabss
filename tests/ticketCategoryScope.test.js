@@ -303,3 +303,19 @@ describe('billing-category exclusion on sideways surfaces', () => {
     await expect(iter.next()).rejects.toThrow('Ticket not found in your organization');
   });
 });
+
+// ---------------------------------------------------------------------------
+// GQL-02: a non-canonical id (12abc, "12 ") skipped the billing guard, and
+// MySQL coerced it to 12 when the handler bound it. Such ids are 404 before
+// any ticket query runs.
+// ---------------------------------------------------------------------------
+describe('non-numeric ticket ids', () => {
+  test.each(['/api/tickets/12abc', '/api/tickets/12%20', '/api/tickets/12abc/comments'])('%s is 404 without reading a ticket', async (path) => {
+    mockAuthUser('technician', ['tickets.view']);
+    db.query.mockResolvedValue([[{ id: 12, category: 'billing', organization_id: 1, subject: 'Refund' }]]);
+    const res = await request(app).get(path).set('Authorization', `Bearer ${tokenFor('technician')}`);
+    expect(res.status).toBe(404);
+    expect(JSON.stringify(res.body)).not.toContain('Refund');
+    expect(db.query.mock.calls.some(([sql]) => /FROM `?tickets`?/.test(sql) || /ticket_comments/.test(sql))).toBe(false);
+  });
+});

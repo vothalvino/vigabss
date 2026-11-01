@@ -107,23 +107,10 @@ function clearAuthCookies(res) {
 // Routes
 // ---------------------------------------------------------------------------
 
-// POST /api/auth/register
-router.post('/register',
-  validate(authSchemas.register),
-  async (req, res, next) => {
-    try {
-      // SECURITY: only forward the public-registration fields. Never pass the
-      // raw body through — `role` / `organizationId` are honoured by
-      // authService.register, so an anonymous caller supplying role:'admin'
-      // would otherwise self-register as a platform administrator.
-      const { firstName, lastName, email, password } = req.body;
-      const user = await authService.register({ firstName, lastName, email, password });
-      res.status(201).json({ data: user });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
+// There is no public POST /auth/register (SEC-12). It let anyone create a
+// staff identity with no organization and claim an email address install-wide
+// (users.email is globally unique), and the SPA never used it. Staff accounts
+// are created by an administrator through POST /users.
 
 // POST /api/auth/login
 /**

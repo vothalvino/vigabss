@@ -21,7 +21,8 @@ const { createYoga, createSchema } = require('graphql-yoga');
 const typeDefs = require('./typeDefs');
 const resolvers = require('./resolvers');
 const { pubsub } = require('../services/pubsub');
-const { getNullableType, isListType, isNonNullType } = require('graphql');
+const { getNullableType, isListType, isNonNullType, NoSchemaIntrospectionCustomRule } = require('graphql');
+const { queryLimitsRule } = require('./limits');
 const { assertGraphqlPermission, graphqlHasPermission, gqlForbidden } = require('./authz');
 
 // ---------------------------------------------------------------------------
@@ -156,6 +157,20 @@ const yoga = createYoga({
 
   // Disable the built-in logger; VigaBSS uses Pino.
   logging: false,
+
+  // SEC-25: no GraphiQL IDE (yoga enables it unless told otherwise), and no
+  // yoga CORS handling — the app's own CORS policy applies to /graphql like
+  // every other route.
+  graphiql: false,
+  cors: false,
+
+  plugins: [{
+    onValidate({ addValidationRule }) {
+      addValidationRule(queryLimitsRule);
+      // The schema is not published in production; the SPA never introspects.
+      if (process.env.NODE_ENV === 'production') addValidationRule(NoSchemaIntrospectionCustomRule);
+    },
+  }],
 });
 
 /**

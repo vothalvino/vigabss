@@ -166,6 +166,17 @@ uses `verifyPortalAccessToken`. Never verify an access JWT with a raw
 `jwt.verify(..., JWT_SECRET)` on a new surface: a `clients.id` must never be
 resolved as a `users.id`.
 
+Both access-token classes carry a token version (`tv`): `users.token_version`
+for staff and `clients.portal_token_version` for the portal (migration 482).
+`authenticate()` and `portalAuthenticate` refuse a token whose version no
+longer matches the account's. Anything that should end an account's sessions
+calls `src/services/sessionRevocation.js`, which bumps the version and deletes
+(staff) or revokes (portal) the refresh sessions: password resets and changes,
+an admin change of a user's password, email, status, group or role, archiving
+a user, and setting a portal password. A new surface that mints an access
+token must embed the current version; one that verifies a token must compare
+it.
+
 Staff with TOTP enabled sign in in two steps. `POST /auth/login` (and an SSO
 callback) returns a 5-minute `type: 'mfa'` challenge signed with a third
 derived key; it sets no cookies and creates no session, and

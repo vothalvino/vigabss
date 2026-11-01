@@ -19,7 +19,8 @@ describe('OpenAPI spec generation', () => {
   test('includes auth endpoints', () => {
     const spec = generateSpec();
 
-    expect(spec.paths['/auth/register']).toBeDefined();
+    // SEC-12: there is no public self-registration endpoint.
+    expect(spec.paths['/auth/register']).toBeUndefined();
     expect(spec.paths['/auth/login']).toBeDefined();
     expect(spec.paths['/auth/logout']).toBeDefined();
     expect(spec.paths['/auth/me']).toBeDefined();

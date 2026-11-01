@@ -35,7 +35,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     // already granted to the technician role by migrations 298, 377, and 447.
     'work_orders.update', 'speed_tests.create',
     'signed_documents.view', 'signed_documents.sign',
-    'nas.health',
+    'nas.health', 'nas.health_check', 'tickets.comment',
+    'cpe_diagnostics.view', 'provisioning_pipelines.view',
     'interactions.view', 'follow_ups.view', 'follow_ups.update', 'escalations.view',
     'campaigns.view', 'dnd.view',
     'subscriber_consents.view',
@@ -71,9 +72,10 @@ export interface PermissionSubject {
  * Check whether the given user may perform the given permission.
  *
  * - No user → deny. There's nothing to check permissions against.
- * - `role === 'admin'` → always allow. Mirrors the backend RBAC bypass in
- *   `src/middleware/rbac.js`, where legacy `users.role='admin'` short-circuits
- *   every permission check regardless of the resolved permission set.
+ * - `role === 'admin'` → always allow. This is a UI convenience only: the
+ *   backend has NO such bypass (src/middleware/rbac.js resolves admins through
+ *   the permission graph, like everyone else), so a button shown here can
+ *   still be refused with 403. Never rely on it for anything but visibility.
  * - `permissions` is an array → authoritative, and used as-is. This is the
  *   real, server-resolved set for the user's active org (custom groups
  *   included), so an empty array is a genuine DENY-all, not "unknown, fall

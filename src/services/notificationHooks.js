@@ -587,6 +587,9 @@ function registerHooks() {
       getBroadcast()(`org:${organizationId}:notifications`, 'ticket.created', {
         id: ticket.id,
         subject: ticket.subject,
+        // Lets the realtime layer withhold billing tickets from roles without
+        // tickets.view_billing (SEC-09).
+        category: ticket.category ?? null,
         client_id: ticket.client_id,
         priority: ticket.priority,
       });
@@ -1007,6 +1010,7 @@ function registerHooks() {
         escalation_id: escalation.id,
         ticket_id: ticket.id,
         subject: ticket.subject,
+        category: ticket.category ?? null,
         level: escalation.level,
         reason: escalation.reason,
       });

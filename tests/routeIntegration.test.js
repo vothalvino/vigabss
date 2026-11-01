@@ -94,35 +94,16 @@ beforeEach(() => {
 // =============================================================================
 describe('Auth Routes — /api/auth', () => {
 
+  // SEC-12: there is no public self-registration; staff are created via POST /users.
   describe('POST /api/auth/register', () => {
-    test('success — creates a new user', async () => {
-      User.findByEmail.mockResolvedValue(null);
-      User.create.mockResolvedValue({
-        id: 10,
-        first_name: 'Jane',
-        last_name: 'Doe',
-        email: 'jane@example.com',
-        role: 'support',
-        status: 'active',
-      });
-      db.query.mockResolvedValue([{ affectedRows: 1 }]);
-
+    test('is not a route and creates no user', async () => {
       const res = await request(app)
         .post('/api/auth/register')
-        .send({
-          firstName: 'Jane',
-          lastName: 'Doe',
-          email: 'jane@example.com',
-          password: 'securepass1',
-        });
+        .send({ firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', password: 'securepass1' });
 
-      expect(res.status).toBe(201);
-      expect(res.body.data).toBeDefined();
-      expect(res.body.data.email).toBe('jane@example.com');
-      // A verification email is sent for every new registration (§382 Tier 2)
-      expect(emailTransport.sendEmail).toHaveBeenCalledWith(
-        expect.objectContaining({ to: 'jane@example.com', subject: 'Verify Your Email Address' }),
-      );
+      expect(res.status).toBe(404);
+      expect(User.create).not.toHaveBeenCalled();
+      expect(emailTransport.sendEmail).not.toHaveBeenCalled();
     });
   });
 
@@ -775,9 +756,9 @@ describe('IFT Statistical Reports — /api/v1/ift-statistical-reports', () => {
 // =============================================================================
 describe('Validation Tests', () => {
 
-  test('POST /api/auth/register with missing fields returns 422', async () => {
+  test('POST /api/auth/login with missing fields returns 422', async () => {
     const res = await request(app)
-      .post('/api/auth/register')
+      .post('/api/auth/login')
       .send({ email: 'only@email.com' });
 
     expect(res.status).toBe(422);

@@ -273,7 +273,9 @@ router.get('/:id/comments', requireOwnedTicket('tickets.view'), async (req, res,
   } catch (err) { next(err); }
 });
 
-router.post('/:id/comments', requireOwnedTicket('tickets.update'), validate(createComment), async (req, res, next) => {
+// Posting a comment needs tickets.comment (granted to technician, migration
+// 483) or tickets.update; editing and deleting comments are unchanged (DB-23).
+router.post('/:id/comments', requireOwnedTicket('tickets.update', 'tickets.comment'), validate(createComment), async (req, res, next) => {
   try {
     const { body, is_internal } = req.body;
     const [result] = await db.query(

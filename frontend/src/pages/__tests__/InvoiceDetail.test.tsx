@@ -18,9 +18,15 @@ import { InvoiceDetail } from '../InvoiceDetail';
 
 // Mutable org locale: default 'global' (no SAT affordances); stamp tests flip
 // it to 'MX'.
-const authState: { locale: 'global' | 'MX' } = { locale: 'global' };
+// The default user may do everything (actions are gated per slug, FE-13);
+// persona tests narrow `permissions`.
+const authState: { locale: 'global' | 'MX'; permissions?: string[] } = { locale: 'global' };
 vi.mock('@/auth/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 1, email: 'a@b.c', organization_locale: authState.locale } }),
+  useAuth: () => ({
+    user: authState.permissions
+      ? { id: 1, email: 'a@b.c', role: 'readonly', permissions: authState.permissions, organization_locale: authState.locale }
+      : { id: 1, email: 'a@b.c', role: 'admin', organization_locale: authState.locale },
+  }),
 }));
 
 const mockApiGet = vi.fn();
@@ -111,6 +117,7 @@ function renderDetail() {
 beforeEach(() => {
   vi.clearAllMocks();
   authState.locale = 'global';
+  authState.permissions = undefined;
   setupMocks();
   wireItemsGet([item1]);
 });
@@ -638,4 +645,28 @@ describe('InvoiceDetail stamp-later', () => {
     expect(wrote).toEqual([]);
   });
 
+});
+
+// FE-13: every action rendered for every persona, and readonly could email
+// invoices to clients. Actions now show only to holders of their route's slug.
+describe('InvoiceDetail persona gating', () => {
+  it('a read-only user sees no mutations, only the PDF download', async () => {
+    authState.permissions = ['invoices.view', 'payments.view', 'clients.view'];
+    renderDetail();
+    await waitFor(() => expect(screen.getByText('Setup Fee')).toBeInTheDocument());
+    expect(screen.getByText('⬇ Download PDF')).toBeInTheDocument();
+    for (const label of ['✉️ Send Email', '✏️ Edit', '💳 Record Payment', '🚫 Void']) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: 'Add Item' })).not.toBeInTheDocument();
+  });
+
+  it('billing (invoices.update, payments.create) gets the invoice actions', async () => {
+    authState.permissions = ['invoices.view', 'invoices.update', 'payments.create'];
+    renderDetail();
+    await waitFor(() => expect(screen.getByText('Setup Fee')).toBeInTheDocument());
+    for (const label of ['✉️ Send Email', '✏️ Edit', '💳 Record Payment', '🚫 Void']) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+  });
 });

@@ -188,3 +188,31 @@ describe('the permission is seeded and granted, or it is a silent 403 for everyo
     }
   });
 });
+
+// TNA-27: POST /clients took tax_exempt from the body with only clients.create.
+describe('creating an exempt client requires clients.tax_exemption', () => {
+  const insertedClient = () => db.query.mock.calls.some(([sql]) => /^INSERT INTO `?clients`?/i.test(sql));
+
+  it('403s a support agent creating an exempt client, and inserts nothing', async () => {
+    wireDb(SUPPORT, SUPPORT_PERMS);
+    const res = await auth(request(app).post('/api/v1/clients'), SUPPORT)
+      .send({ name: 'Asociación Civil', email: 'ac@example.com', tax_exempt: true, tax_exempt_reason: 'Donataria' });
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('TAX_EXEMPTION_FORBIDDEN');
+    expect(insertedClient()).toBe(false);
+  });
+
+  it('lets a support agent create an ordinary client (tax_exempt false or absent)', async () => {
+    wireDb(SUPPORT, SUPPORT_PERMS);
+    db.query.mockImplementation(async (sql) => {
+      if (isUserLookup(sql)) return [[SUPPORT]];
+      if (/^INSERT/i.test(sql)) return [{ insertId: 9, affectedRows: 1 }];
+      if (/FROM `?clients`?/i.test(sql)) return [[STORED]];
+      return [[]];
+    });
+    const res = await auth(request(app).post('/api/v1/clients'), SUPPORT)
+      .send({ name: 'Ferretería Díaz', email: 'fd@example.com', tax_exempt: false });
+    expect(res.status).not.toBe(403);
+    expect(insertedClient()).toBe(true);
+  });
+});

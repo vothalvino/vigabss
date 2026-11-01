@@ -1095,7 +1095,11 @@ async function cancelOrder(orderId, { orgId = null, canCancelContract = true } =
       throw new ValidationError(`Invalid service order transition: ${order.status} → cancelled`);
     }
 
-    if (order.contract_id) {
+    // Only the contract a started installation provisioned is this order's to
+    // cancel (RTE-03). Before, any pending contract linked to any order was
+    // cancelled, its RADIUS account disabled and a Disconnect sent. Other
+    // orders, and orders that never started, leave a linked contract alone.
+    if (order.contract_id && order.order_type === 'new_install' && order.status === 'in_process' && canCancelContract) {
       const contractParams = [order.contract_id];
       const contractScope = orgId === null
         ? ''

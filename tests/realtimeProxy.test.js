@@ -35,8 +35,9 @@ describe('browser WebSocket transport', () => {
   it('keeps the agent tunnel and browser hub on distinct server paths', () => {
     expect(FIRERELAY_WS_PATH).toBe('/ws/firerelay');
     expect(BROWSER_WS_PATH).not.toBe(FIRERELAY_WS_PATH);
-    expect(read('src/services/firerelayTunnel.js')).toContain('new WebSocketServer({ noServer: true })');
-    expect(read('src/services/wsHub.js')).toContain('new WebSocketServer({ noServer: true })');
+    // noServer, with a bounded maxPayload (SEC-16).
+    expect(read('src/services/firerelayTunnel.js')).toMatch(/new WebSocketServer\(\{ noServer: true, maxPayload: MAX_PAYLOAD_BYTES \}\)/);
+    expect(read('src/services/wsHub.js')).toMatch(/new WebSocketServer\(\{ noServer: true, maxPayload: MAX_PAYLOAD_BYTES \}\)/);
     expect(read('src/services/websocketUpgradeRouter.js')).toContain("'HTTP/1.1 404 Not Found\\r\\n'");
   });
 

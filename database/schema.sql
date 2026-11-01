@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS users (
     deleted_at      DATETIME        DEFAULT NULL,
     is_install_operator TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Runs this INSTALL (deploy, install-wide settings) — NOT a tenant role. Never settable through the API: absent from User.fillable and from every validation schema (migration 444).',
     must_change_password TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = the account must set a new password before doing anything else; set for the installer-created administrator (migration 480)',
+    token_version INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Embedded in access JWTs; bumped to revoke every outstanding access token (migration 482)',
     active_flag TINYINT(1) GENERATED ALWAYS AS (IF(deleted_at IS NULL, 1, NULL)) STORED COMMENT 'NULL when soft-deleted; appended to business unique keys so they ignore soft-deleted rows (migration 361)',
 
     PRIMARY KEY (id),
@@ -93,6 +94,7 @@ CREATE TABLE IF NOT EXISTS clients (
     portal_locked_until        TIMESTAMP    NULL,
     portal_reset_token_hash    VARCHAR(64)  NULL      COMMENT 'sha256 hex digest of the pending portal password-reset token; NULL when no reset is pending (migration 385)',
     portal_reset_token_expires DATETIME     NULL      COMMENT 'Portal reset token expiry, set to NOW()+1hr on request (migration 385)',
+    portal_token_version       INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Embedded in portal access JWTs; bumped to revoke every outstanding portal session (migration 482)',
     version         INT UNSIGNED    NOT NULL DEFAULT 1 COMMENT 'Optimistic locking version',
     suspension_exempt        TINYINT(1)   NOT NULL DEFAULT 0   COMMENT 'When 1, suspension rules will never be applied to this client',
     suspension_exempt_reason VARCHAR(500) NULL                 COMMENT 'Optional explanation for why this client is exempt from suspension',

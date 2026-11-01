@@ -12,6 +12,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 import {
   styles,
   modalStyles,
@@ -35,6 +37,7 @@ interface Expense {
   expense_date: string | null;
   notes: string | null;
   status: string;
+  user_id: number | null;
 }
 
 interface ExpensesResponse {
@@ -50,7 +53,6 @@ interface ExpenseBody {
   receipt_url?: string;
   expense_date?: string;
   notes?: string;
-  status?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +87,15 @@ async function updateExpense(id: number, body: Partial<ExpenseBody>): Promise<vo
     body: body as never,
   });
   if (res.error) throw new Error('Failed to update expense');
+}
+
+// Approval is a separate step under expenses.approve; the edit form never
+// sets the status, and nobody approves or rejects their own expense.
+async function decideExpense(id: number, decision: 'approve' | 'reject'): Promise<void> {
+  const res = decision === 'approve'
+    ? await api.POST('/expenses/{id}/approve', { params: { path: { id } } })
+    : await api.POST('/expenses/{id}/reject', { params: { path: { id } } });
+  if (res.error) throw new Error(`Failed to ${decision} expense`);
 }
 
 async function deleteExpense(id: number): Promise<void> {
@@ -130,7 +141,6 @@ function ExpenseModal({ expense, onClose, onSaved }: ExpenseModalProps) {
     receipt_url: expense?.receipt_url ?? '',
     expense_date: expense?.expense_date ? expense.expense_date.split('T')[0] : TODAY,
     notes: expense?.notes ?? '',
-    status: expense?.status ?? 'pending',
   });
   const [error, setError] = useState('');
 
@@ -144,7 +154,6 @@ function ExpenseModal({ expense, onClose, onSaved }: ExpenseModalProps) {
         category: form.category.trim(),
         amount: Number(form.amount),
         currency: form.currency || undefined,
-        status: form.status,
       };
       if (form.description) body.description = form.description;
       if (form.receipt_url) body.receipt_url = form.receipt_url;
@@ -219,13 +228,6 @@ function ExpenseModal({ expense, onClose, onSaved }: ExpenseModalProps) {
             <input style={modalStyles.input} type="text" maxLength={5000} value={form.notes} onChange={e => setField('notes', e.target.value)} />
           </label>
 
-          <label style={modalStyles.label}>
-            Status
-            <select style={modalStyles.select} value={form.status} onChange={e => setField('status', e.target.value)}>
-              {STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
-            </select>
-          </label>
-
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
@@ -287,6 +289,13 @@ export function ExpenseList() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['expenses'] }),
   });
 
+  const { user } = useAuth();
+  const canApprove = can(user, 'expenses.approve');
+  const decideMutation = useMutation({
+    mutationFn: ({ id, decision }: { id: number; decision: 'approve' | 'reject' }) => decideExpense(id, decision),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['expenses'] }),
+  });
+
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['expenses'] });
   }
@@ -319,7 +328,7 @@ export function ExpenseList() {
         )}
       </div>
 
-      {deleteMutation.isError && (
+      {(deleteMutation.isError || decideMutation.isError) && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>Action failed. Please try again.</p>
       )}
 
@@ -348,6 +357,12 @@ export function ExpenseList() {
                       <td style={styles.td}>{fmtMoney(x.amount, x.currency ?? orgCurrency)}</td>
                       <td style={styles.td}><StatusBadge status={x.status} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
+                        {canApprove && x.status === 'pending' && x.user_id !== user?.id && (
+                          <>
+                            <button style={styles.actionBtn} disabled={decideMutation.isPending} onClick={() => decideMutation.mutate({ id: x.id, decision: 'approve' })} title="Approve this expense">✅ Approve</button>
+                            <button style={styles.actionBtn} disabled={decideMutation.isPending} onClick={() => decideMutation.mutate({ id: x.id, decision: 'reject' })} title="Reject this expense">✖ Reject</button>
+                          </>
+                        )}
                         <button style={styles.actionBtn} onClick={() => setEditExpense(x)} title="Edit this expense">✏️ Edit</button>
                         <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setDeleteId(x.id)} title="Delete this expense">🗑 Delete</button>
                       </td>
