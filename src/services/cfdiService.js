@@ -13,6 +13,7 @@ const { formatMoney, formatQuantity, formatUnitValue, anexo20Violations } = requ
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
+const { timeZoneForPostalCode, DEFAULT_TIME_ZONE } = require('../utils/mxTimeZone');
 
 // ---------------------------------------------------------------------------
 // Simple circuit breaker for PAC stamping calls
@@ -83,13 +84,14 @@ function isPacTransportFailure(err) {
  * Builds the XML structure from cfdi_documents and cfdi_conceptos rows.
  */
 /**
- * The expedition timestamp for a CFDI: current moment in Mexico local time,
- * "AAAA-MM-DDThh:mm:ss" (Anexo 20 — no offset, no milliseconds). Uses
- * Intl/America/Mexico_City so the value is correct regardless of server TZ.
+ * The expedition timestamp for a CFDI: the moment in the local time of the
+ * issuer's LugarExpedicion, "AAAA-MM-DDThh:mm:ss" (Anexo 20: no offset, no
+ * milliseconds). Pass the zone from timeZoneForPostalCode; it defaults to
+ * Mexico City. Correct regardless of the server's own time zone.
  */
-function cfdiExpeditionTime(now = new Date()) {
+function cfdiExpeditionTime(now = new Date(), timeZone = DEFAULT_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Mexico_City',
+    timeZone,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   }).formatToParts(now).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
@@ -273,7 +275,7 @@ async function generateXml(cfdiDocumentId) {
     const xml = buildPaymentComplementXml(
       {
         serie: doc.serie, folio: doc.folio,
-        fecha_emision: cfdiExpeditionTime(),
+        fecha_emision: cfdiExpeditionTime(new Date(), timeZoneForPostalCode(emisor.codigo_postal_fiscal)),
         lugar_expedicion: emisor.codigo_postal_fiscal,
         emisor_rfc: emisor.rfc, emisor_nombre: emisor.razon_social,
         emisor_regimen_fiscal: emisor.regimen_fiscal,
@@ -407,14 +409,12 @@ function buildCfdi40Xml(doc, emisor, conceptos, impuestos, relacionados = []) {
     </cfdi:Concepto>`;
   }).join('\n');
 
-  // Fecha = the moment of expedition in MEXICO LOCAL time, per Anexo 20
-  // ("AAAA-MM-DDThh:mm:ss", no timezone suffix, no milliseconds). A bare
-  // toISOString() would be UTC — ~6h ahead of Mexico wall-clock, which PACs
-  // reject as a future expedition date after ~18:00 local. America/Mexico_City
-  // covers the CST bulk of the country (Mexico abolished DST in 2022); the few
-  // border/Sonora/Quintana Roo zones are an accepted approximation until the
-  // emisor profile carries an explicit zone.
-  const fecha = cfdiExpeditionTime();
+  // Fecha = the moment of expedition in the local time of LugarExpedicion,
+  // per Anexo 20 ("AAAA-MM-DDThh:mm:ss", no timezone suffix, no milliseconds).
+  // A bare toISOString() would be UTC, hours ahead of Mexican wall-clock, and
+  // PACs reject a future expedition date. Mexico City time put issuers in the
+  // UTC-7 and UTC-8 states 1-2h in the future too (CFD-05).
+  const fecha = cfdiExpeditionTime(new Date(), timeZoneForPostalCode(emisor.codigo_postal_fiscal));
 
   // Comprobante-level tax summary — Anexo 20 requires that when conceptos
   // carry traslados, the Comprobante-level cfdi:Impuestos node repeats them
@@ -2000,15 +2000,17 @@ function buildPaymentComplementXml(doc, complement, items) {
   // Fecha must be Mexico-local wall time. The old round-trip through
   // new Date(...).toISOString() re-emitted it as UTC — correct only on
   // UTC-clock servers, +N hours (a rejected future Fecha) everywhere else.
-  // A plain string from cfdiExpeditionTime() is already CDMX wall time →
-  // pass through; a zoned string or Date is an instant → convert to CDMX.
+  // A plain string from cfdiExpeditionTime() is already local wall time →
+  // pass through; a zoned string or Date is an instant → convert it to the
+  // local time of LugarExpedicion.
+  const zone = timeZoneForPostalCode(doc.lugar_expedicion);
   let fecha = '';
   if (doc.fecha_emision instanceof Date) {
-    fecha = cfdiExpeditionTime(doc.fecha_emision);
+    fecha = cfdiExpeditionTime(doc.fecha_emision, zone);
   } else if (doc.fecha_emision) {
     const s = String(doc.fecha_emision);
     if (/Z$|[+-]\d{2}:\d{2}$/.test(s)) {
-      fecha = cfdiExpeditionTime(new Date(s));
+      fecha = cfdiExpeditionTime(new Date(s), zone);
     } else {
       // Local wall time, but callers may send MySQL 'YYYY-MM-DD HH:mm:ss' or a
       // bare date — the Fecha XSD pattern demands YYYY-MM-DDTHH:mm:ss exactly.

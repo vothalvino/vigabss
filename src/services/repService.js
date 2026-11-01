@@ -24,6 +24,7 @@ const { AppError } = require('../utils/errors');
 const cfdiService = require('./cfdiService');
 const { nextCfdiFolio } = require('./invoiceCfdiService');
 const auditLog = require('./auditLog');
+const { timeZoneForPostalCode } = require('../utils/mxTimeZone');
 const logger = require('../utils/logger').child({ service: 'rep' });
 
 // payments.payment_method → SAT c_FormaPago when sat_forma_pago isn't set.
@@ -184,7 +185,7 @@ async function generateRepForAllocation(paymentId, invoiceId, allocatedAmount, o
       payment_id: paymentId,
       serie: emisor.cfdi_serie_pago || 'P',
       folio,
-      fecha_emision: cfdiService.cfdiExpeditionTime(),
+      fecha_emision: cfdiService.cfdiExpeditionTime(new Date(), timeZoneForPostalCode(emisor.codigo_postal_fiscal)),
       lugar_expedicion: emisor.codigo_postal_fiscal,
       emisor_rfc: emisor.rfc,
       emisor_nombre: emisor.razon_social,
