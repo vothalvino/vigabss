@@ -2,28 +2,31 @@
 # grouped and weekly so they arrive as a few reviewable PRs; security updates
 # are separate and immediate. github-actions keeps the commit-SHA pins in the
 # workflows current (each pin carries its tag in a comment).
+#
+# Major versions are not proposed automatically: a new MySQL, Redis or Node
+# line, or a new build toolchain (TypeScript, Vite, Vitest), is a planned
+# upgrade with its own testing, not a one-click merge. nginx stays on its
+# even-numbered stable line, so only its patch releases are proposed.
 version: 2
 updates:
+  # One entry for the whole pnpm workspace (root, frontend, e2e): the only
+  # lockfile is the root pnpm-lock.yaml. A separate /frontend entry produced
+  # PRs that changed frontend/package.json without the lockfile, which every
+  # `pnpm install --frozen-lockfile` build refused.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       production:
         dependency-type: production
         update-types: [minor, patch]
       development:
         dependency-type: development
-        update-types: [minor, patch]
-
-  - package-ecosystem: npm
-    directory: /frontend
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    groups:
-      frontend:
         update-types: [minor, patch]
 
   - package-ecosystem: github-actions
@@ -34,10 +37,14 @@ updates:
       actions:
         patterns: ["*"]
 
+  # The Dockerfile's base image (node).
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
 
   # The third-party images in the compose files, pinned by version and digest
   # (OPS-12).
@@ -45,4 +52,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
-
+    ignore:
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "redis"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "nginx"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
