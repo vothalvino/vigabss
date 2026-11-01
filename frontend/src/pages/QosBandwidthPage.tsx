@@ -171,31 +171,35 @@ interface FupNotification {
 
 // §10.4 Traffic Engineering
 
+// Field names and option lists are the table columns and ENUMs (FE2-03): the
+// old algorithm/max_bandwidth/match_port_range/vlan_id/mpls_label names and
+// values such as 'passthrough' or 'speedtest' were rejected or dropped.
+
 interface InterfaceQosPolicy {
   id: number;
   name: string;
+  description: string | null;
   interface_name: string | null;
-  algorithm: string;
-  max_bandwidth_mbps: number | null;
-  committed_bandwidth_mbps: number | null;
-  burst_bandwidth_mbps: number | null;
+  policy_type: string;
+  direction: string;
+  bandwidth_mbps: number | null;
+  ceil_mbps: number | null;
+  burst_mbps: number | null;
   priority: number;
-  vendor_platform: string | null;
   status: string;
-  notes: string | null;
 }
 
 interface InterfaceQosPolicyBody {
   name: string;
+  description?: string;
   interface_name?: string;
-  algorithm?: string;
-  max_bandwidth_mbps?: number;
-  committed_bandwidth_mbps?: number;
-  burst_bandwidth_mbps?: number;
+  policy_type?: string;
+  direction?: string;
+  bandwidth_mbps?: number;
+  ceil_mbps?: number;
+  burst_mbps?: number;
   priority?: number;
-  vendor_platform?: string;
   status?: string;
-  notes?: string;
 }
 
 interface DscpMarkingPolicy {
@@ -204,11 +208,11 @@ interface DscpMarkingPolicy {
   traffic_class: string;
   dscp_value: number;
   dscp_name: string | null;
-  match_protocol: string | null;
-  match_port_range: string | null;
+  match_protocol: string;
+  match_dst_port: string | null;
   action: string;
   priority: number;
-  enabled: number;
+  status: string;
 }
 
 interface DscpMarkingPolicyBody {
@@ -217,32 +221,32 @@ interface DscpMarkingPolicyBody {
   dscp_value?: number;
   dscp_name?: string;
   match_protocol?: string;
-  match_port_range?: string;
+  match_dst_port?: string;
   action?: string;
   priority?: number;
-  enabled?: number;
+  status?: string;
 }
 
 interface MplsVlanRule {
   id: number;
   name: string;
   rule_type: string;
-  vlan_id: number | null;
-  mpls_label: number | null;
-  traffic_class: string | null;
-  priority_bits: number | null;
-  queue_class: string | null;
+  match_vlan_id: number | null;
+  match_dot1p: number | null;
+  set_mpls_exp: number | null;
+  set_dot1p: number | null;
+  priority: number;
   enabled: number;
 }
 
 interface MplsVlanRuleBody {
   name: string;
   rule_type?: string;
-  vlan_id?: number;
-  mpls_label?: number;
-  traffic_class?: string;
-  priority_bits?: number;
-  queue_class?: string;
+  match_vlan_id?: number;
+  match_dot1p?: number;
+  set_mpls_exp?: number;
+  set_dot1p?: number;
+  priority?: number;
   enabled?: number;
 }
 
@@ -283,11 +287,12 @@ const PROTOCOLS = ['tcp', 'udp', 'icmp', 'any'];
 const DIRECTIONS = ['download', 'upload', 'both'];
 const ACTIONS = ['limit', 'drop', 'mark', 'throttle'];
 const STATUSES = ['active', 'inactive'];
-const QOS_ALGORITHMS = ['htb', 'cbq', 'hfsc', 'pcq', 'pfifo', 'sfq'];
-const TE_VENDOR_PLATFORMS = ['mikrotik', 'cisco', 'juniper', 'generic'];
-const DSCP_ACTIONS = ['mark', 'remark', 'passthrough'];
-const MPLS_VLAN_RULE_TYPES = ['vlan', 'mpls', 'qinq', 'mpls_vlan'];
-const BWT_PROTOCOLS = ['tcp', 'udp', 'iperf3', 'speedtest'];
+const QOS_POLICY_TYPES = ['htb', 'cbq', 'hfsc', 'pcq', 'prio', 'sfq', 'generic'];
+const QOS_DIRECTIONS = ['ingress', 'egress', 'both'];
+const DSCP_TRAFFIC_CLASSES = ['voice', 'video', 'interactive', 'bulk', 'scavenger', 'best_effort'];
+const DSCP_ACTIONS = ['mark', 'remark', 'trust', 'police'];
+const MPLS_VLAN_RULE_TYPES = ['mpls_exp', 'dot1p', 'dscp_to_dot1p', 'dot1p_to_dscp', 'combined'];
+const BWT_PROTOCOLS = ['iperf3', 'speedtest_cli', 'custom'];
 
 // ---------------------------------------------------------------------------
 // API helpers — Quality Classes
@@ -932,8 +937,8 @@ export function QosBandwidthPage() {
   function openIqpModal(item?: InterfaceQosPolicy) {
     setEditingIqp(item ?? null);
     setIqpForm(item
-      ? { name: item.name, interface_name: item.interface_name ?? '', algorithm: item.algorithm, max_bandwidth_mbps: item.max_bandwidth_mbps ?? undefined, committed_bandwidth_mbps: item.committed_bandwidth_mbps ?? undefined, burst_bandwidth_mbps: item.burst_bandwidth_mbps ?? undefined, priority: item.priority, vendor_platform: item.vendor_platform ?? '', status: item.status, notes: item.notes ?? '' }
-      : { algorithm: 'htb', priority: 4, status: 'active' });
+      ? { name: item.name, description: item.description ?? undefined, interface_name: item.interface_name ?? undefined, policy_type: item.policy_type, direction: item.direction, bandwidth_mbps: item.bandwidth_mbps ?? undefined, ceil_mbps: item.ceil_mbps ?? undefined, burst_mbps: item.burst_mbps ?? undefined, priority: item.priority, status: item.status }
+      : { policy_type: 'htb', direction: 'egress', priority: 4, status: 'active' });
     setIqpErr('');
     setShowIqpModal(true);
   }
@@ -970,8 +975,8 @@ export function QosBandwidthPage() {
   function openDscpModal(item?: DscpMarkingPolicy) {
     setEditingDscp(item ?? null);
     setDscpForm(item
-      ? { name: item.name, traffic_class: item.traffic_class, dscp_value: item.dscp_value, dscp_name: item.dscp_name ?? '', match_protocol: item.match_protocol ?? '', match_port_range: item.match_port_range ?? '', action: item.action, priority: item.priority, enabled: item.enabled }
-      : { action: 'mark', priority: 4, enabled: 1 });
+      ? { name: item.name, traffic_class: item.traffic_class, dscp_value: item.dscp_value, dscp_name: item.dscp_name ?? undefined, match_protocol: item.match_protocol, match_dst_port: item.match_dst_port ?? undefined, action: item.action, priority: item.priority, status: item.status }
+      : { traffic_class: 'best_effort', match_protocol: 'any', action: 'mark', priority: 4, status: 'active' });
     setDscpErr('');
     setShowDscpModal(true);
   }
@@ -1017,8 +1022,8 @@ export function QosBandwidthPage() {
   function openMvModal(item?: MplsVlanRule) {
     setEditingMv(item ?? null);
     setMvForm(item
-      ? { name: item.name, rule_type: item.rule_type, vlan_id: item.vlan_id ?? undefined, mpls_label: item.mpls_label ?? undefined, traffic_class: item.traffic_class ?? '', priority_bits: item.priority_bits ?? undefined, queue_class: item.queue_class ?? '', enabled: item.enabled }
-      : { rule_type: 'vlan', enabled: 1 });
+      ? { name: item.name, rule_type: item.rule_type, match_vlan_id: item.match_vlan_id ?? undefined, match_dot1p: item.match_dot1p ?? undefined, set_mpls_exp: item.set_mpls_exp ?? undefined, set_dot1p: item.set_dot1p ?? undefined, priority: item.priority, enabled: item.enabled }
+      : { rule_type: 'dot1p', priority: 5, enabled: 1 });
     setMvErr('');
     setShowMvModal(true);
   }
@@ -1921,15 +1926,15 @@ export function QosBandwidthPage() {
 
           {/* ---- Interface QoS Policies sub-section ---- */}
           <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-            {t('qosBandwidth.trafficEngineering.interfaceQosPolicies')}
+            {t('qosBandwidth.trafficEngineering.interfaceQos')}
           </h2>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button style={styles.btnPrimary} onClick={() => openIqpModal()}>
-              + {t('qosBandwidth.trafficEngineering.newPolicy')}
+              + {t('qosBandwidth.trafficEngineering.newInterfaceQos')}
             </button>
           </div>
           {iqpQ.isLoading && <p style={styles.msg}>{t('qosBandwidth.loading')}</p>}
-          {iqpQ.isError && <p style={styles.msgError}>{t('qosBandwidth.trafficEngineering.loadError')}</p>}
+          {iqpQ.isError && <p style={styles.msgError}>{t('qosBandwidth.trafficEngineering.iqpLoadError')}</p>}
           {iqpQ.data && (
             <>
               <div style={styles.tableCard}>
@@ -1939,29 +1944,29 @@ export function QosBandwidthPage() {
                       <th style={styles.thNum}>ID</th>
                       <th style={styles.th}>{t('qosBandwidth.trafficEngineering.name')}</th>
                       <th style={styles.th}>{t('qosBandwidth.trafficEngineering.interface')}</th>
-                      <th style={styles.th}>{t('qosBandwidth.trafficEngineering.algorithm')}</th>
-                      <th style={styles.thNum}>{t('qosBandwidth.trafficEngineering.maxBandwidth')}</th>
+                      <th style={styles.th}>{t('qosBandwidth.trafficEngineering.policyType')}</th>
+                      <th style={styles.thNum}>{t('qosBandwidth.trafficEngineering.ceilMbps')}</th>
                       <th style={styles.thNum}>{t('qosBandwidth.trafficEngineering.priority')}</th>
-                      <th style={styles.th}>{t('qosBandwidth.trafficEngineering.vendor')}</th>
+                      <th style={styles.th}>{t('qosBandwidth.trafficEngineering.direction')}</th>
                       <th style={styles.th}>{t('qosBandwidth.trafficEngineering.status')}</th>
                       <th style={styles.th}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {iqpQ.data.data.length === 0 && (
-                      <tr><td colSpan={9} style={styles.msg}>{t('qosBandwidth.trafficEngineering.noItems')}</td></tr>
+                      <tr><td colSpan={9} style={styles.msg}>{t('qosBandwidth.trafficEngineering.iqpNoItems')}</td></tr>
                     )}
                     {iqpQ.data.data.map(item => (
                       <tr key={item.id} style={styles.tr}>
                         <td style={styles.tdNum}>{item.id}</td>
                         <td style={styles.td}><strong>{item.name}</strong></td>
                         <td style={styles.td}>{item.interface_name ?? '—'}</td>
-                        <td style={styles.td}><span style={styles.tdMono}>{item.algorithm}</span></td>
-                        <td style={styles.tdNum}>{item.max_bandwidth_mbps !== null ? `${item.max_bandwidth_mbps}M` : '—'}</td>
+                        <td style={styles.td}><span style={styles.tdMono}>{item.policy_type}</span></td>
+                        <td style={styles.tdNum}>{item.ceil_mbps !== null ? `${item.ceil_mbps}M` : '—'}</td>
                         <td style={styles.tdNum}>
                           <span style={{ color: priorityColor(item.priority), fontWeight: 700 }}>{item.priority}</span>
                         </td>
-                        <td style={styles.td}>{item.vendor_platform ?? '—'}</td>
+                        <td style={styles.td}>{item.direction}</td>
                         <td style={styles.td}>
                           <span style={{ color: item.status === 'active' ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
                             {item.status}
@@ -1997,7 +2002,7 @@ export function QosBandwidthPage() {
 
           {/* ---- DSCP Marking Policies sub-section ---- */}
           <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '2rem 0 0.75rem' }}>
-            {t('qosBandwidth.trafficEngineering.dscpMarkingPolicies')}
+            {t('qosBandwidth.trafficEngineering.dscpPolicies')}
           </h2>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
             <button style={styles.btnSecondary} onClick={handleExportDscp} disabled={exportingDscp}>
@@ -2008,7 +2013,7 @@ export function QosBandwidthPage() {
             </button>
           </div>
           {dscpQ.isLoading && <p style={styles.msg}>{t('qosBandwidth.loading')}</p>}
-          {dscpQ.isError && <p style={styles.msgError}>{t('qosBandwidth.trafficEngineering.loadError')}</p>}
+          {dscpQ.isError && <p style={styles.msgError}>{t('qosBandwidth.trafficEngineering.dscpLoadError')}</p>}
           {dscpQ.data && (
             <>
               <div style={styles.tableCard}>
@@ -2022,13 +2027,13 @@ export function QosBandwidthPage() {
                       <th style={styles.th}>{t('qosBandwidth.trafficEngineering.dscpName')}</th>
                       <th style={styles.th}>{t('qosBandwidth.trafficEngineering.action')}</th>
                       <th style={styles.thNum}>{t('qosBandwidth.trafficEngineering.priority')}</th>
-                      <th style={styles.th}>{t('qosBandwidth.trafficEngineering.enabled')}</th>
+                      <th style={styles.th}>{t('qosBandwidth.trafficEngineering.status')}</th>
                       <th style={styles.th}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {dscpQ.data.data.length === 0 && (
-                      <tr><td colSpan={9} style={styles.msg}>{t('qosBandwidth.trafficEngineering.noItems')}</td></tr>
+                      <tr><td colSpan={9} style={styles.msg}>{t('qosBandwidth.trafficEngineering.dscpNoItems')}</td></tr>
                     )}
                     {dscpQ.data.data.map(item => (
                       <tr key={item.id} style={styles.tr}>
@@ -2042,8 +2047,8 @@ export function QosBandwidthPage() {
                           <span style={{ color: priorityColor(item.priority), fontWeight: 700 }}>{item.priority}</span>
                         </td>
                         <td style={styles.td}>
-                          <span style={{ color: item.enabled ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
-                            {item.enabled ? 'on' : 'off'}
+                          <span style={{ color: item.status === 'active' ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
+                            {item.status}
                           </span>
                         </td>
                         <td style={styles.td}>
@@ -2076,15 +2081,15 @@ export function QosBandwidthPage() {
 
           {/* ---- MPLS/VLAN Prioritization sub-section ---- */}
           <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '2rem 0 0.75rem' }}>
-            {t('qosBandwidth.trafficEngineering.mplsVlanPrioritization')}
+            {t('qosBandwidth.trafficEngineering.mplsVlan')}
           </h2>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button style={styles.btnPrimary} onClick={() => openMvModal()}>
-              + {t('qosBandwidth.trafficEngineering.newMplsVlanRule')}
+              + {t('qosBandwidth.trafficEngineering.newMplsVlan')}
             </button>
           </div>
           {mvQ.isLoading && <p style={styles.msg}>{t('qosBandwidth.loading')}</p>}
-          {mvQ.isError && <p style={styles.msgError}>{t('qosBandwidth.trafficEngineering.loadError')}</p>}
+          {mvQ.isError && <p style={styles.msgError}>{t('qosBandwidth.trafficEngineering.mplsLoadError')}</p>}
           {mvQ.data && (
             <>
               <div style={styles.tableCard}>
@@ -2094,25 +2099,25 @@ export function QosBandwidthPage() {
                       <th style={styles.thNum}>ID</th>
                       <th style={styles.th}>{t('qosBandwidth.trafficEngineering.name')}</th>
                       <th style={styles.th}>{t('qosBandwidth.trafficEngineering.ruleType')}</th>
-                      <th style={styles.thNum}>{t('qosBandwidth.trafficEngineering.vlanId')}</th>
-                      <th style={styles.thNum}>{t('qosBandwidth.trafficEngineering.mplsLabel')}</th>
-                      <th style={styles.th}>{t('qosBandwidth.trafficEngineering.trafficClass')}</th>
+                      <th style={styles.thNum}>{t('qosBandwidth.trafficEngineering.matchVlan')}</th>
+                      <th style={styles.thNum}>{t('qosBandwidth.trafficEngineering.setMplsExp')}</th>
+                      <th style={styles.thNum}>{t('qosBandwidth.trafficEngineering.setDot1p')}</th>
                       <th style={styles.th}>{t('qosBandwidth.trafficEngineering.enabled')}</th>
                       <th style={styles.th}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {mvQ.data.data.length === 0 && (
-                      <tr><td colSpan={8} style={styles.msg}>{t('qosBandwidth.trafficEngineering.noItems')}</td></tr>
+                      <tr><td colSpan={8} style={styles.msg}>{t('qosBandwidth.trafficEngineering.mplsNoItems')}</td></tr>
                     )}
                     {mvQ.data.data.map(item => (
                       <tr key={item.id} style={styles.tr}>
                         <td style={styles.tdNum}>{item.id}</td>
                         <td style={styles.td}><strong>{item.name}</strong></td>
                         <td style={styles.td}>{item.rule_type}</td>
-                        <td style={styles.tdNum}>{item.vlan_id ?? '—'}</td>
-                        <td style={styles.tdNum}>{item.mpls_label ?? '—'}</td>
-                        <td style={styles.td}>{item.traffic_class ?? '—'}</td>
+                        <td style={styles.tdNum}>{item.match_vlan_id ?? '—'}</td>
+                        <td style={styles.tdNum}>{item.set_mpls_exp ?? '—'}</td>
+                        <td style={styles.tdNum}>{item.set_dot1p ?? '—'}</td>
                         <td style={styles.td}>
                           <span style={{ color: item.enabled ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
                             {item.enabled ? 'on' : 'off'}
@@ -2148,15 +2153,15 @@ export function QosBandwidthPage() {
 
           {/* ---- Bandwidth Test Servers sub-section ---- */}
           <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '2rem 0 0.75rem' }}>
-            {t('qosBandwidth.trafficEngineering.bandwidthTestServers')}
+            {t('qosBandwidth.trafficEngineering.bandwidthServers')}
           </h2>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button style={styles.btnPrimary} onClick={() => openBwtModal()}>
-              + {t('qosBandwidth.trafficEngineering.newBwtServer')}
+              + {t('qosBandwidth.trafficEngineering.newServer')}
             </button>
           </div>
           {bwtQ.isLoading && <p style={styles.msg}>{t('qosBandwidth.loading')}</p>}
-          {bwtQ.isError && <p style={styles.msgError}>{t('qosBandwidth.trafficEngineering.loadError')}</p>}
+          {bwtQ.isError && <p style={styles.msgError}>{t('qosBandwidth.trafficEngineering.serverLoadError')}</p>}
           {bwtQ.data && (
             <>
               <div style={styles.tableCard}>
@@ -2175,7 +2180,7 @@ export function QosBandwidthPage() {
                   </thead>
                   <tbody>
                     {bwtQ.data.data.length === 0 && (
-                      <tr><td colSpan={8} style={styles.msg}>{t('qosBandwidth.trafficEngineering.noItems')}</td></tr>
+                      <tr><td colSpan={8} style={styles.msg}>{t('qosBandwidth.trafficEngineering.serverNoItems')}</td></tr>
                     )}
                     {bwtQ.data.data.map(item => (
                       <tr key={item.id} style={styles.tr}>
@@ -2224,7 +2229,7 @@ export function QosBandwidthPage() {
               <div style={modalStyles.panel}>
                 <div style={modalStyles.header}>
                   <h3 style={modalStyles.title}>
-                    {editingIqp ? t('qosBandwidth.trafficEngineering.editPolicy') : t('qosBandwidth.trafficEngineering.newPolicy')}
+                    {editingIqp ? t('qosBandwidth.trafficEngineering.editInterfaceQos') : t('qosBandwidth.trafficEngineering.newInterfaceQos')}
                   </h3>
                   <button style={modalStyles.closeBtn} onClick={() => setShowIqpModal(false)}>&#x2715;</button>
                 </div>
@@ -2238,33 +2243,32 @@ export function QosBandwidthPage() {
                     <input style={modalStyles.input} placeholder="ether1" value={iqpForm.interface_name ?? ''} onChange={e => setIqpForm(f => ({ ...f, interface_name: e.target.value || undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.algorithm')}
-                    <select style={modalStyles.select} value={iqpForm.algorithm ?? 'htb'} onChange={e => setIqpForm(f => ({ ...f, algorithm: e.target.value }))}>
-                      {QOS_ALGORITHMS.map(v => <option key={v} value={v}>{v.toUpperCase()}</option>)}
+                    {t('qosBandwidth.trafficEngineering.policyType')}
+                    <select style={modalStyles.select} value={iqpForm.policy_type ?? 'htb'} onChange={e => setIqpForm(f => ({ ...f, policy_type: e.target.value }))}>
+                      {QOS_POLICY_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.maxBandwidth')} (Mbps)
-                    <input style={modalStyles.input} type="number" min={0} value={iqpForm.max_bandwidth_mbps ?? ''} onChange={e => setIqpForm(f => ({ ...f, max_bandwidth_mbps: e.target.value ? Number(e.target.value) : undefined }))} />
+                    {t('qosBandwidth.trafficEngineering.direction')}
+                    <select style={modalStyles.select} value={iqpForm.direction ?? 'egress'} onChange={e => setIqpForm(f => ({ ...f, direction: e.target.value }))}>
+                      {QOS_DIRECTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.committedBandwidth')} (Mbps)
-                    <input style={modalStyles.input} type="number" min={0} value={iqpForm.committed_bandwidth_mbps ?? ''} onChange={e => setIqpForm(f => ({ ...f, committed_bandwidth_mbps: e.target.value ? Number(e.target.value) : undefined }))} />
+                    {t('qosBandwidth.trafficEngineering.bandwidthMbps')}
+                    <input style={modalStyles.input} type="number" min={0} value={iqpForm.bandwidth_mbps ?? ''} onChange={e => setIqpForm(f => ({ ...f, bandwidth_mbps: e.target.value ? Number(e.target.value) : undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.burstBandwidth')} (Mbps)
-                    <input style={modalStyles.input} type="number" min={0} value={iqpForm.burst_bandwidth_mbps ?? ''} onChange={e => setIqpForm(f => ({ ...f, burst_bandwidth_mbps: e.target.value ? Number(e.target.value) : undefined }))} />
+                    {t('qosBandwidth.trafficEngineering.ceilMbps')}
+                    <input style={modalStyles.input} type="number" min={0} value={iqpForm.ceil_mbps ?? ''} onChange={e => setIqpForm(f => ({ ...f, ceil_mbps: e.target.value ? Number(e.target.value) : undefined }))} />
+                  </label>
+                  <label style={modalStyles.label}>
+                    {t('qosBandwidth.trafficEngineering.burstMbps')}
+                    <input style={modalStyles.input} type="number" min={0} value={iqpForm.burst_mbps ?? ''} onChange={e => setIqpForm(f => ({ ...f, burst_mbps: e.target.value ? Number(e.target.value) : undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.priority')}
                     <input style={modalStyles.input} type="number" min={1} max={8} value={iqpForm.priority ?? 4} onChange={e => setIqpForm(f => ({ ...f, priority: Number(e.target.value) }))} />
-                  </label>
-                  <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.vendor')}
-                    <select style={modalStyles.select} value={iqpForm.vendor_platform ?? ''} onChange={e => setIqpForm(f => ({ ...f, vendor_platform: e.target.value || undefined }))}>
-                      <option value="">—</option>
-                      {TE_VENDOR_PLATFORMS.map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.status')}
@@ -2274,7 +2278,7 @@ export function QosBandwidthPage() {
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.notes')}
-                    <input style={modalStyles.input} value={iqpForm.notes ?? ''} onChange={e => setIqpForm(f => ({ ...f, notes: e.target.value || undefined }))} />
+                    <input style={modalStyles.input} value={iqpForm.description ?? ''} onChange={e => setIqpForm(f => ({ ...f, description: e.target.value || undefined }))} />
                   </label>
                 </div>
                 {iqpErr && <p style={modalStyles.error}>{iqpErr}</p>}
@@ -2303,7 +2307,9 @@ export function QosBandwidthPage() {
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.trafficClass')}
-                    <input style={modalStyles.input} placeholder="voip, video, web, bulk" value={dscpForm.traffic_class ?? ''} onChange={e => setDscpForm(f => ({ ...f, traffic_class: e.target.value }))} />
+                    <select style={modalStyles.select} value={dscpForm.traffic_class ?? 'best_effort'} onChange={e => setDscpForm(f => ({ ...f, traffic_class: e.target.value }))}>
+                      {DSCP_TRAFFIC_CLASSES.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.dscpValue')} (0–63)
@@ -2315,11 +2321,13 @@ export function QosBandwidthPage() {
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.matchProtocol')}
-                    <input style={modalStyles.input} placeholder="tcp, udp, any" value={dscpForm.match_protocol ?? ''} onChange={e => setDscpForm(f => ({ ...f, match_protocol: e.target.value || undefined }))} />
+                    <select style={modalStyles.select} value={dscpForm.match_protocol ?? 'any'} onChange={e => setDscpForm(f => ({ ...f, match_protocol: e.target.value }))}>
+                      {PROTOCOLS.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.matchPortRange')}
-                    <input style={modalStyles.input} placeholder="5060-5061" value={dscpForm.match_port_range ?? ''} onChange={e => setDscpForm(f => ({ ...f, match_port_range: e.target.value || undefined }))} />
+                    {t('qosBandwidth.trafficEngineering.matchDstPort')}
+                    <input style={modalStyles.input} placeholder="5060-5061" value={dscpForm.match_dst_port ?? ''} onChange={e => setDscpForm(f => ({ ...f, match_dst_port: e.target.value || undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.action')}
@@ -2332,10 +2340,9 @@ export function QosBandwidthPage() {
                     <input style={modalStyles.input} type="number" min={1} max={8} value={dscpForm.priority ?? 4} onChange={e => setDscpForm(f => ({ ...f, priority: Number(e.target.value) }))} />
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.enabled')}
-                    <select style={modalStyles.select} value={String(dscpForm.enabled ?? 1)} onChange={e => setDscpForm(f => ({ ...f, enabled: Number(e.target.value) }))}>
-                      <option value="1">{t('qosBandwidth.shapingRules.on')}</option>
-                      <option value="0">{t('qosBandwidth.shapingRules.off')}</option>
+                    {t('qosBandwidth.trafficEngineering.status')}
+                    <select style={modalStyles.select} value={dscpForm.status ?? 'active'} onChange={e => setDscpForm(f => ({ ...f, status: e.target.value }))}>
+                      {STATUSES.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   </label>
                 </div>
@@ -2354,7 +2361,7 @@ export function QosBandwidthPage() {
               <div style={modalStyles.panel}>
                 <div style={modalStyles.header}>
                   <h3 style={modalStyles.title}>
-                    {editingMv ? t('qosBandwidth.trafficEngineering.editMplsVlanRule') : t('qosBandwidth.trafficEngineering.newMplsVlanRule')}
+                    {editingMv ? t('qosBandwidth.trafficEngineering.editMplsVlan') : t('qosBandwidth.trafficEngineering.newMplsVlan')}
                   </h3>
                   <button style={modalStyles.closeBtn} onClick={() => setShowMvModal(false)}>&#x2715;</button>
                 </div>
@@ -2365,29 +2372,25 @@ export function QosBandwidthPage() {
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.ruleType')}
-                    <select style={modalStyles.select} value={mvForm.rule_type ?? 'vlan'} onChange={e => setMvForm(f => ({ ...f, rule_type: e.target.value }))}>
+                    <select style={modalStyles.select} value={mvForm.rule_type ?? 'dot1p'} onChange={e => setMvForm(f => ({ ...f, rule_type: e.target.value }))}>
                       {MPLS_VLAN_RULE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.vlanId')}
-                    <input style={modalStyles.input} type="number" min={1} max={4094} value={mvForm.vlan_id ?? ''} onChange={e => setMvForm(f => ({ ...f, vlan_id: e.target.value ? Number(e.target.value) : undefined }))} />
+                    {t('qosBandwidth.trafficEngineering.matchVlan')}
+                    <input style={modalStyles.input} type="number" min={0} max={4094} value={mvForm.match_vlan_id ?? ''} onChange={e => setMvForm(f => ({ ...f, match_vlan_id: e.target.value ? Number(e.target.value) : undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.mplsLabel')}
-                    <input style={modalStyles.input} type="number" min={0} value={mvForm.mpls_label ?? ''} onChange={e => setMvForm(f => ({ ...f, mpls_label: e.target.value ? Number(e.target.value) : undefined }))} />
+                    {t('qosBandwidth.trafficEngineering.matchDot1p')} (0–7)
+                    <input style={modalStyles.input} type="number" min={0} max={7} value={mvForm.match_dot1p ?? ''} onChange={e => setMvForm(f => ({ ...f, match_dot1p: e.target.value ? Number(e.target.value) : undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.trafficClass')}
-                    <input style={modalStyles.input} placeholder="voip, video, bulk" value={mvForm.traffic_class ?? ''} onChange={e => setMvForm(f => ({ ...f, traffic_class: e.target.value || undefined }))} />
+                    {t('qosBandwidth.trafficEngineering.setMplsExp')} (0–7)
+                    <input style={modalStyles.input} type="number" min={0} max={7} value={mvForm.set_mpls_exp ?? ''} onChange={e => setMvForm(f => ({ ...f, set_mpls_exp: e.target.value ? Number(e.target.value) : undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.priorityBits')} (0–7)
-                    <input style={modalStyles.input} type="number" min={0} max={7} value={mvForm.priority_bits ?? ''} onChange={e => setMvForm(f => ({ ...f, priority_bits: e.target.value ? Number(e.target.value) : undefined }))} />
-                  </label>
-                  <label style={modalStyles.label}>
-                    {t('qosBandwidth.trafficEngineering.queueClass')}
-                    <input style={modalStyles.input} value={mvForm.queue_class ?? ''} onChange={e => setMvForm(f => ({ ...f, queue_class: e.target.value || undefined }))} />
+                    {t('qosBandwidth.trafficEngineering.setDot1p')} (0–7)
+                    <input style={modalStyles.input} type="number" min={0} max={7} value={mvForm.set_dot1p ?? ''} onChange={e => setMvForm(f => ({ ...f, set_dot1p: e.target.value ? Number(e.target.value) : undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.enabled')}
@@ -2412,7 +2415,7 @@ export function QosBandwidthPage() {
               <div style={modalStyles.panel}>
                 <div style={modalStyles.header}>
                   <h3 style={modalStyles.title}>
-                    {editingBwt ? t('qosBandwidth.trafficEngineering.editBwtServer') : t('qosBandwidth.trafficEngineering.newBwtServer')}
+                    {editingBwt ? t('qosBandwidth.trafficEngineering.editServer') : t('qosBandwidth.trafficEngineering.newServer')}
                   </h3>
                   <button style={modalStyles.closeBtn} onClick={() => setShowBwtModal(false)}>&#x2715;</button>
                 </div>

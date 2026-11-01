@@ -31,7 +31,7 @@ const WRITABLE_COLS = {
   interface_qos_policies: new Set([
     'name', 'description', 'device_id', 'interface_name', 'policy_type',
     'direction', 'parent_policy_id', 'bandwidth_mbps', 'ceil_mbps',
-    'burst_mbps', 'priority', 'vendor_platform', 'vendor_config', 'status',
+    'burst_mbps', 'priority', 'vendor_config', 'status',
   ]),
   mpls_vlan_prioritization_rules: new Set([
     'name', 'description', 'rule_type', 'match_vlan_id', 'match_inner_vlan_id',
@@ -245,3 +245,4 @@ router.delete('/dscp-marking-policies/:id',   requirePermission('dscp_marking_po
 router.post('/dscp-marking-policies/:id/restore', requirePermission('dscp_marking_policies.update'), dscpCtrl.restore);
 
 module.exports = router;
+module.exports.WRITABLE_COLS = WRITABLE_COLS;

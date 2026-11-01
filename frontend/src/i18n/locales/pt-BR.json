@@ -3751,7 +3751,16 @@
       "host": "Host",
       "port": "Porta",
       "protocol": "Protocolo",
-      "region": "Região"
+      "region": "Região",
+      "interface": "Interface",
+      "burstMbps": "Rajada (Mbps)",
+      "priority": "Prioridade",
+      "enabled": "Habilitado",
+      "matchProtocol": "Coincidir Protocolo",
+      "matchDstPort": "Coincidir Porta de Destino",
+      "matchDot1p": "Coincidir 802.1p",
+      "setMplsExp": "Definir MPLS EXP",
+      "setDot1p": "Definir 802.1p"
     }
   },
   "noc": {
