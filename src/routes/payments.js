@@ -58,6 +58,9 @@ async function assertPaymentEditKeepsMoneyConsistent(old, body, exec) {
       422, 'PAYMENT_AMOUNT_BELOW_ALLOCATED',
     );
   }
+  if (statusChanges && old.status === 'completed' && newStatus !== 'completed') {
+    await repService.assertNoBindingRep(exec, { paymentId: old.id, orgId: old.organization_id });
+  }
   if (statusChanges && newStatus !== 'completed' && allocated > 0.005) {
     throw new AppError(
       'This payment is allocated to invoices. Deallocate it first (POST /payments/:id/unapply), or record a refund, before changing its status.',
@@ -95,6 +98,9 @@ const ctrl = crudController(Payment, {
     // cash reconciliation of that cashier's session reads it.
     delete body.recorded_by;
     await assertPaymentEditKeepsMoneyConsistent(old, body, exec);
+  },
+  beforeDelete: async (old, req, exec) => {
+    await repService.assertNoBindingRep(exec, { paymentId: old.id, orgId: req.orgId });
   },
   afterDelete: async (payment) => {
     await billingService.reversePaymentCredit(payment.id);
@@ -451,6 +457,9 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
       });
     }
     const existingAlloc = allocRows[0];
+    // The old REP reports this money against from_invoice; moving it would
+    // report it twice (CFD-06).
+    await repService.assertNoBindingRep(conn.execute.bind(conn), { paymentId, orgId: req.orgId, invoiceId: from_invoice_id });
     const moveAmount = amountParam !== null && amountParam !== undefined ? parseFloat(amountParam) : parseFloat(existingAlloc.amount);
 
     // Validate both invoices belong to the payment's client
@@ -539,8 +548,8 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
     await billingService.refreshInvoicePaidStatus(from_invoice_id);
     await billingService.refreshInvoicePaidStatus(to_invoice_id);
 
-    // REP for the NEW allocation (the moved-from invoice's REP, if any, stays
-    // on record — correcting it is a manual SAT cancellation of that REP).
+    // REP for the NEW allocation. A REP on the moved-from invoice refused the
+    // move above, so none is left standing for this money.
     await repService.maybeGenerateRep(paymentId, to_invoice_id, moveAmount, req.orgId, req.user?.id);
 
     const [newAllocRows] = await db.query('SELECT * FROM payment_allocations WHERE id = ?', [newAllocId]);
@@ -695,6 +704,8 @@ router.post('/:id/unapply', requirePermission('payments.update'), async (req, re
         error: { code: 'ALLOCATION_NOT_FOUND', message: 'This payment is not applied to that invoice.' },
       });
     }
+
+    await repService.assertNoBindingRep(conn.execute.bind(conn), { paymentId, orgId: req.orgId, invoiceId: invoice_id });
 
     // Soft-delete the allocation
     await conn.execute(

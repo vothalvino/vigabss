@@ -146,7 +146,16 @@ async function generateRepForAllocation(paymentId, invoiceId, allocatedAmount, o
       return { generated: false, reason: 'CFDI_FULLY_REPORTED' };
     }
     impPagado = Math.round(Number(allocatedAmount) * 100) / 100;
-    saldoInsoluto = Math.max(0, Math.round((saldoAnt - impPagado) * 100) / 100);
+    if (impPagado > saldoAnt + 0.005) {
+      // Pagos 2.0 requires ImpSaldoInsoluto = ImpSaldoAnt - ImpPagado >= 0, so
+      // the PAC rejects this REP. Clamping the insoluto to 0 only hid the
+      // mismatch; the prior chain no longer matches the money (CFD-06).
+      await conn.rollback();
+      conn.release();
+      logger.warn({ paymentId, invoiceId, saldoAnt, impPagado }, 'REP refused: payment exceeds the CFDI balance left by prior REPs');
+      return { generated: false, reason: 'REP_EXCEEDS_BALANCE' };
+    }
+    saldoInsoluto = Math.round((saldoAnt - impPagado) * 100) / 100;
 
     // Serie/folio from the org profile (serie Pago + shared atomic folio).
     folio = await nextCfdiFolio(conn, orgId);
@@ -253,11 +262,52 @@ async function maybeGenerateRep(paymentId, invoiceId, allocatedAmount, orgId, us
   }
 }
 
+/**
+ * A draft or live REP binds its payment (CFD-06): it tells SAT that this
+ * payment paid that invoice. Deleting, unapplying, reallocating or refunding
+ * the payment while the REP stands made the chain double-report money, hide
+ * the real payment's REP, or emit ImpPagado above ImpSaldoAnt. Refuse until
+ * the REP is cancelled at SAT (motivo 02) or, for a draft, discarded.
+ *
+ * With invoiceId, only a REP that reports this payment against that invoice's
+ * CFDI counts; without it, any REP of the payment.
+ */
+async function assertNoBindingRep(exec, { paymentId, orgId, invoiceId = null }) {
+  const [rows] = invoiceId
+    ? await exec(
+      `SELECT d.id, d.uuid, d.sat_status FROM cfdi_documents d
+         JOIN cfdi_payment_complements pc ON pc.cfdi_document_id = d.id
+         JOIN cfdi_payment_complement_items pci ON pci.complement_id = pc.id
+         JOIN cfdi_documents inv ON inv.uuid = pci.related_cfdi_uuid
+          AND inv.organization_id = d.organization_id AND inv.invoice_id = ?
+        WHERE d.payment_id = ? AND d.organization_id = ? AND d.tipo_comprobante = 'P'
+          AND d.sat_status IN ('draft', 'vigente', 'cancel_pending')
+        LIMIT 1`,
+      [invoiceId, paymentId, orgId],
+    )
+    : await exec(
+      `SELECT d.id, d.uuid, d.sat_status FROM cfdi_documents d
+        WHERE d.payment_id = ? AND d.organization_id = ? AND d.tipo_comprobante = 'P'
+          AND d.sat_status IN ('draft', 'vigente', 'cancel_pending')
+        LIMIT 1`,
+      [paymentId, orgId],
+    );
+  const rep = rows && rows[0];
+  if (!rep) return;
+  throw new AppError(
+    rep.sat_status === 'draft'
+      ? `This payment has a draft payment complement (REP #${rep.id}). Discard the draft first.`
+      : `This payment is reported to SAT by payment complement ${rep.uuid || '#' + rep.id}. Cancel that REP at SAT (motivo 02) first.`,
+    422, 'PAYMENT_HAS_REP',
+  );
+}
+
 const NOT_GENERATED = {
   NO_PPD_CFDI: 'the invoice needs a vigente PPD CFDI (PUE invoices are covered by their own CFDI).',
   NON_MXN: 'the payment is not in MXN — REPs apply to MXN payments only.',
   PAYMENT_NOT_SETTLED: 'the payment is not settled (failed/refunded/cancelled payments are never REP-reported).',
   CFDI_FULLY_REPORTED: 'the invoice CFDI is already fully covered by prior REPs.',
+  REP_EXCEEDS_BALANCE: 'the payment is larger than the balance the prior REPs leave on the invoice CFDI. Check those REPs before reporting this one.',
 };
 
 /**
@@ -287,4 +337,4 @@ async function generateManualRep(paymentId, invoiceId, orgId, userId = null) {
   return result;
 }
 
-module.exports = { generateRepForAllocation, generateManualRep, maybeGenerateRep, FORMA_PAGO_BY_METHOD };
+module.exports = { generateRepForAllocation, generateManualRep, maybeGenerateRep, assertNoBindingRep, FORMA_PAGO_BY_METHOD };

@@ -171,6 +171,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed', reference_number: 'REF-1' }]])
       // load existing allocation from→invoice A
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // load both invoices (both client_id = 5)
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5 },
@@ -225,6 +226,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     conn.execute
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // to_invoice belongs to client_id = 99 (different!)
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5 },
@@ -261,6 +263,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     conn.execute
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5 },
         { id: 31, client_id: 5 },
@@ -284,6 +287,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     conn.execute
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       .mockResolvedValueOnce([[{ id: 30, client_id: 5 }, { id: 31, client_id: 5 }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockRejectedValueOnce(Object.assign(new Error('Duplicate entry'), { code: 'ER_DUP_ENTRY', errno: 1062 }));
@@ -570,6 +574,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/reallocate', () => {
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
       // load existing allocation from→invoice A
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // load both invoices: toInv is void
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5, status: 'issued' },
@@ -594,6 +599,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/reallocate', () => {
     conn.execute
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed', reference_number: 'R' }]])
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // from_invoice is void — that is fine; only to_invoice void is blocked
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5, status: 'void' },
@@ -636,6 +642,7 @@ describe('POST /payments/:id/unapply (Capability 5)', () => {
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN', status: 'completed' }]])
       // find live allocation
       .mockResolvedValueOnce([[{ id: 55, payment_id: 20, invoice_id: 10, amount: '200.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // soft-delete allocation
       .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
