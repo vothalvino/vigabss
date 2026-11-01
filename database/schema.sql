@@ -9939,6 +9939,7 @@ CREATE TABLE IF NOT EXISTS chargebacks (
     id                        BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
     organization_id           BIGINT UNSIGNED  NULL,
     payment_id                BIGINT UNSIGNED  NULL,
+    payment_transaction_id    BIGINT UNSIGNED  NULL    COMMENT 'payment_transactions row the dispute was matched to (webhook-created chargebacks)',
     gateway                   VARCHAR(50)      NULL    COMMENT 'stripe/conekta/etc',
     gateway_dispute_id        VARCHAR(200)     NULL,
     amount                    DECIMAL(12,2)    NOT NULL,
@@ -9954,7 +9955,8 @@ CREATE TABLE IF NOT EXISTS chargebacks (
     PRIMARY KEY (id),
     KEY idx_chargebacks_organization_id (organization_id),
     KEY idx_chargebacks_payment_id (payment_id),
-    UNIQUE KEY uq_chargebacks_gateway_dispute_id (gateway_dispute_id),
+    KEY idx_chargebacks_payment_transaction_id (payment_transaction_id),
+    UNIQUE KEY uq_chargebacks_org_gateway_dispute (organization_id, gateway, gateway_dispute_id),
     KEY idx_chargebacks_status (status),
     KEY idx_chargebacks_deleted_at (deleted_at),
     CONSTRAINT fk_chargebacks_organization FOREIGN KEY (organization_id)

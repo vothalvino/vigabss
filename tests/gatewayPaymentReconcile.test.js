@@ -222,14 +222,19 @@ async function run(sql, params = []) {
     return [{ affectedRows: n }];
   }
   if (/^INSERT INTO chargebacks/.test(s)) {
-    // UNIQUE(gateway_dispute_id): a second event for one dispute updates the row,
-    // and only an outcome (not 'received') overwrites the status.
-    const existing = state.chargebacks.find((c) => c.gateway_dispute_id === p[3]);
+    // UNIQUE(organization_id, gateway, gateway_dispute_id) (migration 495): a
+    // second event for one dispute updates the row, and only an outcome (not
+    // 'received') overwrites the status.
+    const existing = state.chargebacks.find((c) => c.organization_id === p[0]
+      && c.gateway === p[3] && c.gateway_dispute_id === p[4]);
     if (existing) {
-      if (p[7] !== 'received') existing.status = p[7];
+      if (p[8] !== 'received') existing.status = p[8];
       return [{ affectedRows: 2 }];
     }
-    state.chargebacks.push({ organization_id: p[0], payment_id: p[1], gateway_dispute_id: p[3], reason_code: p[6], status: p[7] });
+    state.chargebacks.push({
+      organization_id: p[0], payment_id: p[1], payment_transaction_id: p[2], gateway: p[3],
+      gateway_dispute_id: p[4], reason_code: p[7], status: p[8],
+    });
     return [{ affectedRows: 1 }];
   }
 
@@ -542,6 +547,16 @@ describe('webhook reconciliation is exactly-once and retryable', () => {
     addTx({ id: 1, gateway_reference_id: 'pi_d', payment_id: 555 });
     await paymentGatewayService.handleWebhookEvent(stripeEvent('evt_d', 'charge.dispute.created', { id: 'du_1', payment_intent: 'pi_d', reason: 'fraudulent' }));
     expect(state.chargebacks).toEqual([expect.objectContaining({ gateway_dispute_id: 'du_1', reason_code: 'fraudulent', status: 'received' })]);
+  });
+
+  // WHK-14: the matched transaction is kept, and a dispute without a reason
+  // gets no reason rather than the event type.
+  test('a dispute records its transaction and never uses the event type as the reason', async () => {
+    addTx({ id: 4, gateway_reference_id: 'pi_r', payment_id: null });
+    await paymentGatewayService.handleWebhookEvent(stripeEvent('evt_r', 'charge.dispute.created', { id: 'du_9', payment_intent: 'pi_r' }));
+    expect(state.chargebacks).toEqual([expect.objectContaining({
+      payment_id: null, payment_transaction_id: 4, gateway: 'stripe', gateway_dispute_id: 'du_9', reason_code: null,
+    })]);
   });
 
   test('a lost dispute reverses the settlement and closes the chargeback as lost', async () => {
