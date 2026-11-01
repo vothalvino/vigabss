@@ -98,9 +98,10 @@ beforeEach(() => {
   ClientGroup.getMembers.mockResolvedValue(MEMBERS.map((m) => ({ ...m })));
   mockGetInvoices.mockImplementation(async (_exec, _org, clientId) =>
     (INVOICES[clientId] || []).map((r) => ({ ...r })));
-  computeClientBalance.mockImplementation(async (_org, clientId) => ({
-    balance: { 1: 100, 2: 50, 3: 30 }[clientId] || 0, currency: 'MXN',
-  }));
+  computeClientBalance.mockImplementation(async (_org, clientId) => {
+    const balance = { 1: 100, 2: 50, 3: 30 }[clientId] || 0;
+    return { balance, currency: 'MXN', balances: balance ? [{ currency: 'MXN', balance }] : [], mixedCurrency: false };
+  });
   mockFinalize.mockResolvedValue(true);
   db.getConnection.mockResolvedValue(makeConn());
 });
@@ -113,6 +114,19 @@ describe('getGroupBilling', () => {
     expect(res.members.find((m) => m.client_id === 1).is_primary).toBe(true);
     // Merged oldest→newest across members: Beto(01-15) → Carla(02-10) → Ana(03-01)
     expect(res.open_invoices.map((i) => i.invoice_number)).toEqual(['INV-201', 'INV-301', 'INV-101']);
+  });
+
+  // GQL-10: a member owing USD and one owing MXN are not one group total.
+  it('totals each currency separately when members hold different currencies', async () => {
+    computeClientBalance.mockImplementation(async (_org, clientId) => {
+      const b = { 1: { currency: 'MXN', balance: 100 }, 2: { currency: 'USD', balance: 50 }, 3: { currency: 'MXN', balance: 30 } }[clientId];
+      return { balance: b.balance, currency: b.currency, balances: [b], mixedCurrency: false };
+    });
+    const res = await groupBillingService.getGroupBilling(10, 7);
+    expect(res.group_balance).toBeNull();
+    expect(res.group_currency).toBeNull();
+    expect(res.group_mixed_currency).toBe(true);
+    expect(res.group_balances).toEqual([{ currency: 'MXN', balance: 130 }, { currency: 'USD', balance: 50 }]);
   });
 
   it('rejects a non-shared group with 422', async () => {

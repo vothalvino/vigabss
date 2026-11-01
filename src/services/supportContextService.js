@@ -108,7 +108,7 @@ async function enrichContext({ orgId, clientId }) {
   // date is still billing_periods.scheduled_at.
   let billing = null;
   try {
-    const { balance, currency } = await computeClientBalance(orgId, clientId);
+    const { balance, currency, balances, mixedCurrency } = await computeClientBalance(orgId, clientId);
     const [dueRows] = await db.query(
       `SELECT bp.scheduled_at AS next_due_date
          FROM billing_periods bp
@@ -118,8 +118,12 @@ async function enrichContext({ orgId, clientId }) {
       [clientId, orgId],
     );
     billing = {
+      // balance/currency are null when the client holds several currencies;
+      // `balances` then lists each one (GQL-10).
       balance,
       currency,
+      balances,
+      mixedCurrency,
       nextDue: dueRows[0]?.next_due_date ?? null,
     };
   } catch (err) {

@@ -30,8 +30,11 @@ interface DashboardData {
       data_cap_gb: number | null;
     };
   } | null;
-  balance: number;
-  balance_currency: string;
+  /** null when the account holds several currencies (see balances). */
+  balance: number | null;
+  balance_currency: string | null;
+  balances?: { currency: string; balance: number }[];
+  mixed_currency?: boolean;
   next_due_date: string | null;
   session: {
     status: string;
@@ -139,12 +142,18 @@ export function PortalDashboard() {
           {/* Balance */}
           <section style={styles.card}>
             <h2 style={styles.cardTitle}>{t('portalDashboard.balanceBilling')}</h2>
-            <div style={{
-              fontSize: '2rem', fontWeight: 700,
-              color: overview.balance > 0 ? '#dc2626' : '#16a34a',
-            }}>
-              {overview.balance_currency} {overview.balance.toFixed(2)}
-            </div>
+            {/* One line per currency; amounts are never added across currencies. */}
+            {(overview.mixed_currency
+              ? (overview.balances ?? [])
+              : [{ currency: overview.balance_currency ?? '', balance: overview.balance ?? 0 }]
+            ).map(b => (
+              <div key={b.currency} style={{
+                fontSize: '2rem', fontWeight: 700,
+                color: b.balance > 0 ? '#dc2626' : '#16a34a',
+              }}>
+                {b.currency} {b.balance.toFixed(2)}
+              </div>
+            ))}
             <p style={styles.muted}>{t('portalDashboard.outstandingBalance')}</p>
             {overview.next_due_date && (
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>

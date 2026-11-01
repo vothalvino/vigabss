@@ -129,7 +129,8 @@ describe('computeClientBalance', () => {
     expect(cnSql).toMatch(/status IN \('issued', 'applied'\)/);
   });
 
-  test('currency: mixed invoice/payment currencies fall back to the org currency', async () => {
+  // GQL-10: 100 USD owed and 20 EUR of credit are not "80" of anything.
+  test('mixed currencies give one balance per currency and no headline total', async () => {
     db.query
       .mockResolvedValueOnce([[
         { id: 1, total: '100.00', currency: 'USD', balance_due: '100.00' },
@@ -137,12 +138,28 @@ describe('computeClientBalance', () => {
       .mockResolvedValueOnce([[
         { amount: '20.00', currency: 'EUR', allocated: '0.00' },
       ]])
-      .mockResolvedValueOnce([[]]) // credit notes — none
-      .mockResolvedValueOnce([[{ currency: 'MXN' }]]); // Organization.getCurrency fallback
+      .mockResolvedValueOnce([[]]); // credit notes — none
 
-    const { balance, currency } = await computeClientBalance(1, 5);
-    expect(balance).toBe(80); // 100 owed - 20 credit, no fake conversion
-    expect(currency).toBe('MXN');
+    const result = await computeClientBalance(1, 5);
+    expect(result).toEqual({
+      balance: null,
+      currency: null,
+      mixedCurrency: true,
+      balances: [{ currency: 'EUR', balance: -20 }, { currency: 'USD', balance: 100 }],
+    });
+    expect(db.query).toHaveBeenCalledTimes(3); // no org-currency lookup to label a fake sum
+  });
+
+  test('same-currency amounts still net into one balance', async () => {
+    db.query
+      .mockResolvedValueOnce([[{ id: 1, total: '100.00', currency: 'MXN', balance_due: '100.00' }]])
+      .mockResolvedValueOnce([[{ amount: '20.00', currency: 'MXN', allocated: '0.00' }]])
+      .mockResolvedValueOnce([[]]);
+
+    const result = await computeClientBalance(1, 5);
+    expect(result).toEqual({
+      balance: 80, currency: 'MXN', mixedCurrency: false, balances: [{ currency: 'MXN', balance: 80 }],
+    });
   });
 
   test('currency: zero-contribution balance (nothing owed, nothing unallocated) falls back to the org currency', async () => {
