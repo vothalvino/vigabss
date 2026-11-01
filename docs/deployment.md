@@ -108,6 +108,13 @@ the previous app deliberately remains stopped because restarting legacy code
 against a partially tightened schema could reintroduce credentials or unsafe
 audit data; fix or roll forward the migration and rerun `redeploy`.
 
+Before migrating, `redeploy` (and installer reruns) dumps every database with a
+pending migration — the primary and each isolated organization — into
+`storage/backups/pre-migration-<timestamp>/`, prints the restore commands, and
+keeps the newest `PRE_MIGRATION_BACKUP_KEEP` sets (default 3). If a dump fails,
+nothing is migrated and the previous app is started again. Set
+`PRE_MIGRATION_BACKUP=0` in `.env.prod` to skip the dump for one run.
+
 `install.sh` sets this up for you. To add it to an existing install, create a
 **wrapper** (not a copy):
 
