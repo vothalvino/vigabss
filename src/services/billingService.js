@@ -945,9 +945,9 @@ async function recordPaymentCredit(payment, orgId, exec = db.query.bind(db)) {
  * reference_id is the payments primary key (globally unique), so this removes
  * exactly the one credit entry for that payment.
  */
-async function reversePaymentCredit(paymentId) {
+async function reversePaymentCredit(paymentId, exec = db.query.bind(db)) {
   logger.info({ paymentId }, 'Reversing payment credit');
-  await db.query(
+  await exec(
     `DELETE FROM client_balance_ledger
       WHERE reference_type = 'payment' AND reference_id = ?`,
     [paymentId],

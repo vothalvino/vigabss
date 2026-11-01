@@ -37,12 +37,52 @@ async function assertPaymentClientOwned(clientId, orgId, exec = db.query.bind(db
 // payment writes a 'payment' credit (see the POST handler below); deleting one
 // must remove that credit, otherwise the ledger and the computed balance keep
 // showing a payment that has vanished from the Payments tab. Restoring re-adds it.
+// PUT/PATCH used the generic update with no money guard (BIL-19): lowering an
+// allocated payment's amount, or marking it refunded or cancelled, left its
+// allocations live, the invoices 'paid' and the ledger credit in place, while
+// the computed balance ignored the payment. Runs on the locked payment row.
+async function assertPaymentEditKeepsMoneyConsistent(old, body, exec) {
+  const amountChanges = body.amount !== undefined && Number(body.amount) !== Number(old.amount);
+  const newStatus = body.status !== undefined ? body.status : old.status;
+  const statusChanges = newStatus !== old.status;
+  if (!amountChanges && !statusChanges) return;
+
+  const [rows] = await exec(
+    'SELECT COALESCE(SUM(amount), 0) AS allocated FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
+    [old.id],
+  );
+  const allocated = Number(rows?.[0]?.allocated || 0);
+  if (amountChanges && Number(body.amount) < allocated - 0.005) {
+    throw new AppError(
+      `This payment has ${allocated.toFixed(2)} allocated to invoices; its amount cannot go below that. Deallocate first (POST /payments/:id/unapply).`,
+      422, 'PAYMENT_AMOUNT_BELOW_ALLOCATED',
+    );
+  }
+  if (statusChanges && newStatus !== 'completed' && allocated > 0.005) {
+    throw new AppError(
+      'This payment is allocated to invoices. Deallocate it first (POST /payments/:id/unapply), or record a refund, before changing its status.',
+      422, 'PAYMENT_HAS_ALLOCATIONS',
+    );
+  }
+
+  // The ledger credit mirrors a completed payment's amount; the balance counts
+  // only completed payments. Same transaction, so a later failure undoes it.
+  await billingService.reversePaymentCredit(old.id, exec);
+  if (newStatus === 'completed') {
+    await billingService.recordPaymentCredit(
+      { ...old, amount: amountChanges ? body.amount : old.amount, currency: body.currency || old.currency },
+      old.organization_id, exec,
+    );
+  }
+}
+
 const ctrl = crudController(Payment, {
+  transactionalWrites: true,
   // client_id is fillable but undeclared in the update schemas, so PUT/PATCH
   // used to re-point a payment at any tenant's client and leave its ledger
   // credit on the old one. Moving a payment between clients is POST
   // /:id/reassign's job (allocation check + ledger move); refuse it here.
-  beforeUpdate: async (old, req) => {
+  beforeUpdate: async (old, req, exec) => {
     const body = req.body || {};
     if (body.client_id !== undefined && Number(body.client_id) !== Number(old.client_id)) {
       throw new AppError(
@@ -54,6 +94,7 @@ const ctrl = crudController(Payment, {
     // Who took the money is a fact of the create, not an editable field: the
     // cash reconciliation of that cashier's session reads it.
     delete body.recorded_by;
+    await assertPaymentEditKeepsMoneyConsistent(old, body, exec);
   },
   afterDelete: async (payment) => {
     await billingService.reversePaymentCredit(payment.id);

@@ -1226,6 +1226,8 @@ describe('Payment Routes — /api/payments', () => {
       mockAuthUser();
       db.query
         .mockResolvedValueOnce([[mockPayment]])
+        .mockResolvedValueOnce([[{ allocated: '0' }]]) // live allocations (BIL-19)
+        .mockResolvedValueOnce([{ affectedRows: 1 }]) // ledger credit dropped
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ ...mockPayment, status: 'refunded' }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);

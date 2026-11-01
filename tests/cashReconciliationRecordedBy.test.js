@@ -32,6 +32,7 @@ jest.mock('../src/middleware/rbac', () => ({
 jest.mock('../src/services/auditLog', () => ({ log: jest.fn().mockResolvedValue(undefined) }));
 
 const db = require('../src/config/database');
+const { mockTxConnection } = require('./fixtures/mockTxConnection');
 const app = require('../src/app');
 const cashReconciliationService = require('../src/services/cashReconciliationService');
 
@@ -47,6 +48,7 @@ beforeEach(() => {
     return [[]];
   });
   db.execute.mockImplementation(db.query.getMockImplementation());
+  mockTxConnection(db);
 });
 
 const paymentInsert = () => db.query.mock.calls.find(([sql]) => /^INSERT INTO `payments`/.test(sql));
