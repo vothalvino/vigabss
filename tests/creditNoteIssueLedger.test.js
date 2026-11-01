@@ -94,8 +94,8 @@ function freshTables() {
       { id: 20, organization_id: ORG_B, deleted_at: null },
     ],
     invoices: [
-      { id: 900, organization_id: ORG_A, deleted_at: null },
-      { id: 901, organization_id: ORG_B, deleted_at: null },
+      { id: 900, organization_id: ORG_A, client_id: 10, deleted_at: null },
+      { id: 901, organization_id: ORG_B, client_id: 20, deleted_at: null },
     ],
   };
 }

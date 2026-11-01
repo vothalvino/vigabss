@@ -1011,11 +1011,28 @@ function httpRequest(url, method, body, headers) {
 async function syncInvoiceCancelled(cfdiDocumentId) {
   try {
     const [rows] = await db.query(
-      'SELECT invoice_id, organization_id FROM cfdi_documents WHERE id = ?',
+      'SELECT invoice_id, credit_note_id, payment_id, tipo_comprobante, uuid, organization_id FROM cfdi_documents WHERE id = ?',
       [cfdiDocumentId],
     );
     const doc = rows[0];
-    if (!doc || !doc.invoice_id) return;
+    if (!doc) return;
+    // CFD-07: an egreso carries credit_note_id, not invoice_id, so its
+    // cancellation never reached the note, which kept crediting the client.
+    if (doc.tipo_comprobante === 'E' && doc.credit_note_id) {
+      await cancelCreditNoteForSat(doc);
+      return;
+    }
+    // A cancelled REP leaves its payment and allocation in place: the money did
+    // arrive. Record it so the payment can be re-reported or corrected.
+    if (doc.tipo_comprobante === 'P' && doc.payment_id) {
+      logger.warn({ cfdiDocumentId, paymentId: doc.payment_id }, 'REP cancelled at SAT; its payment is no longer reported');
+      await auditLog.log({
+        userId: null, organizationId: doc.organization_id, action: 'rep_cancelled',
+        tableName: 'payments', recordId: doc.payment_id, newValues: { cfdi_document_id: cfdiDocumentId, uuid: doc.uuid },
+      });
+      return;
+    }
+    if (!doc.invoice_id) return;
     const billingService = require('./billingService');
     await billingService.cancelInvoiceForSat(doc.invoice_id, doc.organization_id, null);
   } catch (err) {
@@ -1023,6 +1040,43 @@ async function syncInvoiceCancelled(cfdiDocumentId) {
       { cfdiDocumentId, err: err.message },
       'CFDI cancelled at SAT but failed to sync the invoice to cancelled — reconcile manually',
     );
+  }
+}
+
+/**
+ * SAT accepted the cancellation of a credit note's CFDI de Egreso: cancel the
+ * note and reverse its ledger credit, under the note's row lock, so the
+ * client's balance stops counting a credit SAT no longer holds.
+ */
+async function cancelCreditNoteForSat(doc) {
+  const creditNoteLedgerService = require('./creditNoteLedgerService');
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const exec = conn.execute.bind(conn);
+    const [notes] = await exec(
+      'SELECT * FROM credit_notes WHERE id = ? AND organization_id <=> ? FOR UPDATE',
+      [doc.credit_note_id, doc.organization_id],
+    );
+    const note = notes[0];
+    if (!note || note.status === 'cancelled') {
+      await conn.rollback();
+      return;
+    }
+    await exec("UPDATE credit_notes SET status = 'cancelled' WHERE id = ?", [note.id]);
+    await creditNoteLedgerService.syncCreditNoteLedger(exec, { ...note, status: 'cancelled' }, doc.organization_id,
+      { label: 'egreso cancelled at SAT' });
+    await conn.commit();
+    await auditLog.log({
+      userId: null, organizationId: doc.organization_id, action: 'cancel_cfdi',
+      tableName: 'credit_notes', recordId: note.id,
+      oldValues: { status: note.status }, newValues: { status: 'cancelled', egreso_uuid: doc.uuid },
+    });
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
   }
 }
 

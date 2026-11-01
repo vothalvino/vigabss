@@ -71,7 +71,10 @@ async function assertNoLiveCfdi(creditNoteId, orgId, remedy, exec = db.query) {
 // Every field the CFDI de Egreso freezes. Compared by VALUE, not presence: the
 // edit modal re-sends the amounts on every save, so a presence check would 422
 // a note-text edit on any stamped credit note.
-const FROZEN_FIELDS = ['subtotal', 'tax_amount', 'total', 'tax_rate', 'invoice_id', 'credit_note_number'];
+// client_id and currency too (CFD-07): the egreso names its receptor and
+// currency, so moving the note to another client moved a credit SAT still
+// holds for the first one.
+const FROZEN_FIELDS = ['subtotal', 'tax_amount', 'total', 'tax_rate', 'invoice_id', 'credit_note_number', 'client_id', 'currency'];
 function sameValue(a, b) {
   if (a === null || a === undefined || b === null || b === undefined) return a === b;
   const na = Number(a); const nb = Number(b);
@@ -141,6 +144,23 @@ async function assertCreditNoteFks(body, orgId, exec = db.query.bind(db)) {
   }
 }
 
+// A note raised against an invoice credits that invoice's client (CFD-07).
+// `merged` is the body over the stored row, so an edit of either side counts.
+async function assertInvoiceClientMatches(merged, orgId, exec = db.query.bind(db)) {
+  if (merged.invoice_id === undefined || merged.invoice_id === null) return;
+  if (merged.client_id === undefined || merged.client_id === null) return;
+  const [[invoice]] = await exec(
+    'SELECT client_id FROM invoices WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+    [merged.invoice_id, orgId],
+  );
+  if (invoice && String(invoice.client_id) !== String(merged.client_id)) {
+    throw new AppError(
+      'A credit note against an invoice must be for that invoice\'s client.',
+      422, 'CREDIT_NOTE_CLIENT_MISMATCH',
+    );
+  }
+}
+
 const priorRow = new WeakMap();
 
 const router = Router();
@@ -162,6 +182,12 @@ const ctrl = crudController(CreditNote, {
   beforeUpdate: async (old, req, exec) => {
     assertStatusTransition(old.status, req.body.status);
     await assertCreditNoteFks(req.body, req.orgId, exec);
+    if (req.body.client_id !== undefined || req.body.invoice_id !== undefined) {
+      await assertInvoiceClientMatches({
+        client_id: req.body.client_id !== undefined ? req.body.client_id : old.client_id,
+        invoice_id: req.body.invoice_id !== undefined ? req.body.invoice_id : old.invoice_id,
+      }, req.orgId, exec);
+    }
     priorRow.set(req, old);
 
     // Cancelling reverses the note's ledger credit, but a CFDI de Egreso that
@@ -299,6 +325,7 @@ router.post('/', requirePermission('credit_notes.create'), validate(createCredit
   try {
     assertTotalsConsistent(req.body);
     await assertCreditNoteFks(req.body, req.orgId);
+    await assertInvoiceClientMatches(req.body, req.orgId);
     req.body.organization_id = req.orgId;
 
     // The resolver was never consulted here. A credit note for a non-exempt MX
