@@ -1249,10 +1249,14 @@ describe('Payment Routes — /api/payments', () => {
   describe('DELETE /api/payments/:id', () => {
     test('deletes a payment and returns 204', async () => {
       mockAuthUser();
+      // The ledger and allocation reversal runs in the delete transaction
+      // (DAL-08): REP check, ledger DELETE, live allocations (none), delete.
       db.query
-        .mockResolvedValueOnce([[mockPayment]])
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([{ affectedRows: 1 }]);
+        .mockResolvedValueOnce([[mockPayment]])        // locked payment
+        .mockResolvedValueOnce([[]])                   // binding REP — none
+        .mockResolvedValueOnce([{ affectedRows: 1 }])  // DELETE ledger credit
+        .mockResolvedValueOnce([[]])                   // live allocations — none
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // soft delete
 
       const res = await request(app)
         .delete('/api/payments/1')

@@ -1126,8 +1126,8 @@ async function applyCreditNoteLineItemToTotals(exec, creditNoteId, taxRate, line
   return delta;
 }
 
-async function refreshInvoicePaidStatus(invoiceId) {
-  const [rows] = await db.query(
+async function refreshInvoicePaidStatus(invoiceId, exec = db.query.bind(db)) {
+  const [rows] = await exec(
     `SELECT i.total,
             COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
                        WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
@@ -1138,9 +1138,9 @@ async function refreshInvoicePaidStatus(invoiceId) {
   const inv = rows[0];
   if (!inv) return;
   if (parseFloat(inv.allocated) >= parseFloat(inv.total)) {
-    await db.query("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status <> 'paid'", [invoiceId]);
+    await exec("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status <> 'paid'", [invoiceId]);
   } else {
-    await db.query("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
+    await exec("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
   }
 }
 
@@ -1167,15 +1167,15 @@ async function releaseInvoiceAllocations(invoiceId) {
  * payment_allocations rows and re-derive the paid status of every invoice it
  * touched, so an invoice is not left flagged 'paid' once its payment is gone.
  */
-async function reversePaymentAllocations(paymentId) {
-  const [allocs] = await db.query(
+async function reversePaymentAllocations(paymentId, exec = db.query.bind(db)) {
+  const [allocs] = await exec(
     'SELECT DISTINCT invoice_id FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
     [paymentId],
   );
   if (!allocs.length) return;
-  await db.query('UPDATE payment_allocations SET deleted_at = NOW() WHERE payment_id = ? AND deleted_at IS NULL', [paymentId]);
+  await exec('UPDATE payment_allocations SET deleted_at = NOW() WHERE payment_id = ? AND deleted_at IS NULL', [paymentId]);
   for (const { invoice_id: invoiceId } of allocs) {
-    if (invoiceId) await refreshInvoicePaidStatus(invoiceId);
+    if (invoiceId) await refreshInvoicePaidStatus(invoiceId, exec);
   }
 }
 
@@ -1184,15 +1184,15 @@ async function reversePaymentAllocations(paymentId) {
  * soft-deleted payment_allocations and re-derive the paid status of every
  * invoice it touched (inverse of reversePaymentAllocations).
  */
-async function restorePaymentAllocations(paymentId) {
-  const [allocs] = await db.query(
+async function restorePaymentAllocations(paymentId, exec = db.query.bind(db)) {
+  const [allocs] = await exec(
     'SELECT DISTINCT invoice_id FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NOT NULL',
     [paymentId],
   );
   if (!allocs.length) return;
-  await db.query('UPDATE payment_allocations SET deleted_at = NULL WHERE payment_id = ? AND deleted_at IS NOT NULL', [paymentId]);
+  await exec('UPDATE payment_allocations SET deleted_at = NULL WHERE payment_id = ? AND deleted_at IS NOT NULL', [paymentId]);
   for (const { invoice_id: invoiceId } of allocs) {
-    if (invoiceId) await refreshInvoicePaidStatus(invoiceId);
+    if (invoiceId) await refreshInvoicePaidStatus(invoiceId, exec);
   }
 }
 

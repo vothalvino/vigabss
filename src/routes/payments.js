@@ -99,19 +99,24 @@ const ctrl = crudController(Payment, {
     delete body.recorded_by;
     await assertPaymentEditKeepsMoneyConsistent(old, body, exec);
   },
+  // The ledger credit and the invoice allocations are reversed (and restored)
+  // in the SAME locked transaction as the soft delete (restore): a failure
+  // rolls the whole change back. As an after-hook they ran post-commit and a
+  // failure was only logged, leaving a deleted payment whose live allocations
+  // kept invoices 'paid' (DAL-08).
+  transactionalAfterHooks: true,
+  fatalAfterHooks: true,
   beforeDelete: async (old, req, exec) => {
     await repService.assertNoBindingRep(exec, { paymentId: old.id, orgId: req.orgId });
-  },
-  afterDelete: async (payment) => {
-    await billingService.reversePaymentCredit(payment.id);
+    await billingService.reversePaymentCredit(old.id, exec);
     // Also undo its invoice allocations so an invoice isn't left flagged 'paid'
     // while the balance now shows it owed again.
-    await billingService.reversePaymentAllocations(payment.id);
+    await billingService.reversePaymentAllocations(old.id, exec);
   },
-  afterRestore: async (payment, req) => {
-    await billingService.reversePaymentCredit(payment.id); // idempotent — avoid a double credit
-    await billingService.recordPaymentCredit(payment, req.orgId);
-    await billingService.restorePaymentAllocations(payment.id);
+  afterRestore: async (payment, req, exec) => {
+    await billingService.reversePaymentCredit(payment.id, exec); // idempotent — avoid a double credit
+    await billingService.recordPaymentCredit(payment, req.orgId, exec);
+    await billingService.restorePaymentAllocations(payment.id, exec);
   },
 });
 
