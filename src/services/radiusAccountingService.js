@@ -1275,8 +1275,14 @@ async function exportCdr(opts) {
     throw new ValidationError('username must be at most 64 characters');
   }
 
-  const conditions = ['cl.event_at >= ?', 'cl.event_at < DATE_ADD(?, INTERVAL 1 DAY)'];
-  const params = [from, to];
+  // Sessions active during [from, to]: started before the window ends and not
+  // stopped before it began (REG-07). Start-only matching left out a session
+  // that began before `from` and ran into the window.
+  const conditions = [
+    'cl.event_at < DATE_ADD(?, INTERVAL 1 DAY)',
+    "(cl.event_type <> 'stop' OR COALESCE(cl.last_accounting_at, cl.event_at) >= ?)",
+  ];
+  const params = [to, from];
 
   if (organizationId) {
     conditions.push('cl.organization_id = ?');

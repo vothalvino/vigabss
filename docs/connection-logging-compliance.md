@@ -20,6 +20,12 @@ subscriber/contract association when resolvable, RADIUS username and session
 identifier, assigned IPv4/IPv6 address, MAC/circuit identifiers, NAS, traffic
 counters, start/last-seen/end state, duration, and termination cause.
 
+Date filters on the session list, the session export, the CDR export and the
+binding report select sessions **active during** the window: a session that
+started before the window ends and had not stopped before it begins. A
+session that started before `date_from` and was still online inside the
+window is included.
+
 Application-level append-only accounting evidence preserves lifecycle
 milestones separately from the mutable current-session projection: Start, the
 first transition to Interim, Stop, and a later corrected final Stop when
