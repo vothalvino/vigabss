@@ -956,9 +956,11 @@ async function notifyCsdExpiry(cert, threshold, daysLeft = 0) {
 
 /** Return the persisted completion status for a successfully dispatched task. */
 function completionStatus(result) {
-  return result?.skipped === true && result?.reason === 'already_running'
-    ? 'skipped'
-    : 'success';
+  if (result?.skipped === true && result?.reason === 'already_running') return 'skipped';
+  // A handler that is not implemented returns { deferred: true }: it did no
+  // work, so it is not a success (TNB-37).
+  if (result?.deferred === true) return 'skipped';
+  return 'success';
 }
 
 /**
@@ -1101,4 +1103,5 @@ async function handleDataRetentionComplianceCheck(organizationId) {
   };
 }
 
-module.exports = { listTasks, runTask, markTaskRun, runAutoInvoice, runAutoSuspend, runSuspensionWarnings, runBillingCycle, runCsdExpiryCheck, handleSlaBreachCheck, handleInventoryLowStockCheck, handleDataRetentionComplianceCheck, runFtthOpticalMetricsCleanup, ORGANIZATION_SCOPED_TASK_NAMES };
+module.exports = { listTasks, runTask, markTaskRun,
+  completionStatus, runAutoInvoice, runAutoSuspend, runSuspensionWarnings, runBillingCycle, runCsdExpiryCheck, handleSlaBreachCheck, handleInventoryLowStockCheck, handleDataRetentionComplianceCheck, runFtthOpticalMetricsCleanup, ORGANIZATION_SCOPED_TASK_NAMES };

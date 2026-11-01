@@ -407,32 +407,19 @@ router.get('/cpe-security-scans', requirePermission('cpe_security_scans.view'), 
   }
 });
 
-// POST /cpe-security-scans — trigger scan (stub: set status=pending)
+// POST /cpe-security-scans — trigger scan. Nothing runs scans yet: a created
+// row stayed 'pending' for ever and read as a scan in progress (TNB-37), so
+// the request is refused with 501 and nothing is recorded.
 router.post('/cpe-security-scans', requirePermission('cpe_security_scans.create'), validate(triggerCpeScan), ownedReferences({ device_id: 'devices', cpe_device_id: 'cpe_devices' }), async (req, res, next) => {
   try {
-    const { scan_type, device_id, cpe_device_id } = req.body;
+    const { device_id, cpe_device_id } = req.body;
 
     if (!device_id && !cpe_device_id) {
       throw new ValidationError('Either device_id or cpe_device_id must be provided');
     }
-
-    const [result] = await db.query(
-      // Column is `initiated_by`, not `triggered_by` (database/schema.sql).
-      `INSERT INTO cpe_security_scans
-        (organization_id, device_id, cpe_device_id, scan_type, status, initiated_by, started_at)
-       VALUES (?, ?, ?, ?, 'pending', ?, NOW())`,
-      [req.orgId, device_id || null, cpe_device_id || null, scan_type, req.user.id],
-    );
-
-    // Stub: actual scan dispatch would be enqueued here (e.g., BullMQ job)
-    // For now, just return the created record with pending status
-
-    const [[row]] = await db.query(
-      'SELECT * FROM cpe_security_scans WHERE id = ?',
-      [result.insertId],
-    );
-
-    res.status(201).json({ data: row });
+    return res.status(501).json({
+      error: { code: 'CPE_SCAN_NOT_IMPLEMENTED', message: 'CPE security scans are not implemented yet; no scan was started.' },
+    });
   } catch (err) {
     next(err);
   }

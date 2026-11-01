@@ -2945,7 +2945,7 @@
       "showOptical": "Óptico",
       "hideOptical": "Ocultar",
       "reboot": "Reiniciar",
-      "confirmReboot": "Agendar reinicialização para esta ONU?",
+      "rebootUnavailable": "Reiniciar pela OLT ainda não está disponível. Reinicie a ONU pela OLT.",
       "opticalHistory": "Histórico de Diagnóstico Óptico"
     },
     "optical": {

@@ -395,6 +395,9 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
 
     try {
       stageOutput = await executeProvisioningStage(stageName, { organizationId, contract_id, client_id });
+      // A stage with no implementation did nothing: 'skipped', never
+      // 'completed' (TNB-37).
+      if (stageOutput && stageOutput.implemented === false) stageStatus = 'skipped';
     } catch (err) {
       stageStatus = 'failed';
       stageError = err.message;
@@ -415,6 +418,18 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
     if (pipelineStatus === 'failed') break;
   }
 
+  // A run in which no stage did any work provisioned nothing; reporting it
+  // 'completed' told staff the subscriber was set up.
+  const skipped = Object.entries(stageResults).filter(([, r]) => r.status === 'skipped').map(([n]) => n);
+  if (pipelineStatus === 'completed' && skipped.length > 0) {
+    const didWork = Object.values(stageResults).some(r => r.status === 'completed' && r.output?.implemented !== false
+      && !(r.output && r.output.activated === false));
+    if (!didWork) {
+      pipelineStatus = 'failed';
+      errorMessage = `Nothing was provisioned: stages not implemented (${skipped.join(', ')})`;
+    }
+  }
+
   await db.query(
     `UPDATE provisioning_pipelines
      SET status = ?, stages_results = ?, completed_at = NOW(), error_message = ?
@@ -429,9 +444,10 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
 async function executeProvisioningStage(stageName, ctx) {
   switch (stageName) {
     case 'assign_ip':
-      // Reuse pool assignment service in production; stub here
-      logger.info(ctx, 'Provisioning: assign_ip (stub)');
-      return { assigned_ip: '0.0.0.0', note: 'STUB — poolAssignmentService integration pending' };
+      // Not implemented: poolAssignmentService is not wired. It used to report
+      // a "completed" stage with assigned_ip 0.0.0.0 (TNB-37).
+      logger.warn(ctx, 'Provisioning: assign_ip not implemented — no address assigned');
+      return { implemented: false, note: 'assign_ip not implemented — no IP address was assigned. Assign one from the contract page.' };
     case 'configure_device':
       // Not implemented: live device configuration (routerDriverService integration) is
       // not wired. Do NOT claim success and do NOT abort the whole pipeline — record an
@@ -460,10 +476,12 @@ async function executeProvisioningStage(stageName, ctx) {
       }
       return { contract_id: null, activated: false, note: 'No contract was supplied for activation' };
     case 'send_notification':
-      logger.info(ctx, 'Provisioning: send_notification (notification service)');
-      return { note: 'Notification dispatched via notificationService' };
+      // Not implemented: it claimed "Notification dispatched" without sending
+      // anything (TNB-37).
+      logger.warn(ctx, 'Provisioning: send_notification not implemented — nothing sent');
+      return { implemented: false, note: 'send_notification not implemented — no notification was sent.' };
     default:
-      return { note: `Unknown stage: ${stageName}` };
+      return { implemented: false, note: `Unknown stage: ${stageName}` };
   }
 }
 

@@ -36639,7 +36639,7 @@
         "tags": [
           "ONU Management"
         ],
-        "summary": "Trigger ONU provisioning (records intent; dispatched by background processor)",
+        "summary": "Save ONU provisioning details (pushing them to the OLT is not implemented; no job is queued)",
         "operationId": "provisionOnu",
         "security": [
           {
@@ -36667,8 +36667,8 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Provision job queued",
+          "200": {
+            "description": "Details saved; dispatched is false",
             "content": {
               "application/json": {
                 "schema": {
@@ -36685,7 +36685,7 @@
         "tags": [
           "ONU Management"
         ],
-        "summary": "Schedule remote ONU reboot (job dispatched by background processor)",
+        "summary": "Remote ONU reboot (not implemented: refused with 501, nothing is queued)",
         "operationId": "rebootOnu",
         "security": [
           {
@@ -36703,15 +36703,8 @@
           }
         ],
         "responses": {
-          "202": {
-            "description": "Reboot job queued",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+          "501": {
+            "description": "ONU_ACTION_NOT_IMPLEMENTED"
           }
         }
       }
@@ -53985,7 +53978,7 @@
         "tags": [
           "Security"
         ],
-        "summary": "Trigger CPE security scan",
+        "summary": "Trigger CPE security scan (not implemented: refused with 501, nothing is recorded)",
         "operationId": "triggerCpeSecurityScan",
         "security": [
           {
@@ -54003,15 +53996,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "CpeSecurityScan",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+          "501": {
+            "description": "CPE_SCAN_NOT_IMPLEMENTED"
           }
         }
       }

@@ -2945,7 +2945,7 @@
       "showOptical": "Optical",
       "hideOptical": "Hide",
       "reboot": "Reboot",
-      "confirmReboot": "Schedule a reboot for this ONU?",
+      "rebootUnavailable": "Rebooting through the OLT is not available yet. Reboot the ONU from the OLT.",
       "opticalHistory": "Optical Diagnostic History"
     },
     "optical": {

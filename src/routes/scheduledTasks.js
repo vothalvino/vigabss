@@ -205,9 +205,7 @@ router.post('/:id/run', requirePermission('scheduled_tasks.update'), async (req,
       );
       try {
         const result = await taskRunner.runTask(selectedTask.task_name, organizationId);
-        const completionStatus = result?.skipped === true && result?.reason === 'already_running'
-          ? 'skipped'
-          : 'success';
+        const completionStatus = taskRunner.completionStatus(result);
         await db.query(
           'UPDATE scheduled_tasks SET last_status = ?, last_run_at = NOW() WHERE id = ?',
           [completionStatus, selectedTask.id],

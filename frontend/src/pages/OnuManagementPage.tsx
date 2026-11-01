@@ -191,14 +191,6 @@ async function fetchOpticalHistory(onuDetailId: number): Promise<OpticalMetric[]
   return ((res as { data: unknown }).data as { data: OpticalMetric[] }).data;
 }
 
-async function scheduleReboot(onuDetailId: number): Promise<void> {
-  const res = await api.POST('/onu-management/details/{id}/reboot' as never, {
-    params: { path: { id: onuDetailId } },
-    body: {} as never,
-  } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to schedule reboot');
-}
-
 // ---------------------------------------------------------------------------
 // API helpers — ONU Profiles
 // ---------------------------------------------------------------------------
@@ -295,7 +287,6 @@ async function cancelFirmwareJob(id: number): Promise<void> {
 
 function OnuDetailsTab() {
   const { t } = useTranslation();
-  const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [state, setState] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -309,11 +300,6 @@ function OnuDetailsTab() {
     queryKey: ['onuOptical', selectedId],
     queryFn: () => fetchOpticalHistory(selectedId!),
     enabled: selectedId !== null,
-  });
-
-  const rebootMut = useMutation({
-    mutationFn: scheduleReboot,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['onuDetails'] }),
   });
 
   const totalPages = Math.ceil((data?.meta?.total ?? 0) / PAGE_SIZE);
@@ -365,12 +351,11 @@ function OnuDetailsTab() {
                       >
                         {selectedId === onu.id ? t('onuManagement.details.hideOptical') : t('onuManagement.details.showOptical')}
                       </button>
+                      {/* Rebooting through the OLT is not implemented; the API refuses with 501. */}
                       <button
-                        style={{ ...styles.actionBtn, color: 'var(--warning, #d97706)' }}
-                        disabled={rebootMut.isPending}
-                        onClick={() => {
-                          if (window.confirm(t('onuManagement.details.confirmReboot'))) rebootMut.mutate(onu.id);
-                        }}
+                        style={{ ...styles.actionBtn, opacity: 0.5, cursor: 'not-allowed' }}
+                        disabled
+                        title={t('onuManagement.details.rebootUnavailable')}
                       >
                         {t('onuManagement.details.reboot')}
                       </button>
