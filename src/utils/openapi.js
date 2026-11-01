@@ -4962,6 +4962,10 @@ function convertSchemaToOpenApi(schema) {
 /**
  * Mount OpenAPI spec endpoint on an Express app.
  */
+// Pinned: an unpinned @5 range would load whatever unpkg serves today.
+const SWAGGER_UI_ORIGIN = 'https://unpkg.com';
+const SWAGGER_UI_BASE = `${SWAGGER_UI_ORIGIN}/swagger-ui-dist@5.17.14`;
+
 function mountApiDocs(app) {
   const spec = generateSpec();
 
@@ -4969,14 +4973,31 @@ function mountApiDocs(app) {
     res.json(spec);
   });
 
+  // The app-wide CSP (script-src 'self') blocked Swagger UI's unpkg assets and
+  // its inline bootstrap, so /api/docs was blank (SEC-15). This page gets its
+  // own policy: the pinned unpkg assets and the request nonce for the inline
+  // script. Swagger UI sets inline styles, so styles allow 'unsafe-inline' here.
   app.get('/api/docs', (_req, res) => {
+    const nonce = res.locals.cspNonce;
+    res.setHeader('Content-Security-Policy', [
+      "default-src 'self'",
+      `script-src 'self' ${SWAGGER_UI_ORIGIN} 'nonce-${nonce}'`,
+      `style-src 'self' ${SWAGGER_UI_ORIGIN} 'unsafe-inline'`,
+      "img-src 'self' data:",
+      "connect-src 'self'",
+      "font-src 'self' data:",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; '));
     res.send(`<!DOCTYPE html>
 <html><head><title>${product.displayName} API Docs</title>
-<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+<link rel="stylesheet" href="${SWAGGER_UI_BASE}/swagger-ui.css" />
 </head><body>
 <div id="swagger-ui"></div>
-<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-<script>SwaggerUIBundle({ url: '/api/docs/openapi.json', dom_id: '#swagger-ui' });</script>
+<script src="${SWAGGER_UI_BASE}/swagger-ui-bundle.js"></script>
+<script nonce="${nonce}">SwaggerUIBundle({ url: '/api/docs/openapi.json', dom_id: '#swagger-ui' });</script>
 </body></html>`);
   });
 }

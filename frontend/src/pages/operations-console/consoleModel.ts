@@ -546,8 +546,30 @@ export function hasRealData(summary?: SummaryData): boolean {
   return !!summary && summary.clients.total > 0;
 }
 
+/**
+ * Demo figures are for an install that really has no clients yet: the summary
+ * loaded and says so. A summary the user may not read (403 for billing and
+ * support) or one still loading used to show 12,847 fabricated clients and
+ * MRR 4.28M while the user's real MRR and overdue data were discarded (FE-08).
+ */
+export function isDemoInstall(summary?: SummaryData): boolean {
+  return !!summary && summary.clients.total === 0;
+}
+
 export function resolveModel(inp: RealInputs): ConsoleModel {
-  if (hasRealData(inp.summary)) return buildRealModel(inp);
+  if (!isDemoInstall(inp.summary)) {
+    const model = buildRealModel(inp);
+    if (inp.summary) return model;
+    // Without the summary its two KPIs are unknown, not zero.
+    return {
+      ...model,
+      kpis: {
+        ...model.kpis,
+        activeClients: { ...model.kpis.activeClients, value: '—' },
+        openTickets: { ...model.kpis.openTickets, value: '—' },
+      },
+    };
+  }
   // Demo: keep the design's sample figures, but label MRR with the org's own
   // currency so the currency is consistent even before real data exists.
   const orgCurrency = (inp.orgCurrency || 'MXN').toUpperCase();

@@ -18,7 +18,7 @@ const { validate } = require('../middleware/validate');
 const { createTicket, updateTicket, patchTicket, createComment, updateComment } = require('../middleware/schemas/tickets');
 const db = require('../config/database');
 const { NotFoundError, ValidationError } = require('../utils/errors');
-const { pubsub } = require('../services/pubsub');
+const { publishTicketComment } = require('../services/pubsub');
 const jobQueue = require('../services/jobQueueService');
 const logger = require('../utils/logger').child({ service: 'routes/tickets' });
 const aiReplyService = require('../services/aiReplyService');
@@ -285,7 +285,7 @@ router.post('/:id/comments', requireOwnedTicket('tickets.update', 'tickets.comme
       [req.params.id, req.user.id, body, is_internal || false],
     );
     const [rows] = await db.query('SELECT * FROM ticket_comments WHERE id = ?', [result.insertId]);
-    pubsub.publish('TICKET_COMMENT_ADDED', { ticketCommentAdded: rows[0], ticketId: String(req.params.id) });
+    publishTicketComment(req.orgId, req.params.id, rows[0]);
 
     // No AI triage here: these comments are written by staff, and triaging a
     // staff reply sent it (and the ticket history) to the LLM as if the

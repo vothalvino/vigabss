@@ -123,8 +123,24 @@ const authMiddleware: Middleware = {
 };
 
 // Middleware: on 401, attempt a single silent refresh then retry.
+//
+// openapi-fetch sends the very Request it hands to onResponse, so its body is
+// already consumed: re-sending it threw "Cannot construct a Request with a
+// Request object that has already been used" for every POST/PUT/PATCH (FE-16).
+// A clone is kept per request (by openapi-fetch's request id) for the retry.
+const pendingRetries = new Map<string, Request>();
+
 const refreshMiddleware: Middleware = {
-  async onResponse({ request, response, options }) {
+  async onRequest({ request, id }) {
+    pendingRetries.set(id, request.clone());
+    return request;
+  },
+  async onError({ id }) {
+    pendingRetries.delete(id);
+  },
+  async onResponse({ request, response, options, id }) {
+    const retryRequest = pendingRetries.get(id) ?? request;
+    pendingRetries.delete(id);
     if (response.status !== 401) return response;
 
     // Deduplicate concurrent refresh attempts.
@@ -137,12 +153,12 @@ const refreshMiddleware: Middleware = {
     // settles logged-out; on transient failures the session stays intact.
     if (!ok) return response;
 
-    // Retry original request with new token.
+    // Retry the original request (an unsent copy) with the new token.
     const token = tokenStore.getAccess();
     if (token) {
-      request.headers.set('Authorization', `Bearer ${token}`);
+      retryRequest.headers.set('Authorization', `Bearer ${token}`);
     }
-    return fetch(request, { ...(options as RequestInit), credentials: 'include' });
+    return fetch(retryRequest, { ...(options as RequestInit), credentials: 'include' });
   },
 };
 

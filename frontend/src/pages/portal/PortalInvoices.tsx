@@ -5,8 +5,9 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
@@ -37,17 +38,22 @@ async function fetchPortalInvoices(page: number, status: string): Promise<Invoic
   return res.json() as Promise<InvoicesResponse>;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: '⬜ Draft',
-  issued: '📤 Issued',
-  paid: '✅ Paid',
-  overdue: '🔴 Overdue',
-  cancelled: '❌ Cancelled',
+const STATUS_ICONS: Record<string, string> = {
+  draft: '⬜',
+  issued: '📤',
+  paid: '✅',
+  overdue: '🔴',
+  cancelled: '❌',
 };
+const FILTER_STATUSES = ['draft', 'issued', 'paid', 'overdue', 'cancelled'];
 
 export function PortalInvoices() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
+  // Fallback return target of a checkout started without a return page (FE-14).
+  const [searchParams] = useSearchParams();
+  const paymentReturn = searchParams.get('payment');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['portal-invoices', page, statusFilter],
@@ -60,26 +66,26 @@ export function PortalInvoices() {
   return (
     <div>
       <div style={styles.header}>
-        <h1 style={styles.heading}>🧾 My Invoices</h1>
+        <h1 style={styles.heading}>🧾 {t('portalInvoices.title')}</h1>
+        {paymentReturn === 'success' && (
+          <p role="status">{t('portalInvoices.paymentSuccess')}</p>
+        )}
+        {paymentReturn === 'cancelled' && <p role="status">{t('portalInvoices.paymentCancelled')}</p>}
         <select
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           style={styles.select}
         >
-          <option value="">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="issued">Issued</option>
-          <option value="paid">Paid</option>
-          <option value="overdue">Overdue</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="">{t('portalInvoices.allStatuses')}</option>
+          {FILTER_STATUSES.map(st => <option key={st} value={st}>{t(`portalCommon.invoiceStatus.${st}`)}</option>)}
         </select>
       </div>
 
-      {isLoading && <p style={styles.info}>Loading…</p>}
-      {error && <p style={styles.error}>Failed to load invoices.</p>}
+      {isLoading && <p style={styles.info}>{t('portalInvoices.loading')}</p>}
+      {error && <p style={styles.error}>{t('portalInvoices.error')}</p>}
 
       {!isLoading && invoices.length === 0 && (
-        <p style={styles.info}>No invoices found.</p>
+        <p style={styles.info}>{t('portalInvoices.noInvoices')}</p>
       )}
 
       {invoices.length > 0 && (
@@ -87,11 +93,11 @@ export function PortalInvoices() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Invoice #</th>
-                <th style={styles.th}>Date</th>
-                <th style={styles.th}>Due</th>
-                <th style={styles.th}>Total</th>
-                <th style={styles.th}>Status</th>
+                <th style={styles.th}>{t('portalInvoices.table.invoiceNumber')}</th>
+                <th style={styles.th}>{t('portalInvoices.table.date')}</th>
+                <th style={styles.th}>{t('portalInvoices.table.dueDate')}</th>
+                <th style={styles.th}>{t('portalInvoices.table.amount')}</th>
+                <th style={styles.th}>{t('portalInvoices.table.status')}</th>
                 <th style={styles.th}></th>
               </tr>
             </thead>
@@ -106,12 +112,12 @@ export function PortalInvoices() {
                   <td style={styles.td}>{inv.currency} {parseFloat(inv.total).toFixed(2)}</td>
                   <td style={styles.td}>
                     <span style={{ ...styles.badge, ...badgeColor(inv.status) }}>
-                      {STATUS_LABELS[inv.status] ?? inv.status}
+                      {STATUS_ICONS[inv.status] ? `${STATUS_ICONS[inv.status]} ` : ''}{t(`portalCommon.invoiceStatus.${inv.status}`, { defaultValue: inv.status })}
                     </span>
                   </td>
                   <td style={styles.td}>
                     {(inv.status === 'issued' || inv.status === 'overdue') && (
-                      <Link to={`/portal/invoices/${inv.id}`} style={styles.payBtn}>Pay →</Link>
+                      <Link to={`/portal/invoices/${inv.id}`} style={styles.payBtn}>{t('portalInvoices.pay')} →</Link>
                     )}
                   </td>
                 </tr>
@@ -125,11 +131,11 @@ export function PortalInvoices() {
       {meta && meta.pages > 1 && (
         <div style={styles.pagination}>
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={styles.pageBtn}>
-            ‹ Prev
+            ‹ {t('portalCommon.prev')}
           </button>
-          <span style={styles.pageInfo}>Page {page} of {meta.pages}</span>
+          <span style={styles.pageInfo}>{t('portalCommon.pageOf', { page, pages: meta.pages })}</span>
           <button onClick={() => setPage(p => Math.min(meta.pages, p + 1))} disabled={page === meta.pages} style={styles.pageBtn}>
-            Next ›
+            {t('portalCommon.next')} ›
           </button>
         </div>
       )}

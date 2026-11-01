@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
@@ -54,16 +55,14 @@ async function portalFetch<T>(path: string, opts: RequestInit = {}): Promise<T> 
 type RequestType = 'plan_upgrade' | 'wifi_password_change' | 'pppoe_password_change'
   | 'static_ip_request' | 'cancellation' | 'visit_schedule';
 
-const REQUEST_LABELS: Record<RequestType, string> = {
-  plan_upgrade: 'Plan Upgrade',
-  wifi_password_change: 'Change Wi-Fi Password',
-  pppoe_password_change: 'Change PPPoE Password',
-  static_ip_request: 'Request Static IP',
-  cancellation: 'Request Cancellation',
-  visit_schedule: 'Schedule a Visit',
-};
+const REQUEST_TYPES: RequestType[] = [
+  'plan_upgrade', 'wifi_password_change', 'pppoe_password_change',
+  'static_ip_request', 'cancellation', 'visit_schedule',
+];
+const TIME_SLOTS = ['morning', 'afternoon', 'evening'];
 
 export function PortalAccount() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<'requests' | 'new' | 'whatsapp'>('requests');
   const [reqType, setReqType] = useState<RequestType>('plan_upgrade');
@@ -84,7 +83,7 @@ export function PortalAccount() {
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
-      setMsg('Request submitted successfully.');
+      setMsg(t('portalAccount.submitted'));
       setErrMsg('');
       setPayload({});
       setActiveTab('requests');
@@ -98,7 +97,7 @@ export function PortalAccount() {
       portalFetch(`/service-requests/${id}/cancel`, { method: 'POST' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-service-requests'] }),
     onError: (e: Error) => {
-      setErrMsg(e.message || 'Failed to cancel request. Please try again.');
+      setErrMsg(e.message || t('portalAccount.cancelFailed'));
       setMsg('');
     },
   });
@@ -145,24 +144,24 @@ export function PortalAccount() {
 
     // Client-side required-field validation per request type
     if (reqType === 'plan_upgrade' && !payload.new_plan_id?.trim()) {
-      setErrMsg('Please enter a plan ID to upgrade to.');
+      setErrMsg(t('portalAccount.errPlanId'));
       return;
     }
     if ((reqType === 'wifi_password_change' || reqType === 'pppoe_password_change') && !payload.new_password?.trim()) {
-      setErrMsg('Please enter a new password.');
+      setErrMsg(t('portalAccount.errPassword'));
       return;
     }
     if (reqType === 'cancellation' && !payload.reason?.trim()) {
-      setErrMsg('Please provide a cancellation reason.');
+      setErrMsg(t('portalAccount.errReason'));
       return;
     }
     if (reqType === 'visit_schedule') {
       if (!payload.preferred_date?.trim()) {
-        setErrMsg('Please select a preferred date.');
+        setErrMsg(t('portalAccount.errDate'));
         return;
       }
       if (!payload.preferred_slot?.trim()) {
-        setErrMsg('Please select a preferred time slot.');
+        setErrMsg(t('portalAccount.errSlot'));
         return;
       }
     }
@@ -174,25 +173,24 @@ export function PortalAccount() {
 
   return (
     <div>
-      <h1 style={styles.heading}>Account Settings</h1>
+      <h1 style={styles.heading}>{t('portalAccount.title')}</h1>
 
       <section style={{ ...styles.card, marginBottom: '1rem' }}>
-        <h2 style={styles.sectionTitle}>Autopay</h2>
+        <h2 style={styles.sectionTitle}>{t('portalAccount.autopay')}</h2>
         {autopay?.data.enabled ? (
           <div>
             <p style={styles.muted}>
-              ✅ Autopay is on
-              {autopay.data.profile?.card_last_four
-                ? ` — ${autopay.data.profile.card_brand ? `${autopay.data.profile.card_brand} ` : ''}card ending ${autopay.data.profile.card_last_four}`
-                : ''}. Your invoices are charged automatically.
+              ✅ {autopay.data.profile?.card_last_four
+                ? t('portalAccount.autopayOnCard', { card: `${autopay.data.profile.card_brand ? `${autopay.data.profile.card_brand} ` : ''}${autopay.data.profile.card_last_four}` })
+                : t('portalAccount.autopayOn')}
             </p>
-            <button style={styles.cancelBtn} onClick={() => autopayDisableMutation.mutate()}>Turn off autopay</button>
+            <button style={styles.cancelBtn} onClick={() => autopayDisableMutation.mutate()}>{t('portalAccount.autopayOff')}</button>
           </div>
         ) : (
           <div>
-            <p style={styles.muted}>Save a card to pay your invoices automatically each month. You can turn this off anytime.</p>
+            <p style={styles.muted}>{t('portalAccount.autopayPitch')}</p>
             <button style={styles.submitBtn} onClick={() => autopayEnrollMutation.mutate()} disabled={autopayEnrollMutation.isPending}>
-              {autopayEnrollMutation.isPending ? 'Redirecting…' : 'Enable autopay'}
+              {autopayEnrollMutation.isPending ? t('portalAccount.redirecting') : t('portalAccount.autopayEnable')}
             </button>
           </div>
         )}
@@ -203,13 +201,13 @@ export function PortalAccount() {
           style={{ ...styles.tab, ...(activeTab === 'requests' ? styles.tabActive : {}) }}
           onClick={() => setActiveTab('requests')}
         >
-          My Requests
+          {t('portalAccount.tabRequests')}
         </button>
         <button
           style={{ ...styles.tab, ...(activeTab === 'new' ? styles.tabActive : {}) }}
           onClick={() => setActiveTab('new')}
         >
-          New Request
+          {t('portalAccount.tabNew')}
         </button>
         <button
           style={{ ...styles.tab, ...(activeTab === 'whatsapp' ? styles.tabActive : {}) }}
@@ -221,27 +219,27 @@ export function PortalAccount() {
 
       {activeTab === 'requests' && (
         <section style={styles.card}>
-          <h2 style={styles.sectionTitle}>My Service Requests</h2>
-          {isLoading && <p style={styles.muted}>Loading…</p>}
+          <h2 style={styles.sectionTitle}>{t('portalAccount.myRequests')}</h2>
+          {isLoading && <p style={styles.muted}>{t('portalCommon.loading')}</p>}
           {!isLoading && requests.length === 0 && (
-            <p style={styles.muted}>No service requests yet.</p>
+            <p style={styles.muted}>{t('portalAccount.noRequests')}</p>
           )}
           {requests.length > 0 && (
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Type</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Submitted</th>
+                  <th style={styles.th}>{t('portalAccount.type')}</th>
+                  <th style={styles.th}>{t('portalAccount.status')}</th>
+                  <th style={styles.th}>{t('portalAccount.submittedAt')}</th>
                   <th style={styles.th}></th>
                 </tr>
               </thead>
               <tbody>
                 {requests.map(r => (
                   <tr key={r.id}>
-                    <td style={styles.td}>{REQUEST_LABELS[r.request_type as RequestType] ?? r.request_type}</td>
+                    <td style={styles.td}>{t(`portalAccount.requestTypes.${r.request_type}`, { defaultValue: r.request_type })}</td>
                     <td style={styles.td}>
-                      <span style={{ ...styles.badge, ...badgeColor(r.status) }}>{r.status}</span>
+                      <span style={{ ...styles.badge, ...badgeColor(r.status) }}>{t(`portalServiceRequests.status.${r.status}`, { defaultValue: r.status })}</span>
                     </td>
                     <td style={styles.td}>{r.created_at.slice(0, 10)}</td>
                     <td style={styles.td}>
@@ -250,7 +248,7 @@ export function PortalAccount() {
                           style={styles.cancelBtn}
                           onClick={() => cancelMutation.mutate(r.id)}
                         >
-                          Cancel
+                          {t('portalAccount.cancel')}
                         </button>
                       )}
                     </td>
@@ -264,17 +262,17 @@ export function PortalAccount() {
 
       {activeTab === 'new' && (
         <section style={styles.card}>
-          <h2 style={styles.sectionTitle}>Submit a Request</h2>
+          <h2 style={styles.sectionTitle}>{t('portalAccount.submitTitle')}</h2>
 
           <div style={styles.formGroup}>
-            <label style={styles.label}>Request Type</label>
+            <label style={styles.label}>{t('portalAccount.requestType')}</label>
             <select
               value={reqType}
               onChange={e => { setReqType(e.target.value as RequestType); setPayload({}); }}
               style={styles.select}
             >
-              {(Object.keys(REQUEST_LABELS) as RequestType[]).map(k => (
-                <option key={k} value={k}>{REQUEST_LABELS[k]}</option>
+              {REQUEST_TYPES.map(k => (
+                <option key={k} value={k}>{t(`portalAccount.requestTypes.${k}`)}</option>
               ))}
             </select>
           </div>
@@ -282,26 +280,26 @@ export function PortalAccount() {
           {/* Dynamic payload fields per request type */}
           {reqType === 'plan_upgrade' && (
             <div style={styles.formGroup}>
-              <label style={styles.label}>New Plan ID</label>
+              <label style={styles.label}>{t('portalAccount.newPlanId')}</label>
               <input
                 type="number"
                 value={payload.new_plan_id ?? ''}
                 onChange={e => setPayload(p => ({ ...p, new_plan_id: e.target.value }))}
                 style={styles.input}
-                placeholder="Enter plan ID to upgrade to"
+                placeholder={t('portalAccount.newPlanIdPlaceholder')}
               />
             </div>
           )}
 
           {(reqType === 'wifi_password_change' || reqType === 'pppoe_password_change') && (
             <div style={styles.formGroup}>
-              <label style={styles.label}>New Password</label>
+              <label style={styles.label}>{t('portalAccount.newPassword')}</label>
               <input
                 type="password"
                 value={payload.new_password ?? ''}
                 onChange={e => setPayload(p => ({ ...p, new_password: e.target.value }))}
                 style={styles.input}
-                placeholder="Enter new password (min. 8 characters)"
+                placeholder={t('portalAccount.newPasswordPlaceholder')}
                 minLength={8}
               />
             </div>
@@ -309,24 +307,24 @@ export function PortalAccount() {
 
           {reqType === 'static_ip_request' && (
             <div style={styles.formGroup}>
-              <label style={styles.label}>Notes / Reason</label>
+              <label style={styles.label}>{t('portalAccount.notesReason')}</label>
               <textarea
                 value={payload.notes ?? ''}
                 onChange={e => setPayload(p => ({ ...p, notes: e.target.value }))}
                 style={styles.textarea}
-                placeholder="Please describe why you need a static IP"
+                placeholder={t('portalAccount.staticIpPlaceholder')}
               />
             </div>
           )}
 
           {reqType === 'cancellation' && (
             <div style={styles.formGroup}>
-              <label style={styles.label}>Cancellation Reason</label>
+              <label style={styles.label}>{t('portalAccount.cancellationReason')}</label>
               <textarea
                 value={payload.reason ?? ''}
                 onChange={e => setPayload(p => ({ ...p, reason: e.target.value }))}
                 style={styles.textarea}
-                placeholder="Please let us know why you'd like to cancel"
+                placeholder={t('portalAccount.cancellationPlaceholder')}
               />
             </div>
           )}
@@ -334,7 +332,7 @@ export function PortalAccount() {
           {reqType === 'visit_schedule' && (
             <>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Preferred Date</label>
+                <label style={styles.label}>{t('portalAccount.preferredDate')}</label>
                 <input
                   type="date"
                   value={payload.preferred_date ?? ''}
@@ -343,25 +341,23 @@ export function PortalAccount() {
                 />
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Preferred Time Slot</label>
+                <label style={styles.label}>{t('portalAccount.preferredSlot')}</label>
                 <select
                   value={payload.preferred_slot ?? ''}
                   onChange={e => setPayload(p => ({ ...p, preferred_slot: e.target.value }))}
                   style={styles.select}
                 >
-                  <option value="">Select a time slot</option>
-                  <option value="morning">Morning (8am – 12pm)</option>
-                  <option value="afternoon">Afternoon (12pm – 5pm)</option>
-                  <option value="evening">Evening (5pm – 8pm)</option>
+                  <option value="">{t('portalAccount.selectSlot')}</option>
+                  {TIME_SLOTS.map(slot => <option key={slot} value={slot}>{t(`portalAccount.slots.${slot}`)}</option>)}
                 </select>
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Notes</label>
+                <label style={styles.label}>{t('portalAccount.notes')}</label>
                 <textarea
                   value={payload.notes ?? ''}
                   onChange={e => setPayload(p => ({ ...p, notes: e.target.value }))}
                   style={styles.textarea}
-                  placeholder="Describe the reason for the visit"
+                  placeholder={t('portalAccount.visitPlaceholder')}
                 />
               </div>
             </>
@@ -375,25 +371,24 @@ export function PortalAccount() {
             onClick={handleSubmit}
             disabled={createMutation.isPending}
           >
-            {createMutation.isPending ? 'Submitting…' : 'Submit Request'}
+            {createMutation.isPending ? t('portalAccount.submitting') : t('portalAccount.submit')}
           </button>
         </section>
       )}
 
       {activeTab === 'whatsapp' && (
         <section style={styles.card}>
-          <h2 style={styles.sectionTitle}>Connect WhatsApp</h2>
+          <h2 style={styles.sectionTitle}>{t('portalAccount.waTitle')}</h2>
           <p style={styles.muted}>
-            Link your WhatsApp number to check your balance and get support in chat. We only ever
-            send a new code — we never share your existing passwords in WhatsApp.
+            {t('portalAccount.waIntro')}
           </p>
 
           {waLinks.length > 0 ? (
             <table style={{ ...styles.table, marginTop: '0.75rem' }}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Number</th>
-                  <th style={styles.th}>Connected</th>
+                  <th style={styles.th}>{t('portalAccount.waNumber')}</th>
+                  <th style={styles.th}>{t('portalAccount.waConnected')}</th>
                   <th style={styles.th}></th>
                 </tr>
               </thead>
@@ -404,7 +399,7 @@ export function PortalAccount() {
                     <td style={styles.td}>{l.boundAt.slice(0, 10)}</td>
                     <td style={styles.td}>
                       <button style={styles.cancelBtn} onClick={() => unlinkWaMutation.mutate(l.id)}>
-                        Unlink
+                        {t('portalAccount.waUnlink')}
                       </button>
                     </td>
                   </tr>
@@ -412,7 +407,7 @@ export function PortalAccount() {
               </tbody>
             </table>
           ) : (
-            <p style={{ ...styles.muted, marginTop: '0.75rem' }}>No WhatsApp number connected yet.</p>
+            <p style={{ ...styles.muted, marginTop: '0.75rem' }}>{t('portalAccount.waNone')}</p>
           )}
 
           <div style={{ marginTop: '1.25rem' }}>
@@ -421,19 +416,19 @@ export function PortalAccount() {
               onClick={() => linkCodeMutation.mutate()}
               disabled={linkCodeMutation.isPending}
             >
-              {linkCodeMutation.isPending ? 'Generating…' : 'Get a linking code'}
+              {linkCodeMutation.isPending ? t('portalAccount.waGenerating') : t('portalAccount.waGetCode')}
             </button>
           </div>
 
           {waCode && (
             <div style={styles.waCodeBox}>
               <p style={styles.muted}>
-                Send this code to our WhatsApp to connect your number. It expires in {waCode.expiresInMinutes} minutes.
+                {t('portalAccount.waCodeHint', { count: waCode.expiresInMinutes })}
               </p>
               <p style={styles.waCode}>{waCode.code}</p>
               {waCode.deepLink && (
                 <a href={waCode.deepLink} target="_blank" rel="noopener noreferrer" style={styles.waLink}>
-                  Open WhatsApp
+                  {t('portalAccount.waOpen')}
                 </a>
               )}
             </div>

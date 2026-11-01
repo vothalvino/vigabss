@@ -12,14 +12,13 @@ const createDscpMarkingPolicy = {
   description:      { type: 'string', max: 1000 },
   dscp_value:       { type: 'number', required: true, min: 0, max: 63 },
   dscp_name:        { type: 'string', max: 20, pattern: blankOr(MARK_PATTERN) },
-  traffic_class:    { type: 'string', max: 50 },
+  traffic_class:    { type: 'string', enum: ['voice', 'video', 'interactive', 'bulk', 'scavenger', 'best_effort'] },
   match_protocol:   { type: 'string', enum: ['tcp', 'udp', 'icmp', 'any'] },
   match_dst_port:   { type: 'string', max: 100, pattern: blankOr(PORT_RANGE_PATTERN) },
   match_src_port:   { type: 'string', max: 100, pattern: blankOr(PORT_RANGE_PATTERN) },
   match_l7:         { type: 'string', max: 255 },
-  action:           { type: 'string', enum: ['mark', 'remark', 'passthrough', 'trust', 'police'] },
+  action:           { type: 'string', enum: ['mark', 'remark', 'trust', 'police'] },
   priority:         { type: 'number', min: 1, max: 255 },
-  enabled:          { type: 'number', min: 0, max: 1 },
   status:           { type: 'string', enum: ['active', 'inactive'] },
 };
 
@@ -28,14 +27,13 @@ const updateDscpMarkingPolicy = {
   description:      { type: 'string', max: 1000 },
   dscp_value:       { type: 'number', min: 0, max: 63 },
   dscp_name:        { type: 'string', max: 20, pattern: blankOr(MARK_PATTERN) },
-  traffic_class:    { type: 'string', max: 50 },
+  traffic_class:    { type: 'string', enum: ['voice', 'video', 'interactive', 'bulk', 'scavenger', 'best_effort'] },
   match_protocol:   { type: 'string', enum: ['tcp', 'udp', 'icmp', 'any'] },
   match_dst_port:   { type: 'string', max: 100, pattern: blankOr(PORT_RANGE_PATTERN) },
   match_src_port:   { type: 'string', max: 100, pattern: blankOr(PORT_RANGE_PATTERN) },
   match_l7:         { type: 'string', max: 255 },
-  action:           { type: 'string', enum: ['mark', 'remark', 'passthrough', 'trust', 'police'] },
+  action:           { type: 'string', enum: ['mark', 'remark', 'trust', 'police'] },
   priority:         { type: 'number', min: 1, max: 255 },
-  enabled:          { type: 'number', min: 0, max: 1 },
   status:           { type: 'string', enum: ['active', 'inactive'] },
 };
 
