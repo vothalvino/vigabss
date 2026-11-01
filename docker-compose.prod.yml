@@ -250,6 +250,9 @@ services:
     #   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml --env-file .env.prod up -d --build
     image: ${VIGABSS_IMAGE:-${FIREISP_IMAGE:-ghcr.io/vothalvino/vigabss:latest}}
     restart: unless-stopped
+    # Docker's 10 s default SIGKILLed the app mid-shutdown on `restart`/`down`;
+    # its own force-exit (SHUTDOWN_TIMEOUT_MS, 25 s) stays below this (OPS-13).
+    stop_grace_period: 30s
     # Least privilege: no `user` override means the image's non-root `fireisp`
     # user runs the web/API application with no added Linux capabilities.
     # This configures the shared network namespace at container creation; it

@@ -16,6 +16,7 @@ const snmpTrapReceiver = require('./services/snmpTrapReceiver');
 const radiusServer = require('./services/radiusServerService');
 const wireguardRuntime = require('./services/wireguardRuntimeService');
 const logger = require('./utils/logger');
+const { createGracefulShutdown } = require('./utils/gracefulShutdown');
 const product = require('./product');
 
 async function start() {
@@ -137,38 +138,28 @@ async function start() {
   }
 
   // ---------------------------------------------------------------------------
-  // Graceful shutdown — drain HTTP connections before exiting
+  // Graceful shutdown — see utils/gracefulShutdown (OPS-13): WebSocket servers
+  // close first, open SSE streams are cut after a drain window, and the force
+  // exit stays below the container's 30 s stop_grace_period.
   // ---------------------------------------------------------------------------
-  const SHUTDOWN_TIMEOUT_MS = 15000;
-
-  function gracefulShutdown(signal) {
-    logger.info({ signal }, `${signal} received, starting graceful shutdown…`);
-
-    // Stop UDP acceptance at the beginning of shutdown. The returned promise
-    // drains the receiver's bounded in-flight transaction set before DB close.
-    const trapDrain = snmpTrapReceiver.stop();
-
-    // Stop accepting new connections; let in-flight requests finish
-    server.close(async () => {
-      logger.info('HTTP server closed');
-      await tunnelServer.close();
-      await wsHub.close().catch(() => {});
-      await trapDrain;
+  const gracefulShutdown = createGracefulShutdown({
+    server,
+    socketServers: [tunnelServer, wsHub],
+    stopIntake: async () => {
+      // Stop UDP acceptance first; the promise drains the receiver's bounded
+      // in-flight transaction set before the DB closes.
+      const trapDrain = snmpTrapReceiver.stop();
       radiusServer.stop();
       scheduler.stop();
       require('./utils/mapTileOrigins').stopMapTileOriginRefresh();
-      await jobQueue.close().catch(() => {});
-      await db.close();
-      logger.info('All resources released — exiting');
-      process.exit(0);
-    });
-
-    // Safety net: force-exit if draining takes too long
-    setTimeout(() => {
-      logger.warn({ timeoutMs: SHUTDOWN_TIMEOUT_MS }, 'Shutdown timeout reached — forcing exit');
-      process.exit(1);
-    }, SHUTDOWN_TIMEOUT_MS).unref();
-  }
+      await trapDrain;
+    },
+    closeQueues: () => jobQueue.close(),
+    closeDb: () => db.close(),
+    logger,
+    drainMs: parseInt(process.env.SHUTDOWN_DRAIN_MS || '5000', 10),
+    timeoutMs: parseInt(process.env.SHUTDOWN_TIMEOUT_MS || '25000', 10),
+  });
 
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
