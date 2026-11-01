@@ -110,16 +110,19 @@ describe('vectorStoreService — enabled (VECTOR_RETRIEVAL_ENABLED=true)', () =>
     expect(svc.isEnabled()).toBe(true);
   });
 
-  it('ensureCollection() calls POST /api/v1/collections and caches the ID', async () => {
+  // Chroma 1.x answers every /api/v1 route with 410 Gone; collections live
+  // under the v2 tenant/database path, and get_or_create replaces the old
+  // create-then-GET fallback.
+  it('ensureCollection() get-or-creates through the v2 tenant/database path and caches the ID', async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse({ id: 'col-abc', name: 'my-collection' }));
 
     const id = await svc.ensureCollection('my-collection');
 
     expect(id).toBe('col-abc');
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://chroma-test:8000/api/v1/collections',
-      expect.objectContaining({ method: 'POST' }),
-    );
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toBe('http://chroma-test:8000/api/v2/tenants/default_tenant/databases/default_database/collections');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toMatchObject({ name: 'my-collection', get_or_create: true, metadata: { 'hnsw:space': 'cosine' } });
   });
 
   it('ensureCollection() called twice for same name only calls fetch once (caching)', async () => {
@@ -133,15 +136,19 @@ describe('vectorStoreService — enabled (VECTOR_RETRIEVAL_ENABLED=true)', () =>
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('ensureCollection() falls back to GET when POST fails', async () => {
-    // First call (POST) fails
-    mockFetch.mockResolvedValueOnce(makeErrorResponse(409, 'already exists'));
-    // Second call (GET) succeeds
-    mockFetch.mockResolvedValueOnce(makeOkResponse({ id: 'col-existing', name: 'existing-col' }));
+  it('ensureCollection() reports a failed get-or-create instead of retrying a v1 lookup', async () => {
+    mockFetch.mockResolvedValueOnce(makeErrorResponse(500, 'boom'));
 
-    const id = await svc.ensureCollection('existing-col');
-    expect(id).toBe('col-existing');
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    await expect(svc.ensureCollection('broken-col')).rejects.toThrow(/HTTP 500/);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('no request goes to a v1 route', async () => {
+    mockFetch.mockResolvedValue(makeOkResponse({ id: 'col-1', ids: [[]], documents: [[]], metadatas: [[]], distances: [[]] }));
+    await svc.upsertDocuments({ collection: 'c', ids: ['a'], embeddings: [[0.1]], documents: ['x'], metadatas: [{}] });
+    await svc.queryDocuments({ collection: 'c', queryEmbedding: [0.1], k: 1 });
+    await svc.deleteDocuments({ collection: 'c', ids: ['a'] });
+    for (const [url] of mockFetch.mock.calls) expect(url).toMatch(/\/api\/v2\/tenants\/default_tenant\/databases\/default_database\/collections/);
   });
 
   it('upsertDocuments() calls POST .../upsert', async () => {

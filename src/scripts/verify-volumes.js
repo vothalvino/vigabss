@@ -17,7 +17,7 @@
 //
 // When no targets are given, the MySQL data directory (/var/lib/mysql) is
 // checked by default. Pass extra targets to check Redis (/data), app storage
-// (/app/storage), or Chroma (/chroma/chroma).
+// (/app/storage), or Chroma (/data).
 //
 // Requires: the `docker` CLI available in PATH with access to the daemon.
 // =============================================================================
