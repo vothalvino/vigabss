@@ -17,7 +17,7 @@ jest.mock('../src/config/database', () => ({
 
 const typeDefs = require('../src/graphql/typeDefs');
 const resolvers = require('../src/graphql/resolvers');
-const { pubsub } = require('../src/services/pubsub');
+const { pubsub, publishTicketComment } = require('../src/services/pubsub');
 
 // Admin ctx — assertGraphqlPermission short-circuits at the legacy-admin bypass,
 // so no getPermissions lookup is needed for the happy-path delivery tests.
@@ -88,9 +88,12 @@ describe('subscription gating + delivery', () => {
       .subscribe(null, { ticketId: '99' }, ADMIN)[Symbol.asyncIterator]();
     const p = iter.next();
     await tick();
-    pubsub.publish('TICKET_COMMENT_ADDED', { ticketCommentAdded: comment, ticketId: '99' });
+    // Events carry their organization: the same ticket id in another org is
+    // not this ticket (GQL-05).
+    publishTicketComment(2, '99', { id: 1, ticket_id: '99', body: 'other org' });
+    publishTicketComment(ADMIN.orgId, '99', comment);
     const { value } = await p;
-    expect(value.ticketCommentAdded.ticket_id).toBe('99');
+    expect(value.ticketCommentAdded).toEqual(comment);
   });
 
   it('deviceStatusChanged scopes to ctx.orgId and ignores the client-supplied orgId arg', async () => {

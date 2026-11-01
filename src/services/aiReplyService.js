@@ -591,23 +591,23 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
   const ticket = await Ticket.findById(ticketId, orgId);
 
   if (mode === 'draft_only') {
-    await Ticket.addComment({
+    await _publishComment(orgId, ticketId, Ticket.addComment({
       ticket_id:   ticketId,
       user_id:     null,
       body:        `[AI Suggested Reply]\n${finalText}`,
       is_internal: true,
-    });
+    }));
     logger.info({ orgId, ticketId, logId: logEntry.id }, 'aiReplyService: draft attached (draft_only)');
     return { skipped: false, logId: logEntry.id, draftText: finalText, action: 'proposed' };
   }
 
   if (mode === 'suggest') {
-    await Ticket.addComment({
+    await _publishComment(orgId, ticketId, Ticket.addComment({
       ticket_id:   ticketId,
       user_id:     null,
       body:        `[AI Suggested Reply]\n${finalText}`,
       is_internal: true,
-    });
+    }));
     if (ticket?.assigned_to) {
       // Never let a notification hiccup fail the reply pipeline.
       await Notification.create({
@@ -627,12 +627,12 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
     const autoThreshold = parseFloat(policy.auto_send_confidence) || 0.85;
 
     if (classification.confidence >= autoThreshold) {
-      await TicketComment.create({
+      await _publishComment(orgId, ticketId, TicketComment.create({
         ticket_id:   ticketId,
         user_id:     null,
         body:        finalText,
         is_internal: false,
-      });
+      }));
       await AiReplyLog.update(logEntry.id, { action: 'auto_sent', final_text: finalText });
       // Channel dispatch (WhatsApp, email, SMS) is handled by channel adapters
       // that consume this service's return value / events. We log the intent here.
@@ -641,12 +641,12 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
     }
 
     // Confidence below threshold — fall back to suggest
-    await Ticket.addComment({
+    await _publishComment(orgId, ticketId, Ticket.addComment({
       ticket_id:   ticketId,
       user_id:     null,
       body:        `[AI Suggested Reply]\n${finalText}`,
       is_internal: true,
-    });
+    }));
     if (ticket?.assigned_to) {
       const pct = Math.round(classification.confidence * 100);
       await Notification.create({
@@ -664,13 +664,20 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
 
   // Unknown mode — safe fallback
   logger.warn({ mode }, 'aiReplyService: unknown dispatch mode — defaulting to draft_only');
-  await Ticket.addComment({
+  await _publishComment(orgId, ticketId, Ticket.addComment({
     ticket_id:   ticketId,
     user_id:     null,
     body:        `[AI Suggested Reply]\n${finalText}`,
     is_internal: true,
-  });
+  }));
   return { skipped: false, logId: logEntry.id, draftText: finalText, action: 'proposed' };
+}
+
+/** Live ticket views refresh on every comment, the AI's included (GQL-05). */
+async function _publishComment(orgId, ticketId, write) {
+  const comment = await write;
+  require('./pubsub').publishTicketComment(orgId, ticketId, comment || { ticket_id: ticketId });
+  return comment;
 }
 
 /** The latest customer-visible message on a ticket, else its description. */

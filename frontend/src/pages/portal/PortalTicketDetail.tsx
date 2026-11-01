@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
@@ -46,7 +47,7 @@ async function addComment(ticketId: number, body: string): Promise<Comment> {
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-    throw new Error(err.error?.message ?? 'Failed to post comment');
+    throw new Error(err.error?.message ?? '');
   }
   return (await res.json() as { data: Comment }).data;
 }
@@ -60,6 +61,7 @@ const STATUS_COLORS: Record<string, React.CSSProperties> = {
 };
 
 export function PortalTicketDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [commentBody, setCommentBody] = useState('');
   const [commentError, setCommentError] = useState<string | null>(null);
@@ -79,18 +81,18 @@ export function PortalTicketDetail() {
       setCommentError(null);
       queryClient.invalidateQueries({ queryKey: ['portal-ticket', id] });
     },
-    onError: (err: Error) => setCommentError(err.message),
+    onError: (err: Error) => setCommentError(err.message || t('portalTicketDetail.replyFailed')),
   });
 
-  if (isLoading) return <p style={{ color: '#6b7280' }}>Loading…</p>;
-  if (error || !ticket) return <p style={{ color: '#b91c1c' }}>Ticket not found.</p>;
+  if (isLoading) return <p style={{ color: '#6b7280' }}>{t('portalCommon.loading')}</p>;
+  if (error || !ticket) return <p style={{ color: '#b91c1c' }}>{t('portalTicketDetail.notFound')}</p>;
 
   const isClosed = ticket.status === 'closed' || ticket.status === 'resolved';
 
   return (
     <div>
       <div style={styles.breadcrumb}>
-        <Link to="/portal/tickets" style={styles.back}>← Back to tickets</Link>
+        <Link to="/portal/tickets" style={styles.back}>← {t('portalTicketDetail.back')}</Link>
       </div>
 
       <div style={styles.card}>
@@ -99,13 +101,13 @@ export function PortalTicketDetail() {
           <div>
             <h1 style={styles.subject}>{ticket.subject}</h1>
             <p style={styles.meta}>
-              #{ticket.id} · {ticket.priority} priority
+              #{ticket.id} · {t('portalTicketDetail.priority', { priority: t(`portalCommon.ticketPriority.${ticket.priority}`, { defaultValue: ticket.priority }) })}
               {ticket.category ? ` · ${ticket.category}` : ''}
-              &nbsp;· opened {ticket.created_at.slice(0, 10)}
+              &nbsp;· {t('portalTicketDetail.opened', { date: ticket.created_at.slice(0, 10) })}
             </p>
           </div>
           <span style={{ ...styles.badge, ...(STATUS_COLORS[ticket.status] ?? {}) }}>
-            {ticket.status.replace('_', ' ').toUpperCase()}
+            {t(`portalCommon.ticketStatus.${ticket.status}`, { defaultValue: ticket.status.replace('_', ' ') }).toUpperCase()}
           </span>
         </div>
 
@@ -117,10 +119,10 @@ export function PortalTicketDetail() {
         )}
 
         {/* Comments thread */}
-        <h2 style={styles.sectionTitle}>Conversation</h2>
+        <h2 style={styles.sectionTitle}>{t('portalTicketDetail.conversation')}</h2>
 
         {ticket.comments.length === 0 && (
-          <p style={styles.noComments}>No replies yet.</p>
+          <p style={styles.noComments}>{t('portalTicketDetail.noReplies')}</p>
         )}
 
         <div style={styles.thread}>
@@ -135,13 +137,13 @@ export function PortalTicketDetail() {
         {/* Reply form */}
         {!isClosed && (
           <div style={styles.replyForm}>
-            <h3 style={styles.replyTitle}>Add a reply</h3>
+            <h3 style={styles.replyTitle}>{t('portalTicketDetail.addReply')}</h3>
             {commentError && <p style={styles.errorTxt}>{commentError}</p>}
             <textarea
               value={commentBody}
               onChange={e => setCommentBody(e.target.value)}
               style={styles.textarea}
-              placeholder="Type your reply…"
+              placeholder={t('portalTicketDetail.replyPlaceholder')}
               maxLength={5000}
               rows={4}
             />
@@ -153,13 +155,13 @@ export function PortalTicketDetail() {
               disabled={commentMutation.isPending || !commentBody.trim()}
               style={styles.replyBtn}
             >
-              {commentMutation.isPending ? 'Sending…' : 'Send Reply'}
+              {commentMutation.isPending ? t('portalTicketDetail.sending') : t('portalTicketDetail.send')}
             </button>
           </div>
         )}
 
         {isClosed && (
-          <p style={styles.closedNote}>This ticket is {ticket.status}. <Link to="/portal/tickets" style={{ color: 'var(--accent)' }}>Open a new ticket</Link> if you need further assistance.</p>
+          <p style={styles.closedNote}>{t('portalTicketDetail.closedNote', { status: t(`portalCommon.ticketStatus.${ticket.status}`, { defaultValue: ticket.status }).toLowerCase() })} <Link to="/portal/tickets" style={{ color: 'var(--accent)' }}>{t('portalTicketDetail.openNew')}</Link></p>
         )}
       </div>
     </div>

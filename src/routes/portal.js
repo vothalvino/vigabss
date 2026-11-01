@@ -83,6 +83,7 @@ const whatsappService = require('../services/whatsappService');
 const config = require('../config');
 const logger = require('../utils/logger');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 const radiusService = require('../services/radiusService');
 
 const router = Router();
@@ -430,6 +431,11 @@ router.delete('/autopay', async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // GET /portal/invoices — list own invoices (paginated)
+// An issued or sent invoice past its due date shows (and filters) as overdue,
+// the same derivation as the staff invoice list (FE-14).
+const PORTAL_PAST_DUE_SQL = "(i.status IN ('issued', 'sent', 'overdue') AND i.due_date < CURDATE())";
+const PORTAL_STATUS_SQL = `CASE WHEN ${PORTAL_PAST_DUE_SQL} THEN 'overdue' ELSE i.status END AS status`;
+
 router.get('/invoices', async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
@@ -448,7 +454,14 @@ router.get('/invoices', async (req, res, next) => {
     let whereClause = 'WHERE i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL';
     const params = [req.client.id, req.client.organizationId];
 
-    if (status) {
+    // 'overdue' is derived, never stored (see routes/invoices.js): filtering
+    // on the column returned nothing and past-due invoices read ISSUED (FE-14).
+    if (status === 'overdue') {
+      whereClause += ` AND ${PORTAL_PAST_DUE_SQL}`;
+    } else if (status === 'issued' || status === 'sent') {
+      whereClause += ` AND i.status = ? AND NOT ${PORTAL_PAST_DUE_SQL}`;
+      params.push(status);
+    } else if (status) {
       whereClause += ' AND i.status = ?';
       params.push(status);
     }
@@ -463,7 +476,7 @@ router.get('/invoices', async (req, res, next) => {
     // joining, so list and count are always consistent.
     const [rows] = await db.query(
       `SELECT i.id, i.invoice_number, i.subtotal, i.tax_amount, i.total,
-              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, i.status, i.created_at
+              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, ${PORTAL_STATUS_SQL}, i.created_at
        FROM invoices i
        LEFT JOIN (
          SELECT invoice_id, period_start, period_end,
@@ -500,7 +513,16 @@ router.get('/invoices/:id', async (req, res, next) => {
     // no UNIQUE constraint of its own).
     const [rows] = await db.query(
       `SELECT i.id, i.invoice_number, i.subtotal, i.tax_amount, i.total,
-              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, i.status, i.notes, i.created_at
+              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, ${PORTAL_STATUS_SQL}, i.notes, i.created_at,
+              (i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
+                                    WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+                       - ${creditAppliedSql('i')}) AS balance_due,
+              EXISTS (SELECT 1 FROM payment_transactions pt
+                       WHERE pt.invoice_id = i.id AND pt.organization_id <=> i.organization_id
+                         AND pt.gateway_status = 'pending' AND pt.payment_id IS NULL) AS pending_checkout,
+              EXISTS (SELECT 1 FROM cfdi_documents cd
+                       WHERE cd.invoice_id = i.id AND cd.organization_id <=> i.organization_id
+                         AND cd.sat_status = 'vigente') AS has_cfdi
        FROM invoices i
        LEFT JOIN (
          SELECT invoice_id, period_start, period_end,
@@ -532,7 +554,16 @@ router.get('/invoices/:id', async (req, res, next) => {
       [req.params.id],
     );
 
-    res.json({ data: { ...rows[0], items, payments } });
+    res.json({
+      data: {
+        ...rows[0],
+        balance_due: Math.max(0, Math.round(Number(rows[0].balance_due || 0) * 100) / 100),
+        pending_checkout: Boolean(Number(rows[0].pending_checkout)),
+        has_cfdi: Boolean(Number(rows[0].has_cfdi)),
+        items,
+        payments,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -680,6 +711,7 @@ router.post('/tickets/:id/comments', validate(createCommentSchema), async (req, 
       'SELECT id, ticket_id, body, is_internal, created_at FROM ticket_comments WHERE id = ?',
       [result.insertId],
     );
+    require('../services/pubsub').publishTicketComment(req.client.organizationId, ticketRows[0].id, rows[0]);
 
     // AI triage answers what the customer wrote (ASY-10: it used to run on
     // staff comments instead).
@@ -888,13 +920,18 @@ router.get('/dashboard', async (req, res, next) => {
         [req.client.organizationId, contract.contract_id,
           req.client.organizationId, contract.contract_id, monthStart],
       );
+      // SUM() over BIGINT is DECIMAL, which mysql2 returns as a string:
+      // `bytes_in + bytes_out` concatenated them and total_gb came out as
+      // tens of billions (FE-09).
+      const bytesIn = Number(usageRow.bytes_in || 0);
+      const bytesOut = Number(usageRow.bytes_out || 0);
       usage = {
-        download_bytes: usageRow.bytes_in,
-        upload_bytes: usageRow.bytes_out,
-        total_bytes: usageRow.bytes_in + usageRow.bytes_out,
-        download_gb: parseFloat((usageRow.bytes_in / 1073741824).toFixed(3)),
-        upload_gb: parseFloat((usageRow.bytes_out / 1073741824).toFixed(3)),
-        total_gb: parseFloat(((usageRow.bytes_in + usageRow.bytes_out) / 1073741824).toFixed(3)),
+        download_bytes: bytesIn,
+        upload_bytes: bytesOut,
+        total_bytes: bytesIn + bytesOut,
+        download_gb: parseFloat((bytesIn / 1073741824).toFixed(3)),
+        upload_gb: parseFloat((bytesOut / 1073741824).toFixed(3)),
+        total_gb: parseFloat(((bytesIn + bytesOut) / 1073741824).toFixed(3)),
         usage_complete: Number(usageRow.observed_rows || 0) > 0
           && Number(usageRow.incomplete_rows || 0) === 0
           && Number(usageRow.unverifiable_session_rows || 0) === 0,
@@ -971,7 +1008,10 @@ router.get('/usage/current-month', async (req, res, next) => {
 
     res.json({
       data: rows.map(r => ({
-        date: r.date,
+        // A calendar day ('YYYY-MM-DD'): the DATE arrives as a UTC-midnight
+        // Date, and the portal chart sliced its ISO string into labels like
+        // '01T00:00:00.000Z' (FE-10).
+        date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10),
         download_gb: parseFloat((r.download_bytes / 1073741824).toFixed(3)),
         upload_gb: parseFloat((r.upload_bytes / 1073741824).toFixed(3)),
         total_gb: parseFloat((r.total_bytes / 1073741824).toFixed(3)),
@@ -1331,7 +1371,8 @@ router.post('/chat/:token/message', validate(chatMessageSchema), async (req, res
       if (!live) ticketId = null;
     }
     if (ticketId) {
-      await db.query('INSERT INTO ticket_comments (ticket_id, body, is_internal) VALUES (?, ?, 0)', [ticketId, message]);
+      const [comment] = await db.query('INSERT INTO ticket_comments (ticket_id, body, is_internal) VALUES (?, ?, 0)', [ticketId, message]);
+      require('../services/pubsub').publishTicketComment(req.client.organizationId, ticketId, { id: comment.insertId, ticket_id: ticketId });
     } else {
       const [ticketResult] = await db.query(
         `INSERT INTO tickets

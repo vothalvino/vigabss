@@ -41,6 +41,7 @@ describe('checkoutService', () => {
       db.query
         .mockResolvedValueOnce([[invoice]])                                                     // SELECT invoice
         .mockResolvedValueOnce([[{ id: 5, provider: 'conekta', secret_key_encrypted: 'enc' }]]) // SELECT gateway
+        .mockResolvedValueOnce([[]])                                                            // no open checkout to reuse (FE-14)
         .mockResolvedValueOnce([[{ name: 'Ada Lovelace', email: 'ada@x.com', phone: '+525512345678' }]]) // SELECT client contact
         .mockResolvedValueOnce([{ insertId: 300 }])                                             // INSERT tx (provisional ref)
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                                          // UPDATE gateway_reference_id = ord_...
@@ -61,16 +62,17 @@ describe('checkoutService', () => {
       expect(result.checkout_id).toBe(300);
       expect(result.payment_url).toBe('https://pay.conekta.com/link/ord_test_1');
       // pending tx created first (provisional ref), then updated to the ord_ id.
-      expect(db.query.mock.calls[3][0]).toMatch(/INSERT INTO payment_transactions/);
-      expect(db.query.mock.calls[4][0]).toMatch(/UPDATE payment_transactions SET gateway_reference_id/);
-      expect(db.query.mock.calls[4][1]).toContain('ord_test_1');
+      expect(db.query.mock.calls[4][0]).toMatch(/INSERT INTO payment_transactions/);
+      expect(db.query.mock.calls[5][0]).toMatch(/UPDATE payment_transactions SET gateway_reference_id/);
+      expect(db.query.mock.calls[5][1]).toContain('ord_test_1');
     });
 
     test('rejects online payment for a non-hosted provider (manual) instead of a dead /pay link', async () => {
       const invoice = { id: 1, invoice_number: 'INV-1', total: '500.00', currency: 'MXN', status: 'issued', client_id: 10 };
       db.query
         .mockResolvedValueOnce([[invoice]])                                                    // SELECT invoice
-        .mockResolvedValueOnce([[{ id: 5, provider: 'manual', secret_key_encrypted: 'e' }]]);  // SELECT gateway
+        .mockResolvedValueOnce([[{ id: 5, provider: 'manual', secret_key_encrypted: 'e' }]])   // SELECT gateway
+        .mockResolvedValueOnce([[]]);                                                           // no open checkout to reuse (FE-14)
       await expect(checkoutService.createCheckoutSession({ organizationId: 1, invoiceId: 1 }))
         .rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
     });
@@ -84,6 +86,7 @@ describe('checkoutService', () => {
       db.query
         .mockResolvedValueOnce([[invoice]])                                              // SELECT invoice
         .mockResolvedValueOnce([[{ id: 5, provider: 'stripe', secret_key_encrypted: 'enc' }]]) // SELECT gateway
+        .mockResolvedValueOnce([[]])                                                            // no open checkout to reuse (FE-14)
         .mockResolvedValueOnce([{ insertId: 200 }])                                      // INSERT transaction (provisional ref)
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                                   // UPDATE gateway_reference_id = cs_...
       paymentGatewayService.createStripeCheckoutSession.mockResolvedValue({
@@ -99,9 +102,9 @@ describe('checkoutService', () => {
       expect(result.provider).toBe('stripe');
       expect(result.payment_url).toBe('https://checkout.stripe.com/c/pay/cs_test_1');
       // The pending tx is created first (provisional ref), then updated to the cs_ session id.
-      expect(db.query.mock.calls[2][0]).toMatch(/INSERT INTO payment_transactions/);
-      expect(db.query.mock.calls[3][0]).toMatch(/UPDATE payment_transactions SET gateway_reference_id/);
-      expect(db.query.mock.calls[3][1]).toContain('cs_test_1');
+      expect(db.query.mock.calls[3][0]).toMatch(/INSERT INTO payment_transactions/);
+      expect(db.query.mock.calls[4][0]).toMatch(/UPDATE payment_transactions SET gateway_reference_id/);
+      expect(db.query.mock.calls[4][1]).toContain('cs_test_1');
     });
 
     test('marks the pending transaction failed if the Stripe session creation throws', async () => {
@@ -109,12 +112,13 @@ describe('checkoutService', () => {
       db.query
         .mockResolvedValueOnce([[invoice]])
         .mockResolvedValueOnce([[{ id: 5, provider: 'stripe', secret_key_encrypted: 'enc' }]])
+        .mockResolvedValueOnce([[]])                                                            // no open checkout to reuse (FE-14)
         .mockResolvedValueOnce([{ insertId: 200 }])   // INSERT tx
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE ... failed
       paymentGatewayService.createStripeCheckoutSession.mockRejectedValue(new Error('Stripe down'));
 
       await expect(checkoutService.createCheckoutSession({ organizationId: 1, invoiceId: 1 })).rejects.toThrow('Stripe down');
-      expect(db.query.mock.calls[3][0]).toMatch(/gateway_status = 'failed'/);
+      expect(db.query.mock.calls[4][0]).toMatch(/gateway_status = 'failed'/);
     });
 
     test('throws a validation error when no active gateway is configured', async () => {
@@ -153,7 +157,8 @@ describe('checkoutService', () => {
 
     test('rejects when the invoice does not belong to the supplied client', async () => {
       db.query.mockResolvedValueOnce([[{ id: 1, invoice_number: 'INV-1', status: 'issued', client_id: 10, total: '5.00', currency: 'MXN' }]]);
-      db.query.mockResolvedValueOnce([[{ id: 5, provider: 'stripe', secret_key_encrypted: 'e' }]]);
+      db.query.mockResolvedValueOnce([[{ id: 5, provider: 'stripe', secret_key_encrypted: 'e' }]])
+        .mockResolvedValueOnce([[]]); // no open checkout to reuse (FE-14)
       await expect(
         checkoutService.createCheckoutSession({ organizationId: 1, invoiceId: 1, clientId: 999 }),
       ).rejects.toThrow(/does not belong/);
@@ -172,6 +177,7 @@ describe('checkoutService', () => {
         .mockResolvedValueOnce([[invoice]])                                                     // generatePaymentLink SELECT
         .mockResolvedValueOnce([[invoice]])                                                     // createCheckoutSession SELECT invoice
         .mockResolvedValueOnce([[{ id: 5, provider: 'conekta', secret_key_encrypted: 'e' }]])   // SELECT gateway
+        .mockResolvedValueOnce([[]])                                                            // no open checkout to reuse (FE-14)
         .mockResolvedValueOnce([[{ name: 'John Doe', email: 'john@test.com' }]])                // SELECT client contact
         .mockResolvedValueOnce([{ insertId: 100 }])                                             // INSERT tx
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                                          // UPDATE gateway_reference_id

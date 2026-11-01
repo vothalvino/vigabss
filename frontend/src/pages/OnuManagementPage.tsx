@@ -110,11 +110,26 @@ interface OpticalMetric {
 const PAGE_SIZE = 25;
 const ONU_STATES = ['online', 'offline', 'los', 'dying_gasp', 'power_off', 'loc', 'unconfigured', 'unknown'];
 const TECHNOLOGIES = ['gpon', 'epon', 'xgspon'];
-const VLAN_MODES = ['tagged', 'untagged', 'transparent'];
-const WIFI_BANDS = ['2.4GHz', '5GHz', 'both'];
+// These lists are the validator enums (FE2-07): 'tagged', '2.4GHz'/'5GHz'
+// and 'full_olt' were all rejected with 422.
+const VLAN_MODES = ['transparent', 'tag', 'translate', 'double_tag', 'untagged'];
+const WIFI_BANDS: Array<{ value: string; label: string }> = [
+  { value: '2.4ghz', label: '2.4 GHz' }, { value: '5ghz', label: '5 GHz' }, { value: 'both', label: 'Both' },
+];
 const DELIVERY_METHODS = ['omci', 'tr069', 'manual'];
 const JOB_TYPES = ['provision', 'reboot', 'firmware_upgrade'];
-const SCOPES = ['single_onu', 'olt_port', 'full_olt'];
+const SCOPES: Array<{ value: string; label: string }> = [
+  { value: 'single_onu', label: 'Single ONU' }, { value: 'olt_port', label: 'OLT port' }, { value: 'olt_device', label: 'Whole OLT' },
+];
+// Columns a profile row carries that the API does not accept back.
+const PROFILE_READ_ONLY = ['id', 'organization_id', 'created_at', 'updated_at', 'deleted_at'];
+
+/** The server's validation message, else a fallback. */
+function apiError(res: unknown, fallback: string): Error {
+  const body = (res as { error?: { error?: { message?: string } | string; message?: string } }).error;
+  const msg = typeof body?.error === 'string' ? body.error : body?.error?.message ?? body?.message;
+  return new Error(msg || fallback);
+}
 const JOB_STATUSES = ['pending', 'queued', 'in_progress', 'completed', 'failed', 'cancelled'];
 
 // ---------------------------------------------------------------------------
@@ -203,12 +218,12 @@ async function fetchProfiles(page: number): Promise<{ data: OnuProfile[]; meta: 
 
 async function createProfile(body: Record<string, unknown>): Promise<void> {
   const res = await api.POST('/onu-management/profiles' as never, { body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create ONU profile');
+  if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create ONU profile');
 }
 
 async function updateProfile(id: number, body: Record<string, unknown>): Promise<void> {
   const res = await api.PUT('/onu-management/profiles/{id}' as never, { params: { path: { id } }, body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to update ONU profile');
+  if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to update ONU profile');
 }
 
 async function deleteProfile(id: number): Promise<void> {
@@ -248,7 +263,7 @@ async function fetchOmciConfigs(page: number): Promise<{ data: OmciConfig[]; met
 
 async function createOmciConfig(body: Record<string, unknown>): Promise<void> {
   const res = await api.POST('/onu-management/omci-configs' as never, { body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create OMCI config');
+  if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create OMCI config');
 }
 
 async function deleteOmciConfig(id: number): Promise<void> {
@@ -270,7 +285,7 @@ async function fetchFirmwareJobs(page: number, status: string): Promise<{ data: 
 
 async function createFirmwareJob(body: Record<string, unknown>): Promise<void> {
   const res = await api.POST('/onu-management/firmware-jobs' as never, { body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create firmware job');
+  if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create firmware job');
 }
 
 async function cancelFirmwareJob(id: number): Promise<void> {
@@ -440,12 +455,17 @@ function OnuProfilesTab() {
     queryFn: () => fetchProfiles(page),
   });
 
-  const createMut = useMutation({ mutationFn: createProfile, onSuccess: () => { qc.invalidateQueries({ queryKey: ['onuProfiles'] }); close_(); } });
-  const updateMut = useMutation({ mutationFn: ({ id, body }: { id: number; body: Record<string, unknown> }) => updateProfile(id, body), onSuccess: () => { qc.invalidateQueries({ queryKey: ['onuProfiles'] }); close_(); } });
+  const createMut = useMutation({ mutationFn: createProfile, onSuccess: () => { qc.invalidateQueries({ queryKey: ['onuProfiles'] }); close_(); }, onError: (e: Error) => setErr(e.message) });
+  const updateMut = useMutation({ mutationFn: ({ id, body }: { id: number; body: Record<string, unknown> }) => updateProfile(id, body), onSuccess: () => { qc.invalidateQueries({ queryKey: ['onuProfiles'] }); close_(); }, onError: (e: Error) => setErr(e.message) });
   const deleteMut = useMutation({ mutationFn: deleteProfile, onSuccess: () => qc.invalidateQueries({ queryKey: ['onuProfiles'] }) });
 
-  function openCreate() { setEditing(null); setForm({ technology: 'gpon', vlan_mode: 'tagged' }); setErr(''); setOpen(true); }
-  function openEdit(p: OnuProfile) { setEditing(p); setForm({ ...p }); setErr(''); setOpen(true); }
+  function openCreate() { setEditing(null); setForm({ technology: 'gpon', vlan_mode: 'tag' }); setErr(''); setOpen(true); }
+  function openEdit(p: OnuProfile) {
+    setEditing(p);
+    setForm(Object.fromEntries(Object.entries(p).filter(([k]) => !PROFILE_READ_ONLY.includes(k))));
+    setErr('');
+    setOpen(true);
+  }
   function close_() { setOpen(false); setEditing(null); setForm({}); setErr(''); }
 
   function submit() {
@@ -541,8 +561,8 @@ function OnuProfilesTab() {
               </label>
               <label style={modalStyles.label}>
                 {t('onuManagement.profiles.vlanMode')}
-                <select style={modalStyles.select} value={(form.vlan_mode as string) ?? 'tagged'} onChange={e => setForm(f => ({ ...f, vlan_mode: e.target.value }))}>
-                  {VLAN_MODES.map(m => <option key={m} value={m}>{capitalize(m)}</option>)}
+                <select style={modalStyles.select} value={(form.vlan_mode as string) ?? 'tag'} onChange={e => setForm(f => ({ ...f, vlan_mode: e.target.value }))}>
+                  {VLAN_MODES.map(m => <option key={m} value={m}>{capitalize(m.replace('_', ' '))}</option>)}
                 </select>
               </label>
               <div style={modalStyles.actions}>
@@ -690,7 +710,7 @@ function OmciConfigsTab() {
     queryFn: () => fetchOmciConfigs(page),
   });
 
-  const createMut = useMutation({ mutationFn: createOmciConfig, onSuccess: () => { qc.invalidateQueries({ queryKey: ['onuOmciConfigs'] }); setOpen(false); } });
+  const createMut = useMutation({ mutationFn: createOmciConfig, onSuccess: () => { qc.invalidateQueries({ queryKey: ['onuOmciConfigs'] }); setOpen(false); }, onError: (e: Error) => setErr(e.message) });
   const deleteMut = useMutation({ mutationFn: deleteOmciConfig, onSuccess: () => qc.invalidateQueries({ queryKey: ['onuOmciConfigs'] }) });
 
   function submit() {
@@ -769,9 +789,9 @@ function OmciConfigsTab() {
               </label>
               <label style={modalStyles.label}>
                 {t('onuManagement.omci.wifiBand')}
-                <select style={modalStyles.select} value={(form.wifi_band as string) ?? ''} onChange={e => setForm(f => ({ ...f, wifi_band: e.target.value }))}>
+                <select style={modalStyles.select} value={(form.wifi_band as string) ?? ''} onChange={e => setForm(f => ({ ...f, wifi_band: e.target.value || undefined }))}>
                   <option value="">{t('common.none')}</option>
-                  {WIFI_BANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                  {WIFI_BANDS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
                 </select>
               </label>
               <label style={modalStyles.label}>
@@ -810,7 +830,7 @@ function FirmwareJobsTab() {
     queryFn: () => fetchFirmwareJobs(page, status),
   });
 
-  const createMut = useMutation({ mutationFn: createFirmwareJob, onSuccess: () => { qc.invalidateQueries({ queryKey: ['onuFirmwareJobs'] }); setOpen(false); } });
+  const createMut = useMutation({ mutationFn: createFirmwareJob, onSuccess: () => { qc.invalidateQueries({ queryKey: ['onuFirmwareJobs'] }); setOpen(false); }, onError: (e: Error) => setErr(e.message) });
   const cancelMut = useMutation({ mutationFn: cancelFirmwareJob, onSuccess: () => qc.invalidateQueries({ queryKey: ['onuFirmwareJobs'] }) });
 
   function submit() {
@@ -904,7 +924,7 @@ function FirmwareJobsTab() {
               <label style={modalStyles.label}>
                 {t('onuManagement.firmware.scope')}<RequiredMark />
                 <select style={modalStyles.select} value={(form.scope as string) ?? 'single_onu'} onChange={e => setForm(f => ({ ...f, scope: e.target.value }))}>
-                  {SCOPES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+                  {SCOPES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </label>
               <label style={modalStyles.label}>

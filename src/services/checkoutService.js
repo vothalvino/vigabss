@@ -20,6 +20,7 @@ const paymentAllocationService = require('./paymentAllocationService');
 const logger = require('../utils/logger');
 const { ValidationError } = require('../utils/errors');
 const { orgScopeFilter } = require('./organizationFanOut');
+const { parseJsonColumn } = require('../utils/jsonColumn');
 
 /** Return `url` only if it is same-origin as `base` (anti open-redirect); else null. */
 function sameOriginUrl(url, base) {
@@ -29,6 +30,44 @@ function sameOriginUrl(url, base) {
   } catch (_e) {
     return null;
   }
+}
+
+/** `url` with its `payment` query parameter set (same-origin URLs only). */
+function withPaymentParam(url, value) {
+  const u = new URL(url);
+  u.searchParams.set('payment', value);
+  return u.toString();
+}
+
+/**
+ * An open hosted checkout for this invoice and amount, if one is still valid.
+ * Each Pay Now used to create another pending transaction and gateway session
+ * while the first was unpaid (an OXXO voucher, a webhook not yet in, a closed
+ * tab), so a subscriber could be charged twice (FE-14).
+ */
+async function openCheckout(organizationId, invoiceId, clientId, gatewayId, amountDue) {
+  const [rows] = await db.query(
+    `SELECT id, amount, currency, raw_response FROM payment_transactions
+      WHERE organization_id = ? AND invoice_id = ? AND client_id = ? AND payment_gateway_id = ?
+        AND gateway_status = 'pending' AND payment_id IS NULL
+      ORDER BY id DESC LIMIT 1`,
+    [organizationId, invoiceId, clientId, gatewayId],
+  );
+  const tx = rows[0];
+  if (!tx) return null;
+  const saved = parseJsonColumn(tx.raw_response, null);
+  if (!saved?.payment_url || !saved.expires_at) return null;
+  if (new Date(saved.expires_at).getTime() - Date.now() < 10 * 60 * 1000) return null;
+  if (Math.abs(Number(tx.amount) - amountDue) > 0.005) return null;
+  return { tx, saved };
+}
+
+/** Keep the hosted page's URL so a second Pay Now reopens it. */
+async function rememberCheckout(transactionId, paymentUrl, expiresAt, provider) {
+  await db.query(
+    'UPDATE payment_transactions SET raw_response = ? WHERE id = ?',
+    [JSON.stringify({ payment_url: paymentUrl, expires_at: expiresAt.toISOString(), provider }), transactionId],
+  );
 }
 
 /**
@@ -72,11 +111,28 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
   }
   const gateway = gateways[0];
   const resolvedClientId = clientId || invoice.client_id;
+
   // Defense-in-depth: the invoice must belong to the client being charged (the
   // portal route already scopes by req.client.id, but the staff route forwards a
   // raw client_id). Never attribute a payment to a client who doesn't own the invoice.
   if (clientId && Number(invoice.client_id) !== Number(clientId)) {
     throw new ValidationError('Invoice does not belong to this client');
+  }
+
+  const reusable = await openCheckout(organizationId, invoiceId, resolvedClientId, gateway.id, amountDue);
+  if (reusable) {
+    return {
+      checkout_id: reusable.tx.id,
+      invoice_id: invoiceId,
+      invoice_number: invoice.invoice_number,
+      amount: amountDue,
+      currency: reusable.tx.currency,
+      expires_at: reusable.saved.expires_at,
+      payment_url: reusable.saved.payment_url,
+      provider: reusable.saved.provider || gateway.provider,
+      return_url: returnUrl || null,
+      reused: true,
+    };
   }
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
@@ -86,8 +142,11 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
   if (gateway.provider === 'stripe') {
     const base = (config.appUrl || 'http://localhost:3000').replace(/\/+$/, '');
     // Only honor a same-origin returnUrl as the Stripe success redirect target.
-    const successUrl = sameOriginUrl(returnUrl, base) || `${base}/portal/invoices?payment=success&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${base}/portal/invoices?payment=cancelled`;
+    // Both outcomes come back to the page that started the payment, which
+    // reads ?payment= (FE-14).
+    const back = sameOriginUrl(returnUrl, base);
+    const successUrl = back ? withPaymentParam(back, 'success') : `${base}/portal/invoices?payment=success&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = back ? withPaymentParam(back, 'cancelled') : `${base}/portal/invoices?payment=cancelled`;
 
     // Create the pending transaction FIRST (provisional reference) so a payable
     // session always has a local record — never leave an orphan paid Stripe
@@ -126,6 +185,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
 
     // Store the real session id so the checkout.session.completed webhook matches.
     await db.query('UPDATE payment_transactions SET gateway_reference_id = ? WHERE id = ?', [session.id, transactionId]);
+    await rememberCheckout(transactionId, session.url, expiresAt, 'stripe');
 
     return {
       checkout_id: transactionId,
@@ -146,8 +206,9 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
   // reference so the order.paid webhook reconciles it — same as chargeConekta.
   if (gateway.provider === 'conekta') {
     const base = (config.appUrl || 'http://localhost:3000').replace(/\/+$/, '');
-    const successUrl = sameOriginUrl(returnUrl, base) || `${base}/portal/invoices?payment=success`;
-    const failureUrl = `${base}/portal/invoices?payment=cancelled`;
+    const back = sameOriginUrl(returnUrl, base);
+    const successUrl = back ? withPaymentParam(back, 'success') : `${base}/portal/invoices?payment=success`;
+    const failureUrl = back ? withPaymentParam(back, 'cancelled') : `${base}/portal/invoices?payment=cancelled`;
 
     // Conekta customer_info (recommended; some methods like cash/bank_transfer
     // need name/email/phone — send everything we have on file).
@@ -200,6 +261,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
     }
 
     await db.query('UPDATE payment_transactions SET gateway_reference_id = ? WHERE id = ?', [session.id, transactionId]);
+    await rememberCheckout(transactionId, session.url, conektaExpiresAt, 'conekta');
 
     return {
       checkout_id: transactionId,

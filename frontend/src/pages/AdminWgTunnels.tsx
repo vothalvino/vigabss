@@ -222,8 +222,8 @@ function AssignmentEditor({ userId, userName, onClose }: AssignmentEditorProps) 
           {userName}
         </p>
 
-        {isLoading && <p style={{ color: '#888' }}>{t('adminWgTunnels.loadingAssign')}</p>}
-        {aError && <p style={{ color: '#e00' }}>{t('adminWgTunnels.assignError')}</p>}
+        {isLoading && <p style={{ color: '#888' }}>{t('adminWgTunnels.assignments.loading')}</p>}
+        {aError && <p style={{ color: '#e00' }}>{t('adminWgTunnels.assignments.errorLoad')}</p>}
         {err && <div style={errStyle}>{err}</div>}
 
         {!isLoading && (
@@ -299,7 +299,7 @@ function AssignmentEditor({ userId, userName, onClose }: AssignmentEditorProps) 
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || isLoading}
           >
-            {mutation.isPending ? t('adminWgTunnels.saving') : t('common.save')}
+            {mutation.isPending ? t('adminWgTunnels.assignments.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -331,12 +331,12 @@ function ConfirmAction({ peer, kind, onClose, onConfirm, isPending }: ConfirmAct
           margin: '0 0 0.75rem',
           color: isRevoke ? '#991b1b' : '#1e40af',
         }}>
-          {isRevoke ? t('adminWgTunnels.revokeTitle') : t('adminWgTunnels.rotateTitle')}
+          {isRevoke ? t('adminWgTunnels.peers.confirm.revokeTitle') : t('adminWgTunnels.peers.confirm.rotateTitle')}
         </h3>
         <p style={{ fontSize: '0.88rem', color: '#555', lineHeight: 1.5 }}>
           {isRevoke
-            ? t('adminWgTunnels.revokeConfirm', { name: peer.name, user: peer.user_email ?? String(peer.user_id) })
-            : t('adminWgTunnels.rotateConfirm', { name: peer.name })
+            ? t('adminWgTunnels.peers.confirm.revokeBody', { name: peer.name, user: peer.user_email ?? String(peer.user_id) })
+            : t('adminWgTunnels.peers.confirm.rotateBody', { name: peer.name })
           }
         </p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
@@ -349,8 +349,8 @@ function ConfirmAction({ peer, kind, onClose, onConfirm, isPending }: ConfirmAct
             disabled={isPending}
           >
             {isPending
-              ? (isRevoke ? t('adminWgTunnels.revoking') : t('adminWgTunnels.rotating'))
-              : (isRevoke ? t('adminWgTunnels.revoke') : t('adminWgTunnels.rotate'))}
+              ? (isRevoke ? t('adminWgTunnels.peers.action.revoking') : t('adminWgTunnels.peers.action.rotating'))
+              : (isRevoke ? t('adminWgTunnels.peers.action.revoke') : t('adminWgTunnels.peers.action.rotate'))}
           </button>
         </div>
       </div>
@@ -471,8 +471,8 @@ export function AdminWgTunnels() {
         {t('adminWgTunnels.banner')}
       </div>
 
-      {isLoading && <p style={{ color: '#888' }}>{t('adminWgTunnels.loading')}</p>}
-      {error && <p style={{ color: '#e00' }}>{t('adminWgTunnels.error')}</p>}
+      {isLoading && <p style={{ color: '#888' }}>{t('adminWgTunnels.peers.loading')}</p>}
+      {error && <p style={{ color: '#e00' }}>{t('adminWgTunnels.peers.errorLoad')}</p>}
 
       {!isLoading && !error && (
         <>
@@ -480,20 +480,20 @@ export function AdminWgTunnels() {
             <table style={tableStyle}>
               <thead>
                 <tr>
-                  <th style={th}>{t('adminWgTunnels.table.user')}</th>
-                  <th style={th}>{t('adminWgTunnels.table.peer')}</th>
-                  <th style={th}>{t('adminWgTunnels.table.tunnelIp')}</th>
-                  <th style={th}>{t('adminWgTunnels.table.endpoint')}</th>
-                  <th style={th}>{t('adminWgTunnels.table.lastHandshake')}</th>
-                  <th style={th}>{t('adminWgTunnels.table.status')}</th>
-                  <th style={th}>{t('adminWgTunnels.table.actions')}</th>
+                  <th style={th}>{t('adminWgTunnels.peers.table.user')}</th>
+                  <th style={th}>{t('adminWgTunnels.peers.table.deviceName')}</th>
+                  <th style={th}>{t('adminWgTunnels.peers.table.tunnelIp')}</th>
+                  <th style={th}>{t('adminWgTunnels.peers.table.endpoint')}</th>
+                  <th style={th}>{t('adminWgTunnels.peers.table.lastHandshake')}</th>
+                  <th style={th}>{t('common.status')}</th>
+                  <th style={th}>{t('adminWgTunnels.peers.table.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {peers.length === 0 && (
                   <tr>
                     <td colSpan={7} style={{ ...td, textAlign: 'center', color: '#888', padding: '2rem' }}>
-                      {t('adminWgTunnels.noPeers')}
+                      {t('adminWgTunnels.peers.empty')}
                     </td>
                   </tr>
                 )}
@@ -529,16 +529,16 @@ export function AdminWgTunnels() {
                             <button
                               style={{ ...btnIcon, borderColor: '#dc2626', color: '#dc2626' }}
                               onClick={() => setActionPeer({ peer, kind: 'revoke' })}
-                              title={t('adminWgTunnels.revoke')}
-                              aria-label={t('adminWgTunnels.revoke')}
+                              title={t('adminWgTunnels.peers.action.revoke')}
+                              aria-label={t('adminWgTunnels.peers.action.revoke')}
                             >
                               <IconRevoke />
                             </button>
                             <button
                               style={btnIcon}
                               onClick={() => setActionPeer({ peer, kind: 'rotate' })}
-                              title={t('adminWgTunnels.rotate')}
-                              aria-label={t('adminWgTunnels.rotate')}
+                              title={t('adminWgTunnels.peers.action.rotate')}
+                              aria-label={t('adminWgTunnels.peers.action.rotate')}
                             >
                               <IconRotate />
                             </button>

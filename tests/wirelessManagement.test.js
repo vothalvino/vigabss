@@ -58,7 +58,7 @@ const mockSector = {
   max_clients: 50,
   signal_min_dbm: null,
   link_capacity_min_mbps: null,
-  status: 'active',
+  // ap_sector_configs has no status column (FE2-06).
 };
 
 describe('Wireless AP Sectors — migration 388 threshold fields', () => {

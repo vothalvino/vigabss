@@ -60146,10 +60146,9 @@
           "protocol": {
             "type": "string",
             "enum": [
-              "tcp",
-              "udp",
               "iperf3",
-              "speedtest"
+              "speedtest_cli",
+              "custom"
             ]
           },
           "region": {
@@ -60170,14 +60169,6 @@
           "max_bandwidth_mbps": {
             "type": "number",
             "minimum": 0
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "inactive",
-              "maintenance"
-            ]
           }
         },
         "required": [
@@ -60209,10 +60200,9 @@
           "protocol": {
             "type": "string",
             "enum": [
-              "tcp",
-              "udp",
               "iperf3",
-              "speedtest"
+              "speedtest_cli",
+              "custom"
             ]
           },
           "region": {
@@ -60233,14 +60223,6 @@
           "max_bandwidth_mbps": {
             "type": "number",
             "minimum": 0
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "inactive",
-              "maintenance"
-            ]
           }
         }
       },
@@ -64103,7 +64085,14 @@
           },
           "traffic_class": {
             "type": "string",
-            "maximum": 50
+            "enum": [
+              "voice",
+              "video",
+              "interactive",
+              "bulk",
+              "scavenger",
+              "best_effort"
+            ]
           },
           "match_protocol": {
             "type": "string",
@@ -64133,7 +64122,6 @@
             "enum": [
               "mark",
               "remark",
-              "passthrough",
               "trust",
               "police"
             ]
@@ -64142,11 +64130,6 @@
             "type": "number",
             "minimum": 1,
             "maximum": 255
-          },
-          "enabled": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
           },
           "status": {
             "type": "string",
@@ -64186,7 +64169,14 @@
           },
           "traffic_class": {
             "type": "string",
-            "maximum": 50
+            "enum": [
+              "voice",
+              "video",
+              "interactive",
+              "bulk",
+              "scavenger",
+              "best_effort"
+            ]
           },
           "match_protocol": {
             "type": "string",
@@ -64216,7 +64206,6 @@
             "enum": [
               "mark",
               "remark",
-              "passthrough",
               "trust",
               "police"
             ]
@@ -64225,11 +64214,6 @@
             "type": "number",
             "minimum": 1,
             "maximum": 255
-          },
-          "enabled": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
           },
           "status": {
             "type": "string",
@@ -65834,15 +65818,6 @@
             "minimum": 1,
             "maximum": 8
           },
-          "vendor_platform": {
-            "type": "string",
-            "enum": [
-              "mikrotik",
-              "cisco",
-              "juniper",
-              "generic"
-            ]
-          },
           "vendor_config": {
             "type": "string",
             "maximum": 5000
@@ -65919,15 +65894,6 @@
             "type": "number",
             "minimum": 1,
             "maximum": 8
-          },
-          "vendor_platform": {
-            "type": "string",
-            "enum": [
-              "mikrotik",
-              "cisco",
-              "juniper",
-              "generic"
-            ]
           },
           "vendor_config": {
             "type": "string",
@@ -67472,43 +67438,52 @@
           "rule_type": {
             "type": "string",
             "enum": [
-              "vlan",
-              "mpls",
-              "qinq",
-              "mpls_vlan"
+              "mpls_exp",
+              "dot1p",
+              "dscp_to_dot1p",
+              "dot1p_to_dscp",
+              "combined"
             ]
           },
-          "vlan_id": {
+          "match_vlan_id": {
             "type": "number",
             "minimum": 0,
             "maximum": 4094
           },
-          "inner_vlan_id": {
+          "match_inner_vlan_id": {
             "type": "number",
             "minimum": 0,
             "maximum": 4094
           },
-          "mpls_label": {
-            "type": "number",
-            "minimum": 0
-          },
-          "traffic_class": {
-            "type": "string",
-            "maximum": 50
-          },
-          "priority_bits": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 7
-          },
-          "dscp_value": {
+          "match_dscp": {
             "type": "number",
             "minimum": 0,
             "maximum": 63
           },
-          "queue_class": {
-            "type": "string",
-            "maximum": 100
+          "match_dot1p": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "set_mpls_exp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "set_dot1p": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "set_dscp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 63
+          },
+          "priority": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 255
           },
           "enabled": {
             "type": "number",
@@ -67535,43 +67510,52 @@
           "rule_type": {
             "type": "string",
             "enum": [
-              "vlan",
-              "mpls",
-              "qinq",
-              "mpls_vlan"
+              "mpls_exp",
+              "dot1p",
+              "dscp_to_dot1p",
+              "dot1p_to_dscp",
+              "combined"
             ]
           },
-          "vlan_id": {
+          "match_vlan_id": {
             "type": "number",
             "minimum": 0,
             "maximum": 4094
           },
-          "inner_vlan_id": {
+          "match_inner_vlan_id": {
             "type": "number",
             "minimum": 0,
             "maximum": 4094
           },
-          "mpls_label": {
-            "type": "number",
-            "minimum": 0
-          },
-          "traffic_class": {
-            "type": "string",
-            "maximum": 50
-          },
-          "priority_bits": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 7
-          },
-          "dscp_value": {
+          "match_dscp": {
             "type": "number",
             "minimum": 0,
             "maximum": 63
           },
-          "queue_class": {
-            "type": "string",
-            "maximum": 100
+          "match_dot1p": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "set_mpls_exp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "set_dot1p": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "set_dscp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 63
+          },
+          "priority": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 255
           },
           "enabled": {
             "type": "number",

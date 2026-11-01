@@ -9,13 +9,12 @@ const createBandwidthTestServer = {
   description:        { type: 'string', max: 1000 },
   host:               { type: 'string', required: true, max: 255 },
   port:               { type: 'number', min: 1, max: 65535 },
-  protocol:           { type: 'string', enum: ['tcp', 'udp', 'iperf3', 'speedtest'] },
+  protocol:           { type: 'string', enum: ['iperf3', 'speedtest_cli', 'custom'] },
   region:             { type: 'string', max: 100 },
   site_id:            { type: 'number', min: 1 },
   is_active:          { type: 'boolean' },
   auth_token:         { type: 'string', max: 96 },
   max_bandwidth_mbps: { type: 'number', min: 0 },
-  status:             { type: 'string', enum: ['active', 'inactive', 'maintenance'] },
 };
 
 const updateBandwidthTestServer = {
@@ -23,13 +22,12 @@ const updateBandwidthTestServer = {
   description:        { type: 'string', max: 1000 },
   host:               { type: 'string', max: 255 },
   port:               { type: 'number', min: 1, max: 65535 },
-  protocol:           { type: 'string', enum: ['tcp', 'udp', 'iperf3', 'speedtest'] },
+  protocol:           { type: 'string', enum: ['iperf3', 'speedtest_cli', 'custom'] },
   region:             { type: 'string', max: 100 },
   site_id:            { type: 'number', min: 1 },
   is_active:          { type: 'boolean' },
   auth_token:         { type: 'string', max: 96 },
   max_bandwidth_mbps: { type: 'number', min: 0 },
-  status:             { type: 'string', enum: ['active', 'inactive', 'maintenance'] },
 };
 
 module.exports = { createBandwidthTestServer, updateBandwidthTestServer };

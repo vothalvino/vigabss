@@ -6,11 +6,12 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
+const { mapTileOrigins } = require('./utils/mapTileOrigins');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
 const { AppError } = require('./utils/errors');
 const errorTracking = require('./utils/errorTracking');
-const { apiLimiter, authLimiter, passwordResetLimiter, verifyEmailResendLimiter, sessionLimiter, exportLimiter, sseLimiter, webhookLimiter, acsLimiter, collectorIngressLimiter, isCollectorPath } = require('./middleware/rateLimit');
+const { apiLimiter, authLimiter, passwordResetLimiter, verifyEmailResendLimiter, sessionLimiter, portalSessionLimiter, exportLimiter, sseLimiter, webhookLimiter, acsLimiter, collectorIngressLimiter, isCollectorPath } = require('./middleware/rateLimit');
 const { requestLogger } = require('./middleware/requestLogger');
 const { requestId } = require('./middleware/requestId');
 const { firerelay } = require('./middleware/firerelay');
@@ -234,12 +235,14 @@ app.use((_req, res, next) => {
 
 app.use((req, res, next) => {
   const nonce = res.locals.cspNonce;
+  // Map tiles are cross-origin images from the configured tile server (FE-11).
+  const tileOrigins = mapTileOrigins();
   helmet.contentSecurityPolicy({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", `'nonce-${nonce}'`],
-      imgSrc: ["'self'", 'data:'],
+      imgSrc: ["'self'", 'data:', ...tileOrigins],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
@@ -435,8 +438,9 @@ app.use('/api/v1/auth/verify-email/resend', verifyEmailResendLimiter);
 for (const sub of ['/me', '/refresh', '/logout', '/switch-organization']) {
   app.use(`/api/auth${sub}`, sessionLimiter);
   app.use(`/api/v1/auth${sub}`, sessionLimiter);
-  app.use(`/api/portal/auth${sub}`, sessionLimiter);
-  app.use(`/api/v1/portal/auth${sub}`, sessionLimiter);
+  // The portal has its own instance of the same budget (FE-17).
+  app.use(`/api/portal/auth${sub}`, portalSessionLimiter);
+  app.use(`/api/v1/portal/auth${sub}`, portalSessionLimiter);
 }
 app.use('/api/export', exportLimiter);
 app.use('/api/v1/export', exportLimiter);
@@ -445,6 +449,12 @@ app.use('/api/v1/pdf', exportLimiter);
 app.use('/api/events', sseLimiter);
 app.use('/api/v1/events', sseLimiter);
 app.use('/api/v1/graphql', (req, res, next) => (isEventStream(req) ? sseLimiter(req, res, next) : next()));
+// nginx buffers proxied responses by default, which holds subscription events
+// until the buffer fills (GQL-05).
+app.use('/api/v1/graphql', (req, res, next) => {
+  if (isEventStream(req)) res.setHeader('X-Accel-Buffering', 'no');
+  next();
+});
 app.use('/api/payment-webhooks', webhookLimiter);
 app.use('/api/v1/payment-webhooks', webhookLimiter);
 app.use('/api/whatsapp/webhook', webhookLimiter);

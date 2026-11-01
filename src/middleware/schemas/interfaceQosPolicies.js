@@ -16,7 +16,6 @@ const createInterfaceQosPolicy = {
   ceil_mbps:        { type: 'number', min: 0 },
   burst_mbps:       { type: 'number', min: 0 },
   priority:         { type: 'number', min: 1, max: 8 },
-  vendor_platform:  { type: 'string', enum: ['mikrotik', 'cisco', 'juniper', 'generic'] },
   vendor_config:    { type: 'string', max: 5000 },
   status:           { type: 'string', enum: ['active', 'inactive'] },
 };
@@ -33,7 +32,6 @@ const updateInterfaceQosPolicy = {
   ceil_mbps:        { type: 'number', min: 0 },
   burst_mbps:       { type: 'number', min: 0 },
   priority:         { type: 'number', min: 1, max: 8 },
-  vendor_platform:  { type: 'string', enum: ['mikrotik', 'cisco', 'juniper', 'generic'] },
   vendor_config:    { type: 'string', max: 5000 },
   status:           { type: 'string', enum: ['active', 'inactive'] },
 };

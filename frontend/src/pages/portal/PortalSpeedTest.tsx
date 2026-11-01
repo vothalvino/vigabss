@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
@@ -40,6 +41,7 @@ async function portalFetch<T>(path: string, opts: RequestInit = {}): Promise<T> 
 }
 
 export function PortalSpeedTest() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [queued, setQueued] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export function PortalSpeedTest() {
       }, 5000);
     },
     onError: (e: Error) => {
-      setErrorMsg(e.message || 'Failed to queue speed test. Please try again.');
+      setErrorMsg(e.message || t('portalSpeedTest.queueFailed'));
     },
   });
 
@@ -70,8 +72,8 @@ export function PortalSpeedTest() {
 
   return (
     <div>
-      <h1 style={styles.heading}>Speed Test</h1>
-      <p style={styles.sub}>Test your connection speed and view history</p>
+      <h1 style={styles.heading}>{t('portalSpeedTest.title')}</h1>
+      <p style={styles.sub}>{t('portalSpeedTest.subtitle')}</p>
 
       <section style={styles.card}>
         {errorMsg && (
@@ -79,7 +81,7 @@ export function PortalSpeedTest() {
         )}
         {queued ? (
           <div style={styles.queuedMsg}>
-            Speed test queued! Results will appear below once complete (usually within 30 seconds).
+            {t('portalSpeedTest.queued')}
           </div>
         ) : (
           <button
@@ -87,57 +89,57 @@ export function PortalSpeedTest() {
             onClick={() => queueMutation.mutate()}
             disabled={queueMutation.isPending}
           >
-            {queueMutation.isPending ? 'Queuing…' : 'Run Speed Test'}
+            {queueMutation.isPending ? t('portalSpeedTest.queuing') : t('portalSpeedTest.run')}
           </button>
         )}
 
         {latest && (
           <div style={styles.latestResult}>
-            <h3 style={styles.latestTitle}>Latest Result</h3>
+            <h3 style={styles.latestTitle}>{t('portalSpeedTest.latest')}</h3>
             <div style={styles.speedGrid}>
               <div style={styles.speedBox}>
                 <div style={styles.speedValue}>
                   {latest.download_mbps ? parseFloat(latest.download_mbps).toFixed(1) : '—'}
                 </div>
-                <div style={styles.speedLabel}>Mbps Down</div>
+                <div style={styles.speedLabel}>{t('portalSpeedTest.mbpsDown')}</div>
               </div>
               <div style={styles.speedBox}>
                 <div style={styles.speedValue}>
                   {latest.upload_mbps ? parseFloat(latest.upload_mbps).toFixed(1) : '—'}
                 </div>
-                <div style={styles.speedLabel}>Mbps Up</div>
+                <div style={styles.speedLabel}>{t('portalSpeedTest.mbpsUp')}</div>
               </div>
               <div style={styles.speedBox}>
                 <div style={{ ...styles.speedValue, fontSize: '1.25rem' }}>
                   {latest.latency_ms ? `${parseFloat(latest.latency_ms).toFixed(0)}ms` : '—'}
                 </div>
-                <div style={styles.speedLabel}>Latency</div>
+                <div style={styles.speedLabel}>{t('portalSpeedTest.latency')}</div>
               </div>
             </div>
-            <p style={styles.meta}>Tested: {latest.completed_at?.slice(0, 16).replace('T', ' ')}</p>
+            <p style={styles.meta}>{t('portalSpeedTest.tested', { date: latest.completed_at?.slice(0, 16).replace('T', ' ') ?? '' })}</p>
           </div>
         )}
       </section>
 
       <section style={{ ...styles.card, marginTop: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <h2 style={styles.sectionTitle}>Test History</h2>
-          <button style={styles.refreshBtn} onClick={() => refetch()}>Refresh</button>
+          <h2 style={styles.sectionTitle}>{t('portalSpeedTest.history')}</h2>
+          <button style={styles.refreshBtn} onClick={() => refetch()}>{t('portalSpeedTest.refresh')}</button>
         </div>
 
-        {isLoading && <p style={styles.muted}>Loading…</p>}
+        {isLoading && <p style={styles.muted}>{t('portalCommon.loading')}</p>}
         {!isLoading && results.length === 0 && (
-          <p style={styles.muted}>No speed tests yet. Run your first test above.</p>
+          <p style={styles.muted}>{t('portalSpeedTest.none')}</p>
         )}
         {results.length > 0 && (
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Date</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Down</th>
-                <th style={styles.th}>Up</th>
-                <th style={styles.th}>Ping</th>
+                <th style={styles.th}>{t('portalSpeedTest.date')}</th>
+                <th style={styles.th}>{t('portalSpeedTest.status')}</th>
+                <th style={styles.th}>{t('portalSpeedTest.down')}</th>
+                <th style={styles.th}>{t('portalSpeedTest.up')}</th>
+                <th style={styles.th}>{t('portalSpeedTest.ping')}</th>
               </tr>
             </thead>
             <tbody>
@@ -145,7 +147,7 @@ export function PortalSpeedTest() {
                 <tr key={r.id}>
                   <td style={styles.td}>{r.created_at.slice(0, 16).replace('T', ' ')}</td>
                   <td style={styles.td}>
-                    <span style={{ ...styles.badge, ...statusColor(r.status) }}>{r.status}</span>
+                    <span style={{ ...styles.badge, ...statusColor(r.status) }}>{t(`portalSpeedTest.statuses.${r.status}`, { defaultValue: r.status })}</span>
                   </td>
                   <td style={styles.td}>{r.download_mbps ? `${parseFloat(r.download_mbps).toFixed(1)} Mbps` : '—'}</td>
                   <td style={styles.td}>{r.upload_mbps ? `${parseFloat(r.upload_mbps).toFixed(1)} Mbps` : '—'}</td>

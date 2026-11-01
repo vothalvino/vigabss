@@ -16,6 +16,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
 
 // ---------------------------------------------------------------------------
 // Token storage (portal-specific localStorage key)
@@ -140,10 +141,24 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     initialized: false,
   });
 
+  // The staff app and the portal share one QueryClient, and portal query keys
+  // are not per subscriber: the next subscriber on the same browser was shown
+  // the previous one's dashboard, usage and invoices until a refetch (FE-15).
+  // Every portal query is dropped whenever the signed-in subscriber changes.
+  const queryClient = useContext(QueryClientContext);
+  const clearPortalQueries = useCallback(() => {
+    queryClient?.removeQueries({
+      predicate: (query) => typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('portal-'),
+    });
+  }, [queryClient]);
+
   useEffect(() => {
-    onSessionExpired = () => setState({ client: null, loading: false, initialized: true });
+    onSessionExpired = () => {
+      clearPortalQueries();
+      setState({ client: null, loading: false, initialized: true });
+    };
     return () => { onSessionExpired = null; };
-  }, []);
+  }, [clearPortalQueries]);
 
   const booted = useRef(false);
   useEffect(() => {
@@ -166,6 +181,7 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     const backoff = (n: number) => new Promise((resolve) => setTimeout(resolve, 400 * (n + 1)));
     const settleLoggedOut = () => {
       portalTokenStore.clear();
+      clearPortalQueries();
       setState({ client: null, loading: false, initialized: true });
     };
 
@@ -192,7 +208,14 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
         }
         await backoff(attempt);
       }
-      if (!accessToken) { settleLoggedOut(); return; } // exhausted transient retries
+      // Exhausted transient retries (429/5xx): the refresh token may well be
+      // valid, so keep it for the next load instead of signing the subscriber
+      // out for a rate limit (FE-17).
+      if (!accessToken) {
+        clearPortalQueries();
+        setState({ client: null, loading: false, initialized: true });
+        return;
+      }
 
       // Phase 2 — load the client profile (retry transient /me failures WITHOUT
       // re-refreshing, since the refresh token was already rotated above).
@@ -231,8 +254,9 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     };
     portalTokenStore.setAccess(json.data.accessToken);
     portalTokenStore.setRefresh(json.data.refreshToken);
+    clearPortalQueries();
     setState({ client: json.data.client, loading: false, initialized: true });
-  }, []);
+  }, [clearPortalQueries]);
 
   const logout = useCallback(async () => {
     try {
@@ -246,9 +270,10 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
       }
     } finally {
       portalTokenStore.clear();
+      clearPortalQueries();
       setState({ client: null, loading: false, initialized: true });
     }
-  }, []);
+  }, [clearPortalQueries]);
 
   const value = useMemo<PortalAuthContextValue>(
     () => ({ ...state, login, logout }),

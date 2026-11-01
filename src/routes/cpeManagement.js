@@ -165,8 +165,31 @@ router.put('/devices/:id', requirePermission('cpe_devices.update'), validate(upd
   } catch (err) { next(err); }
 });
 
+// Deleting a unit is not a way to move it out of stock or off a subscriber
+// (FE2-04). An installed unit dropped out of the cancellation pickup and its
+// serial could be registered again; a tracked unit left inventory_stock and
+// the ledger unchanged. Those go through uninstall, pickup or RMA, which keep
+// stock and the ledger in step. Only untracked rows (for example
+// auto-registered TR-069 devices) can be deleted.
 router.delete('/devices/:id', requirePermission('cpe_devices.delete'), async (req, res, next) => {
   try {
+    const existing = await CpeDevice.findByIdOrFail(req.params.id, req.orgId);
+    if (['assigned', 'active'].includes(existing.lifecycle_state)) {
+      return res.status(422).json({
+        error: {
+          code: 'CPE_UNIT_INSTALLED',
+          message: 'This unit is installed for a subscriber. Uninstall it or complete the pickup before deleting it.',
+        },
+      });
+    }
+    if (existing.inventory_item_id) {
+      return res.status(422).json({
+        error: {
+          code: 'CPE_UNIT_TRACKED',
+          message: 'This unit is tracked in inventory. Take it out of stock through the pickup or RMA flow so stock and the ledger stay correct.',
+        },
+      });
+    }
     await CpeDevice.delete(req.params.id, req.orgId);
     res.status(204).send();
   } catch (err) { next(err); }

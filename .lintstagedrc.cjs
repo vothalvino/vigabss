@@ -12,11 +12,16 @@
 //   - tsc --noEmit over the whole project (lint-staged passes no individual
 //     files to tsc because tsc ignores extra positional arguments in project
 //     mode; returning a function suppresses that file-appending behaviour).
+//   - i18n:check: every t() key exists in en.json, every locale has every
+//     key, and no file adds untranslated UI text beyond the baseline (FE-07).
 //
 'use strict';
 
 module.exports = {
   'src/**/*.js': 'eslint --fix',
-  'frontend/src/**/*.{ts,tsx}': () =>
+  'frontend/src/**/*.{ts,tsx}': () => [
     'pnpm --dir frontend run gen:api && pnpm --dir frontend exec tsc --noEmit',
+    'pnpm --dir frontend run i18n:check',
+  ],
+  'frontend/src/i18n/locales/*.json': () => 'pnpm --dir frontend run i18n:check',
 };

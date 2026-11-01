@@ -515,6 +515,9 @@ jobs:
       - name: Run frontend type-check
         run: pnpm --filter vigabss-frontend run lint
 
+      - name: Check i18n catalogues, used keys and literal-text ratchet
+        run: pnpm --filter vigabss-frontend run i18n:check
+
   e2e:
     # Runs on PRs as well as main pushes — deliberately unlike lint-and-test and
     # frontend-test. Those two are main-push-only because a developer can run

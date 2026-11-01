@@ -18,6 +18,7 @@ import { can } from '@/auth/permissions';
 import { extractApiError } from '@/components/ClientFormModal';
 import { fetchAddonCatalog, fetchSellableInventoryItems, buildProductPickerEntries } from '@/api/addonCatalog';
 import { RecordPaymentModal } from '@/components/RecordPaymentModal';
+import { formatDate } from '@/lib/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -236,10 +237,8 @@ async function addInvoiceItem(invoiceId: number, body: AddInvoiceItemBody): Prom
 // ---------------------------------------------------------------------------
 
 function fmt(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('es-MX', {
-    year: 'numeric', month: 'short', day: 'numeric',
-  });
+  // Calendar dates must not shift a day in the browser's zone (FE-10).
+  return formatDate(dateStr);
 }
 
 function fmtAmount(amount: string | null | undefined, currency: string): string {

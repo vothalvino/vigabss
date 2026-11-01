@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
@@ -43,7 +44,7 @@ async function createTicket(body: { subject: string; description?: string; prior
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-    throw new Error(err.error?.message ?? 'Failed to create ticket');
+    throw new Error(err.error?.message ?? '');
   }
   return (await res.json() as { data: Ticket }).data;
 }
@@ -55,15 +56,18 @@ const PRIORITY_COLORS: Record<string, React.CSSProperties> = {
   critical: { background: '#4b0082', color: '#fff' },
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  open: '🟢 Open',
-  in_progress: '🔵 In Progress',
-  waiting: '🟡 Waiting',
-  resolved: '✅ Resolved',
-  closed: '⬛ Closed',
+const STATUS_ICONS: Record<string, string> = {
+  open: '🟢',
+  in_progress: '🔵',
+  waiting: '🟡',
+  resolved: '✅',
+  closed: '⬛',
 };
+const FILTER_STATUSES = ['open', 'in_progress', 'waiting', 'resolved', 'closed'];
+const NEW_TICKET_PRIORITIES = ['low', 'medium', 'high'];
 
 export function PortalTickets() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -90,7 +94,7 @@ export function PortalTickets() {
       resetForm();
       navigate(`/portal/tickets/${ticket.id}`);
     },
-    onError: (err: Error) => setFormError(err.message),
+    onError: (err: Error) => setFormError(err.message || t('portalTickets.createFailed')),
   });
 
   function resetForm() {
@@ -106,29 +110,25 @@ export function PortalTickets() {
   return (
     <div>
       <div style={styles.header}>
-        <h1 style={styles.heading}>🎫 My Support Tickets</h1>
+        <h1 style={styles.heading}>🎫 {t('portalTickets.title')}</h1>
         <div style={styles.headerActions}>
           <select
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
             style={styles.select}
           >
-            <option value="">All statuses</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="waiting">Waiting</option>
-            <option value="resolved">Resolved</option>
-            <option value="closed">Closed</option>
+            <option value="">{t('portalTickets.allStatuses')}</option>
+            {FILTER_STATUSES.map(st => <option key={st} value={st}>{t(`portalCommon.ticketStatus.${st}`)}</option>)}
           </select>
-          <button onClick={() => setShowModal(true)} style={styles.newBtn}>+ New Ticket</button>
+          <button onClick={() => setShowModal(true)} style={styles.newBtn}>+ {t('portalTickets.newTicket')}</button>
         </div>
       </div>
 
-      {isLoading && <p style={styles.info}>Loading…</p>}
-      {error && <p style={styles.errorTxt}>Failed to load tickets.</p>}
+      {isLoading && <p style={styles.info}>{t('portalTickets.loading')}</p>}
+      {error && <p style={styles.errorTxt}>{t('portalTickets.error')}</p>}
 
       {!isLoading && tickets.length === 0 && (
-        <p style={styles.info}>No tickets found. <button onClick={() => setShowModal(true)} style={styles.inlineBtn}>Open one now →</button></p>
+        <p style={styles.info}>{t('portalTickets.noTickets')} <button onClick={() => setShowModal(true)} style={styles.inlineBtn}>{t('portalTickets.openOne')} →</button></p>
       )}
 
       {tickets.length > 0 && (
@@ -136,23 +136,23 @@ export function PortalTickets() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Subject</th>
-                <th style={styles.th}>Priority</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Opened</th>
+                <th style={styles.th}>{t('portalTickets.table.subject')}</th>
+                <th style={styles.th}>{t('portalTickets.table.priority')}</th>
+                <th style={styles.th}>{t('portalTickets.table.status')}</th>
+                <th style={styles.th}>{t('portalTickets.table.created')}</th>
               </tr>
             </thead>
             <tbody>
-              {tickets.map(t => (
-                <tr key={t.id} style={{ cursor: 'pointer' }}>
+              {tickets.map(tk => (
+                <tr key={tk.id} style={{ cursor: 'pointer' }}>
                   <td style={styles.td}>
-                    <Link to={`/portal/tickets/${t.id}`} style={styles.link}>{t.subject}</Link>
+                    <Link to={`/portal/tickets/${tk.id}`} style={styles.link}>{tk.subject}</Link>
                   </td>
                   <td style={styles.td}>
-                    <span style={{ ...styles.badge, ...(PRIORITY_COLORS[t.priority] ?? {}) }}>{t.priority}</span>
+                    <span style={{ ...styles.badge, ...(PRIORITY_COLORS[tk.priority] ?? {}) }}>{t(`portalCommon.ticketPriority.${tk.priority}`, { defaultValue: tk.priority })}</span>
                   </td>
-                  <td style={styles.td}>{STATUS_LABELS[t.status] ?? t.status}</td>
-                  <td style={styles.td}>{t.created_at.slice(0, 10)}</td>
+                  <td style={styles.td}>{STATUS_ICONS[tk.status] ? `${STATUS_ICONS[tk.status]} ` : ''}{t(`portalCommon.ticketStatus.${tk.status}`, { defaultValue: tk.status })}</td>
+                  <td style={styles.td}>{tk.created_at.slice(0, 10)}</td>
                 </tr>
               ))}
             </tbody>
@@ -162,9 +162,9 @@ export function PortalTickets() {
 
       {meta && meta.pages > 1 && (
         <div style={styles.pagination}>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={styles.pageBtn}>‹ Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {meta.pages}</span>
-          <button onClick={() => setPage(p => Math.min(meta.pages, p + 1))} disabled={page === meta.pages} style={styles.pageBtn}>Next ›</button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={styles.pageBtn}>‹ {t('portalCommon.prev')}</button>
+          <span style={styles.pageInfo}>{t('portalCommon.pageOf', { page, pages: meta.pages })}</span>
+          <button onClick={() => setPage(p => Math.min(meta.pages, p + 1))} disabled={page === meta.pages} style={styles.pageBtn}>{t('portalCommon.next')} ›</button>
         </div>
       )}
 
@@ -172,37 +172,35 @@ export function PortalTickets() {
       {showModal && (
         <div style={styles.overlay}>
           <div style={styles.modal}>
-            <h2 style={styles.modalTitle}>Open a Support Ticket</h2>
+            <h2 style={styles.modalTitle}>{t('portalTickets.modalTitle')}</h2>
             {formError && <p style={styles.errorTxt}>{formError}</p>}
 
             <label style={styles.label}>
-              Subject *
+              {t('portalTickets.table.subject')} *
               <input
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
                 style={styles.input}
-                placeholder="Briefly describe your issue"
+                placeholder={t('portalTickets.subjectPlaceholder')}
                 maxLength={300}
               />
             </label>
 
             <label style={styles.label}>
-              Description
+              {t('portalTickets.description')}
               <textarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 style={{ ...styles.input, minHeight: 100, resize: 'vertical' as const }}
-                placeholder="Please provide as much detail as possible…"
+                placeholder={t('portalTickets.descriptionPlaceholder')}
                 maxLength={5000}
               />
             </label>
 
             <label style={styles.label}>
-              Priority
+              {t('portalTickets.table.priority')}
               <select value={priority} onChange={e => setPriority(e.target.value)} style={styles.input}>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                {NEW_TICKET_PRIORITIES.map(pr => <option key={pr} value={pr}>{t(`portalCommon.ticketPriority.${pr}`)}</option>)}
               </select>
             </label>
 
@@ -211,17 +209,17 @@ export function PortalTickets() {
                 onClick={() => { setShowModal(false); resetForm(); }}
                 style={styles.cancelBtn}
               >
-                Cancel
+                {t('portalTickets.cancel')}
               </button>
               <button
                 onClick={() => {
-                  if (!subject.trim()) { setFormError('Subject is required'); return; }
+                  if (!subject.trim()) { setFormError(t('portalTickets.subjectRequired')); return; }
                   createMutation.mutate({ subject, description: description || undefined, priority });
                 }}
                 disabled={createMutation.isPending}
                 style={styles.submitBtn}
               >
-                {createMutation.isPending ? 'Submitting…' : 'Submit Ticket'}
+                {createMutation.isPending ? t('portalTickets.submitting') : t('portalTickets.submit')}
               </button>
             </div>
           </div>

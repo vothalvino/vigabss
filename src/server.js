@@ -59,6 +59,9 @@ async function start() {
     logger.warn({ err: migrationErr }, 'Could not check migration status — run `npm run migrate` first');
   }
 
+  // The CSP's img-src follows the configured map tile server (FE-11).
+  require('./utils/mapTileOrigins').startMapTileOriginRefresh();
+
   // Start the cron scheduler. SCHEDULER_ENABLED=false keeps this process out
   // of cron (e.g. web-only pods); every task still runs once per tick across
   // the processes that do start it (scheduler.runClaimed / BullMQ job ids).
@@ -153,6 +156,7 @@ async function start() {
       await trapDrain;
       radiusServer.stop();
       scheduler.stop();
+      require('./utils/mapTileOrigins').stopMapTileOriginRefresh();
       await jobQueue.close().catch(() => {});
       await db.close();
       logger.info('All resources released — exiting');

@@ -13,7 +13,6 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, tokenStore, authedFetch } from '@/api/client';
-import { useWebSocket } from '@/api/useWebSocket';
 import { useGraphQLSubscription } from '@/api/useGraphQLSubscription';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
@@ -1949,13 +1948,14 @@ export function TicketDetail() {
     queryFn: fetchUsers,
   });
 
-  // ── Live ticket updates via WebSocket ──────────────────────────────────────
-  const { lastMessage: liveEvent } = useWebSocket(id ? `ticket:${id}` : 'notifications');
-
-  // ── GraphQL subscription for new comments (P3.9) ─────────────────────────
+  // ── Live comments via the GraphQL subscription (P3.9) ────────────────────
+  // The one live transport: nothing broadcast to the per-ticket WebSocket
+  // channel this page also listened on (GQL-05). Subscribed once the ticket
+  // has loaded, so a missing or forbidden ticket opens no stream.
   const { data: gqlCommentEvent } = useGraphQLSubscription<{ ticketCommentAdded: { id: number } }>(
     `subscription($ticketId: ID!) { ticketCommentAdded(ticketId: $ticketId) { id } }`,
     id ? { ticketId: id } : {},
+    { enabled: !!id && !!ticket },
   );
 
   useEffect(() => {
@@ -1964,18 +1964,6 @@ export function TicketDetail() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gqlCommentEvent]);
-
-  useEffect(() => {
-    if (!liveEvent || !id) return;
-    const ev = liveEvent.event;
-    if (ev === 'comment') {
-      // New comment posted — refetch comments silently
-      void refetchComments();
-    } else if (ev === 'status') {
-      // Status or assignment changed — refetch ticket
-      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
-    }
-  }, [liveEvent, id, refetchComments, queryClient]);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['ticket', id] });

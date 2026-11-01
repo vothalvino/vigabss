@@ -60,6 +60,7 @@ jest.mock('../src/middleware/rateLimit', () => ({
   acsLimiter: (_req, _res, next) => next(),
   apiLimiter:       (_r, _s, n) => n(),
   sessionLimiter:   (_r, _s, n) => n(),
+  portalSessionLimiter:   (_r, _s, n) => n(),
   authLimiter:      (_r, _s, n) => n(),
   portalAuthLimiter: (_r, _s, n) => n(),
   passwordResetLimiter: (_r, _s, n) => n(),

@@ -19,10 +19,10 @@ import { useWebSocket } from '@/api/useWebSocket';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
-import { Button, Badge, Modal, Field } from '@/components/ui';
+import { Button, Badge, Field } from '@/components/ui';
 import {
-  resolveModel, buildChart, buildChartFromSeries, hasRealData, type Range,
-  type SummaryData, type MrrRow, type DeviceHealthData, type OverdueInvoice, type AlertEvent, type EventModel,
+  resolveModel, buildChart, buildChartFromSeries, isDemoInstall, type Range,
+  type SummaryData, type MrrRow, type DeviceHealthData, type OverdueInvoice, type AlertEvent,
   type ThroughputSeries, type ChartModel, type SessionsData, type SiteRow, type DeviceRow,
 } from './operations-console/consoleModel';
 import { KpiRow, ThroughputChart, LiveEvents, SitesStrip, DeviceTable, type DeviceFilter } from './operations-console/consoleWidgets';
@@ -120,13 +120,6 @@ async function fetchNetworkDevices(): Promise<DeviceRow[]> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function fmtClock(): string {
-  const d = new Date();
-  const p = (x: number) => String(x).padStart(2, '0');
-  return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
-}
-
-const DEMO_TICKET_BASE = 38;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -144,9 +137,9 @@ export function OperationsConsole() {
   const overdueQ = useQuery({ queryKey: ['dashboard-overdue'], queryFn: fetchOverdue, refetchInterval: 60_000 });
   const eventsQ = useQuery({ queryKey: ['alerts-events'], queryFn: fetchEvents, refetchInterval: 30_000 });
 
-  // These panels only carry real data once the system has real data (first
-  // client); demo mode keeps the sample and skips the fetch.
-  const isReal = hasRealData(summaryQ.data);
+  // These panels fetch unless this is a demo install (the summary says there
+  // are no clients yet); a summary the user cannot read is not a demo (FE-08).
+  const isReal = !isDemoInstall(summaryQ.data);
   const sessionsQ = useQuery({ queryKey: ['dashboard-live-sessions'], queryFn: fetchSessions, refetchInterval: 30_000, enabled: isReal });
   const sitesQ = useQuery({ queryKey: ['dashboard-sites'], queryFn: fetchSites, refetchInterval: 60_000, enabled: isReal });
   const devicesQ = useQuery({ queryKey: ['dashboard-network-devices'], queryFn: fetchNetworkDevices, refetchInterval: 60_000, enabled: isReal });
@@ -194,15 +187,6 @@ export function OperationsConsole() {
     enabled: isReal,
   });
 
-  // Demo-only local interactions (new-ticket simulation)
-  const [created, setCreated] = useState(0);
-  const [localEvents, setLocalEvents] = useState<EventModel[]>([]);
-
-  // New-ticket modal
-  const [modalOpen, setModalOpen] = useState(false);
-  const [subject, setSubject] = useState('');
-  const [priority, setPriority] = useState<'Low' | 'Normal' | 'High'>('Normal');
-  const [err, setErr] = useState('');
 
   // Chart: demo → synthetic sample; real → SNMP series, or an honest empty state.
   const chartModel = useMemo<ChartModel | null>(() => {
@@ -219,30 +203,14 @@ export function OperationsConsole() {
         ? 'No SNMP throughput telemetry yet — appears once network devices are SNMP-monitored and polled.'
         : 'Loading throughput…';
 
-  // Compose the rendered model, folding in demo-only local interactions.
-  const kpis = model.isDemo
-    ? { ...model.kpis, openTickets: { ...model.kpis.openTickets, value: String(DEMO_TICKET_BASE + created) } }
-    : model.kpis;
-  const events = model.isDemo ? [...localEvents, ...model.events] : model.events;
+  const { kpis, events } = model;
   const canCreateTicket = canOpenConsoleRoute(user, '/tickets') && can(user, 'tickets.create');
 
+  // Always the real ticket flow: the demo modal only added a fake event and
+  // created nothing (FE-08).
   function onNewTicket() {
     if (!canCreateTicket) return;
-    if (model.isDemo) {
-      setSubject(''); setPriority('Normal'); setErr('');
-      setModalOpen(true);
-    } else {
-      navigate('/tickets');
-    }
-  }
-
-  function createTicket() {
-    if (!subject.trim()) { setErr('Subject is required'); return; }
-    const id = 8842 + created;
-    setLocalEvents([{ time: fmtClock(), level: 'accent', pre: 'ticket.create · ', strong: '#' + id, post: ' · ' + priority }, ...localEvents]);
-    setCreated(created + 1);
-    setSubject(''); setPriority('Normal'); setErr('');
-    setModalOpen(false);
+    navigate('/tickets');
   }
 
   return (
@@ -290,41 +258,6 @@ export function OperationsConsole() {
         </div>
         <DeviceTable devices={model.devices} filter={filter} onFilter={setFilter} query={query} />
       </div>
-
-      {/* New-ticket modal (demo simulation) */}
-      <Modal
-        open={modalOpen}
-        title="New ticket"
-        onClose={() => { setModalOpen(false); setErr(''); }}
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => { setModalOpen(false); setErr(''); }}>Cancel</Button>
-            <Button onClick={createTicket}>Create ticket</Button>
-          </>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)', minWidth: 'min(420px, 78vw)' }}>
-          <Field
-            label="Subject"
-            value={subject}
-            placeholder="Short summary of the issue…"
-            required
-            error={err}
-            onChange={(e) => { setSubject(e.target.value); if (err) setErr(''); }}
-          />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 'var(--sp-2)', color: 'var(--text-secondary)' }}>Priority</div>
-            <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
-              {(['Low', 'Normal', 'High'] as const).map((p) => (
-                <Button key={p} size="sm" variant={priority === p ? 'primary' : 'secondary'} onClick={() => setPriority(p)}>{p}</Button>
-              ))}
-            </div>
-          </div>
-          <span className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            Demo: adds a live entry to the events feed and bumps the open-ticket count.
-          </span>
-        </div>
-      </Modal>
     </div>
   );
 }

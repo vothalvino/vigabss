@@ -153,6 +153,8 @@ router.put('/:key', requirePermission('settings.update'), validate(updateSetting
       }
 
       await Organization.setInstallSetting(key, value);
+      // The CSP allows images from the configured tile server (FE-11).
+      if (key === 'map_tile_url') await require('../utils/mapTileOrigins').loadMapTileOrigins();
       return res.json({ data: { key, value, scope: 'install' } });
     }
 

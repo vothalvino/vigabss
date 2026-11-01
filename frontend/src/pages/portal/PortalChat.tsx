@@ -7,6 +7,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
@@ -46,6 +47,7 @@ async function portalPost<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export function PortalChat() {
+  const { t } = useTranslation();
   const [session, setSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -63,12 +65,12 @@ export function PortalChat() {
       setStatus('active');
       setMessages([{
         role: 'ai',
-        content: 'Hello! I\'m your virtual assistant. How can I help you today?',
+        content: t('portalChat.greeting'),
         ts: new Date().toISOString(),
       }]);
     },
     onError: (e: Error) => {
-      setStartError(e.message || 'Failed to start chat. Please try again.');
+      setStartError(e.message || t('portalChat.startFailed'));
     },
   });
 
@@ -87,7 +89,7 @@ export function PortalChat() {
     },
     onError: (_e, { message }) => {
       const userMsg: Message = { role: 'client', content: message, ts: new Date().toISOString() };
-      const errMsg: Message = { role: 'ai', content: 'Sorry, I encountered an error. Please try opening a support ticket.', ts: new Date().toISOString() };
+      const errMsg: Message = { role: 'ai', content: t('portalChat.sendFailed'), ts: new Date().toISOString() };
       setMessages(prev => [...prev, userMsg, errMsg]);
     },
   });
@@ -113,12 +115,11 @@ export function PortalChat() {
   if (status === 'idle') {
     return (
       <div>
-        <h1 style={styles.heading}>AI Support Chat</h1>
-        <p style={styles.sub}>Get instant answers from our AI assistant, available 24/7.</p>
+        <h1 style={styles.heading}>{t('portalChat.title')}</h1>
+        <p style={styles.sub}>{t('portalChat.subtitle')}</p>
         <div style={styles.startCard}>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-            Our AI assistant can help with billing questions, plan information, connectivity issues, and more.
-            If it cannot resolve your issue, it will automatically create a support ticket.
+            {t('portalChat.intro')}
           </p>
           {startError && (
             <div style={styles.startError}>{startError}</div>
@@ -128,7 +129,7 @@ export function PortalChat() {
             onClick={() => startMutation.mutate()}
             disabled={startMutation.isPending}
           >
-            {startMutation.isPending ? 'Starting…' : 'Start Chat'}
+            {startMutation.isPending ? t('portalChat.starting') : t('portalChat.start')}
           </button>
         </div>
       </div>
@@ -137,13 +138,13 @@ export function PortalChat() {
 
   return (
     <div>
-      <h1 style={styles.heading}>AI Support Chat</h1>
+      <h1 style={styles.heading}>{t('portalChat.title')}</h1>
 
       {escalated && ticketId && (
         <div style={styles.escalatedBanner}>
-          Your issue has been escalated to a human agent.
+          {t('portalChat.escalated')}
           {' '}<Link to={`/portal/tickets/${ticketId}`} style={{ color: '#1e40af', fontWeight: 600 }}>
-            View ticket #{ticketId}
+            {t('portalChat.viewTicket', { id: ticketId })}
           </Link>
         </div>
       )}
@@ -169,7 +170,7 @@ export function PortalChat() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={status === 'active' ? 'Type your message… (Enter to send)' : 'Chat has ended'}
+            placeholder={status === 'active' ? t('portalChat.placeholder') : t('portalChat.ended')}
             disabled={status !== 'active' || sendMutation.isPending}
             style={styles.chatInput}
             rows={2}
@@ -179,15 +180,15 @@ export function PortalChat() {
             onClick={handleSend}
             disabled={!input.trim() || status !== 'active' || sendMutation.isPending}
           >
-            Send
+            {t('portalChat.send')}
           </button>
         </div>
       </div>
 
       {status !== 'active' && (
         <p style={styles.muted}>
-          {escalated ? 'Chat ended — a support ticket has been created.' : 'Chat resolved.'}
-          {' '}<Link to="/portal/tickets" style={{ color: 'var(--accent)' }}>View tickets</Link>
+          {escalated ? t('portalChat.endedEscalated') : t('portalChat.resolved')}
+          {' '}<Link to="/portal/tickets" style={{ color: 'var(--accent)' }}>{t('portalChat.viewTickets')}</Link>
         </p>
       )}
     </div>

@@ -138,7 +138,7 @@ function DailyBarChart({ rows, dateFrom, dateTo }: { rows: DailyRow[]; dateFrom:
   }
   for (const row of rows) {
     const key = row.usage_date.slice(0, 10);
-    aggMap.set(key, (aggMap.get(key) || 0) + row.bytes_total);
+    aggMap.set(key, (aggMap.get(key) || 0) + Number(row.bytes_total || 0));
   }
 
   const points: DailyAgg[] = Array.from(aggMap.entries())
@@ -295,10 +295,11 @@ export function SessionAccounting() {
 
   const topRows = topData?.data || [];
 
-  // Summary from top-consumers (full period aggregates)
-  const totalBytesIn = topRows.reduce((s, r) => s + r.bytes_in, 0);
-  const totalBytesOut = topRows.reduce((s, r) => s + r.bytes_out, 0);
-  const totalSessions = topRows.reduce((s, r) => s + r.session_count, 0);
+  // Summary from top-consumers (full period aggregates). Number(): SUM()
+  // totals arrived as strings and `+` concatenated them (FE-09).
+  const totalBytesIn = topRows.reduce((s, r) => s + Number(r.bytes_in || 0), 0);
+  const totalBytesOut = topRows.reduce((s, r) => s + Number(r.bytes_out || 0), 0);
+  const totalSessions = topRows.reduce((s, r) => s + Number(r.session_count || 0), 0);
 
   return (
     <div style={s.page}>

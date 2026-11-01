@@ -471,6 +471,15 @@ router.get('/export', exportLimiter, requirePermission('connection_logs.export')
   } catch (err) { return next(err); }
 });
 
+// SUM()/COUNT() aggregates: SUM over BIGINT is DECIMAL, which mysql2 returns
+// as a string, and the UI added them with `+` (FE-09). Numbers at the API.
+const USAGE_NUMERIC = ['session_count', 'active_days', 'bytes_in', 'bytes_out', 'bytes_total', 'duration_seconds'];
+function numericUsage(row) {
+  const out = { ...row };
+  for (const key of USAGE_NUMERIC) if (key in out) out[key] = Number(out[key] || 0);
+  return out;
+}
+
 router.get('/daily-usage', requirePermission('connection_logs.view'), async (req, res, next) => {
   try {
     const defaultTo = new Date(); const defaultFrom = new Date(); defaultFrom.setDate(defaultFrom.getDate() - 30);
@@ -511,7 +520,7 @@ router.get('/daily-usage', requirePermission('connection_logs.view'), async (req
         GROUP BY u.usage_date, u.client_id, u.contract_id, u.username) usage_rows`, params,
     );
     const data = rows.map(row => ({
-      ...row,
+      ...numericUsage(row),
       usage_complete: Number(row.incomplete_rows || 0) === 0
         && Number(row.unverifiable_session_rows || 0) === 0,
       unverifiable_session_rows: Number(row.unverifiable_session_rows || 0),
@@ -547,7 +556,7 @@ router.get('/top-consumers', requirePermission('connection_logs.view'), async (r
       [from, to, req.orgId, from, to],
     );
     const data = rows.map(row => ({
-      ...row,
+      ...numericUsage(row),
       usage_complete: Number(row.incomplete_rows || 0) === 0
         && Number(row.unverifiable_session_rows || 0) === 0,
       unverifiable_session_rows: Number(row.unverifiable_session_rows || 0),

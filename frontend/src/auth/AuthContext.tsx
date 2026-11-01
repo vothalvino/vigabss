@@ -225,6 +225,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null;
     };
 
+    // The subscriber portal has its own session (PortalAuthContext). Probing
+    // the staff session there cost four failed /auth requests per portal load,
+    // charged to the per-IP session budget CGNAT'd subscribers share (FE-17).
+    if (/^\/portal(\/|$)/.test(window.location.pathname)) {
+      setState({ user: null, loading: false, initialized: true });
+      return;
+    }
+
     (async () => {
       // Refresh tokens are one-shot: if another tab redeemed the same cookie a
       // moment before us (parallel mount race), our /refresh 401s — but the
@@ -271,7 +279,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (refreshRes.status === 401 || refreshRes.status === 403) {
               // Denied — either truly logged out, or we lost the rotation race
               // to a sibling tab. Allow one full re-loop (see refreshDenied).
-              if (refreshDenied) {
+              // A sibling that won the race has set a fresh CSRF cookie (login
+              // and refresh both do); without one there is no session to
+              // recover, so don't spend two more failed requests (FE-17).
+              if (refreshDenied || !readCsrfCookie()) {
                 settleLoggedOut();
                 return;
               }

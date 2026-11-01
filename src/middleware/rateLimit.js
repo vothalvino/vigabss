@@ -84,6 +84,16 @@ const sessionLimiter = makeLimiter(rl.session, 'Too many session requests, pleas
   skipSuccessfulRequests: true,
 });
 
+/**
+ * The subscriber portal's session endpoints: same budget, separate instance.
+ * Sharing sessionLimiter let the staff SPA's failed boot probes (four per
+ * portal page load) spend the budget CGNAT'd subscribers need to stay signed
+ * in (FE-17).
+ */
+const portalSessionLimiter = makeLimiter(rl.session, 'Too many session requests, please try again later', {
+  skipSuccessfulRequests: true,
+});
+
 /** Auth endpoints — configurable via RATE_LIMIT_AUTH (default 20). */
 const authLimiter = makeLimiter(rl.auth, 'Too many authentication attempts, please try again later');
 
@@ -451,6 +461,7 @@ module.exports = {
   bulkEmailLimiter,
   portalPasswordResetLimiter,
   sessionLimiter,
+  portalSessionLimiter,
   isSessionPath,
   isCollectorPath,
   collectorIngressLimiter,
