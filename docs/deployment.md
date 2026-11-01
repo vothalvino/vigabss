@@ -438,7 +438,7 @@ the one that was checked, whatever the tag points at later. Set the mode in
 ```bash
 VIGABSS_VERIFY_SIGNATURE=auto       # default: verify when cosign is installed, warn when not
 VIGABSS_VERIFY_SIGNATURE=required   # refuse to deploy unless the signature verifies
-VIGABSS_VERIFY_SIGNATURE=off        # one-off: roll back to an image published before signing
+VIGABSS_VERIFY_SIGNATURE=off        # one run only: skip the check (e.g. while Sigstore is unreachable)
 ```
 
 Install cosign on the host ([instructions](https://docs.sigstore.dev/cosign/system_config/installation/))
