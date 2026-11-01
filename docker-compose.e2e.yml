@@ -72,7 +72,9 @@ services:
   # Playwright — runs the smoke test suite against the live app
   # ---------------------------------------------------------------------------
   playwright:
-    image: mcr.microsoft.com/playwright:v1.49.0-jammy
+    # Must match the playwright version pnpm-lock.yaml resolves; CI's
+    # dependency-scan job fails when they differ.
+    image: mcr.microsoft.com/playwright:v1.59.1-jammy@sha256:8a0360d39d1973be506dd59002904a774f6d697d4946c94063b3fd006461c8ff
     depends_on:
       app:
         condition: service_healthy
