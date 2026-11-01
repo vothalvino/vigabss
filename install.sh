@@ -1136,13 +1136,20 @@ else
     warn ""
     # Clean up any partial nginx container left by the failed bootstrap.
     # `rm -sf` stops and removes the container in a single atomic operation.
-    docker compose -f "$INSTALL_DIR/docker-compose.prod.yml" \
-      rm -sf nginx >/dev/null 2>&1 || true
+    # It needs --env-file: the compose file requires ${DB_ROOT_PASSWORD:?} and
+    # friends, so without it interpolation failed and the error was swallowed,
+    # leaving the ACME-only nginx running (SUP-05). The final start below also
+    # force-recreates nginx, so a failure here is reported, not fatal.
+    if [[ "$USE_HOST_NGINX" != "1" ]] && ! $_COMPOSE_CMD rm -sf nginx >/dev/null 2>&1; then
+      warn "Could not remove the bootstrap nginx container; it is recreated when the stack starts."
+    fi
     # Restore production nginx.conf in case the bootstrap script swapped it
     # but did not restore it (e.g. it was killed before the EXIT trap fired).
+    # Rewrite the content in place: a running container bind-mounts the inode.
     _NGINX_CONF_BACKUP="$INSTALL_DIR/nginx/.nginx.conf.bootstrap-backup"
     if [[ -f "$_NGINX_CONF_BACKUP" ]]; then
-      mv -f "$_NGINX_CONF_BACKUP" "$INSTALL_DIR/nginx/nginx.conf"
+      cat "$_NGINX_CONF_BACKUP" > "$INSTALL_DIR/nginx/nginx.conf"
+      rm -f "$_NGINX_CONF_BACKUP"
       info "Restored production nginx.conf from bootstrap backup."
     fi
     if (( _TLS_HAD_COMPLETE_PAIR )); then
@@ -1350,6 +1357,12 @@ fi
 # Only now expose the application listeners and reverse proxy.
 info "Starting the complete VigaBSS stack..."
 $COMPOSE up -d
+# `up -d` leaves an unchanged running service alone, so an nginx still running
+# a TLS bootstrap's ACME-only config would survive it (SUP-05). Recreate it so
+# it starts from the production nginx.conf and the certificates now in place.
+if [[ "$USE_HOST_NGINX" != "1" ]]; then
+  $COMPOSE up -d --no-deps --force-recreate nginx
+fi
 log "Containers started."
 
 # ── Wait for app readiness ─────────────────────────────────────────────────────
@@ -1373,6 +1386,25 @@ for i in $(seq 1 "$MAX_APP_WAIT_ITERATIONS"); do
   sleep 2
 done
 
+# ── Probe HTTPS through nginx ──────────────────────────────────────────────────
+# The app probe above bypasses nginx. A TLS bootstrap that failed used to leave
+# nginx answering 404 on :80 with nothing on :443 while this script printed
+# success (SUP-05). Check the public path end to end before claiming it works.
+MAX_HTTPS_WAIT_ITERATIONS=15  # 15 × 2 s = 30 seconds
+info "Checking HTTPS through nginx..."
+for i in $(seq 1 "$MAX_HTTPS_WAIT_ITERATIONS"); do
+  if curl -fksS -o /dev/null --max-time 5 \
+      --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/health/ready"; then
+    log "HTTPS is answering through nginx."
+    break
+  fi
+  if [[ $i -eq $MAX_HTTPS_WAIT_ITERATIONS ]]; then
+    die "The app is ready but HTTPS through nginx is not answering on this host.
+  Check: $COMPOSE logs --tail=50 nginx   (host nginx: systemctl status nginx)
+  Then:  $COMPOSE up -d --force-recreate nginx"
+  fi
+  sleep 2
+done
 
 # ── Summary ────────────────────────────────────────────────────────────────────
 echo ""
