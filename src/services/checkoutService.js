@@ -7,6 +7,12 @@
 
 const crypto = require('crypto');
 const db = require('../config/database');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
+
+// What is still owed: an online payment charges this, not the invoice total,
+// so a partly paid or credited invoice is not charged again for that part.
+const BALANCE_DUE_SQL = `(i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
+                          WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0) - ${creditAppliedSql('i')}) AS balance_due`;
 const config = require('../config');
 const paymentGatewayService = require('./paymentGatewayService');
 const paymentRetryService = require('./paymentRetryService');
@@ -32,7 +38,7 @@ function sameOriginUrl(url, base) {
 async function createCheckoutSession({ organizationId, invoiceId, clientId, returnUrl }) {
   // Get the invoice
   const [invoices] = await db.query(
-    'SELECT * FROM invoices WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+    `SELECT i.*, ${BALANCE_DUE_SQL} FROM invoices i WHERE i.id = ? AND i.organization_id = ? AND i.deleted_at IS NULL`,
     [invoiceId, organizationId],
   );
   if (invoices.length === 0) throw new Error('Invoice not found');
@@ -44,6 +50,10 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
   const NON_PAYABLE = ['paid', 'void', 'cancelled', 'draft', 'refunded'];
   if (NON_PAYABLE.includes(invoice.status)) {
     throw new ValidationError(`Invoice ${invoice.invoice_number} cannot be paid online (status: ${invoice.status})`);
+  }
+  const amountDue = Math.round(parseFloat(invoice.balance_due ?? invoice.total) * 100) / 100;
+  if (!(amountDue > 0.005)) {
+    throw new ValidationError(`Invoice ${invoice.invoice_number} has nothing left to pay`);
   }
 
   // Resolve the organization's payment gateway: prefer the default, otherwise
@@ -90,14 +100,14 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
         amount, currency, gateway_status, gateway_response_message)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [organizationId, resolvedClientId, invoiceId, gateway.id, provisionalRef,
-        invoice.total, invoice.currency, `Checkout for invoice ${invoice.invoice_number}`],
+        amountDue, invoice.currency, `Checkout for invoice ${invoice.invoice_number}`],
     );
     const transactionId = txResult.insertId;
 
     let session;
     try {
       session = await paymentGatewayService.createStripeCheckoutSession(gateway, {
-        amount: parseFloat(invoice.total),
+        amount: amountDue,
         currency: invoice.currency,
         description: `Invoice ${invoice.invoice_number}`,
         successUrl,
@@ -121,7 +131,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
       checkout_id: transactionId,
       invoice_id: invoiceId,
       invoice_number: invoice.invoice_number,
-      amount: invoice.total,
+      amount: amountDue,
       currency: invoice.currency,
       expires_at: expiresAt.toISOString(),
       payment_url: session.url, // Stripe-hosted checkout page
@@ -161,14 +171,14 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
         amount, currency, gateway_status, gateway_response_message)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [organizationId, resolvedClientId, invoiceId, gateway.id, provisionalRef,
-        invoice.total, invoice.currency, `Checkout for invoice ${invoice.invoice_number}`],
+        amountDue, invoice.currency, `Checkout for invoice ${invoice.invoice_number}`],
     );
     const transactionId = txResult.insertId;
 
     let session;
     try {
       session = await paymentGatewayService.createConektaCheckoutSession(gateway, {
-        amount: parseFloat(invoice.total),
+        amount: amountDue,
         currency: invoice.currency,
         description: `Invoice ${invoice.invoice_number}`,
         customerName: client.name,
@@ -195,7 +205,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
       checkout_id: transactionId,
       invoice_id: invoiceId,
       invoice_number: invoice.invoice_number,
-      amount: invoice.total,
+      amount: amountDue,
       currency: invoice.currency,
       expires_at: conektaExpiresAt.toISOString(),
       payment_url: session.url, // Conekta-hosted checkout page

@@ -979,6 +979,7 @@ describe('Invoice Routes — /api/invoices', () => {
         .mockResolvedValueOnce([[mockInvoice]])
         .mockResolvedValueOnce([[]]) // live CFDI guard
         .mockResolvedValueOnce([[]]) // live allocations guard (DAL-05)
+        .mockResolvedValueOnce([[]]) // credit-note applications to release (BIL-14)
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const res = await request(app)

@@ -15,6 +15,7 @@ const { createCreditNote, updateCreditNote, createCreditNoteItem, stampCreditNot
 const creditNoteCfdiService = require('../services/creditNoteCfdiService');
 const billingService = require('../services/billingService');
 const creditNoteLedgerService = require('../services/creditNoteLedgerService');
+const creditNoteApplicationService = require('../services/creditNoteApplicationService');
 const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
 const db = require('../config/database');
 
@@ -243,6 +244,9 @@ const ctrl = crudController(CreditNote, {
       : (before && POSTED_STATUSES.has(before.status) && !sameValue(before.total, record.total)
         ? 'total changed' : undefined);
     await creditNoteLedgerService.syncCreditNoteLedger(exec, record, req.orgId, { label });
+    // The note reduces the invoice it credits (BIL-14): applied while posted,
+    // released when cancelled, re-sized when its total or invoice changes.
+    await creditNoteApplicationService.syncApplication(exec, record, req.orgId);
   },
 
   // Delete and restore were as open as update was — a credit note with a live
@@ -259,6 +263,7 @@ const ctrl = crudController(CreditNote, {
     // (404) and posts nothing.
     await creditNoteLedgerService.syncCreditNoteLedger(exec, old, req.orgId,
       { target: 0, label: 'deleted' });
+    await creditNoteApplicationService.syncApplication(exec, old, req.orgId, { release: true });
   },
   beforeRestore: async (req, exec) => {
     await assertNoLiveCfdi(req.params.id, req.orgId,
@@ -269,6 +274,7 @@ const ctrl = crudController(CreditNote, {
   // transaction, after its UPDATE has locked the row.
   afterRestore: async (record, req, exec) => {
     await creditNoteLedgerService.syncCreditNoteLedger(exec, record, req.orgId, { label: 'restored' });
+    await creditNoteApplicationService.syncApplication(exec, record, req.orgId);
   },
 });
 
@@ -362,6 +368,7 @@ router.post('/', requirePermission('credit_notes.create'), validate(createCredit
     // issued/applied. A draft (the default) posts at its issue transition.
     if (POSTED_STATUSES.has(creditNote.status)) {
       await creditNoteLedgerService.syncCreditNoteLedger(db.query.bind(db), creditNote, req.orgId);
+      await creditNoteApplicationService.syncApplication(db.query.bind(db), creditNote, req.orgId);
     }
 
     res.status(201).json({ data: creditNote });

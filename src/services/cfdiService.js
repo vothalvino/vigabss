@@ -1066,6 +1066,7 @@ async function cancelCreditNoteForSat(doc) {
     await exec("UPDATE credit_notes SET status = 'cancelled' WHERE id = ?", [note.id]);
     await creditNoteLedgerService.syncCreditNoteLedger(exec, { ...note, status: 'cancelled' }, doc.organization_id,
       { label: 'egreso cancelled at SAT' });
+    await require('./creditNoteApplicationService').syncApplication(exec, { ...note, status: 'cancelled' }, doc.organization_id);
     await conn.commit();
     await auditLog.log({
       userId: null, organizationId: doc.organization_id, action: 'cancel_cfdi',

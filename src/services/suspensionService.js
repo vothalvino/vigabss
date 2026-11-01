@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 const dgram = require('dgram');
 const db = require('../config/database');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 const logger = require('../utils/logger').child({ service: 'suspension' });
 const { ValidationError } = require('../utils/errors');
 const mxRegisteredTemplateService = require('./mxRegisteredContractTemplateService');
@@ -36,7 +37,8 @@ const ENFORCED_RULE_ACTIONS = ['auto_suspend', 'soft_suspend', 'walled_garden'];
 
 // Money still owed on an invoice, above rounding noise.
 const OPEN_BALANCE_SQL = `(i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
-                                     WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)) > 0.005`;
+                                     WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+                       - ${creditAppliedSql('i')}) > 0.005`;
 
 // apply_to_plan_ids: NULL (or an empty list) = every plan.
 function rulePlanIds(rule) {

@@ -289,6 +289,8 @@ const ctrl = crudController(Invoice, {
         422, 'INVOICE_HAS_PAYMENTS',
       );
     }
+    // A credit note applied to it stays the client's credit, unapplied.
+    await require('../services/creditNoteApplicationService').releaseForInvoice(exec, old.id);
   },
   beforeRestore: async (req, exec) => {
     await assertNoLiveCfdi(exec, req.params.id,

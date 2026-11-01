@@ -8,6 +8,7 @@
 
 const crypto = require('crypto');
 const db = require('../config/database');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 const { URLSearchParams } = require('url');
 const { createCircuitBreaker } = require('../utils/circuitBreaker');
 const { decrypt, isConfigured: isEncryptionConfigured } = require('../utils/encryption');
@@ -1488,7 +1489,8 @@ async function refreshInvoicePaidStatusOn(exec, invoiceId) {
   const [rows] = await exec(
     `SELECT i.total,
             COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
-                       WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0) AS allocated
+                       WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+              + ${creditAppliedSql('i')} AS allocated
        FROM invoices i WHERE i.id = ?`,
     [invoiceId],
   );

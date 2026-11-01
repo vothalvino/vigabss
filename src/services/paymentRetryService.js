@@ -10,6 +10,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 const paymentGatewayService = require('./paymentGatewayService');
 const logger = require('../utils/logger');
 const { orgScopeFilter } = require('./organizationFanOut');
@@ -174,7 +175,8 @@ async function cancelRetry(retry, reason) {
 async function liveInvoiceBalance(retry) {
   const [rows] = await db.query(
     `SELECT (i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
-                                  WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)) AS balance_due
+                                  WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+                     - ${creditAppliedSql('i')}) AS balance_due
        FROM invoices i
       WHERE i.id = ? AND i.organization_id = ? AND i.deleted_at IS NULL
         AND i.status IN ('issued', 'sent', 'overdue')`,

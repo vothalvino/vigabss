@@ -17,6 +17,7 @@
 const db = require('../config/database');
 const suspensionService = require('./suspensionService');
 const { requireOrgId } = require('../utils/requireOrgId');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 
 // Invoices in these statuses can receive a payment allocation. Mirrors the
 // frontend's NON_PAYABLE_STATUSES set (frontend/src/pages/payments/
@@ -55,10 +56,13 @@ function isPaymentSettled(payment) {
  */
 async function finalizeIfFullyPaid(exec, invoice) {
   const [allocRows] = await exec(
-    'SELECT SUM(amount) AS total_allocated FROM payment_allocations WHERE invoice_id = ? AND deleted_at IS NULL',
-    [invoice.id],
+    // Credit applied to the invoice counts toward settling it (BIL-14).
+    `SELECT SUM(amount) AS total_allocated FROM payment_allocations WHERE invoice_id = ? AND deleted_at IS NULL
+     UNION ALL
+     SELECT SUM(amount) FROM credit_note_applications WHERE invoice_id = ? AND deleted_at IS NULL`,
+    [invoice.id, invoice.id],
   );
-  const totalAllocated = parseFloat(allocRows[0].total_allocated || 0);
+  const totalAllocated = allocRows.reduce((sum, r) => sum + parseFloat(r.total_allocated || 0), 0);
   if (totalAllocated < parseFloat(invoice.total)) return false;
   await exec(
     'UPDATE invoices SET status = ?, paid_at = NOW() WHERE id = ?',
@@ -128,7 +132,8 @@ async function getInvoicesWithBalance(exec, orgId, clientId, invoiceIds, forUpda
   const [rows] = await exec(
     `SELECT i.*,
             (i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
-                                   WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)) AS balance_due
+                                   WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+                     - ${creditAppliedSql('i')}) AS balance_due
        FROM invoices i
       WHERE i.client_id = ? AND i.organization_id = ? AND i.deleted_at IS NULL
         AND i.status IN (${statusPlaceholders}) ${idFilter}

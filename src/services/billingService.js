@@ -6,6 +6,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 const Invoice = require('../models/Invoice');
 const Organization = require('../models/Organization');
 const logger = require('../utils/logger').child({ service: 'billing' });
@@ -1125,7 +1126,8 @@ async function refreshInvoicePaidStatus(invoiceId) {
   const [rows] = await db.query(
     `SELECT i.total,
             COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
-                       WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0) AS allocated
+                       WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+              + ${creditAppliedSql('i')} AS allocated
        FROM invoices i WHERE i.id = ? AND i.deleted_at IS NULL`,
     [invoiceId],
   );
@@ -1326,6 +1328,8 @@ async function settleInvoiceTerminal(invoiceId, orgId, userId, { status, action,
     );
     released = Array.isArray(liveAllocs) ? liveAllocs : [];
     if (released.length > 0) await releaseInvoiceAllocations(existing.id);
+    // Credit notes applied to it become standing credit again (BIL-14).
+    await require('./creditNoteApplicationService').releaseForInvoice(db.query.bind(db), existing.id);
 
     // Remove any earlier reversal credit for this invoice…
     await db.query(
