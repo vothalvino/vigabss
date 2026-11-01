@@ -61294,10 +61294,6 @@
             "type": "string",
             "maximum": 100
           },
-          "scheduled_at": {
-            "type": "string",
-            "maximum": 30
-          },
           "notes": {
             "type": "string",
             "maximum": 65535
@@ -61340,10 +61336,6 @@
             "type": "string",
             "maximum": 100
           },
-          "scheduled_at": {
-            "type": "string",
-            "maximum": 30
-          },
           "notes": {
             "type": "string",
             "maximum": 65535
@@ -61381,10 +61373,6 @@
           "filter_tag": {
             "type": "string",
             "maximum": 100
-          },
-          "scheduled_at": {
-            "type": "string",
-            "maximum": 30
           },
           "notes": {
             "type": "string",

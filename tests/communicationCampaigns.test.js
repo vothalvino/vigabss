@@ -168,9 +168,20 @@ describe('dispatchCampaign', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // The template check (ASY-21) reads message_templates in the same
+    // transaction; it is answered here and left out of txCalls() so the call
+    // order below stays the dispatch's own.
+    const queued = [];
+    let campaignChannel = 'email';
     conn = {
       beginTransaction: jest.fn().mockResolvedValue(undefined),
-      execute: jest.fn(),
+      execute: jest.fn(async (sql) => {
+        if (/FROM message_templates/.test(sql)) return [[{ id: 42, channel: campaignChannel, body: 'Hola' }]];
+        const result = queued.shift();
+        if (/FROM communication_campaigns[\s\S]*FOR UPDATE/.test(sql)) campaignChannel = result?.[0]?.[0]?.channel || 'email';
+        return result;
+      }),
+      queued,
       commit: jest.fn().mockResolvedValue(undefined),
       rollback: jest.fn().mockResolvedValue(undefined),
       release: jest.fn(),
@@ -178,13 +189,15 @@ describe('dispatchCampaign', () => {
     db.getConnection.mockResolvedValue(conn);
   });
 
-  const mockTxQuery = result => conn.execute.mockResolvedValueOnce(result);
+  const mockTxQuery = result => conn.queued.push(result);
+  const txCalls = () => conn.execute.mock.calls.filter(([sql]) => !/FROM message_templates/.test(sql));
 
   test('locks, guarded-transitions, and inserts the recipient snapshot in one transaction', async () => {
     mockGetOrganizationDeliveryState.mockResolvedValue({ active: true, epoch: 23 });
     mockTxQuery([[{
       id: 1,
       organization_id: 1,
+      template_id: 42,
       channel: 'email',
       status: 'draft',
       filter_status: null,
@@ -208,15 +221,15 @@ describe('dispatchCampaign', () => {
     expect(conn.release).toHaveBeenCalledTimes(1);
     expect(db.query).not.toHaveBeenCalled();
 
-    const lockCall = conn.execute.mock.calls[0];
+    const lockCall = txCalls()[0];
     expect(lockCall[0]).toMatch(/communication_campaigns[\s\S]*FOR UPDATE/);
     expect(lockCall[0]).toMatch(/organization_id <=> \?/);
 
-    const transitionCall = conn.execute.mock.calls[3];
+    const transitionCall = txCalls()[3];
     expect(transitionCall[0]).toMatch(/status = \?[\s\S]*status = \?/);
     expect(transitionCall[1]).toEqual(['sending', 2, 1, 1, 'draft']);
 
-    const insertCall = conn.execute.mock.calls[4];
+    const insertCall = txCalls()[4];
     expect(insertCall[0]).toContain('campaign_messages');
     expect(insertCall[0]).not.toContain('VALUES ?');
     const expectedPlaceholders = Array(2).fill(`(${Array(9).fill('?').join(', ')})`).join(', ');
@@ -232,6 +245,7 @@ describe('dispatchCampaign', () => {
     mockTxQuery([[{
       id: 2,
       organization_id: 1,
+      template_id: 42,
       channel: 'sms',
       status: 'draft',
       filter_status: 'suspended',
@@ -245,7 +259,7 @@ describe('dispatchCampaign', () => {
     const result = await dispatchCampaign(2, 1);
 
     expect(result).toEqual({ queued: 0 });
-    const updateCall = conn.execute.mock.calls[3];
+    const updateCall = txCalls()[3];
     expect(updateCall[1][0]).toBe('sent');
     expect(updateCall[0]).toContain('completed_at = NOW()');
     expect(conn.commit).toHaveBeenCalledTimes(1);
@@ -260,7 +274,7 @@ describe('dispatchCampaign', () => {
   });
 
   test('throws when campaign is already in sending status', async () => {
-    mockTxQuery([[{ id: 3, organization_id: 1, status: 'sending' }]]);
+    mockTxQuery([[{ id: 3, organization_id: 1, template_id: 42, status: 'sending' }]]);
 
     await expect(dispatchCampaign(3, 1)).rejects.toThrow('cannot be dispatched');
     expect(conn.execute).toHaveBeenCalledTimes(1);
@@ -272,6 +286,7 @@ describe('dispatchCampaign', () => {
       {
         id: 5,
         organization_id: 1,
+        template_id: 42,
         channel: 'sms',
         status: 'cancelled',
         filter_status: null,
@@ -287,7 +302,7 @@ describe('dispatchCampaign', () => {
 
     await expect(dispatchCampaign(5, 1)).resolves.toEqual({ queued: 1 });
 
-    const [retireSql, retireParams] = conn.execute.mock.calls[2];
+    const [retireSql, retireParams] = txCalls()[2];
     expect(retireSql).toMatch(/UPDATE campaign_messages/);
     expect(retireSql).toMatch(/status = 'queued'/);
     expect(retireParams).toEqual(['Superseded by campaign redispatch', 5, 1]);
@@ -299,6 +314,7 @@ describe('dispatchCampaign', () => {
       {
         id: 4,
         organization_id: 1,
+        template_id: 42,
         channel: 'email',
         status: 'draft',
         filter_status: null,
@@ -314,7 +330,7 @@ describe('dispatchCampaign', () => {
 
     expect(conn.rollback).toHaveBeenCalledTimes(1);
     expect(conn.commit).not.toHaveBeenCalled();
-    expect(conn.execute.mock.calls.some(([sql]) => /INSERT INTO campaign_messages/.test(sql))).toBe(false);
+    expect(txCalls().some(([sql]) => /INSERT INTO campaign_messages/.test(sql))).toBe(false);
   });
 
   test.each([
@@ -325,6 +341,7 @@ describe('dispatchCampaign', () => {
       {
         id: 6,
         organization_id: 1,
+        template_id: 42,
         channel: 'email',
         status: 'failed',
       },
@@ -333,8 +350,8 @@ describe('dispatchCampaign', () => {
 
     await expect(dispatchCampaign(6, 1)).rejects.toThrow('unresolved provider outcome');
 
-    expect(conn.execute).toHaveBeenCalledTimes(2);
-    const [unresolvedSql, unresolvedParams] = conn.execute.mock.calls[1];
+    expect(txCalls()).toHaveLength(2);
+    const [unresolvedSql, unresolvedParams] = txCalls()[1];
     expect(unresolvedSql).toMatch(/status = 'failed' AND error_message IN \(\?, \?\)/);
     expect(unresolvedSql).toMatch(/LIMIT 1 FOR UPDATE/);
     expect(unresolvedParams).toEqual([
@@ -359,7 +376,8 @@ describe('processQueue', () => {
     id: 10,
     campaign_id: 1,
     campaign_org_id: 1,
-    campaign_template_id: null,
+    // Every dispatched campaign has a usable template (ASY-21).
+    campaign_template_id: 42,
     organization_epoch: 0,
     client_contact_epoch: 9,
     channel: 'email',
@@ -370,7 +388,7 @@ describe('processQueue', () => {
 
   function installQueueMock({
     queued = [],
-    templates = [],
+    templates = [{ id: 42, subject: 'Aviso', body: 'Hola' }],
     clients = [],
     staleAffected = 0,
     claimAffected = 1,

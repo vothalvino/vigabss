@@ -1417,7 +1417,7 @@
       "name": "Nome da campanha",
       "channel": "Canal",
       "template": "Modelo de mensagem",
-      "noTemplate": "— Sem modelo —",
+      "chooseTemplate": "— Escolha um modelo —",
       "filterStatus": "Filtrar por status do cliente",
       "allStatuses": "Todos os status",
       "filterTag": "Filtrar por etiqueta / grupo",

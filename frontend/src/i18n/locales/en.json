@@ -1417,7 +1417,7 @@
       "name": "Campaign name",
       "channel": "Channel",
       "template": "Message template",
-      "noTemplate": "— No template —",
+      "chooseTemplate": "— Choose a template —",
       "filterStatus": "Filter by client status",
       "allStatuses": "All statuses",
       "filterTag": "Filter by tag / group",
