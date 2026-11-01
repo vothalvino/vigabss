@@ -8853,6 +8853,22 @@ CREATE TABLE IF NOT EXISTS sso_auth_states (
     KEY idx_sso_state_expires (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ---------------------------------------------------------------------------
+-- Table: sso_saml_assertions_seen (migration 492)
+-- Purpose: SAML assertion IDs accepted by the ACS, kept until NotOnOrAfter so
+--          a captured response cannot be replayed (WHK-13, SEC-05).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sso_saml_assertions_seen (
+    organization_id BIGINT UNSIGNED NOT NULL,
+    assertion_id    VARCHAR(255)    NOT NULL COMMENT 'ID of the signed SAML Response (or its assertion)',
+    expires_at      DATETIME        NOT NULL COMMENT 'NotOnOrAfter of the assertion; the row can be purged after it',
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (organization_id, assertion_id),
+    KEY idx_sso_saml_seen_expires (expires_at),
+    CONSTRAINT fk_sso_saml_seen_org FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Per-organization SSO identity links (migration 468): the IdP identity
 -- (issuer + subject), not the asserted email, decides the account after the
 -- first sign-in. Every lookup binds organization_id.

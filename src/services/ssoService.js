@@ -372,11 +372,44 @@ async function processSamlAssertion(orgId, body) {
 
   const saml = buildSamlInstance(cfg, orgId);
   const { profile } = await saml.validatePostResponseAsync(body);
+  await recordSamlResponseOnce(orgId, body.SAMLResponse);
 
   const attrMap = parseAttributeMapping(cfg.attribute_mapping);
   const normalized = normalizeSamlProfile(profile, attrMap, cfg.idp_group_attribute || 'groups');
   if (!normalized.issuer) normalized.issuer = cfg.saml_entity_id || '';
   return normalized;
+}
+
+const SAML_SEEN_DEFAULT_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Accept a verified SAMLResponse once (WHK-13, SEC-05). node-saml checks the
+ * signature and the time window but keeps no record of what it has seen, so a
+ * captured response could be posted again until its NotOnOrAfter and each
+ * post signed someone in. The signed Response's ID is recorded until the
+ * latest NotOnOrAfter it carries (a day when it carries none); a second post
+ * of the same ID is refused. IdP-initiated sign-in keeps working, which
+ * requiring InResponseTo would not.
+ *
+ * Call only after validatePostResponseAsync has verified the signature.
+ */
+async function recordSamlResponseOnce(orgId, samlResponse) {
+  const xml = Buffer.from(String(samlResponse || ''), 'base64').toString('utf8');
+  const id = /<(?:[A-Za-z0-9_]+:)?Response\b[^>]*?\sID="([^"]{1,255})"/.exec(xml)?.[1];
+  if (!id) throw new UnauthorizedError('SAML response has no ID');
+
+  const times = [...xml.matchAll(/\sNotOnOrAfter="([^"]+)"/g)]
+    .map((m) => Date.parse(m[1])).filter(Number.isFinite);
+  const expires = new Date(times.length ? Math.max(...times) : Date.now() + SAML_SEEN_DEFAULT_MS);
+
+  await db.query('DELETE FROM sso_saml_assertions_seen WHERE expires_at < NOW() LIMIT 500');
+  const [result] = await db.query(
+    'INSERT IGNORE INTO sso_saml_assertions_seen (organization_id, assertion_id, expires_at) VALUES (?, ?, ?)',
+    [orgId, id, expires],
+  );
+  if (!result || result.affectedRows !== 1) {
+    throw new UnauthorizedError('This SAML response has already been used');
+  }
 }
 
 /** Parse the JSON attribute mapping stored in the DB, defaulting to empty object. */
@@ -459,6 +492,11 @@ async function generateOidcLoginUrl(orgId, redirectTo) {
   const state = generators.state();
   const nonce = generators.nonce();
   const safeRedirectTo = normalizeOidcRedirectPath(redirectTo);
+
+  // Expired states were never removed: only the consumed state is deleted and
+  // purgeExpiredStates had no caller, so every unfinished login left a row
+  // behind (WHK-13). Clear a bounded batch on each new login.
+  await db.query('DELETE FROM sso_auth_states WHERE expires_at <= NOW() LIMIT 500');
 
   // Persist state for 10 minutes
   await db.query(
