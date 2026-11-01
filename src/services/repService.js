@@ -24,6 +24,7 @@ const { AppError } = require('../utils/errors');
 const cfdiService = require('./cfdiService');
 const { nextCfdiFolio } = require('./invoiceCfdiService');
 const auditLog = require('./auditLog');
+const { timeZoneForPostalCode } = require('../utils/mxTimeZone');
 const logger = require('../utils/logger').child({ service: 'rep' });
 
 // payments.payment_method → SAT c_FormaPago when sat_forma_pago isn't set.
@@ -126,13 +127,16 @@ async function generateRepForAllocation(paymentId, invoiceId, allocatedAmount, o
 
     // Parcialidad chain: prior non-cancelled REP items against this CFDI UUID.
     // saldo_ant = invoice CFDI total minus everything already REP-reported.
+    // Only this org's REPs count: a REP another tenant filed citing this UUID
+    // must not use up this invoice's balance (CFD-08).
     const [[prior]] = await conn.execute(
       `SELECT COUNT(*) AS n, COALESCE(SUM(pci.imp_pagado), 0) AS pagado
          FROM cfdi_payment_complement_items pci
          JOIN cfdi_payment_complements pc ON pc.id = pci.complement_id
          JOIN cfdi_documents d ON d.id = pc.cfdi_document_id
-        WHERE pci.related_cfdi_uuid = ? AND d.sat_status IN ('draft', 'vigente', 'cancel_pending')`,
-      [invoiceCfdi.uuid],
+        WHERE pci.related_cfdi_uuid = ? AND d.organization_id = ?
+          AND d.sat_status IN ('draft', 'vigente', 'cancel_pending')`,
+      [invoiceCfdi.uuid, orgId],
     );
     numParcialidad = Number(prior.n) + 1;
     saldoAnt = Math.max(0, Math.round((Number(invoiceCfdi.total) - Number(prior.pagado)) * 100) / 100);
@@ -143,7 +147,16 @@ async function generateRepForAllocation(paymentId, invoiceId, allocatedAmount, o
       return { generated: false, reason: 'CFDI_FULLY_REPORTED' };
     }
     impPagado = Math.round(Number(allocatedAmount) * 100) / 100;
-    saldoInsoluto = Math.max(0, Math.round((saldoAnt - impPagado) * 100) / 100);
+    if (impPagado > saldoAnt + 0.005) {
+      // Pagos 2.0 requires ImpSaldoInsoluto = ImpSaldoAnt - ImpPagado >= 0, so
+      // the PAC rejects this REP. Clamping the insoluto to 0 only hid the
+      // mismatch; the prior chain no longer matches the money (CFD-06).
+      await conn.rollback();
+      conn.release();
+      logger.warn({ paymentId, invoiceId, saldoAnt, impPagado }, 'REP refused: payment exceeds the CFDI balance left by prior REPs');
+      return { generated: false, reason: 'REP_EXCEEDS_BALANCE' };
+    }
+    saldoInsoluto = Math.round((saldoAnt - impPagado) * 100) / 100;
 
     // Serie/folio from the org profile (serie Pago + shared atomic folio).
     folio = await nextCfdiFolio(conn, orgId);
@@ -172,7 +185,7 @@ async function generateRepForAllocation(paymentId, invoiceId, allocatedAmount, o
       payment_id: paymentId,
       serie: emisor.cfdi_serie_pago || 'P',
       folio,
-      fecha_emision: cfdiService.cfdiExpeditionTime(),
+      fecha_emision: cfdiService.cfdiExpeditionTime(new Date(), timeZoneForPostalCode(emisor.codigo_postal_fiscal)),
       lugar_expedicion: emisor.codigo_postal_fiscal,
       emisor_rfc: emisor.rfc,
       emisor_nombre: emisor.razon_social,
@@ -250,4 +263,79 @@ async function maybeGenerateRep(paymentId, invoiceId, allocatedAmount, orgId, us
   }
 }
 
-module.exports = { generateRepForAllocation, maybeGenerateRep, FORMA_PAGO_BY_METHOD };
+/**
+ * A draft or live REP binds its payment (CFD-06): it tells SAT that this
+ * payment paid that invoice. Deleting, unapplying, reallocating or refunding
+ * the payment while the REP stands made the chain double-report money, hide
+ * the real payment's REP, or emit ImpPagado above ImpSaldoAnt. Refuse until
+ * the REP is cancelled at SAT (motivo 02) or, for a draft, discarded.
+ *
+ * With invoiceId, only a REP that reports this payment against that invoice's
+ * CFDI counts; without it, any REP of the payment.
+ */
+async function assertNoBindingRep(exec, { paymentId, orgId, invoiceId = null }) {
+  const [rows] = invoiceId
+    ? await exec(
+      `SELECT d.id, d.uuid, d.sat_status FROM cfdi_documents d
+         JOIN cfdi_payment_complements pc ON pc.cfdi_document_id = d.id
+         JOIN cfdi_payment_complement_items pci ON pci.complement_id = pc.id
+         JOIN cfdi_documents inv ON inv.uuid = pci.related_cfdi_uuid
+          AND inv.organization_id = d.organization_id AND inv.invoice_id = ?
+        WHERE d.payment_id = ? AND d.organization_id = ? AND d.tipo_comprobante = 'P'
+          AND d.sat_status IN ('draft', 'vigente', 'cancel_pending')
+        LIMIT 1`,
+      [invoiceId, paymentId, orgId],
+    )
+    : await exec(
+      `SELECT d.id, d.uuid, d.sat_status FROM cfdi_documents d
+        WHERE d.payment_id = ? AND d.organization_id = ? AND d.tipo_comprobante = 'P'
+          AND d.sat_status IN ('draft', 'vigente', 'cancel_pending')
+        LIMIT 1`,
+      [paymentId, orgId],
+    );
+  const rep = rows && rows[0];
+  if (!rep) return;
+  throw new AppError(
+    rep.sat_status === 'draft'
+      ? `This payment has a draft payment complement (REP #${rep.id}). Discard the draft first.`
+      : `This payment is reported to SAT by payment complement ${rep.uuid || '#' + rep.id}. Cancel that REP at SAT (motivo 02) first.`,
+    422, 'PAYMENT_HAS_REP',
+  );
+}
+
+const NOT_GENERATED = {
+  NO_PPD_CFDI: 'the invoice needs a vigente PPD CFDI (PUE invoices are covered by their own CFDI).',
+  NON_MXN: 'the payment is not in MXN — REPs apply to MXN payments only.',
+  PAYMENT_NOT_SETTLED: 'the payment is not settled (failed/refunded/cancelled payments are never REP-reported).',
+  CFDI_FULLY_REPORTED: 'the invoice CFDI is already fully covered by prior REPs.',
+  REP_EXCEEDS_BALANCE: 'the payment is larger than the balance the prior REPs leave on the invoice CFDI. Check those REPs before reporting this one.',
+};
+
+/**
+ * Manual REP for one (payment, invoice) pair, for allocations made before the
+ * automation existed or after an automatic attempt failed. Everything SAT sees
+ * is derived here: the amount is the live allocation, the issuer comes from the
+ * org's fiscal profile, the folio from the org's sequence and the parcialidad
+ * chain from the org's own REPs. Throws an AppError when no REP is generated.
+ */
+async function generateManualRep(paymentId, invoiceId, orgId, userId = null) {
+  const [allocRows] = await db.query(
+    `SELECT pa.amount FROM payment_allocations pa
+       JOIN payments p ON p.id = pa.payment_id AND p.organization_id = ? AND p.deleted_at IS NULL
+      WHERE pa.payment_id = ? AND pa.invoice_id = ? AND pa.deleted_at IS NULL LIMIT 1`,
+    [orgId, paymentId, invoiceId],
+  );
+  if (!allocRows[0]) {
+    throw new AppError('This payment is not applied to that invoice.', 422, 'ALLOCATION_NOT_FOUND');
+  }
+  const result = await generateRepForAllocation(paymentId, invoiceId, allocRows[0].amount, orgId, userId);
+  if (!result.generated) {
+    const why = result.reason === 'REP_ALREADY_EXISTS'
+      ? `a live REP (#${result.cfdi_document_id}) already covers this allocation.`
+      : (NOT_GENERATED[result.reason] || result.reason);
+    throw new AppError(`No REP generated: ${why}`, result.reason === 'REP_ALREADY_EXISTS' ? 409 : 422, `REP_${result.reason}`);
+  }
+  return result;
+}
+
+module.exports = { generateRepForAllocation, generateManualRep, maybeGenerateRep, assertNoBindingRep, FORMA_PAGO_BY_METHOD };

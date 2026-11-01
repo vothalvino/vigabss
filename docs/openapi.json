@@ -6876,6 +6876,113 @@
         }
       }
     },
+    "/contracts/{id}/addons/{addonId}": {
+      "patch": {
+        "tags": [
+          "Contracts"
+        ],
+        "summary": "Change an active contract add-on: quantity, agreed unit price, end date or notes",
+        "operationId": "updateContractAddon",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "addonId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "contracts_updateContractAddon",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated add-on",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contract or add-on not found"
+          },
+          "422": {
+            "description": "The add-on is not active"
+          }
+        }
+      }
+    },
+    "/contracts/{id}/addons/{addonId}/cancel": {
+      "post": {
+        "tags": [
+          "Contracts"
+        ],
+        "summary": "Cancel a contract add-on so later billing periods no longer charge it; end_date is capped at today",
+        "operationId": "cancelContractAddon",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "addonId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled add-on",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contract or add-on not found"
+          }
+        }
+      }
+    },
     "/contracts/{id}/suspend": {
       "post": {
         "tags": [
@@ -60334,102 +60441,18 @@
       "cfdi_paymentComplement": {
         "type": "object",
         "properties": {
-          "client_id": {
-            "type": "number",
-            "minimum": 1
-          },
           "payment_id": {
             "type": "number",
             "minimum": 1
           },
-          "serie": {
-            "type": "string"
-          },
-          "folio": {
-            "type": "string"
-          },
-          "fecha_emision": {
-            "type": "string"
-          },
-          "lugar_expedicion": {
-            "type": "string"
-          },
-          "emisor_rfc": {
-            "type": "string"
-          },
-          "emisor_nombre": {
-            "type": "string"
-          },
-          "emisor_regimen_fiscal": {
-            "type": "string"
-          },
-          "receptor_rfc": {
-            "type": "string"
-          },
-          "receptor_nombre": {
-            "type": "string"
-          },
-          "receptor_domicilio_fiscal": {
-            "type": "string"
-          },
-          "receptor_regimen_fiscal": {
-            "type": "string"
-          },
-          "payment_date": {
-            "type": "string"
-          },
-          "forma_pago": {
-            "type": "string"
-          },
-          "moneda": {
-            "type": "string"
-          },
-          "tipo_cambio": {
+          "invoice_id": {
             "type": "number",
-            "minimum": 0
-          },
-          "amount": {
-            "type": "number",
-            "minimum": 0
-          },
-          "operation_number": {
-            "type": "string"
-          },
-          "payer_rfc": {
-            "type": "string"
-          },
-          "payer_bank_name": {
-            "type": "string"
-          },
-          "payer_account": {
-            "type": "string"
-          },
-          "beneficiary_rfc": {
-            "type": "string"
-          },
-          "beneficiary_account": {
-            "type": "string"
-          },
-          "related_documents": {
-            "type": "string"
+            "minimum": 1
           }
         },
         "required": [
-          "client_id",
-          "fecha_emision",
-          "lugar_expedicion",
-          "emisor_rfc",
-          "emisor_nombre",
-          "emisor_regimen_fiscal",
-          "receptor_rfc",
-          "receptor_nombre",
-          "receptor_domicilio_fiscal",
-          "receptor_regimen_fiscal",
-          "payment_date",
-          "forma_pago",
-          "moneda",
-          "amount",
-          "related_documents"
+          "payment_id",
+          "invoice_id"
         ]
       },
       "cfdiDocuments_createCfdiDocument": {
@@ -62034,6 +62057,27 @@
         "required": [
           "plan_addon_id"
         ]
+      },
+      "contracts_updateContractAddon": {
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "number",
+            "minimum": 1
+          },
+          "unit_price": {
+            "type": "number",
+            "minimum": 0
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        }
       },
       "contracts_prepareContractActivation": {
         "type": "object",

@@ -17,6 +17,7 @@
 const db = require('../config/database');
 const suspensionService = require('./suspensionService');
 const { requireOrgId } = require('../utils/requireOrgId');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 
 // Invoices in these statuses can receive a payment allocation. Mirrors the
 // frontend's NON_PAYABLE_STATUSES set (frontend/src/pages/payments/
@@ -55,10 +56,13 @@ function isPaymentSettled(payment) {
  */
 async function finalizeIfFullyPaid(exec, invoice) {
   const [allocRows] = await exec(
-    'SELECT SUM(amount) AS total_allocated FROM payment_allocations WHERE invoice_id = ? AND deleted_at IS NULL',
-    [invoice.id],
+    // Credit applied to the invoice counts toward settling it (BIL-14).
+    `SELECT SUM(amount) AS total_allocated FROM payment_allocations WHERE invoice_id = ? AND deleted_at IS NULL
+     UNION ALL
+     SELECT SUM(amount) FROM credit_note_applications WHERE invoice_id = ? AND deleted_at IS NULL`,
+    [invoice.id, invoice.id],
   );
-  const totalAllocated = parseFloat(allocRows[0].total_allocated || 0);
+  const totalAllocated = allocRows.reduce((sum, r) => sum + parseFloat(r.total_allocated || 0), 0);
   if (totalAllocated < parseFloat(invoice.total)) return false;
   await exec(
     'UPDATE invoices SET status = ?, paid_at = NOW() WHERE id = ?',
@@ -102,6 +106,40 @@ async function reconnectIfSuspended(invoice, userId, orgId) {
 }
 
 /**
+ * Lock the invoice rows an allocation will touch, with a plain locking read
+ * and nothing else (DAL-04). Call it right after locking the payment and
+ * BEFORE any read that sums allocations.
+ *
+ * The over-allocation triggers and every balance_due here sum
+ * payment_allocations with non-locking reads, and MySQL does not lock the
+ * rows of a subquery for an outer FOR UPDATE. Under REPEATABLE READ the
+ * transaction's snapshot is fixed by its first non-locking read, so a sum
+ * read before the parent rows were locked could miss an allocation another
+ * transaction committed while this one waited. Two allocators could then both
+ * pass, and one payment settled two invoices, or one invoice collected two
+ * payments. With the payment and its invoices locked first (always payment,
+ * then invoices in id order), concurrent allocators serialize and each one's
+ * snapshot starts after the previous committed.
+ *
+ * @param {Function} exec - bound query function on the open transaction
+ * @param {number|null} orgId
+ * @param {{invoiceIds?: number[], clientIds?: number[]}} which
+ */
+async function lockInvoicesForAllocation(exec, orgId, { invoiceIds = [], clientIds = [] } = {}) {
+  const ids = invoiceIds.filter((v) => v !== null && v !== undefined);
+  const clients = clientIds.filter((v) => v !== null && v !== undefined);
+  if (ids.length === 0 && clients.length === 0) return;
+  const where = [
+    ids.length ? `id IN (${ids.map(() => '?').join(', ')})` : null,
+    clients.length ? `client_id IN (${clients.map(() => '?').join(', ')})` : null,
+  ].filter(Boolean).join(' OR ');
+  await exec(
+    `SELECT id FROM invoices WHERE organization_id <=> ? AND (${where}) ORDER BY id FOR UPDATE`,
+    [orgId, ...ids, ...clients],
+  );
+}
+
+/**
  * A client's invoices with a computed, live balance_due, oldest issue_date
  * first (ties broken by id) — the FIFO waterfall order. Shared by
  * GET /clients/:id/open-invoices (frontend checklist display) and
@@ -128,7 +166,8 @@ async function getInvoicesWithBalance(exec, orgId, clientId, invoiceIds, forUpda
   const [rows] = await exec(
     `SELECT i.*,
             (i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
-                                   WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)) AS balance_due
+                                   WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+                     - ${creditAppliedSql('i')}) AS balance_due
        FROM invoices i
       WHERE i.client_id = ? AND i.organization_id = ? AND i.deleted_at IS NULL
         AND i.status IN (${statusPlaceholders}) ${idFilter}
@@ -204,6 +243,7 @@ function isOverAllocationError(err) {
 }
 
 module.exports = {
+  lockInvoicesForAllocation,
   PAYABLE_STATUSES,
   isPaymentSettled,
   paymentNotSettledError,

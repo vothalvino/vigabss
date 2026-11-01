@@ -77,6 +77,11 @@ Two receiver shapes per provider:
 | `POST /api/v1/payment-webhooks/stripe` (and `/conekta`) | `STRIPE_WEBHOOK_SECRET` / `CONEKTA_WEBHOOK_KEY` env var | all transactions (global) |
 | `POST /api/v1/payment-webhooks/stripe/{gatewayId}` (and `/conekta/{gatewayId}`) | that gateway's **Webhook Secret** (Settings → Payment Gateways) | only that gateway's org (multi-tenant) |
 
+Register **one** of these per provider account, not both. Each endpoint dedups
+events on its own, so an account sending to both delivers every event twice.
+Settlement is idempotent per transaction (the second delivery answers
+`already_reconciled`), but every event is processed and logged twice.
+
 **Recommended setup (multi-tenant / per-org, e.g. Stripe):**
 
 1. Settings → Payment Gateways → add or edit your Stripe gateway; enter the
@@ -96,6 +101,7 @@ Two receiver shapes per provider:
    | `payment_intent.payment_failed` | Failed autopay charges (drives the retry queue) |
    | `charge.refunded` | Refunds made in the Stripe dashboard (full refunds only) |
    | `charge.dispute.created` | Chargebacks |
+   | `charge.dispute.closed` | Chargeback outcome. A lost dispute reverses the payment and re-opens its invoices, like a refund. |
 
 4. Stripe shows a signing secret (`whsec_…`). Paste it into the gateway's
    **Webhook Secret** field in Settings and save.

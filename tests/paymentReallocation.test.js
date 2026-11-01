@@ -169,8 +169,10 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     conn.execute
       // load payment
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed', reference_number: 'REF-1' }]])
+      .mockResolvedValueOnce([[]]) // lock both invoices (DAL-04)
       // load existing allocation from→invoice A
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // load both invoices (both client_id = 5)
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5 },
@@ -206,6 +208,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     const conn = makeConn();
     conn.execute
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
+      .mockResolvedValueOnce([[]]) // lock both invoices (DAL-04)
       .mockResolvedValueOnce([[]]); // no matching allocation
 
     db.getConnection.mockResolvedValue(conn);
@@ -224,7 +227,9 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     const conn = makeConn();
     conn.execute
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
+      .mockResolvedValueOnce([[]]) // lock both invoices (DAL-04)
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // to_invoice belongs to client_id = 99 (different!)
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5 },
@@ -260,7 +265,9 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     const conn = makeConn();
     conn.execute
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
+      .mockResolvedValueOnce([[]]) // lock both invoices (DAL-04)
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5 },
         { id: 31, client_id: 5 },
@@ -283,7 +290,9 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
     const conn = makeConn();
     conn.execute
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
+      .mockResolvedValueOnce([[]]) // lock both invoices (DAL-04)
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       .mockResolvedValueOnce([[{ id: 30, client_id: 5 }, { id: 31, client_id: 5 }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockRejectedValueOnce(Object.assign(new Error('Duplicate entry'), { code: 'ER_DUP_ENTRY', errno: 1062 }));
@@ -452,19 +461,30 @@ describe('POST /payments/:id/reassign (Capability 3)', () => {
 // ===========================================================================
 
 describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
-  // In paymentReallocation.test.js, Payment model is NOT mocked, so
-  // Payment.allocate calls db.query for INSERT + SELECT. The route now
-  // org-verifies the payment FIRST (see the payments.js org-scoping fix),
-  // then does the void guard, so db.query[0] is always the payment lookup.
+  // The route org-verifies and locks the payment FIRST, then locks the
+  // invoice, then runs the void guard (DAL-04), all on one transaction whose
+  // statements reach db.query through mockTxConnection. Answer by statement.
   const PAYMENT_ROW = { id: 1, client_id: 5, amount: '9999.00', organization_id: 1, status: 'completed' };
 
+  function wire({ payment = PAYMENT_ROW, invoice, insertError = null, allocation = null }) {
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM payments WHERE id = \?/.test(sql)) return [payment ? [payment] : []];
+      if (/^SELECT id FROM invoices WHERE organization_id <=> \? AND \(/.test(sql)) return [[]];
+      if (/^SELECT \* FROM invoices WHERE id = \?/.test(sql)) return [invoice ? [invoice] : []];
+      if (/AS allocated FROM payment_allocations WHERE payment_id/.test(sql)) return [[{ allocated: '0' }]];
+      if (/AS balance_due/.test(sql)) return [invoice ? [{ ...invoice, balance_due: invoice.total }] : []];
+      if (/^INSERT INTO payment_allocations/.test(sql)) {
+        if (insertError) throw insertError;
+        return [{ insertId: 10, affectedRows: 1 }];
+      }
+      if (/FROM payment_allocations WHERE id = \?/.test(sql)) return [[allocation]];
+      if (/total_allocated/.test(sql)) return [[{ total_allocated: '100.00' }]];
+      return [{ affectedRows: 1 }];
+    });
+  }
+
   test('returns 422 INVOICE_VOID when invoice.status is void', async () => {
-    // db.query[0] = SELECT payment (org-verify), [1] = SELECT invoice → void
-    db.query
-      .mockResolvedValueOnce([[PAYMENT_ROW]])
-      .mockResolvedValueOnce([[{
-        id: 5, total: '200.00', status: 'void', contract_id: null, organization_id: 1,
-      }]]);
+    wire({ invoice: { id: 5, total: '200.00', status: 'void', contract_id: null, organization_id: 1 } });
 
     const res = await request(app)
       .post('/api/v1/payments/1/allocate')
@@ -477,11 +497,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
   });
 
   test('returns 422 INVOICE_NOT_PAYABLE when invoice.status is cancelled', async () => {
-    db.query
-      .mockResolvedValueOnce([[PAYMENT_ROW]])
-      .mockResolvedValueOnce([[{
-        id: 5, total: '200.00', status: 'cancelled', contract_id: null, organization_id: 1,
-      }]]);
+    wire({ invoice: { id: 5, total: '200.00', status: 'cancelled', contract_id: null, organization_id: 1 } });
 
     const res = await request(app)
       .post('/api/v1/payments/1/allocate')
@@ -494,9 +510,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
   });
 
   test('returns 404 when invoice does not exist', async () => {
-    db.query
-      .mockResolvedValueOnce([[PAYMENT_ROW]])
-      .mockResolvedValueOnce([[]]); // no invoice row
+    wire({ invoice: null });
 
     const res = await request(app)
       .post('/api/v1/payments/1/allocate')
@@ -508,7 +522,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
   });
 
   test('returns 404 when the payment does not belong to this org', async () => {
-    db.query.mockResolvedValueOnce([[]]); // no payment row for this org
+    wire({ payment: null, invoice: { id: 5, total: '100.00', status: 'issued' } });
 
     const res = await request(app)
       .post('/api/v1/payments/1/allocate')
@@ -518,21 +532,19 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
     // Must not have gone on to look up the invoice at all.
-    expect(db.query).toHaveBeenCalledTimes(1);
+    expect(db.query.mock.calls.some(([sql]) => /FROM invoices/.test(sql))).toBe(false);
   });
 
   test('returns 422 OVER_ALLOCATION when db trigger fires on INSERT', async () => {
-    const invoice = { id: 5, total: '100.00', status: 'issued', contract_id: null, organization_id: 1 };
-    // db.query[0] = SELECT payment, [1] = SELECT invoice (non-void), [2] = INSERT in Payment.allocate → trigger fires
-    db.query
-      .mockResolvedValueOnce([[PAYMENT_ROW]])
-      .mockResolvedValueOnce([[invoice]])
-      .mockRejectedValueOnce(Object.assign(new Error('exceeds total'), { sqlState: '45000', errno: 1644 }));
+    wire({
+      invoice: { id: 5, total: '100.00', status: 'issued', contract_id: null, organization_id: 1 },
+      insertError: Object.assign(new Error('exceeds total'), { sqlState: '45000', errno: 1644 }),
+    });
 
     const res = await request(app)
       .post('/api/v1/payments/1/allocate')
       .set('Authorization', AUTH)
-      .send({ invoice_id: 5, amount: 9999 });
+      .send({ invoice_id: 5, amount: 100 });
 
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('OVER_ALLOCATION');
@@ -540,17 +552,10 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
   });
 
   test('normal (non-void) allocate still returns 201', async () => {
-    const allocation = { id: 10, payment_id: 1, invoice_id: 5, amount: '100.00' };
-    const invoice = { id: 5, total: '100.00', status: 'issued', contract_id: null, organization_id: 1 };
-
-    // SELECT payment (org-verify), SELECT invoice (void guard), INSERT alloc, SELECT alloc, SUM alloc
-    db.query
-      .mockResolvedValueOnce([[PAYMENT_ROW]])
-      .mockResolvedValueOnce([[invoice]])
-      .mockResolvedValueOnce([{ insertId: 10, affectedRows: 1 }])
-      .mockResolvedValueOnce([[allocation]])
-      .mockResolvedValueOnce([[{ total_allocated: '100.00' }]])
-      .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE invoices to 'paid'
+    wire({
+      invoice: { id: 5, total: '100.00', status: 'issued', contract_id: null, organization_id: 1 },
+      allocation: { id: 10, payment_id: 1, invoice_id: 5, amount: '100.00' },
+    });
 
     const res = await request(app)
       .post('/api/v1/payments/1/allocate')
@@ -568,8 +573,10 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/reallocate', () => {
     conn.execute
       // load payment
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed' }]])
+      .mockResolvedValueOnce([[]]) // lock both invoices (DAL-04)
       // load existing allocation from→invoice A
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // load both invoices: toInv is void
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5, status: 'issued' },
@@ -593,7 +600,9 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/reallocate', () => {
     const conn = makeConn();
     conn.execute
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '100.00', currency: 'MXN', status: 'completed', reference_number: 'R' }]])
+      .mockResolvedValueOnce([[]]) // lock both invoices (DAL-04)
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // from_invoice is void — that is fine; only to_invoice void is blocked
       .mockResolvedValueOnce([[
         { id: 30, client_id: 5, status: 'void' },
@@ -636,6 +645,7 @@ describe('POST /payments/:id/unapply (Capability 5)', () => {
       .mockResolvedValueOnce([[{ id: 20, client_id: 5, organization_id: 1, amount: '200.00', currency: 'MXN', status: 'completed' }]])
       // find live allocation
       .mockResolvedValueOnce([[{ id: 55, payment_id: 20, invoice_id: 10, amount: '200.00' }]])
+      .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // soft-delete allocation
       .mockResolvedValueOnce([{ affectedRows: 1 }]);
 

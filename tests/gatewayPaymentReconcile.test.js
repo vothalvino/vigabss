@@ -82,6 +82,8 @@ async function run(sql, params = []) {
   const p = params;
 
   // --- payment_transactions ------------------------------------------------
+  // The pre-read invoice lock (DAL-04): a pure locking read, nothing to return.
+  if (/^SELECT id FROM invoices WHERE organization_id <=> \? AND \(/.test(s)) return [[]];
   if (/^SELECT \* FROM payment_transactions WHERE id = \? FOR UPDATE/.test(s)) {
     return [state.transactions.filter((t) => t.id === Number(p[0])).map(clone)];
   }
@@ -220,7 +222,14 @@ async function run(sql, params = []) {
     return [{ affectedRows: n }];
   }
   if (/^INSERT INTO chargebacks/.test(s)) {
-    state.chargebacks.push({ organization_id: p[0], payment_id: p[1], gateway_dispute_id: p[3] });
+    // UNIQUE(gateway_dispute_id): a second event for one dispute updates the row,
+    // and only an outcome (not 'received') overwrites the status.
+    const existing = state.chargebacks.find((c) => c.gateway_dispute_id === p[3]);
+    if (existing) {
+      if (p[7] !== 'received') existing.status = p[7];
+      return [{ affectedRows: 2 }];
+    }
+    state.chargebacks.push({ organization_id: p[0], payment_id: p[1], gateway_dispute_id: p[3], reason_code: p[6], status: p[7] });
     return [{ affectedRows: 1 }];
   }
 
@@ -526,6 +535,42 @@ describe('webhook reconciliation is exactly-once and retryable', () => {
     expect(state.chargebacks).toEqual([expect.objectContaining({ payment_id: 555 })]);
   });
 
+  // BIL-15: the chargeback stored the PaymentIntent as its dispute id, and a
+  // lost dispute never reversed the settlement, so the subscriber stayed paid
+  // after the money went back to the cardholder.
+  test('a dispute stores the provider\'s dispute id', async () => {
+    addTx({ id: 1, gateway_reference_id: 'pi_d', payment_id: 555 });
+    await paymentGatewayService.handleWebhookEvent(stripeEvent('evt_d', 'charge.dispute.created', { id: 'du_1', payment_intent: 'pi_d', reason: 'fraudulent' }));
+    expect(state.chargebacks).toEqual([expect.objectContaining({ gateway_dispute_id: 'du_1', reason_code: 'fraudulent', status: 'received' })]);
+  });
+
+  test('a lost dispute reverses the settlement and closes the chargeback as lost', async () => {
+    addInvoice({ id: 77 });
+    addTx({ id: 1, invoice_id: 77, gateway_status: 'pending', gateway_reference_id: 'pi_l' });
+    await paymentGatewayService.handleWebhookEvent(stripeEvent('evt_s', 'payment_intent.succeeded', { id: 'pi_l' }));
+    expect(state.invoices[0].status).toBe('paid');
+
+    await paymentGatewayService.handleWebhookEvent(stripeEvent('evt_c', 'charge.dispute.created', { id: 'du_2', payment_intent: 'pi_l', status: 'needs_response' }));
+    expect(state.invoices[0].status).toBe('paid');
+    const r = await paymentGatewayService.handleWebhookEvent(stripeEvent('evt_x', 'charge.dispute.closed', { id: 'du_2', payment_intent: 'pi_l', status: 'lost' }));
+
+    expect(r).toMatchObject({ status: 'processed', newStatus: 'refunded' });
+    expect(state.transactions[0].gateway_status).toBe('refunded');
+    expect(state.payments[0].status).toBe('refunded');
+    expect(state.invoices[0]).toMatchObject({ status: 'issued', paid_at: null });
+    expect(state.chargebacks).toEqual([expect.objectContaining({ gateway_dispute_id: 'du_2', status: 'lost' })]);
+  });
+
+  test('a won dispute keeps the payment and records the outcome', async () => {
+    addInvoice({ id: 77, status: 'paid' });
+    addTx({ id: 1, invoice_id: 77, gateway_status: 'disputed', gateway_reference_id: 'pi_w', payment_id: 555 });
+    await paymentGatewayService.handleWebhookEvent(stripeEvent('evt_c', 'charge.dispute.created', { id: 'du_3', payment_intent: 'pi_w' }));
+    await paymentGatewayService.handleWebhookEvent(stripeEvent('evt_w', 'charge.dispute.closed', { id: 'du_3', payment_intent: 'pi_w', status: 'won' }));
+    expect(state.transactions[0].gateway_status).toBe('disputed');
+    expect(state.invoices[0].status).toBe('paid');
+    expect(state.chargebacks).toEqual([expect.objectContaining({ gateway_dispute_id: 'du_3', status: 'won' })]);
+  });
+
   test('a Conekta charge.refunded matches the order through charge.order_id', async () => {
     state.gateways.push({ id: 8, organization_id: ORG, provider: 'conekta' });
     addInvoice({ id: 77 });
@@ -558,6 +603,30 @@ describe('refund reversal of a reconciled gateway payment', () => {
     const net = state.ledger.reduce((s, l) => s + (l.entry_type === 'credit' ? l.amount : -l.amount), 0);
     expect(net).toBe(0);
     expect(state.ledger.filter((l) => l.entry_type === 'debit')).toHaveLength(1);
+  });
+
+  // WHK-05: one provider account registered on both the env route (no org) and
+  // the per-gateway URL dedups each delivery separately, so the same event is
+  // processed twice. An unlinked (retry) capture used to settle a second
+  // invoice on the second pass.
+  test('the same event delivered to both endpoints posts one payment and settles one invoice', async () => {
+    addInvoice({ id: 900, issue_date: '2026-08-01' });
+    addInvoice({ id: 901, issue_date: '2026-09-01' });
+    addTx({ id: 1, gateway_status: 'pending', gateway_reference_id: 'pi_dual', amount: '500.00' });
+    const event = (organizationId) => ({
+      provider: 'stripe', providerEventId: 'evt_dual', eventType: 'payment_intent.succeeded', organizationId,
+      payload: { id: 'evt_dual', type: 'payment_intent.succeeded', data: { object: { id: 'pi_dual' } } },
+    });
+
+    const perGateway = await paymentGatewayService.handleWebhookEvent(event(ORG));
+    const envRoute = await paymentGatewayService.handleWebhookEvent(event(null));
+
+    expect(perGateway).toMatchObject({ status: 'processed', reconciliation: 'reconciled' });
+    expect(envRoute.reconciliation).toBe('already_reconciled');
+    expect(state.payments).toHaveLength(1);
+    expect(state.ledger.filter((l) => l.entry_type === 'credit')).toHaveLength(1);
+    expect(state.invoices.map((i) => [i.id, i.status])).toEqual([[900, 'paid'], [901, 'issued']]);
+    expect(state.transactions[0].settled_invoice_id).toBe(900);
   });
 
   test('a refund after a reconciled event can never be resurrected by a redelivered success', async () => {

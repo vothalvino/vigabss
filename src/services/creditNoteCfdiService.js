@@ -105,8 +105,10 @@ async function resolveEgresoInputs(exec, creditNoteId, orgId, opts) {
     );
   }
   const [relRows] = await exec(
-    `SELECT id, uuid, forma_pago FROM cfdi_documents
-      WHERE invoice_id = ? AND organization_id = ? AND sat_status = 'vigente' AND tipo_comprobante = 'I'
+    `SELECT d.id, d.uuid, d.forma_pago, d.total, i.client_id AS invoice_client_id
+       FROM cfdi_documents d
+       JOIN invoices i ON i.id = d.invoice_id AND i.organization_id = d.organization_id
+      WHERE d.invoice_id = ? AND d.organization_id = ? AND d.sat_status = 'vigente' AND d.tipo_comprobante = 'I'
       LIMIT 1`,
     [cn.invoice_id, orgId],
   );
@@ -115,6 +117,30 @@ async function resolveEgresoInputs(exec, creditNoteId, orgId, opts) {
     throw new AppError(
       'The credited invoice has no vigente CFDI — stamp the invoice first, then stamp the credit note as its egreso.',
       422, 'CFDI_EGRESO_NO_RELATED',
+    );
+  }
+  // CFD-07: the egreso goes to the receptor of the ingreso it credits, and
+  // together with the live egresos already filed against that ingreso it cannot
+  // credit more than the ingreso's total.
+  if (String(relatedCfdi.invoice_client_id) !== String(cn.client_id)) {
+    throw new AppError(
+      'This credit note is for a different client than the invoice it credits. An egreso must go to the receptor of the related CFDI.',
+      422, 'CREDIT_NOTE_CLIENT_MISMATCH',
+    );
+  }
+  const [[credited]] = await exec(
+    `SELECT COALESCE(SUM(d.total), 0) AS total
+       FROM cfdi_documents d
+       JOIN credit_notes c ON c.id = d.credit_note_id
+      WHERE c.invoice_id = ? AND d.organization_id = ? AND d.tipo_comprobante = 'E'
+        AND d.sat_status IN ('draft', 'vigente', 'cancel_pending') AND d.credit_note_id <> ?`,
+    [cn.invoice_id, orgId, cn.id],
+  );
+  const alreadyCredited = Number(credited?.total || 0);
+  if (Number(relatedCfdi.total) > 0 && alreadyCredited + Number(cn.total) > Number(relatedCfdi.total) + 0.005) {
+    throw new AppError(
+      `This credit note (${Number(cn.total).toFixed(2)}) plus the egresos already filed against the invoice (${alreadyCredited.toFixed(2)}) would exceed the invoice CFDI total (${Number(relatedCfdi.total).toFixed(2)}).`,
+      422, 'CFDI_EGRESO_EXCEEDS_RELATED',
     );
   }
 

@@ -71,6 +71,7 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])                    // payment org-verify (amount 250.00)
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 0 }]])                // remainder = 250
       .mockResolvedValueOnce([[invA, invB, invC]])                // getInvoicesWithBalance, oldest→newest
       // invoice A: apply 100 (fully covers it)
@@ -122,6 +123,7 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 0 }]])
       .mockResolvedValueOnce([[invA, invC]])                       // narrowed + still oldest→newest
       .mockResolvedValueOnce([{ insertId: 201 }])                  // INSERT for A
@@ -152,6 +154,7 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 0 }]])
       .mockResolvedValueOnce([[inv]])
       .mockResolvedValueOnce([{ insertId: 301 }])
@@ -185,6 +188,7 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 0 }]])
       .mockResolvedValueOnce([[inv]])
       .mockResolvedValueOnce([{ insertId: 302 }])
@@ -217,6 +221,7 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])                     // amount 250.00
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 0 }]])
       .mockResolvedValueOnce([[inv]])
       .mockResolvedValueOnce([{ insertId: 401 }])
@@ -241,6 +246,7 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 0 }]])
       .mockResolvedValueOnce([[inv]])
       .mockRejectedValueOnce(Object.assign(new Error('exceeds total'), { sqlState: '45000', errno: 1644 }));
@@ -270,6 +276,7 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 0 }]])
       .mockResolvedValueOnce([[invA, invB]])
       .mockRejectedValueOnce(Object.assign(new Error('Duplicate entry'), { code: 'ER_DUP_ENTRY', errno: 1062 }))
@@ -298,6 +305,7 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 0 }]])
       .mockResolvedValueOnce([[alreadyCovered, stillOwed]])
       .mockResolvedValueOnce([{ insertId: 601 }])                  // only ONE insert — for invoice 61
@@ -341,6 +349,7 @@ describe('POST /payments/:id/allocate-auto', () => {
 
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 0 }]])
       // Requested [70, 9999] but only 70 comes back — 9999 is some other
       // org's invoice, a different client's invoice, or void/cancelled/paid.
@@ -364,6 +373,7 @@ describe('POST /payments/:id/allocate-auto', () => {
     const conn = makeConn();
     conn.execute
       .mockResolvedValueOnce([[PAYMENT_ROW]])              // amount 250.00
+      .mockResolvedValueOnce([[]])                               // lock the client's invoices (DAL-04)
       .mockResolvedValueOnce([[{ allocated: 250 }]]);       // already fully allocated
 
     db.getConnection.mockResolvedValue(conn);

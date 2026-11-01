@@ -12,9 +12,7 @@ const cfdiService = require('../src/services/cfdiService');
 describe('cfdiService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
-    // Reset circuit breaker state
-    cfdiService.circuitBreaker.failures = 0;
-    cfdiService.circuitBreaker.lastFailure = 0;
+    cfdiService._resetProviderBreakers();
   });
 
   // =========================================================================
@@ -473,13 +471,18 @@ describe('cfdiService', () => {
       expect(record[0]).not.toMatch(/sat_status = \?/);
     }, 30000);
 
-    test('rejects when circuit breaker is open', async () => {
-      // Open the circuit breaker
-      for (let i = 0; i < cfdiService.circuitBreaker.threshold; i++) {
-        cfdiService.circuitBreaker.recordFailure();
-      }
+    test('rejects when the PAC row\'s circuit is open', async () => {
+      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi/>' };
+      const pac = { id: 1, provider_name: 'dev_placeholder', status: 'active', environment: 'sandbox' };
+      db.query
+        .mockResolvedValueOnce([[doc]])
+        .mockResolvedValueOnce([[{ pac_environment: 'sandbox' }]])
+        .mockResolvedValueOnce([[pac]])
+        .mockResolvedValue([{ affectedRows: 1 }]);
+      const breaker = cfdiService.providerBreaker(1);
+      for (let i = 0; i < breaker.threshold; i++) breaker.recordFailure();
 
-      await expect(cfdiService.stamp(1)).rejects.toThrow('circuit breaker is open');
+      await expect(cfdiService.stamp(1)).rejects.toThrow(/circuit is open/);
     });
   });
 
@@ -630,25 +633,25 @@ describe('cfdiService', () => {
   // =========================================================================
   // Circuit Breaker state
   // =========================================================================
-  describe('circuitBreaker state', () => {
+  describe('per-PAC circuit breaker state', () => {
     test('starts with 0 failures', () => {
-      expect(cfdiService.circuitBreaker.failures).toBe(0);
+      expect(cfdiService.providerBreaker(1).failures).toBe(0);
     });
 
     test('isOpen returns false initially', () => {
-      expect(cfdiService.circuitBreaker.isOpen()).toBe(false);
+      expect(cfdiService.providerBreaker(1).isOpen()).toBe(false);
     });
 
     test('recordFailure increments failure count', () => {
-      cfdiService.circuitBreaker.recordFailure();
-      expect(cfdiService.circuitBreaker.failures).toBe(1);
+      cfdiService.providerBreaker(1).recordFailure();
+      expect(cfdiService.providerBreaker(1).failures).toBe(1);
     });
 
     test('recordSuccess resets failure count', () => {
-      cfdiService.circuitBreaker.recordFailure();
-      cfdiService.circuitBreaker.recordFailure();
-      cfdiService.circuitBreaker.recordSuccess();
-      expect(cfdiService.circuitBreaker.failures).toBe(0);
+      cfdiService.providerBreaker(1).recordFailure();
+      cfdiService.providerBreaker(1).recordFailure();
+      cfdiService.providerBreaker(1).recordSuccess();
+      expect(cfdiService.providerBreaker(1).failures).toBe(0);
     });
   });
 });

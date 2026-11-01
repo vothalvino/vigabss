@@ -73,7 +73,9 @@ describe('voidInvoiceById — stamped-CFDI guard', () => {
     expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'void' }));
   });
 
-  test('voiding a PAID unstamped invoice releases its allocations', async () => {
+  test('voiding a PAID unstamped invoice whose payments were deallocated releases nothing', async () => {
+    // The INVOICE_HAS_PAYMENTS guard has already refused any live allocation,
+    // so the release step finds none and leaves payment_allocations alone.
     db.query.mockResolvedValueOnce([[]]); // guard: no live CFDI
     Invoice.findByIdOrFail.mockResolvedValue({ id: 12, status: 'paid', client_id: 3 });
     Invoice.update.mockResolvedValue({ id: 12, status: 'void' });
@@ -81,7 +83,7 @@ describe('voidInvoiceById — stamped-CFDI guard', () => {
     await billingService.voidInvoiceById(12, 1, 5);
 
     const sqls = db.query.mock.calls.map((c) => c[0]).join('\n');
-    expect(sqls).toMatch(ALLOC_RELEASE);
+    expect(sqls).not.toMatch(ALLOC_RELEASE);
   });
 
   test('refuses to void a SAT-cancelled invoice (would erase the cancellation record)', async () => {
@@ -100,6 +102,8 @@ describe('voidInvoiceById — stamped-CFDI guard', () => {
 
 describe('cancelInvoiceForSat — SAT-cancellation sync', () => {
   test('marks a paid invoice cancelled and releases its allocations', async () => {
+    db.query.mockImplementation(async (sql) => (/SELECT payment_id, amount FROM payment_allocations/.test(sql)
+      ? [[{ payment_id: 7, amount: '1160.00' }]] : [[]]));
     Invoice.findByIdOrFail.mockResolvedValue({ id: 20, status: 'paid', client_id: 4 });
     Invoice.update.mockResolvedValue({ id: 20, status: 'cancelled' });
 
@@ -111,6 +115,36 @@ describe('cancelInvoiceForSat — SAT-cancellation sync', () => {
     expect(sqls).toMatch(ALLOC_RELEASE);
     // Distinct audit verb from an internal void so the two are traceable apart.
     expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'cancel_cfdi', userId: null }));
+  });
+
+  // BIL-18: a partly paid invoice is still 'issued', so the old paid-only rule
+  // left its allocations live on a cancelled row and the 400 disappeared from
+  // the client's balance.
+  test('releases the allocations of a PARTLY paid invoice and audits the amounts', async () => {
+    db.query.mockImplementation(async (sql) => (/SELECT payment_id, amount FROM payment_allocations/.test(sql)
+      ? [[{ payment_id: 7, amount: '400.00' }]] : [[]]));
+    Invoice.findByIdOrFail.mockResolvedValue({ id: 21, status: 'issued', client_id: 4, total: '1160.00' });
+    Invoice.update.mockResolvedValue({ id: 21, status: 'cancelled' });
+
+    await billingService.cancelInvoiceForSat(21, 1);
+
+    const release = db.query.mock.calls.find(([sql]) => ALLOC_RELEASE.test(sql));
+    expect(release).toBeTruthy();
+    expect(release[1]).toEqual([21]);
+    expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'cancel_cfdi',
+      newValues: { status: 'cancelled', released_allocations: [{ payment_id: 7, amount: '400.00' }] },
+    }));
+  });
+
+  test('re-settling an already-cancelled invoice releases nothing twice', async () => {
+    db.query.mockResolvedValue([[{ payment_id: 7, amount: '400.00' }]]);
+    Invoice.findByIdOrFail.mockResolvedValue({ id: 21, status: 'cancelled', client_id: 4 });
+    Invoice.update.mockResolvedValue({ id: 21, status: 'cancelled' });
+
+    await billingService.cancelInvoiceForSat(21, 1);
+
+    expect(db.query.mock.calls.some(([sql]) => ALLOC_RELEASE.test(sql))).toBe(false);
   });
 
   test('does NOT run the stamped-CFDI guard (that guard is void-only)', async () => {

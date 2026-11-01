@@ -171,6 +171,10 @@ async function payGroup(orgId, groupId, opts = {}) {
   try {
     await conn.beginTransaction();
 
+    // Lock every member's invoices first, with a plain locking read, so the
+    // balance_due reads below see allocations committed meanwhile (DAL-04).
+    await paymentAllocationService.lockInvoicesForAllocation(conn.execute.bind(conn), orgId, { clientIds: memberIds });
+
     // Gather the group's open invoices, locked, oldest→newest across members.
     let invoiceRows = [];
     for (const memberId of memberIds) {
@@ -221,13 +225,14 @@ async function payGroup(orgId, groupId, opts = {}) {
 
     // Create the payment on the PRIMARY, inside the transaction.
     const [payResult] = await conn.execute(
-      `INSERT INTO payments (organization_id, client_id, amount, currency, payment_method, payment_date, reference_number, status, notes)
-       VALUES (?, ?, ?, ?, ?, CURDATE(), ?, 'completed', ?)`,
+      `INSERT INTO payments (organization_id, client_id, amount, currency, payment_method, payment_date, reference_number, status, notes, recorded_by)
+       VALUES (?, ?, ?, ?, ?, CURDATE(), ?, 'completed', ?, ?)`,
       [
         orgId, primaryId, amount, currency,
         opts.payment_method || 'other',
         opts.reference_number || null,
         `Group payment for group #${groupId} (settles member balances)`,
+        opts.actorUserId ?? null,
       ],
     );
     const paymentId = payResult.insertId;
