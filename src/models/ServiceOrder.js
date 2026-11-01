@@ -24,9 +24,11 @@ class ServiceOrder extends BaseModel {
   // 'new' on create (approved_at/approved_by/activated_at are pre-migration-380
   // columns kept only for historical/audit purposes — see migration 380's
   // comment — and are no longer written by anything).
+  // order_number is not fillable: only POST /service-orders sets it, so an
+  // update cannot rename an order onto the tenant's sequence (RTE-05).
   static get fillable() {
     return [
-      'organization_id', 'order_number', 'client_id', 'lead_id', 'plan_id',
+      'organization_id', 'client_id', 'lead_id', 'plan_id',
       'contract_id', 'order_type', 'assigned_to', 'address', 'notes',
     ];
   }

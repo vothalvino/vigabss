@@ -18,6 +18,7 @@ const config = require('../config');
 const { ValidationError, ForbiddenError } = require('../utils/errors');
 const { CacheStore, exportLimiter, apiTokenConfiguredLimiter } = require('../middleware/rateLimit');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
+const { csvCell: csvEscape } = require('../utils/csv');
 
 const router = Router();
 const SESSION_EXPORT_LIMIT = 50000;
@@ -113,13 +114,6 @@ function sessionStateExpression(alias = 'cl') {
                WHEN NOT (${liveSessionPredicate(alias)}) THEN 'unknown'
                WHEN ${alias}.event_type = 'interim-update' THEN 'interim'
                ELSE 'active' END`;
-}
-
-function csvEscape(value) {
-  if (value === null || value === undefined) return '';
-  let string = String(value);
-  if (/^[\t\r\n =+\-@]/.test(string)) string = `'${string}`;
-  return /[",\r\n]/.test(string) ? `"${string.replace(/"/g, '""')}"` : string;
 }
 
 function toCsv(rows, columns) {

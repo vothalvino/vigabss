@@ -164,6 +164,10 @@ const yoga = createYoga({
   graphiql: false,
   cors: false,
 
+  // OPS-06: the schema has no Upload scalar, so multipart requests serve no
+  // purpose; yoga's default parsed them with busboy for any token holder.
+  multipart: false,
+
   plugins: [{
     onValidate({ addValidationRule }) {
       addValidationRule(queryLimitsRule);

@@ -189,15 +189,43 @@ spec:
       rules:
         - alert: VigaBSS_HighMemoryUsage
           expr: |
-            process_resident_memory_bytes{job="fireisp"} > 1.5 * 1024 * 1024 * 1024
+            # monitoring.memoryAlertMiB: 85% of resources.limits.memory (OPS-15).
+            process_resident_memory_bytes{job="fireisp"} > {{ .Values.monitoring.memoryAlertMiB | default 435 }} * 1024 * 1024
           for: 10m
           labels:
             severity: warning
           annotations:
-            summary: "VigaBSS process RSS > 1.5 GB"
+            summary: "VigaBSS process RSS near its memory limit"
             description: >
               The VigaBSS Node.js process RSS is {{ "{{" }} $value | humanize1024 {{ "}}" }}B.
               This may indicate a memory leak.
+
+        # Network operations (NET-28): the embedded RADIUS server and the SNMP
+        # trap receiver shed load under a flood; sustained drops mean NAS
+        # authentications or device events are being lost.
+        - alert: VigaBSS_RADIUSDatagramsDropped
+          expr: |
+            sum(rate(radius_dropped_total{job="fireisp"}[10m])) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Embedded RADIUS server is dropping datagrams"
+            description: >
+              {{ "{{" }} $value {{ "}}" }} datagrams/s dropped over 10 min (overload, per-source rate or missing
+              Message-Authenticator). Check /radius/server-status for the reasons.
+
+        - alert: VigaBSS_SNMPTrapsDropped
+          expr: |
+            sum(rate(snmp_traps_dropped_total{job="fireisp"}[10m])) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "SNMP trap receiver is dropping traps"
+            description: >
+              {{ "{{" }} $value {{ "}}" }} traps/s dropped over 10 min (overload, rate, unattributed source or
+              daily quota). Device alarms may be missing.
 
         - alert: VigaBSS_DBConnectionPoolExhausted
           expr: |

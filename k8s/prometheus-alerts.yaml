@@ -12,14 +12,15 @@
 # Prerequisites:
 #   - Prometheus Operator installed (https://github.com/prometheus-operator/prometheus-operator)
 #   - The VigaBSS app must expose /metrics (it does — see src/routes/metrics.js)
-#   - For SLO-3: FireRelay agent must expose radius_auth_* counters or
-#     the RADIUS proxy must export them via the Prometheus node-exporter / custom exporter.
+#   - For SLO-3: the embedded RADIUS server (RADIUS_SERVER_ENABLED=true) exports
+#     the radius_auth_* counters; with an external FreeRADIUS they are absent.
 #
-# Metric names assumed (from src/routes/metrics.js / prom-client):
-#   http_requests_total{status, method, route}  — request counter
-#   http_request_duration_seconds{quantile}     — latency summary (or histogram)
-#   radius_auth_request_total                   — total RADIUS Access-Requests
-#   radius_auth_accept_total                    — total RADIUS Access-Accepts
+# Metrics exported by src/routes/metrics.js (tests/metricsContract.test.js checks
+# that every name used here and in docs/grafana is exported):
+#   http_requests_total{method, path, status}     — request counter
+#   http_request_duration_seconds{method, path}   — latency histogram
+#   radius_auth_request_total / _accept_total      — embedded RADIUS server
+#   fireisp_last_backup_timestamp_seconds          — last successful backup
 #
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -231,16 +232,46 @@ spec:
 
         - alert: VigaBSS_HighMemoryUsage
           expr: |
-            process_resident_memory_bytes{job="fireisp"} > 1.5 * 1024 * 1024 * 1024
+            # 85% of the 512Mi container limit (k8s/deployment.yaml). The old
+            # 1.5 GiB threshold sat above the limit, so the pod was OOM-killed
+            # before this could fire (OPS-15). Keep in step with the limit.
+            process_resident_memory_bytes{job="fireisp"} > 435 * 1024 * 1024
           for: 10m
           labels:
             severity: warning
           annotations:
-            summary: "VigaBSS process RSS > 1.5 GB"
+            summary: "VigaBSS process RSS > 85% of its 512Mi memory limit"
             description: >
               The VigaBSS Node.js process RSS is {{ $value | humanize1024 }}B.
               This may indicate a memory leak. Run `pnpm run loadtest:soak` against
               a staging instance to confirm. Consider rolling restart if in production.
+
+        # Network operations (NET-28): the embedded RADIUS server and the SNMP
+        # trap receiver shed load under a flood; sustained drops mean NAS
+        # authentications or device events are being lost.
+        - alert: VigaBSS_RADIUSDatagramsDropped
+          expr: |
+            sum(rate(radius_dropped_total{job="fireisp"}[10m])) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Embedded RADIUS server is dropping datagrams"
+            description: >
+              {{ $value }} datagrams/s dropped over 10 min (overload, per-source rate or missing
+              Message-Authenticator). Check /radius/server-status for the reasons.
+
+        - alert: VigaBSS_SNMPTrapsDropped
+          expr: |
+            sum(rate(snmp_traps_dropped_total{job="fireisp"}[10m])) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "SNMP trap receiver is dropping traps"
+            description: >
+              {{ $value }} traps/s dropped over 10 min (overload, rate, unattributed source or
+              daily quota). Device alarms may be missing.
 
         - alert: VigaBSS_DBConnectionPoolExhausted
           expr: |

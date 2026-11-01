@@ -1,4 +1,7 @@
 {{- if .Values.ingress.enabled -}}
+{{- if and .Values.ingress.tls.enabled (not .Values.ingress.tls.secretName) (not .Values.ingress.tls.clusterIssuer) -}}
+{{- fail "ingress.tls is enabled: set ingress.tls.secretName (an existing TLS secret) or ingress.tls.clusterIssuer (cert-manager). Set ingress.tls.enabled=false only if TLS terminates before the ingress — the auth cookies are Secure and a plain-HTTP login cannot keep its session." -}}
+{{- end -}}
 {{- $tlsSecretName := .Values.ingress.tls.secretName | default (printf "%s-tls" (include "fireisp.fullname" .)) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress

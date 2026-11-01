@@ -119,7 +119,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
 ```
 - Create a peer in **My Tunnels** → `… exec wireguard-helper wg show wg-clients`
   lists it, and `… exec wireguard-helper nft list table inet fireisp_wg` shows
-  the `forward` + `wg_user_fwd` chains.
+  the `forward` (policy drop), `input` and `wg_user_fwd` chains.
 - Add a MikroTik **NAS** → `GET /nas/:id/wg` flips to `state: active`,
   `server_peer_synced: 1`; `… exec wireguard-helper wg show wg-fireisp` lists
   the NAS peer.
@@ -148,3 +148,22 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
 - **Per-user scope is firewall-enforced**, not config-trusted: the authoritative ACL is
   the nftables per-user FORWARD chain keyed on the client's `/32`, not the `AllowedIPs`
   in the downloaded `.conf`.
+- **Tunnel trust model (OPS-10).** The hub runs in the app container's network
+  namespace, with IP forwarding on, so its firewall is all that stands between a peer
+  and the app's private networks. The `fireisp_wg` table therefore:
+  - drops forwarded traffic by default. A technician or support peer reaches only the
+    NAS subnets its assignments allow (the per-user chain) and, with a full tunnel, the
+    internet. Private, link-local, CGNAT and loopback destinations are dropped, which
+    covers the Docker networks behind the app (MySQL, Redis, ChromaDB). A NAS peer
+    cannot route onward at all;
+  - accepts traffic to the hub itself only for RADIUS authentication and accounting and
+    SNMP traps from NAS peers, plus ICMP and replies. The app's HTTP port is not
+    reachable from a tunnel, so a peer cannot bypass nginx or the admin IP allowlist
+    with a forged `X-Forwarded-For`.
+
+  Hubs created before this rule set are upgraded the next time the app starts: the
+  forward chain is rebuilt and the input chain added in one atomic `nft` script, and the
+  per-user sets are kept. Confirm with
+  `… exec wireguard-helper nft list table inet fireisp_wg`: `policy drop` on `forward`,
+  and a `chain input`.
+

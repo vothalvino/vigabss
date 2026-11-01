@@ -40,6 +40,9 @@ spec:
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "fireisp.serviceAccountName" . }}
       {{- end }}
+      # The app never calls the Kubernetes API; without this every pod carried
+      # a usable service-account token (OPS-17).
+      automountServiceAccountToken: false
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- if .Values.migration.enabled }}

@@ -1,17 +1,12 @@
-# Trivy ignore list — each entry MUST carry a rationale and (where possible) a removal condition.
-# Format: one CVE/GHSA id per line. Consulted by aquasecurity/trivy-action in CI (.github/workflows/ci.yml).
-
-# CVE-2026-41907 — uuid <14.0.0: v3/v5/v6 accept external output buffers without rejecting
-# out-of-range writes (silent partial writes). NVD severity MEDIUM; Trivy rates HIGH via vendor feed.
-# Reaches the image ONLY as a transitive dependency of `autocannon` (an HTTP load-testing DEV tool):
-#   uuid@8.3.2 <- hyperid@3.3.0 <- autocannon@7.15.0 <- fireisp (devDependencies)
-# It is NOT in the production dependency tree — a clean `pnpm install --frozen-lockfile --prod`
-# (as the Dockerfile runtime stage uses) resolves zero uuid packages. The affected APIs (v3/v5/v6
-# with caller-provided buffers) are never exercised by any runtime code path.
-# Newly published advisory: the PR scan (exit-code 0, non-blocking) passed; the push-to-main scan
-# (exit-code 1, blocking) began failing only once Trivy's DB picked up this CVE.
-# Remove this entry once autocannon ships a release whose uuid resolves to >=11.1.1.
-CVE-2026-41907
+# Trivy ignore list — each entry MUST carry a rationale, a removal condition and an
+# `exp:YYYY-MM-DD` expiry, after which Trivy reports the finding again so the entry is
+# re-justified rather than forgotten (OPS-07).
+# Consulted by aquasecurity/trivy-action in .github/workflows/ci.yml and security-scan.yml.
+#
+# Removed (OPS-07, 2026-11): CVE-2026-41907 (uuid — prod reaches it via exceljs, not only
+# the autocannon dev tool; the `exceljs>uuid` override now resolves 11.1.1),
+# CVE-2026-14257 (brace-expansion — prod resolves 2.1.7 and 5.0.12, both patched) and
+# GHSA-qwww-vcr4-c8h2 (react-router — fixed in 7.18.2 on the v7 line; we ship 7.18.5).
 
 # CVE-2026-34743 — liblzma5 (xz/LZMA library) 5.4.1-1, a Debian bookworm OS package in the
 # node:24-bookworm-slim runtime base image. CVSS MEDIUM (5.3); Trivy rates it HIGH via the
@@ -25,27 +20,4 @@ CVE-2026-41907
 # runtime code path uses liblzma directly.
 # Remove this entry once the runtime image has stably carried the fixed liblzma5 for a while
 # (i.e. no red container-scan recurrence) — it is inert while the installed package is patched.
-CVE-2026-34743
-
-# CVE-2026-14257 — brace-expansion DoS: a maliciously-crafted brace pattern (e.g. deeply nested
-# {a,b}{a,b}... ) expands unbounded and OOMs the process. Fixed in brace-expansion 5.0.8 (a MAJOR
-# bump from the 1.x/2.x instances that pull it). brace-expansion reaches the tree only transitively
-# via minimatch, and NO runtime code path expands an attacker-controlled brace pattern:
-#   - backend prod: brace-expansion@2.1.2 <- minimatch@5.1.9 <- readdir-glob <- archiver <- exceljs
-#     (exceljs is used only to WRITE .xlsx exports to a buffer/stream; it never globs a
-#      user-supplied directory pattern). `src/` contains zero direct glob/minimatch/brace-expansion
-#      usage (grep-verified) — no endpoint feeds user input to a brace expander.
-#   - the 1.x/5.x instances are dev/build tooling only (jest, @vitest/coverage-v8, openapi-typescript).
-# Same shape as the uuid/autocannon entry above: the vulnerable API is never exercised at runtime,
-# and the only fix is a deep transitive MAJOR bump we can't force without breaking minimatch@3/@5.
-# Remove once exceljs/archiver (and the dev tools) ship a minimatch resolving brace-expansion >=5.0.8.
-CVE-2026-14257
-
-# GHSA-qwww-vcr4-c8h2 — react-router "RSC Mode CSRF Bypass": affects React Router's React Server
-# Components request handler, and is fixed only in react-router 8.3.0 (a MAJOR upgrade). NOT
-# APPLICABLE here: the frontend is a client-side SPA using react-router-dom v7 in declarative
-# BrowserRouter mode (frontend/src/App.tsx) — RSC / framework mode is never enabled, so the
-# vulnerable RSC action handler is never mounted. The separately-tracked, APPLICABLE react-router
-# DoS (CVE-2026-55685) IS fixed in this change by bumping react-router-dom to 7.18.1.
-# Remove this entry when the app adopts react-router v8 (or the advisory is rescoped off v7).
-GHSA-qwww-vcr4-c8h2
+CVE-2026-34743 exp:2027-02-01

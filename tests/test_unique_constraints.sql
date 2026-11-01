@@ -48,20 +48,26 @@ VALUES (7000, 7000, 'pppoe_unique_user', 'hash', 'active');
 CALL assert_sql_error(NULL, 'INSERT INTO radius (id, client_id, username, password, status) VALUES (7001, 7000, ''pppoe_unique_user'', ''hash2'', ''active'')', 'C: Duplicate RADIUS username rejected');
 
 -- =========================================================================
--- D. devices — uq_devices_serial_number
+-- D. devices — uq_devices_org_serial_number (serials are unique per
+--    organization since migration 490, DB-18)
 -- =========================================================================
-INSERT INTO devices (id, site_id, name, serial_number, category, type, status)
-VALUES (7000, 7000, 'Router-A', 'SN-UNIQUE-001', 'pop', 'router', 'online');
+INSERT INTO devices (id, organization_id, site_id, name, serial_number, category, type, status)
+VALUES (7000, 7000, 7000, 'Router-A', 'SN-UNIQUE-001', 'pop', 'router', 'online');
 
-CALL assert_sql_error(NULL, 'INSERT INTO devices (id, site_id, name, serial_number, category, type, status) VALUES (7001, 7000, ''Router-B'', ''SN-UNIQUE-001'', ''pop'', ''switch'', ''online'')', 'D: Duplicate device serial number rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO devices (id, organization_id, site_id, name, serial_number, category, type, status) VALUES (7001, 7000, 7000, ''Router-B'', ''SN-UNIQUE-001'', ''pop'', ''switch'', ''online'')', 'D: Duplicate device serial number rejected');
+
+-- D2. Another organization may hold the same serial.
+INSERT INTO devices (id, organization_id, site_id, name, serial_number, category, type, status)
+VALUES (7002, 7001, 7000, 'Router-C', 'SN-UNIQUE-001', 'pop', 'router', 'online');
+CALL assert_true(ROW_COUNT() = 1, 'D2: Same serial number allowed in another organization');
 
 -- =========================================================================
--- E. invoices — uq_invoices_number
+-- E. invoices — uq_invoices_org_number (numbers are unique per organization)
 -- =========================================================================
-INSERT INTO invoices (id, client_id, invoice_number, issue_date, due_date, total, status)
-VALUES (7000, 7000, 'INV-UQ-001', '2024-01-01', '2024-01-31', 100.00, 'draft');
+INSERT INTO invoices (id, organization_id, client_id, invoice_number, issue_date, due_date, total, status)
+VALUES (7000, 7000, 7000, 'INV-UQ-001', '2024-01-01', '2024-01-31', 100.00, 'draft');
 
-CALL assert_sql_error(NULL, 'INSERT INTO invoices (id, client_id, invoice_number, issue_date, due_date, total, status) VALUES (7001, 7000, ''INV-UQ-001'', ''2024-02-01'', ''2024-02-28'', 200.00, ''draft'')', 'E: Duplicate invoice number rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO invoices (id, organization_id, client_id, invoice_number, issue_date, due_date, total, status) VALUES (7001, 7000, 7000, ''INV-UQ-001'', ''2024-02-01'', ''2024-02-28'', 200.00, ''draft'')', 'E: Duplicate invoice number rejected');
 
 -- =========================================================================
 -- F. ip_assignments — uq_ip_assignments_ip
@@ -110,20 +116,20 @@ VALUES (7000, 'test_unique_key', 'value1', 'Test');
 CALL assert_sql_error(NULL, 'INSERT INTO settings (id, setting_key, setting_value, description) VALUES (7001, ''test_unique_key'', ''value2'', ''Test'')', 'I: Duplicate settings key rejected');
 
 -- =========================================================================
--- J. quotes — uq_quotes_number
+-- J. quotes — uq_quotes_org_number
 -- =========================================================================
-INSERT INTO quotes (id, client_id, quote_number, issue_date, total, status)
-VALUES (7000, 7000, 'QT-UQ-001', '2024-01-01', 100.00, 'draft');
+INSERT INTO quotes (id, organization_id, client_id, quote_number, issue_date, total, status)
+VALUES (7000, 7000, 7000, 'QT-UQ-001', '2024-01-01', 100.00, 'draft');
 
-CALL assert_sql_error(NULL, 'INSERT INTO quotes (id, client_id, quote_number, issue_date, total, status) VALUES (7001, 7000, ''QT-UQ-001'', ''2024-02-01'', 200.00, ''draft'')', 'J: Duplicate quote number rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO quotes (id, organization_id, client_id, quote_number, issue_date, total, status) VALUES (7001, 7000, 7000, ''QT-UQ-001'', ''2024-02-01'', 200.00, ''draft'')', 'J: Duplicate quote number rejected');
 
 -- =========================================================================
--- K. credit_notes — uq_credit_notes_number
+-- K. credit_notes — uq_credit_notes_org_number
 -- =========================================================================
-INSERT INTO credit_notes (id, client_id, credit_note_number, issue_date, subtotal, tax_amount, total, reason, status)
-VALUES (7000, 7000, 'CN-UQ-001', '2024-01-01', 100.00, 0.00, 100.00, 'promotional_credit', 'draft');
+INSERT INTO credit_notes (id, organization_id, client_id, credit_note_number, issue_date, subtotal, tax_amount, total, reason, status)
+VALUES (7000, 7000, 7000, 'CN-UQ-001', '2024-01-01', 100.00, 0.00, 100.00, 'promotional_credit', 'draft');
 
-CALL assert_sql_error(NULL, 'INSERT INTO credit_notes (id, client_id, credit_note_number, issue_date, subtotal, tax_amount, total, reason, status) VALUES (7001, 7000, ''CN-UQ-001'', ''2024-02-01'', 50.00, 0.00, 50.00, ''promotional_credit'', ''draft'')', 'K: Duplicate credit note number rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO credit_notes (id, organization_id, client_id, credit_note_number, issue_date, subtotal, tax_amount, total, reason, status) VALUES (7001, 7000, 7000, ''CN-UQ-001'', ''2024-02-01'', 50.00, 0.00, 50.00, ''promotional_credit'', ''draft'')', 'K: Duplicate credit note number rejected');
 
 -- =========================================================================
 -- L. roles — uq_roles_name
@@ -133,12 +139,12 @@ INSERT INTO roles (id, name, description) VALUES (7000, 'test_unique_role', 'Tes
 CALL assert_sql_error(NULL, 'INSERT INTO roles (id, name, description) VALUES (7001, ''test_unique_role'', ''Dupe'')', 'L: Duplicate role name rejected');
 
 -- =========================================================================
--- M. inventory_items — uq_inventory_items_sku
+-- M. inventory_items — uq_inventory_items_org_sku (migration 490)
 -- =========================================================================
-INSERT INTO inventory_items (id, name, sku, category, unit, status)
-VALUES (7000, 'Item-A', 'SKU-UQ-001', 'router', 'unit', 'active');
+INSERT INTO inventory_items (id, organization_id, name, sku, category, unit, status)
+VALUES (7000, 7000, 'Item-A', 'SKU-UQ-001', 'router', 'unit', 'active');
 
-CALL assert_sql_error(NULL, 'INSERT INTO inventory_items (id, name, sku, category, unit, status) VALUES (7001, ''Item-B'', ''SKU-UQ-001'', ''switch'', ''unit'', ''active'')', 'M: Duplicate inventory item SKU rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO inventory_items (id, organization_id, name, sku, category, unit, status) VALUES (7001, 7000, ''Item-B'', ''SKU-UQ-001'', ''switch'', ''unit'', ''active'')', 'M: Duplicate inventory item SKU rejected');
 
 -- =========================================================================
 -- N. api_tokens — uq_api_tokens_hash
@@ -165,7 +171,7 @@ DELETE FROM vlans WHERE id IN (7000, 7001);
 DELETE FROM ip_assignments WHERE id IN (7000, 7001, 7002, 7003);
 DELETE FROM ip_pools WHERE id IN (7000, 7001);
 DELETE FROM invoices WHERE id IN (7000, 7001);
-DELETE FROM devices WHERE id IN (7000, 7001);
+DELETE FROM devices WHERE id IN (7000, 7001, 7002);
 DELETE FROM radius WHERE id IN (7000, 7001);
 DELETE FROM nas WHERE id IN (7000, 7001);
 DELETE FROM users WHERE id IN (7000, 7001);

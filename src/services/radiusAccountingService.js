@@ -6,6 +6,7 @@
 // provides CDR export and retention purge utilities.
 // =============================================================================
 
+const { csvCell } = require('../utils/csv');
 const crypto = require('crypto');
 const net = require('net');
 const db = require('../config/database');
@@ -1401,15 +1402,8 @@ async function exportCdr(opts) {
     const header = COLUMNS.join(',');
     const lines = rows.map((row) =>
       COLUMNS.map((col) => {
-        const val = row[col];
-        if (val === null || val === undefined) return '';
-        let str = String(val);
-        if (/^[\t\r\n =+\-@]/.test(str)) str = `'${str}`;
-        // RFC 4180: quote fields that contain commas, double-quotes, or newlines.
-        if (str.includes(',') || str.includes('"') || /[\r\n]/.test(str)) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
+        // utils/csv: RFC 4180 quoting plus formula neutralizing (TNA-25).
+        return csvCell(row[col]);
       }).join(','),
     );
     return { format: 'csv', csv: [header, ...lines].join('\n') };

@@ -9,6 +9,7 @@
 //   • csv  — flat CSV suitable for PROFECO's internal tracking spreadsheets
 // =============================================================================
 
+const { toCsv: sharedToCsv } = require('../utils/csv');
 const db = require('../config/database');
 
 // ---------------------------------------------------------------------------
@@ -16,23 +17,12 @@ const db = require('../config/database');
 // ---------------------------------------------------------------------------
 
 /**
- * Converts an array of plain objects to a CSV string.
- * Values containing commas, quotes, or newlines are quoted and escaped.
+ * Converts an array of plain objects to a CSV string. utils/csv quotes and
+ * escapes cells and neutralizes spreadsheet formulas (TNA-25): complaint text
+ * comes from subscribers.
  */
 function toCsv(rows) {
-  if (!rows.length) return '';
-  const headers = Object.keys(rows[0]);
-  const escape  = v => {
-    if (v === null || v === undefined) return '';
-    const s = String(v);
-    return (s.includes(',') || s.includes('"') || s.includes('\n'))
-      ? `"${s.replace(/"/g, '""')}"`
-      : s;
-  };
-  return [
-    headers.join(','),
-    ...rows.map(r => headers.map(h => escape(r[h])).join(',')),
-  ].join('\n');
+  return sharedToCsv(rows);
 }
 
 // ---------------------------------------------------------------------------

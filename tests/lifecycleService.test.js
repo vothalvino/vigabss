@@ -149,15 +149,25 @@ afterEach(() => jest.restoreAllMocks());
 // billingService.nextInvoiceNumber / migration 381)
 // =========================================================================
 describe('nextOrderNumber', () => {
-  /** Fresh mock transaction connection exposing both .execute() and .query(). */
+  /**
+   * Fresh mock transaction connection exposing both .execute() and .query().
+   * nextOrderNumber() reads back LAST_INSERT_ID() via conn.query() (a plain
+   * query, not a prepared .execute()), then checks the drawn number is not
+   * held by a live order (RTE-05). `ids` queues the sequence values and
+   * `held` lists the order numbers live orders already use.
+   */
   function makeSeqConn() {
-    return {
+    const conn = {
+      ids: [],
+      held: [],
       execute: jest.fn(),
-      // nextOrderNumber() reads back LAST_INSERT_ID() via conn.query() (a
-      // plain query, not a prepared .execute()) — separate mock queue from
-      // conn.execute, matching nextInvoiceNumber's contract exactly.
-      query: jest.fn().mockResolvedValue([[{ id: 1 }]]),
+      query: jest.fn(async (sql, params) => {
+        if (/LAST_INSERT_ID\(\) AS id/.test(sql)) return [[{ id: conn.ids.length ? conn.ids.shift() : 1 }]];
+        if (/FROM service_orders/.test(sql)) return [conn.held.includes(params[1]) ? [{ id: 99 }] : []];
+        return [[]];
+      }),
     };
+    return conn;
   }
 
   test('first-ever call for an org: INSERT IGNORE seeds the row, UPDATE advances it, returns SO-000001', async () => {
@@ -165,7 +175,7 @@ describe('nextOrderNumber', () => {
     conn.execute
       .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT IGNORE actually inserted (no prior row)
       .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE next_number
-    conn.query.mockResolvedValueOnce([[{ id: 1 }]]);
+    conn.ids.push(1);
 
     const result = await lifecycleService.nextOrderNumber(conn, 7);
 
@@ -187,10 +197,7 @@ describe('nextOrderNumber', () => {
   test('increments across repeated calls for the same org (no gaps, no reuse)', async () => {
     const conn = makeSeqConn();
     conn.execute.mockResolvedValue([{ affectedRows: 1 }]);
-    conn.query
-      .mockResolvedValueOnce([[{ id: 1 }]])
-      .mockResolvedValueOnce([[{ id: 2 }]])
-      .mockResolvedValueOnce([[{ id: 3 }]]);
+    conn.ids.push(1, 2, 3);
 
     const first = await lifecycleService.nextOrderNumber(conn, 7);
     const second = await lifecycleService.nextOrderNumber(conn, 7);
@@ -202,7 +209,7 @@ describe('nextOrderNumber', () => {
   test('uses sentinel 0 (not NULL) for a null orgId — single-tenant deployment bucket', async () => {
     const conn = makeSeqConn();
     conn.execute.mockResolvedValue([{ affectedRows: 1 }]);
-    conn.query.mockResolvedValueOnce([[{ id: 5 }]]);
+    conn.ids.push(5);
 
     const result = await lifecycleService.nextOrderNumber(conn, null);
 
@@ -213,17 +220,15 @@ describe('nextOrderNumber', () => {
     expect(conn.execute.mock.calls[1][1]).toEqual([0]);
   });
 
-  // Regression test for the bug this migration fixes: the OLD algorithm
+  // Regression test for the bug migration 384 fixed: the OLD algorithm
   // (`SELECT COUNT(*) FROM service_orders WHERE organization_id <=> ?` then
   // +1) could hand out an already-used number whenever the row count didn't
-  // track the highest issued sequence value. nextOrderNumber() is
-  // structurally immune: it never reads the `service_orders` table at all.
-  test('never queries the service_orders table — immune to the COUNT(*)-based reuse bug', async () => {
+  // track the highest issued sequence value. The number always comes from
+  // the sequence; service_orders is read only to skip a held number.
+  test('numbers come from the sequence, never from a COUNT(*) of service_orders', async () => {
     const conn = makeSeqConn();
     conn.execute.mockResolvedValue([{ affectedRows: 1 }]);
-    conn.query
-      .mockResolvedValueOnce([[{ id: 4 }]])
-      .mockResolvedValueOnce([[{ id: 5 }]]);
+    conn.ids.push(4, 5);
 
     const afterFirstOrder = await lifecycleService.nextOrderNumber(conn, 9);
     const afterCancelledAndSecondOrder = await lifecycleService.nextOrderNumber(conn, 9);
@@ -236,6 +241,31 @@ describe('nextOrderNumber', () => {
       expect(call[0]).not.toMatch(/FROM service_orders/i);
       expect(call[0]).toContain('organization_order_sequences');
     }
+    for (const [sql] of conn.query.mock.calls) expect(sql).not.toMatch(/COUNT\(\*\)/i);
+  });
+
+  // RTE-05: an order created with a caller-chosen SO-number used to make the
+  // sequence hand that number out again; the duplicate key rolled the advance
+  // back, so every later create failed on the same number.
+  test('skips a number a live order already holds, advancing in the same transaction', async () => {
+    const conn = makeSeqConn();
+    conn.execute.mockResolvedValue([{ affectedRows: 1 }]);
+    conn.ids.push(7, 8, 9);
+    conn.held.push('SO-000007', 'SO-000008');
+
+    await expect(lifecycleService.nextOrderNumber(conn, 3)).resolves.toBe('SO-000009');
+    const updates = conn.execute.mock.calls.filter(([sql]) => /UPDATE organization_order_sequences/.test(sql));
+    expect(updates).toHaveLength(3);
+    const checks = conn.query.mock.calls.filter(([sql]) => /FROM service_orders/.test(sql));
+    expect(checks.map(([, params]) => params)).toEqual([[3, 'SO-000007'], [3, 'SO-000008'], [3, 'SO-000009']]);
+    expect(checks[0][0]).toMatch(/deleted_at IS NULL/);
+  });
+
+  test('gives up with a 409 instead of looping when every drawn number is held', async () => {
+    const conn = makeSeqConn();
+    conn.execute.mockResolvedValue([{ affectedRows: 1 }]);
+    conn.query.mockImplementation(async (sql) => (/LAST_INSERT_ID/.test(sql) ? [[{ id: 1 }]] : [[{ id: 1 }]]));
+    await expect(lifecycleService.nextOrderNumber(conn, 3)).rejects.toMatchObject({ statusCode: 409 });
   });
 });
 

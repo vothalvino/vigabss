@@ -264,6 +264,13 @@ BEGIN
 
     -- Store result for shell script to pick up
     SET @__test_exit_code = IF(v_total_fail > 0, 1, 0);
+
+    -- Fail the mysql client: CI pipes each file into mysql, which exits
+    -- non-zero only on an SQL error, so without this a failed assertion left
+    -- the job green (DB-09).
+    IF v_total_fail > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'SQL test failures';
+    END IF;
 END$$
 
 DELIMITER ;

@@ -1,0 +1,30 @@
+# Ingress-only NetworkPolicy (OPS-17): HTTP from the ingress controller and
+# Prometheus namespaces only; SNMP traps (UDP) from anywhere, since the trap
+# Service keeps its own loadBalancerSourceRanges. Egress is not restricted:
+# devices, NAS, payment and fiscal providers live anywhere.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fireisp
+  namespace: fireisp
+  labels:
+    app.kubernetes.io/name: fireisp
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: fireisp
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: http
+          protocol: TCP
+    - ports:
+        - port: snmp-trap
+          protocol: UDP

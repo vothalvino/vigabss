@@ -7,6 +7,10 @@ metadata:
   labels:
     {{- include "fireisp.labels" . | nindent 4 }}
     app.kubernetes.io/component: storage
+  annotations:
+    # Uploaded documents and backups outlive the release: `helm uninstall`
+    # leaves this claim in place, as docs/deployment.md says (OPS-16).
+    helm.sh/resource-policy: keep
 spec:
   accessModes:
     - {{ .Values.persistence.accessMode }}

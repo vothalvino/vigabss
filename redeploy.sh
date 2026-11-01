@@ -546,6 +546,76 @@ install_deploy_agent() {
   fi
 }
 
+# Verify the pulled image's keyless cosign signature and pin the deploy to its
+# digest (OPS-08). A tag is mutable: whoever can push to the registry — or
+# re-point a tag — chose what this root script started. CI signs the
+# manifest-list digest in publish-manifest; this checks that signature came
+# from this repository's ci.yml on main or a v* tag, then hands Compose the
+# digest, so the image that starts is the one that was checked.
+#
+# VIGABSS_VERIFY_SIGNATURE (environment or .env.prod):
+#   auto      (default) verify when cosign is installed; warn when it is not
+#   required  refuse to deploy unless the signature verifies
+#   off       skip (e.g. rolling back to an image published before signing)
+VERIFY_SIGNATURE="${VIGABSS_VERIFY_SIGNATURE:-${FIREISP_VERIFY_SIGNATURE:-}}"
+COSIGN_IDENTITY_REGEXP='^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/(heads/main|tags/v.*)$'
+COSIGN_OIDC_ISSUER='https://token.actions.githubusercontent.com'
+
+resolve_verify_signature_mode() {
+  local line raw
+  if [[ -z "$VERIFY_SIGNATURE" && -f "$ENV_FILE" ]]; then
+    line="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?VIGABSS_VERIFY_SIGNATURE[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
+    raw="$(printf '%s\n' "$line" | cut -d= -f2- | sed -E 's/[[:space:]]*#.*$//' | tr -d '\r"'"'"' \t' | tr '[:upper:]' '[:lower:]')"
+    VERIFY_SIGNATURE="$raw"
+  fi
+  case "${VERIFY_SIGNATURE:-auto}" in
+    auto|required|off) VERIFY_SIGNATURE="${VERIFY_SIGNATURE:-auto}" ;;
+    *)
+      echo "    warning: VIGABSS_VERIFY_SIGNATURE=${VERIFY_SIGNATURE} is not auto, required or off — using required." >&2
+      VERIFY_SIGNATURE=required ;;
+  esac
+}
+
+verify_image_signature() {
+  local digest_ref
+  resolve_verify_signature_mode
+  digest_ref="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$VIGABSS_IMAGE" 2>/dev/null \
+    | grep -F "${REGISTRY_IMAGE}@sha256:" | head -n1 || true)"
+  if [[ -z "$digest_ref" ]]; then
+    if [[ "$VERIFY_SIGNATURE" == "required" ]]; then
+      echo "error: cannot resolve the registry digest of ${VIGABSS_IMAGE}, so its signature cannot be checked." >&2
+      return 1
+    fi
+    echo "    warning: no registry digest for ${VIGABSS_IMAGE}; deploying by tag, unverified." >&2
+    return 0
+  fi
+
+  if [[ "$VERIFY_SIGNATURE" == "off" ]]; then
+    echo "    warning: signature check is OFF (VIGABSS_VERIFY_SIGNATURE=off); deploying ${digest_ref} unverified." >&2
+  elif command -v cosign >/dev/null 2>&1; then
+    echo "==> Verifying the image signature"
+    if ! cosign verify \
+        --certificate-oidc-issuer "$COSIGN_OIDC_ISSUER" \
+        --certificate-identity-regexp "$COSIGN_IDENTITY_REGEXP" \
+        "$digest_ref" >/dev/null; then
+      echo "error: ${digest_ref} is not signed by this repository's CI (ci.yml on main or a v* tag). Not deploying it." >&2
+      echo "       To roll back to an image published before signing, set VIGABSS_VERIFY_SIGNATURE=off in .env.prod for that run." >&2
+      return 1
+    fi
+    echo "    signature verified"
+  elif [[ "$VERIFY_SIGNATURE" == "required" ]]; then
+    echo "error: VIGABSS_VERIFY_SIGNATURE=required but cosign is not installed (https://docs.sigstore.dev/cosign/system_config/installation/)." >&2
+    return 1
+  else
+    echo "    warning: cosign is not installed, so the image signature was NOT checked. Install cosign, or set VIGABSS_VERIFY_SIGNATURE=required once it is." >&2
+  fi
+
+  # Deploy by digest: the image Compose starts is the one just checked.
+  export VIGABSS_IMAGE="$digest_ref"
+  export FIREISP_IMAGE="$digest_ref"
+  echo "    deploying ${digest_ref}"
+}
+
 # Sourced by tests to get the functions above without running a deploy.
 if [[ "${VIGABSS_LIB_ONLY:-${FIREISP_LIB_ONLY:-0}}" == "1" ]]; then
   return 0 2>/dev/null || exit 0
@@ -769,6 +839,20 @@ EOF
   exit 1
 fi
 
+verify_image_signature || exit 1
+
+# Only `app` was pulled above, and `dc up -d` fetches only missing images, so a
+# floating third-party tag stayed at whatever install.sh first pulled (OPS-12).
+# The compose files now pin each by version and digest, so this is normally a
+# no-op; it still refreshes any image an operator re-tagged by hand. A failed
+# pull of a supporting image keeps the copy already on disk.
+echo "==> Refreshing the supporting images"
+mapfile -t SUPPORT_SERVICES < <(dc config --services 2>/dev/null | grep -vx -e app -e wireguard-helper || true)
+if (( ${#SUPPORT_SERVICES[@]} )); then
+  dc pull --quiet --ignore-pull-failures "${SUPPORT_SERVICES[@]}" \
+    || echo "    warning: could not refresh every supporting image; continuing with the local copies" >&2
+fi
+
 echo "==> Preparing database and Redis dependencies"
 dc up -d db-primary redis
 
@@ -780,6 +864,20 @@ dc up -d db-primary redis
 # this short, explicit maintenance window.
 echo "==> Stopping and draining the previous application before migration"
 dc stop -t 30 app
+
+# Migrations are forward-only, and nothing used to dump the databases first: a
+# migration that failed halfway left the app down with only last night's
+# backup, which did not cover isolated tenant databases (OPS-14). Dump every
+# database with a pending migration now, into the storage volume; if that
+# fails, nothing has changed yet, so the previous app comes back up.
+echo "==> Backing up the databases before migrating"
+if ! dc run --rm -T -e MIGRATE_ISOLATED_TENANTS=true app node src/scripts/preMigrationBackup.js; then
+  echo "error: the pre-migration backup failed, so nothing was migrated. Restarting the previous app." >&2
+  dc start app || true
+  echo "       Fix the backup (free space in the storage volume, database credentials), then rerun sudo redeploy." >&2
+  echo "       To migrate without a backup, set PRE_MIGRATION_BACKUP=0 in .env.prod for that one run." >&2
+  exit 1
+fi
 
 # Run the NEW image's migrations while no application writer/listener is live.
 # `docker compose run` does not publish HTTP/RADIUS/SNMP ports. On failure the

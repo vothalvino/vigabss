@@ -146,6 +146,12 @@ router.post('/transactions', requirePermission('inventory.create'), validate(cre
     let { stock_id } = req.body;
     const { transaction_type, quantity, unit_price, job_id, client_id, invoice_id, reference, notes, item_id, warehouse_id } = req.body;
 
+    if (transaction_type === 'adjustment' && !(Number(quantity) !== 0 && Number.isInteger(Number(quantity)))) {
+      throw new ValidationError('An adjustment needs a non-zero whole quantity: positive to add stock, negative to remove it', [
+        { field: 'quantity', message: 'Must be a non-zero integer' },
+      ]);
+    }
+
     await conn.beginTransaction();
 
     if (!stock_id) {
@@ -200,16 +206,24 @@ router.post('/transactions', requirePermission('inventory.create'), validate(cre
       if (!stockRow) throw new NotFoundError('Stock location');
     }
 
+    // Typed movements carry their direction in the type, so the magnitude is
+    // used; an adjustment is a correction whose sign is the direction (+N found
+    // in a count, -N missing). It used to subtract |N| whatever the sign, so a
+    // positive correction lowered stock while the ledger recorded +N (TNA-34).
+    const isInbound = ['receive', 'transfer_in', 'return'].includes(transaction_type);
+    const quantityChange = transaction_type === 'adjustment'
+      ? Number(quantity)
+      : (isInbound ? Math.abs(quantity) : -Math.abs(quantity));
+    const ledgerQuantity = transaction_type === 'adjustment' ? quantityChange : quantity;
+
     const [result] = await conn.query(
       `INSERT INTO inventory_transactions (stock_id, transaction_type, quantity, unit_price, job_id, client_id, invoice_id, performed_by, reference, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [stock_id, transaction_type, quantity, unit_price || null, job_id || null,
+      [stock_id, transaction_type, ledgerQuantity, unit_price || null, job_id || null,
         client_id || null, invoice_id || null, req.user?.id || null, reference || null, notes || null],
     );
 
     // Update stock quantity
-    const isInbound = ['receive', 'transfer_in', 'return'].includes(transaction_type);
-    const quantityChange = isInbound ? Math.abs(quantity) : -Math.abs(quantity);
 
     await conn.query(
       'UPDATE inventory_stock SET quantity = quantity + ? WHERE id = ?',

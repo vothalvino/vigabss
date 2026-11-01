@@ -1,0 +1,32 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- /*
+Without a NetworkPolicy any pod in the cluster could reach the app's HTTP port
+directly, around the ingress (OPS-17). PSA labels for a chart-created namespace
+are in namespace.yaml; label an existing namespace yourself.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "fireisp.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "fireisp.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "fireisp.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- range (concat .Values.networkPolicy.ingressNamespaces .Values.networkPolicy.metricsNamespaces) }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . | quote }}
+        {{- end }}
+      ports:
+        - port: http
+          protocol: TCP
+    - ports:
+        - port: snmp-trap
+          protocol: UDP
+{{- end }}

@@ -982,6 +982,7 @@ async function markTaskRun(taskName, result = null, options = {}) {
   // Column is `last_status` ENUM('success','failed','running','skipped','timed_out')
   // — there is no `status` column and no 'completed' value (database/schema.sql).
   const status = completionStatus(result);
+  require('../utils/opsMetrics').noteTaskRun(taskName, status);
   if (options.taskId !== undefined && options.taskId !== null) {
     await db.query(
       `UPDATE scheduled_tasks

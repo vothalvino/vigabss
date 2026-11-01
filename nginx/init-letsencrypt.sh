@@ -106,11 +106,33 @@ ensure_tls_bootstrap_certificate() {
 
 # Restore the production nginx.conf if we swapped in the bootstrap one.
 # Idempotent — safe to call multiple times and from the EXIT trap.
+#
+# The content is written back INTO the existing file. The nginx container
+# bind-mounts nginx.conf by inode; `mv` put the production config in a new
+# inode while the bootstrap container kept serving the ACME-only one, so after
+# a failed Let's Encrypt attempt port 80 answered 404 and nothing listened on
+# 443 until someone recreated nginx by hand (SUP-05).
 restore_nginx_conf() {
   if [[ -f "$NGINX_CONF_BACKUP" ]]; then
-    mv -f "$NGINX_CONF_BACKUP" "$NGINX_CONF"
+    cat "$NGINX_CONF_BACKUP" > "$NGINX_CONF"
+    rm -f "$NGINX_CONF_BACKUP"
     log "Restored production nginx.conf."
   fi
+}
+
+# On a failed bootstrap, stop and remove the nginx container this script
+# started with the ACME-only config, so the next `up` creates it afresh with
+# the production config instead of leaving it running unchanged (SUP-05).
+BOOTSTRAP_NGINX_STARTED=0
+on_bootstrap_exit() {
+  local code=$?
+  restore_nginx_conf
+  if (( code != 0 && BOOTSTRAP_NGINX_STARTED )); then
+    log "Removing the bootstrap nginx container after the failed attempt ..."
+    $DOCKER_COMPOSE_CMD rm -sf nginx >/dev/null 2>&1 \
+      || echo "[WARN] Could not remove the bootstrap nginx container; run: $DOCKER_COMPOSE_CMD up -d --force-recreate nginx" >&2
+  fi
+  return "$code"
 }
 
 # ── Pre-flight checks ─────────────────────────────────────────────────────────
@@ -219,13 +241,14 @@ else
 # config even if this script aborts unexpectedly.
 log "Swapping in bootstrap nginx config ..."
 cp "$NGINX_CONF" "$NGINX_CONF_BACKUP"
-trap 'restore_nginx_conf' EXIT
-cp "$BOOTSTRAP_CONF" "$NGINX_CONF"
+trap on_bootstrap_exit EXIT
+cat "$BOOTSTRAP_CONF" > "$NGINX_CONF"
 
 # Use --no-deps so Docker Compose does not pull in the app/db/redis chain,
 # and --force-recreate so nginx picks up the swapped config if a previous
 # (failed) bootstrap left a container running with the old conf mounted.
 log "Starting nginx with bootstrap config ..."
+BOOTSTRAP_NGINX_STARTED=1
 $DOCKER_COMPOSE_CMD up --no-deps -d --force-recreate nginx
 sleep 3  # give nginx a moment to accept connections
 

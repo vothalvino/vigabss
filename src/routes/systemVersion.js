@@ -84,6 +84,10 @@ router.get('/version', installOperatorOnly, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// The agent's systemd unit stops a deploy at TimeoutStartSec=3600; a row still
+// 'running' past this has no process behind it (deploy-agent.sh uses the same).
+const STALE_DEPLOY_MINUTES = 65;
+
 /**
  * Newest request plus agent liveness.
  *
@@ -148,6 +152,21 @@ router.post('/deploy', installOperatorOnly, async (req, res, next) => {
           message: 'No deploy agent has checked in. Install the systemd timer on the host, or deploy from the CLI with `sudo redeploy`.',
         },
       });
+    }
+
+    // A row still 'running' past the agent's timeout will never report back
+    // (the process was killed, the host rebooted). It used to block this
+    // endpoint for good, because the agent swept stale rows only after a
+    // claim it could no longer make (SUP-06). Fail it here as well.
+    if (state.request?.status === 'running') {
+      const [swept] = await db.query(
+        `UPDATE deploy_requests
+            SET status = 'failed', finished_at = NOW(), exit_code = -1,
+                output_tail = 'Deploy did not report a result within one hour; marked failed when a new deploy was requested.'
+          WHERE id = ? AND status = 'running' AND started_at < NOW() - INTERVAL ${STALE_DEPLOY_MINUTES} MINUTE`,
+        [state.request.id],
+      );
+      if (swept.affectedRows === 1) state.request.status = 'failed';
     }
 
     // One at a time. Two concurrent redeploys on one host is not a state worth
