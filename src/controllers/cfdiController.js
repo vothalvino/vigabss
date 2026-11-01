@@ -50,7 +50,7 @@ async function stamp(req, res, next) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'CFDI document not found' } });
     }
 
-    const result = await cfdiService.stamp(cfdi_document_id);
+    const result = await cfdiService.stamp(cfdi_document_id, { userId: req.user?.id ?? null });
     res.json({ data: result });
   } catch (err) {
     next(err);
@@ -73,7 +73,7 @@ async function cancel(req, res, next) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'CFDI document not found' } });
     }
 
-    const result = await cfdiService.cancel(cfdi_document_id, reason, replacement_uuid);
+    const result = await cfdiService.cancel(cfdi_document_id, reason, replacement_uuid, { userId: req.user?.id ?? null });
     res.json({ data: result });
   } catch (err) {
     next(err);
