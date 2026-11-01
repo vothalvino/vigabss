@@ -6,6 +6,7 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
+const { mapTileOrigins } = require('./utils/mapTileOrigins');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
 const { AppError } = require('./utils/errors');
@@ -234,12 +235,14 @@ app.use((_req, res, next) => {
 
 app.use((req, res, next) => {
   const nonce = res.locals.cspNonce;
+  // Map tiles are cross-origin images from the configured tile server (FE-11).
+  const tileOrigins = mapTileOrigins();
   helmet.contentSecurityPolicy({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", `'nonce-${nonce}'`],
-      imgSrc: ["'self'", 'data:'],
+      imgSrc: ["'self'", 'data:', ...tileOrigins],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
