@@ -51,7 +51,6 @@ interface ApSector {
   tx_power_dbm: number | null;
   encryption: string | null;
   max_clients: number | null;
-  status: string;
   notes: string | null;
 }
 
@@ -69,20 +68,21 @@ interface ApSectorBody {
   tx_power_dbm?: number;
   encryption?: string;
   max_clients?: number;
-  status?: string;
   notes?: string;
 }
 
 interface WirelessClient {
   id: number;
   ap_device_id: number;
-  client_mac: string;
+  // Column names of wireless_client_stats (FE2-06): the page read client_mac,
+  // ccq_percent and last_seen, which the API never returns.
+  mac_address: string;
   signal_dbm: number | null;
   snr_db: number | null;
-  ccq_percent: number | null;
+  ccq_pct: number | null;
   distance_m: number | null;
   tx_rate_mbps: number | null;
-  last_seen: string | null;
+  last_seen_at: string | null;
 }
 
 interface WirelessClientsResponse {
@@ -169,8 +169,8 @@ interface InterferenceBody {
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 25;
-const ENCRYPTION_OPTIONS = ['none', 'wpa2', 'wpa3', 'wpa2_enterprise', 'wpa3_enterprise'];
-const SECTOR_STATUSES = ['active', 'inactive', 'planned', 'decommissioned'];
+// The values ap_sector_configs.encryption and its validator accept (FE2-06).
+const ENCRYPTION_OPTIONS = ['none', 'wpa2', 'wpa3', 'mixed'];
 const PLAN_STATUSES = ['active', 'inactive', 'draft'];
 const COMMAND_TYPES = ['power_adjust', 'frequency_change', 'channel_change', 'reboot', 'scan', 'other'];
 const INTERFERENCE_LEVELS = ['low', 'medium', 'high', 'critical'];
@@ -405,10 +405,10 @@ export function WirelessManagementPage() {
           tx_power_dbm: ap.tx_power_dbm ?? undefined,
           encryption: ap.encryption ?? 'none',
           max_clients: ap.max_clients ?? undefined,
-          status: ap.status,
           notes: ap.notes ?? '',
         }
-      : { encryption: 'none', status: 'active' });
+      // ap_sector_configs has no status column: sending one made every create 500 (FE2-06).
+      : { encryption: 'none' });
     setApErr('');
     setShowApModal(true);
   }
@@ -604,13 +604,12 @@ export function WirelessManagementPage() {
                       <th style={styles.thNum}>{t('wirelessManagement.apSectors.txPower')}</th>
                       <th style={styles.th}>{t('wirelessManagement.apSectors.encryption')}</th>
                       <th style={styles.thNum}>{t('wirelessManagement.apSectors.maxClients')}</th>
-                      <th style={styles.th}>{t('wirelessManagement.apSectors.status')}</th>
                       <th style={styles.th}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {apQ.data.data.length === 0 && (
-                      <tr><td colSpan={10} style={styles.msg}>{t('wirelessManagement.apSectors.noItems')}</td></tr>
+                      <tr><td colSpan={9} style={styles.msg}>{t('wirelessManagement.apSectors.noItems')}</td></tr>
                     )}
                     {apQ.data.data.map(ap => (
                       <>
@@ -623,11 +622,6 @@ export function WirelessManagementPage() {
                           <td style={styles.tdNum}>{ap.tx_power_dbm !== null ? `${ap.tx_power_dbm}` : '—'}</td>
                           <td style={styles.td}>{ap.encryption ?? '—'}</td>
                           <td style={styles.tdNum}>{ap.max_clients ?? '—'}</td>
-                          <td style={styles.td}>
-                            <span style={{ color: ap.status === 'active' ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
-                              {ap.status}
-                            </span>
-                          </td>
                           <td style={styles.td}>
                             <button
                               style={styles.actionBtn}
@@ -676,13 +670,13 @@ export function WirelessManagementPage() {
                                   <tbody>
                                     {clientsQ.data.data.map(c => (
                                       <tr key={c.id} style={styles.tr}>
-                                        <td style={styles.tdMono}>{c.client_mac}</td>
+                                        <td style={styles.tdMono}>{c.mac_address}</td>
                                         <td style={styles.tdNum}>{c.signal_dbm !== null ? `${c.signal_dbm}` : '—'}</td>
                                         <td style={styles.tdNum}>{c.snr_db !== null ? `${c.snr_db}` : '—'}</td>
-                                        <td style={styles.tdNum}>{c.ccq_percent !== null ? `${c.ccq_percent}` : '—'}</td>
+                                        <td style={styles.tdNum}>{c.ccq_pct !== null ? `${c.ccq_pct}` : '—'}</td>
                                         <td style={styles.tdNum}>{c.distance_m !== null ? `${c.distance_m}` : '—'}</td>
                                         <td style={styles.tdNum}>{c.tx_rate_mbps !== null ? `${c.tx_rate_mbps}` : '—'}</td>
-                                        <td style={styles.td}>{fmtDate(c.last_seen)}</td>
+                                        <td style={styles.td}>{fmtDate(c.last_seen_at)}</td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -1036,16 +1030,6 @@ export function WirelessManagementPage() {
                   value={apForm.max_clients ?? ''}
                   onChange={e => setApForm(f => ({ ...f, max_clients: e.target.value ? Number(e.target.value) : undefined }))}
                 />
-              </label>
-              <label style={modalStyles.label}>
-                {t('wirelessManagement.apSectors.status')}
-                <select
-                  style={modalStyles.select}
-                  value={apForm.status ?? 'active'}
-                  onChange={e => setApForm(f => ({ ...f, status: e.target.value }))}
-                >
-                  {SECTOR_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
               </label>
               <label style={modalStyles.label}>
                 {t('wirelessManagement.notes')}
