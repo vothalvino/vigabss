@@ -63,14 +63,18 @@ SET @cnt = 0;
 SELECT COUNT(*) INTO @cnt FROM role_permissions;
 CALL assert_true(@cnt > 0, 'C1: Role-permission mappings seeded');
 
--- Admin should have all permissions
+-- Admin has every permission except the platform-level ones migration 377
+-- reserves for super_admin (organizations.create/delete, roles.manage).
 SET @admin_perms = 0;
 SET @total_perms = 0;
+SET @platform_perms = 0;
 SELECT COUNT(*) INTO @total_perms FROM permissions;
+SELECT COUNT(*) INTO @platform_perms FROM permissions
+WHERE name IN ('organizations.create', 'organizations.delete', 'roles.manage');
 SELECT COUNT(*) INTO @admin_perms FROM role_permissions rp
 JOIN roles r ON r.id = rp.role_id
 WHERE r.name = 'admin';
-CALL assert_true(@admin_perms = @total_perms, 'C2: Admin role has all permissions');
+CALL assert_true(@admin_perms = @total_perms - @platform_perms, 'C2: Admin role has every permission except the platform-level ones (migration 377)');
 
 -- Readonly should have fewer permissions than admin
 SET @ro_perms = 0;
