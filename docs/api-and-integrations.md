@@ -77,6 +77,11 @@ Two receiver shapes per provider:
 | `POST /api/v1/payment-webhooks/stripe` (and `/conekta`) | `STRIPE_WEBHOOK_SECRET` / `CONEKTA_WEBHOOK_KEY` env var | all transactions (global) |
 | `POST /api/v1/payment-webhooks/stripe/{gatewayId}` (and `/conekta/{gatewayId}`) | that gateway's **Webhook Secret** (Settings → Payment Gateways) | only that gateway's org (multi-tenant) |
 
+Register **one** of these per provider account, not both. Each endpoint dedups
+events on its own, so an account sending to both delivers every event twice.
+Settlement is idempotent per transaction (the second delivery answers
+`already_reconciled`), but every event is processed and logged twice.
+
 **Recommended setup (multi-tenant / per-org, e.g. Stripe):**
 
 1. Settings → Payment Gateways → add or edit your Stripe gateway; enter the

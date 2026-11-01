@@ -560,6 +560,30 @@ describe('refund reversal of a reconciled gateway payment', () => {
     expect(state.ledger.filter((l) => l.entry_type === 'debit')).toHaveLength(1);
   });
 
+  // WHK-05: one provider account registered on both the env route (no org) and
+  // the per-gateway URL dedups each delivery separately, so the same event is
+  // processed twice. An unlinked (retry) capture used to settle a second
+  // invoice on the second pass.
+  test('the same event delivered to both endpoints posts one payment and settles one invoice', async () => {
+    addInvoice({ id: 900, issue_date: '2026-08-01' });
+    addInvoice({ id: 901, issue_date: '2026-09-01' });
+    addTx({ id: 1, gateway_status: 'pending', gateway_reference_id: 'pi_dual', amount: '500.00' });
+    const event = (organizationId) => ({
+      provider: 'stripe', providerEventId: 'evt_dual', eventType: 'payment_intent.succeeded', organizationId,
+      payload: { id: 'evt_dual', type: 'payment_intent.succeeded', data: { object: { id: 'pi_dual' } } },
+    });
+
+    const perGateway = await paymentGatewayService.handleWebhookEvent(event(ORG));
+    const envRoute = await paymentGatewayService.handleWebhookEvent(event(null));
+
+    expect(perGateway).toMatchObject({ status: 'processed', reconciliation: 'reconciled' });
+    expect(envRoute.reconciliation).toBe('already_reconciled');
+    expect(state.payments).toHaveLength(1);
+    expect(state.ledger.filter((l) => l.entry_type === 'credit')).toHaveLength(1);
+    expect(state.invoices.map((i) => [i.id, i.status])).toEqual([[900, 'paid'], [901, 'issued']]);
+    expect(state.transactions[0].settled_invoice_id).toBe(900);
+  });
+
   test('a refund after a reconciled event can never be resurrected by a redelivered success', async () => {
     addTx({ id: 1, gateway_status: 'refunded', gateway_reference_id: 'pi_x', payment_id: 555 });
     const r = await paymentGatewayService.handleWebhookEvent({
