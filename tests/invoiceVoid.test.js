@@ -181,9 +181,9 @@ describe('PATCH /invoices/:id — void', () => {
   });
 
   it('a non-void PATCH still goes through the generic update path', async () => {
-    Invoice.findByIdOrFail.mockResolvedValue({ id: 5, status: 'overdue', client_id: 9, invoice_number: 'INV-5', currency: 'USD' });
-    Invoice.update.mockResolvedValue({ id: 5, status: 'overdue' });
-    const res = await request(app).patch('/api/v1/invoices/5').send({ status: 'overdue' });
+    Invoice.findByIdOrFail.mockResolvedValue({ id: 5, status: 'issued', client_id: 9, invoice_number: 'INV-5', currency: 'USD' });
+    Invoice.update.mockResolvedValue({ id: 5, status: 'issued' });
+    const res = await request(app).patch('/api/v1/invoices/5').send({ status: 'issued' });
     expect(res.status).toBe(200);
     expect(ledgerInsert()).toBeFalsy();
     expect(ledgerZero()).toBeFalsy();

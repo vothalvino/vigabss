@@ -413,7 +413,10 @@ function AddInvoiceItemForm({ onAdd, pending, error }: AddInvoiceItemFormProps) 
 // 'cancelled' is deliberately absent: it means "CFDI cancelled at SAT" and is
 // set only by the SAT cancellation flow (the backend 422s a manual set).
 // 'void' stays listed because selecting it routes through the void flow.
-const INVOICE_STATUSES = ['draft', 'issued', 'paid', 'overdue', 'void'];
+// 'paid' and 'overdue' are not settable either: paid follows payment
+// allocation and overdue is derived from the due date (BIL-27). The invoice's
+// current status is still shown so the form opens on it.
+const INVOICE_STATUSES = ['draft', 'issued', 'void'];
 
 interface EditInvoiceModalProps {
   invoice: Invoice;
@@ -439,7 +442,10 @@ function EditInvoiceModal({ invoice, onClose, onSaved }: EditInvoiceModalProps) 
 
   const mutation = useMutation({
     mutationFn: () => {
-      const body: UpdateInvoiceBody = { status: form.status };
+      // Send status only when it changed, so editing a paid invoice's number or
+      // due date does not resubmit a status the API no longer accepts.
+      const body: UpdateInvoiceBody = {};
+      if (form.status !== invoice.status) body.status = form.status;
       if (form.invoice_number.trim()) body.invoice_number = form.invoice_number.trim();
       if (form.currency.trim()) body.currency = form.currency.trim();
       if (form.due_date) body.due_date = form.due_date;
@@ -471,6 +477,7 @@ function EditInvoiceModal({ invoice, onClose, onSaved }: EditInvoiceModalProps) 
             <div>
               <label style={labelStyle}>Status</label>
               <select style={inputStyle} value={form.status} onChange={e => setField('status', e.target.value)}>
+                {!INVOICE_STATUSES.includes(invoice.status) && <option value={invoice.status} disabled>{invoice.status}</option>}
                 {INVOICE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>

@@ -66593,11 +66593,7 @@
             "type": "string",
             "enum": [
               "draft",
-              "issued",
-              "paid",
-              "overdue",
-              "cancelled",
-              "void"
+              "issued"
             ]
           }
         },
@@ -66648,8 +66644,6 @@
             "enum": [
               "draft",
               "issued",
-              "paid",
-              "overdue",
               "cancelled",
               "void"
             ]
@@ -66696,8 +66690,6 @@
             "enum": [
               "draft",
               "issued",
-              "paid",
-              "overdue",
               "cancelled",
               "void"
             ]

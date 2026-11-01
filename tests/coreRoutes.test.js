@@ -958,16 +958,17 @@ describe('Invoice Routes — /api/invoices', () => {
       db.query
         .mockResolvedValueOnce([[mockInvoice]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([[{ ...mockInvoice, status: 'paid' }]])
+        .mockResolvedValueOnce([[{ ...mockInvoice, status: 'issued' }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
+      // 'paid' is set only by payment allocation (BIL-27); an edit may issue.
       const res = await request(app)
         .put('/api/invoices/1')
         .set('Authorization', `Bearer ${authToken}`)
-        .send({ status: 'paid' });
+        .send({ status: 'issued' });
 
       expect(res.status).toBe(200);
-      expect(res.body.data.status).toBe('paid');
+      expect(res.body.data.status).toBe('issued');
     });
   });
 
