@@ -88,18 +88,17 @@ describe('security hardening — integration', () => {
     mockCurrentUser = { id: 1, email: 'admin@test.com', role: 'admin', organizationId: 1 };
   });
 
-  test('POST /auth/register ignores a client-supplied role and organizationId', async () => {
+  // SEC-12: the public self-registration endpoint is gone. It created staff
+  // identities with no organization for any anonymous caller (and, before
+  // that, honoured a client-supplied role).
+  test.each(['/api/v1/auth/register', '/api/auth/register'])('POST %s is not reachable and creates no account', async (path) => {
     mockCurrentUser = null; // public route, no auth
     const res = await request(app)
-      .post('/api/v1/auth/register')
+      .post(path)
       .send({ firstName: 'E', lastName: 'V', email: 'evil@test.com', password: 'longpassword123', role: 'admin', organizationId: 1 });
 
-    expect(res.status).toBe(201);
-    expect(mockRegister).toHaveBeenCalledTimes(1);
-    const arg = mockRegister.mock.calls[0][0];
-    expect(arg).toEqual({ firstName: 'E', lastName: 'V', email: 'evil@test.com', password: 'longpassword123' });
-    expect(arg.role).toBeUndefined();
-    expect(arg.organizationId).toBeUndefined();
+    expect(res.status).toBe(404);
+    expect(mockRegister).not.toHaveBeenCalled();
   });
 
   test('users CRUD blocks a non-admin from assigning role:admin', async () => {

@@ -40,6 +40,9 @@
 const { WebSocketServer, WebSocket } = require('ws');
 const { verifyStaffAccessToken } = require('../utils/accessTokens');
 const logger = require('../utils/logger').child({ service: 'wsHub' });
+const { rejectOversizedPreAuth, PendingSockets } = require('./wsLimits');
+const realtimeAccess = require('./realtimeAccess');
+const { tokenVersionStale } = require('./sessionRevocation');
 const { registerWebSocketRoute } = require('./websocketUpgradeRouter');
 const {
   BROWSER_WS_PATH,
@@ -52,6 +55,8 @@ const {
 // Constants
 // ---------------------------------------------------------------------------
 
+// Browser hub frames are small JSON control messages (auth, subscribe).
+const MAX_PAYLOAD_BYTES = 16 * 1024;
 const AUTH_TIMEOUT_MS = 5000;
 const PING_INTERVAL_MS = 30000;
 const PONG_WAIT_MS = 10000;
@@ -104,7 +109,8 @@ class WsHub {
     // `upgrade` listener that sends HTTP 400 for a path mismatch; with both the
     // FireRelay agent tunnel and browser hub on one server, whichever listener
     // ran first rejected the other's path.
-    this._wss = new WebSocketServer({ noServer: true });
+    this._wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
+    this._pendingSockets = new PendingSockets();
     const wss = this._wss;
     this._unregisterUpgradeRoute = registerWebSocketRoute(
       httpServer,
@@ -173,7 +179,9 @@ class WsHub {
     if (!clients || clients.size === 0) return;
 
     const message = JSON.stringify({ type: 'event', event, data, channel });
+    const filtered = channel.endsWith(':notifications');
     for (const ws of clients) {
+      if (filtered && !(ws._grants && realtimeAccess.mayReceive(ws._grants, event, data))) continue;
       if (ws.readyState === WebSocket.OPEN) {
         try {
           ws.send(message);
@@ -191,6 +199,13 @@ class WsHub {
 
   _handleConnection(ws, req) {
     ws._authenticated = false;
+    // Cap the unauthenticated sockets one IP (and the server) may hold (SEC-16).
+    const releasePending = (this._pendingSockets || new PendingSockets()).admit(req.socket.remoteAddress);
+    if (!releasePending) {
+      ws.close(1013, 'Too many pending connections');
+      return;
+    }
+    ws._releasePending = releasePending;
     ws._orgId = null;
     // Keep the ambient credential only until the first auth attempt, and only
     // when a real browser supplied an explicitly allowed Origin.
@@ -207,6 +222,8 @@ class WsHub {
     }, AUTH_TIMEOUT_MS);
 
     ws.on('message', (raw) => {
+      // An auth message is a few hundred bytes; parse nothing larger before auth.
+      if (!ws._authenticated && rejectOversizedPreAuth(ws, raw)) return;
       let msg;
       try {
         msg = JSON.parse(raw.toString());
@@ -215,8 +232,18 @@ class WsHub {
         return;
       }
 
+      if (ws._authPending) return;
       if (!ws._authenticated) {
-        this._handleAuth(ws, msg, authTimer);
+        ws._authPending = true;
+        this._handleAuth(ws, msg, authTimer)
+          .catch((err) => {
+            logger.warn({ err: err.message }, 'WsHub: auth failed');
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'auth_fail', reason: 'Authentication failed' }));
+              ws.close(4003, 'Invalid token');
+            }
+          })
+          .finally(() => { ws._authPending = false; });
       } else {
         this._handleClientMessage(ws, msg);
       }
@@ -228,6 +255,7 @@ class WsHub {
 
     ws.on('close', () => {
       clearTimeout(authTimer);
+      releasePending();
       this._removeClient(ws);
     });
 
@@ -236,7 +264,7 @@ class WsHub {
     });
   }
 
-  _handleAuth(ws, msg, authTimer) {
+  async _handleAuth(ws, msg, authTimer) {
     if (!msg || typeof msg !== 'object' || msg.type !== 'auth' ||
         (msg.token !== undefined && typeof msg.token !== 'string')) {
       ws.send(JSON.stringify({ type: 'auth_fail', reason: 'Expected an authentication message' }));
@@ -282,8 +310,39 @@ class WsHub {
       return;
     }
 
+    // The JWT alone is not enough (SEC-09): resolve the account as
+    // authenticate() does — active, current token version (SEC-10), still a
+    // member of the organization — and the event slugs it holds.
+    const User = require('../models/User');
+    const { resolveOrgPrincipal } = require('./orgPrincipalService');
+    const user = await User.findById(payload.sub);
+    const principal = user && user.status === 'active' && !tokenVersionStale(payload.tv, user.token_version)
+      ? await resolveOrgPrincipal(user, orgId)
+      : null;
+    if (!principal) {
+      ws.send(JSON.stringify({ type: 'auth_fail', reason: 'Invalid or expired token' }));
+      ws.close(4003, 'Invalid token');
+      return;
+    }
+    ws._req = {
+      orgId,
+      user: {
+        id: user.id,
+        role: principal.authorizationRole,
+        membershipRole: principal.membershipRole,
+        organizationId: principal.organizationId,
+        isInstallOperator: principal.isInstallOperator,
+        isSuperAdmin: principal.isSuperAdmin,
+        hasGlobalOrganizationAccess: principal.hasGlobalOrganizationAccess,
+      },
+    };
+    ws._grants = await realtimeAccess.resolveGrants(ws._req);
+    ws._principal = { userId: user.id, tokenVersion: payload.tv };
+    if (ws.readyState !== WebSocket.OPEN) return;
+
     clearTimeout(authTimer);
     ws._authenticated = true;
+    if (ws._releasePending) ws._releasePending();
     ws._orgId = orgId;
     ws._lastPong = Date.now();
 
@@ -312,6 +371,15 @@ class WsHub {
 
     this._pingTimers.set(ws, pingTimer);
     this._scheduleExpiry(ws, expiresAt);
+
+    // Re-check the account while the socket stays open (SEC-09).
+    const revalidate = setInterval(() => {
+      realtimeAccess.stillAuthorized(ws._principal)
+        .then((ok) => { if (!ok && ws.readyState === WebSocket.OPEN) ws.close(4006, 'Session revoked'); })
+        .catch(err => logger.warn({ err: err.message }, 'WsHub: revalidation failed'));
+    }, realtimeAccess.REVALIDATE_MS);
+    if (revalidate.unref) revalidate.unref();
+    ws._revalidateTimer = revalidate;
   }
 
   /**
@@ -338,7 +406,8 @@ class WsHub {
 
   _handleClientMessage(ws, msg) {
     if (msg.type === 'subscribe') {
-      this._subscribe(ws, msg.channel);
+      this._subscribe(ws, msg.channel)
+        .catch(err => logger.warn({ err: err.message }, 'WsHub: subscribe failed'));
     } else if (msg.type === 'unsubscribe') {
       this._unsubscribe(ws, msg.channel);
     } else {
@@ -351,12 +420,31 @@ class WsHub {
    * @param {WebSocket} ws
    * @param {string} relativeChannel - e.g. "notifications", "ticket:42"
    */
-  _subscribe(ws, relativeChannel) {
+  async _subscribe(ws, relativeChannel) {
     const full = this._resolveChannel(ws._orgId, relativeChannel);
     if (!full) {
       ws.send(JSON.stringify({ type: 'error', reason: `Invalid channel: ${relativeChannel}` }));
       return;
     }
+    // Each channel needs its REST counterpart's slug, and a ticket channel the
+    // ticket itself (in the organization; billing needs view_billing) — SEC-09.
+    const ticket = TICKET_CHANNEL_RE.exec(relativeChannel);
+    const kind = ticket ? 'ticket' : relativeChannel;
+    let allowed = await realtimeAccess.mayJoinChannel(ws._req, kind);
+    if (allowed && ticket) {
+      const db = require('../config/database');
+      const { userHasPermission } = require('../middleware/rbac');
+      const [[row]] = await db.query(
+        'SELECT id, category FROM tickets WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+        [Number(ticket[1]), ws._orgId],
+      );
+      allowed = Boolean(row) && (row.category !== 'billing' || await userHasPermission(ws._req, 'tickets.view_billing'));
+    }
+    if (!allowed) {
+      ws.send(JSON.stringify({ type: 'error', reason: `Not permitted: ${relativeChannel}` }));
+      return;
+    }
+    if (ws.readyState !== WebSocket.OPEN || !this._clientChannels.has(ws)) return;
 
     if (!this._channels.has(full)) {
       this._channels.set(full, new Set());
@@ -406,6 +494,10 @@ class WsHub {
     }
 
     ws._cookieAccessToken = null;
+    if (ws._revalidateTimer) {
+      clearInterval(ws._revalidateTimer);
+      ws._revalidateTimer = null;
+    }
 
     const subs = this._clientChannels.get(ws);
     if (subs) {

@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api, tokenStore, authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 import { extractApiError } from '@/components/ClientFormModal';
 import { fetchAddonCatalog, fetchSellableInventoryItems, buildProductPickerEntries } from '@/api/addonCatalog';
 import { RecordPaymentModal } from '@/components/RecordPaymentModal';
@@ -755,6 +756,11 @@ export function InvoiceDetail() {
   // Stamp-later only exists for MX-locale orgs: in a global org an invoice is
   // simply an invoice, and no SAT affordances render at all.
   const isMxOrg = user?.organization_locale === 'MX';
+  // Each action shows only to holders of the slug its route checks (FE-13).
+  const canUpdate = can(user, 'invoices.update');
+  const canRecordPayment = can(user, 'payments.create');
+  const canStamp = can(user, 'cfdi_documents.create');
+  const canChangeCfdi = can(user, 'cfdi_documents.update');
   const [showPayment, setShowPayment] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showCancelCfdi, setShowCancelCfdi] = useState(false);
@@ -991,17 +997,19 @@ export function InvoiceDetail() {
 
             {/* Action buttons */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                onClick={() => sendEmailMutation.mutate()}
-                disabled={sendEmailMutation.isPending}
-                style={actionBtn('#2563eb')}
-              >
-                {sendEmailMutation.isPending ? 'Sending…' : '✉️ Send Email'}
-              </button>
+              {canUpdate && (
+                <button
+                  onClick={() => sendEmailMutation.mutate()}
+                  disabled={sendEmailMutation.isPending}
+                  style={actionBtn('#2563eb')}
+                >
+                  {sendEmailMutation.isPending ? 'Sending…' : '✉️ Send Email'}
+                </button>
+              )}
               <button onClick={handleDownloadPdf} style={actionBtn('#059669')}>
                 ⬇ Download PDF
               </button>
-              <button
+              {canUpdate && <button
                 onClick={() => setShowEdit(true)}
                 disabled={['void', 'cancelled'].includes(invoice.status)}
                 style={actionBtn('#6b7280')}
@@ -1010,8 +1018,8 @@ export function InvoiceDetail() {
                   : undefined}
               >
                 ✏️ Edit
-              </button>
-              <button
+              </button>}
+              {canRecordPayment && <button
                 onClick={() => setShowPayment(true)}
                 // Only payable statuses — a draft/cancelled invoice never
                 // appears in the payment modal's checklist, so opening it from
@@ -1021,8 +1029,8 @@ export function InvoiceDetail() {
                 style={actionBtn('var(--accent)')}
               >
                 💳 Record Payment
-              </button>
-              {isMxOrg && cfdiQ.isSuccess && (cfdiQ.data ?? []).length === 0 && ['issued', 'sent', 'overdue', 'paid'].includes(invoice.status) && (
+              </button>}
+              {canStamp && isMxOrg && cfdiQ.isSuccess && (cfdiQ.data ?? []).length === 0 && ['issued', 'sent', 'overdue', 'paid'].includes(invoice.status) && (
                 <button
                   onClick={() => setShowStamp(true)}
                   style={actionBtn('#047857')}
@@ -1031,7 +1039,7 @@ export function InvoiceDetail() {
                   📜 Stamp (SAT)
                 </button>
               )}
-              {isMxOrg && draftCfdi && !liveCfdi && (
+              {canStamp && isMxOrg && draftCfdi && !liveCfdi && (
                 <button
                   onClick={() => retryStampMutation.mutate(draftCfdi.id)}
                   disabled={retryStampMutation.isPending}
@@ -1043,7 +1051,7 @@ export function InvoiceDetail() {
                   {retryStampMutation.isPending ? 'Stamping…' : '🔁 Retry stamp (SAT)'}
                 </button>
               )}
-              {isMxOrg && draftCfdi && !liveCfdi && !Number(draftCfdi.stamp_ambiguous) && (
+              {canStamp && canChangeCfdi && isMxOrg && draftCfdi && !liveCfdi && !Number(draftCfdi.stamp_ambiguous) && (
                 <>
                   <button
                     onClick={() => rebuildDraftMutation.mutate(draftCfdi.id)}
@@ -1067,7 +1075,7 @@ export function InvoiceDetail() {
                   </button>
                 </>
               )}
-              {liveCfdi ? (
+              {liveCfdi ? (canChangeCfdi && (
                 // Stamped invoice: the CFDI is registered at SAT, so an internal
                 // void would leave it fiscally valid. The only way out is a SAT
                 // cancellation with a motivo (backend enforces this with 422
@@ -1082,7 +1090,7 @@ export function InvoiceDetail() {
                 >
                   {liveCfdi.sat_status === 'cancel_pending' ? '⏳ SAT cancel pending' : '✕ Cancel CFDI (SAT)'}
                 </button>
-              ) : (
+              )) : canUpdate && (
                 <button
                   onClick={handleVoid}
                   disabled={['void', 'cancelled'].includes(invoice.status) || voidMutation.isPending}
@@ -1178,7 +1186,7 @@ export function InvoiceDetail() {
                 quote_items), so items can be added but not edited/removed
                 once saved. Hidden once the invoice is terminal — a voided or
                 SAT-cancelled invoice cannot gain line items. */}
-            {!['void', 'cancelled'].includes(invoice.status) && (
+            {canUpdate && !['void', 'cancelled'].includes(invoice.status) && (
               <AddInvoiceItemForm
                 onAdd={(form) => addItemMutation.mutate(form)}
                 pending={addItemMutation.isPending}

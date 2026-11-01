@@ -7,6 +7,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { PaymentList } from '../PaymentList';
 
+// Payment row actions are gated per slug (FE-13); this suite drives them as an admin.
+vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: { id: 1, role: 'admin' } }) }));
+
 // ---------------------------------------------------------------------------
 // Mock API client + fetch
 // ---------------------------------------------------------------------------

@@ -69,6 +69,22 @@ async function assertMayChangeTaxExemption(old, req) {
   }
 }
 
+// POST /clients took tax_exempt from the body unchecked, so a holder of
+// clients.create without clients.tax_exemption could create an exempt client
+// (TNA-27). A new client starts non-exempt; setting it needs the same slug.
+async function assertMayCreateTaxExempt(req) {
+  const body = req.body || {};
+  const sets = (body.tax_exempt !== undefined && body.tax_exempt !== null && Boolean(body.tax_exempt) && body.tax_exempt !== '0')
+    || (typeof body.tax_exempt_reason === 'string' && body.tax_exempt_reason.trim() !== '');
+  if (!sets) return;
+  if (!await userHasPermission(req, 'clients.tax_exemption')) {
+    throw new AppError(
+      'Creating a tax-exempt client requires the clients.tax_exemption permission — it changes what the CFDI declares to SAT.',
+      403, 'TAX_EXEMPTION_FORBIDDEN',
+    );
+  }
+}
+
 // DAL-03: archiving (soft-deleting) a client used to leave everything running:
 // contracts kept their service and kept being invoiced, autopay kept charging
 // the saved card and late fees kept accruing — while the client was locked
@@ -117,6 +133,7 @@ async function assertClientCanBeArchived(client, req, exec) {
 
 const ctrl = crudController(Client, {
   cacheResource: 'clients',
+  beforeCreate: assertMayCreateTaxExempt,
   beforeUpdate: assertMayChangeTaxExemption,
   beforeDelete: assertClientCanBeArchived,
 });
@@ -398,7 +415,20 @@ router.put('/:id/portal-password', requirePermission('clients.update'), async (r
     if (!rows[0]) throw new NotFoundError('Client');
 
     await portalAuthService.setPassword(req.params.id, password);
-    res.json({ message: 'Portal password updated' });
+    // Portal login picks the account by password when an email is shared
+    // across clients (WHK-10): tell staff, so each account keeps a distinct
+    // password. The count spans the install — portal login does too.
+    const [[shared]] = await db.query(
+      `SELECT COUNT(*) AS n FROM clients c
+        JOIN clients me ON me.id = ?
+       WHERE c.email = me.email AND c.id <> me.id AND c.deleted_at IS NULL AND c.portal_password_hash IS NOT NULL`,
+      [req.params.id],
+    );
+    const others = Number(shared?.n || 0);
+    res.json({
+      message: 'Portal password updated',
+      ...(others > 0 ? { warning: `This email is also used by ${others} other portal account(s); give each a different password so login can tell them apart.` } : {}),
+    });
   } catch (err) { next(err); }
 });
 

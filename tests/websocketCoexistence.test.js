@@ -24,6 +24,19 @@ jest.mock('../src/config/firerelay', () => ({
   tunnelPingInterval: 60000,
 }));
 
+// The hub resolves the account behind the JWT (SEC-09): a valid, active member
+// with every realtime permission unless a test says otherwise.
+jest.mock('../src/models/User', () => ({
+  findById: jest.fn(async (id) => ({ id, status: 'active', role: 'admin', organization_id: 1, token_version: 0 })),
+}));
+jest.mock('../src/services/orgPrincipalService', () => ({
+  resolveOrgPrincipal: jest.fn(async (_user, orgId) => ({
+    authorizationRole: 'admin', membershipRole: 'admin', organizationId: orgId,
+    isInstallOperator: false, isSuperAdmin: false, hasGlobalOrganizationAccess: false,
+  })),
+}));
+jest.mock('../src/middleware/rbac', () => ({ userHasPermission: jest.fn(async () => true) }));
+
 const http = require('node:http');
 const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');

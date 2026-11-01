@@ -88,10 +88,27 @@ describe('portalAuthService.login()', () => {
     await expect(portalAuthService.login({ email: 'alice@example.com', password: 'wrong' }))
       .rejects.toMatchObject({ code: 'UNAUTHORIZED' });
 
+    // One atomic UPDATE: the database increments the counter (SEC-11).
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE clients SET portal_login_attempts'),
-      expect.any(Array),
+      expect.stringContaining('ELSE portal_login_attempts + 1 END'),
+      [5, 15, 1],
     );
+  });
+
+  test.each([
+    ['an inactive client', { status: 'inactive' }],
+    ['a client without portal access', { portal_password_hash: null }],
+    ['a locked account', { portal_locked_until: new Date(Date.now() + 600000) }],
+  ])('%s gets the generic message and no counter write (SEC-11)', async (_label, extra) => {
+    db.query.mockResolvedValueOnce([[{
+      id: 1, organization_id: 1, name: 'Alice', email: 'alice@example.com',
+      status: 'active', portal_password_hash: '$2a$12$x', portal_login_attempts: 0, portal_locked_until: null, ...extra,
+    }]]);
+    bcrypt.compare.mockResolvedValue(true);
+
+    await expect(portalAuthService.login({ email: 'alice@example.com', password: 'correct' }))
+      .rejects.toThrow('Invalid email or password');
+    expect(db.query.mock.calls.some(([sql]) => /UPDATE clients/.test(sql))).toBe(false);
   });
 
   test('locks account after MAX_ATTEMPTS failures', async () => {
@@ -316,19 +333,18 @@ describe('POST /portal/auth/password-reset/request', () => {
     expect(emailTransport.sendEmail).not.toHaveBeenCalled();
   });
 
-  test('duplicate email across organizations is treated as ambiguous with no token or email', async () => {
-    const crypto = require('crypto');
-    const randomBytes = jest.spyOn(crypto, 'randomBytes');
-    db.query.mockResolvedValueOnce([[
-      {
-        id: 20, organization_id: 1, name: 'Tenant One', email: 'shared@example.com',
-        status: 'active', portal_password_hash: '$2a$12$x',
-      },
-      {
-        id: 21, organization_id: 2, name: 'Tenant Two', email: 'shared@example.com',
-        status: 'active', portal_password_hash: '$2a$12$y',
-      },
-    ]]);
+  // WHK-10: a shared email used to be treated as a miss, so every account at
+  // the address was locked out of reset for good. Each eligible account now
+  // gets its own token and its own email, sent through its own organization;
+  // the response is the same generic message either way.
+  test('duplicate email across organizations sends each eligible account its own reset', async () => {
+    db.query
+      .mockResolvedValueOnce([[
+        { id: 20, organization_id: 1, name: 'Tenant One', email: 'shared@example.com', status: 'active', portal_password_hash: '$2a$12$x' },
+        { id: 21, organization_id: 2, name: 'Tenant Two', email: 'shared@example.com', status: 'active', portal_password_hash: '$2a$12$y' },
+        { id: 22, organization_id: 3, name: 'Gone', email: 'shared@example.com', status: 'inactive', portal_password_hash: '$2a$12$z' },
+      ]])
+      .mockResolvedValue([{ affectedRows: 1 }]);
 
     const res = await request(app)
       .post('/api/v1/portal/auth/password-reset/request')
@@ -336,13 +352,13 @@ describe('POST /portal/auth/password-reset/request', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.message).toContain('If that email exists');
-    expect(db.query).toHaveBeenCalledTimes(1);
-    expect(db.query.mock.calls[0][0]).toMatch(/WHERE email = \?[\s\S]*LIMIT 2/);
-    // Express may use crypto for request IDs; the reset service's token is the
-    // distinctive 32-byte call and must not be reached for an ambiguous email.
-    expect(randomBytes).not.toHaveBeenCalledWith(32);
-    expect(emailTransport.sendEmail).not.toHaveBeenCalled();
-    randomBytes.mockRestore();
+    expect(res.body.token).toBeUndefined();
+    const tokenWrites = db.query.mock.calls.filter(([sql]) => /SET portal_reset_token_hash/.test(sql));
+    expect(tokenWrites.map(([, p]) => [p[1], p[2]])).toEqual([[20, 1], [21, 2]]);
+    expect(tokenWrites[0][1][0]).not.toBe(tokenWrites[1][1][0]);
+    await new Promise(r => setTimeout(r, 0));
+    expect(emailTransport.sendEmail).toHaveBeenCalledTimes(2);
+    expect(emailTransport.sendEmail.mock.calls.map(([m]) => [m.clientId, m.organizationId])).toEqual([[20, 1], [21, 2]]);
   });
 
   test('known email, portal access never enabled (portal_password_hash NULL) — same generic message, no UPDATE, no email', async () => {
@@ -515,5 +531,44 @@ describe('portalAuth middleware', () => {
       done();
     });
     portalAuthenticate(req, {}, next);
+  });
+});
+
+// WHK-10: login picks the account by password among those sharing an email.
+describe('portal login with an email shared by several accounts', () => {
+  const account = (id, orgId, hash, extra = {}) => ({
+    id, organization_id: orgId, name: `Acct ${id}`, email: 'shared@example.com', status: 'active',
+    portal_password_hash: hash, portal_login_attempts: 0, portal_locked_until: null, portal_token_version: 0, ...extra,
+  });
+  beforeEach(() => {
+    db.query.mockReset();
+    jwt.sign.mockClear();
+    bcrypt.compare.mockImplementation(async (pw, hash) => hash === `hash-of-${pw}`);
+  });
+
+  test('logs in the one account whose password matches', async () => {
+    db.query
+      .mockResolvedValueOnce([[account(20, 1, 'hash-of-alpha'), account(21, 2, 'hash-of-bravo')]])
+      .mockResolvedValue([{ affectedRows: 1, insertId: 5 }]);
+    const result = await portalAuthService.login({ email: 'shared@example.com', password: 'bravo' });
+    expect(result.client.id).toBe(21);
+    expect(jwt.sign).toHaveBeenCalledWith(expect.objectContaining({ sub: 21, orgId: 2 }), expect.any(Buffer), expect.any(Object));
+  });
+
+  test('a password that matches two accounts stays ambiguous and fails closed', async () => {
+    db.query.mockResolvedValueOnce([[account(20, 1, 'hash-of-same'), account(21, 2, 'hash-of-same')]]);
+    await expect(portalAuthService.login({ email: 'shared@example.com', password: 'same' }))
+      .rejects.toThrow('Invalid email or password');
+    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO portal_refresh_tokens/.test(sql))).toBe(false);
+  });
+
+  test('a wrong password counts against every account it was tried on', async () => {
+    db.query
+      .mockResolvedValueOnce([[account(20, 1, 'hash-of-alpha'), account(21, 2, 'hash-of-bravo'), account(22, 3, null)]])
+      .mockResolvedValue([{ affectedRows: 1 }]);
+    await expect(portalAuthService.login({ email: 'shared@example.com', password: 'wrong' }))
+      .rejects.toThrow('Invalid email or password');
+    const counted = db.query.mock.calls.filter(([sql]) => /portal_login_attempts \+ 1/.test(sql)).map(([, p]) => p[2]);
+    expect(counted).toEqual([20, 21]);
   });
 });

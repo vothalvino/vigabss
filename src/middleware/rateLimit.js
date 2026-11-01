@@ -47,8 +47,27 @@ const isSessionPath = (req) => SESSION_PATH_RE.test((req.originalUrl || req.url 
 const COLLECTOR_PATH_RE = /^\/api(?:\/v1)?\/(?:radius\/accounting(?:\/tenant)?|connection-logs\/cgnat-attribution\/bindings\/ingest)\/?$/;
 const isCollectorPath = req => COLLECTOR_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
 
+/**
+ * Run a limiter at most once per request (SEC-13). A request can pass several
+ * mounts that apply the same limiter — app.use('/api/') plus a router mounted
+ * at '/', and every '/'-mounted router's own orgScope — and express-rate-limit
+ * counts each pass, so one request spent up to four units of the budget.
+ */
+function oncePerRequest(limiter, flag) {
+  const once = (req, res, next) => {
+    if (req[flag]) return next();
+    req[flag] = true;
+    return limiter(req, res, next);
+  };
+  if (typeof limiter.resetKey === 'function') once.resetKey = limiter.resetKey.bind(limiter);
+  return once;
+}
+
 /** General API rate limiter — configurable via RATE_LIMIT_API (default 1000). */
-const apiLimiter = makeLimiter(rl.api, undefined, { skip: req => isSessionPath(req) || isCollectorPath(req) });
+const apiLimiter = oncePerRequest(
+  makeLimiter(rl.api, undefined, { skip: req => isSessionPath(req) || isCollectorPath(req) }),
+  '_apiLimited',
+);
 
 /**
  * Session-keepalive endpoints — configurable via RATE_LIMIT_SESSION (default 240).
@@ -64,6 +83,13 @@ const sessionLimiter = makeLimiter(rl.session, 'Too many session requests, pleas
 
 /** Auth endpoints — configurable via RATE_LIMIT_AUTH (default 20). */
 const authLimiter = makeLimiter(rl.auth, 'Too many authentication attempts, please try again later');
+
+/**
+ * The subscriber portal's credential endpoints. A separate instance from
+ * authLimiter (same RATE_LIMIT_AUTH budget), so portal and staff logins from
+ * one address no longer drain each other's allowance (SEC-11).
+ */
+const portalAuthLimiter = makeLimiter(rl.auth, 'Too many authentication attempts, please try again later');
 
 /**
  * POST /auth/password-reset/request only — configurable via
@@ -370,7 +396,7 @@ async function checkBulkEmailDailyBudget(orgId, count, limit = rl.bulkEmailDaily
  *   RATE_LIMIT_TENANT_WINDOW_MS  (default 900000 = 15 min)
  *   RATE_LIMIT_TENANT_API        (default 500 requests per window)
  */
-const tenantApiLimiter = rateLimit({
+const tenantBucket = rateLimit({
   windowMs: rl.tenantWindowMs,
   max: rl.tenantApi,
   standardHeaders: 'draft-7',
@@ -380,9 +406,31 @@ const tenantApiLimiter = rateLimit({
   store: new CacheStore(),
 });
 
+// The tenant bucket is shared by every user and token of the organization, so
+// one busy script could spend it for everyone (SEC-13). Each principal — an
+// API token, else a user — also has its own sub-limit inside the tenant
+// (RATE_LIMIT_TENANT_PRINCIPAL_API, default half the tenant budget).
+const principalBucket = rateLimit({
+  windowMs: rl.tenantWindowMs,
+  max: rl.tenantPrincipalApi,
+  standardHeaders: false,
+  legacyHeaders: false,
+  message: RATE_LIMITED_BODY('Per-user API rate limit exceeded, please slow down'),
+  keyGenerator: (req) => (req.user?.apiTokenId
+    ? `tenant:${req.orgId}:token:${req.user.apiTokenId}`
+    : `tenant:${req.orgId}:user:${req.user?.id ?? 'anonymous'}`),
+  store: new CacheStore(),
+});
+
+const tenantApiLimiter = oncePerRequest(
+  (req, res, next) => tenantBucket(req, res, (err) => (err ? next(err) : principalBucket(req, res, next))),
+  '_tenantLimited',
+);
+
 module.exports = {
   apiLimiter,
   authLimiter,
+  portalAuthLimiter,
   passwordResetLimiter,
   verifyEmailResendLimiter,
   bulkEmailLimiter,

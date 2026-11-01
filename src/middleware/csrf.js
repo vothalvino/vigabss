@@ -67,7 +67,7 @@ const CSRF_HEADER        = 'x-csrf-token';
 // httpOnly `fireisp_access` cookie is still live — the browser attaches it
 // automatically, but the request legitimately has no CSRF token, so the cookie-based
 // CSRF gate below would 403 it. They carry no ambient authority a forged request
-// could abuse (login/register/reset read posted credentials; /refresh uses the
+// could abuse (login/reset read posted credentials; /refresh uses the
 // SameSite=Strict refresh cookie, unreachable cross-site), so exemption is safe.
 // Authenticated endpoints (/logout, /change-password, /switch-organization) are
 // intentionally NOT here: they keep CSRF defense-in-depth (and use Bearer in the SPA).
@@ -76,7 +76,6 @@ const CSRF_EXEMPT_SUFFIXES = [
   '/auth/login',
   // Second step of a 2FA login: reads a posted challenge token + code.
   '/auth/login/2fa',
-  '/auth/register',
   '/auth/refresh',
   '/auth/verify-email',
   '/auth/password-reset',
