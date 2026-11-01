@@ -16,7 +16,7 @@ services:
   # MySQL 8.4 — ephemeral, RAM-disk backed for speed
   # ---------------------------------------------------------------------------
   e2e-db:
-    image: mysql:8.4.9@sha256:c36050afdca850f23cef85703f84c7531a5ae155a11b5ee1c60acb09937c4084
+    image: mysql:26.10.0@sha256:7b16ec7caa94ca7e92f4c5ec287de69d2e8738db056ceb629022951a6f6d910b
     environment:
       MYSQL_ROOT_PASSWORD: e2epassword
       MYSQL_DATABASE: fireisp_e2e
