@@ -146,10 +146,12 @@ class User extends BaseModel {
    * unique key, and only for roles valid in the organization_users.role ENUM.
    */
   static async create(data) {
-    await User.resolveGroupMirror(data);
-    const user = await super.create(data);
-    await User.syncOrgMembership(user);
-    return user;
+    return runInPrimaryContext(async () => {
+      await User.resolveGroupMirror(data);
+      const user = await super.create(data);
+      await User.syncOrgMembership(user);
+      return user;
+    });
   }
 
   /**
@@ -164,28 +166,30 @@ class User extends BaseModel {
    * Mutates and returns `data`.
    */
   static async resolveGroupMirror(data) {
-    if (!data) return data;
-    const db = require('../config/database');
-    const { ValidationError } = require('../utils/errors');
+    return runInPrimaryContext(async () => {
+      if (!data) return data;
+      const db = require('../config/database');
+      const { ValidationError } = require('../utils/errors');
 
-    if (data.group_id !== undefined && data.group_id !== null) {
-      const [[group]] = await db.query(
-        'SELECT id, name, kind FROM roles WHERE id = ? AND deleted_at IS NULL LIMIT 1',
-        [data.group_id],
-      );
-      if (!group) throw new ValidationError('group_id does not reference an existing user group');
-      if (!group.kind) {
-        throw new ValidationError(`User group "${group.name}" has no kind — set its base persona before assigning it`);
+      if (data.group_id !== undefined && data.group_id !== null) {
+        const [[group]] = await db.query(
+          'SELECT id, name, kind FROM roles WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+          [data.group_id],
+        );
+        if (!group) throw new ValidationError('group_id does not reference an existing user group');
+        if (!group.kind) {
+          throw new ValidationError(`User group "${group.name}" has no kind — set its base persona before assigning it`);
+        }
+        data.role = group.kind;
+      } else if (data.role) {
+        const [[group]] = await db.query(
+          'SELECT id FROM roles WHERE name = ? AND is_system = TRUE AND deleted_at IS NULL LIMIT 1',
+          [data.role],
+        );
+        if (group) data.group_id = group.id;
       }
-      data.role = group.kind;
-    } else if (data.role) {
-      const [[group]] = await db.query(
-        'SELECT id FROM roles WHERE name = ? AND is_system = TRUE AND deleted_at IS NULL LIMIT 1',
-        [data.role],
-      );
-      if (group) data.group_id = group.id;
-    }
-    return data;
+      return data;
+    });
   }
 
   /**
@@ -195,14 +199,16 @@ class User extends BaseModel {
    * which is covered by the users.role permission fallback instead).
    */
   static async syncOrgMembership(user) {
-    if (!user || !user.organization_id || !user.role) return;
-    if (!ORG_MEMBERSHIP_ROLES.has(user.role)) return;
-    const db = require('../config/database');
-    await db.query(
-      `INSERT IGNORE INTO organization_users (organization_id, user_id, role)
-       VALUES (?, ?, ?)`,
-      [user.organization_id, user.id, user.role],
-    );
+    return runInPrimaryContext(async () => {
+      if (!user || !user.organization_id || !user.role) return;
+      if (!ORG_MEMBERSHIP_ROLES.has(user.role)) return;
+      const db = require('../config/database');
+      await db.query(
+        `INSERT IGNORE INTO organization_users (organization_id, user_id, role)
+         VALUES (?, ?, ?)`,
+        [user.organization_id, user.id, user.role],
+      );
+    });
   }
 
   /**
@@ -214,17 +220,19 @@ class User extends BaseModel {
    * checks status === 'active'.
    */
   static async delete(id, orgId = null) {
-    const db = require('../config/database');
-    const { NotFoundError } = require('../utils/errors');
-    let sql = "UPDATE users SET deleted_at = NOW(), status = 'inactive' WHERE id = ? AND deleted_at IS NULL";
-    const params = [id];
-    if (orgId !== null && this.hasOrgScope) {
-      sql += ' AND organization_id = ?';
-      params.push(orgId);
-    }
-    const [result] = await db.query(sql, params);
-    if (result.affectedRows === 0) throw new NotFoundError(this.tableName);
-    return true;
+    return runInPrimaryContext(async () => {
+      const db = require('../config/database');
+      const { NotFoundError } = require('../utils/errors');
+      let sql = "UPDATE users SET deleted_at = NOW(), status = 'inactive' WHERE id = ? AND deleted_at IS NULL";
+      const params = [id];
+      if (orgId !== null && this.hasOrgScope) {
+        sql += ' AND organization_id = ?';
+        params.push(orgId);
+      }
+      const [result] = await db.query(sql, params);
+      if (result.affectedRows === 0) throw new NotFoundError(this.tableName);
+      return true;
+    });
   }
 
   /**
@@ -390,19 +398,21 @@ class User extends BaseModel {
    * Bind order: [orgId (ou join), orgId (connected), slug, slug, orgId, slug].
    */
   static async getUsersWithPermission(organizationId, permissionSlug) {
-    const db = require('../config/database');
-    const [rows] = await db.query(`
-      SELECT DISTINCT u.id, u.first_name, u.last_name, u.email
-      FROM users u
-      LEFT JOIN organization_users ou
-        ON ou.user_id = u.id AND ou.organization_id = ? AND ou.deleted_at IS NULL
-      WHERE u.deleted_at IS NULL
-        AND u.status = 'active'
-        AND (u.organization_id = ? OR ou.id IS NOT NULL)
-        AND ${User.#EFFECTIVE_PERMISSION_PREDICATE}
-      ORDER BY u.first_name, u.last_name
-    `, [organizationId, organizationId, permissionSlug, permissionSlug, organizationId, permissionSlug]);
-    return rows;
+    return runInPrimaryContext(async () => {
+      const db = require('../config/database');
+      const [rows] = await db.query(`
+        SELECT DISTINCT u.id, u.first_name, u.last_name, u.email
+        FROM users u
+        LEFT JOIN organization_users ou
+          ON ou.user_id = u.id AND ou.organization_id = ? AND ou.deleted_at IS NULL
+        WHERE u.deleted_at IS NULL
+          AND u.status = 'active'
+          AND (u.organization_id = ? OR ou.id IS NOT NULL)
+          AND ${User.#EFFECTIVE_PERMISSION_PREDICATE}
+        ORDER BY u.first_name, u.last_name
+      `, [organizationId, organizationId, permissionSlug, permissionSlug, organizationId, permissionSlug]);
+      return rows;
+    });
   }
 
   /**
@@ -457,24 +467,26 @@ class User extends BaseModel {
    * branch), ...roles (legacy-role branch, UN-expanded)].
    */
   static async getStaffByEffectiveRole(organizationId, roles) {
-    const db = require('../config/database');
-    const membershipRoles = roles.includes('admin')
-      ? [...new Set([...roles, 'owner'])]
-      : roles;
-    const membershipPlaceholders = membershipRoles.map(() => '?').join(', ');
-    const legacyPlaceholders = roles.map(() => '?').join(', ');
-    const [rows] = await db.query(`
-      SELECT DISTINCT u.id, u.email, u.first_name
-      FROM users u
-      LEFT JOIN organization_users ou
-        ON ou.user_id = u.id AND ou.organization_id = ? AND ou.deleted_at IS NULL
-      WHERE u.status = 'active' AND u.deleted_at IS NULL
-        AND (
-          (ou.id IS NOT NULL AND ou.role IN (${membershipPlaceholders}))
-          OR (ou.id IS NULL AND u.organization_id = ? AND u.role IN (${legacyPlaceholders}))
-        )
-    `, [organizationId, ...membershipRoles, organizationId, ...roles]);
-    return rows;
+    return runInPrimaryContext(async () => {
+      const db = require('../config/database');
+      const membershipRoles = roles.includes('admin')
+        ? [...new Set([...roles, 'owner'])]
+        : roles;
+      const membershipPlaceholders = membershipRoles.map(() => '?').join(', ');
+      const legacyPlaceholders = roles.map(() => '?').join(', ');
+      const [rows] = await db.query(`
+        SELECT DISTINCT u.id, u.email, u.first_name
+        FROM users u
+        LEFT JOIN organization_users ou
+          ON ou.user_id = u.id AND ou.organization_id = ? AND ou.deleted_at IS NULL
+        WHERE u.status = 'active' AND u.deleted_at IS NULL
+          AND (
+            (ou.id IS NOT NULL AND ou.role IN (${membershipPlaceholders}))
+            OR (ou.id IS NULL AND u.organization_id = ? AND u.role IN (${legacyPlaceholders}))
+          )
+      `, [organizationId, ...membershipRoles, organizationId, ...roles]);
+      return rows;
+    });
   }
 
   /**
@@ -487,19 +499,21 @@ class User extends BaseModel {
    * Bind order: [orgId (ou join), userId, orgId (connected), slug, slug, orgId, slug].
    */
   static async hasEffectivePermission(userId, organizationId, permissionSlug) {
-    if (!userId) return false;
-    const db = require('../config/database');
-    const [rows] = await db.query(`
-      SELECT 1
-      FROM users u
-      LEFT JOIN organization_users ou
-        ON ou.user_id = u.id AND ou.organization_id = ? AND ou.deleted_at IS NULL
-      WHERE u.id = ? AND u.deleted_at IS NULL
-        AND (u.organization_id = ? OR ou.id IS NOT NULL)
-        AND ${User.#EFFECTIVE_PERMISSION_PREDICATE}
-      LIMIT 1
-    `, [organizationId, userId, organizationId, permissionSlug, permissionSlug, organizationId, permissionSlug]);
-    return rows.length > 0;
+    return runInPrimaryContext(async () => {
+      if (!userId) return false;
+      const db = require('../config/database');
+      const [rows] = await db.query(`
+        SELECT 1
+        FROM users u
+        LEFT JOIN organization_users ou
+          ON ou.user_id = u.id AND ou.organization_id = ? AND ou.deleted_at IS NULL
+        WHERE u.id = ? AND u.deleted_at IS NULL
+          AND (u.organization_id = ? OR ou.id IS NOT NULL)
+          AND ${User.#EFFECTIVE_PERMISSION_PREDICATE}
+        LIMIT 1
+      `, [organizationId, userId, organizationId, permissionSlug, permissionSlug, organizationId, permissionSlug]);
+      return rows.length > 0;
+    });
   }
 
   /**
@@ -508,18 +522,20 @@ class User extends BaseModel {
    * getPermissions for the rationale).
    */
   static async getOrgRole(userId, organizationId) {
-    const db = require('../config/database');
-    const [rows] = await db.query(
-      'SELECT role FROM organization_users WHERE user_id = ? AND organization_id = ? AND deleted_at IS NULL',
-      [userId, organizationId],
-    );
-    if (rows[0]) return rows[0].role;
+    return runInPrimaryContext(async () => {
+      const db = require('../config/database');
+      const [rows] = await db.query(
+        'SELECT role FROM organization_users WHERE user_id = ? AND organization_id = ? AND deleted_at IS NULL',
+        [userId, organizationId],
+      );
+      if (rows[0]) return rows[0].role;
 
-    const [fallback] = await db.query(
-      'SELECT role FROM users WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-      [userId, organizationId],
-    );
-    return fallback[0]?.role || null;
+      const [fallback] = await db.query(
+        'SELECT role FROM users WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+        [userId, organizationId],
+      );
+      return fallback[0]?.role || null;
+    });
   }
 
   /**
@@ -547,53 +563,55 @@ class User extends BaseModel {
    * mode this codebase keeps re-learning.
    */
   static async setUserOrganizations(userId, orgIds, membershipRole, allowedOrgIds = null) {
-    const db = require('../config/database');
-    const { ValidationError, ForbiddenError } = require('../utils/errors');
-    const ids = [...new Set((orgIds || []).map(Number).filter(Number.isInteger))];
-    if (ids.length === 0) {
-      throw new ValidationError('organization_ids must contain at least one organization');
-    }
-    if (allowedOrgIds !== null) {
-      const allowed = new Set(allowedOrgIds.map(Number));
-      const refused = ids.filter((id) => !allowed.has(id));
-      if (refused.length > 0) {
-        throw new ForbiddenError(
-          `You cannot grant access to organization(s) ${refused.join(', ')}.`,
+    return runInPrimaryContext(async () => {
+      const db = require('../config/database');
+      const { ValidationError, ForbiddenError } = require('../utils/errors');
+      const ids = [...new Set((orgIds || []).map(Number).filter(Number.isInteger))];
+      if (ids.length === 0) {
+        throw new ValidationError('organization_ids must contain at least one organization');
+      }
+      if (allowedOrgIds !== null) {
+        const allowed = new Set(allowedOrgIds.map(Number));
+        const refused = ids.filter((id) => !allowed.has(id));
+        if (refused.length > 0) {
+          throw new ForbiddenError(
+            `You cannot grant access to organization(s) ${refused.join(', ')}.`,
+          );
+        }
+      }
+      const role = ORG_MEMBERSHIP_ROLES.has(membershipRole) ? membershipRole : 'readonly';
+
+      // One upsert per org: the soft-delete-aware unique key (org, user,
+      // active_flag) only collides with an ACTIVE row, so this creates a fresh
+      // row when none is active and re-stamps the role (never demoting 'owner')
+      // when one is. Soft-deleted history rows are left untouched.
+      for (const orgId of ids) {
+        await db.query(
+          `INSERT INTO organization_users (organization_id, user_id, role)
+           VALUES (?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             role = IF(organization_users.role = 'owner', organization_users.role, VALUES(role))`,
+          [orgId, userId, role],
         );
       }
-    }
-    const role = ORG_MEMBERSHIP_ROLES.has(membershipRole) ? membershipRole : 'readonly';
 
-    // One upsert per org: the soft-delete-aware unique key (org, user,
-    // active_flag) only collides with an ACTIVE row, so this creates a fresh
-    // row when none is active and re-stamps the role (never demoting 'owner')
-    // when one is. Soft-deleted history rows are left untouched.
-    for (const orgId of ids) {
       await db.query(
-        `INSERT INTO organization_users (organization_id, user_id, role)
-         VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           role = IF(organization_users.role = 'owner', organization_users.role, VALUES(role))`,
-        [orgId, userId, role],
+        `UPDATE organization_users
+         SET deleted_at = NOW()
+         WHERE user_id = ? AND deleted_at IS NULL AND role != 'owner'
+           AND organization_id NOT IN (${ids.map(() => '?').join(',')})`,
+        [userId, ...ids],
       );
-    }
 
-    await db.query(
-      `UPDATE organization_users
-       SET deleted_at = NOW()
-       WHERE user_id = ? AND deleted_at IS NULL AND role != 'owner'
-         AND organization_id NOT IN (${ids.map(() => '?').join(',')})`,
-      [userId, ...ids],
-    );
-
-    // Home org must remain accessible; repoint it if it was deselected.
-    const [[u]] = await db.query(
-      'SELECT organization_id FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1',
-      [userId],
-    );
-    if (u && !ids.includes(Number(u.organization_id))) {
-      await db.query('UPDATE users SET organization_id = ? WHERE id = ?', [ids[0], userId]);
-    }
+      // Home org must remain accessible; repoint it if it was deselected.
+      const [[u]] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+        [userId],
+      );
+      if (u && !ids.includes(Number(u.organization_id))) {
+        await db.query('UPDATE users SET organization_id = ? WHERE id = ?', [ids[0], userId]);
+      }
+    });
   }
 
   /**
@@ -602,13 +620,15 @@ class User extends BaseModel {
    * membership role) agree with the new group. 'owner' rows are preserved.
    */
   static async refreshMembershipRoles(userId, kind) {
-    if (!ORG_MEMBERSHIP_ROLES.has(kind)) return;
-    const db = require('../config/database');
-    await db.query(
-      `UPDATE organization_users SET role = ?
-       WHERE user_id = ? AND deleted_at IS NULL AND role != 'owner'`,
-      [kind, userId],
-    );
+    return runInPrimaryContext(async () => {
+      if (!ORG_MEMBERSHIP_ROLES.has(kind)) return;
+      const db = require('../config/database');
+      await db.query(
+        `UPDATE organization_users SET role = ?
+         WHERE user_id = ? AND deleted_at IS NULL AND role != 'owner'`,
+        [kind, userId],
+      );
+    });
   }
 
   /**
@@ -616,33 +636,37 @@ class User extends BaseModel {
    * last-admin lockout guard for group changes and deletions.
    */
   static async countOtherAdminKindUsers(organizationId, excludeUserId) {
-    const db = require('../config/database');
-    const [[row]] = await db.query(
-      `SELECT COUNT(*) AS cnt
-       FROM users u
-       WHERE u.deleted_at IS NULL AND u.status = 'active' AND u.role = 'admin'
-         AND u.id != ?
-         AND (u.organization_id = ? OR EXISTS (
-           SELECT 1 FROM organization_users ou
-           WHERE ou.user_id = u.id AND ou.organization_id = ? AND ou.deleted_at IS NULL
-         ))`,
-      [excludeUserId, organizationId, organizationId],
-    );
-    return Number(row.cnt);
+    return runInPrimaryContext(async () => {
+      const db = require('../config/database');
+      const [[row]] = await db.query(
+        `SELECT COUNT(*) AS cnt
+         FROM users u
+         WHERE u.deleted_at IS NULL AND u.status = 'active' AND u.role = 'admin'
+           AND u.id != ?
+           AND (u.organization_id = ? OR EXISTS (
+             SELECT 1 FROM organization_users ou
+             WHERE ou.user_id = u.id AND ou.organization_id = ? AND ou.deleted_at IS NULL
+           ))`,
+        [excludeUserId, organizationId, organizationId],
+      );
+      return Number(row.cnt);
+    });
   }
 
   /**
    * Get all organizations a user belongs to.
    */
   static async getOrganizations(userId) {
-    const db = require('../config/database');
-    const [rows] = await db.query(`
-      SELECT o.*, ou.role AS membership_role
-      FROM organization_users ou
-      JOIN organizations o ON o.id = ou.organization_id
-      WHERE ou.user_id = ? AND ou.deleted_at IS NULL AND o.deleted_at IS NULL
-    `, [userId]);
-    return rows;
+    return runInPrimaryContext(async () => {
+      const db = require('../config/database');
+      const [rows] = await db.query(`
+        SELECT o.*, ou.role AS membership_role
+        FROM organization_users ou
+        JOIN organizations o ON o.id = ou.organization_id
+        WHERE ou.user_id = ? AND ou.deleted_at IS NULL AND o.deleted_at IS NULL
+      `, [userId]);
+      return rows;
+    });
   }
 }
 
