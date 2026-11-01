@@ -12,4 +12,9 @@ metadata:
   name: {{ .Release.Namespace }}
   labels:
     {{- include "fireisp.labels" . | nindent 4 }}
+    # The pod meets the restricted profile: non-root, RuntimeDefault seccomp,
+    # no privilege escalation, every capability dropped (OPS-17).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
 {{- end }}

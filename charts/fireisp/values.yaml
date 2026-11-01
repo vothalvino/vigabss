@@ -101,11 +101,16 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-body-size: "25m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+  ## On by default: the auth cookies are Secure in production, so a login
+  ## over plain HTTP cannot keep its session (OPS-17). Rendering fails until
+  ## secretName or clusterIssuer is set; set enabled: false only when TLS
+  ## terminates in front of the ingress.
   tls:
-    enabled: false
-    ## Name of the TLS secret. Leave blank to use "<fullname>-tls".
+    enabled: true
+    ## Name of an existing TLS secret.
     secretName: ""
-    ## cert-manager ClusterIssuer name (adds annotation when set).
+    ## cert-manager ClusterIssuer name (adds the annotation; the secret is
+    ## then "<fullname>-tls" unless secretName is set).
     clusterIssuer: ""
 
 resources:
@@ -131,6 +136,16 @@ pdb:
   minAvailable: 1
 
 ## Persistent storage for uploads / generated files.
+## Ingress-only NetworkPolicy (OPS-17): the app accepts HTTP from the
+## ingress controller and the Prometheus namespaces only, and SNMP traps (UDP)
+## from anywhere (the trap Service keeps its own source ranges). Egress is not
+## restricted: devices, NAS, payment and fiscal providers live anywhere.
+networkPolicy:
+  enabled: true
+  ## Namespaces whose pods may reach the HTTP port (kubernetes.io/metadata.name).
+  ingressNamespaces: ["ingress-nginx"]
+  metricsNamespaces: ["monitoring"]
+
 ## Leave false: `helm install --create-namespace` creates the namespace. Set
 ## true only when this release should own (and on uninstall delete) it.
 namespace:

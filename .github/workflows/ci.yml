@@ -1095,7 +1095,7 @@ jobs:
           version: v3.14.4
 
       - name: Lint Helm chart
-        run: helm lint charts/fireisp --strict --set-string image.tag=${{ github.sha }}
+        run: helm lint charts/fireisp --strict --set-string image.tag=${{ github.sha }} --set ingress.tls.secretName=fireisp-tls
 
       - name: Template Helm chart (smoke-render)
         run: |
@@ -1103,6 +1103,7 @@ jobs:
           # existing Helm installations and the deployment guide.
           helm template fireisp charts/fireisp \
             --set-string image.tag=${{ github.sha }} \
+            --set ingress.tls.secretName=fireisp-tls \
             --set secrets.JWT_SECRET=test-jwt-secret-placeholder \
             --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             > /dev/null
@@ -1132,6 +1133,7 @@ jobs:
           set -euo pipefail
           ARGS=(--namespace fireisp
             --set-string image.tag=${{ github.sha }}
+            --set ingress.tls.secretName=fireisp-tls
             --set secrets.JWT_SECRET=test-jwt-secret-placeholder
             --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000)
           helm install fireisp charts/fireisp --create-namespace "${ARGS[@]}"

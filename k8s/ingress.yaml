@@ -14,11 +14,13 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
 spec:
   ingressClassName: nginx
-  # Uncomment for TLS:
-  # tls:
-  #   - hosts:
-  #       - vigabss.example.com
-  #     secretName: fireisp-tls
+  # TLS is required: the auth cookies are Secure in production, so a login over
+  # plain HTTP cannot keep its session (OPS-17). Create the fireisp-tls secret,
+  # or let cert-manager issue it (annotation above).
+  tls:
+    - hosts:
+        - vigabss.example.com
+      secretName: fireisp-tls
   rules:
     - host: vigabss.example.com
       http:

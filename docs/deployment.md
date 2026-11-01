@@ -1899,6 +1899,23 @@ cosignPolicy:
   enabled: true           # requires sigstore policy-controller CRDs
 ```
 
+Secure defaults (OPS-17):
+
+- **TLS is required.** `ingress.tls.enabled` defaults to `true` and rendering
+  fails until `ingress.tls.secretName` or `ingress.tls.clusterIssuer` is set:
+  the auth cookies are `Secure` in production, so a plain-HTTP login cannot
+  keep its session.
+- **NetworkPolicy.** The app accepts HTTP only from the `ingressNamespaces`
+  (default `ingress-nginx`) and `metricsNamespaces` (default `monitoring`) under
+  `networkPolicy`. Adjust them to your controller's and Prometheus's namespaces,
+  or the ingress returns 502/504.
+- **Pod Security.** The pod meets the `restricted` profile. A namespace created
+  with `--create-namespace` carries no PSA labels; add them with
+  `kubectl label ns fireisp pod-security.kubernetes.io/enforce=restricted`.
+- **No service-account token** is mounted; the app never calls the Kubernetes API.
+- **Signed images.** The cosign policy accepts images signed by CI on `main` or
+  a `v*` release tag, so the released chart's tag passes.
+
 ### Running Migrations
 
 The chart's pre-start init container runs migrations automatically, including

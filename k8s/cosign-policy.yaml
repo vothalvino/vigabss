@@ -39,6 +39,6 @@ spec:
         url: https://fulcio.sigstore.dev
         identities:
           - issuer: https://token.actions.githubusercontent.com
-            subjectRegExp: "^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/heads/main$"
+            subjectRegExp: "^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/(heads/main|tags/v.*)$"
       ctlog:
         url: https://rekor.sigstore.dev
