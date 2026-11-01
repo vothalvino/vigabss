@@ -881,7 +881,8 @@ CREATE TABLE IF NOT EXISTS devices (
     parent_device_id BIGINT UNSIGNED NULL COMMENT 'Direct upstream/parent device for dependency graph',
 
     PRIMARY KEY (id),
-    UNIQUE KEY uq_devices_serial_number (serial_number, active_flag),
+    UNIQUE KEY uq_devices_org_serial_number (organization_id, serial_number, active_flag),
+    KEY idx_devices_serial_number (serial_number),
     KEY idx_devices_organization_id (organization_id),
     KEY idx_devices_site_id (site_id),
     KEY idx_devices_client_id (client_id),
@@ -1351,7 +1352,7 @@ CREATE TABLE IF NOT EXISTS ip_pools (
     active_flag TINYINT(1) GENERATED ALWAYS AS (IF(deleted_at IS NULL, 1, NULL)) STORED COMMENT 'NULL when soft-deleted; appended to business unique keys so they ignore soft-deleted rows (migration 361)',
 
     PRIMARY KEY (id),
-    UNIQUE KEY uq_ip_pools_network_mask_ver (network, subnet_mask, ip_version, active_flag),
+    UNIQUE KEY uq_ip_pools_org_network_mask_ver (organization_id, network, subnet_mask, ip_version, active_flag),
     KEY idx_ip_pools_organization_id (organization_id),
     KEY idx_ip_pools_ip_version (ip_version),
     KEY idx_ip_pools_site_id (site_id),
@@ -3615,7 +3616,7 @@ CREATE TABLE IF NOT EXISTS inventory_items (
     active_flag TINYINT(1) GENERATED ALWAYS AS (IF(deleted_at IS NULL, 1, NULL)) STORED COMMENT 'NULL when soft-deleted; appended to business unique keys so they ignore soft-deleted rows (migration 361)',
 
     PRIMARY KEY (id),
-    UNIQUE KEY uq_inventory_items_sku (sku, active_flag),
+    UNIQUE KEY uq_inventory_items_org_sku (organization_id, sku, active_flag),
     KEY idx_inventory_items_organization_id (organization_id),
     KEY idx_inventory_items_category (category),
     KEY idx_inventory_items_status (status),
