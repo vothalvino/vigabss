@@ -141,7 +141,27 @@ dc() { docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"; }
 # up and mysql was answering "Access denied", which sent a live diagnosis in
 # exactly the wrong direction.
 ERR_FILE="$(mktemp)"
-trap 'rm -f "$ERR_FILE"' EXIT
+REQUEST_ID=""
+WROTE_RESULT=0
+
+# A claimed request must not stay 'running' because this process was stopped
+# (systemd's TimeoutStartSec sends TERM, as does a shutdown): record it failed
+# on the way out. Best effort — if the database is gone the sweep above
+# catches the row on a later poll (SUP-06).
+on_exit() {
+  local code=$?
+  if [[ "$REQUEST_ID" =~ ^[0-9]+$ ]] && (( ! WROTE_RESULT )); then
+    sql "UPDATE deploy_requests
+            SET status = 'failed', finished_at = NOW(), exit_code = -1,
+                output_tail = 'The deploy agent stopped before the deploy reported a result (timeout, shutdown or a killed process). Check the host and redeploy from the CLI.'
+          WHERE id = ${REQUEST_ID} AND status = 'running';" >/dev/null 2>&1 || true
+  fi
+  rm -f "$ERR_FILE"
+  return "$code"
+}
+trap on_exit EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 
 # THE STATEMENT GOES IN ON STDIN, and the credentials are expanded by the shell
 # INSIDE the container (hence the single quotes). Nothing sensitive is in the
@@ -202,6 +222,21 @@ sql "INSERT INTO deploy_agent_status (id, last_seen_at, agent_version, hostname)
   exit 0   # exit 0: a stopped stack is not an agent failure worth alerting on
 }
 
+# ── Sweep stale requests ─────────────────────────────────────────────────────
+# A row left 'running' by a run that was killed (TimeoutStartSec, a reboot, an
+# OOM kill) or could not write its result is declared failed rather than
+# retried: a redeploy that has not finished in an hour is not going to. This
+# used to run only AFTER a successful claim, but POST /system/deploy refuses a
+# new request while the newest row is 'running', so a stuck row meant no
+# claim, no sweep, and an Update button blocked for good (SUP-06). It runs on
+# every poll now. 65 minutes = the unit's TimeoutStartSec=3600 plus a margin,
+# so a deploy still inside its timeout is never failed under it.
+sql "UPDATE deploy_requests
+        SET status = 'failed', finished_at = NOW(), exit_code = -1,
+            output_tail = 'Deploy did not report a result within one hour; marked failed by the agent. Check the host and redeploy from the CLI.'
+      WHERE status = 'running' AND started_at < NOW() - INTERVAL 65 MINUTE;" \
+  || { err_report "sweeping stale deploys"; exit 1; }
+
 # ── Claim one request ────────────────────────────────────────────────────────
 # Claim and identify the row in ONE MySQL session. LAST_INSERT_ID(id) records
 # the exact row changed in connection-local state, while ROW_COUNT() proves this
@@ -221,16 +256,6 @@ REQUEST_ID="$(sql "UPDATE deploy_requests
   || { err_report "claiming a request"; exit 1; }
 REQUEST_ID="$(printf '%s' "$REQUEST_ID" | head -1)"
 [[ -n "${REQUEST_ID:-}" ]] || exit 0    # nothing to do — the common case
-
-# A stale 'running' row from a previous run that was killed mid-deploy would be
-# re-claimed here forever. Anything running for more than an hour is declared
-# failed rather than retried: a redeploy that has not finished in an hour is not
-# going to, and silently re-running it is worse than reporting it.
-sql "UPDATE deploy_requests
-        SET status = 'failed', finished_at = NOW(), exit_code = -1,
-            output_tail = 'Deploy did not report a result within one hour; marked failed by the agent. Check the host and redeploy from the CLI.'
-      WHERE status = 'running' AND started_at < NOW() - INTERVAL 1 HOUR;" \
-  || { err_report "sweeping stale deploys"; exit 1; }
 
 # Re-check: the sweep above may have just failed the row we thought we had.
 STILL_MINE="$(sql "SELECT id FROM deploy_requests WHERE id = ${REQUEST_ID} AND status = 'running';")" \
@@ -256,7 +281,6 @@ STATUS=$([[ $EXIT_CODE -eq 0 ]] && echo 'succeeded' || echo 'failed')
 # Retried: a successful deploy recreates the app container, and the compose
 # stack can be briefly unavailable right as we write the result. Losing the
 # result of a deploy that WORKED would leave the UI showing "running" forever.
-WROTE_RESULT=0
 for attempt in 1 2 3 4 5; do
   if sql "UPDATE deploy_requests
              SET status = '${STATUS}', finished_at = NOW(),
@@ -277,5 +301,5 @@ if (( WROTE_RESULT )); then
   echo "deploy-agent: request ${REQUEST_ID} ${STATUS} (exit ${EXIT_CODE})"
   exit 0
 fi
-echo "deploy-agent: request ${REQUEST_ID} ${STATUS} (exit ${EXIT_CODE}) but the result could NOT be written back after 5 attempts — the GUI will show it as running until the agent's one-hour sweep marks it failed." >&2
+echo "deploy-agent: request ${REQUEST_ID} ${STATUS} (exit ${EXIT_CODE}) but the result could NOT be written back after 5 attempts — the GUI will show it as running until the agent's sweep marks it failed (about an hour after it started)." >&2
 exit 1

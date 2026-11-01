@@ -45,8 +45,10 @@ const TENANT = { id: 2, email: 't@b.c', role: 'manager', status: 'active', organ
 const tokenFor = (u) => jwt.sign({ sub: u.id, email: u.email, role: u.role, orgId: 1 }, config.jwt.secret, { expiresIn: '1h' });
 const as = (u) => (r) => r.set('Authorization', `Bearer ${tokenFor(u)}`);
 
-function wire({ user = OPERATOR, agentAlive = true, request: req = null } = {}) {
+function wire({ user = OPERATOR, agentAlive = true, request: req = null, staleRunning = false } = {}) {
   db.query.mockImplementation(async (sql) => {
+    // The overdue-'running' sweep (SUP-06): affects the row only when it is stale.
+    if (/^UPDATE deploy_requests/.test(sql)) return [{ affectedRows: staleRunning ? 1 : 0 }];
     if (typeof sql === 'string' && sql.includes('`users`')) return [[user]];
     // The install operator is a stored fact (users.is_install_operator,
     // migration 444), not an inference from users.role — every org has an
@@ -127,6 +129,16 @@ describe('it refuses rather than queueing for nobody', () => {
     const res = await as(OPERATOR)(request(app).post('/api/v1/system/deploy')).send({});
     expect(res.status).toBe(409);
     expect(insertCall()).toBeUndefined();
+  });
+
+  it('fails a running row past the agent timeout instead of blocking for good (SUP-06)', async () => {
+    wire({ request: { id: 5, status: 'running' }, staleRunning: true });
+    const res = await as(OPERATOR)(request(app).post('/api/v1/system/deploy')).send({});
+    expect(res.status).toBe(202);
+    const [sql, params] = db.query.mock.calls.find(([q]) => /^UPDATE deploy_requests/.test(q));
+    expect(sql).toMatch(/WHERE id = \? AND status = 'running' AND started_at < NOW\(\) - INTERVAL 65 MINUTE/);
+    expect(params).toEqual([5]);
+    expect(insertCall()).toBeDefined();
   });
 
   it.each([['succeeded'], ['failed']])('allows a new deploy after a %s one', async (status) => {
@@ -402,10 +414,43 @@ describe('the agent script keeps the invariant', () => {
     expect(directives.join('\n')).not.toMatch(/\/usr\/local\/bin/);
   });
 
-  it('sweeps a deploy that never reported back', () => {
-    // A run killed mid-deploy would otherwise leave a 'running' row that the
-    // agent re-claims forever.
-    expect(src()).toMatch(/status = 'failed'[\s\S]{0,400}INTERVAL 1 HOUR/);
+  it('sweeps a deploy that never reported back on every poll, before claiming (SUP-06)', () => {
+    // The sweep used to run only after a successful claim; POST /system/deploy
+    // refuses while the newest row is 'running', so a stuck row meant no
+    // claim, no sweep, and an Update button blocked for good. Run the agent
+    // with a stubbed docker that logs each SQL statement and has nothing to
+    // claim: the sweep must still run, ahead of the claim.
+    const fs = require('node:fs');
+    const os = require('node:os');
+    const path = require('node:path');
+    const { execFileSync } = require('node:child_process');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-agent-sweep-'));
+    const bin = path.join(dir, 'bin');
+    const log = path.join(dir, 'sql.log');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(dir, '.env.prod'), 'DB_PASSWORD=x\n');
+    fs.writeFileSync(path.join(dir, 'docker-compose.prod.yml'), 'services: {}\n');
+    fs.writeFileSync(path.join(bin, 'docker'), `#!/usr/bin/env bash\n{ cat; echo '---'; } >> "${log}"\nexit 0\n`, { mode: 0o755 });
+    try {
+      const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, VIGABSS_DIR: dir, VIGABSS_DEPLOY_LOCK_FILE: path.join(dir, 'lock') };
+      delete env.VIGABSS_DEPLOY_AGENT;
+      delete env.FIREISP_DEPLOY_AGENT;
+      execFileSync('bash', [path.join(__dirname, '../deploy-agent.sh')], { encoding: 'utf8', env });
+      const statements = fs.readFileSync(log, 'utf8').split('---\n');
+      const sweep = statements.findIndex(q => /SET status = 'failed'[\s\S]*WHERE status = 'running' AND started_at < NOW\(\) - INTERVAL 65 MINUTE/.test(q));
+      const claim = statements.findIndex(q => /WHERE status = 'pending'/.test(q));
+      expect(sweep).toBeGreaterThan(-1);
+      expect(claim).toBeGreaterThan(sweep);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('marks its claimed request failed if it is stopped before writing a result', () => {
+    const s = src();
+    expect(s).toMatch(/trap on_exit EXIT/);
+    expect(s).toMatch(/trap 'exit 143' TERM/);
+    expect(s).toMatch(/if \[\[ "\$REQUEST_ID" =~ \^\[0-9\]\+\$ \]\] && \(\( ! WROTE_RESULT \)\); then[\s\S]*?WHERE id = \$\{REQUEST_ID\} AND status = 'running'/);
   });
 });
 
