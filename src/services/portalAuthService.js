@@ -419,6 +419,11 @@ async function redeemResetToken(client, tokenHash, newPassword) {
     'UPDATE portal_refresh_tokens SET revoked_at = NOW() WHERE client_id = ? AND revoked_at IS NULL',
     [client.id],
   );
+  // A reset is how a subscriber recovers a compromised account: the WhatsApp
+  // numbers bound to it are unlinked too (SUP-04).
+  await require('./whatsappService').revokeClientLinks({
+    clientId: client.id, organizationId: client.organization_id ?? null, reason: 'portal_password_reset',
+  });
 
   return { message: 'Password reset successfully' };
 }

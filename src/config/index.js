@@ -225,6 +225,8 @@ const config = {
     // Per-phone abuse limits (enforced in the bot, not express-rate-limit).
     maxCodeAttempts: parseIntEnv('WHATSAPP_MAX_CODE_ATTEMPTS', 5),
     maxCodesPerHour: parseIntEnv('WHATSAPP_MAX_CODES_PER_HOUR', 5),
+    // A bound number unused this long must be linked again (0 = never) (SUP-04).
+    linkIdleDays: parseIntEnv('WHATSAPP_LINK_IDLE_DAYS', 180),
     defaultCountry: process.env.WHATSAPP_DEFAULT_COUNTRY || 'MX',
   },
 };

@@ -1462,6 +1462,19 @@
       "nameRequired": "El nombre es obligatorio."
     }
   },
+  "clientWhatsapp": {
+    "title": "Números de WhatsApp",
+    "description": "Números que pueden consultar esta cuenta con el asistente de WhatsApp. Desvincula un número que el suscriptor perdió, cambió o ya no usa.",
+    "none": "No hay números de WhatsApp vinculados.",
+    "number": "Número",
+    "boundVia": "Vinculado por",
+    "boundAt": "Vinculado",
+    "lastSeen": "Último mensaje",
+    "revoke": "Desvincular",
+    "confirmRevoke": "¿Desvincular este número de WhatsApp? Tendrá que vincularse de nuevo para usar el asistente.",
+    "loadFailed": "No se pudieron cargar los números de WhatsApp vinculados.",
+    "revokeFailed": "No se pudo desvincular el número."
+  },
   "clientDnd": {
     "description": "Un opt-out bloquea todos los mensajes dirigidos al cliente en el canal seleccionado —correo, SMS o WhatsApp— incluidos los de servicio, facturación, seguridad, soporte y mercadotecnia. La mercadotecnia también requiere consentimiento afirmativo por separado.",
     "optedOut": "Dado de baja",

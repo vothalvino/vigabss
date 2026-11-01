@@ -32,6 +32,7 @@ import {
 import { ProfileExtrasTab, CustomFieldsTab, DocumentsTab, DuplicatesTab } from '@/pages/ClientProfileTabs';
 import { ActivityTimelineTab } from '@/pages/ClientActivityTab';
 import { ClientCommunicationPrefs } from '@/pages/ClientCommunicationPrefs';
+import { ClientWhatsappLinks } from '@/pages/ClientWhatsappLinks';
 import { GenerateInvoiceModal } from '@/components/GenerateInvoiceModal';
 import { RecordPaymentModal } from '@/components/RecordPaymentModal';
 import { NewTicketModal } from '@/components/NewTicketModal';
@@ -1388,7 +1389,12 @@ export function ClientDetail() {
         {activeTab === 'customFields' && <CustomFieldsTab  clientId={Number(client.id)} canEdit={canEdit} />}
         {activeTab === 'documents'    && <DocumentsTab     clientId={Number(client.id)} canEdit={canEdit} />}
         {activeTab === 'duplicates'   && <DuplicatesTab    clientId={Number(client.id)} canEdit={canEdit} />}
-        {activeTab === 'communication' && <ClientCommunicationPrefs clientId={Number(client.id)} />}
+        {activeTab === 'communication' && (
+          <>
+            <ClientCommunicationPrefs clientId={Number(client.id)} />
+            <ClientWhatsappLinks clientId={Number(client.id)} />
+          </>
+        )}
       </div>
 
       {/* Modals */}

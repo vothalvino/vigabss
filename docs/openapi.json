@@ -3668,6 +3668,79 @@
         }
       }
     },
+    "/clients/{id}/whatsapp-links": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "WhatsApp numbers bound to the client",
+        "operationId": "listClientWhatsappLinks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active WhatsApp links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients/{id}/whatsapp-links/{linkId}": {
+      "delete": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Revoke a WhatsApp binding (audited)",
+        "operationId": "revokeClientWhatsappLink",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "linkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        }
+      }
+    },
     "/clients/{id}/merge": {
       "post": {
         "tags": [

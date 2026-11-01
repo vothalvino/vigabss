@@ -1462,6 +1462,19 @@
       "nameRequired": "Name is required."
     }
   },
+  "clientWhatsapp": {
+    "title": "WhatsApp numbers",
+    "description": "Numbers that can read this account through the WhatsApp assistant. Unlink a number the subscriber has lost, changed or no longer uses.",
+    "none": "No WhatsApp number is linked.",
+    "number": "Number",
+    "boundVia": "Linked via",
+    "boundAt": "Linked",
+    "lastSeen": "Last message",
+    "revoke": "Unlink",
+    "confirmRevoke": "Unlink this WhatsApp number? It will need to be linked again to use the assistant.",
+    "loadFailed": "Could not load the linked WhatsApp numbers.",
+    "revokeFailed": "Could not unlink the number."
+  },
   "clientDnd": {
     "description": "An opt-out blocks every client-directed message on the selected channel — email, SMS, or WhatsApp — including service, billing, security, support, and marketing. Marketing also requires separate affirmative consent.",
     "optedOut": "Opted out",

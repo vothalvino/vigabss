@@ -133,11 +133,36 @@ async function assertClientCanBeArchived(client, req, exec) {
   }
 }
 
+// A WhatsApp binding speaks for the client: it ends when the contact details
+// it was verified against change, or when the client is made inactive or
+// archived (SUP-04). Revoked before the write commits — if the write then
+// fails, the subscriber only has to link the number again.
+const sameContact = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+
+async function revokeWhatsappOnContactChange(old, req) {
+  const body = req.body || {};
+  const reason = (body.phone !== undefined && !sameContact(body.phone, old.phone)) ? 'phone_changed'
+    : (body.email !== undefined && !sameContact(body.email, old.email)) ? 'email_changed'
+      : (body.status === 'inactive' && old.status !== 'inactive') ? 'client_inactive'
+        : null;
+  if (reason) {
+    await require('../services/whatsappService').revokeClientLinks({ clientId: old.id, organizationId: req.orgId ?? null, reason });
+  }
+}
+
 const ctrl = crudController(Client, {
   cacheResource: 'clients',
   beforeCreate: assertMayCreateTaxExempt,
-  beforeUpdate: assertMayChangeTaxExemption,
-  beforeDelete: assertClientCanBeArchived,
+  beforeUpdate: async (old, req, exec) => {
+    await assertMayChangeTaxExemption(old, req, exec);
+    await revokeWhatsappOnContactChange(old, req);
+  },
+  beforeDelete: async (client, req, exec) => {
+    await assertClientCanBeArchived(client, req, exec);
+    await require('../services/whatsappService').revokeClientLinks({
+      clientId: client.id, organizationId: req.orgId ?? null, reason: 'client_archived',
+    });
+  },
 });
 
 router.use(authenticate);
@@ -599,6 +624,38 @@ router.post('/:id/merge', requirePermission('clients.delete'), validate(mergeCli
     });
     await bustCache(req.orgId, 'clients');
     res.json({ data: { target_id: parseInt(targetId, 10), source_id: sourceId, ...result } });
+  } catch (err) { next(err); }
+});
+
+// WhatsApp numbers bound to the client (SUP-04). Staff could not see or end
+// a binding, so a recycled or lost number kept reading the account until the
+// subscriber unlinked it from that very phone.
+router.get('/:id/whatsapp-links', requirePermission('clients.view'), async (req, res, next) => {
+  try {
+    const client = await Client.findById(req.params.id, req.orgId);
+    if (!client) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Client not found' } });
+    const links = await require('../services/whatsappService').listClientLinks(client.id, req.orgId ?? null);
+    res.json({ data: links });
+  } catch (err) { next(err); }
+});
+
+router.delete('/:id/whatsapp-links/:linkId', requirePermission('clients.update'), async (req, res, next) => {
+  try {
+    const client = await Client.findById(req.params.id, req.orgId);
+    if (!client) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Client not found' } });
+    const revoked = await require('../services/whatsappService').revokeLink({
+      clientId: client.id, organizationId: req.orgId ?? null, linkId: req.params.linkId,
+    });
+    if (!revoked) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'WhatsApp link not found' } });
+    await auditLog.log({
+      userId: req.user?.id,
+      organizationId: req.orgId,
+      action: 'whatsapp_link_revoked',
+      tableName: 'whatsapp_links',
+      recordId: parseInt(req.params.linkId, 10),
+      newValues: { client_id: client.id, revoked_by: 'staff' },
+    });
+    res.status(204).end();
   } catch (err) { next(err); }
 });
 
