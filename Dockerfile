@@ -1,5 +1,5 @@
 # ── Stage 1: build the React frontend ─────────────────────────────────────────
-FROM node:24-bookworm-slim AS frontend-build
+FROM node:26-bookworm-slim AS frontend-build
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ RUN NODE_OPTIONS="--max-old-space-size=${FRONTEND_BUILD_HEAP_MB}" \
     pnpm --filter vigabss-frontend run build
 
 # ── Stage 2: production API server ────────────────────────────────────────────
-FROM node:24-bookworm-slim
+FROM node:26-bookworm-slim
 
 # default-mysql-client provides mysqldump/mysql (MariaDB client — dumps and
 # restores MySQL 8.x fine, and unlike Oracle's mysqldump needs no GTID
