@@ -1417,7 +1417,7 @@
       "name": "Nombre de la campaña",
       "channel": "Canal",
       "template": "Plantilla de mensaje",
-      "noTemplate": "— Sin plantilla —",
+      "chooseTemplate": "— Elige una plantilla —",
       "filterStatus": "Filtrar por estado de cliente",
       "allStatuses": "Todos los estados",
       "filterTag": "Filtrar por etiqueta / grupo",
@@ -1461,6 +1461,19 @@
       "saveFailed": "No se pudo guardar.",
       "nameRequired": "El nombre es obligatorio."
     }
+  },
+  "clientWhatsapp": {
+    "title": "Números de WhatsApp",
+    "description": "Números que pueden consultar esta cuenta con el asistente de WhatsApp. Desvincula un número que el suscriptor perdió, cambió o ya no usa.",
+    "none": "No hay números de WhatsApp vinculados.",
+    "number": "Número",
+    "boundVia": "Vinculado por",
+    "boundAt": "Vinculado",
+    "lastSeen": "Último mensaje",
+    "revoke": "Desvincular",
+    "confirmRevoke": "¿Desvincular este número de WhatsApp? Tendrá que vincularse de nuevo para usar el asistente.",
+    "loadFailed": "No se pudieron cargar los números de WhatsApp vinculados.",
+    "revokeFailed": "No se pudo desvincular el número."
   },
   "clientDnd": {
     "description": "Un opt-out bloquea todos los mensajes dirigidos al cliente en el canal seleccionado —correo, SMS o WhatsApp— incluidos los de servicio, facturación, seguridad, soporte y mercadotecnia. La mercadotecnia también requiere consentimiento afirmativo por separado.",
@@ -2945,7 +2958,7 @@
       "showOptical": "Óptico",
       "hideOptical": "Ocultar",
       "reboot": "Reiniciar",
-      "confirmReboot": "¿Programar reinicio para esta ONU?",
+      "rebootUnavailable": "Reiniciar a través de la OLT aún no está disponible. Reinicia la ONU desde la OLT.",
       "opticalHistory": "Historial de Diagnóstico Óptico"
     },
     "optical": {
@@ -4517,7 +4530,8 @@
     "errorChurn": "Error al calcular puntajes de churn",
     "errorAck": "Error al confirmar anomalía",
     "errorTest": "Error al probar driver",
-    "executionTriggered": "Ejecución iniciada exitosamente",
+    "executionResult": "Resultado: {{status}} — {{message}}",
+    "executionNotRun": "La regla no se ejecutó: está desactivada o su evento no coincide.",
     "executionQueued": "Ejecución en cola",
     "evaluationComplete": "Evaluación completa: {{evaluated}} reglas evaluadas, {{triggered}} disparadas",
     "anomalyDetected": "Detección completa: {{checked}} combinaciones revisadas, {{found}} anomalías detectadas",

@@ -10,6 +10,13 @@ jest.mock('../src/config/database', () => ({
   pool: { end: jest.fn() },
 }));
 
+// No organization uses an isolated database here, so the public auth
+// endpoints search only the primary (the isolated path: portalTenantContext.test.js).
+jest.mock('../src/services/organizationFanOut', () => ({
+  ...jest.requireActual('../src/services/organizationFanOut'),
+  isolatedOrganizationIds: jest.fn().mockResolvedValue([]),
+}));
+
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('$2a$12$hashedpw'),
   compare: jest.fn(),

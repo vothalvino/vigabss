@@ -20,6 +20,7 @@ const billingService = require('../services/billingService');
 const inventoryDrawdownService = require('../services/inventoryDrawdownService');
 const auditLog = require('../services/auditLog');
 const { ValidationError, NotFoundError } = require('../utils/errors');
+const businessEvents = require('../services/businessEvents');
 
 const router = Router();
 
@@ -604,6 +605,7 @@ router.post('/:id/convert-to-invoice', requirePermission('quotes.create'), requi
 
       await conn.commit();
       const invoice = await Invoice.findById(invoiceId);
+      await businessEvents.emitInvoiceCreated(req.orgId, invoice);
       res.status(201).json({ data: invoice });
     } catch (txErr) {
       await conn.rollback();

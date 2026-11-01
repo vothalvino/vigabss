@@ -1407,6 +1407,7 @@ async function walledGardenSuspendContract(contractId, ruleId, userId, invoiceId
   if (orgRows.length > 0) {
     await syncFreeradiusTables(orgRows[0].organization_id).catch(() => {});
   }
+  await require('./businessEvents').emitContractSuspended(contractId, { invoiceId, mode: 'walled_garden' });
 }
 
 /**

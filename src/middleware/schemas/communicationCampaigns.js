@@ -11,7 +11,8 @@ const createCommunicationCampaign = {
   filter_status: { type: 'string', max: 50 },
   filter_plan_id: { type: 'number', min: 1 },
   filter_tag:    { type: 'string', max: 100 },
-  scheduled_at:  { type: 'string', max: 30 },
+  // scheduled_at is not accepted: nothing dispatches a campaign at a time
+  // (ASY-21). Dispatch is manual.
   notes:         { type: 'string', max: 65535 },
 };
 

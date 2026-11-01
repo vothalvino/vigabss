@@ -140,6 +140,7 @@ router.post('/', requirePermission('payments.create'), validate(createPayment), 
 
     // Update client balance ledger
     await billingService.recordPaymentCredit(payment, req.orgId);
+    await require('../services/businessEvents').emitPaymentReceived(req.orgId, payment);
 
     res.status(201).json({ data: payment });
   } catch (err) {

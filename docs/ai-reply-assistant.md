@@ -192,9 +192,16 @@ Internally dispatches by `provider.kind`:
 - `azure_openai` → `openai` SDK with `baseURL` + `api-version`
 - `anthropic` → `@anthropic-ai/sdk`
 - `gemini` → `@google/generative-ai`
-- `ollama` → plain `fetch` to `endpoint_url`
+- `ollama` → POST to `endpoint_url` (default `http://localhost:11434`)
 - `openrouter` → `openai` SDK with `baseURL` fixed to `https://openrouter.ai/api/v1`
 - `custom` → POST to `endpoint_url` with org-defined header map
+
+`ollama` and `custom` go through `src/utils/safeJsonPost.js`: the endpoint must
+be public HTTPS unless its host (or `host:port`) is listed in the install's
+`AI_PROVIDER_ALLOWED_HOSTS`; the connection is pinned to the checked addresses,
+redirects are not followed, the reply is capped at 2 MB, and an upstream error
+body is logged, never returned to the caller. The same check runs when a
+provider is saved.
 
 **OpenRouter** is one API in front of hundreds of models from many vendors. It
 needs only an API key and a model id — the endpoint is supplied by the app, and

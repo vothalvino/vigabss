@@ -16,7 +16,14 @@ const db = require('../config/database');
 const { isInstallOperator, OPERATOR_ONLY_MESSAGE } = require('../services/installOperator');
 
 const router = Router();
-const ctrl = crudController(ScheduledTask);
+// The scheduler loads tasks into cron handles; apply a change at once in this
+// process (every other process picks it up within a minute) (ASY-18).
+const reloadScheduler = async () => { await require('../services/scheduler').reload(); };
+const ctrl = crudController(ScheduledTask, {
+  afterCreate: reloadScheduler,
+  afterUpdate: reloadScheduler,
+  afterDelete: reloadScheduler,
+});
 
 async function requireInstallOperator(req, res, next) {
   try {
@@ -198,9 +205,7 @@ router.post('/:id/run', requirePermission('scheduled_tasks.update'), async (req,
       );
       try {
         const result = await taskRunner.runTask(selectedTask.task_name, organizationId);
-        const completionStatus = result?.skipped === true && result?.reason === 'already_running'
-          ? 'skipped'
-          : 'success';
+        const completionStatus = taskRunner.completionStatus(result);
         await db.query(
           'UPDATE scheduled_tasks SET last_status = ?, last_run_at = NOW() WHERE id = ?',
           [completionStatus, selectedTask.id],

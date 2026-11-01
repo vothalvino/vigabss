@@ -22,7 +22,14 @@ confirms they exist; gaps are noted as deferred.
 
 ### Webhook Events (from notificationHooks.js)
 
-The following event types are dispatched to registered webhooks:
+The following event types are dispatched to registered webhooks. Invoice,
+payment, suspension, reconnection, ticket and maintenance events are emitted
+by `src/services/businessEvents.js` from every path that creates them, after
+the write commits. They drive webhooks and the in-app (SSE) feed; subscriber
+email for invoices, suspensions and suspension warnings still comes from the
+billing tasks that sent it before, a suspension warning also gets its SMS, and
+a maintenance window does not message subscribers.
+`tests/businessEventsEmitted.test.js` fails when a listed event has no emitter.
 
 | Event | Trigger |
 |---|---|

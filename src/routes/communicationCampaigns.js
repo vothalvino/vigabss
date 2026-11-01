@@ -102,18 +102,33 @@ router.get('/:id', requirePermission('campaigns.view'), ctrl.get);
  *                 type: integer
  *               filter_tag:
  *                 type: string
- *               scheduled_at:
- *                 type: string
  *               notes:
  *                 type: string
  *     responses:
  *       201:
  *         description: Campaign created
  */
+// Every save names a sendable template; dispatch checks again (ASY-21).
+async function requireUsableTemplate(req, _res, next) {
+  try {
+    let { channel, template_id: templateId } = req.body;
+    if (req.params.id) {
+      if (channel === undefined && templateId === undefined) return next();
+      const existing = await CommunicationCampaign.findById(req.params.id, req.orgId);
+      if (!existing) return next();
+      channel = channel ?? existing.channel;
+      templateId = templateId === undefined ? existing.template_id : templateId;
+    }
+    await campaignService.assertUsableTemplate(req.orgId, channel, templateId);
+    next();
+  } catch (err) { next(err); }
+}
+
 router.post(
   '/',
   requirePermission('campaigns.create'),
   validate(createCommunicationCampaign),
+  requireUsableTemplate,
   (req, _res, next) => {
     // Default status to 'draft' on creation
     req.body.status = 'draft';
@@ -145,6 +160,7 @@ router.put(
   '/:id',
   requirePermission('campaigns.update'),
   validate(updateCommunicationCampaign),
+  requireUsableTemplate,
   ctrl.update,
 );
 
@@ -170,6 +186,7 @@ router.patch(
   '/:id',
   requirePermission('campaigns.update'),
   validate(patchCommunicationCampaign),
+  requireUsableTemplate,
   ctrl.partialUpdate,
 );
 

@@ -88,7 +88,8 @@ const createForbiddenTerm = {
 const replyDraft = {
   ticket_id:    { type: 'number', required: true, min: 1 },
   channel:      { type: 'string', enum: CHANNELS },
-  inbound_text: { type: 'string', required: true, min: 1, max: 20000 },
+  // Optional: omitted, the latest customer-visible message is answered.
+  inbound_text: { type: 'string', max: 20000 },
   contract_id:  { type: 'number', min: 1 },
 };
 

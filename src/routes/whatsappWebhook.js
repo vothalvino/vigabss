@@ -4,7 +4,7 @@
 // PUBLIC (no JWT). Authenticated by the provider's signature. Security posture
 // mirrors paymentWebhooks.js (fail closed):
 //   - provider not configured / no signing secret -> 503 (unless
-//     ALLOW_UNSIGNED_WEBHOOKS, local testing only)
+//     ALLOW_UNSIGNED_WEBHOOKS, honoured only in development and test)
 //   - signature present but invalid                -> 401
 //   - genuine downstream failure                   -> 500 (provider retries)
 // GET is Meta's verification handshake.
@@ -16,12 +16,9 @@ const webhookSvc = require('../services/whatsappWebhookService');
 const wa = require('../services/whatsappService');
 const bot = require('../services/whatsappBotService');
 const outbound = require('../services/whatsappOutbound');
+const { unsignedWebhooksAllowed } = require('../utils/unsignedWebhooks');
 
 const router = Router();
-
-function unsignedAllowed() {
-  return /^(1|true|yes|on)$/i.test(process.env.ALLOW_UNSIGNED_WEBHOOKS || '');
-}
 
 // GET /whatsapp/webhook — Meta verification handshake.
 router.get('/webhook', (req, res) => {
@@ -41,7 +38,7 @@ router.post('/webhook', async (req, res) => {
   }
 
   if (!webhookSvc.isConfigured(provider)) {
-    if (unsignedAllowed()) {
+    if (unsignedWebhooksAllowed()) {
       logger.warn({ provider }, 'whatsapp webhook: processing an UNSIGNED payload because ALLOW_UNSIGNED_WEBHOOKS is set — insecure, never enable in production');
     } else {
       logger.warn({ provider }, 'whatsapp webhook: signing secret not configured — rejecting (fail closed)');

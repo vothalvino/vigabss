@@ -187,6 +187,7 @@ async function createProblemTicket({ orgId, clientId, description, contract }) {
      VALUES (?, ?, ?, ?, ?, 'medium', 'technical', 'open')`,
     [orgId, clientId, contractId, subject, body],
   );
+  await require('./businessEvents').emitTicketCreated(orgId, r.insertId);
   return r.insertId;
 }
 
@@ -209,6 +210,7 @@ async function createHumanHandoffTicket({ orgId, clientId }) {
      VALUES (?, ?, 'WhatsApp: customer requested a human', 'Customer asked to talk to a team member via WhatsApp.', 'medium', 'general', 'open')`,
     [orgId, clientId],
   );
+  await require('./businessEvents').emitTicketCreated(orgId, r.insertId);
   return r.insertId;
 }
 

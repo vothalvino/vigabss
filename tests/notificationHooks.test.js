@@ -947,6 +947,8 @@ describe('notificationHooks', () => {
 
       await eventBus.emit('maintenance.scheduled', {
         organizationId: 1,
+        // The org-wide client notice is opt-in (ASY-08).
+        notifyClients: true,
         maintenance: {
           id: 1,
           title: 'Router <b>upgrade</b>',

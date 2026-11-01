@@ -374,7 +374,10 @@ MySQL wire types are therefore part of the effective API contract. Verify them
 in `database/schema.sql` or the migration rather than guessing aliases in the
 frontend. MySQL booleans commonly return as `0`/`1`, and `DECIMAL` values return
 as strings under the current mysql2 configuration; convert deliberately before
-boolean logic, comparison, or arithmetic.
+boolean logic, comparison, or arithmetic. `JSON` columns arrive already decoded
+(objects and arrays), so never `JSON.parse` them directly: use
+`parseJsonColumn` from `src/utils/jsonColumn.js`, which also accepts JSON text
+from older rows and test doubles.
 
 A client's headline balance is computed live by
 `src/services/clientBalanceService.js` from invoices, payments, and
@@ -442,7 +445,11 @@ without a specific explanation.
 ### Scheduled and asynchronous work
 
 The scheduler reads `scheduled_tasks`, but executable task names must also be
-registered in the `switch` in `src/services/taskRunner.js`. A seed row without a
+registered in the `switch` in `src/services/taskRunner.js`. Every scheduler
+process re-syncs its cron handles from the table each minute, and the
+`/scheduled-tasks` API reloads its own process at once, so a created, edited,
+disabled or deleted row needs no restart; the BullMQ worker skips a queued job
+whose row was disabled or deleted. A seed row without a
 cron expression, dispatcher case, scope classification, and dispatch test is a
 dead feature. Keep global versus organization-scoped execution explicit.
 A seeded install-wide row runs with `organizationId = null`; a handler that
@@ -468,6 +475,13 @@ Redis-backed caching and BullMQ workers are optional. Code must preserve the
 documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;
 do not replace those with process-local state.
+
+Business events (`invoice.created`, `payment.received`, `contract.suspended` /
+`.restored`, `suspension.warning`, `ticket.created`, `maintenance.scheduled`)
+are emitted through `src/services/businessEvents.js` once the write commits;
+`src/services/notificationHooks.js` turns them into webhooks, SSE and, where
+the emitter supplies a `client`, subscriber messages. A new path that creates
+one of these records must call the matching helper.
 
 ### SNMP polling and metric history
 

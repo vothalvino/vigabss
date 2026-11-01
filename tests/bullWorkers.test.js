@@ -224,6 +224,7 @@ describe('workers/index.js — registerWorkers()', () => {
     const skipped = { skipped: true, reason: 'already_running' };
     taskRunner.runTask.mockResolvedValueOnce(skipped);
     taskRunner.markTaskRun.mockResolvedValueOnce(undefined);
+    db.query.mockResolvedValueOnce([[{ is_enabled: 1 }]]); // the task row is still enabled
 
     const result = await handler({
       data: {

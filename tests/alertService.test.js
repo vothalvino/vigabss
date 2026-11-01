@@ -253,6 +253,7 @@ describe('alertService', () => {
     test('inserts a ticket for a breached rule', async () => {
       db.query
         .mockResolvedValueOnce([[]]) // existing-open-ticket check: none found
+        .mockResolvedValueOnce([[{ client_id: 30, contract_id: 31 }]]) // breached device's client
         .mockResolvedValueOnce([{ insertId: 42 }]);
 
       const rule = {
@@ -280,6 +281,7 @@ describe('alertService', () => {
     test('uses medium priority for non-critical rules', async () => {
       db.query
         .mockResolvedValueOnce([[]]) // existing-open-ticket check: none found
+        .mockResolvedValueOnce([[{ client_id: 30, contract_id: 31 }]]) // breached device's client
         .mockResolvedValueOnce([{ insertId: 43 }]);
 
       const rule = { id: 2, organization_id: 1, name: 'Elevated Latency', severity: 'warning' };
@@ -339,15 +341,17 @@ describe('alertService', () => {
       // dedup check (hasRecentAlertEpisode) — no prior episode, emit proceeds
       db.query.mockResolvedValueOnce([[]]);
 
-      // autoCreateTicket: existing-open-ticket check (none), then INSERT
+      // autoCreateTicket: existing-open-ticket check (none), the breached
+      // device's client, then INSERT
       db.query.mockResolvedValueOnce([[]]);
+      db.query.mockResolvedValueOnce([[{ client_id: 30, contract_id: null }]]);
       db.query.mockResolvedValueOnce([{ insertId: 42 }]);
 
       const result = await alertService.evaluateAlerts(1);
       expect(result.triggered).toBe(1);
       // rules + metric + maintenance-window check + alert insert + dedup
-      // check + ticket-existence check + ticket insert
-      expect(db.query).toHaveBeenCalledTimes(7);
+      // check + ticket-existence check + device lookup + ticket insert
+      expect(db.query).toHaveBeenCalledTimes(8);
     });
   });
 

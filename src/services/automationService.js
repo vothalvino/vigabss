@@ -16,6 +16,7 @@ const auditLog = require('./auditLog');
 const { assertPlanSelectable } = require('./planAvailability');
 const { assertOwnedReferences } = require('../utils/ownedReferences');
 const { ValidationError } = require('../utils/errors');
+const { parseJsonColumn } = require('../utils/jsonColumn');
 const { SNMP_METRICS } = require('./alertService');
 
 // Lazily required to avoid circular deps at module load
@@ -36,36 +37,44 @@ function getSuspensionService() {
  * @param {number} organizationId
  * @param {string} triggerEvent  e.g. 'invoice.created', 'device.offline'
  * @param {object} payload       Event data for condition matching
- * @returns {{ evaluated: number, triggered: number }}
+ * @param {{ ruleId?: number }} [options]  limit to one rule (a manual run)
+ * @returns {{ evaluated: number, triggered: number, results: Array<{ rule_id, status, message }> }}
  */
-async function evaluateAutomationRules(organizationId, triggerEvent, payload = {}) {
+async function evaluateAutomationRules(organizationId, triggerEvent, payload = {}, { ruleId = null } = {}) {
   const [rules] = await db.query(
     `SELECT * FROM automation_rules
      WHERE organization_id = ? AND trigger_event = ? AND is_enabled = 1
-       AND deleted_at IS NULL
+       AND deleted_at IS NULL${ruleId ? ' AND id = ?' : ''}
      ORDER BY priority DESC`,
-    [organizationId, triggerEvent],
+    ruleId ? [organizationId, triggerEvent, ruleId] : [organizationId, triggerEvent],
   );
 
   let triggered = 0;
+  const results = [];
   for (const rule of rules) {
     const start = Date.now();
     let status = 'success';
     let resultMessage;
 
     try {
-      const conditions = rule.trigger_conditions ? JSON.parse(rule.trigger_conditions) : [];
+      const conditions = ruleConditions(rule.trigger_conditions);
       const match = conditions.every(c => evaluateCondition(payload, c));
       if (!match) {
         status = 'skipped';
         resultMessage = 'Conditions not met';
       } else {
-        resultMessage = await dispatchAction(rule.action_type, rule.action_config ? JSON.parse(rule.action_config) : {}, payload, organizationId);
-        triggered++;
-        await db.query(
-          'UPDATE automation_rules SET run_count = run_count + 1, last_triggered_at = NOW() WHERE id = ?',
-          [rule.id],
-        );
+        const outcome = await dispatchAction(rule.action_type, parseJsonColumn(rule.action_config, {}), payload, organizationId);
+        resultMessage = outcome.message;
+        if (outcome.status === 'not_implemented') {
+          // Nothing was done, so nothing is recorded as a run (ASY-16).
+          status = 'skipped';
+        } else {
+          triggered++;
+          await db.query(
+            'UPDATE automation_rules SET run_count = run_count + 1, last_triggered_at = NOW() WHERE id = ?',
+            [rule.id],
+          );
+        }
       }
     } catch (err) {
       status = 'failure';
@@ -79,9 +88,21 @@ async function evaluateAutomationRules(organizationId, triggerEvent, payload = {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [organizationId, rule.id, triggerEvent, JSON.stringify(payload), status, resultMessage, Date.now() - start],
     );
+    results.push({ rule_id: rule.id, status, message: resultMessage });
   }
 
-  return { evaluated: rules.length, triggered };
+  return { evaluated: rules.length, triggered, results };
+}
+
+/**
+ * trigger_conditions is a JSON array of { field, operator, value }, all of
+ * which must hold. A row stored as one condition object is read as a list of
+ * one; any other shape means no conditions.
+ */
+function ruleConditions(raw) {
+  const parsed = parseJsonColumn(raw, []);
+  if (Array.isArray(parsed)) return parsed;
+  return parsed && typeof parsed === 'object' && parsed.field ? [parsed] : [];
 }
 
 /**
@@ -112,29 +133,17 @@ function evaluateCondition(payload, condition) {
  * @param {object} actionConfig
  * @param {object} payload
  * @param {number} organizationId
- * @returns {string} result message
+ * @returns {Promise<{ status: 'done'|'not_implemented', message: string }>}
  */
 async function dispatchAction(actionType, actionConfig, payload, organizationId) {
-  switch (actionType) {
-    case 'send_notification': {
-      logger.info({ organizationId, actionType, actionConfig }, 'Automation: send_notification dispatched (notification service)');
-      return 'Notification queued via notificationService';
-    }
-    case 'create_ticket': {
-      logger.info({ organizationId, actionType, actionConfig }, 'Automation: create_ticket dispatched (stub)');
-      return 'Ticket creation enqueued (stub)';
-    }
-    case 'run_script': {
-      logger.info({ organizationId, actionType, actionConfig }, 'Automation: run_script dispatched (script executor stub)');
-      return 'Script execution queued (stub — see §18.2 scripting engine)';
-    }
-    case 'set_alert':
-      return 'Alert rule updated';
-    case 'suspend_contract':
-      return 'Contract suspension enqueued (stub)';
-    default:
-      return `Action type '${actionType}' acknowledged (no built-in handler)`;
-  }
+  // No action type has a handler yet. They used to return messages such as
+  // "Ticket creation enqueued (stub)" that were recorded as a successful run
+  // (ASY-16); say plainly that nothing happened.
+  logger.info({ organizationId, actionType }, 'Automation action is not implemented; nothing was done');
+  return {
+    status: 'not_implemented',
+    message: `Action '${actionType}' is not implemented yet; nothing was done`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -386,6 +395,9 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
 
     try {
       stageOutput = await executeProvisioningStage(stageName, { organizationId, contract_id, client_id });
+      // A stage with no implementation did nothing: 'skipped', never
+      // 'completed' (TNB-37).
+      if (stageOutput && stageOutput.implemented === false) stageStatus = 'skipped';
     } catch (err) {
       stageStatus = 'failed';
       stageError = err.message;
@@ -406,6 +418,18 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
     if (pipelineStatus === 'failed') break;
   }
 
+  // A run in which no stage did any work provisioned nothing; reporting it
+  // 'completed' told staff the subscriber was set up.
+  const skipped = Object.entries(stageResults).filter(([, r]) => r.status === 'skipped').map(([n]) => n);
+  if (pipelineStatus === 'completed' && skipped.length > 0) {
+    const didWork = Object.values(stageResults).some(r => r.status === 'completed' && r.output?.implemented !== false
+      && !(r.output && r.output.activated === false));
+    if (!didWork) {
+      pipelineStatus = 'failed';
+      errorMessage = `Nothing was provisioned: stages not implemented (${skipped.join(', ')})`;
+    }
+  }
+
   await db.query(
     `UPDATE provisioning_pipelines
      SET status = ?, stages_results = ?, completed_at = NOW(), error_message = ?
@@ -420,9 +444,10 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
 async function executeProvisioningStage(stageName, ctx) {
   switch (stageName) {
     case 'assign_ip':
-      // Reuse pool assignment service in production; stub here
-      logger.info(ctx, 'Provisioning: assign_ip (stub)');
-      return { assigned_ip: '0.0.0.0', note: 'STUB — poolAssignmentService integration pending' };
+      // Not implemented: poolAssignmentService is not wired. It used to report
+      // a "completed" stage with assigned_ip 0.0.0.0 (TNB-37).
+      logger.warn(ctx, 'Provisioning: assign_ip not implemented — no address assigned');
+      return { implemented: false, note: 'assign_ip not implemented — no IP address was assigned. Assign one from the contract page.' };
     case 'configure_device':
       // Not implemented: live device configuration (routerDriverService integration) is
       // not wired. Do NOT claim success and do NOT abort the whole pipeline — record an
@@ -451,10 +476,12 @@ async function executeProvisioningStage(stageName, ctx) {
       }
       return { contract_id: null, activated: false, note: 'No contract was supplied for activation' };
     case 'send_notification':
-      logger.info(ctx, 'Provisioning: send_notification (notification service)');
-      return { note: 'Notification dispatched via notificationService' };
+      // Not implemented: it claimed "Notification dispatched" without sending
+      // anything (TNB-37).
+      logger.warn(ctx, 'Provisioning: send_notification not implemented — nothing sent');
+      return { implemented: false, note: 'send_notification not implemented — no notification was sent.' };
     default:
-      return { note: `Unknown stage: ${stageName}` };
+      return { implemented: false, note: `Unknown stage: ${stageName}` };
   }
 }
 

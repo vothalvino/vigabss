@@ -296,7 +296,10 @@ router.post('/details/:id/provision', requirePermission('onu_management.create')
       orgId: req.orgId,
       createdBy: req.user?.id,
     });
-    res.status(202).json({ data: result, message: 'Provision job queued — delivery dispatched by background processor' });
+    res.json({
+      data: result,
+      message: 'ONU details saved. Pushing the configuration to the OLT is not implemented yet; apply it on the OLT.',
+    });
   } catch (err) { next(err); }
 });
 
@@ -311,7 +314,8 @@ router.post('/details/:id/reboot', requirePermission('onu_management.update'), a
       req.orgId,
       req.user?.id,
     );
-    res.status(202).json({ data: job, message: 'Reboot job queued — dispatched by background processor' });
+    // Not reached today: scheduleOnuReboot refuses with 501 until OLT dispatch exists.
+    res.status(202).json({ data: job });
   } catch (err) { next(err); }
 });
 

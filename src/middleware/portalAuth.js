@@ -34,29 +34,43 @@ async function portalAuthenticate(req, _res, next) {
       throw new UnauthorizedError('Invalid or expired token');
     }
 
-    const [rows] = await db.query(
-      'SELECT id, organization_id, name, email, status, portal_token_version FROM clients WHERE id = ? AND deleted_at IS NULL LIMIT 1',
-      [payload.sub],
-    );
+    // Like orgScope for staff, the rest of the request runs in the client's
+    // organization's database context, so a subscriber of an isolated
+    // organization reads and writes that organization's database (TNB-27).
+    // The token's organization is checked against the client row.
+    const orgId = payload.orgId ?? null;
+    const run = callback => (orgId === null || typeof db.withTenantContext !== 'function'
+      ? callback()
+      : db.withTenantContext(orgId, callback));
 
-    const client = rows[0];
-    if (!client || client.status === 'inactive') {
-      throw new UnauthorizedError('Client not found or inactive');
-    }
-    if (tokenVersionStale(payload.tv, client.portal_token_version)) {
-      throw new UnauthorizedError('Session has been revoked');
-    }
+    await run(async () => {
+      const [rows] = await db.query(
+        'SELECT id, organization_id, name, email, status, portal_token_version FROM clients WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+        [payload.sub],
+      );
 
-    req.client = {
-      id: client.id,
-      // Never undefined: NULL (single-tenant) is a real, null-safe-comparable
-      // org value; services refuse an undefined org (utils/requireOrgId.js).
-      organizationId: client.organization_id ?? null,
-      name: client.name,
-      email: client.email,
-    };
+      const client = rows[0];
+      if (!client || client.status === 'inactive') {
+        throw new UnauthorizedError('Client not found or inactive');
+      }
+      if (orgId !== null && Number(client.organization_id) !== Number(orgId)) {
+        throw new UnauthorizedError('Client not found or inactive');
+      }
+      if (tokenVersionStale(payload.tv, client.portal_token_version)) {
+        throw new UnauthorizedError('Session has been revoked');
+      }
 
-    next();
+      req.client = {
+        id: client.id,
+        // Never undefined: NULL (single-tenant) is a real, null-safe-comparable
+        // org value; services refuse an undefined org (utils/requireOrgId.js).
+        organizationId: client.organization_id ?? null,
+        name: client.name,
+        email: client.email,
+      };
+
+      next();
+    });
   } catch (err) {
     next(err);
   }

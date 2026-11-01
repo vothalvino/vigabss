@@ -19,6 +19,7 @@ const db = require('../config/database');
 const { resolveLineItemPricing } = require('../utils/lineItemPricing');
 const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
 const logger = require('../utils/logger').child({ route: 'invoices' });
+const businessEvents = require('../services/businessEvents');
 
 const router = Router();
 // A terminal invoice is immutable: 'void' (internal discard of an unstamped
@@ -512,6 +513,7 @@ router.post('/', requirePermission('invoices.create'), validate(createInvoice), 
     }
 
     const [rows] = await db.query('SELECT * FROM invoices WHERE id = ?', [invoiceId]);
+    await businessEvents.emitInvoiceCreated(req.orgId, rows[0]);
     res.status(201).json({ data: rows[0] });
   } catch (err) {
     next(err);
@@ -992,6 +994,7 @@ router.post('/generate', requirePermission('invoices.create'), async (req, res, 
 
       await conn.commit();
       const invoice = await Invoice.findById(invoiceId);
+      await businessEvents.emitInvoiceCreated(req.orgId, invoice);
       return res.status(201).json({ data: invoice });
     } catch (err) {
       await conn.rollback();
