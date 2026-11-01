@@ -80,6 +80,7 @@ describe('POST /api/v1/billing-disputes', () => {
   test('creates a billing dispute', async () => {
     mockAuthUser();
     db.query
+      .mockResolvedValueOnce([[{ id: 5 }]]) // client 5 belongs to the org (TNA-29)
       .mockResolvedValueOnce([{ insertId: 1 }])
       .mockResolvedValueOnce([[MOCK_DISPUTE]]);
 
