@@ -51,6 +51,7 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const config = require('../src/config');
 const db = require('../src/config/database');
+const { mockTxConnection } = require('./fixtures/mockTxConnection');
 const User = require('../src/models/User');
 const Quote = require('../src/models/Quote');
 // jest.mock('../src/models/Quote') (below) automocks methods declared
@@ -1662,13 +1663,25 @@ describe('Payment Routes — /api/payments', () => {
   describe('POST /api/payments/:id/allocate', () => {
     const PAYMENT_ROW = { id: 1, client_id: 9, amount: '200.00', organization_id: 1, status: 'completed' };
 
+    // The allocation runs on one transaction (DAL-04); its statements reach
+    // db.query in this order.
+    const allocationReads = (invoice, totalAllocated) => {
+      mockTxConnection(db);
+      db.query
+        .mockResolvedValueOnce([[PAYMENT_ROW]])                                  // payment, locked
+        .mockResolvedValueOnce([[]])                                             // lock the invoice
+        .mockResolvedValueOnce([[invoice]])                                      // the invoice (void guard)
+        .mockResolvedValueOnce([[{ allocated: '0' }]])                           // what the payment has used
+        .mockResolvedValueOnce([[{ ...invoice, balance_due: invoice.total }]])   // what the invoice still owes
+        .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 }])               // INSERT allocation
+        .mockResolvedValueOnce([[{ id: 1, payment_id: 1, invoice_id: 5 }]])      // SELECT allocation
+        .mockResolvedValueOnce([[{ total_allocated: totalAllocated }]]);         // covered?
+    };
+
     test('success — allocates payment to invoice', async () => {
       mockAuthUser();
-      Payment.allocate.mockResolvedValue({ id: 1, payment_id: 1, invoice_id: 5, amount: '200.00' });
+      allocationReads({ id: 5, client_id: 9, total: '200.00', contract_id: 10 }, '200.00');
       db.query
-        .mockResolvedValueOnce([[PAYMENT_ROW]])
-        .mockResolvedValueOnce([[{ id: 5, total: '200.00', contract_id: 10 }]])
-        .mockResolvedValueOnce([[{ total_allocated: '200.00' }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ id: 10, status: 'suspended' }]]);
       suspensionService.reconnectContract.mockResolvedValue(true);
@@ -1684,11 +1697,8 @@ describe('Payment Routes — /api/payments', () => {
 
     test('allocates without reconnect when contract is not suspended', async () => {
       mockAuthUser();
-      Payment.allocate.mockResolvedValue({ id: 1, payment_id: 1, invoice_id: 5, amount: '200.00' });
+      allocationReads({ id: 5, client_id: 9, total: '200.00', contract_id: 10 }, '200.00');
       db.query
-        .mockResolvedValueOnce([[PAYMENT_ROW]])
-        .mockResolvedValueOnce([[{ id: 5, total: '200.00', contract_id: 10 }]])
-        .mockResolvedValueOnce([[{ total_allocated: '200.00' }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[]]);
 
@@ -1703,11 +1713,7 @@ describe('Payment Routes — /api/payments', () => {
 
     test('partial allocation does not mark invoice as paid', async () => {
       mockAuthUser();
-      Payment.allocate.mockResolvedValue({ id: 1, payment_id: 1, invoice_id: 5, amount: '100.00' });
-      db.query
-        .mockResolvedValueOnce([[PAYMENT_ROW]])
-        .mockResolvedValueOnce([[{ id: 5, total: '500.00', contract_id: 10 }]])
-        .mockResolvedValueOnce([[{ total_allocated: '100.00' }]]);
+      allocationReads({ id: 5, client_id: 9, total: '500.00', contract_id: 10 }, '100.00');
 
       const res = await request(app)
         .post('/api/payments/1/allocate')

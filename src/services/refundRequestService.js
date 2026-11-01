@@ -318,6 +318,17 @@ async function completeProcessing(orgId, existing, { refund_method, gateway_refu
       );
     }
 
+    // The gateway refund releases the payment's allocations (reverseRefund).
+    // A REP still reporting that payment to SAT must be cancelled first, or
+    // the REP chain keeps money that went back to the client (CFD-06).
+    const [txRows] = await db.query(
+      'SELECT payment_id FROM payment_transactions WHERE id = ? AND organization_id <=> ? LIMIT 1',
+      [existing.payment_id, orgId],
+    );
+    if (txRows[0]?.payment_id) {
+      await require('./repService').assertNoBindingRep(db.query.bind(db), { paymentId: txRows[0].payment_id, orgId });
+    }
+
     let gatewayResult;
     try {
       gatewayResult = await paymentGatewayService.refund(existing.payment_id, {

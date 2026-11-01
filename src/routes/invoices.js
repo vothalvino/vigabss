@@ -276,6 +276,21 @@ const ctrl = crudController(Invoice, {
   beforeDelete: async (old, req, exec) => {
     await assertNoLiveCfdi(exec, old.id,
       'Cancel or substitute the CFDI before deleting this invoice.');
+    // Same rule as voidInvoiceById: an archived invoice drops out of the
+    // balance, but its allocations would still net against the payments, so
+    // the money would count neither as debt nor as credit.
+    const [allocs] = await exec(
+      'SELECT id FROM payment_allocations WHERE invoice_id = ? AND deleted_at IS NULL LIMIT 1',
+      [old.id],
+    );
+    if (allocs && allocs[0]) {
+      throw new AppError(
+        'This invoice has payment(s) allocated to it. Deallocate the payment(s) first (each becomes unallocated client credit), then delete the invoice.',
+        422, 'INVOICE_HAS_PAYMENTS',
+      );
+    }
+    // A credit note applied to it stays the client's credit, unapplied.
+    await require('../services/creditNoteApplicationService').releaseForInvoice(exec, old.id);
   },
   beforeRestore: async (req, exec) => {
     await assertNoLiveCfdi(exec, req.params.id,

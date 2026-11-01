@@ -6,6 +6,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { notUnderActivePlanSql } = require('../utils/invoiceBalance');
 const eventBus = require('./eventBus');
 const logger = require('../utils/logger');
 const billingService = require('./billingService');
@@ -141,7 +142,9 @@ async function applyLateFees(organizationId) {
          SELECT 1 FROM cfdi_documents cd
          WHERE cd.invoice_id = i.id
            AND cd.sat_status IN ('draft', 'vigente', 'cancel_pending')
-       )`,
+       )
+       -- The client is paying it in installments (BIL-17).
+       AND ${notUnderActivePlanSql('i')}`,
     [organizationId],
   );
 

@@ -66,14 +66,18 @@ beforeEach(() => {
 // `ownershipLookup`: a route-level ownership guard that runs before the
 // controller (tickets' requireOwnedTicket, TNB-06) issues one org-bound
 // lookup first; pass the row it should see.
-function describePatch(name, path, mockRecord, patchBody, updatedRecord, { ownershipLookup } = {}) {
+// `guardReads`: rows a beforeUpdate guard reads between the fetch and the
+// UPDATE (payments re-check their allocations and re-write the ledger credit
+// when the status changes, BIL-19).
+function describePatch(name, path, mockRecord, patchBody, updatedRecord, { ownershipLookup, guardReads = [] } = {}) {
   describe(`PATCH ${path}/:id`, () => {
 
     test('partially updates the record and returns 200', async () => {
       mockAuthUser();
       if (ownershipLookup) db.query.mockResolvedValueOnce([[ownershipLookup]]);
+      db.query.mockResolvedValueOnce([[mockRecord]]); // findByIdOrFail (old)
+      for (const read of guardReads) db.query.mockResolvedValueOnce(read);
       db.query
-        .mockResolvedValueOnce([[mockRecord]])       // findByIdOrFail (old)
         .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE
         .mockResolvedValueOnce([[updatedRecord]]);     // findById (updated)
 
@@ -178,6 +182,8 @@ describePatch(
   { id: 1, organization_id: 1, client_id: 10, amount: 500, status: 'pending' },
   { status: 'completed' },
   { id: 1, organization_id: 1, client_id: 10, amount: 500, status: 'completed' },
+  // allocations, ledger credit dropped, org currency, ledger credit re-posted
+  { guardReads: [[[{ allocated: '0' }]], [{ affectedRows: 1 }], [[{ currency: 'MXN' }]], [{ insertId: 1 }]] },
 );
 
 // =============================================================================

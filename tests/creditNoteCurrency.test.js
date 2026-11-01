@@ -57,7 +57,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
   test('defaults to the linked invoice\'s own currency when invoice_id is given', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
-      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1 }]]);
+      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1, client_id: 9 }]]);
       if (sql.includes('FROM invoices WHERE id')) return Promise.resolve([[{ currency: 'MXN' }]]);
       if (sql.includes('INSERT INTO `credit_notes`') || sql.includes('INSERT INTO credit_notes')) return Promise.resolve([{ insertId: 5 }]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
@@ -83,7 +83,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
   test('defaults to the organization currency when there is no invoice_id', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
-      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1 }]]);
+      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1, client_id: 9 }]]);
       if (sql.includes('FROM organizations')) return Promise.resolve([[{ currency: 'MXN' }]]);
       if (sql.includes('INSERT INTO `credit_notes`') || sql.includes('INSERT INTO credit_notes')) return Promise.resolve([{ insertId: 6 }]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
@@ -106,7 +106,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
   test('an explicitly-set currency always wins — no invoice/org lookup happens', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
-      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1 }]]);
+      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1, client_id: 9 }]]);
       if (sql.includes('INSERT INTO `credit_notes`') || sql.includes('INSERT INTO credit_notes')) return Promise.resolve([{ insertId: 7 }]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
         return Promise.resolve([[{ id: 7, client_id: 9, invoice_id: 7, total: '100.00', currency: 'EUR', credit_note_number: 'CN-0003', status: 'issued' }]]);
@@ -144,7 +144,7 @@ describe('credit note totals-consistency guard', () => {
   test('POST rejects subtotal + tax ≠ total with 422 and writes NOTHING', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
-      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1 }]]);
+      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1, client_id: 9 }]]);
       return Promise.resolve([[]]);
     });
 
@@ -161,7 +161,7 @@ describe('credit note totals-consistency guard', () => {
   test('POST accepts consistent amounts (100 + 16 = 116)', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
-      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1 }]]);
+      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1, client_id: 9 }]]);
       if (sql.includes('FROM invoices WHERE id')) return Promise.resolve([[{ currency: 'MXN' }]]);
       if (sql.includes('INSERT INTO `credit_notes`') || sql.includes('INSERT INTO credit_notes')) return Promise.resolve([{ insertId: 8 }]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
@@ -182,7 +182,7 @@ describe('credit note totals-consistency guard', () => {
   test('POST with only a total (refund-path shape) is coherent and passes', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
-      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1 }]]);
+      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1, client_id: 9 }]]);
       if (sql.includes('FROM organizations')) return Promise.resolve([[{ currency: 'MXN' }]]);
       if (sql.includes('INSERT INTO `credit_notes`') || sql.includes('INSERT INTO credit_notes')) return Promise.resolve([{ insertId: 9 }]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
@@ -203,7 +203,7 @@ describe('credit note totals-consistency guard', () => {
   test('PUT that changes ONE amount cannot sneak the merged row inconsistent', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
-      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1 }]]);
+      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1, client_id: 9 }]]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
         // existing consistent row 100 + 16 = 116
         return Promise.resolve([[{ id: 8, client_id: 9, subtotal: '100.00', tax_amount: '16.00', total: '116.00', status: 'draft' }]]);
@@ -224,7 +224,7 @@ describe('credit note totals-consistency guard', () => {
   test('PUT can deliberately FIX an inconsistent legacy row', async () => {
     db.query.mockImplementation((sql) => {
       if (isUserLookup(sql)) return Promise.resolve([[ADMIN_USER_ROW]]);
-      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1 }]]);
+      if (/FROM (clients|invoices) WHERE id = \? AND organization_id <=> \?/.test(sql)) return Promise.resolve([[{ id: 1, client_id: 9 }]]);
       if (sql.includes('UPDATE `credit_notes`') || sql.includes('UPDATE credit_notes')) return Promise.resolve([{ affectedRows: 1 }]);
       if (sql.includes('FROM `credit_notes`') || sql.includes('FROM credit_notes')) {
         // legacy inconsistent row 100 + 16 = 300; the PUT corrects total to 116

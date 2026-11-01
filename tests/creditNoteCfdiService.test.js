@@ -33,7 +33,9 @@ const CN = {
 };
 const EMISOR = { rfc: 'EKU9003173C9', razon_social: 'Escuela Kemper', regimen_fiscal: '601', codigo_postal_fiscal: '26015', cfdi_serie_ingreso: 'A', cfdi_serie_egreso: 'NC' };
 const RECEPTOR = { rfc: 'MISC491214B86', razon_social: 'CECILIA MIRANDA SANCHEZ', regimen_fiscal: '612', codigo_postal_fiscal: '01010', uso_cfdi_default: null };
-const RELATED_CFDI = { id: 900, uuid: 'AAAA1111-2222-3333-4444-555566667777', forma_pago: '03' };
+const RELATED_CFDI = { id: 900, uuid: 'AAAA1111-2222-3333-4444-555566667777', forma_pago: '03', total: '1160.00', invoice_client_id: 7 };
+// The related-ingreso read (it joins the invoice for its client).
+const RELATED_READ = /FROM cfdi_documents d\s+JOIN invoices i[\s\S]*WHERE d\.invoice_id/;
 const ITEMS = [
   { id: 1, credit_note_id: 30, description: 'Crédito servicio', quantity: '1.00', unit_price: '150.00' },
   { id: 2, credit_note_id: 30, description: 'Crédito instalación', quantity: '1.00', unit_price: '50.00' },
@@ -65,7 +67,7 @@ function mockQueries({ cn = CN, existing = [], related = [RELATED_CFDI], recepto
   db.query.mockImplementation(async (sql) => {
     if (/FROM credit_notes cn/.test(sql)) return [cn ? [{ ...cn }] : []];
     if (/FROM cfdi_documents WHERE credit_note_id/.test(sql)) return [existing];
-    if (/FROM cfdi_documents\s+WHERE invoice_id/.test(sql)) return [related];
+    if (RELATED_READ.test(sql)) return [related];
     if (/FROM client_mx_profiles/.test(sql)) return [receptor.map(r => ({ ...r }))];
     if (/FROM credit_note_items/.test(sql)) return [items.map(i => ({ ...i }))];
     return [[]];
@@ -86,6 +88,37 @@ describe('stampCreditNote — preconditions', () => {
     mockQueries({ cn: null });
     await expect(creditNoteCfdiService.stampCreditNote(30, 1))
       .rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  // CFD-07: an egreso must go to the ingreso's receptor, and the live egresos
+  // against one ingreso cannot credit more than its total.
+  test('rejects a note whose client is not the credited invoice\'s client', async () => {
+    mockQueries({ related: [{ ...RELATED_CFDI, invoice_client_id: 8 }] });
+    await expect(creditNoteCfdiService.stampCreditNote(30, 1))
+      .rejects.toMatchObject({ statusCode: 422, code: 'CREDIT_NOTE_CLIENT_MISMATCH' });
+  });
+
+  test('rejects an egreso that would credit more than the related CFDI total', async () => {
+    mockQueries();
+    const base = db.query.getMockImplementation();
+    db.query.mockImplementation(async (sql, params) => (/SUM\(d\.total\)/.test(sql)
+      ? [[{ total: '1000.00' }]] // 1000 already credited + this 232 > 1160
+      : base(sql, params)));
+    await expect(creditNoteCfdiService.stampCreditNote(30, 1))
+      .rejects.toMatchObject({ statusCode: 422, code: 'CFDI_EGRESO_EXCEEDS_RELATED' });
+    const [sql, params] = db.query.mock.calls.find(([q]) => /SUM\(d\.total\)/.test(q));
+    expect(sql).toMatch(/tipo_comprobante = 'E'/);
+    expect(params).toEqual([60, 1, 30]);
+  });
+
+  test('an egreso that fits under the related total is stamped', async () => {
+    mockQueries();
+    const base = db.query.getMockImplementation();
+    db.query.mockImplementation(async (sql, params) => (/SUM\(d\.total\)/.test(sql)
+      ? [[{ total: '928.00' }]] // 928 + 232 = 1160, exactly the total
+      : base(sql, params)));
+    db.getConnection.mockResolvedValue(makeConn());
+    await expect(creditNoteCfdiService.stampCreditNote(30, 1)).resolves.toBeTruthy();
   });
 
   test('rejects a draft credit note (422 CREDIT_NOTE_NOT_STAMPABLE)', async () => {
@@ -272,7 +305,7 @@ describe('stampCreditNote — an edit committing before the lock is not stamped 
     db.query.mockImplementation(async (sql) => {
       if (/FROM credit_notes cn/.test(sql)) return [[pick()]];
       if (/FROM cfdi_documents WHERE credit_note_id/.test(sql)) return [[]];
-      if (/FROM cfdi_documents\s+WHERE invoice_id/.test(sql)) return [[{ ...RELATED_CFDI }]];
+      if (RELATED_READ.test(sql)) return [[{ ...RELATED_CFDI }]];
       if (/FROM client_mx_profiles/.test(sql)) return [[{ ...RECEPTOR }]];
       if (/FROM credit_note_items/.test(sql)) return [pickItems()];
       return [[]];
@@ -291,14 +324,14 @@ describe('stampCreditNote — an edit committing before the lock is not stamped 
   test('an invoice_id change re-points the RELATED ingreso (TipoRelacion 01)', async () => {
     // The relation IS the fiscal point of an egreso — relating it to the wrong
     // ingreso credits an invoice that was never credited.
-    const OTHER_REL = { id: 901, uuid: 'BBBB1111-2222-3333-4444-555566667777', forma_pago: '03' };
+    const OTHER_REL = { id: 901, uuid: 'BBBB1111-2222-3333-4444-555566667777', forma_pago: '03', total: '1160.00', invoice_client_id: 7 };
     const conn = makeConn();
     db.getConnection.mockResolvedValue(conn);
     const pick = shifting({ ...CN }, { ...CN, invoice_id: 61 });
     db.query.mockImplementation(async (sql, params) => {
       if (/FROM credit_notes cn/.test(sql)) return [[pick()]];
       if (/FROM cfdi_documents WHERE credit_note_id/.test(sql)) return [[]];
-      if (/FROM cfdi_documents\s+WHERE invoice_id/.test(sql)) {
+      if (RELATED_READ.test(sql)) {
         return [[params[0] === 61 ? { ...OTHER_REL } : { ...RELATED_CFDI }]];
       }
       if (/FROM client_mx_profiles/.test(sql)) return [[{ ...RECEPTOR }]];

@@ -6,6 +6,16 @@ const db = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'cashReconciliation' });
 const { NotFoundError, ValidationError } = require('../utils/errors');
 
+// The cash a session should hold: live, completed cash payments the agent
+// recorded. The window is matched on created_at, a DATETIME like opened_at;
+// payment_date is a DATE, which compares as midnight, so every payment taken
+// on the opening day fell before the session began.
+const SESSION_PAYMENTS = `organization_id = ?
+       AND payment_method = 'cash'
+       AND recorded_by = ?
+       AND status = 'completed'
+       AND deleted_at IS NULL`;
+
 /**
  * Open a new reconciliation session for an agent.
  * Agent must not already have an open session for the same org.
@@ -57,10 +67,7 @@ async function closeSession(sessionId, orgId, countedTotal) {
   const [sumRows] = await db.query(
     `SELECT COALESCE(SUM(amount), 0) AS expected_total
      FROM payments
-     WHERE organization_id = ?
-       AND payment_method = 'cash'
-       AND recorded_by = ?
-       AND payment_date BETWEEN ? AND NOW()`,
+     WHERE ${SESSION_PAYMENTS} AND created_at BETWEEN ? AND NOW()`,
     [orgId, session.agent_user_id, session.opened_at],
   );
   const expectedTotal = parseFloat(sumRows[0].expected_total);
@@ -136,11 +143,8 @@ async function getSessionDetail(sessionId, orgId) {
 
   const [payments] = await db.query(
     `SELECT * FROM payments
-     WHERE organization_id = ?
-       AND payment_method = 'cash'
-       AND recorded_by = ?
-       AND payment_date BETWEEN ? AND ?
-     ORDER BY payment_date ASC`,
+     WHERE ${SESSION_PAYMENTS} AND created_at BETWEEN ? AND ?
+     ORDER BY created_at ASC`,
     [orgId, session.agent_user_id, session.opened_at, windowEnd],
   );
 

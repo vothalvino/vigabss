@@ -408,6 +408,26 @@ are skipped. Stripe webhooks use the HMAC signing secret; Conekta webhooks are
 RSA-SHA256 verified against the webhook key's public key PEM. Ledger history is corrected by appending
 compensating rows, not by editing old ones.
 
+An invoice's open balance is its total minus live `payment_allocations` and
+minus live `credit_note_applications` (`utils/invoiceBalance.creditAppliedSql`).
+Every balance_due, paid-status refresh, suspension and retry calculation
+subtracts both. A posted credit note with an `invoice_id` is applied to it, up
+to what the invoice owes, by `creditNoteApplicationService.syncApplication`.
+That runs on every note write and on SAT cancellation of its egreso, and a
+voided, cancelled or deleted invoice releases it. The client balance counts
+only a note's unapplied part. Invoices under an active payment plan
+(`notUnderActivePlanSql`) are skipped by suspension and late fees.
+
+Every allocation path runs in one transaction that locks the payment first,
+then its invoices, with `paymentAllocationService.lockInvoicesForAllocation`
+(a plain `SELECT id … FOR UPDATE`, ordered by id). The locks come before any
+read that sums allocations. The over-allocation triggers and the balance
+subqueries are non-locking reads, and the REPEATABLE READ snapshot is fixed by
+the transaction's first such read. Summing before locking lets two concurrent
+allocators both pass. A draft or live REP binds its payment: delete, unapply,
+reallocate, status edits and staff refunds answer `PAYMENT_HAS_REP` until the
+REP is cancelled (`repService.assertNoBindingRep`).
+
 `pnpm run sql:check` statically checks resolvable SQL in `src/` against
 `database/schema.sql`, including table/column names, ENUM values, and writes to
 generated columns. Dynamic SQL is reported as skipped. The exception lists in

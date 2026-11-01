@@ -180,10 +180,10 @@ describe('billingService.generateInvoice add-on window', () => {
     // Candidate rows the add-on SELECT could return; the mock applies only the
     // predicates the SQL actually carries, as MySQL would.
     const candidates = [
-      { id: 1, addon_name: 'In window', unit_price: '10.00', quantity: 1, start_date: 'past', end_date: null, deleted_at: null },
-      { id: 2, addon_name: 'Expired', unit_price: '20.00', quantity: 1, start_date: 'past', end_date: 'past', deleted_at: null },
-      { id: 3, addon_name: 'Pre-dated', unit_price: '30.00', quantity: 1, start_date: 'future', end_date: null, deleted_at: null },
-      { id: 4, addon_name: 'Deleted', unit_price: '40.00', quantity: 1, start_date: 'past', end_date: null, deleted_at: 'past' },
+      { id: 1, addon_name: 'In window', unit_price: '10.00', quantity: 1, start_date: '2026-01-01', end_date: null, deleted_at: null },
+      { id: 2, addon_name: 'Expired', unit_price: '20.00', quantity: 1, start_date: '2026-01-01', end_date: '2026-09-30', deleted_at: null },
+      { id: 3, addon_name: 'Pre-dated', unit_price: '30.00', quantity: 1, start_date: '2026-11-15', end_date: null, deleted_at: null },
+      { id: 4, addon_name: 'Deleted', unit_price: '40.00', quantity: 1, start_date: '2026-01-01', end_date: null, deleted_at: '2026-05-01' },
     ];
     const conn = {
       beginTransaction: jest.fn(),
@@ -191,14 +191,17 @@ describe('billingService.generateInvoice add-on window', () => {
       rollback: jest.fn(),
       release: jest.fn(),
       query: jest.fn().mockResolvedValue([[{ id: 6 }]]),
-      execute: jest.fn(async (sql) => {
+      execute: jest.fn(async (sql, params = []) => {
         if (/FROM billing_periods/.test(sql)) return [[{ id: 10, status: 'pending' }]];
         if (/tax_exempt/.test(sql)) return [[{ tax_exempt: 0 }]];
         if (/INSERT INTO invoices\b/.test(sql)) return [{ insertId: 50 }];
         if (/FROM contract_addons ca/.test(sql)) {
+          // The window is the billing period: start_date <= period_end and
+          // end_date >= period_start, bound as params 1 and 2.
+          const [, periodEnd, periodStart] = params;
           return [candidates.filter((r) => {
-            if (/ca\.end_date >= CURDATE\(\)/.test(sql) && r.end_date === 'past') return false;
-            if (/ca\.start_date <= CURDATE\(\)/.test(sql) && r.start_date === 'future') return false;
+            if (/ca\.end_date >= \?/.test(sql) && r.end_date && r.end_date < periodStart) return false;
+            if (/ca\.start_date <= \?/.test(sql) && r.start_date > periodEnd) return false;
             if (/ca\.deleted_at IS NULL/.test(sql) && r.deleted_at) return false;
             return true;
           })];

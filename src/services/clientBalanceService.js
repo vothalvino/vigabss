@@ -82,14 +82,19 @@ async function computeClientBalance(orgId, clientId) {
 
   // Standing credit notes — see module doc. 'issued'/'applied' = live credit
   // on the account; 'draft' is still being prepared and 'cancelled' is voided.
+  // The part applied to an invoice already lowered that invoice's balance_due
+  // (BIL-14); only the rest stands as credit.
   const [creditNotes] = await db.query(
-    `SELECT total, currency FROM credit_notes
-      WHERE client_id = ? AND organization_id = ? AND deleted_at IS NULL
-        AND status IN ('issued', 'applied')`,
+    `SELECT cn.total, cn.currency,
+            COALESCE((SELECT SUM(cna.amount) FROM credit_note_applications cna
+                       WHERE cna.credit_note_id = cn.id AND cna.deleted_at IS NULL), 0) AS applied
+       FROM credit_notes cn
+      WHERE cn.client_id = ? AND cn.organization_id = ? AND cn.deleted_at IS NULL
+        AND cn.status IN ('issued', 'applied')`,
     [clientId, orgId],
   );
   const standingCredits = creditNotes
-    .map((cn) => ({ currency: cn.currency, total: parseFloat(cn.total) }))
+    .map((cn) => ({ currency: cn.currency, total: parseFloat(cn.total) - parseFloat(cn.applied || 0) }))
     .filter((cn) => cn.total > 0.005);
   const creditNoteTotal = standingCredits.reduce((sum, cn) => sum + cn.total, 0);
 

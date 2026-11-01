@@ -29,7 +29,9 @@ jest.mock('../src/services/clientBalanceService', () => ({
 const mockGetInvoices = jest.fn();
 const mockFinalize = jest.fn(async () => false);
 const mockReconnect = jest.fn(async () => {});
+const mockLockInvoices = jest.fn(async () => {});
 jest.mock('../src/services/paymentAllocationService', () => ({
+  lockInvoicesForAllocation: (...a) => mockLockInvoices(...a),
   getInvoicesWithBalance: (...a) => mockGetInvoices(...a),
   finalizeIfFullyPaid: (...a) => mockFinalize(...a),
   reconnectIfSuspended: (...a) => mockReconnect(...a),
@@ -130,6 +132,16 @@ describe('getGroupBilling', () => {
 });
 
 describe('payGroup', () => {
+  // DAL-04: every member's invoices are locked with a plain locking read
+  // before any balance_due (which sums allocations) is read.
+  test('locks all members\' invoices before reading their balances', async () => {
+    const conn = makeConn();
+    db.getConnection.mockResolvedValue(conn);
+    await groupBillingService.payGroup(10, 7, { payment_method: 'cash' });
+    expect(mockLockInvoices).toHaveBeenCalledWith(expect.any(Function), 10, { clientIds: [1, 2, 3] });
+    expect(mockLockInvoices.mock.invocationCallOrder[0]).toBeLessThan(mockGetInvoices.mock.invocationCallOrder[0]);
+  });
+
   it('pays the full group balance FIFO across members, recording the payment on the primary', async () => {
     const conn = makeConn();
     db.getConnection.mockResolvedValue(conn);

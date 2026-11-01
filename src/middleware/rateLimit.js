@@ -46,6 +46,9 @@ const SESSION_PATH_RE = /^\/api(?:\/v1)?\/(?:auth|portal\/auth)\/(?:me|refresh|l
 const isSessionPath = (req) => SESSION_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
 const COLLECTOR_PATH_RE = /^\/api(?:\/v1)?\/(?:radius\/accounting(?:\/tenant)?|connection-logs\/cgnat-attribution\/bindings\/ingest)\/?$/;
 const isCollectorPath = req => COLLECTOR_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
+// Signed provider callbacks have their own limiter (webhookLimiter below).
+const WEBHOOK_PATH_RE = /^\/api(?:\/v1)?\/(?:payment-webhooks|whatsapp\/webhook)(?:\/|$)/;
+const isWebhookPath = req => WEBHOOK_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
 
 /**
  * Run a limiter at most once per request (SEC-13). A request can pass several
@@ -65,7 +68,7 @@ function oncePerRequest(limiter, flag) {
 
 /** General API rate limiter — configurable via RATE_LIMIT_API (default 1000). */
 const apiLimiter = oncePerRequest(
-  makeLimiter(rl.api, undefined, { skip: req => isSessionPath(req) || isCollectorPath(req) }),
+  makeLimiter(rl.api, undefined, { skip: req => isSessionPath(req) || isCollectorPath(req) || isWebhookPath(req) }),
   '_apiLimited',
 );
 
@@ -154,8 +157,20 @@ const exportLimiter = makeLimiter(rl.export, 'Too many export requests, please t
 /** SSE endpoints — configurable via RATE_LIMIT_SSE (default 10). */
 const sseLimiter = makeLimiter(rl.sse, 'Too many SSE connections, please try again later');
 
-/** Payment webhook endpoints — configurable via RATE_LIMIT_WEBHOOK (default 100). */
-const webhookLimiter = makeLimiter(rl.webhook, 'Too many webhook requests, please try again later');
+/**
+ * Payment and WhatsApp webhook endpoints — configurable via RATE_LIMIT_WEBHOOK
+ * (default 100).
+ *
+ * Only failed deliveries count (WHK-07). A provider posts from a small pool of
+ * published IPs, so every event of the install shares one IP's budget: an
+ * autopay batch or a campaign's status callbacks went past 100 in 15 minutes,
+ * and the rest got 429 and waited hours on the provider's backoff. A delivery
+ * whose signature verifies answers 2xx and is free; bad signatures, junk and
+ * errors still count, which is the abuse this limiter caps.
+ */
+const webhookLimiter = makeLimiter(rl.webhook, 'Too many webhook requests, please try again later', {
+  skipSuccessfulRequests: true,
+});
 
 /** TR-069 ACS endpoint, per source IP — configurable via RATE_LIMIT_ACS (default 3000). */
 const acsLimiter = makeLimiter(rl.acs, 'Too many ACS requests, please try again later');
@@ -445,6 +460,7 @@ module.exports = {
   exportLimiter,
   sseLimiter,
   webhookLimiter,
+  isWebhookPath,
   acsLimiter,
   trapForwardingTestLimiter,
   emailSettingsTestLimiter,

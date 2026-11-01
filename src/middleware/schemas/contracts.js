@@ -49,6 +49,15 @@ const createContractAddon = {
   end_date: { type: 'string' },
 };
 
+// Changing an assignment: what it costs and until when. Start date and catalog
+// entry are fixed once created; cancel and re-add to change them.
+const updateContractAddon = {
+  quantity: { type: 'number', min: 1 },
+  unit_price: { type: 'number', min: 0 },
+  end_date: { type: 'string', format: 'date' },
+  notes: { type: 'string', max: 5000 },
+};
+
 const prepareContractActivation = {
   assigned_to: { type: 'number', min: 1 },
 };
@@ -64,6 +73,6 @@ const patchContract = Object.fromEntries(
 );
 
 module.exports = {
-  createContract, updateContract, patchContract, createContractAddon,
+  createContract, updateContract, patchContract, createContractAddon, updateContractAddon,
   prepareContractActivation, activateContract,
 };

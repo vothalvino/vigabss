@@ -8,6 +8,7 @@
 const db = require('../config/database');
 const pdfService = require('../services/pdfService');
 const cfdiService = require('../services/cfdiService');
+const repService = require('../services/repService');
 
 /**
  * POST /api/cfdi/generate-xml
@@ -190,13 +191,19 @@ async function downloadPdf(req, res, next) {
 
 /**
  * POST /api/cfdi/payment-complement
- * Create a Complemento de Pago 2.0 CFDI (tipo P) for a payment event.
- * Expects all required fields in req.body; organization_id comes from orgScope.
+ * Create and stamp the Complemento de Pago 2.0 CFDI (tipo P) for one payment's
+ * allocation to one invoice: body { payment_id, invoice_id }. Same generator as
+ * POST /payments/:id/rep and the automatic paths.
  */
 async function createPaymentComplement(req, res, next) {
   try {
-    const params = { ...req.body, organization_id: req.orgId };
-    const result = await cfdiService.generatePaymentComplement(params);
+    // The REP is built from the payment's live allocation to the invoice, never
+    // from the body: the endpoint used to take the emisor, LugarExpedicion,
+    // serie, folio, ids and amounts as given (BIL-20), so a draft could carry
+    // another RFC, a duplicate folio, another tenant's ids or UUIDs (CFD-08).
+    const result = await repService.generateManualRep(
+      Number(req.body.payment_id), Number(req.body.invoice_id), req.orgId, req.user?.id,
+    );
     res.status(201).json({ data: result });
   } catch (err) {
     next(err);

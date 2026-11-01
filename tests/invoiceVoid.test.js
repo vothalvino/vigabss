@@ -217,9 +217,8 @@ describe('PUT /invoices/:id — void (InvoiceDetail path)', () => {
   it('zeroes the ledger on a PUT void', async () => {
     Invoice.findByIdOrFail.mockResolvedValue({ id: 7, status: 'issued', client_id: 3, invoice_number: 'INV-7', currency: 'USD' });
     Invoice.update.mockResolvedValue({ id: 7, status: 'void' });
-    db.query
-      .mockResolvedValueOnce([{ affectedRows: 0 }])
-      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+    // No live CFDI, no allocations: every read comes back empty.
+    db.query.mockResolvedValue([[]]);
     const res = await request(app).put('/api/v1/invoices/7').send({ status: 'void' });
     expect(res.status).toBe(200);
     expect(ledgerInsert()).toBeFalsy();

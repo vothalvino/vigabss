@@ -190,7 +190,7 @@ router.get('/:id/invoices', requirePermission('reseller_portal.invoices'), async
       return res.json({ data: [], meta: { total: 0, page: pageNum, limit: limitNum } });
     }
 
-    const conditions = [`i.client_id IN (${inPlaceholders(clientIds)})`];
+    const conditions = [`i.client_id IN (${inPlaceholders(clientIds)})`, 'i.deleted_at IS NULL'];
     const params = [...clientIds];
     if (status) { conditions.push('i.status = ?'); params.push(status); }
 

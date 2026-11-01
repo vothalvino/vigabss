@@ -20,6 +20,7 @@ const auditLog = require('../services/auditLog');
 const path = require('path');
 const fs = require('fs');
 const db = require('../config/database');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 
 const router = Router();
 
@@ -103,7 +104,8 @@ async function assertClientCanBeArchived(client, req, exec) {
       WHERE i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL
         AND i.status IN ('issued', 'sent', 'overdue')
         AND i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
-                                 WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0) > 0.005`,
+                                 WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+                    - ${creditAppliedSql('i')} > 0.005`,
     [client.id, req.orgId],
   );
   const [[profiles]] = await exec(

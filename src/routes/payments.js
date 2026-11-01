@@ -37,12 +37,55 @@ async function assertPaymentClientOwned(clientId, orgId, exec = db.query.bind(db
 // payment writes a 'payment' credit (see the POST handler below); deleting one
 // must remove that credit, otherwise the ledger and the computed balance keep
 // showing a payment that has vanished from the Payments tab. Restoring re-adds it.
+// PUT/PATCH used the generic update with no money guard (BIL-19): lowering an
+// allocated payment's amount, or marking it refunded or cancelled, left its
+// allocations live, the invoices 'paid' and the ledger credit in place, while
+// the computed balance ignored the payment. Runs on the locked payment row.
+async function assertPaymentEditKeepsMoneyConsistent(old, body, exec) {
+  const amountChanges = body.amount !== undefined && Number(body.amount) !== Number(old.amount);
+  const newStatus = body.status !== undefined ? body.status : old.status;
+  const statusChanges = newStatus !== old.status;
+  if (!amountChanges && !statusChanges) return;
+
+  const [rows] = await exec(
+    'SELECT COALESCE(SUM(amount), 0) AS allocated FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
+    [old.id],
+  );
+  const allocated = Number(rows?.[0]?.allocated || 0);
+  if (amountChanges && Number(body.amount) < allocated - 0.005) {
+    throw new AppError(
+      `This payment has ${allocated.toFixed(2)} allocated to invoices; its amount cannot go below that. Deallocate first (POST /payments/:id/unapply).`,
+      422, 'PAYMENT_AMOUNT_BELOW_ALLOCATED',
+    );
+  }
+  if (statusChanges && old.status === 'completed' && newStatus !== 'completed') {
+    await repService.assertNoBindingRep(exec, { paymentId: old.id, orgId: old.organization_id });
+  }
+  if (statusChanges && newStatus !== 'completed' && allocated > 0.005) {
+    throw new AppError(
+      'This payment is allocated to invoices. Deallocate it first (POST /payments/:id/unapply), or record a refund, before changing its status.',
+      422, 'PAYMENT_HAS_ALLOCATIONS',
+    );
+  }
+
+  // The ledger credit mirrors a completed payment's amount; the balance counts
+  // only completed payments. Same transaction, so a later failure undoes it.
+  await billingService.reversePaymentCredit(old.id, exec);
+  if (newStatus === 'completed') {
+    await billingService.recordPaymentCredit(
+      { ...old, amount: amountChanges ? body.amount : old.amount, currency: body.currency || old.currency },
+      old.organization_id, exec,
+    );
+  }
+}
+
 const ctrl = crudController(Payment, {
+  transactionalWrites: true,
   // client_id is fillable but undeclared in the update schemas, so PUT/PATCH
   // used to re-point a payment at any tenant's client and leave its ledger
   // credit on the old one. Moving a payment between clients is POST
   // /:id/reassign's job (allocation check + ledger move); refuse it here.
-  beforeUpdate: async (old, req) => {
+  beforeUpdate: async (old, req, exec) => {
     const body = req.body || {};
     if (body.client_id !== undefined && Number(body.client_id) !== Number(old.client_id)) {
       throw new AppError(
@@ -51,6 +94,13 @@ const ctrl = crudController(Payment, {
       );
     }
     delete body.client_id;
+    // Who took the money is a fact of the create, not an editable field: the
+    // cash reconciliation of that cashier's session reads it.
+    delete body.recorded_by;
+    await assertPaymentEditKeepsMoneyConsistent(old, body, exec);
+  },
+  beforeDelete: async (old, req, exec) => {
+    await repService.assertNoBindingRep(exec, { paymentId: old.id, orgId: req.orgId });
   },
   afterDelete: async (payment) => {
     await billingService.reversePaymentCredit(payment.id);
@@ -75,6 +125,9 @@ router.get('/:id', requirePermission('payments.view'), ctrl.get);
 router.post('/', requirePermission('payments.create'), validate(createPayment), async (req, res, next) => {
   try {
     req.body.organization_id = req.orgId;
+    // The cash reconciliation session of the staff member who records the
+    // payment sums it; never taken from the body.
+    req.body.recorded_by = req.user?.id ?? null;
     await assertPaymentClientOwned(req.body.client_id, req.orgId);
     // Default to the organization's currency when the caller doesn't send
     // one — otherwise payments.currency's own column default ('USD') would
@@ -100,9 +153,23 @@ router.delete('/:id', requirePermission('payments.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('payments.update'), ctrl.restore);
 
 // Allocate payment to invoice
+//
+// In one transaction with the payment and the invoice locked first (DAL-04):
+// this was an autocommit INSERT that relied on the over-allocation triggers,
+// which read the sums without locks, so two concurrent allocations could both
+// pass. The amount must also fit what the payment has left and what the
+// invoice still owes (after payments and credit notes).
 router.post('/:id/allocate', requirePermission('payments.create'), validate(allocatePayment), async (req, res, next) => {
+  const conn = await db.getConnection();
+  const exec = conn.execute.bind(conn);
+  let committed = false;
+  const fail = async (status, error) => {
+    await conn.rollback();
+    return res.status(status).json({ error });
+  };
   try {
     const { invoice_id, amount } = req.body;
+    await conn.beginTransaction();
 
     // Org-verify the payment BEFORE touching anything else. This route used
     // to accept ANY payment id with no organization_id filter at all — an
@@ -110,52 +177,69 @@ router.post('/:id/allocate', requirePermission('payments.create'), validate(allo
     // invoice (marking it paid and reconnecting org B's contract) just by
     // guessing/enumerating ids. Mirrors the reallocate/reassign/unapply
     // routes' payment lookup below.
-    const [paymentRows] = await db.query(
-      'SELECT * FROM payments WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+    const [paymentRows] = await exec(
+      'SELECT * FROM payments WHERE id = ? AND organization_id = ? AND deleted_at IS NULL FOR UPDATE',
       [req.params.id, req.orgId],
     );
-    if (!paymentRows[0]) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Payment not found.' } });
+    const payment = paymentRows[0];
+    if (!payment) return fail(404, { code: 'NOT_FOUND', message: 'Payment not found.' });
+    if (!paymentAllocationService.isPaymentSettled(payment)) {
+      return fail(422, paymentAllocationService.paymentNotSettledError(payment));
     }
-    if (!paymentAllocationService.isPaymentSettled(paymentRows[0])) {
-      return res.status(422).json({ error: paymentAllocationService.paymentNotSettledError(paymentRows[0]) });
-    }
+    await paymentAllocationService.lockInvoicesForAllocation(exec, req.orgId, { invoiceIds: [invoice_id] });
 
     // Validate invoice exists (same org — same hole as above: this had no
     // organization_id filter either) and is not void BEFORE inserting the
     // allocation. A voided invoice's total is NOT zeroed on void (only its
     // ledger entries are), so the over-allocation trigger would otherwise
     // still let the apply through.
-    const [invoiceRows] = await db.query(
+    const [invoiceRows] = await exec(
       'SELECT * FROM invoices WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [invoice_id, req.orgId],
     );
     const invoice = invoiceRows[0];
-    if (!invoice) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Invoice not found.' } });
-    }
+    if (!invoice) return fail(404, { code: 'NOT_FOUND', message: 'Invoice not found.' });
     if (invoice.status === 'void' || invoice.status === 'cancelled') {
-      return res.status(422).json({ error: { code: 'INVOICE_NOT_PAYABLE', message: `Cannot apply a payment to a ${invoice.status} invoice.` } });
+      return fail(422, { code: 'INVOICE_NOT_PAYABLE', message: `Cannot apply a payment to a ${invoice.status} invoice.` });
+    }
+
+    // Read under the locks: neither can move until this commits.
+    const [paidRows] = await exec(
+      'SELECT COALESCE(SUM(amount), 0) AS allocated FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
+      [payment.id],
+    );
+    const open = await paymentAllocationService.getInvoicesWithBalance(exec, req.orgId, invoice.client_id, [invoice.id], false);
+    const paymentLeft = Number(payment.amount) - Number(paidRows?.[0]?.allocated || 0);
+    const invoiceLeft = open[0] ? Number(open[0].balance_due) : Number(invoice.total);
+    if (Number(amount) > paymentLeft + 0.005 || Number(amount) > invoiceLeft + 0.005) {
+      return fail(422, { code: 'OVER_ALLOCATION', message: 'Allocation would exceed the invoice or payment total.' });
     }
 
     let allocation;
     try {
-      allocation = await Payment.allocate(req.params.id, invoice_id, amount);
+      const [result] = await exec(
+        'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
+        [payment.id, invoice_id, amount],
+      );
+      const [rows] = await exec('SELECT * FROM payment_allocations WHERE id = ?', [result.insertId]);
+      allocation = rows[0];
     } catch (allocErr) {
       // Over-allocation guard trigger (SQLSTATE 45000) fires when the amount
       // would exceed the invoice or payment total. Mirror the reallocate handler.
       if (allocErr.sqlState === '45000' || allocErr.errno === 1644) {
-        return res.status(422).json({
-          error: { code: 'OVER_ALLOCATION', message: 'Allocation would exceed the invoice or payment total.' },
-        });
+        return fail(422, { code: 'OVER_ALLOCATION', message: 'Allocation would exceed the invoice or payment total.' });
       }
       throw allocErr;
     }
 
-    // Mark the invoice paid once fully covered, and reconnect a suspended
-    // contract — shared with POST /:id/allocate-auto so the two endpoints
-    // cannot drift (see src/services/paymentAllocationService.js).
-    const becamePaid = await paymentAllocationService.finalizeIfFullyPaid(db.query.bind(db), invoice);
+    // Mark the invoice paid once fully covered — shared with POST
+    // /:id/allocate-auto so the two endpoints cannot drift (see
+    // src/services/paymentAllocationService.js).
+    const becamePaid = await paymentAllocationService.finalizeIfFullyPaid(exec, invoice);
+    await conn.commit();
+    committed = true;
+    conn.release();
+
     if (becamePaid) {
       await paymentAllocationService.reconnectIfSuspended(invoice, req.user.id, req.orgId);
     }
@@ -167,7 +251,12 @@ router.post('/:id/allocate', requirePermission('payments.create'), validate(allo
 
     res.status(201).json({ data: allocation, rep });
   } catch (err) {
+    if (!committed) {
+      try { await conn.rollback(); } catch (_rollbackErr) { /* keep the original error */ }
+    }
     next(err);
+  } finally {
+    if (!committed) conn.release();
   }
 });
 
@@ -219,6 +308,13 @@ router.post('/:id/allocate-auto', requirePermission('payments.create'), validate
       await conn.rollback();
       return res.status(422).json({ error: paymentAllocationService.paymentNotSettledError(payment) });
     }
+
+    // Lock the client's invoices before any read that sums allocations
+    // (DAL-04): a plain read here would fix this transaction's snapshot while
+    // another allocation to the same invoices is still in flight.
+    await paymentAllocationService.lockInvoicesForAllocation(
+      conn.execute.bind(conn), req.orgId, { clientIds: [payment.client_id] },
+    );
 
     // Unallocated remainder for THIS payment (live allocations only).
     const [remRows] = await conn.execute(
@@ -317,27 +413,7 @@ router.post('/:id/rep', requireMxLocale, requirePermission('cfdi_documents.creat
     if (!invoiceId) {
       return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'invoice_id is required.' } });
     }
-    const [allocRows] = await db.query(
-      `SELECT pa.amount FROM payment_allocations pa
-         JOIN payments p ON p.id = pa.payment_id AND p.organization_id = ? AND p.deleted_at IS NULL
-        WHERE pa.payment_id = ? AND pa.invoice_id = ? AND pa.deleted_at IS NULL LIMIT 1`,
-      [req.orgId, paymentId, invoiceId],
-    );
-    if (!allocRows[0]) {
-      return res.status(422).json({ error: { code: 'ALLOCATION_NOT_FOUND', message: 'This payment is not applied to that invoice.' } });
-    }
-    const result = await repService.generateRepForAllocation(paymentId, invoiceId, allocRows[0].amount, req.orgId, req.user?.id);
-    if (!result.generated) {
-      const REASONS = {
-        NO_PPD_CFDI: 'the invoice needs a vigente PPD CFDI (PUE invoices are covered by their own CFDI).',
-        NON_MXN: 'the payment is not in MXN — REPs apply to MXN payments only.',
-        PAYMENT_NOT_SETTLED: 'the payment is not settled (failed/refunded/cancelled payments are never REP-reported).',
-        CFDI_FULLY_REPORTED: 'the invoice CFDI is already fully covered by prior REPs.',
-        REP_ALREADY_EXISTS: `a live REP (#${result.cfdi_document_id}) already covers this allocation.`,
-      };
-      const status = result.reason === 'REP_ALREADY_EXISTS' ? 409 : 422;
-      return res.status(status).json({ error: { code: `REP_${result.reason}`, message: `No REP generated: ${REASONS[result.reason] || result.reason}` } });
-    }
+    const result = await repService.generateManualRep(paymentId, invoiceId, req.orgId, req.user?.id);
     res.status(201).json({ data: result });
   } catch (err) {
     next(err);
@@ -397,9 +473,10 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
 
     await conn.beginTransaction();
 
-    // Load payment (org-scoped)
+    // Load and lock the payment, then both invoices, before reading any
+    // allocation (DAL-04).
     const [payRows] = await conn.execute(
-      'SELECT * FROM payments WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      'SELECT * FROM payments WHERE id = ? AND organization_id = ? AND deleted_at IS NULL FOR UPDATE',
       [paymentId, req.orgId],
     );
     if (!payRows[0]) {
@@ -407,6 +484,9 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Payment not found.' } });
     }
     const payment = payRows[0];
+    await paymentAllocationService.lockInvoicesForAllocation(
+      conn.execute.bind(conn), req.orgId, { invoiceIds: [from_invoice_id, to_invoice_id] },
+    );
     if (!paymentAllocationService.isPaymentSettled(payment)) {
       await conn.rollback();
       return res.status(422).json({ error: paymentAllocationService.paymentNotSettledError(payment) });
@@ -424,6 +504,9 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
       });
     }
     const existingAlloc = allocRows[0];
+    // The old REP reports this money against from_invoice; moving it would
+    // report it twice (CFD-06).
+    await repService.assertNoBindingRep(conn.execute.bind(conn), { paymentId, orgId: req.orgId, invoiceId: from_invoice_id });
     const moveAmount = amountParam !== null && amountParam !== undefined ? parseFloat(amountParam) : parseFloat(existingAlloc.amount);
 
     // Validate both invoices belong to the payment's client
@@ -512,8 +595,8 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
     await billingService.refreshInvoicePaidStatus(from_invoice_id);
     await billingService.refreshInvoicePaidStatus(to_invoice_id);
 
-    // REP for the NEW allocation (the moved-from invoice's REP, if any, stays
-    // on record — correcting it is a manual SAT cancellation of that REP).
+    // REP for the NEW allocation. A REP on the moved-from invoice refused the
+    // move above, so none is left standing for this money.
     await repService.maybeGenerateRep(paymentId, to_invoice_id, moveAmount, req.orgId, req.user?.id);
 
     const [newAllocRows] = await db.query('SELECT * FROM payment_allocations WHERE id = ?', [newAllocId]);
@@ -668,6 +751,8 @@ router.post('/:id/unapply', requirePermission('payments.update'), async (req, re
         error: { code: 'ALLOCATION_NOT_FOUND', message: 'This payment is not applied to that invoice.' },
       });
     }
+
+    await repService.assertNoBindingRep(conn.execute.bind(conn), { paymentId, orgId: req.orgId, invoiceId: invoice_id });
 
     // Soft-delete the allocation
     await conn.execute(

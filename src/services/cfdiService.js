@@ -13,6 +13,7 @@ const { formatMoney, formatQuantity, formatUnitValue, anexo20Violations } = requ
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
+const { timeZoneForPostalCode, DEFAULT_TIME_ZONE } = require('../utils/mxTimeZone');
 
 // ---------------------------------------------------------------------------
 // Simple circuit breaker for PAC stamping calls
@@ -39,10 +40,11 @@ function makeBreaker() {
   };
 }
 
-// Global aggregate breaker (stamping health across all providers) + a
-// per-provider breaker so one down PAC is skipped fast without blocking a
-// healthy sibling in a failover setup.
-const circuitBreaker = makeBreaker();
+// One breaker per PAC row, so one down PAC is skipped fast without blocking a
+// healthy sibling in a failover setup. PAC rows belong to one organization, so
+// a tenant with bad credentials or bad receptor data trips only its own row.
+// There used to be a process-wide breaker as well; any five failed stamps from
+// any tenant blocked stamping for every tenant (CFD-04).
 const providerBreakers = new Map();
 function providerBreaker(pacId) {
   if (!providerBreakers.has(pacId)) providerBreakers.set(pacId, makeBreaker());
@@ -73,19 +75,23 @@ function pacRefusal(message, code = null) {
 function isDefiniteRefusal(err) {
   return !!err && (err.pacRejected === true || isUnreachable(err));
 }
+function isPacTransportFailure(err) {
+  return !!err && err.pacRejected !== true && !(err instanceof AppError);
+}
 
 /**
  * Generate CFDI XML for an invoice.
  * Builds the XML structure from cfdi_documents and cfdi_conceptos rows.
  */
 /**
- * The expedition timestamp for a CFDI: current moment in Mexico local time,
- * "AAAA-MM-DDThh:mm:ss" (Anexo 20 — no offset, no milliseconds). Uses
- * Intl/America/Mexico_City so the value is correct regardless of server TZ.
+ * The expedition timestamp for a CFDI: the moment in the local time of the
+ * issuer's LugarExpedicion, "AAAA-MM-DDThh:mm:ss" (Anexo 20: no offset, no
+ * milliseconds). Pass the zone from timeZoneForPostalCode; it defaults to
+ * Mexico City. Correct regardless of the server's own time zone.
  */
-function cfdiExpeditionTime(now = new Date()) {
+function cfdiExpeditionTime(now = new Date(), timeZone = DEFAULT_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Mexico_City',
+    timeZone,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   }).formatToParts(now).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
@@ -269,7 +275,7 @@ async function generateXml(cfdiDocumentId) {
     const xml = buildPaymentComplementXml(
       {
         serie: doc.serie, folio: doc.folio,
-        fecha_emision: cfdiExpeditionTime(),
+        fecha_emision: cfdiExpeditionTime(new Date(), timeZoneForPostalCode(emisor.codigo_postal_fiscal)),
         lugar_expedicion: emisor.codigo_postal_fiscal,
         emisor_rfc: emisor.rfc, emisor_nombre: emisor.razon_social,
         emisor_regimen_fiscal: emisor.regimen_fiscal,
@@ -403,14 +409,12 @@ function buildCfdi40Xml(doc, emisor, conceptos, impuestos, relacionados = []) {
     </cfdi:Concepto>`;
   }).join('\n');
 
-  // Fecha = the moment of expedition in MEXICO LOCAL time, per Anexo 20
-  // ("AAAA-MM-DDThh:mm:ss", no timezone suffix, no milliseconds). A bare
-  // toISOString() would be UTC — ~6h ahead of Mexico wall-clock, which PACs
-  // reject as a future expedition date after ~18:00 local. America/Mexico_City
-  // covers the CST bulk of the country (Mexico abolished DST in 2022); the few
-  // border/Sonora/Quintana Roo zones are an accepted approximation until the
-  // emisor profile carries an explicit zone.
-  const fecha = cfdiExpeditionTime();
+  // Fecha = the moment of expedition in the local time of LugarExpedicion,
+  // per Anexo 20 ("AAAA-MM-DDThh:mm:ss", no timezone suffix, no milliseconds).
+  // A bare toISOString() would be UTC, hours ahead of Mexican wall-clock, and
+  // PACs reject a future expedition date. Mexico City time put issuers in the
+  // UTC-7 and UTC-8 states 1-2h in the future too (CFD-05).
+  const fecha = cfdiExpeditionTime(new Date(), timeZoneForPostalCode(emisor.codigo_postal_fiscal));
 
   // Comprobante-level tax summary — Anexo 20 requires that when conceptos
   // carry traslados, the Comprobante-level cfdi:Impuestos node repeats them
@@ -579,18 +583,9 @@ async function sealXmlForProvider(pac, doc) {
 async function stamp(cfdiDocumentId) {
   logger.info({ cfdiDocumentId }, 'Stamping CFDI document');
 
-  if (circuitBreaker.isOpen()) {
-    throw new CfdiStampingError(
-      'PAC circuit breaker is open — too many consecutive failures',
-      { cfdiDocumentId },
-    );
-  }
-
   const [docs] = await db.query('SELECT * FROM cfdi_documents WHERE id = ?', [cfdiDocumentId]);
   const doc = docs[0];
-  // Same reasoning as cancel(): these reject the request, so they are 4xx. The
-  // circuit-breaker check above stays a 502 because it IS transient — retrying
-  // it later genuinely can succeed.
+  // Same reasoning as cancel(): these reject the request, so they are 4xx.
   if (!doc) throw new AppError('CFDI document not found', 404, 'CFDI_NOT_FOUND');
   if (!doc.xml_content) throw new AppError('XML not generated yet — call generateXml first', 422, 'CFDI_XML_NOT_GENERATED');
 
@@ -679,7 +674,6 @@ async function stamp(cfdiDocumentId) {
         selloSat = result.selloSat || null;
         stampedProvider = pac;
         breaker.recordSuccess();
-        circuitBreaker.recordSuccess();
         providerErr = null;
         break;
       } catch (pacErr) {
@@ -694,7 +688,11 @@ async function stamp(cfdiDocumentId) {
     if (uuid) break; // stamped
 
     lastErr = providerErr;
-    breaker.recordFailure();
+    // Only a failure of the PAC itself opens its circuit: unreachable, timed
+    // out, reset or a 5xx. A PAC that answered and refused the document
+    // (receptor data, UsoCFDI, amounts) is healthy, and a configuration error
+    // is the org's to fix; neither says anything about the next document.
+    if (isPacTransportFailure(providerErr)) breaker.recordFailure();
     // Fail over to the next PAC ONLY when this one was unreachable. Any other
     // outcome (timeout / PAC error) must not risk a second stamp elsewhere.
     if (isUnreachable(providerErr) && pac !== pacs[pacs.length - 1]) {
@@ -705,7 +703,6 @@ async function stamp(cfdiDocumentId) {
   }
 
   if (!uuid) {
-    circuitBreaker.recordFailure();
     // sat_status is ENUM('draft','vigente','cancelado','cancel_pending') — there is
     // no 'stamp_error' value (database/schema.sql), so the doc stays 'draft'
     // (not fiscally valid) and the caller gets the actual PAC error. The error
@@ -1014,11 +1011,28 @@ function httpRequest(url, method, body, headers) {
 async function syncInvoiceCancelled(cfdiDocumentId) {
   try {
     const [rows] = await db.query(
-      'SELECT invoice_id, organization_id FROM cfdi_documents WHERE id = ?',
+      'SELECT invoice_id, credit_note_id, payment_id, tipo_comprobante, uuid, organization_id FROM cfdi_documents WHERE id = ?',
       [cfdiDocumentId],
     );
     const doc = rows[0];
-    if (!doc || !doc.invoice_id) return;
+    if (!doc) return;
+    // CFD-07: an egreso carries credit_note_id, not invoice_id, so its
+    // cancellation never reached the note, which kept crediting the client.
+    if (doc.tipo_comprobante === 'E' && doc.credit_note_id) {
+      await cancelCreditNoteForSat(doc);
+      return;
+    }
+    // A cancelled REP leaves its payment and allocation in place: the money did
+    // arrive. Record it so the payment can be re-reported or corrected.
+    if (doc.tipo_comprobante === 'P' && doc.payment_id) {
+      logger.warn({ cfdiDocumentId, paymentId: doc.payment_id }, 'REP cancelled at SAT; its payment is no longer reported');
+      await auditLog.log({
+        userId: null, organizationId: doc.organization_id, action: 'rep_cancelled',
+        tableName: 'payments', recordId: doc.payment_id, newValues: { cfdi_document_id: cfdiDocumentId, uuid: doc.uuid },
+      });
+      return;
+    }
+    if (!doc.invoice_id) return;
     const billingService = require('./billingService');
     await billingService.cancelInvoiceForSat(doc.invoice_id, doc.organization_id, null);
   } catch (err) {
@@ -1026,6 +1040,44 @@ async function syncInvoiceCancelled(cfdiDocumentId) {
       { cfdiDocumentId, err: err.message },
       'CFDI cancelled at SAT but failed to sync the invoice to cancelled — reconcile manually',
     );
+  }
+}
+
+/**
+ * SAT accepted the cancellation of a credit note's CFDI de Egreso: cancel the
+ * note and reverse its ledger credit, under the note's row lock, so the
+ * client's balance stops counting a credit SAT no longer holds.
+ */
+async function cancelCreditNoteForSat(doc) {
+  const creditNoteLedgerService = require('./creditNoteLedgerService');
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const exec = conn.execute.bind(conn);
+    const [notes] = await exec(
+      'SELECT * FROM credit_notes WHERE id = ? AND organization_id <=> ? FOR UPDATE',
+      [doc.credit_note_id, doc.organization_id],
+    );
+    const note = notes[0];
+    if (!note || note.status === 'cancelled') {
+      await conn.rollback();
+      return;
+    }
+    await exec("UPDATE credit_notes SET status = 'cancelled' WHERE id = ?", [note.id]);
+    await creditNoteLedgerService.syncCreditNoteLedger(exec, { ...note, status: 'cancelled' }, doc.organization_id,
+      { label: 'egreso cancelled at SAT' });
+    await require('./creditNoteApplicationService').syncApplication(exec, { ...note, status: 'cancelled' }, doc.organization_id);
+    await conn.commit();
+    await auditLog.log({
+      userId: null, organizationId: doc.organization_id, action: 'cancel_cfdi',
+      tableName: 'credit_notes', recordId: note.id,
+      oldValues: { status: note.status }, newValues: { status: 'cancelled', egreso_uuid: doc.uuid },
+    });
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
   }
 }
 
@@ -1079,9 +1131,12 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null) {
        JOIN cfdi_payment_complements pc ON pc.id = pci.complement_id
        JOIN cfdi_documents d ON d.id = pc.cfdi_document_id
       WHERE pci.related_cfdi_uuid = ?
+        AND d.organization_id = ?
         AND d.sat_status IN ('vigente', 'cancel_pending')
       LIMIT 1`,
-    [doc.uuid],
+    // Scoped to the CFDI's own org, so another tenant's REP citing this UUID
+    // cannot block its cancellation (CFD-08).
+    [doc.uuid, doc.organization_id],
   );
   if (liveReps.length > 0) {
     throw new AppError(
@@ -1946,15 +2001,17 @@ function buildPaymentComplementXml(doc, complement, items) {
   // Fecha must be Mexico-local wall time. The old round-trip through
   // new Date(...).toISOString() re-emitted it as UTC — correct only on
   // UTC-clock servers, +N hours (a rejected future Fecha) everywhere else.
-  // A plain string from cfdiExpeditionTime() is already CDMX wall time →
-  // pass through; a zoned string or Date is an instant → convert to CDMX.
+  // A plain string from cfdiExpeditionTime() is already local wall time →
+  // pass through; a zoned string or Date is an instant → convert it to the
+  // local time of LugarExpedicion.
+  const zone = timeZoneForPostalCode(doc.lugar_expedicion);
   let fecha = '';
   if (doc.fecha_emision instanceof Date) {
-    fecha = cfdiExpeditionTime(doc.fecha_emision);
+    fecha = cfdiExpeditionTime(doc.fecha_emision, zone);
   } else if (doc.fecha_emision) {
     const s = String(doc.fecha_emision);
     if (/Z$|[+-]\d{2}:\d{2}$/.test(s)) {
-      fecha = cfdiExpeditionTime(new Date(s));
+      fecha = cfdiExpeditionTime(new Date(s), zone);
     } else {
       // Local wall time, but callers may send MySQL 'YYYY-MM-DD HH:mm:ss' or a
       // bare date — the Fecha XSD pattern demands YYYY-MM-DDTHH:mm:ss exactly.
@@ -2384,5 +2441,7 @@ module.exports = {
   discardDraft,
   generatePaymentComplement, buildPaymentComplementXml, enrichRelatedDocumentsWithTaxes, getPaymentComplement,
   getReconciliationReport,
-  httpRequest, circuitBreaker, providerBreaker, receptorDataHint,
+  httpRequest, providerBreaker, receptorDataHint,
+  // Tests only: forget every PAC row's breaker state.
+  _resetProviderBreakers: () => providerBreakers.clear(),
 };

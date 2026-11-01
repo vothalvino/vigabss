@@ -467,6 +467,27 @@ function generateSpec() {
           responses: { ...activationStateResponse('Activated contract state, optional invoice, and network activation outcome'), 404: { description: 'Contract or activation order not found' }, 422: { description: 'Activation prerequisite is incomplete' } },
         },
       },
+      '/contracts/{id}/addons/{addonId}': {
+        patch: {
+          tags: ['Contracts'],
+          summary: 'Change an active contract add-on: quantity, agreed unit price, end date or notes',
+          operationId: 'updateContractAddon',
+          security: [{ bearerAuth: [] }],
+          parameters: [idParam(), { name: 'addonId', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: jsonBody('contracts_updateContractAddon'),
+          responses: { 200: { description: 'Updated add-on', content: { 'application/json': { schema: { type: 'object' } } } }, 404: { description: 'Contract or add-on not found' }, 422: { description: 'The add-on is not active' } },
+        },
+      },
+      '/contracts/{id}/addons/{addonId}/cancel': {
+        post: {
+          tags: ['Contracts'],
+          summary: 'Cancel a contract add-on so later billing periods no longer charge it; end_date is capped at today',
+          operationId: 'cancelContractAddon',
+          security: [{ bearerAuth: [] }],
+          parameters: [idParam(), { name: 'addonId', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: { 200: { description: 'Cancelled add-on', content: { 'application/json': { schema: { type: 'object' } } } }, 404: { description: 'Contract or add-on not found' } },
+        },
+      },
       '/contracts/{id}/suspend': { post: { tags: ['Contracts'], summary: 'Suspend a contract and kick active RADIUS session via CoA Disconnect-Request', operationId: 'suspendContract', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('rule_id + invoice_id'), responses: { 200: { description: 'Contract suspended', content: { 'application/json': { schema: { type: 'object' } } } }, 404: { description: 'Contract not found' }, 422: { description: 'Contract is already suspended' } } } },
       '/contracts/{id}/unsuspend': { post: { tags: ['Contracts'], summary: 'Unsuspend a contract and restore RADIUS access via CoA-Request', operationId: 'unsuspendContract', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('invoice_id'), responses: { 200: { description: 'Contract unsuspended', content: { 'application/json': { schema: { type: 'object' } } } }, 404: { description: 'Contract not found' }, 422: { description: 'Contract is not suspended' } } } },
       '/contracts/{id}/renew': { post: { tags: ['Contracts'], summary: 'Renew a terminal contract; previously activated service returns active, while never-activated service returns pending with activation_required=true', operationId: 'renewContract', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('end_date + plan_id'), responses: { 200: { description: 'Renewal result, including activation_required and any recoverable network_activation warning', content: { 'application/json': { schema: { type: 'object' } } } }, 404: { description: 'Contract not found' }, 422: { description: 'Contract is not in a renewable state' } } } },
