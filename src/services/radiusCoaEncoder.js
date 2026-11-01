@@ -161,15 +161,19 @@ function encodeAcctSessionId(sessionId) {
 
 /**
  * Encode a WISPr bandwidth attribute (vendor 14122). 32-bit integer, bits/sec.
- * Down = attr 7, Up = attr 8.
+ * The WISPr dictionary (FreeRADIUS dictionary.wispr) numbers them Min-Up 5,
+ * Min-Down 6, Max-Up 7, Max-Down 8. They were swapped here, so a WISPr NAS
+ * shaped every subscriber with upload and download reversed (NPR-06).
  */
 function encodeWisprBandwidth(vendorType, bps) {
   const v = Buffer.alloc(4);
   v.writeUInt32BE(Number(bps) >>> 0, 0);
   return encodeVSA(14122, vendorType, v);
 }
-function encodeWisprBandwidthMaxDown(bps) { return encodeWisprBandwidth(7, bps); }
-function encodeWisprBandwidthMaxUp(bps) { return encodeWisprBandwidth(8, bps); }
+const WISPR_BANDWIDTH_MAX_UP = 7;
+const WISPR_BANDWIDTH_MAX_DOWN = 8;
+function encodeWisprBandwidthMaxDown(bps) { return encodeWisprBandwidth(WISPR_BANDWIDTH_MAX_DOWN, bps); }
+function encodeWisprBandwidthMaxUp(bps) { return encodeWisprBandwidth(WISPR_BANDWIDTH_MAX_UP, bps); }
 
 // ---------------------------------------------------------------------------
 // Aggregate encoders
