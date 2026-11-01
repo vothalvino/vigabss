@@ -27,6 +27,7 @@ jest.mock('../src/config/database', () => ({
 jest.mock('../src/services/taskRunner', () => ({
   runTask: jest.fn().mockResolvedValue({ ok: true }),
   markTaskRun: jest.fn().mockResolvedValue(undefined),
+  completionStatus: jest.requireActual('../src/services/taskRunner').completionStatus,
 }));
 
 const config = require('../src/config');

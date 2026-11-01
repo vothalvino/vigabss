@@ -562,17 +562,19 @@ describe('automationService — evaluateAutomationRules', () => {
   it('returns {evaluated:0, triggered:0} when no matching rules', async () => {
     db.query.mockResolvedValueOnce([[], []]);
     const result = await automationService.evaluateAutomationRules(1, 'device.offline', {});
-    expect(result).toEqual({ evaluated: 0, triggered: 0 });
+    expect(result).toEqual({ evaluated: 0, triggered: 0, results: [] });
   });
 
-  it('triggers rule when conditions array is empty (all-match)', async () => {
+  // No action type has a handler yet (ASY-16): an all-match rule reaches its
+  // action, which is recorded as skipped and does not count as triggered.
+  it('reaches the action when conditions array is empty (all-match)', async () => {
     const rule = { id: 1, trigger_conditions: '[]', action_type: 'send_notification', action_config: '{}', priority: 0 };
     db.query
       .mockResolvedValueOnce([[rule], []])  // SELECT rules
-      .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE run_count
       .mockResolvedValueOnce([{ insertId: 10, affectedRows: 1 }]);  // INSERT executions
     const result = await automationService.evaluateAutomationRules(1, 'device.offline', {});
-    expect(result.triggered).toBe(1);
+    expect(result.triggered).toBe(0);
+    expect(result.results[0]).toMatchObject({ rule_id: 1, status: 'skipped', message: expect.stringMatching(/not implemented/) });
   });
 
   it('skips rule when condition is not met (eq mismatch)', async () => {
@@ -588,19 +590,18 @@ describe('automationService — evaluateAutomationRules', () => {
     expect(result.triggered).toBe(0);
   });
 
-  it('records failure status when dispatchAction throws', async () => {
+  it('records failure status when evaluating the rule throws', async () => {
     const rule = {
-      id: 3, trigger_conditions: null,
+      id: 3, trigger_conditions: [{ operator: 'eq', value: 1 }], // a condition with no field throws
       action_type: 'create_ticket', action_config: null, priority: 0,
     };
-    // simulate DB error on run_count update
     db.query
       .mockResolvedValueOnce([[rule], []])   // SELECT rules
-      .mockRejectedValueOnce(new Error('DB error'))  // UPDATE run_count → throws
       .mockResolvedValueOnce([{ insertId: 12, affectedRows: 1 }]);  // INSERT executions
     const result = await automationService.evaluateAutomationRules(1, 'test.event', {});
-    // evaluated = 1, triggered should not be incremented due to failure
     expect(result.evaluated).toBe(1);
+    expect(result.triggered).toBe(0);
+    expect(result.results[0].status).toBe('failure');
   });
 });
 
@@ -632,18 +633,16 @@ describe('automationService — dispatchAction', () => {
   let dispatchAction;
   beforeAll(() => { dispatchAction = require('../src/services/automationService').dispatchAction; });
 
-  const actionCases = [
-    ['send_notification', 'Notification queued'],
-    ['create_ticket',     'Ticket creation enqueued'],
-    ['run_script',        'Script execution queued'],
-    ['set_alert',         'Alert rule updated'],
-    ['suspend_contract',  'Contract suspension enqueued'],
-    ['unknown_action',    "Action type 'unknown_action' acknowledged"],
-  ];
+  // None of these has a handler; each says so instead of claiming it was
+  // queued or done (ASY-16).
+  const actionCases = ['send_notification', 'create_ticket', 'run_script', 'set_alert', 'suspend_contract', 'unknown_action'];
 
-  it.each(actionCases)('action=%s returns message containing %s', async (actionType, expected) => {
+  it.each(actionCases)('action=%s reports not_implemented', async (actionType) => {
     const result = await dispatchAction(actionType, {}, {}, 1);
-    expect(result).toContain(expected);
+    expect(result).toEqual({
+      status: 'not_implemented',
+      message: `Action '${actionType}' is not implemented yet; nothing was done`,
+    });
   });
 });
 

@@ -295,6 +295,7 @@ router.post('/maintenance-windows', requirePermission('maintenance_windows.creat
         req.user ? req.user.id : null],
     );
     const [rows] = await db.query('SELECT * FROM maintenance_windows WHERE id = ?', [result.insertId]);
+    await require('../services/businessEvents').emitMaintenanceScheduled(req.orgId, rows[0]);
     res.status(201).json({ data: rows[0] });
   } catch (err) { next(err); }
 });

@@ -200,8 +200,9 @@ function registerHooks() {
         currency: invoice.currency,
       });
 
-      // Web Push to client's portal subscriptions
-      if (invoice.client_id) {
+      // Web Push to client's portal subscriptions — like email and SMS, only
+      // when the emitter asked for the subscriber to be notified (client set).
+      if (client && invoice.client_id) {
         await portalPushService.dispatch({
           clientId: invoice.client_id,
           eventType: 'billing',
@@ -268,8 +269,9 @@ function registerHooks() {
         currency: payment.currency,
       });
 
-      // Web Push to client's portal subscriptions
-      if (payment.client_id) {
+      // Web Push to client's portal subscriptions — only when the emitter asked
+      // for the subscriber to be notified (client set).
+      if (client && payment.client_id) {
         await portalPushService.dispatch({
           clientId: payment.client_id,
           eventType: 'billing',
@@ -352,10 +354,12 @@ function registerHooks() {
   });
 
   // --- Suspension Warning ---
-  eventBus.on('suspension.warning', async ({ organizationId, contract, client, invoice, daysOverdue }) => {
+  eventBus.on('suspension.warning', async ({ organizationId, contract, client, invoice, daysOverdue, emailSent = false }) => {
     try {
       const clientId = client?.id || invoice?.client_id || contract?.client_id || null;
-      if (client?.email && clientId) {
+      // runSuspensionWarnings emails the warning itself (with its dedup
+      // claim) and emits with emailSent, so the hook adds only the SMS.
+      if (client?.email && clientId && !emailSent) {
         const template = templates.suspensionWarningEmail({
           clientName: client.name || '',
           daysOverdue,
@@ -1028,7 +1032,7 @@ function registerHooks() {
   });
 
   // --- Maintenance Scheduled — §1.4 ---
-  eventBus.on('maintenance.scheduled', async ({ organizationId, maintenance }) => {
+  eventBus.on('maintenance.scheduled', async ({ organizationId, maintenance, notifyClients = false }) => {
     try {
       getBroadcast()(`org:${organizationId}:notifications`, 'maintenance.scheduled', {
         id: maintenance.id,
@@ -1045,7 +1049,10 @@ function registerHooks() {
         estimated_duration_minutes: maintenance.estimated_duration_minutes,
       });
 
-      // Email + SMS notification to relevant clients via admin contact
+      // Email + SMS to every active client of the organization: only when the
+      // emitter asks for it. A maintenance window can cover a single device,
+      // and blasting the whole subscriber base for it is wrong (ASY-08).
+      if (!notifyClients) return;
       try {
         const db = require('../config/database');
         const scheduledAt = maintenance.scheduled_at

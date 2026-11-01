@@ -12,6 +12,84 @@ const logger = require('../utils/logger');
 // the HTML report-delivery email — escape it.
 const { escapeHtmlForTemplate: esc } = require('./notificationService');
 const { orgScopeFilter } = require('./organizationFanOut');
+const { parseJsonColumn } = require('../utils/jsonColumn');
+const cron = require('node-cron');
+const cronParser = require('cron-parser');
+const { ValidationError } = require('../utils/errors');
+
+/**
+ * The next time a schedule's cron_expression fires after `from`, in the
+ * process timezone the task scheduler uses. Reports were re-run every hour
+ * whatever the schedule said (ASY-13).
+ */
+function nextRunAt(cronExpression, from = new Date()) {
+  return cronParser.parseExpression(cronExpression, { currentDate: from }).next().toDate();
+}
+
+const MAX_RECIPIENTS = 20;
+
+/**
+ * Who may receive an organization's scheduled reports: its active staff who
+ * can view reports. The attachment can carry subscriber identities, IPs and
+ * fiscal data, so an arbitrary external address is refused (ASY-14).
+ * @returns {Promise<Map<string, number>>} lower-cased email → user id
+ */
+async function allowedRecipients(organizationId) {
+  const User = require('../models/User');
+  const staff = await User.getUsersWithPermission(organizationId, 'reports.view');
+  return new Map(staff.filter(u => u.email).map(u => [String(u.email).toLowerCase(), u.id]));
+}
+
+/**
+ * Validate a recipients list for a schedule of `organizationId`.
+ * @returns {Promise<string[]>} the normalized addresses
+ */
+async function assertValidRecipients(organizationId, recipients) {
+  if (recipients === null || recipients === undefined) return [];
+  if (!Array.isArray(recipients) || recipients.length > MAX_RECIPIENTS
+    || !recipients.every(r => typeof r === 'string' && /^[^\s@]+@[^\s@]+$/.test(r.trim()))) {
+    throw new ValidationError(`recipients must be a list of at most ${MAX_RECIPIENTS} email addresses`);
+  }
+  const normalized = [...new Set(recipients.map(r => r.trim().toLowerCase()))];
+  const allowed = await allowedRecipients(organizationId);
+  const refused = normalized.filter(email => !allowed.has(email));
+  if (refused.length) {
+    throw new ValidationError(
+      `Scheduled reports can only be sent to active staff of this organization who can view reports: ${refused.join(', ')}`,
+    );
+  }
+  return normalized;
+}
+
+/**
+ * A schedule acts with its creator's authority: it stops when the creator is
+ * archived or inactive or no longer holds reports.schedule.
+ */
+async function creatorMayStillSchedule(schedule) {
+  if (!schedule.created_by) return false;
+  const User = require('../models/User');
+  const { runInPrimaryContext } = require('../utils/primaryContext');
+  const [[creator]] = await runInPrimaryContext(() => db.query(
+    'SELECT id, status FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+    [schedule.created_by],
+  ));
+  if (!creator || creator.status !== 'active') return false;
+  return User.hasEffectivePermission(creator.id, schedule.organization_id, 'reports.schedule');
+}
+
+/** Throws a 422 unless `cronExpression` is a five-field cron the scheduler can run. */
+function assertValidCron(cronExpression) {
+  const valid = typeof cronExpression === 'string'
+    && cronExpression.trim().split(/\s+/).length === 5
+    && cron.validate(cronExpression);
+  if (valid) {
+    try {
+      nextRunAt(cronExpression);
+      return;
+    } catch (_err) { /* fall through */ }
+  }
+  throw new ValidationError('cron_expression must be a valid five-field cron expression, e.g. "0 8 * * 1"');
+}
 
 /**
  * Process all due scheduled reports.
@@ -39,9 +117,10 @@ async function processScheduledReports() {
       processed++;
     } catch (err) {
       logger.error({ err, scheduleId: schedule.id }, 'Scheduled report failed');
+      // A failed run still waits for its next slot instead of retrying hourly.
       await db.query(
-        'UPDATE scheduled_reports SET last_run_at = NOW(), last_status = \'failed\' WHERE id = ?',
-        [schedule.id],
+        'UPDATE scheduled_reports SET last_run_at = NOW(), last_status = \'failed\', next_run_at = ? WHERE id = ?',
+        [safeNextRunAt(schedule), schedule.id],
       );
       failed++;
     }
@@ -51,11 +130,40 @@ async function processScheduledReports() {
 }
 
 /**
+ * next_run_at after a run. A stored expression the parser rejects (written
+ * before validation existed) waits a day rather than re-running every hour.
+ */
+function safeNextRunAt(schedule) {
+  try {
+    return nextRunAt(schedule.cron_expression);
+  } catch (err) {
+    logger.warn({ err, scheduleId: schedule.id, cronExpression: schedule.cron_expression },
+      'Scheduled report has an invalid cron_expression');
+    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+  }
+}
+
+/**
  * Run a single schedule: generate report data, format, insert history, email.
  */
 async function runSchedule(schedule) {
-  const params = schedule.parameters ? JSON.parse(schedule.parameters) : {};
-  const recipients = schedule.recipients ? JSON.parse(schedule.recipients) : [];
+  const params = parseJsonColumn(schedule.parameters, {});
+
+  if (!await creatorMayStillSchedule(schedule)) {
+    await db.query(
+      "UPDATE scheduled_reports SET is_enabled = 0, last_run_at = NOW(), last_status = 'failed' WHERE id = ?",
+      [schedule.id],
+    );
+    logger.warn({ scheduleId: schedule.id, createdBy: schedule.created_by },
+      'Scheduled report disabled: its creator is inactive or can no longer schedule reports');
+    return { reportId: null, recipients: 0, disabled: true };
+  }
+  // Re-checked at send time: a recipient who left or lost reports.view since
+  // the schedule was saved is dropped.
+  const allowed = await allowedRecipients(schedule.organization_id);
+  const recipients = parseJsonColumn(schedule.recipients, [])
+    .map(r => String(r).trim().toLowerCase())
+    .filter(email => allowed.has(email));
 
   // Generate report data
   const data = await generateReportData(schedule.organization_id, schedule.report_def_name, params);
@@ -89,19 +197,24 @@ async function runSchedule(schedule) {
             contentType,
           }],
         });
+        await db.query(
+          `INSERT INTO report_access_logs
+             (organization_id, user_id, report_type, entity_type, entity_id, parameters)
+           VALUES (?, ?, ?, 'scheduled_reports', ?, ?)`,
+          [schedule.organization_id, allowed.get(email), schedule.report_def_name, schedule.id,
+            JSON.stringify({ delivery: 'email', recipient: email, generated_report_id: reportId, created_by: schedule.created_by })],
+        );
       } catch (emailErr) {
         logger.warn({ emailErr, email }, 'Failed to email report');
       }
     }
   }
 
-  // Update schedule last_run_at and next_run_at (simple: add 1 hour for now)
   await db.query(
     `UPDATE scheduled_reports
-     SET last_run_at = NOW(), last_status = 'completed',
-         next_run_at = DATE_ADD(NOW(), INTERVAL 1 HOUR)
+     SET last_run_at = NOW(), last_status = 'completed', next_run_at = ?
      WHERE id = ?`,
-    [schedule.id],
+    [safeNextRunAt(schedule), schedule.id],
   );
 
   return { reportId, recipients: recipients.length };
@@ -285,4 +398,7 @@ module.exports = {
   formatReport,
   toCSV,
   runOnDemand,
+  nextRunAt,
+  assertValidCron,
+  assertValidRecipients,
 };

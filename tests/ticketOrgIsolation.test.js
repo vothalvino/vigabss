@@ -268,7 +268,8 @@ describe('ticket comments — another organization\'s ticket is 404', () => {
 
     const created = await staff('post', '/api/v1/tickets/1500/comments').send({ body: 'hello' });
     expect(created.status).toBe(201);
-    expect(jobQueue.add).toHaveBeenCalledWith('ai-triage', expect.objectContaining({ orgId: ORG_A, ticketId: 1500 }));
+    // A staff comment is not triaged as if the customer wrote it (ASY-10).
+    expect(jobQueue.add).not.toHaveBeenCalledWith('ai-triage', expect.anything());
 
     const edited = await staff('put', '/api/v1/tickets/1500/comments/71').send({ body: 'edited' });
     expect(edited.status).toBe(200);

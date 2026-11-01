@@ -208,10 +208,18 @@ function AutomationRulesTab() {
     } catch (err) { alert(err instanceof Error ? err.message : t('automation.errorDelete')); }
   };
 
+  // Report what the run did: a rule whose action is not implemented, or whose
+  // conditions did not match, was not "triggered successfully".
   const executeRule = async (id: number) => {
     try {
-      await apiFetch(`/automation-rules/${id}/execute`, { method: 'POST', body: JSON.stringify({}) });
-      alert(t('automation.executionTriggered'));
+      const res = await apiFetch<{ data: { result: { evaluated: number; results?: { status: string; message: string }[] } } }>(
+        `/automation-rules/${id}/execute`, { method: 'POST', body: JSON.stringify({}) },
+      );
+      const outcome = res?.data?.result?.results?.[0];
+      alert(outcome
+        ? t('automation.executionResult', { status: outcome.status, message: outcome.message })
+        : t('automation.executionNotRun'));
+      load();
     } catch (err) { alert(err instanceof Error ? err.message : t('automation.errorExecute')); }
   };
 

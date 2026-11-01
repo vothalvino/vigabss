@@ -146,7 +146,7 @@ router.post('/invoices/generate', requirePermission('invoices.create'), validate
 router.post('/suspend', requirePermission('contracts.update'), validate(bulkSchemas.suspend), async (req, res, next) => {
   try {
     const orgId = req.orgId;
-    const { contract_ids, reason } = req.body;
+    const { contract_ids } = req.body;
 
     if (!Array.isArray(contract_ids) || contract_ids.length === 0) {
       return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'contract_ids array is required' } });
@@ -196,8 +196,9 @@ router.post('/suspend', requirePermission('contracts.update'), validate(bulkSche
           continue;
         }
 
+        // suspendContract emits contract.suspended itself (ASY-08); this used
+        // to emit a second, malformed one ({ contractId } without contract).
         results.success++;
-        eventBus.emit('contract.suspended', { organizationId: orgId, contractId, reason });
       } catch (err) {
         results.failed++;
         results.errors.push({ contract_id: contractId, error: err.message });

@@ -12,7 +12,7 @@ class CommunicationCampaign extends BaseModel {
       'organization_id', 'name', 'channel', 'status', 'template_id',
       'filter_status', 'filter_plan_id', 'filter_tag', 'recipient_count',
       'sent_count', 'delivered_count', 'opened_count', 'bounced_count',
-      'failed_count', 'scheduled_at', 'started_at', 'completed_at',
+      'failed_count', 'started_at', 'completed_at',
       'notes', 'created_by',
     ];
   }

@@ -6,6 +6,7 @@ const { Router } = require('express');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
+const { runInPrimaryContext } = require('../utils/primaryContext');
 const { validate } = require('../middleware/validate');
 const { createRole, updateRole, assignPermission, setPermissions } = require('../middleware/schemas/roles');
 const db = require('../config/database');
@@ -16,6 +17,10 @@ const router = Router();
 
 router.use(authenticate);
 router.use(orgScope);
+// Staff identities, groups and memberships are control-plane rows: auth and
+// RBAC read them from the primary database, so manage them there even when
+// the organization uses an isolated subscriber database (DB-07).
+router.use((req, res, next) => runInPrimaryContext(() => next()));
 
 // List all roles
 router.get('/', requirePermission('roles.view'), async (req, res, next) => {

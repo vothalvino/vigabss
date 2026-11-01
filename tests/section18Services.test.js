@@ -562,7 +562,8 @@ describe('automationRules routes — additional coverage', () => {
       .mockResolvedValueOnce(mockUpdate())
       .mockResolvedValueOnce(mockRows([updated]));
     const res = await request(app).put('/api/automation-rules/1').send({
-      trigger_conditions: { field: 'status', operator: 'eq', value: 'offline' },
+      // trigger_conditions is a list of conditions (DB-05).
+      trigger_conditions: [{ field: 'status', operator: 'eq', value: 'offline' }],
       action_config: { channel: 'email' },
     });
     expect(res.status).toBe(200);

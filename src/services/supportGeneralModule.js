@@ -37,6 +37,9 @@ const DISPATCH = [
  * @returns {Promise<{ response: string, requiresConfirmation: boolean, actionType: string, actionData: object }>}
  */
 async function handle(intent, context, messageContent, orgId) {
+  // Every handler scopes its queries by organization; refuse rather than run
+  // them with an undefined bind (SUP-02).
+  if (orgId === undefined || orgId === null) throw new Error('supportGeneralModule.handle: orgId is required');
   const text = messageContent || '';
 
   for (const entry of DISPATCH) {
@@ -239,10 +242,11 @@ async function _damageReport(context, messageContent, orgId) {
     };
   }
   try {
-    await db.query(
+    const [ins] = await db.query(
       'INSERT INTO tickets (organization_id, client_id, subject, description, status, priority, category, source) VALUES (?,?,?,?,?,?,?,?)',
       [orgId, context?.customer?.id, 'Reporte de daño físico', messageContent, 'open', 'high', 'technical', 'ai_support'],
     );
+    await require('./businessEvents').emitTicketCreated(orgId, ins.insertId);
     return {
       response: 'Hemos creado un ticket de reporte de daño físico con prioridad alta. Un técnico se comunicará contigo lo antes posible para evaluar y reparar el equipo.',
       requiresConfirmation: false,
@@ -252,10 +256,13 @@ async function _damageReport(context, messageContent, orgId) {
   } catch (err) {
     logger.warn({ err }, 'generalModule: damageReport ticket creation failed');
     return {
-      response: 'Registramos tu reporte de daño. Por favor llama a soporte para agilizar la atención.',
+      // The ticket was NOT written: say so and hand to a person (SUP-02).
+      response: 'No pude registrar tu reporte de daño en este momento. Te paso con un agente de soporte.',
       requiresConfirmation: false,
       actionType: 'damage_report',
       actionData: { ticketCreated: false },
+      escalate: true,
+      escalationReason: 'ticket_creation_failed',
     };
   }
 }
@@ -270,10 +277,11 @@ async function _obstructionReport(context, messageContent, orgId) {
     };
   }
   try {
-    await db.query(
+    const [ins] = await db.query(
       'INSERT INTO tickets (organization_id, client_id, subject, description, status, priority, category, source) VALUES (?,?,?,?,?,?,?,?)',
       [orgId, context?.customer?.id, 'Reporte de obstrucción de señal', messageContent, 'open', 'medium', 'technical', 'ai_support'],
     );
+    await require('./businessEvents').emitTicketCreated(orgId, ins.insertId);
     return {
       response: 'Hemos registrado tu reporte de obstrucción (árbol, edificio u otro elemento). Un técnico evaluará la situación y te contactará para planificar una visita.',
       requiresConfirmation: false,
@@ -283,10 +291,12 @@ async function _obstructionReport(context, messageContent, orgId) {
   } catch (err) {
     logger.warn({ err }, 'generalModule: obstructionReport ticket creation failed');
     return {
-      response: 'Registramos tu reporte de obstrucción. Nuestro equipo técnico lo revisará pronto.',
+      response: 'No pude registrar tu reporte de obstrucción en este momento. Te paso con un agente de soporte.',
       requiresConfirmation: false,
       actionType: 'obstruction_report',
       actionData: { ticketCreated: false },
+      escalate: true,
+      escalationReason: 'ticket_creation_failed',
     };
   }
 }
@@ -337,10 +347,11 @@ async function _technicianComplaint(context, messageContent, orgId) {
     };
   }
   try {
-    await db.query(
+    const [ins] = await db.query(
       'INSERT INTO tickets (organization_id, client_id, subject, description, status, priority, category, source) VALUES (?,?,?,?,?,?,?,?)',
       [orgId, context?.customer?.id, 'Queja sobre técnico', messageContent, 'open', 'high', 'general', 'ai_support'],
     );
+    await require('./businessEvents').emitTicketCreated(orgId, ins.insertId);
     return {
       response: 'Lamentamos la situación. Hemos registrado tu queja con prioridad alta. Un supervisor revisará el caso y te contactará dentro de 24 horas hábiles.',
       requiresConfirmation: false,
@@ -350,10 +361,12 @@ async function _technicianComplaint(context, messageContent, orgId) {
   } catch (err) {
     logger.warn({ err }, 'generalModule: technicianComplaint ticket creation failed');
     return {
-      response: 'Hemos registrado tu queja sobre el técnico. Nuestro supervisor se pondrá en contacto contigo.',
+      response: 'No pude registrar tu queja en este momento. Te paso con un agente de soporte.',
       requiresConfirmation: false,
       actionType: 'technician_complaint',
       actionData: { ticketCreated: false },
+      escalate: true,
+      escalationReason: 'ticket_creation_failed',
     };
   }
 }

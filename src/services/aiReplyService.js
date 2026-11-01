@@ -79,10 +79,12 @@ const PII_PATTERNS = [
  * @param {string} text
  * @returns {{ redacted: string, mapping: Map<string,string> }}
  */
-function _redactPii(text) {
-  const mapping = new Map();
-  let counter   = 0;
-  let result    = text;
+function _redactPii(text, mapping = new Map()) {
+  // Pass the same mapping to redact several texts with distinct tokens: each
+  // call used to restart at _1, so the inbound text and the context both
+  // produced [EMAIL_1] and rehydration restored the wrong address.
+  let counter   = mapping.size;
+  let result    = String(text ?? '');
 
   for (const { name, re } of PII_PATTERNS) {
     // Reset lastIndex to 0 before each scan (global regex is stateful)
@@ -354,7 +356,7 @@ async function _persistTriage({ ticketId, orgId, classification, suggestedResolu
  * @param {number}  [opts.contractId] — contract ID for topology/health context (optional)
  * @returns {Promise<{skipped:true, reason:string} | {skipped:false, logId:number, draftText:string|null, action:string}>}
  */
-async function generate({ orgId, ticketId, channel = 'portal', inboundText, contractId = null } = {}) {
+async function generate({ orgId, ticketId, channel = 'portal', inboundText, contractId = null, forceDraft = false } = {}) {
   const startTime = Date.now();
 
   // ── Step 0: Ownership ───────────────────────────────────────────────────────
@@ -434,10 +436,24 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
   const providerId = policy.active_provider_id;
   const locale     = policy.default_locale || 'es-MX';
   const tone       = policy.tone            || 'formal';
-  const mode       = policy.mode            || 'draft_only';
+  // The staff "Generate draft" endpoints return the draft to the caller and
+  // must never auto-send it (ASY-10).
+  const mode       = forceDraft ? 'draft_only' : (policy.mode || 'draft_only');
+  const redact     = Number(policy.redact_pii_before_llm) === 1;
+  const piiMapping = new Map();
 
-  // ── Step 2: Classify ────────────────────────────────────────────────────────
-  const classification = await _classifyMessage(providerId, inboundText, locale, orgId);
+  // With no inbound text (the ticket page's Generate button), answer the
+  // latest customer-visible message.
+  if (!String(inboundText || '').trim() && ticketId) {
+    inboundText = await _latestInbound(ticketId);
+  }
+  if (!String(inboundText || '').trim()) return { skipped: true, reason: 'no_inbound_text' };
+
+  // ── Step 2: Redact, then classify ───────────────────────────────────────────
+  // Classification is an LLM call too: it used to receive the raw text before
+  // redaction ran (ASY-10).
+  const workingInbound = redact ? _redactPii(inboundText, piiMapping).redacted : inboundText;
+  const classification = await _classifyMessage(providerId, workingInbound, locale, orgId);
 
   // ── Step 3: Build context ───────────────────────────────────────────────────
   const [topologyCtx, healthSnapshot] = await Promise.all([
@@ -448,26 +464,21 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
   const rawContextObj = { topology: topologyCtx, health: healthSnapshot };
 
   // ── Step 4: Redact PII ──────────────────────────────────────────────────────
-  let workingInbound    = inboundText;
   let workingContextStr = JSON.stringify(rawContextObj);
-  const piiMapping      = new Map();
-
-  if (Number(policy.redact_pii_before_llm) === 1) {
-    const r1 = _redactPii(workingInbound);
-    const r2 = _redactPii(workingContextStr);
-    workingInbound    = r1.redacted;
-    workingContextStr = r2.redacted;
-    for (const [k, v] of r1.mapping) piiMapping.set(k, v);
-    for (const [k, v] of r2.mapping) piiMapping.set(k, v);
-  }
+  if (redact) workingContextStr = _redactPii(workingContextStr, piiMapping).redacted;
 
   // ── Step 5: Render system prompt ────────────────────────────────────────────
-  const [phrasesByCategory, forbiddenTerms, ticketHistory, ragChunks] = await Promise.all([
+  const [phrasesByCategory, forbiddenTerms, rawHistory, ragChunks] = await Promise.all([
     phraseLibraryService.getPhrasesByCategory(orgId, locale),
     phraseLibraryService.getTermsByLocale(orgId, locale),
     Ticket.getComments(ticketId),
     phraseLibraryService.search(orgId, locale, workingInbound, 5),
   ]);
+  // Ticket history is redacted like the inbound text. Staff-only notes stay
+  // out of a prompt whose output can be posted to the customer unreviewed.
+  const ticketHistory = (rawHistory || [])
+    .filter(c => !(mode === 'auto_send' && Number(c.is_internal) === 1))
+    .map(c => (redact ? { ...c, body: _redactPii(c.body, piiMapping).redacted } : c));
 
   const systemPrompt = _renderSystemPrompt({
     tone,
@@ -660,6 +671,20 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
     is_internal: true,
   });
   return { skipped: false, logId: logEntry.id, draftText: finalText, action: 'proposed' };
+}
+
+/** The latest customer-visible message on a ticket, else its description. */
+async function _latestInbound(ticketId) {
+  const db = require('../config/database');
+  const [[comment]] = await db.query(
+    `SELECT body FROM ticket_comments
+      WHERE ticket_id = ? AND is_internal = 0 AND deleted_at IS NULL
+      ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [ticketId],
+  );
+  if (comment?.body) return comment.body;
+  const [[ticket]] = await db.query('SELECT description FROM tickets WHERE id = ? LIMIT 1', [ticketId]);
+  return ticket?.description || '';
 }
 
 // =============================================================================

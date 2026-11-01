@@ -13,6 +13,36 @@ const logger = require('../utils/logger');
 const { escapeHtmlForTemplate } = require('./notificationService');
 const { buildBulkValues } = require('../utils/sqlBuild');
 const communicationPreferences = require('./clientCommunicationPreferenceService');
+const { ValidationError } = require('../utils/errors');
+
+const TEMPLATE_MISSING = 'Template missing or inactive; message not sent';
+
+/**
+ * A campaign sends its template's text. Without one — "— No template —" in
+ * the form, an inactive or deleted template, another organization's, or one
+ * for a different channel — the queue used to send a blank email to every
+ * consenting client (ASY-21). Require an active template of the campaign's
+ * channel, the organization's own or a global one, with a body.
+ * @param {Function} [exec] query function (a transaction's conn.execute)
+ */
+async function assertUsableTemplate(organizationId, channel, templateId, exec = (sql, p) => db.query(sql, p)) {
+  if (!templateId) {
+    throw new ValidationError('A campaign needs an active message template for its channel');
+  }
+  const [rows] = await exec(
+    `SELECT id, channel, body FROM message_templates
+      WHERE id = ? AND deleted_at IS NULL AND is_active = 1
+        AND (organization_id <=> ? OR organization_id IS NULL)`,
+    [templateId, organizationId],
+  );
+  const template = rows[0];
+  if (!template) throw new ValidationError('template_id must reference an active template of this organization');
+  if (template.channel !== channel) {
+    throw new ValidationError(`template_id is a ${template.channel} template; this campaign sends ${channel}`);
+  }
+  if (!String(template.body || '').trim()) throw new ValidationError('The campaign template has no body');
+  return template;
+}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -173,6 +203,8 @@ async function dispatchCampaign(campaignId, organizationId) {
     if (!['draft', 'failed', 'cancelled'].includes(campaign.status)) {
       throw new Error(`Campaign ${campaignId} cannot be dispatched from status '${campaign.status}'`);
     }
+    await assertUsableTemplate(organizationId, campaign.channel, campaign.template_id,
+      (sql, params) => conn.execute(sql, params));
 
     // A provider may have accepted a previously claimed message even if its
     // worker crashed before recording the outcome. Never build a replacement
@@ -358,6 +390,25 @@ async function processCurrentQueue({ organizationId = null, excludeOrganizationI
           subject = interpolate(tpl.subject || subject, clientData, { escapeHtml });
           body = interpolate(tpl.body_text || tpl.body_html || tpl.body || '', clientData, { escapeHtml });
         }
+      }
+
+      // Never send an empty message: the template was removed, deactivated or
+      // emptied after dispatch.
+      if (!String(body).trim()) {
+        const [skip] = await db.query(
+          `UPDATE campaign_messages SET status = 'failed', error_message = ?
+            WHERE id = ? AND organization_id <=> ? AND status = 'queued'`,
+          [TEMPLATE_MISSING, msg.id, organizationId],
+        );
+        if (skip.affectedRows === 1) {
+          await db.query(
+            `UPDATE communication_campaigns SET failed_count = failed_count + 1
+              WHERE id = ? AND organization_id <=> ?`,
+            [msg.campaign_id, organizationId],
+          );
+          failed++;
+        }
+        continue;
       }
 
       // This compare-and-set is both the last-moment eligibility check and the
@@ -674,4 +725,4 @@ async function handleDeliveryCallback(providerMessageId, newStatus, _meta = {}) 
   return { updated: true };
 }
 
-module.exports = { buildRecipientList, dispatchCampaign, processQueue, handleDeliveryCallback };
+module.exports = { buildRecipientList, dispatchCampaign, processQueue, handleDeliveryCallback, assertUsableTemplate };

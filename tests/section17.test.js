@@ -767,14 +767,16 @@ describe('POST /api/v1/network-security/cpe-security-scans', () => {
   });
   afterEach(() => { jest.clearAllMocks(); });
 
-  it('returns 201 on CPE scan trigger with device_id', async () => {
+  // No scan executor exists, so a scan is refused rather than left pending for
+  // ever (TNB-37).
+  it('returns 501 on CPE scan trigger with device_id', async () => {
     const res = await request(app)
       .post('/api/v1/network-security/cpe-security-scans')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
       .send({ scan_type: 'full', device_id: 5 });
-    expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('data');
+    expect(res.status).toBe(501);
+    expect(res.body.error.code).toBe('CPE_SCAN_NOT_IMPLEMENTED');
   });
 
   it('returns 422 when neither device_id nor cpe_device_id provided', async () => {

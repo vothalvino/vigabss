@@ -22,6 +22,7 @@
 
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'ftthService' });
+const { AppError } = require('../utils/errors');
 
 // ---------------------------------------------------------------------------
 // OLT helpers
@@ -159,7 +160,7 @@ async function provisionOnu(params) {
   const {
     deviceId, oltDeviceId, oltPortId, onuProfileId,
     serialNumber, loid, loidPasswordEncrypted,
-    orgId, createdBy,
+    orgId,
   } = params;
 
   logger.info({ deviceId, oltDeviceId, serialNumber }, 'ftthService.provisionOnu: recording provision intent');
@@ -192,25 +193,12 @@ async function provisionOnu(params) {
     detailId = res.insertId;
   }
 
-  // Create a provision job (stub — no live dispatch here)
-  const [jobRes] = await db.query(
-    `INSERT INTO onu_firmware_jobs
-       (organization_id, job_type, scope, onu_device_id, olt_device_id, olt_port_id,
-        status, total_devices, created_by)
-     VALUES (?, 'provision', 'single_onu', ?, ?, ?, 'pending', 1, ?)`,
-    [orgId, deviceId, oltDeviceId, oltPortId, createdBy],
-  );
-
-  // Link detail to job
-  await db.query(
-    'UPDATE onu_details SET last_provision_job_id = ? WHERE id = ?',
-    [jobRes.insertId, detailId],
-  );
-
+  // Nothing pushes the configuration to the OLT yet (the job processor has no
+  // vendor CLI driver), so no job is queued: a pending job that never runs
+  // read as "provisioning in progress" (TNB-37).
   const [[detail]] = await db.query('SELECT * FROM onu_details WHERE id = ?', [detailId]);
-  const [[job]] = await db.query('SELECT * FROM onu_firmware_jobs WHERE id = ?', [jobRes.insertId]);
 
-  return { detail, job };
+  return { detail, job: null, dispatched: false };
 }
 
 /**
@@ -222,17 +210,15 @@ async function provisionOnu(params) {
  * @returns {Promise<object>} job row
  */
 async function scheduleOnuReboot(onuDeviceId, oltDeviceId, orgId, createdBy) {
-  logger.info({ onuDeviceId, oltDeviceId }, 'ftthService.scheduleOnuReboot: recording reboot job');
-
-  const [res] = await db.query(
-    `INSERT INTO onu_firmware_jobs
-       (organization_id, job_type, scope, onu_device_id, olt_device_id,
-        status, total_devices, created_by)
-     VALUES (?, 'reboot', 'single_onu', ?, ?, 'pending', 1, ?)`,
-    [orgId, onuDeviceId, oltDeviceId, createdBy],
+  // The reboot used to be recorded as a pending job and answered 202 "queued",
+  // but the processor that would send it to the OLT is not implemented, so the
+  // ONU never rebooted (TNB-37). Refuse instead of queuing a no-op.
+  logger.warn({ onuDeviceId, oltDeviceId, orgId, createdBy }, 'ONU reboot requested; OLT dispatch is not implemented');
+  throw new AppError(
+    'Rebooting an ONU through its OLT is not implemented yet; nothing was queued. Reboot it from the OLT.',
+    501,
+    'ONU_ACTION_NOT_IMPLEMENTED',
   );
-  const [[job]] = await db.query('SELECT * FROM onu_firmware_jobs WHERE id = ?', [res.insertId]);
-  return job;
 }
 
 /**

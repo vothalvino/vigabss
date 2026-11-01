@@ -653,7 +653,9 @@ async function generateDraft(ticketId: number, contractId: number | null): Promi
   const res = await authedFetch(`${API_BASE}/ai/reply/draft`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ticket_id: ticketId, channel: 'portal', inbound_text: '', contract_id: contractId }),
+    // No inbound_text: the server answers the latest customer-visible message
+    // (an empty string failed validation, so the button never worked).
+    body: JSON.stringify({ ticket_id: ticketId, channel: 'portal', ...(contractId ? { contract_id: contractId } : {}) }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

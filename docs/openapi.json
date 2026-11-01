@@ -3668,6 +3668,79 @@
         }
       }
     },
+    "/clients/{id}/whatsapp-links": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "WhatsApp numbers bound to the client",
+        "operationId": "listClientWhatsappLinks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active WhatsApp links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients/{id}/whatsapp-links/{linkId}": {
+      "delete": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Revoke a WhatsApp binding (audited)",
+        "operationId": "revokeClientWhatsappLink",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "linkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        }
+      }
+    },
     "/clients/{id}/merge": {
       "post": {
         "tags": [
@@ -36639,7 +36712,7 @@
         "tags": [
           "ONU Management"
         ],
-        "summary": "Trigger ONU provisioning (records intent; dispatched by background processor)",
+        "summary": "Save ONU provisioning details (pushing them to the OLT is not implemented; no job is queued)",
         "operationId": "provisionOnu",
         "security": [
           {
@@ -36667,8 +36740,8 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Provision job queued",
+          "200": {
+            "description": "Details saved; dispatched is false",
             "content": {
               "application/json": {
                 "schema": {
@@ -36685,7 +36758,7 @@
         "tags": [
           "ONU Management"
         ],
-        "summary": "Schedule remote ONU reboot (job dispatched by background processor)",
+        "summary": "Remote ONU reboot (not implemented: refused with 501, nothing is queued)",
         "operationId": "rebootOnu",
         "security": [
           {
@@ -36703,15 +36776,8 @@
           }
         ],
         "responses": {
-          "202": {
-            "description": "Reboot job queued",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+          "501": {
+            "description": "ONU_ACTION_NOT_IMPLEMENTED"
           }
         }
       }
@@ -53985,7 +54051,7 @@
         "tags": [
           "Security"
         ],
-        "summary": "Trigger CPE security scan",
+        "summary": "Trigger CPE security scan (not implemented: refused with 501, nothing is recorded)",
         "operationId": "triggerCpeSecurityScan",
         "security": [
           {
@@ -54003,15 +54069,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "CpeSecurityScan",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+          "501": {
+            "description": "CPE_SCAN_NOT_IMPLEMENTED"
           }
         }
       }
@@ -59154,7 +59213,6 @@
           },
           "inbound_text": {
             "type": "string",
-            "minimum": 1,
             "maximum": 20000
           },
           "contract_id": {
@@ -59163,8 +59221,7 @@
           }
         },
         "required": [
-          "ticket_id",
-          "inbound_text"
+          "ticket_id"
         ]
       },
       "ai_replySend": {
@@ -61294,10 +61351,6 @@
             "type": "string",
             "maximum": 100
           },
-          "scheduled_at": {
-            "type": "string",
-            "maximum": 30
-          },
           "notes": {
             "type": "string",
             "maximum": 65535
@@ -61340,10 +61393,6 @@
             "type": "string",
             "maximum": 100
           },
-          "scheduled_at": {
-            "type": "string",
-            "maximum": 30
-          },
           "notes": {
             "type": "string",
             "maximum": 65535
@@ -61381,10 +61430,6 @@
           "filter_tag": {
             "type": "string",
             "maximum": 100
-          },
-          "scheduled_at": {
-            "type": "string",
-            "maximum": 30
           },
           "notes": {
             "type": "string",

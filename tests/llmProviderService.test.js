@@ -66,6 +66,18 @@ jest.mock('@google/generative-ai', () => ({
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+// The ollama and custom adapters POST through the pinned outbound guard
+// (src/utils/safeJsonPost.js, ASY-11; covered in aiProviderEndpointSsrf.test.js).
+// Route it to the fetch-shaped mock so these fixtures keep describing the
+// upstream reply.
+jest.mock('../src/utils/safeJsonPost', () => ({
+  safeJsonPost: async (url, payload, headers = {}) => {
+    const res = await global.fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
+    const text = res.ok ? JSON.stringify(await res.json()) : (typeof res.text === 'function' ? await res.text() : '');
+    return { ok: Boolean(res.ok), status: res.status || (res.ok ? 200 : 500), text };
+  },
+}));
+
 // ---------------------------------------------------------------------------
 // Load service AFTER all mocks are in place
 // ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ const logger = require('../utils/logger').child({ service: 'scheduler' });
 
 const jobs = new Map();
 const MINUTE_IN_MS = 60_000;
+let syncTimer = null;
 
 // Without Redis, every app process runs every cron tick. The lock used to be
 // a get-then-set in cacheService, which without Redis is a per-process memory
@@ -82,19 +83,69 @@ async function runClaimed(task, fn) {
   }
 }
 
-/**
- * Load all enabled tasks from the DB and schedule them.
- */
-async function start() {
-  const [tasks] = await db.query(
-    'SELECT * FROM scheduled_tasks WHERE is_enabled = 1 AND cron_expression IS NOT NULL',
-  );
+// What a scheduled handle was built from; a row whose signature changed is
+// rescheduled.
+const signature = task => [task.cron_expression, task.task_name, task.organization_id ?? ''].join('|');
 
+function unschedule(taskId) {
+  const entry = jobs.get(taskId);
+  if (!entry) return;
+  if (typeof entry.job.destroy === 'function') entry.job.destroy();
+  else entry.job.stop();
+  jobs.delete(taskId);
+}
+
+/**
+ * Bring this process's cron handles in line with scheduled_tasks: schedule new
+ * enabled rows, reschedule edited ones, stop disabled and deleted ones. Tasks
+ * used to be loaded once at boot, so a created, edited, disabled or deleted
+ * row had no effect until every process restarted (ASY-18). start() runs this
+ * every minute so all replicas converge; the API calls reload() for the
+ * process that made the change.
+ */
+async function sync() {
+  const [tasks] = await (typeof db.withPrimaryContext === 'function'
+    ? db.withPrimaryContext(() => db.query(
+      'SELECT * FROM scheduled_tasks WHERE is_enabled = 1 AND cron_expression IS NOT NULL',
+    ))
+    : db.query('SELECT * FROM scheduled_tasks WHERE is_enabled = 1 AND cron_expression IS NOT NULL'));
+
+  const current = new Set();
   for (const task of tasks) {
+    current.add(task.id);
+    const entry = jobs.get(task.id);
+    if (entry && entry.signature === signature(task)) continue;
+    unschedule(task.id);
     schedule(task);
   }
+  for (const taskId of [...jobs.keys()]) {
+    if (!current.has(taskId)) unschedule(taskId);
+  }
+  return tasks.length;
+}
 
-  logger.info({ taskCount: tasks.length }, 'Scheduler started');
+/** Apply scheduled_tasks changes now, if this process runs the scheduler. */
+async function reload() {
+  if (!syncTimer) return;
+  try {
+    await sync();
+  } catch (err) {
+    logger.error({ err }, 'Scheduler reload failed; the next periodic sync retries');
+  }
+}
+
+/**
+ * Load all enabled tasks from the DB, schedule them, and keep them in sync.
+ */
+async function start() {
+  const taskCount = await sync();
+  if (!syncTimer) {
+    syncTimer = setInterval(() => {
+      sync().catch(err => logger.error({ err }, 'Scheduler sync failed'));
+    }, MINUTE_IN_MS);
+    if (typeof syncTimer.unref === 'function') syncTimer.unref();
+  }
+  logger.info({ taskCount }, 'Scheduler started');
 }
 
 /**
@@ -150,13 +201,15 @@ function schedule(task) {
 
   // Keyed by id: per-organization rows share a task_name, and keying by name
   // lost the handle of every row but the last, so stop() left them running.
-  jobs.set(task.id, { job, taskName: task.task_name });
+  jobs.set(task.id, { job, taskName: task.task_name, signature: signature(task) });
 }
 
 /**
  * Stop all scheduled cron jobs.
  */
 function stop() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = null;
   for (const { job } of jobs.values()) {
     job.stop();
   }
@@ -175,4 +228,4 @@ function getStatus() {
   return result;
 }
 
-module.exports = { start, stop, getStatus, runClaimed };
+module.exports = { start, stop, getStatus, runClaimed, sync, reload };

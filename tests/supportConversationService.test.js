@@ -78,10 +78,11 @@ beforeEach(() => {
 // 1. _generateResponse — return-contract shape, per intent branch
 // =============================================================================
 describe('_generateResponse return contract', () => {
+  // The 'other' reply asks instead of promising a handoff it never makes (SUP-02).
   test('other/default intent: {text, escalate:false, escalationReason:null}', async () => {
     const resp = await service._generateResponse({ intent: 'other', context: null, content: 'xyz', orgId: 1 });
     expect(resp).toEqual({
-      text: 'Soy tu asistente virtual. Permíteme conectarte con el área correcta. Un momento, por favor.',
+      text: 'Soy tu asistente virtual. No estoy seguro de haber entendido. ¿Tu consulta es sobre facturación, tu conexión o información general? Si prefieres, escribe "hablar con un agente".',
       escalate: false,
       escalationReason: null,
       dataSources: null,
@@ -194,10 +195,12 @@ describe('_generateResponse return contract', () => {
     expect(resp.actionType).toBe('business_hours');
   });
 
-  test('module.handle throwing falls back to the generic connect-me message (no crash)', async () => {
+  // A failed module says so and asks for a person (SUP-02), without crashing.
+  test('module.handle throwing hands the conversation to staff (no crash)', async () => {
     supportBillingModule.handle.mockRejectedValue(new Error('db down'));
     const resp = await service._generateResponse({ intent: 'billing', context: null, content: 'saldo', orgId: 1 });
-    expect(resp.text).toBe('Soy tu asistente virtual. Permíteme conectarte con el área correcta. Un momento, por favor.');
+    expect(resp.text).toBe('Soy tu asistente virtual. No pude completar tu solicitud en este momento. Te paso con un agente de soporte.');
+    expect(resp).toMatchObject({ escalate: true, escalationReason: 'module_failed' });
   });
 });
 

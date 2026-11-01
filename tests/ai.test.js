@@ -511,9 +511,21 @@ describe('POST /api/v1/ai/reply/draft', () => {
     expect(res.status).toBe(422);
   });
 
-  it('returns 422 when inbound_text is missing', async () => {
+  // inbound_text is optional: omitted, the service answers the latest
+  // customer-visible message (ASY-10; the ticket page sends none).
+  it('accepts a draft request without inbound_text and forces draft mode', async () => {
+    const aiReplyService = require('../src/services/aiReplyService');
+    const spy = jest.spyOn(aiReplyService, 'generate').mockResolvedValue({ skipped: false, logId: 1, draftText: 'x', action: 'proposed' });
     const res = await request(app).post('/api/v1/ai/reply/draft')
       .send({ ticket_id: 1 });
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ ticketId: 1, inboundText: undefined, forceDraft: true }));
+    spy.mockRestore();
+  });
+
+  it('returns 422 when inbound_text is not a string', async () => {
+    const res = await request(app).post('/api/v1/ai/reply/draft')
+      .send({ ticket_id: 1, inbound_text: 42 });
     expect(res.status).toBe(422);
   });
 });

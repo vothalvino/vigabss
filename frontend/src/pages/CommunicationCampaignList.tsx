@@ -255,10 +255,11 @@ function CampaignFormModal({
             {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
-          <label style={labelStyle}>{t('communicationCampaigns.form.template')}</label>
-          <select style={inputStyle} value={form.template_id ?? ''}
+          {/* A campaign sends its template's text; without one it would send blank messages. */}
+          <label style={labelStyle}>{t('communicationCampaigns.form.template')} *</label>
+          <select style={inputStyle} value={form.template_id ?? ''} required
             onChange={e => setForm(p => ({ ...p, template_id: e.target.value ? Number(e.target.value) : undefined }))}>
-            <option value="">{t('communicationCampaigns.form.noTemplate')}</option>
+            <option value="" disabled>{t('communicationCampaigns.form.chooseTemplate')}</option>
             {channelTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
 

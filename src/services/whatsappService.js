@@ -246,6 +246,7 @@ async function bindNumber({ organizationId = null, clientId, phone, via }) {
     // A rebind must not carry the previous occupant's in-flight bot flow.
     await conn.execute('DELETE FROM whatsapp_conversation_state WHERE phone_e164 = ?', [phone]);
     await conn.commit();
+    await notifyOwnerOfBinding({ organizationId, clientId, phone });
     return { id: ins.insertId };
   } catch (err) {
     await conn.rollback();
@@ -256,17 +257,76 @@ async function bindNumber({ organizationId = null, clientId, phone, via }) {
 }
 
 /**
+ * Tell the account owner by email that a number was bound, so a binding made
+ * by someone else (a recycled or stolen number, a guessed code) is noticed
+ * (SUP-04). Best-effort.
+ */
+async function notifyOwnerOfBinding({ organizationId, clientId, phone }) {
+  try {
+    const [[client]] = await db.query('SELECT name, email FROM clients WHERE id = ? AND deleted_at IS NULL', [clientId]);
+    if (!client?.email) return;
+    const last4 = String(phone).slice(-4);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+    await require('./emailTransport').sendEmail({
+      organizationId,
+      clientId,
+      messageClass: 'security',
+      to: client.email,
+      subject: 'Se vinculó un número de WhatsApp a tu cuenta',
+      html: `<p>Hola ${esc(client.name)},</p>`
+        + `<p>El número de WhatsApp terminado en <strong>${esc(last4)}</strong> quedó vinculado a tu cuenta.</p>`
+        + '<p>Si no fuiste tú, contacta a soporte de inmediato para desvincularlo.</p>',
+    });
+  } catch (err) {
+    logger.warn({ err, clientId }, 'whatsapp: binding notice email failed');
+  }
+}
+
+/** Days without a message after which a binding must be verified again (0 = never). */
+function linkIdleDays() {
+  const n = Number(config.whatsapp.linkIdleDays ?? 180);
+  return Number.isFinite(n) && n >= 0 ? n : 180;
+}
+
+/**
  * Resolve an inbound phone number to its active binding (install-wide).
+ *
+ * A binding answers for its client only while the client is live (not
+ * archived, not inactive) and the number has been used within
+ * WHATSAPP_LINK_IDLE_DAYS: a recycled or lost number otherwise kept reading
+ * the account (SUP-04). A binding that fails either test is revoked, so the
+ * number has to be linked again.
  * @returns {Promise<{clientId:number, organizationId:number|null, linkId:number}|null>}
  */
 async function resolveBinding(phone) {
   const [rows] = await db.query(
-    `SELECT id, client_id, organization_id FROM whatsapp_links
+    `SELECT id, client_id, organization_id, bound_at, last_seen_at FROM whatsapp_links
       WHERE active_phone = ? LIMIT 1`,
     [phone],
   );
   const l = rows[0];
   if (!l) return null;
+
+  const idleDays = linkIdleDays();
+  const lastUse = new Date(l.last_seen_at || l.bound_at);
+  const idle = idleDays > 0 && Number.isFinite(lastUse.getTime())
+    && Date.now() - lastUse.getTime() > idleDays * 86400000;
+
+  // The client row lives in its organization's database.
+  const readClient = () => db.query('SELECT status, deleted_at FROM clients WHERE id = ? LIMIT 1', [l.client_id]);
+  const [[client]] = await (l.organization_id && typeof db.withTenantContext === 'function'
+    ? db.withTenantContext(l.organization_id, readClient)
+    : readClient());
+  const live = client && !client.deleted_at && client.status !== 'inactive';
+
+  if (idle || !live) {
+    await db.query(
+      "UPDATE whatsapp_links SET status = 'revoked', revoked_at = NOW() WHERE id = ? AND status = 'active'",
+      [l.id],
+    );
+    logger.info({ linkId: l.id, clientId: l.client_id, reason: idle ? 'idle' : 'client_not_live' }, 'whatsapp: binding revoked on use');
+    return null;
+  }
   return { clientId: l.client_id, organizationId: l.organization_id, linkId: l.id };
 }
 
@@ -293,6 +353,27 @@ async function listClientLinks(clientId, organizationId) {
     [clientId, organizationId],
   );
   return rows;
+}
+
+/**
+ * Revoke every active binding of a client: its contact details changed, its
+ * portal password was reset, or it was archived or made inactive (SUP-04).
+ * @param {Function} [exec] query function (a caller's transaction)
+ * @returns {Promise<number>} bindings revoked
+ */
+async function revokeClientLinks({ clientId, organizationId, reason }, exec = (sql, params) => db.query(sql, params)) {
+  requireOrgId(organizationId, 'whatsappService.revokeClientLinks');
+  const [res] = await exec(
+    `UPDATE whatsapp_links SET status = 'revoked', revoked_at = NOW()
+      WHERE client_id = ? AND organization_id <=> ? AND status = 'active'`,
+    [clientId, organizationId],
+  );
+  const revoked = Number(res?.affectedRows || 0);
+  if (revoked > 0) {
+    await exec('DELETE FROM whatsapp_conversation_state WHERE client_id = ?', [clientId]).catch(() => {});
+    logger.info({ clientId, organizationId, reason, revoked }, 'whatsapp: client bindings revoked');
+  }
+  return revoked;
 }
 
 /** Revoke a client's binding by id (client-initiated unlink). Scoped to the client and its org. */
@@ -425,6 +506,7 @@ module.exports = {
   touchBinding,
   listClientLinks,
   revokeLink,
+  revokeClientLinks,
   recordInbound,
   redactSecrets,
   setInboundOwner,

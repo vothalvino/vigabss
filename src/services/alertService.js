@@ -407,6 +407,21 @@ async function autoCreateTicket(organizationId, rule, breach) {
       return;
     }
 
+    // tickets.client_id is NOT NULL: a ticket concerns a client. The insert
+    // omitted it, so strict-mode MySQL rejected every auto-ticket and the
+    // error was discarded (DB-10). The client comes from the breached device;
+    // infrastructure with no client gets no ticket, and that is logged.
+    const [[device]] = await db.query(
+      `SELECT client_id, contract_id FROM devices
+       WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL LIMIT 1`,
+      [breach.device_id, organizationId],
+    );
+    if (!device || !device.client_id) {
+      logger.warn({ organizationId, ruleId: rule.id, deviceId: breach.device_id },
+        'Alert auto-ticket skipped: the device belongs to no client');
+      return;
+    }
+
     const description = [
       'Threshold alert automatically opened by the monitoring system.',
       `Rule: ${rule.name}`,
@@ -416,14 +431,21 @@ async function autoCreateTicket(organizationId, rule, breach) {
       `Device ID: ${breach.device_id}`,
     ].join('\n');
 
-    await db.query(
+    const [created] = await db.query(
       `INSERT INTO tickets
-         (organization_id, subject, description, priority, category, status)
-       VALUES (?, ?, ?, ?, 'technical', 'open')`,
-      [organizationId, subject, description, rule.severity === 'critical' ? 'high' : 'medium'],
+         (organization_id, client_id, contract_id, subject, description, priority, category, status, source)
+       VALUES (?, ?, ?, ?, ?, ?, 'technical', 'open', 'alert')`,
+      [organizationId, device.client_id, device.contract_id || null, subject, description,
+        rule.severity === 'critical' ? 'high' : 'medium'],
     );
-  } catch (_err) {
-    // Best effort — don't block alert processing
+    await require('./businessEvents').emitTicketCreated(organizationId, {
+      id: created.insertId, organization_id: organizationId, client_id: device.client_id,
+      contract_id: device.contract_id || null, subject, category: 'technical',
+      priority: rule.severity === 'critical' ? 'high' : 'medium', status: 'open', source: 'alert',
+    });
+  } catch (err) {
+    // Best effort — don't block alert processing, but never fail silently.
+    logger.error({ err, organizationId, ruleId: rule.id, deviceId: breach.device_id }, 'Alert auto-ticket failed');
   }
 }
 

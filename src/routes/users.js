@@ -10,6 +10,7 @@ const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
+const { runInPrimaryContext } = require('../utils/primaryContext');
 const { restrictRoleAssignment } = require('../middleware/restrictRoleAssignment');
 const { validate } = require('../middleware/validate');
 const { createUser, updateUser, patchUser, setArchivedGroup } = require('../middleware/schemas/users');
@@ -117,6 +118,10 @@ const ctrl = crudController(User, {
 
 router.use(authenticate);
 router.use(orgScope);
+// Staff identities, groups and memberships are control-plane rows: auth and
+// RBAC read them from the primary database, so manage them there even when
+// the organization uses an isolated subscriber database (DB-07).
+router.use((req, res, next) => runInPrimaryContext(() => next()));
 
 // Archive guards (delete has no before-hook): no self-archive — the actor
 // would lock themselves out instantly with nobody guaranteed able to restore

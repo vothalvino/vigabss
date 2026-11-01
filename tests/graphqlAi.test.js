@@ -353,6 +353,7 @@ describe('Mutation.aiDraftReply resolver', () => {
     );
     expect(mockAiGenerate).toHaveBeenCalledWith({
       orgId: 1, ticketId: 5, channel: 'portal', inboundText: 'Mi internet no funciona', contractId: null,
+      forceDraft: true, // never auto-sent (ASY-10)
     });
     expect(result.draftText).toBe('Hola, revisaremos su caso.');
     expect(result.skipped).toBe(false);

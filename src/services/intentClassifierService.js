@@ -29,9 +29,15 @@ const MAX_TEXT_LENGTH = 2000;
 // Keyword lists for fallback classification
 // ---------------------------------------------------------------------------
 
-const BILLING_RE  = /factura|pago|cobro|saldo|balance|invoice|payment|cargo|adeudo|recibo|plan|costo|precio/i;
+// A cancellation is handled (and escalated) by supportBillingModule; without
+// these it classified as 'other' unless it also named the plan (SUP-02). Not
+// bare "baja": "velocidad baja" is a technical complaint.
+const BILLING_RE  = /factura|pago|cobro|saldo|balance|invoice|payment|cargo|adeudo|recibo|plan|costo|precio|cancelar|cancelaci[oó]n|dar de baja/i;
 const TECHNICAL_RE = /lento|internet|conexion|wifi|señal|slow|disconn|no funciona|signal|velocidad|caido|caida|reiniciar|router|modem|ping|latencia/i;
-const GENERAL_RE  = /horario|oficina|direccion|numero|contacto|sucursal|soporte|ayuda|informacion/i;
+// Damage, obstruction and technician-complaint reports have handlers in
+// supportGeneralModule that open a ticket; they classified as 'other' and
+// never reached them (SUP-02).
+const GENERAL_RE  = /horario|oficina|direccion|numero|contacto|sucursal|soporte|ayuda|informacion|daño|dañado|roto|golpe|obstrucci[oó]n|queja/i;
 
 // ---------------------------------------------------------------------------
 // sanitize

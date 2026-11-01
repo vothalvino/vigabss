@@ -13,6 +13,7 @@ jest.mock('../src/config/database', () => ({
 jest.mock('../src/services/eventBus', () => ({
   emit: jest.fn(),
   on: jest.fn(),
+  listenerCount: jest.fn(() => 0), // no hooks registered here
 }));
 
 const db = require('../src/config/database');

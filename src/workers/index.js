@@ -27,6 +27,17 @@ function registerWorkers() {
   jobQueue.process('scheduled-task', async (job) => {
     const taskRunner = require('../services/taskRunner');
     const { taskId, taskName, organizationId = null } = job.data;
+    // A job enqueued before its row was disabled or deleted must not run
+    // (ASY-18). Jobs without a task id (older producers) run as before.
+    if (taskId) {
+      const db = require('../config/database');
+      const lookup = () => db.query('SELECT is_enabled FROM scheduled_tasks WHERE id = ? LIMIT 1', [taskId]);
+      const [rows] = await (typeof db.withPrimaryContext === 'function' ? db.withPrimaryContext(lookup) : lookup());
+      if (!rows.length || !rows[0].is_enabled) {
+        logger.info({ taskId, taskName }, 'Worker: scheduled task disabled or deleted; skipping');
+        return { skipped: true, reason: 'task disabled or deleted' };
+      }
+    }
     logger.info({ taskId, taskName, organizationId }, 'Worker: running scheduled task');
     const result = await taskRunner.runTask(taskName, organizationId);
     await taskRunner.markTaskRun(taskName, result, { taskId, organizationId }).catch(() => {});

@@ -1417,7 +1417,7 @@
       "name": "Campaign name",
       "channel": "Channel",
       "template": "Message template",
-      "noTemplate": "— No template —",
+      "chooseTemplate": "— Choose a template —",
       "filterStatus": "Filter by client status",
       "allStatuses": "All statuses",
       "filterTag": "Filter by tag / group",
@@ -1461,6 +1461,19 @@
       "saveFailed": "Failed to save.",
       "nameRequired": "Name is required."
     }
+  },
+  "clientWhatsapp": {
+    "title": "WhatsApp numbers",
+    "description": "Numbers that can read this account through the WhatsApp assistant. Unlink a number the subscriber has lost, changed or no longer uses.",
+    "none": "No WhatsApp number is linked.",
+    "number": "Number",
+    "boundVia": "Linked via",
+    "boundAt": "Linked",
+    "lastSeen": "Last message",
+    "revoke": "Unlink",
+    "confirmRevoke": "Unlink this WhatsApp number? It will need to be linked again to use the assistant.",
+    "loadFailed": "Could not load the linked WhatsApp numbers.",
+    "revokeFailed": "Could not unlink the number."
   },
   "clientDnd": {
     "description": "An opt-out blocks every client-directed message on the selected channel — email, SMS, or WhatsApp — including service, billing, security, support, and marketing. Marketing also requires separate affirmative consent.",
@@ -2945,7 +2958,7 @@
       "showOptical": "Optical",
       "hideOptical": "Hide",
       "reboot": "Reboot",
-      "confirmReboot": "Schedule a reboot for this ONU?",
+      "rebootUnavailable": "Rebooting through the OLT is not available yet. Reboot the ONU from the OLT.",
       "opticalHistory": "Optical Diagnostic History"
     },
     "optical": {
@@ -4517,7 +4530,8 @@
     "errorChurn": "Failed to compute churn scores",
     "errorAck": "Failed to acknowledge anomaly",
     "errorTest": "Failed to test driver",
-    "executionTriggered": "Execution triggered successfully",
+    "executionResult": "Result: {{status}} — {{message}}",
+    "executionNotRun": "The rule did not run: it is disabled or its event did not match.",
     "executionQueued": "Execution queued",
     "evaluationComplete": "Evaluation complete: {{evaluated}} rules evaluated, {{triggered}} triggered",
     "anomalyDetected": "Detection complete: {{checked}} combinations checked, {{found}} anomalies detected",

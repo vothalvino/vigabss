@@ -14,7 +14,8 @@ const createAutomationRule = {
   name:               { type: 'string', required: true, min: 1, max: 255 },
   description:        { type: 'string' },
   trigger_event:      { type: 'string', required: true, min: 1, max: 100 },
-  trigger_conditions: { type: 'object' },
+  // An array of { field, operator, value }; every one must hold (DB-05).
+  trigger_conditions: { type: 'array' },
   action_type:        { type: 'string', required: true, min: 1, max: 100 },
   action_config:      { type: 'object' },
   is_enabled:         { type: 'boolean' },
@@ -25,7 +26,7 @@ const updateAutomationRule = {
   name:               { type: 'string', min: 1, max: 255 },
   description:        { type: 'string' },
   trigger_event:      { type: 'string', min: 1, max: 100 },
-  trigger_conditions: { type: 'object' },
+  trigger_conditions: { type: 'array' },
   action_type:        { type: 'string', min: 1, max: 100 },
   action_config:      { type: 'object' },
   is_enabled:         { type: 'boolean' },
@@ -143,7 +144,9 @@ router.post('/:id/execute', requirePermission('automation_rules.execute'), async
     if (!rows.length) return res.status(404).json({ error: { message: 'Automation rule not found' } });
     const rule = rows[0];
     const payload = req.body.payload || {};
-    const result = await automationService.evaluateAutomationRules(req.orgId, rule.trigger_event, payload);
+    // Run this rule only; other rules on the same event are not part of a
+    // manual run (ASY-16).
+    const result = await automationService.evaluateAutomationRules(req.orgId, rule.trigger_event, payload, { ruleId: rule.id });
     res.json({ data: { rule_id: rule.id, result } });
   } catch (err) { next(err); }
 });

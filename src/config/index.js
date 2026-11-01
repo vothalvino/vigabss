@@ -225,6 +225,8 @@ const config = {
     // Per-phone abuse limits (enforced in the bot, not express-rate-limit).
     maxCodeAttempts: parseIntEnv('WHATSAPP_MAX_CODE_ATTEMPTS', 5),
     maxCodesPerHour: parseIntEnv('WHATSAPP_MAX_CODES_PER_HOUR', 5),
+    // A bound number unused this long must be linked again (0 = never) (SUP-04).
+    linkIdleDays: parseIntEnv('WHATSAPP_LINK_IDLE_DAYS', 180),
     defaultCountry: process.env.WHATSAPP_DEFAULT_COUNTRY || 'MX',
   },
 };
@@ -293,6 +295,15 @@ function validateEnv(logger) {
   // reply silently fails — warn so the install isn't a half-configured dead end.
   if (config.whatsapp.appSecret && (!config.whatsapp.phoneNumberId || !config.whatsapp.accessToken)) {
     warnings.push('WHATSAPP_APP_SECRET is set (Meta inbound) but WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_ACCESS_TOKEN are not — inbound will be processed but bot replies cannot be sent');
+  }
+
+  // ALLOW_UNSIGNED_WEBHOOKS turns off webhook authentication and is honoured
+  // only in development and test (src/utils/unsignedWebhooks.js). Set anywhere
+  // else it does nothing, but it signals an install that expects unsigned
+  // webhooks to work: say so loudly (TNB-24).
+  const { unsignedWebhooksRequested } = require('../utils/unsignedWebhooks');
+  if (unsignedWebhooksRequested() && !allowInsecureSecret && logger) {
+    logger.error(`ALLOW_UNSIGNED_WEBHOOKS is set but ignored in NODE_ENV=${config.env}: payment and WhatsApp webhooks without a signing secret are rejected`);
   }
 
   // Database config: required in production

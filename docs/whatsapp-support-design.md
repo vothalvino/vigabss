@@ -52,10 +52,18 @@ password") — bounded in time, one action per confirmation.
 
 ### 2.3 Unbinding / revocation
 
-- Client: "unlink" command → soft-delete the `whatsapp_links` row.
-- Staff: an admin action on the client page.
-- Automatic: if `clients.phone` changes, or the client's portal password is
-  reset, existing links for that client are invalidated (re-bind required).
+- Client: "unlink" command, or the portal's WhatsApp screen → the link is
+  revoked (`status = 'revoked'`).
+- Staff: the client's Communication tab lists the bound numbers and unlinks
+  one (`DELETE /clients/:id/whatsapp-links/:linkId`, `clients.update`,
+  audited as `whatsapp_link_revoked`).
+- Automatic: a change to `clients.phone` or `clients.email`, a portal password
+  reset, archiving the client or making it `inactive` revokes all of its links
+  (re-bind required). A link whose client is archived or inactive, or that
+  has been unused for `WHATSAPP_LINK_IDLE_DAYS` (default 180, 0 = never), is
+  revoked the next time the number writes in.
+- Binding a number emails the account owner, so a binding made by someone
+  else is noticed.
 
 ## 3. Schema (net-new)
 

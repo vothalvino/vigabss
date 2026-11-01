@@ -40,6 +40,26 @@ const { decrypt } = require('../utils/encryption');
 const { AppError } = require('../utils/errors');
 const openRouterCatalog = require('./openRouterCatalog');
 const logger = require('../utils/logger').child({ service: 'llmProviderService' });
+const { safeJsonPost } = require('../utils/safeJsonPost');
+
+/**
+ * POST to a tenant-configured endpoint (ollama, custom) through the pinned
+ * outbound guard, and parse the JSON reply. The upstream body is logged
+ * truncated, never put in the error a tenant admin sees (ASY-11).
+ */
+async function _postTenantEndpoint(label, url, payload, headers, signal) {
+  const res = await safeJsonPost(url, payload, headers, { signal, field: 'endpoint_url' });
+  if (!res.ok) {
+    logger.warn({ label, status: res.status, body: res.text.slice(0, 500) }, 'LLM provider returned an error');
+    throw new Error(`${label} returned HTTP ${res.status}`);
+  }
+  try {
+    return JSON.parse(res.text);
+  } catch (err) {
+    logger.warn({ label, status: res.status, body: res.text.slice(0, 500) }, 'LLM provider returned a non-JSON body');
+    throw new Error(`${label} returned a response that is not JSON`, { cause: err });
+  }
+}
 
 // The one correct OpenRouter base URL, so an admin never has to supply it.
 //
@@ -340,18 +360,7 @@ async function _callOllama(provider, _apiKey, messages, jsonSchema, signal) {
 
   if (jsonSchema) body.format = 'json';
 
-  const res = await fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
-    signal,
-  });
-
-  if (!res.ok) {
-    throw new Error(`Ollama returned HTTP ${res.status}: ${await res.text()}`);
-  }
-
-  const data = await res.json();
+  const data = await _postTenantEndpoint('Ollama', url, body, {}, signal);
   const text = data.message?.content || '';
 
   const promptTokens     = data.prompt_eval_count  || 0;
@@ -397,18 +406,7 @@ async function _callCustom(provider, apiKey, messages, jsonSchema, signal) {
     ...(jsonSchema ? { response_format: { type: 'json_object' } } : {}),
   };
 
-  const res = await fetch(provider.endpoint_url, {
-    method:  'POST',
-    headers,
-    body:    JSON.stringify(body),
-    signal,
-  });
-
-  if (!res.ok) {
-    throw new Error(`Custom provider returned HTTP ${res.status}: ${await res.text()}`);
-  }
-
-  const data = await res.json();
+  const data = await _postTenantEndpoint('Custom provider', provider.endpoint_url, body, headers, signal);
   const text = data.choices?.[0]?.message?.content || data.content || '';
   const usage = data.usage || {};
 
@@ -776,26 +774,14 @@ async function _embedOllama(provider, text) {
   const model   = provider.embedding_model || EMBED_DEFAULT_MODELS.ollama;
 
   try {
-    const res = await fetch(`${baseUrl}/api/embed`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // /api/embed uses `input` (v0.3+ field name, not the legacy `prompt`)
-      body:    JSON.stringify({ model, input: text }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    // /api/embed uses `input` (v0.3+ field name, not the legacy `prompt`)
+    const data = await _postTenantEndpoint('Ollama /api/embed', `${baseUrl}/api/embed`, { model, input: text }, {});
     return data.embeddings[0];
-  } catch {
+  } catch (err) {
+    // A refused endpoint is refused for the legacy path too.
+    if (err && err.code === 'UNSAFE_URL') throw err;
     // Fallback to legacy endpoint
-    const res = await fetch(`${baseUrl}/api/embeddings`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ model, prompt: text }),
-    });
-    if (!res.ok) {
-      throw new Error(`Ollama /api/embeddings returned HTTP ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await _postTenantEndpoint('Ollama /api/embeddings', `${baseUrl}/api/embeddings`, { model, prompt: text }, {});
     return data.embedding;
   }
 }
@@ -836,6 +822,8 @@ async function verify(providerId, { orgId } = {}) {
     return { ok: true, model: provider.model, latency_ms: Date.now() - start };
   } catch (err) {
     logger.warn({ providerId, err: err.message }, 'llmProviderService: verify failed');
+    // A refused endpoint is the caller's configuration error, not an upstream one.
+    if (err instanceof AppError && err.code === 'UNSAFE_URL') throw err;
     throw new AppError(`Provider verification failed: ${err.message}`, 502, 'LLM_VERIFY_FAILED');
   }
 }

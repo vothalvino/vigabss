@@ -981,6 +981,7 @@ async function completeOrder(orderId, {
     }
 
     await conn.commit();
+    if (invoice) await require('./businessEvents').emitInvoiceCreated(orgId, invoice.id);
 
     const [rows] = await db.query('SELECT * FROM service_orders WHERE id = ?', [orderId]);
     updatedOrder = rows[0];

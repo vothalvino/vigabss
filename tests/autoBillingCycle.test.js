@@ -293,6 +293,7 @@ describe('runSuspensionWarnings — advance warning emails', () => {
       is_active: true,
     };
     const contract = {
+      id: 10,
       contract_id: 10,
       client_id: 50,
       organization_id: 42,
@@ -308,7 +309,8 @@ describe('runSuspensionWarnings — advance warning emails', () => {
     db.query
       .mockResolvedValueOnce([[rule]])
       .mockResolvedValueOnce([[contract]])
-      .mockResolvedValueOnce([[client]]);
+      .mockResolvedValueOnce([[client]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }]); // claim suspension_warning_logs
 
     emailTransport.sendEmail.mockResolvedValueOnce({ success: true });
 

@@ -359,6 +359,7 @@ async function installEquipment({
     }
 
     await conn.commit();
+    if (invoice) await require('./businessEvents').emitInvoiceCreated(orgId, invoice.id);
     const [rows] = await db.query('SELECT * FROM cpe_devices WHERE id = ?', [unit.id]);
     return { unit: rows[0], invoice };
   } catch (err) {

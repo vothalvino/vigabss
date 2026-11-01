@@ -327,6 +327,8 @@ function generateSpec() {
       '/clients/{id}/geocode': { post: { tags: ['Clients'], summary: 'Geocode the client service address to GPS coordinates', operationId: 'geocodeClient', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('clients_geocodeClient'), responses: r200('Client') } },
       '/clients/duplicates/scan': { get: { tags: ['Clients'], summary: 'Scan for duplicate clients by email/phone/tax_id', operationId: 'scanClientDuplicates', security: [{ bearerAuth: [] }], parameters: [{ name: 'email', in: 'query', schema: { type: 'string' } }, { name: 'phone', in: 'query', schema: { type: 'string' } }, { name: 'tax_id', in: 'query', schema: { type: 'string' } }], responses: r200('Client[]') } },
       '/clients/{id}/duplicates': { get: { tags: ['Clients'], summary: 'Find potential duplicates of this client', operationId: 'listClientDuplicates', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Client[]') } },
+      '/clients/{id}/whatsapp-links': { get: { tags: ['Clients'], summary: 'WhatsApp numbers bound to the client', operationId: 'listClientWhatsappLinks', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Active WhatsApp links') } },
+      '/clients/{id}/whatsapp-links/{linkId}': { delete: { tags: ['Clients'], summary: 'Revoke a WhatsApp binding (audited)', operationId: 'revokeClientWhatsappLink', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'linkId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r204() } },
       '/clients/{id}/merge': { post: { tags: ['Clients'], summary: 'Merge another client (source_id) into this client', operationId: 'mergeClient', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('clients_mergeClient'), responses: r200('Merge result') } },
 
       // ---- Client Groups ----
@@ -1886,10 +1888,10 @@ function generateSpec() {
         get: { tags: ['ONU Management'], summary: 'Get optical diagnostic history for an ONU (Tx/Rx power, temperature, voltage, bias current)', operationId: 'getOnuOpticalMetrics', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'limit', in: 'query', schema: { type: 'integer', default: 100 } }], responses: r200('OnuOpticalMetric[]') },
       },
       '/onu-management/details/{id}/provision': {
-        post: { tags: ['ONU Management'], summary: 'Trigger ONU provisioning (records intent; dispatched by background processor)', operationId: 'provisionOnu', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('ProvisionOnuRequest'), responses: { 202: { description: 'Provision job queued', content: { 'application/json': { schema: { type: 'object' } } } } } },
+        post: { tags: ['ONU Management'], summary: 'Save ONU provisioning details (pushing them to the OLT is not implemented; no job is queued)', operationId: 'provisionOnu', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('ProvisionOnuRequest'), responses: { 200: { description: 'Details saved; dispatched is false', content: { 'application/json': { schema: { type: 'object' } } } } } },
       },
       '/onu-management/details/{id}/reboot': {
-        post: { tags: ['ONU Management'], summary: 'Schedule remote ONU reboot (job dispatched by background processor)', operationId: 'rebootOnu', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 202: { description: 'Reboot job queued', content: { 'application/json': { schema: { type: 'object' } } } } } },
+        post: { tags: ['ONU Management'], summary: 'Remote ONU reboot (not implemented: refused with 501, nothing is queued)', operationId: 'rebootOnu', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 501: { description: 'ONU_ACTION_NOT_IMPLEMENTED' } } },
       },
       '/onu-management/whitelist': {
         get: { tags: ['ONU Management'], summary: 'List ONU MAC/SN allow-block list entries', operationId: 'listOnuWhitelist', security: [{ bearerAuth: [] }], responses: r200('OnuWhitelistEntry[]') },
@@ -2971,7 +2973,7 @@ function generateSpec() {
       },
       '/network-security/cpe-security-scans': {
         get: { tags: ['Security'], summary: 'List CPE security scans', operationId: 'listCpeSecurityScans', security: [{ bearerAuth: [] }], responses: r200('CpeSecurityScan[]') },
-        post: { tags: ['Security'], summary: 'Trigger CPE security scan', operationId: 'triggerCpeSecurityScan', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_triggerCpeScan'), responses: r201('CpeSecurityScan') },
+        post: { tags: ['Security'], summary: 'Trigger CPE security scan (not implemented: refused with 501, nothing is recorded)', operationId: 'triggerCpeSecurityScan', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_triggerCpeScan'), responses: { 501: { description: 'CPE_SCAN_NOT_IMPLEMENTED' } } },
       },
       '/network-security/cpe-security-scans/{id}': {
         get: { tags: ['Security'], summary: 'Get CPE security scan details', operationId: 'getCpeSecurityScan', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CpeSecurityScan') },
