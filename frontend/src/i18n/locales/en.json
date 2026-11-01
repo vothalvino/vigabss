@@ -48,7 +48,18 @@
     "inactive": "Inactive",
     "error": "Something went wrong",
     "retry": "Retry",
-    "close": "Close"
+    "close": "Close",
+    "name": "Name",
+    "status": "Status",
+    "description": "Description",
+    "createdAt": "Created",
+    "yes": "Yes",
+    "no": "No",
+    "pageOf": "Page {{page}} of {{pages}}",
+    "totalItems": "{{total}} total",
+    "device": "Device",
+    "selectDevice": "Select device",
+    "previous": "Previous"
   },
   "clientPicker": {
     "label": "Client",
@@ -531,7 +542,41 @@
     "openTickets": "Open Support Tickets",
     "noInvoices": "No pending invoices.",
     "noTickets": "No open tickets.",
-    "viewAll": "View all →"
+    "viewAll": "View all →",
+    "overview": "Your service overview",
+    "myPlan": "My Plan",
+    "plan": "Plan",
+    "price": "Price",
+    "perMonth": "{{price}} / month",
+    "speed": "Speed",
+    "dataCap": "Data cap",
+    "connection": "Connection",
+    "noContract": "No active contract",
+    "manageAccount": "Manage account",
+    "balanceBilling": "Balance & Billing",
+    "outstandingBalance": "Outstanding balance",
+    "nextDue": "Next due: {{date}}",
+    "viewInvoices": "View invoices",
+    "connectionStatus": "Connection Status",
+    "sessionStatus": {
+      "connected": "Connected",
+      "disconnected": "Disconnected"
+    },
+    "session": "Session",
+    "downloaded": "Downloaded",
+    "uploaded": "Uploaded",
+    "noSession": "No active session data",
+    "usageThisMonth": "Usage This Month",
+    "download": "Download",
+    "upload": "Upload",
+    "total": "Total",
+    "dailyUsage": "Daily Usage (Current Month)",
+    "daysShown_one": "{{count}} day shown",
+    "daysShown_other": "{{count}} days shown",
+    "quickTickets": "Support Tickets",
+    "quickKb": "Knowledge Base",
+    "quickAccount": "Account Settings",
+    "quickSpeedTest": "Speed Test"
   },
   "portalInvoices": {
     "title": "My Invoices",
@@ -539,11 +584,16 @@
       "invoiceNumber": "Invoice #",
       "amount": "Amount",
       "status": "Status",
-      "dueDate": "Due Date"
+      "dueDate": "Due Date",
+      "date": "Date"
     },
     "noInvoices": "No invoices found.",
     "loading": "Loading…",
-    "error": "Failed to load invoices."
+    "error": "Failed to load invoices.",
+    "paymentSuccess": "Thank you — we are confirming your payment. The invoice shows as paid once the provider confirms it.",
+    "paymentCancelled": "The payment was not completed. You can try again from the invoice.",
+    "allStatuses": "All statuses",
+    "pay": "Pay"
   },
   "portalTickets": {
     "title": "Support Tickets",
@@ -556,7 +606,18 @@
     },
     "noTickets": "No tickets found.",
     "loading": "Loading…",
-    "error": "Failed to load tickets."
+    "error": "Failed to load tickets.",
+    "allStatuses": "All statuses",
+    "openOne": "Open one now",
+    "modalTitle": "Open a Support Ticket",
+    "subjectPlaceholder": "Briefly describe your issue",
+    "description": "Description",
+    "descriptionPlaceholder": "Please provide as much detail as possible…",
+    "cancel": "Cancel",
+    "subjectRequired": "Subject is required",
+    "submitting": "Submitting…",
+    "submit": "Submit Ticket",
+    "createFailed": "The ticket could not be created. Please try again."
   },
   "pagination": {
     "rowsPerPage": "Rows per page:",
@@ -3060,7 +3121,10 @@
       "opticalSummary": "Optical Power Summary",
       "avgRxDbm": "Avg Rx (dBm)",
       "minRxDbm": "Min Rx (dBm)",
-      "maxRxDbm": "Max Rx (dBm)"
+      "maxRxDbm": "Max Rx (dBm)",
+      "enterPortHint": "Select a PON port to see its utilization.",
+      "loadError": "Failed to load port utilization.",
+      "onuBreakdown": "ONUs by State"
     },
     "onus": {
       "title": "ONUs on Port",
@@ -3072,7 +3136,10 @@
       "onuId": "ONU ID",
       "distance": "Distance (m)",
       "wanMode": "WAN Mode",
-      "lastSeen": "Last Seen"
+      "lastSeen": "Last Seen",
+      "enterPortHint": "Select a PON port to list its ONUs.",
+      "loadError": "Failed to load ONUs.",
+      "noOnus": "No ONUs on this port."
     },
     "powerBudget": {
       "title": "Optical Power Budget Calculator",
@@ -3112,7 +3179,10 @@
         "completed": "Completed",
         "failed": "Failed",
         "cancelled": "Cancelled"
-      }
+      },
+      "loadError": "Failed to load migration jobs.",
+      "noJobs": "No migration jobs.",
+      "immediate": "Immediate"
     },
     "prev": "Prev",
     "next": "Next",
@@ -3142,7 +3212,9 @@
       "status": "Status",
       "installedAt": "Installed",
       "allTypes": "All types",
-      "allStatuses": "All statuses"
+      "allStatuses": "All statuses",
+      "loadError": "Failed to load fiber routes.",
+      "noRoutes": "No fiber routes found."
     },
     "odf": {
       "title": "ODF Frames",
@@ -3158,7 +3230,12 @@
       "ports": "Ports",
       "portNumber": "Port #",
       "portStatus": "Port Status",
-      "cableLabel": "Cable Label"
+      "cableLabel": "Cable Label",
+      "loadError": "Failed to load ODF frames.",
+      "location": "Location",
+      "noFrames": "No ODF frames found.",
+      "fiberRoute": "Fiber Route",
+      "noPorts": "No ports on this frame."
     },
     "otdr": {
       "title": "OTDR Test Results",
@@ -3174,7 +3251,11 @@
       "testedAt": "Tested At",
       "jobStatus": "Job Status",
       "noFault": "No fault",
-      "hasFault": "Fault detected"
+      "hasFault": "Fault detected",
+      "loadError": "Failed to load OTDR tests.",
+      "noTests": "No OTDR tests recorded.",
+      "yes": "Yes",
+      "no": "No"
     },
     "sfp": {
       "title": "SFP Inventory",
@@ -3194,14 +3275,19 @@
       "txPower": "Tx Power (dBm)",
       "rxPower": "Rx Power (dBm)",
       "temperature": "Temp (°C)",
-      "polledAt": "Last Polled"
+      "polledAt": "Last Polled",
+      "loadError": "Failed to load the SFP inventory.",
+      "noItems": "No SFP modules found.",
+      "noDiagnostics": "No diagnostics collected yet."
     },
     "prev": "Prev",
     "next": "Next",
     "save": "Save",
     "cancel": "Cancel",
     "loading": "Loading...",
-    "notFound": "Not found"
+    "notFound": "Not found",
+    "confirmDelete": "Delete this record?",
+    "notes": "Notes"
   },
   "cpeManagement": {
     "title": "CPE Management",
@@ -3712,7 +3798,9 @@
       "billingMonth": "Month",
       "thresholdPct": "Threshold %",
       "notifiedAt": "Notified At",
-      "channel": "Channel"
+      "channel": "Channel",
+      "usedGb": "Used (GB)",
+      "capGb": "Cap (GB)"
     },
     "trafficEngineering": {
       "interfaceQos": "Interface QoS Policies",
@@ -5078,7 +5166,14 @@
       "revoke": "Failed to revoke tunnel.",
       "downloadConf": "Failed to download configuration.",
       "showQr": "Failed to load QR code."
-    }
+    },
+    "peerNameHint": "A name to recognise this device, such as Laptop or Phone.",
+    "qrAlt": "WireGuard configuration QR code",
+    "loadingQr": "Loading QR code…",
+    "revokeNote": "The device loses VPN access at once. Add it again to restore access.",
+    "revoking": "Revoking…",
+    "downloading": "Downloading…",
+    "banner": "Each device gets its own WireGuard tunnel. Install the WireGuard app, then import the .conf file or scan the QR code."
   },
   "adminWgTunnels": {
     "title": "WireGuard — All Tunnels",
@@ -5144,7 +5239,20 @@
       "saving": "Saving…",
       "successSave": "Assignments updated. Live tunnels re-scoped immediately.",
       "errorSave": "Failed to save assignments."
-    }
+    },
+    "assignTitle": "Network Access",
+    "sitesSection": "Sites",
+    "noSites": "No sites available.",
+    "nasSection": "NAS Devices",
+    "noNas": "No NAS devices available.",
+    "assignNote": "Saving replaces this user's assignments. Live tunnels are re-scoped immediately.",
+    "totalPeers_one": "{{count}} peer",
+    "totalPeers_other": "{{count}} peers",
+    "banner": "Revoking a tunnel disconnects the device immediately. Rotating keys invalidates the current configuration, so the user must download it again.",
+    "statusActive": "Synced",
+    "statusPending": "Pending sync",
+    "statusRevoked": "Revoked",
+    "manageScope": "Manage network access"
   },
   "nasList": {
     "accessMode": {
@@ -6273,5 +6381,211 @@
       "health": { "complete": "Complete", "partial": "Partial", "missing": "Missing", "synchronized": "Synchronized", "reported": "Reported", "healthy": "No reported loss", "degraded": "Needs attention", "unknown": "Not reported" },
       "status": { "ready": "Receiving", "waiting": "Needs attention", "notConfigured": "Not configured", "unknown": "Unknown" }
     }
+  },
+  "portalCommon": {
+    "invoiceStatus": {
+      "draft": "Draft",
+      "issued": "Issued",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "cancelled": "Cancelled",
+      "sent": "Sent",
+      "void": "Void"
+    },
+    "prev": "Prev",
+    "next": "Next",
+    "pageOf": "Page {{page}} of {{pages}}",
+    "loading": "Loading…",
+    "ticketStatus": {
+      "open": "Open",
+      "in_progress": "In Progress",
+      "waiting": "Waiting",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "ticketPriority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    }
+  },
+  "portalInvoiceDetail": {
+    "notFound": "Invoice not found.",
+    "payFailed": "The payment could not be started. Please try again.",
+    "downloadUnavailable": "The file is not available right now. Please try again later.",
+    "back": "Back to invoices",
+    "issued": "Issued: {{date}}",
+    "due": "Due: {{date}}",
+    "period": "Period: {{start}} – {{end}}",
+    "paymentReceived": "Payment received. Thank you!",
+    "confirming": "We are confirming your payment with the payment provider. This page updates on its own.",
+    "paymentCancelled": "The payment was not completed. You can try again.",
+    "processing": "Processing…",
+    "continuePayment": "Continue payment",
+    "payNow": "Pay Now",
+    "downloadPdf": "Download PDF",
+    "downloadCfdi": "Download CFDI XML",
+    "items": "Items",
+    "description": "Description",
+    "qty": "Qty",
+    "unitPrice": "Unit Price",
+    "amount": "Amount",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "discount": "Discount",
+    "total": "Total",
+    "paymentsApplied": "Payments Applied",
+    "date": "Date",
+    "method": "Method",
+    "notes": "Notes"
+  },
+  "portalAccount": {
+    "title": "Account Settings",
+    "submitted": "Request submitted successfully.",
+    "cancelFailed": "Failed to cancel request. Please try again.",
+    "errPlanId": "Please enter a plan ID to upgrade to.",
+    "errPassword": "Please enter a new password.",
+    "errReason": "Please provide a cancellation reason.",
+    "errDate": "Please select a preferred date.",
+    "errSlot": "Please select a preferred time slot.",
+    "autopay": "Autopay",
+    "autopayOn": "Autopay is on. Your invoices are charged automatically.",
+    "autopayOnCard": "Autopay is on — card ending {{card}}. Your invoices are charged automatically.",
+    "autopayOff": "Turn off autopay",
+    "autopayPitch": "Save a card to pay your invoices automatically each month. You can turn this off anytime.",
+    "redirecting": "Redirecting…",
+    "autopayEnable": "Enable autopay",
+    "tabRequests": "My Requests",
+    "tabNew": "New Request",
+    "myRequests": "My Service Requests",
+    "noRequests": "No service requests yet.",
+    "type": "Type",
+    "status": "Status",
+    "submittedAt": "Submitted",
+    "cancel": "Cancel",
+    "requestTypes": {
+      "plan_upgrade": "Plan Upgrade",
+      "wifi_password_change": "Change Wi-Fi Password",
+      "pppoe_password_change": "Change PPPoE Password",
+      "static_ip_request": "Request Static IP",
+      "cancellation": "Request Cancellation",
+      "visit_schedule": "Schedule a Visit"
+    },
+    "submitTitle": "Submit a Request",
+    "requestType": "Request Type",
+    "newPlanId": "New Plan ID",
+    "newPlanIdPlaceholder": "Enter plan ID to upgrade to",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "Enter new password (min. 8 characters)",
+    "notesReason": "Notes / Reason",
+    "staticIpPlaceholder": "Please describe why you need a static IP",
+    "cancellationReason": "Cancellation Reason",
+    "cancellationPlaceholder": "Please let us know why you'd like to cancel",
+    "preferredDate": "Preferred Date",
+    "preferredSlot": "Preferred Time Slot",
+    "selectSlot": "Select a time slot",
+    "slots": {
+      "morning": "Morning (8am – 12pm)",
+      "afternoon": "Afternoon (12pm – 5pm)",
+      "evening": "Evening (5pm – 8pm)"
+    },
+    "notes": "Notes",
+    "visitPlaceholder": "Describe the reason for the visit",
+    "submitting": "Submitting…",
+    "submit": "Submit Request",
+    "waTitle": "Connect WhatsApp",
+    "waIntro": "Link your WhatsApp number to check your balance and get support in chat. We only ever send a new code — we never share your existing passwords in WhatsApp.",
+    "waNumber": "Number",
+    "waConnected": "Connected",
+    "waUnlink": "Unlink",
+    "waNone": "No WhatsApp number connected yet.",
+    "waGenerating": "Generating…",
+    "waGetCode": "Get a linking code",
+    "waCodeHint_one": "Send this code to our WhatsApp to connect your number. It expires in {{count}} minute.",
+    "waCodeHint_other": "Send this code to our WhatsApp to connect your number. It expires in {{count}} minutes.",
+    "waOpen": "Open WhatsApp"
+  },
+  "portalChat": {
+    "greeting": "Hello! I'm your virtual assistant. How can I help you today?",
+    "startFailed": "Failed to start chat. Please try again.",
+    "sendFailed": "Sorry, I encountered an error. Please try opening a support ticket.",
+    "title": "AI Support Chat",
+    "subtitle": "Get instant answers from our AI assistant, available 24/7.",
+    "intro": "Our AI assistant can help with billing questions, plan information, connectivity issues, and more. If it cannot resolve your issue, it will automatically create a support ticket.",
+    "starting": "Starting…",
+    "start": "Start Chat",
+    "escalated": "Your issue has been escalated to a human agent.",
+    "viewTicket": "View ticket #{{id}}",
+    "placeholder": "Type your message… (Enter to send)",
+    "ended": "Chat has ended",
+    "send": "Send",
+    "endedEscalated": "Chat ended — a support ticket has been created.",
+    "resolved": "Chat resolved.",
+    "viewTickets": "View tickets"
+  },
+  "portalKb": {
+    "rateFailed": "Failed to submit feedback. Please try again.",
+    "back": "Back to articles",
+    "helpful": "Was this helpful?",
+    "thanks": "Thank you for your feedback!",
+    "yes": "Yes ({{count}})",
+    "no": "No ({{count}})",
+    "title": "Knowledge Base",
+    "subtitle": "Find answers to common questions",
+    "search": "Search articles…",
+    "allCategories": "All categories",
+    "categories": {
+      "billing": "Billing",
+      "connectivity": "Connectivity",
+      "account": "Account",
+      "plans": "Plans",
+      "general": "General"
+    },
+    "none": "No articles found.",
+    "stats": "{{views}} views · {{helpful}} found helpful"
+  },
+  "portalSpeedTest": {
+    "queueFailed": "Failed to queue speed test. Please try again.",
+    "title": "Speed Test",
+    "subtitle": "Test your connection speed and view history",
+    "queued": "Speed test queued! Results will appear below once complete (usually within 30 seconds).",
+    "queuing": "Queuing…",
+    "run": "Run Speed Test",
+    "latest": "Latest Result",
+    "mbpsDown": "Mbps Down",
+    "mbpsUp": "Mbps Up",
+    "latency": "Latency",
+    "tested": "Tested: {{date}}",
+    "history": "Test History",
+    "refresh": "Refresh",
+    "none": "No speed tests yet. Run your first test above.",
+    "date": "Date",
+    "status": "Status",
+    "down": "Down",
+    "up": "Up",
+    "ping": "Ping",
+    "statuses": {
+      "queued": "Queued",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "portalTicketDetail": {
+    "replyFailed": "Your reply could not be sent. Please try again.",
+    "notFound": "Ticket not found.",
+    "back": "Back to tickets",
+    "priority": "{{priority}} priority",
+    "opened": "opened {{date}}",
+    "conversation": "Conversation",
+    "noReplies": "No replies yet.",
+    "addReply": "Add a reply",
+    "replyPlaceholder": "Type your reply…",
+    "sending": "Sending…",
+    "send": "Send Reply",
+    "closedNote": "This ticket is {{status}}.",
+    "openNew": "Open a new ticket if you need further assistance."
   }
 }

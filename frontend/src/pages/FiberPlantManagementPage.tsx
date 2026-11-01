@@ -475,7 +475,7 @@ export function FiberPlantManagementPage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button style={styles.btnPrimary} onClick={() => openFrModal()}>
-              + {t('fiberPlantManagement.fiberRoutes.new')}
+              + {t('fiberPlantManagement.fiberRoutes.newRoute')}
             </button>
           </div>
           {frQ.isLoading && <p style={styles.msg}>{t('fiberPlantManagement.loading')}</p>}
@@ -488,10 +488,10 @@ export function FiberPlantManagementPage() {
                     <tr>
                       <th style={styles.thNum}>ID</th>
                       <th style={styles.th}>{t('fiberPlantManagement.fiberRoutes.name')}</th>
-                      <th style={styles.th}>{t('fiberPlantManagement.fiberRoutes.type')}</th>
+                      <th style={styles.th}>{t('fiberPlantManagement.fiberRoutes.routeType')}</th>
                       <th style={styles.th}>{t('fiberPlantManagement.fiberRoutes.status')}</th>
-                      <th style={styles.thNum}>{t('fiberPlantManagement.fiberRoutes.length')}</th>
-                      <th style={styles.th}>{t('fiberPlantManagement.fiberRoutes.installDate')}</th>
+                      <th style={styles.thNum}>{t('fiberPlantManagement.fiberRoutes.cableLength')}</th>
+                      <th style={styles.th}>{t('fiberPlantManagement.fiberRoutes.installedAt')}</th>
                       <th style={styles.th}></th>
                     </tr>
                   </thead>
@@ -513,7 +513,7 @@ export function FiberPlantManagementPage() {
                         <td style={styles.td}>{fmtDate(fr.installed_at)}</td>
                         <td style={styles.td}>
                           <button style={styles.actionBtn} onClick={() => openFrModal(fr)}>
-                            {t('fiberPlantManagement.edit')}
+                            {t('common.edit')}
                           </button>
                           <button
                             style={{ ...styles.actionBtn, color: 'var(--danger)' }}
@@ -523,7 +523,7 @@ export function FiberPlantManagementPage() {
                               }
                             }}
                           >
-                            {t('fiberPlantManagement.delete')}
+                            {t('common.delete')}
                           </button>
                         </td>
                       </tr>
@@ -568,7 +568,7 @@ export function FiberPlantManagementPage() {
                         <th style={styles.thNum}>ID</th>
                         <th style={styles.th}>{t('fiberPlantManagement.odf.name')}</th>
                         <th style={styles.th}>{t('fiberPlantManagement.odf.location')}</th>
-                        <th style={styles.thNum}>{t('fiberPlantManagement.odf.totalPorts')}</th>
+                        <th style={styles.thNum}>{t('fiberPlantManagement.odf.portCount')}</th>
                         <th style={styles.th}>{t('fiberPlantManagement.odf.status')}</th>
                         <th style={styles.th}></th>
                       </tr>
@@ -601,7 +601,7 @@ export function FiberPlantManagementPage() {
                                 }
                               }}
                             >
-                              {t('fiberPlantManagement.delete')}
+                              {t('common.delete')}
                             </button>
                           </td>
                         </tr>
@@ -631,7 +631,7 @@ export function FiberPlantManagementPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <h3 style={{ margin: 0, fontWeight: 700 }}>{frameDetailQ.data.name}</h3>
                     <button style={styles.btnSecondary} onClick={() => setSelectedFrameId(null)}>
-                      {t('fiberPlantManagement.close')}
+                      {t('common.close')}
                     </button>
                   </div>
                   <div style={styles.tableCard}>
@@ -689,8 +689,8 @@ export function FiberPlantManagementPage() {
                   <thead>
                     <tr>
                       <th style={styles.thNum}>ID</th>
-                      <th style={styles.th}>{t('fiberPlantManagement.otdr.testDate')}</th>
-                      <th style={styles.thNum}>{t('fiberPlantManagement.otdr.fiberLength')}</th>
+                      <th style={styles.th}>{t('fiberPlantManagement.otdr.testedAt')}</th>
+                      <th style={styles.thNum}>{t('fiberPlantManagement.otdr.totalLength')}</th>
                       <th style={styles.th}>{t('fiberPlantManagement.otdr.faultDetected')}</th>
                       <th style={styles.th}>{t('fiberPlantManagement.otdr.faultType')}</th>
                       <th style={styles.thNum}>{t('fiberPlantManagement.otdr.faultDistance')}</th>
@@ -728,7 +728,7 @@ export function FiberPlantManagementPage() {
                               }
                             }}
                           >
-                            {t('fiberPlantManagement.delete')}
+                            {t('common.delete')}
                           </button>
                         </td>
                       </tr>
@@ -757,7 +757,7 @@ export function FiberPlantManagementPage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button style={styles.btnPrimary} onClick={() => { setSfpErr(''); setSfpForm({ form_factor: 'sfp_plus', lifecycle_status: 'in_stock' }); setShowSfpModal(true); }}>
-              + {t('fiberPlantManagement.sfp.new')}
+              + {t('fiberPlantManagement.sfp.newSfp')}
             </button>
           </div>
           {sfpQ.isLoading && <p style={styles.msg}>{t('fiberPlantManagement.loading')}</p>}
@@ -769,12 +769,12 @@ export function FiberPlantManagementPage() {
                   <thead>
                     <tr>
                       <th style={styles.thNum}>ID</th>
-                      <th style={styles.th}>{t('fiberPlantManagement.sfp.vendor')}</th>
+                      <th style={styles.th}>{t('fiberPlantManagement.sfp.vendorName')}</th>
                       <th style={styles.th}>{t('fiberPlantManagement.sfp.partNumber')}</th>
                       <th style={styles.th}>{t('fiberPlantManagement.sfp.formFactor')}</th>
                       <th style={styles.thNum}>{t('fiberPlantManagement.sfp.wavelength')}</th>
-                      <th style={styles.th}>{t('fiberPlantManagement.sfp.lifecycle')}</th>
-                      <th style={styles.th}>{t('fiberPlantManagement.sfp.device')}</th>
+                      <th style={styles.th}>{t('fiberPlantManagement.sfp.lifecycleStatus')}</th>
+                      <th style={styles.th}>{t('fiberPlantManagement.sfp.installedDevice')}</th>
                       <th style={styles.th}></th>
                     </tr>
                   </thead>
@@ -818,7 +818,7 @@ export function FiberPlantManagementPage() {
                               }
                             }}
                           >
-                            {t('fiberPlantManagement.delete')}
+                            {t('common.delete')}
                           </button>
                         </td>
                       </tr>
@@ -840,7 +840,7 @@ export function FiberPlantManagementPage() {
               {diagSfpId && diagQ.data && (
                 <div style={{ marginTop: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '1rem' }}>
                   <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.75rem' }}>
-                    {t('fiberPlantManagement.sfp.diagnosticsTitle')} — {diagQ.data.inventory.vendor_name ?? ''} {diagQ.data.inventory.part_number ?? `#${diagSfpId}`}
+                    {t('fiberPlantManagement.sfp.diagnostics')} — {diagQ.data.inventory.vendor_name ?? ''} {diagQ.data.inventory.part_number ?? `#${diagSfpId}`}
                   </h3>
                   {diagQ.data.diagnostics ? (
                     <table style={styles.table}>
@@ -858,7 +858,7 @@ export function FiberPlantManagementPage() {
                           <td style={styles.tdMono}>{diagQ.data.diagnostics.sfp_temperature_c !== null ? `${diagQ.data.diagnostics.sfp_temperature_c} °C` : '—'}</td>
                         </tr>
                         <tr style={styles.tr}>
-                          <td style={styles.td}>{t('fiberPlantManagement.sfp.collectedAt')}</td>
+                          <td style={styles.td}>{t('fiberPlantManagement.sfp.polledAt')}</td>
                           <td style={styles.td}>{new Date(diagQ.data.diagnostics.collected_at).toLocaleString()}</td>
                         </tr>
                       </tbody>
@@ -879,7 +879,7 @@ export function FiberPlantManagementPage() {
           <div style={modalStyles.panel}>
             <div style={modalStyles.header}>
               <h2 style={modalStyles.title}>
-                {editingFr ? t('fiberPlantManagement.fiberRoutes.edit') : t('fiberPlantManagement.fiberRoutes.new')}
+                {editingFr ? t('fiberPlantManagement.fiberRoutes.editTitle') : t('fiberPlantManagement.fiberRoutes.newRoute')}
               </h2>
               <button style={modalStyles.closeBtn} onClick={() => setShowFrModal(false)}>&#x2715;</button>
             </div>
@@ -893,7 +893,7 @@ export function FiberPlantManagementPage() {
                 />
               </label>
               <label style={modalStyles.label}>
-                {t('fiberPlantManagement.fiberRoutes.type')}
+                {t('fiberPlantManagement.fiberRoutes.routeType')}
                 <select
                   style={modalStyles.select}
                   value={frForm.route_type ?? 'drop'}
@@ -913,7 +913,7 @@ export function FiberPlantManagementPage() {
                 </select>
               </label>
               <label style={modalStyles.label}>
-                {t('fiberPlantManagement.fiberRoutes.length')}
+                {t('fiberPlantManagement.fiberRoutes.cableLength')}
                 <input
                   style={modalStyles.input}
                   type="number"
@@ -970,7 +970,7 @@ export function FiberPlantManagementPage() {
                 />
               </label>
               <label style={modalStyles.label}>
-                {t('fiberPlantManagement.odf.totalPorts')}
+                {t('fiberPlantManagement.odf.portCount')}
                 <input
                   style={modalStyles.input}
                   type="number"
@@ -1022,7 +1022,7 @@ export function FiberPlantManagementPage() {
             </div>
             <div style={modalStyles.form}>
               <label style={modalStyles.label}>
-                {t('fiberPlantManagement.otdr.fiberLength')}
+                {t('fiberPlantManagement.otdr.totalLength')}
                 <input
                   style={modalStyles.input}
                   type="number"
@@ -1105,7 +1105,7 @@ export function FiberPlantManagementPage() {
         <div style={modalStyles.backdrop}>
           <div style={modalStyles.panel}>
             <div style={modalStyles.header}>
-              <h2 style={modalStyles.title}>{t('fiberPlantManagement.sfp.new')}</h2>
+              <h2 style={modalStyles.title}>{t('fiberPlantManagement.sfp.newSfp')}</h2>
               <button style={modalStyles.closeBtn} onClick={() => setShowSfpModal(false)}>&#x2715;</button>
             </div>
             <div style={modalStyles.form}>
@@ -1120,7 +1120,7 @@ export function FiberPlantManagementPage() {
                 </select>
               </label>
               <label style={modalStyles.label}>
-                {t('fiberPlantManagement.sfp.vendor')}
+                {t('fiberPlantManagement.sfp.vendorName')}
                 <input
                   style={modalStyles.input}
                   value={sfpForm.vendor_name ?? ''}
@@ -1154,7 +1154,7 @@ export function FiberPlantManagementPage() {
                 />
               </label>
               <label style={modalStyles.label}>
-                {t('fiberPlantManagement.sfp.lifecycle')}
+                {t('fiberPlantManagement.sfp.lifecycleStatus')}
                 <select
                   style={modalStyles.select}
                   value={sfpForm.lifecycle_status ?? 'in_stock'}
@@ -1164,7 +1164,7 @@ export function FiberPlantManagementPage() {
                 </select>
               </label>
               <label style={modalStyles.label}>
-                {t('fiberPlantManagement.sfp.deviceId')}
+                {t('fiberPlantManagement.sfp.installedDevice')}
                 <input
                   style={modalStyles.input}
                   type="number"

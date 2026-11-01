@@ -163,10 +163,10 @@ describe('AddPeerModal — full_tunnel checkbox', () => {
     await user.click(screen.getByRole('button', { name: /wgTunnels\.addPeer/i }));
 
     // Type a peer name
-    await user.type(screen.getByPlaceholderText('wgTunnels.peerNamePlaceholder'), 'Laptop');
+    await user.type(screen.getByPlaceholderText('wgTunnels.modal.namePlaceholder'), 'Laptop');
 
     // Do NOT uncheck the checkbox — it defaults to true
-    await user.click(screen.getByRole('button', { name: 'wgTunnels.createPeer' }));
+    await user.click(screen.getByRole('button', { name: 'wgTunnels.modal.add' }));
 
     await waitFor(() => {
       const postCall = (fetchMock.mock.calls as unknown[][]).find(
@@ -191,14 +191,14 @@ describe('AddPeerModal — full_tunnel checkbox', () => {
     await waitFor(() => expect(screen.queryByText('wgTunnels.loading')).not.toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /wgTunnels\.addPeer/i }));
 
-    await user.type(screen.getByPlaceholderText('wgTunnels.peerNamePlaceholder'), 'Phone');
+    await user.type(screen.getByPlaceholderText('wgTunnels.modal.namePlaceholder'), 'Phone');
 
     // Uncheck the full_tunnel checkbox
     const checkbox = screen.getByRole('checkbox');
     await user.click(checkbox);
     expect((checkbox as HTMLInputElement).checked).toBe(false);
 
-    await user.click(screen.getByRole('button', { name: 'wgTunnels.createPeer' }));
+    await user.click(screen.getByRole('button', { name: 'wgTunnels.modal.add' }));
 
     await waitFor(() => {
       const postCall = (fetchMock.mock.calls as unknown[][]).find(

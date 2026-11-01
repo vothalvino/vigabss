@@ -7,6 +7,7 @@
 
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { usePortalAuth, portalAuthedFetch } from '@/auth/PortalAuthContext';
 import { calendarDay } from '@/lib/dates';
 
@@ -73,6 +74,7 @@ function fmtSeconds(s: number): string {
 }
 
 export function PortalDashboard() {
+  const { t } = useTranslation();
   const { client } = usePortalAuth();
 
   const { data: dashData, isLoading: dashLoading } = useQuery({
@@ -93,25 +95,25 @@ export function PortalDashboard() {
 
   return (
     <div>
-      <h1 style={styles.heading}>Welcome, {client?.name}</h1>
-      <p style={styles.sub}>Your service overview</p>
+      <h1 style={styles.heading}>{t('portalDashboard.welcome', { name: client?.name ?? '' })}</h1>
+      <p style={styles.sub}>{t('portalDashboard.overview')}</p>
 
-      {dashLoading && <p style={styles.muted}>Loading…</p>}
+      {dashLoading && <p style={styles.muted}>{t('portalCommon.loading')}</p>}
 
       {overview && (
         <div style={styles.grid}>
           {/* Plan & Account */}
           <section style={styles.card}>
-            <h2 style={styles.cardTitle}>My Plan</h2>
+            <h2 style={styles.cardTitle}>{t('portalDashboard.myPlan')}</h2>
             {overview.contract ? (
               <dl style={styles.dl}>
-                <dt style={styles.dt}>Plan</dt>
+                <dt style={styles.dt}>{t('portalDashboard.plan')}</dt>
                 <dd style={styles.dd}>{overview.contract.plan.name}</dd>
-                <dt style={styles.dt}>Price</dt>
-                <dd style={styles.dd}>${overview.contract.plan.price.toFixed(2)} / month</dd>
+                <dt style={styles.dt}>{t('portalDashboard.price')}</dt>
+                <dd style={styles.dd}>{t('portalDashboard.perMonth', { price: `$${overview.contract.plan.price.toFixed(2)}` })}</dd>
                 {overview.contract.plan.download_speed_mbps && (
                   <>
-                    <dt style={styles.dt}>Speed</dt>
+                    <dt style={styles.dt}>{t('portalDashboard.speed')}</dt>
                     <dd style={styles.dd}>
                       {overview.contract.plan.download_speed_mbps} / {overview.contract.plan.upload_speed_mbps} Mbps
                     </dd>
@@ -119,42 +121,42 @@ export function PortalDashboard() {
                 )}
                 {overview.contract.plan.data_cap_gb && (
                   <>
-                    <dt style={styles.dt}>Data cap</dt>
+                    <dt style={styles.dt}>{t('portalDashboard.dataCap')}</dt>
                     <dd style={styles.dd}>{overview.contract.plan.data_cap_gb} GB</dd>
                   </>
                 )}
-                <dt style={styles.dt}>Connection</dt>
+                <dt style={styles.dt}>{t('portalDashboard.connection')}</dt>
                 <dd style={styles.dd}>{overview.contract.connection_type}</dd>
               </dl>
             ) : (
-              <p style={styles.muted}>No active contract</p>
+              <p style={styles.muted}>{t('portalDashboard.noContract')}</p>
             )}
             <div style={{ marginTop: '0.75rem' }}>
-              <Link to="/portal/account" style={styles.linkBtn}>Manage account →</Link>
+              <Link to="/portal/account" style={styles.linkBtn}>{t('portalDashboard.manageAccount')} →</Link>
             </div>
           </section>
 
           {/* Balance */}
           <section style={styles.card}>
-            <h2 style={styles.cardTitle}>Balance &amp; Billing</h2>
+            <h2 style={styles.cardTitle}>{t('portalDashboard.balanceBilling')}</h2>
             <div style={{
               fontSize: '2rem', fontWeight: 700,
               color: overview.balance > 0 ? '#dc2626' : '#16a34a',
             }}>
               {overview.balance_currency} {overview.balance.toFixed(2)}
             </div>
-            <p style={styles.muted}>Outstanding balance</p>
+            <p style={styles.muted}>{t('portalDashboard.outstandingBalance')}</p>
             {overview.next_due_date && (
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                Next due: {overview.next_due_date.slice(0, 10)}
+                {t('portalDashboard.nextDue', { date: overview.next_due_date.slice(0, 10) })}
               </p>
             )}
-            <Link to="/portal/invoices" style={styles.linkBtn}>View invoices →</Link>
+            <Link to="/portal/invoices" style={styles.linkBtn}>{t('portalDashboard.viewInvoices')} →</Link>
           </section>
 
           {/* Session status */}
           <section style={styles.card}>
-            <h2 style={styles.cardTitle}>Connection Status</h2>
+            <h2 style={styles.cardTitle}>{t('portalDashboard.connectionStatus')}</h2>
             {overview.session ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -163,7 +165,7 @@ export function PortalDashboard() {
                     background: overview.session.status === 'connected' ? '#16a34a' : '#dc2626',
                     display: 'inline-block',
                   }} />
-                  <strong style={{ textTransform: 'capitalize' }}>{overview.session.status}</strong>
+                  <strong style={{ textTransform: 'capitalize' }}>{t(`portalDashboard.sessionStatus.${overview.session.status}`, { defaultValue: overview.session.status })}</strong>
                 </div>
                 <dl style={styles.dl}>
                   {overview.session.ip && (
@@ -174,35 +176,35 @@ export function PortalDashboard() {
                   )}
                   {overview.session.session_seconds > 0 && (
                     <>
-                      <dt style={styles.dt}>Session</dt>
+                      <dt style={styles.dt}>{t('portalDashboard.session')}</dt>
                       <dd style={styles.dd}>{fmtSeconds(overview.session.session_seconds)}</dd>
                     </>
                   )}
                   {(overview.session.bytes_in > 0 || overview.session.bytes_out > 0) && (
                     <>
-                      <dt style={styles.dt}>Downloaded</dt>
+                      <dt style={styles.dt}>{t('portalDashboard.downloaded')}</dt>
                       <dd style={styles.dd}>{fmtBytes(overview.session.bytes_in)}</dd>
-                      <dt style={styles.dt}>Uploaded</dt>
+                      <dt style={styles.dt}>{t('portalDashboard.uploaded')}</dt>
                       <dd style={styles.dd}>{fmtBytes(overview.session.bytes_out)}</dd>
                     </>
                   )}
                 </dl>
               </>
             ) : (
-              <p style={styles.muted}>No active session data</p>
+              <p style={styles.muted}>{t('portalDashboard.noSession')}</p>
             )}
           </section>
 
           {/* Usage this month */}
           {overview.usage_this_month && (
             <section style={styles.card}>
-              <h2 style={styles.cardTitle}>Usage This Month</h2>
+              <h2 style={styles.cardTitle}>{t('portalDashboard.usageThisMonth')}</h2>
               <dl style={styles.dl}>
-                <dt style={styles.dt}>Download</dt>
+                <dt style={styles.dt}>{t('portalDashboard.download')}</dt>
                 <dd style={styles.dd}>{overview.usage_this_month.download_gb.toFixed(2)} GB</dd>
-                <dt style={styles.dt}>Upload</dt>
+                <dt style={styles.dt}>{t('portalDashboard.upload')}</dt>
                 <dd style={styles.dd}>{overview.usage_this_month.upload_gb.toFixed(2)} GB</dd>
-                <dt style={styles.dt}>Total</dt>
+                <dt style={styles.dt}>{t('portalDashboard.total')}</dt>
                 <dd style={{ ...styles.dd, fontWeight: 600 }}>{overview.usage_this_month.total_gb.toFixed(2)} GB</dd>
               </dl>
             </section>
@@ -213,7 +215,7 @@ export function PortalDashboard() {
       {/* Daily usage chart */}
       {usageDays.length > 0 && (
         <section style={{ ...styles.card, marginTop: '1.5rem' }}>
-          <h2 style={styles.cardTitle}>Daily Usage (Current Month)</h2>
+          <h2 style={styles.cardTitle}>{t('portalDashboard.dailyUsage')}</h2>
           <div style={styles.chartOuter}>
             <div style={styles.chartBars}>
               {usageDays.map(d => (
@@ -225,7 +227,7 @@ export function PortalDashboard() {
             </div>
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Total days shown: {usageDays.length}
+            {t('portalDashboard.daysShown', { count: usageDays.length })}
           </p>
         </section>
       )}
@@ -234,19 +236,19 @@ export function PortalDashboard() {
       <div style={{ ...styles.grid, marginTop: '1.5rem' }}>
         <Link to="/portal/tickets" style={styles.quickCard}>
           <span style={styles.quickIcon}>🎫</span>
-          <span>Support Tickets</span>
+          <span>{t('portalDashboard.quickTickets')}</span>
         </Link>
         <Link to="/portal/kb" style={styles.quickCard}>
           <span style={styles.quickIcon}>📖</span>
-          <span>Knowledge Base</span>
+          <span>{t('portalDashboard.quickKb')}</span>
         </Link>
         <Link to="/portal/account" style={styles.quickCard}>
           <span style={styles.quickIcon}>⚙️</span>
-          <span>Account Settings</span>
+          <span>{t('portalDashboard.quickAccount')}</span>
         </Link>
         <Link to="/portal/speed-test" style={styles.quickCard}>
           <span style={styles.quickIcon}>⚡</span>
-          <span>Speed Test</span>
+          <span>{t('portalDashboard.quickSpeedTest')}</span>
         </Link>
       </div>
     </div>

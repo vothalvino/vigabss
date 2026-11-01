@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
@@ -66,7 +67,7 @@ async function startPayment(invoiceId: number): Promise<{ payment_url: string }>
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-    throw new Error(err.error?.message ?? 'Payment initiation failed');
+    throw new Error(err.error?.message ?? '');
   }
   return (await res.json() as { data: { payment_url: string } }).data;
 }
@@ -75,6 +76,7 @@ const POLL_MS = 5000;
 const POLL_FOR_MS = 2 * 60 * 1000;
 
 export function PortalInvoiceDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const paymentReturn = searchParams.get('payment'); // 'success' | 'cancelled' | null
@@ -100,12 +102,12 @@ export function PortalInvoiceDetail() {
       window.location.href = result.payment_url;
     },
     onError: (err: Error) => {
-      setPayError(err.message);
+      setPayError(err.message || t('portalInvoiceDetail.payFailed'));
     },
   });
 
-  if (isLoading) return <p style={{ color: '#6b7280' }}>Loading…</p>;
-  if (error || !invoice) return <p style={{ color: '#b91c1c' }}>Invoice not found.</p>;
+  if (isLoading) return <p style={{ color: '#6b7280' }}>{t('portalCommon.loading')}</p>;
+  if (error || !invoice) return <p style={{ color: '#b91c1c' }}>{t('portalInvoiceDetail.notFound')}</p>;
 
   const balanceDue = invoice.balance_due ?? Number(invoice.total);
   const canPay = ['issued', 'sent', 'overdue'].includes(invoice.status) && balanceDue > 0.005;
@@ -128,13 +130,13 @@ export function PortalInvoiceDetail() {
         a.click();
         URL.revokeObjectURL(blobUrl);
       })
-      .catch(() => setDownloadError('The file is not available right now. Please try again later.'));
+      .catch(() => setDownloadError(t('portalInvoiceDetail.downloadUnavailable')));
   }
 
   return (
     <div>
       <div style={styles.breadcrumb}>
-        <Link to="/portal/invoices" style={styles.back}>← Back to invoices</Link>
+        <Link to="/portal/invoices" style={styles.back}>← {t('portalInvoiceDetail.back')}</Link>
       </div>
 
       <div style={styles.card}>
@@ -142,27 +144,27 @@ export function PortalInvoiceDetail() {
         <div style={styles.invoiceHeader}>
           <div>
             <h1 style={styles.invoiceNum}>{invoice.invoice_number}</h1>
-            <p style={styles.meta}>Issued: {invoice.created_at.slice(0, 10)}</p>
+            <p style={styles.meta}>{t('portalInvoiceDetail.issued', { date: invoice.created_at.slice(0, 10) })}</p>
             {invoice.due_date && (
-              <p style={styles.meta}>Due: {invoice.due_date.slice(0, 10)}</p>
+              <p style={styles.meta}>{t('portalInvoiceDetail.due', { date: invoice.due_date.slice(0, 10) })}</p>
             )}
             {invoice.period_start && invoice.period_end && (
-              <p style={styles.meta}>Period: {invoice.period_start.slice(0, 10)} – {invoice.period_end.slice(0, 10)}</p>
+              <p style={styles.meta}>{t('portalInvoiceDetail.period', { start: invoice.period_start.slice(0, 10), end: invoice.period_end.slice(0, 10) })}</p>
             )}
           </div>
           <div style={styles.statusBlock}>
             <span style={{ ...styles.badge, ...badgeColor(invoice.status) }}>
-              {invoice.status.toUpperCase()}
+              {t(`portalCommon.invoiceStatus.${invoice.status}`, { defaultValue: invoice.status }).toUpperCase()}
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}>
               {paymentReturn === 'success' && invoice.status === 'paid' && (
-                <p role="status" style={styles.meta}>Payment received. Thank you!</p>
+                <p role="status" style={styles.meta}>{t('portalInvoiceDetail.paymentReceived')}</p>
               )}
               {confirming && (
-                <p role="status" style={styles.meta}>We are confirming your payment with the payment provider. This page updates on its own.</p>
+                <p role="status" style={styles.meta}>{t('portalInvoiceDetail.confirming')}</p>
               )}
               {paymentReturn === 'cancelled' && invoice.status !== 'paid' && (
-                <p role="status" style={styles.meta}>The payment was not completed. You can try again.</p>
+                <p role="status" style={styles.meta}>{t('portalInvoiceDetail.paymentCancelled')}</p>
               )}
               {canPay && !confirming && (
                 <>
@@ -172,7 +174,7 @@ export function PortalInvoiceDetail() {
                     disabled={payMutation.isPending}
                     style={styles.payBtn}
                   >
-                    {payMutation.isPending ? 'Processing…' : invoice.pending_checkout ? 'Continue payment' : 'Pay Now'}
+                    {payMutation.isPending ? t('portalInvoiceDetail.processing') : invoice.pending_checkout ? t('portalInvoiceDetail.continuePayment') : t('portalInvoiceDetail.payNow')}
                   </button>
                 </>
               )}
@@ -181,14 +183,14 @@ export function PortalInvoiceDetail() {
                 onClick={() => downloadFile(`${API_BASE}/invoices/${invoice.id}/pdf`, `invoice-${invoice.invoice_number}.pdf`)}
                 style={styles.dlBtn}
               >
-                Download PDF
+                {t('portalInvoiceDetail.downloadPdf')}
               </button>
               {invoice.has_cfdi && (
                 <button
                   onClick={() => downloadFile(`${API_BASE}/invoices/${invoice.id}/cfdi`, `cfdi-${invoice.invoice_number}.xml`)}
                   style={styles.dlBtn}
                 >
-                  Download CFDI XML
+                  {t('portalInvoiceDetail.downloadCfdi')}
                 </button>
               )}
             </div>
@@ -196,14 +198,14 @@ export function PortalInvoiceDetail() {
         </div>
 
         {/* Line items */}
-        <h2 style={styles.sectionTitle}>Items</h2>
+        <h2 style={styles.sectionTitle}>{t('portalInvoiceDetail.items')}</h2>
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Description</th>
-              <th style={{ ...styles.th, textAlign: 'right' }}>Qty</th>
-              <th style={{ ...styles.th, textAlign: 'right' }}>Unit Price</th>
-              <th style={{ ...styles.th, textAlign: 'right' }}>Amount</th>
+              <th style={styles.th}>{t('portalInvoiceDetail.description')}</th>
+              <th style={{ ...styles.th, textAlign: 'right' }}>{t('portalInvoiceDetail.qty')}</th>
+              <th style={{ ...styles.th, textAlign: 'right' }}>{t('portalInvoiceDetail.unitPrice')}</th>
+              <th style={{ ...styles.th, textAlign: 'right' }}>{t('portalInvoiceDetail.amount')}</th>
             </tr>
           </thead>
           <tbody>
@@ -220,26 +222,26 @@ export function PortalInvoiceDetail() {
 
         {/* Totals */}
         <div style={styles.totals}>
-          <div style={styles.totalRow}><span>Subtotal</span><span>{invoice.currency} {parseFloat(invoice.subtotal).toFixed(2)}</span></div>
-          <div style={styles.totalRow}><span>Tax</span><span>{invoice.currency} {parseFloat(invoice.tax_amount).toFixed(2)}</span></div>
+          <div style={styles.totalRow}><span>{t('portalInvoiceDetail.subtotal')}</span><span>{invoice.currency} {parseFloat(invoice.subtotal).toFixed(2)}</span></div>
+          <div style={styles.totalRow}><span>{t('portalInvoiceDetail.tax')}</span><span>{invoice.currency} {parseFloat(invoice.tax_amount).toFixed(2)}</span></div>
           {invoice.discount_amount && parseFloat(invoice.discount_amount) > 0 && (
-            <div style={styles.totalRow}><span>Discount</span><span>− {invoice.currency} {parseFloat(invoice.discount_amount).toFixed(2)}</span></div>
+            <div style={styles.totalRow}><span>{t('portalInvoiceDetail.discount')}</span><span>− {invoice.currency} {parseFloat(invoice.discount_amount).toFixed(2)}</span></div>
           )}
           <div style={{ ...styles.totalRow, fontWeight: 700, fontSize: '1.1rem', borderTop: '2px solid #e5e7eb', paddingTop: '0.5rem' }}>
-            <span>Total</span><span>{invoice.currency} {parseFloat(invoice.total).toFixed(2)}</span>
+            <span>{t('portalInvoiceDetail.total')}</span><span>{invoice.currency} {parseFloat(invoice.total).toFixed(2)}</span>
           </div>
         </div>
 
         {/* Applied payments */}
         {invoice.payments.length > 0 && (
           <>
-            <h2 style={styles.sectionTitle}>Payments Applied</h2>
+            <h2 style={styles.sectionTitle}>{t('portalInvoiceDetail.paymentsApplied')}</h2>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Date</th>
-                  <th style={styles.th}>Method</th>
-                  <th style={{ ...styles.th, textAlign: 'right' }}>Amount</th>
+                  <th style={styles.th}>{t('portalInvoiceDetail.date')}</th>
+                  <th style={styles.th}>{t('portalInvoiceDetail.method')}</th>
+                  <th style={{ ...styles.th, textAlign: 'right' }}>{t('portalInvoiceDetail.amount')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -256,7 +258,7 @@ export function PortalInvoiceDetail() {
         )}
 
         {invoice.notes && (
-          <p style={styles.notes}><strong>Notes:</strong> {invoice.notes}</p>
+          <p style={styles.notes}><strong>{t('portalInvoiceDetail.notes')}:</strong> {invoice.notes}</p>
         )}
       </div>
     </div>

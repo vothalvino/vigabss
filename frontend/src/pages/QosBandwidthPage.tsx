@@ -1754,7 +1754,7 @@ export function QosBandwidthPage() {
           </h2>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button style={styles.btnPrimary} onClick={() => openDpModal()}>
-              + {t('qosBandwidth.fupDataCaps.newDataPack')}
+              + {t('qosBandwidth.fupDataCaps.newPack')}
             </button>
           </div>
           {dpQ.isLoading && <p style={styles.msg}>{t('qosBandwidth.loading')}</p>}
@@ -1770,13 +1770,13 @@ export function QosBandwidthPage() {
                       <th style={styles.thNum}>{t('qosBandwidth.fupDataCaps.dataGb')}</th>
                       <th style={styles.thNum}>{t('qosBandwidth.fupDataCaps.price')}</th>
                       <th style={styles.thNum}>{t('qosBandwidth.fupDataCaps.validityDays')}</th>
-                      <th style={styles.th}>{t('qosBandwidth.fupDataCaps.status')}</th>
+                      <th style={styles.th}>{t('qosBandwidth.fupDataCaps.isActive')}</th>
                       <th style={styles.th}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {dpQ.data.data.length === 0 && (
-                      <tr><td colSpan={7} style={styles.msg}>{t('qosBandwidth.fupDataCaps.noDataPacks')}</td></tr>
+                      <tr><td colSpan={7} style={styles.msg}>{t('qosBandwidth.fupDataCaps.noItems')}</td></tr>
                     )}
                     {dpQ.data.data.map(item => (
                       <tr key={item.id} style={styles.tr}>
@@ -1820,7 +1820,7 @@ export function QosBandwidthPage() {
 
           {/* ---- FUP Notifications sub-section ---- */}
           <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '2rem 0 0.75rem' }}>
-            {t('qosBandwidth.fupDataCaps.notifications')}
+            {t('qosBandwidth.fupDataCaps.fupNotifications')}
           </h2>
           {fupNotifQ.isLoading && <p style={styles.msg}>{t('qosBandwidth.loading')}</p>}
           {fupNotifQ.isError && <p style={styles.msgError}>{t('qosBandwidth.fupDataCaps.loadError')}</p>}
@@ -1879,7 +1879,7 @@ export function QosBandwidthPage() {
               <div style={modalStyles.panel}>
                 <div style={modalStyles.header}>
                   <h3 style={modalStyles.title}>
-                    {editingDp ? t('qosBandwidth.fupDataCaps.editDataPack') : t('qosBandwidth.fupDataCaps.newDataPack')}
+                    {editingDp ? t('qosBandwidth.fupDataCaps.editPack') : t('qosBandwidth.fupDataCaps.newPack')}
                   </h3>
                   <button style={modalStyles.closeBtn} onClick={() => setShowDpModal(false)}>&#x2715;</button>
                 </div>
@@ -1901,7 +1901,7 @@ export function QosBandwidthPage() {
                     <input style={modalStyles.input} type="number" min={1} value={dpForm.validity_days ?? ''} onChange={e => setDpForm(f => ({ ...f, validity_days: e.target.value ? Number(e.target.value) : undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
-                    {t('qosBandwidth.fupDataCaps.status')}
+                    {t('qosBandwidth.fupDataCaps.isActive')}
                     <select style={modalStyles.select} value={dpForm.status ?? 'active'} onChange={e => setDpForm(f => ({ ...f, status: e.target.value }))}>
                       {STATUSES.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>

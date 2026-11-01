@@ -357,7 +357,7 @@ export function PonPortManagementPage() {
             <p style={styles.msg}>{t('ponPortManagement.utilization.enterPortHint')}</p>
           )}
           {portIdNum > 0 && utilizationQ.isLoading && (
-            <p style={styles.msg}>{t('ponPortManagement.loading')}</p>
+            <p style={styles.msg}>{t('common.loading')}</p>
           )}
           {utilizationQ.isError && (
             <p style={styles.msgError}>{t('ponPortManagement.utilization.loadError')}</p>
@@ -435,7 +435,7 @@ export function PonPortManagementPage() {
                   <thead>
                     <tr>
                       <th style={styles.th}>{t('ponPortManagement.onus.state')}</th>
-                      <th style={styles.thNum}>{t('ponPortManagement.utilization.count')}</th>
+                      <th style={styles.thNum}>{t('ponPortManagement.utilization.onuCount')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -497,7 +497,7 @@ export function PonPortManagementPage() {
                   {ONU_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              {onusQ.isLoading && <p style={styles.msg}>{t('ponPortManagement.loading')}</p>}
+              {onusQ.isLoading && <p style={styles.msg}>{t('common.loading')}</p>}
               {onusQ.isError && <p style={styles.msgError}>{t('ponPortManagement.onus.loadError')}</p>}
               {onusQ.data && (
                 <div style={styles.tableCard}>
@@ -679,7 +679,7 @@ export function PonPortManagementPage() {
               + {t('ponPortManagement.migrations.newMigration')}
             </button>
           </div>
-          {migrationsQ.isLoading && <p style={styles.msg}>{t('ponPortManagement.loading')}</p>}
+          {migrationsQ.isLoading && <p style={styles.msg}>{t('common.loading')}</p>}
           {migrationsQ.isError && <p style={styles.msgError}>{t('ponPortManagement.migrations.loadError')}</p>}
           {migrationsQ.data && (
             <>

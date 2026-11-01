@@ -48,7 +48,18 @@
     "inactive": "Inativo",
     "error": "Ocorreu um erro",
     "retry": "Tentar de novo",
-    "close": "Fechar"
+    "close": "Fechar",
+    "name": "Nome",
+    "status": "Status",
+    "description": "Descrição",
+    "createdAt": "Criado em",
+    "yes": "Sim",
+    "no": "Não",
+    "pageOf": "Página {{page}} de {{pages}}",
+    "totalItems": "{{total}} no total",
+    "device": "Dispositivo",
+    "selectDevice": "Selecione um dispositivo",
+    "previous": "Anterior"
   },
   "clientPicker": {
     "label": "Cliente",
@@ -531,7 +542,41 @@
     "openTickets": "Tickets de suporte abertos",
     "noInvoices": "Nenhuma fatura pendente.",
     "noTickets": "Nenhum ticket aberto.",
-    "viewAll": "Ver todos →"
+    "viewAll": "Ver todos →",
+    "overview": "Resumo do seu serviço",
+    "myPlan": "Meu Plano",
+    "plan": "Plano",
+    "price": "Preço",
+    "perMonth": "{{price}} / mês",
+    "speed": "Velocidade",
+    "dataCap": "Franquia de dados",
+    "connection": "Conexão",
+    "noContract": "Nenhum contrato ativo",
+    "manageAccount": "Gerenciar conta",
+    "balanceBilling": "Saldo e Faturamento",
+    "outstandingBalance": "Saldo em aberto",
+    "nextDue": "Próximo vencimento: {{date}}",
+    "viewInvoices": "Ver faturas",
+    "connectionStatus": "Status da Conexão",
+    "sessionStatus": {
+      "connected": "Conectado",
+      "disconnected": "Desconectado"
+    },
+    "session": "Sessão",
+    "downloaded": "Baixado",
+    "uploaded": "Enviado",
+    "noSession": "Sem dados de sessão ativa",
+    "usageThisMonth": "Consumo Deste Mês",
+    "download": "Download",
+    "upload": "Upload",
+    "total": "Total",
+    "dailyUsage": "Consumo Diário (Mês Atual)",
+    "daysShown_one": "{{count}} dia exibido",
+    "daysShown_other": "{{count}} dias exibidos",
+    "quickTickets": "Chamados de Suporte",
+    "quickKb": "Base de Conhecimento",
+    "quickAccount": "Configurações da Conta",
+    "quickSpeedTest": "Teste de Velocidade"
   },
   "portalInvoices": {
     "title": "Minhas faturas",
@@ -539,11 +584,16 @@
       "invoiceNumber": "Fatura #",
       "amount": "Valor",
       "status": "Status",
-      "dueDate": "Data de vencimento"
+      "dueDate": "Data de vencimento",
+      "date": "Data"
     },
     "noInvoices": "Nenhuma fatura encontrada.",
     "loading": "Carregando…",
-    "error": "Falha ao carregar faturas."
+    "error": "Falha ao carregar faturas.",
+    "paymentSuccess": "Obrigado, estamos confirmando seu pagamento. A fatura aparecerá como paga quando o provedor confirmar.",
+    "paymentCancelled": "O pagamento não foi concluído. Você pode tentar novamente a partir da fatura.",
+    "allStatuses": "Todos os status",
+    "pay": "Pagar"
   },
   "portalTickets": {
     "title": "Tickets de suporte",
@@ -556,7 +606,18 @@
     },
     "noTickets": "Nenhum ticket encontrado.",
     "loading": "Carregando…",
-    "error": "Falha ao carregar tickets."
+    "error": "Falha ao carregar tickets.",
+    "allStatuses": "Todos os status",
+    "openOne": "Abra um agora",
+    "modalTitle": "Abrir um Chamado de Suporte",
+    "subjectPlaceholder": "Descreva brevemente seu problema",
+    "description": "Descrição",
+    "descriptionPlaceholder": "Forneça o máximo de detalhes possível…",
+    "cancel": "Cancelar",
+    "subjectRequired": "O assunto é obrigatório",
+    "submitting": "Enviando…",
+    "submit": "Enviar Chamado",
+    "createFailed": "Não foi possível criar o chamado. Tente novamente."
   },
   "pagination": {
     "rowsPerPage": "Linhas por página:",
@@ -3060,7 +3121,10 @@
       "opticalSummary": "Resumo de Potência Óptica",
       "avgRxDbm": "Rx Méd (dBm)",
       "minRxDbm": "Rx Mín (dBm)",
-      "maxRxDbm": "Rx Máx (dBm)"
+      "maxRxDbm": "Rx Máx (dBm)",
+      "enterPortHint": "Selecione uma porta PON para ver sua utilização.",
+      "loadError": "Falha ao carregar a utilização da porta.",
+      "onuBreakdown": "ONUs por Estado"
     },
     "onus": {
       "title": "ONUs na Porta",
@@ -3072,7 +3136,10 @@
       "onuId": "ID ONU",
       "distance": "Distância (m)",
       "wanMode": "Modo WAN",
-      "lastSeen": "Última vez"
+      "lastSeen": "Última vez",
+      "enterPortHint": "Selecione uma porta PON para listar suas ONUs.",
+      "loadError": "Falha ao carregar as ONUs.",
+      "noOnus": "Nenhuma ONU nesta porta."
     },
     "powerBudget": {
       "title": "Calculadora de Orçamento Óptico",
@@ -3112,7 +3179,10 @@
         "completed": "Concluído",
         "failed": "Falhou",
         "cancelled": "Cancelado"
-      }
+      },
+      "loadError": "Falha ao carregar os trabalhos de migração.",
+      "noJobs": "Nenhum trabalho de migração.",
+      "immediate": "Imediato"
     },
     "prev": "Ant",
     "next": "Próx",
@@ -3142,7 +3212,9 @@
       "status": "Status",
       "installedAt": "Instalado",
       "allTypes": "Todos os tipos",
-      "allStatuses": "Todos os status"
+      "allStatuses": "Todos os status",
+      "loadError": "Falha ao carregar as rotas de fibra.",
+      "noRoutes": "Nenhuma rota de fibra encontrada."
     },
     "odf": {
       "title": "Quadros ODF",
@@ -3158,7 +3230,12 @@
       "ports": "Portas",
       "portNumber": "Porta #",
       "portStatus": "Status Porta",
-      "cableLabel": "Etiqueta Cabo"
+      "cableLabel": "Etiqueta Cabo",
+      "loadError": "Falha ao carregar os bastidores ODF.",
+      "location": "Localização",
+      "noFrames": "Nenhum bastidor ODF encontrado.",
+      "fiberRoute": "Rota de Fibra",
+      "noPorts": "Este bastidor não tem portas."
     },
     "otdr": {
       "title": "Resultados de Teste OTDR",
@@ -3174,7 +3251,11 @@
       "testedAt": "Testado em",
       "jobStatus": "Status Trabalho",
       "noFault": "Sem falha",
-      "hasFault": "Falha detectada"
+      "hasFault": "Falha detectada",
+      "loadError": "Falha ao carregar os testes OTDR.",
+      "noTests": "Nenhum teste OTDR registrado.",
+      "yes": "Sim",
+      "no": "Não"
     },
     "sfp": {
       "title": "Inventário SFP",
@@ -3194,14 +3275,19 @@
       "txPower": "Potência Tx (dBm)",
       "rxPower": "Potência Rx (dBm)",
       "temperature": "Temp (°C)",
-      "polledAt": "Última Consulta"
+      "polledAt": "Última Consulta",
+      "loadError": "Falha ao carregar o inventário de SFP.",
+      "noItems": "Nenhum módulo SFP encontrado.",
+      "noDiagnostics": "Nenhum diagnóstico coletado ainda."
     },
     "prev": "Ant",
     "next": "Próx",
     "save": "Salvar",
     "cancel": "Cancelar",
     "loading": "Carregando...",
-    "notFound": "Não encontrado"
+    "notFound": "Não encontrado",
+    "confirmDelete": "Excluir este registro?",
+    "notes": "Observações"
   },
   "cpeManagement": {
     "title": "Gerenciamento de CPE",
@@ -3712,7 +3798,9 @@
       "billingMonth": "Mês",
       "thresholdPct": "Limite %",
       "notifiedAt": "Notificado Em",
-      "channel": "Canal"
+      "channel": "Canal",
+      "usedGb": "Usado (GB)",
+      "capGb": "Limite (GB)"
     },
     "trafficEngineering": {
       "interfaceQos": "Políticas QoS por Interface",
@@ -5078,7 +5166,14 @@
       "revoke": "Falha ao revogar o túnel.",
       "downloadConf": "Falha ao baixar a configuração.",
       "showQr": "Falha ao carregar o QR Code."
-    }
+    },
+    "peerNameHint": "Um nome para reconhecer este dispositivo, como Notebook ou Celular.",
+    "qrAlt": "QR code de configuração do WireGuard",
+    "loadingQr": "Carregando QR code…",
+    "revokeNote": "O dispositivo perde o acesso à VPN imediatamente. Adicione-o novamente para restaurar o acesso.",
+    "revoking": "Revogando…",
+    "downloading": "Baixando…",
+    "banner": "Cada dispositivo tem seu próprio túnel WireGuard. Instale o app do WireGuard e importe o arquivo .conf ou escaneie o QR code."
   },
   "adminWgTunnels": {
     "title": "WireGuard — Todos os Túneis",
@@ -5144,7 +5239,20 @@
       "saving": "Salvando…",
       "successSave": "Atribuições atualizadas. Túneis ativos redimensionados imediatamente.",
       "errorSave": "Falha ao salvar atribuições."
-    }
+    },
+    "assignTitle": "Acesso à Rede",
+    "sitesSection": "Sites",
+    "noSites": "Nenhum site disponível.",
+    "nasSection": "Dispositivos NAS",
+    "noNas": "Nenhum dispositivo NAS disponível.",
+    "assignNote": "Salvar substitui as atribuições deste usuário. Os túneis ativos são atualizados imediatamente.",
+    "totalPeers_one": "{{count}} par",
+    "totalPeers_other": "{{count}} pares",
+    "banner": "Revogar um túnel desconecta o dispositivo imediatamente. Rotacionar as chaves invalida a configuração atual, então o usuário precisa baixá-la novamente.",
+    "statusActive": "Sincronizado",
+    "statusPending": "Sincronização pendente",
+    "statusRevoked": "Revogado",
+    "manageScope": "Gerenciar acesso à rede"
   },
   "nasList": {
     "accessMode": {
@@ -6267,5 +6375,211 @@
       "health": { "complete": "Completa", "partial": "Parcial", "missing": "Ausente", "synchronized": "Sincronizado", "reported": "Informado", "healthy": "Sem perda informada", "degraded": "Requer atenção", "unknown": "Não informado" },
       "status": { "ready": "Recebendo", "waiting": "Requer atenção", "notConfigured": "Não configurado", "unknown": "Desconhecido" }
     }
+  },
+  "portalCommon": {
+    "invoiceStatus": {
+      "draft": "Rascunho",
+      "issued": "Emitida",
+      "paid": "Paga",
+      "overdue": "Vencida",
+      "cancelled": "Cancelada",
+      "sent": "Enviada",
+      "void": "Anulada"
+    },
+    "prev": "Anterior",
+    "next": "Próxima",
+    "pageOf": "Página {{page}} de {{pages}}",
+    "loading": "Carregando…",
+    "ticketStatus": {
+      "open": "Aberto",
+      "in_progress": "Em Andamento",
+      "waiting": "Aguardando",
+      "resolved": "Resolvido",
+      "closed": "Fechado"
+    },
+    "ticketPriority": {
+      "low": "Baixa",
+      "medium": "Média",
+      "high": "Alta",
+      "critical": "Crítica"
+    }
+  },
+  "portalInvoiceDetail": {
+    "notFound": "Fatura não encontrada.",
+    "payFailed": "Não foi possível iniciar o pagamento. Tente novamente.",
+    "downloadUnavailable": "O arquivo não está disponível no momento. Tente novamente mais tarde.",
+    "back": "Voltar para faturas",
+    "issued": "Emitida: {{date}}",
+    "due": "Vence: {{date}}",
+    "period": "Período: {{start}} – {{end}}",
+    "paymentReceived": "Pagamento recebido. Obrigado!",
+    "confirming": "Estamos confirmando seu pagamento com o provedor de pagamento. Esta página se atualiza sozinha.",
+    "paymentCancelled": "O pagamento não foi concluído. Você pode tentar novamente.",
+    "processing": "Processando…",
+    "continuePayment": "Continuar pagamento",
+    "payNow": "Pagar agora",
+    "downloadPdf": "Baixar PDF",
+    "downloadCfdi": "Baixar XML do CFDI",
+    "items": "Itens",
+    "description": "Descrição",
+    "qty": "Qtd.",
+    "unitPrice": "Preço Unitário",
+    "amount": "Valor",
+    "subtotal": "Subtotal",
+    "tax": "Impostos",
+    "discount": "Desconto",
+    "total": "Total",
+    "paymentsApplied": "Pagamentos Aplicados",
+    "date": "Data",
+    "method": "Método",
+    "notes": "Observações"
+  },
+  "portalAccount": {
+    "title": "Configurações da Conta",
+    "submitted": "Solicitação enviada com sucesso.",
+    "cancelFailed": "Falha ao cancelar a solicitação. Tente novamente.",
+    "errPlanId": "Informe o ID do plano para o qual deseja mudar.",
+    "errPassword": "Informe uma nova senha.",
+    "errReason": "Informe o motivo do cancelamento.",
+    "errDate": "Selecione uma data preferida.",
+    "errSlot": "Selecione um horário preferido.",
+    "autopay": "Pagamento automático",
+    "autopayOn": "O pagamento automático está ativo. Suas faturas são cobradas automaticamente.",
+    "autopayOnCard": "O pagamento automático está ativo — cartão final {{card}}. Suas faturas são cobradas automaticamente.",
+    "autopayOff": "Desativar pagamento automático",
+    "autopayPitch": "Salve um cartão para pagar suas faturas automaticamente todo mês. Você pode desativar quando quiser.",
+    "redirecting": "Redirecionando…",
+    "autopayEnable": "Ativar pagamento automático",
+    "tabRequests": "Minhas Solicitações",
+    "tabNew": "Nova Solicitação",
+    "myRequests": "Minhas Solicitações de Serviço",
+    "noRequests": "Nenhuma solicitação de serviço ainda.",
+    "type": "Tipo",
+    "status": "Status",
+    "submittedAt": "Enviada",
+    "cancel": "Cancelar",
+    "requestTypes": {
+      "plan_upgrade": "Mudança de Plano",
+      "wifi_password_change": "Alterar Senha do Wi-Fi",
+      "pppoe_password_change": "Alterar Senha PPPoE",
+      "static_ip_request": "Solicitar IP Fixo",
+      "cancellation": "Solicitar Cancelamento",
+      "visit_schedule": "Agendar uma Visita"
+    },
+    "submitTitle": "Enviar uma Solicitação",
+    "requestType": "Tipo de Solicitação",
+    "newPlanId": "ID do Novo Plano",
+    "newPlanIdPlaceholder": "Informe o ID do plano",
+    "newPassword": "Nova Senha",
+    "newPasswordPlaceholder": "Informe a nova senha (mín. 8 caracteres)",
+    "notesReason": "Observações / Motivo",
+    "staticIpPlaceholder": "Descreva por que você precisa de um IP fixo",
+    "cancellationReason": "Motivo do Cancelamento",
+    "cancellationPlaceholder": "Conte-nos por que deseja cancelar",
+    "preferredDate": "Data Preferida",
+    "preferredSlot": "Horário Preferido",
+    "selectSlot": "Selecione um horário",
+    "slots": {
+      "morning": "Manhã (8h – 12h)",
+      "afternoon": "Tarde (12h – 17h)",
+      "evening": "Noite (17h – 20h)"
+    },
+    "notes": "Observações",
+    "visitPlaceholder": "Descreva o motivo da visita",
+    "submitting": "Enviando…",
+    "submit": "Enviar Solicitação",
+    "waTitle": "Conectar WhatsApp",
+    "waIntro": "Vincule seu número de WhatsApp para consultar seu saldo e receber suporte pelo chat. Só enviamos um código novo; nunca compartilhamos suas senhas atuais pelo WhatsApp.",
+    "waNumber": "Número",
+    "waConnected": "Conectado",
+    "waUnlink": "Desvincular",
+    "waNone": "Nenhum número de WhatsApp conectado ainda.",
+    "waGenerating": "Gerando…",
+    "waGetCode": "Obter um código de vinculação",
+    "waCodeHint_one": "Envie este código para o nosso WhatsApp para conectar seu número. Ele expira em {{count}} minuto.",
+    "waCodeHint_other": "Envie este código para o nosso WhatsApp para conectar seu número. Ele expira em {{count}} minutos.",
+    "waOpen": "Abrir WhatsApp"
+  },
+  "portalChat": {
+    "greeting": "Olá! Sou seu assistente virtual. Como posso ajudar hoje?",
+    "startFailed": "Não foi possível iniciar o chat. Tente novamente.",
+    "sendFailed": "Desculpe, ocorreu um erro. Tente abrir um chamado de suporte.",
+    "title": "Chat de Suporte com IA",
+    "subtitle": "Receba respostas imediatas do nosso assistente de IA, disponível 24/7.",
+    "intro": "Nosso assistente de IA pode ajudar com dúvidas de cobrança, informações de planos, problemas de conexão e mais. Se não conseguir resolver, ele criará um chamado de suporte automaticamente.",
+    "starting": "Iniciando…",
+    "start": "Iniciar Chat",
+    "escalated": "Seu caso foi encaminhado a um atendente humano.",
+    "viewTicket": "Ver chamado #{{id}}",
+    "placeholder": "Digite sua mensagem… (Enter para enviar)",
+    "ended": "O chat foi encerrado",
+    "send": "Enviar",
+    "endedEscalated": "Chat encerrado: um chamado de suporte foi criado.",
+    "resolved": "Chat resolvido.",
+    "viewTickets": "Ver chamados"
+  },
+  "portalKb": {
+    "rateFailed": "Não foi possível enviar sua avaliação. Tente novamente.",
+    "back": "Voltar para os artigos",
+    "helpful": "Isto foi útil?",
+    "thanks": "Obrigado pela sua avaliação!",
+    "yes": "Sim ({{count}})",
+    "no": "Não ({{count}})",
+    "title": "Base de Conhecimento",
+    "subtitle": "Encontre respostas para dúvidas comuns",
+    "search": "Buscar artigos…",
+    "allCategories": "Todas as categorias",
+    "categories": {
+      "billing": "Cobrança",
+      "connectivity": "Conectividade",
+      "account": "Conta",
+      "plans": "Planos",
+      "general": "Geral"
+    },
+    "none": "Nenhum artigo encontrado.",
+    "stats": "{{views}} visualizações · {{helpful}} acharam útil"
+  },
+  "portalSpeedTest": {
+    "queueFailed": "Não foi possível agendar o teste de velocidade. Tente novamente.",
+    "title": "Teste de Velocidade",
+    "subtitle": "Teste a velocidade da sua conexão e veja o histórico",
+    "queued": "Teste agendado! Os resultados aparecerão abaixo ao terminar (geralmente em até 30 segundos).",
+    "queuing": "Agendando…",
+    "run": "Iniciar Teste",
+    "latest": "Último Resultado",
+    "mbpsDown": "Mbps de Download",
+    "mbpsUp": "Mbps de Upload",
+    "latency": "Latência",
+    "tested": "Testado: {{date}}",
+    "history": "Histórico de Testes",
+    "refresh": "Atualizar",
+    "none": "Nenhum teste ainda. Faça seu primeiro teste acima.",
+    "date": "Data",
+    "status": "Status",
+    "down": "Download",
+    "up": "Upload",
+    "ping": "Ping",
+    "statuses": {
+      "queued": "Na fila",
+      "running": "Em execução",
+      "completed": "Concluído",
+      "failed": "Falhou",
+      "cancelled": "Cancelado"
+    }
+  },
+  "portalTicketDetail": {
+    "replyFailed": "Não foi possível enviar sua resposta. Tente novamente.",
+    "notFound": "Chamado não encontrado.",
+    "back": "Voltar para chamados",
+    "priority": "Prioridade {{priority}}",
+    "opened": "aberto em {{date}}",
+    "conversation": "Conversa",
+    "noReplies": "Nenhuma resposta ainda.",
+    "addReply": "Adicionar uma resposta",
+    "replyPlaceholder": "Digite sua resposta…",
+    "sending": "Enviando…",
+    "send": "Enviar Resposta",
+    "closedNote": "Este chamado está {{status}}.",
+    "openNew": "Abra um novo chamado se precisar de mais ajuda."
   }
 }

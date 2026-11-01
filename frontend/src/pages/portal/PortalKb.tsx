@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DOMPurify from 'dompurify';
+import { useTranslation } from 'react-i18next';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
@@ -35,6 +36,7 @@ async function portalFetch<T>(path: string, opts: RequestInit = {}): Promise<T> 
 }
 
 export function PortalKb() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export function PortalKb() {
       qc.invalidateQueries({ queryKey: ['portal-kb-article', slug] });
     },
     onError: (e: Error) => {
-      setRateError(e.message || 'Failed to submit feedback. Please try again.');
+      setRateError(e.message || t('portalKb.rateFailed'));
     },
   });
 
@@ -82,10 +84,10 @@ export function PortalKb() {
   if (selectedSlug && article) {
     return (
       <div>
-        <button onClick={() => setSelectedSlug(null)} style={styles.backBtn}>← Back to articles</button>
+        <button onClick={() => setSelectedSlug(null)} style={styles.backBtn}>← {t('portalKb.back')}</button>
         <article style={styles.articleDetail}>
           <div style={styles.meta}>
-            <span style={styles.category}>{article.category}</span>
+            <span style={styles.category}>{t(`portalKb.categories.${article.category}`, { defaultValue: article.category })}</span>
           </div>
           <h1 style={styles.articleTitle}>{article.title}</h1>
           {/*
@@ -103,9 +105,9 @@ export function PortalKb() {
             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.body ?? '') }}
           />
           <div style={styles.helpful}>
-            <span style={styles.helpfulLabel}>Was this helpful?</span>
+            <span style={styles.helpfulLabel}>{t('portalKb.helpful')}</span>
             {rated.has(article.slug) ? (
-              <span style={styles.muted}>Thank you for your feedback!</span>
+              <span style={styles.muted}>{t('portalKb.thanks')}</span>
             ) : (
               <>
                 <button
@@ -113,14 +115,14 @@ export function PortalKb() {
                   onClick={() => rateMutation.mutate({ slug: article.slug, helpful: true })}
                   disabled={rateMutation.isPending}
                 >
-                  Yes ({article.helpful_yes})
+                  {t('portalKb.yes', { count: article.helpful_yes })}
                 </button>
                 <button
                   style={styles.helpBtn}
                   onClick={() => rateMutation.mutate({ slug: article.slug, helpful: false })}
                   disabled={rateMutation.isPending}
                 >
-                  No ({article.helpful_no})
+                  {t('portalKb.no', { count: article.helpful_no })}
                 </button>
               </>
             )}
@@ -135,41 +137,37 @@ export function PortalKb() {
 
   return (
     <div>
-      <h1 style={styles.heading}>Knowledge Base</h1>
-      <p style={styles.sub}>Find answers to common questions</p>
+      <h1 style={styles.heading}>{t('portalKb.title')}</h1>
+      <p style={styles.sub}>{t('portalKb.subtitle')}</p>
 
       <div style={styles.filterBar}>
         <input
           type="search"
-          placeholder="Search articles…"
+          placeholder={t('portalKb.search')}
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={styles.searchInput}
         />
         <select value={category} onChange={e => setCategory(e.target.value)} style={styles.select}>
-          <option value="">All categories</option>
-          <option value="billing">Billing</option>
-          <option value="connectivity">Connectivity</option>
-          <option value="account">Account</option>
-          <option value="plans">Plans</option>
-          <option value="general">General</option>
+          <option value="">{t('portalKb.allCategories')}</option>
+          {KB_CATEGORIES.map(c => <option key={c} value={c}>{t(`portalKb.categories.${c}`)}</option>)}
         </select>
       </div>
 
-      {isLoading && <p style={styles.muted}>Loading…</p>}
+      {isLoading && <p style={styles.muted}>{t('portalCommon.loading')}</p>}
       {!isLoading && articles.length === 0 && (
-        <p style={styles.muted}>No articles found.</p>
+        <p style={styles.muted}>{t('portalKb.none')}</p>
       )}
 
       <div style={styles.articleList}>
         {articles.map(a => (
           <button key={a.id} style={styles.articleCard} onClick={() => setSelectedSlug(a.slug)}>
             <div style={styles.articleMeta}>
-              <span style={styles.category}>{a.category}</span>
+              <span style={styles.category}>{t(`portalKb.categories.${a.category}`, { defaultValue: a.category })}</span>
             </div>
             <h3 style={styles.articleCardTitle}>{a.title}</h3>
             <p style={styles.articleStats}>
-              {a.view_count} views &middot; {a.helpful_yes} found helpful
+              {t('portalKb.stats', { views: a.view_count, helpful: a.helpful_yes })}
             </p>
           </button>
         ))}
@@ -177,6 +175,8 @@ export function PortalKb() {
     </div>
   );
 }
+
+const KB_CATEGORIES = ['billing', 'connectivity', 'account', 'plans', 'general'];
 
 const styles: Record<string, React.CSSProperties> = {
   heading: { margin: '0 0 0.25rem', fontSize: '1.4rem', color: 'var(--text-primary)' },

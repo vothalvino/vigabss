@@ -132,12 +132,12 @@ function AddPeerModal({ onClose, onCreated }: AddPeerModalProps) {
       <div style={modalBox}>
         <h3 style={{ margin: '0 0 1rem' }}>{t('wgTunnels.addPeer')}</h3>
         {err && <div style={errStyle}>{err}</div>}
-        <label style={labelStyle}>{t('wgTunnels.peerName')} *</label>
+        <label style={labelStyle}>{t('wgTunnels.modal.nameLabel')} *</label>
         <input
           style={inputStyle}
           value={name}
           onChange={e => setName(e.target.value)}
-          placeholder={t('wgTunnels.peerNamePlaceholder')}
+          placeholder={t('wgTunnels.modal.namePlaceholder')}
           maxLength={100}
           autoFocus
         />
@@ -171,7 +171,7 @@ function AddPeerModal({ onClose, onCreated }: AddPeerModalProps) {
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !name.trim()}
           >
-            {mutation.isPending ? t('wgTunnels.creating') : t('wgTunnels.createPeer')}
+            {mutation.isPending ? t('wgTunnels.modal.adding') : t('wgTunnels.modal.add')}
           </button>
         </div>
       </div>
@@ -199,9 +199,9 @@ function NewPeerResultModal({ result, onClose }: NewPeerResultModalProps) {
   return (
     <div style={modalOverlay}>
       <div style={{ ...modalBox, maxWidth: 540 }}>
-        <h3 style={{ margin: '0 0 0.5rem', color: '#065f46' }}>{t('wgTunnels.peerCreated')}</h3>
+        <h3 style={{ margin: '0 0 0.5rem', color: '#065f46' }}>{t('wgTunnels.modal.configTitle')}</h3>
         <p style={{ fontSize: '0.83rem', color: '#555', margin: '0 0 1rem', lineHeight: 1.5 }}>
-          {t('wgTunnels.peerCreatedNote')}
+          {t('wgTunnels.modal.configHint')}
         </p>
 
         {svgDataUrl && (
@@ -219,7 +219,7 @@ function NewPeerResultModal({ result, onClose }: NewPeerResultModalProps) {
           borderRadius: 6, padding: '6px 10px', marginBottom: '1rem',
           fontSize: '0.78rem', color: '#374151',
         }}>
-          <strong>{t('wgTunnels.tunnelIp')}:</strong>{' '}
+          <strong>{t('wgTunnels.table.tunnelIp')}:</strong>{' '}
           <code>{result.data.tunnel_address}</code>
         </div>
 
@@ -228,12 +228,12 @@ function NewPeerResultModal({ result, onClose }: NewPeerResultModalProps) {
             style={btnSecondary}
             onClick={() => triggerDownload(result.config, `${result.data.name}.conf`)}
           >
-            {t('wgTunnels.downloadConf')}
+            {t('wgTunnels.action.downloadConf')}
           </button>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button style={btnPrimary} onClick={onClose}>{t('common.done')}</button>
+          <button style={btnPrimary} onClick={onClose}>{t('wgTunnels.modal.done')}</button>
         </div>
       </div>
     </div>
@@ -268,7 +268,7 @@ function QrModal({ peer, onClose }: QrModalProps) {
           {peer.tunnel_address}
         </p>
         {isLoading && <p style={{ color: '#888' }}>{t('wgTunnels.loadingQr')}</p>}
-        {error && <p style={{ color: '#e00' }}>{t('wgTunnels.qrError')}</p>}
+        {error && <p style={{ color: '#e00' }}>{t('wgTunnels.error.showQr')}</p>}
         {svgDataUrl && (
           <img
             src={svgDataUrl}
@@ -298,9 +298,9 @@ function ConfirmRevoke({ peer, onClose, onConfirm, isPending }: ConfirmRevokePro
   return (
     <div style={modalOverlay}>
       <div style={{ ...modalBox, maxWidth: 420 }}>
-        <h3 style={{ margin: '0 0 0.75rem', color: '#991b1b' }}>{t('wgTunnels.revokeTitle')}</h3>
+        <h3 style={{ margin: '0 0 0.75rem', color: '#991b1b' }}>{t('wgTunnels.confirm.revokeTitle')}</h3>
         <p style={{ fontSize: '0.88rem', color: '#555', lineHeight: 1.5 }}>
-          {t('wgTunnels.revokeConfirm', { name: peer.name })}
+          {t('wgTunnels.confirm.revokeBody', { name: peer.name })}
         </p>
         <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '6px 0 0' }}>
           {t('wgTunnels.revokeNote')}
@@ -314,7 +314,7 @@ function ConfirmRevoke({ peer, onClose, onConfirm, isPending }: ConfirmRevokePro
             onClick={onConfirm}
             disabled={isPending}
           >
-            {isPending ? t('wgTunnels.revoking') : t('wgTunnels.revoke')}
+            {isPending ? t('wgTunnels.revoking') : t('wgTunnels.action.revoke')}
           </button>
         </div>
       </div>
@@ -442,7 +442,7 @@ export function UserWgTunnels() {
             <thead>
               <tr>
                 <th style={th}>{t('wgTunnels.table.name')}</th>
-                <th style={th}>{t('wgTunnels.table.assignedIp')}</th>
+                <th style={th}>{t('wgTunnels.table.tunnelIp')}</th>
                 <th style={th}>{t('wgTunnels.table.scopeCount')}</th>
                 <th style={th}>{t('wgTunnels.table.lastHandshake')}</th>
                 <th style={th}>{t('wgTunnels.table.status')}</th>
@@ -453,7 +453,7 @@ export function UserWgTunnels() {
               {peers.length === 0 && (
                 <tr>
                   <td colSpan={6} style={{ ...td, textAlign: 'center', color: '#888', padding: '2rem' }}>
-                    {t('wgTunnels.noPeers')}
+                    {t('wgTunnels.empty')}
                   </td>
                 </tr>
               )}
@@ -467,11 +467,11 @@ export function UserWgTunnels() {
                   <td style={td}>{fmt(peer.last_handshake_at)}</td>
                   <td style={td}>
                     {peer.revoked_at ? (
-                      <span style={badgeRed}>{t('wgTunnels.statusRevoked')}</span>
+                      <span style={badgeRed}>{t('wgTunnels.status.revoked')}</span>
                     ) : peer.server_peer_synced ? (
-                      <span style={badgeGreen}>{t('wgTunnels.statusActive')}</span>
+                      <span style={badgeGreen}>{t('wgTunnels.status.synced')}</span>
                     ) : (
-                      <span style={badgeGray}>{t('wgTunnels.statusPending')}</span>
+                      <span style={badgeGray}>{t('wgTunnels.status.unsynced')}</span>
                     )}
                   </td>
                   <td style={td}>
@@ -481,24 +481,24 @@ export function UserWgTunnels() {
                           style={downloadingId === peer.id ? { ...btnIcon, opacity: 0.5, cursor: 'default' } : btnIcon}
                           onClick={() => handleDownload(peer)}
                           disabled={downloadingId === peer.id}
-                          title={downloadingId === peer.id ? t('wgTunnels.downloading') : t('wgTunnels.downloadConf')}
-                          aria-label={t('wgTunnels.downloadConf')}
+                          title={downloadingId === peer.id ? t('wgTunnels.downloading') : t('wgTunnels.action.downloadConf')}
+                          aria-label={t('wgTunnels.action.downloadConf')}
                         >
                           <IconDownload />
                         </button>
                         <button
                           style={btnIcon}
                           onClick={() => setQrPeer(peer)}
-                          title={t('wgTunnels.showQr')}
-                          aria-label={t('wgTunnels.showQr')}
+                          title={t('wgTunnels.action.showQr')}
+                          aria-label={t('wgTunnels.action.showQr')}
                         >
                           <IconQr />
                         </button>
                         <button
                           style={{ ...btnIcon, borderColor: '#dc2626', color: '#dc2626' }}
                           onClick={() => setRevokeTarget(peer)}
-                          title={t('wgTunnels.revoke')}
-                          aria-label={t('wgTunnels.revoke')}
+                          title={t('wgTunnels.action.revoke')}
+                          aria-label={t('wgTunnels.action.revoke')}
                         >
                           <IconRevoke />
                         </button>
