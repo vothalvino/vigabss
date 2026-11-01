@@ -888,13 +888,18 @@ router.get('/dashboard', async (req, res, next) => {
         [req.client.organizationId, contract.contract_id,
           req.client.organizationId, contract.contract_id, monthStart],
       );
+      // SUM() over BIGINT is DECIMAL, which mysql2 returns as a string:
+      // `bytes_in + bytes_out` concatenated them and total_gb came out as
+      // tens of billions (FE-09).
+      const bytesIn = Number(usageRow.bytes_in || 0);
+      const bytesOut = Number(usageRow.bytes_out || 0);
       usage = {
-        download_bytes: usageRow.bytes_in,
-        upload_bytes: usageRow.bytes_out,
-        total_bytes: usageRow.bytes_in + usageRow.bytes_out,
-        download_gb: parseFloat((usageRow.bytes_in / 1073741824).toFixed(3)),
-        upload_gb: parseFloat((usageRow.bytes_out / 1073741824).toFixed(3)),
-        total_gb: parseFloat(((usageRow.bytes_in + usageRow.bytes_out) / 1073741824).toFixed(3)),
+        download_bytes: bytesIn,
+        upload_bytes: bytesOut,
+        total_bytes: bytesIn + bytesOut,
+        download_gb: parseFloat((bytesIn / 1073741824).toFixed(3)),
+        upload_gb: parseFloat((bytesOut / 1073741824).toFixed(3)),
+        total_gb: parseFloat(((bytesIn + bytesOut) / 1073741824).toFixed(3)),
         usage_complete: Number(usageRow.observed_rows || 0) > 0
           && Number(usageRow.incomplete_rows || 0) === 0
           && Number(usageRow.unverifiable_session_rows || 0) === 0,
