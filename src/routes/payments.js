@@ -51,6 +51,9 @@ const ctrl = crudController(Payment, {
       );
     }
     delete body.client_id;
+    // Who took the money is a fact of the create, not an editable field: the
+    // cash reconciliation of that cashier's session reads it.
+    delete body.recorded_by;
   },
   afterDelete: async (payment) => {
     await billingService.reversePaymentCredit(payment.id);
@@ -75,6 +78,9 @@ router.get('/:id', requirePermission('payments.view'), ctrl.get);
 router.post('/', requirePermission('payments.create'), validate(createPayment), async (req, res, next) => {
   try {
     req.body.organization_id = req.orgId;
+    // The cash reconciliation session of the staff member who records the
+    // payment sums it; never taken from the body.
+    req.body.recorded_by = req.user?.id ?? null;
     await assertPaymentClientOwned(req.body.client_id, req.orgId);
     // Default to the organization's currency when the caller doesn't send
     // one — otherwise payments.currency's own column default ('USD') would

@@ -221,13 +221,14 @@ async function payGroup(orgId, groupId, opts = {}) {
 
     // Create the payment on the PRIMARY, inside the transaction.
     const [payResult] = await conn.execute(
-      `INSERT INTO payments (organization_id, client_id, amount, currency, payment_method, payment_date, reference_number, status, notes)
-       VALUES (?, ?, ?, ?, ?, CURDATE(), ?, 'completed', ?)`,
+      `INSERT INTO payments (organization_id, client_id, amount, currency, payment_method, payment_date, reference_number, status, notes, recorded_by)
+       VALUES (?, ?, ?, ?, ?, CURDATE(), ?, 'completed', ?, ?)`,
       [
         orgId, primaryId, amount, currency,
         opts.payment_method || 'other',
         opts.reference_number || null,
         `Group payment for group #${groupId} (settles member balances)`,
+        opts.actorUserId ?? null,
       ],
     );
     const paymentId = payResult.insertId;
