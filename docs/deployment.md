@@ -420,6 +420,24 @@ pull** until it succeeds, up to `VIGABSS_IMAGE_WAIT` seconds (default `600`,
 VIGABSS_IMAGE_WAIT=1800 sudo -E redeploy    # note -E: sudo strips the variable otherwise
 ```
 
+After the pull, `redeploy` checks the image's signature and **deploys it by
+digest** (OPS-08). CI signs each published manifest list with keyless cosign;
+`redeploy` runs `cosign verify` and requires the signature to come from this
+repository's `.github/workflows/ci.yml` on `main` or a `v*` tag. Compose is
+then handed `ghcr.io/vothalvino/vigabss@sha256:…`, so the image that starts is
+the one that was checked, whatever the tag points at later. Set the mode in
+`.env.prod`:
+
+```bash
+VIGABSS_VERIFY_SIGNATURE=auto       # default: verify when cosign is installed, warn when not
+VIGABSS_VERIFY_SIGNATURE=required   # refuse to deploy unless the signature verifies
+VIGABSS_VERIFY_SIGNATURE=off        # one-off: roll back to an image published before signing
+```
+
+Install cosign on the host ([instructions](https://docs.sigstore.dev/cosign/system_config/installation/))
+and switch to `required`. The GUI deploy agent runs `redeploy`, so it gets the
+same check.
+
 It retries the real pull rather than probing first, because **GHCR answers
 `401 unauthorized` for a tag that does not exist**, not `404`. A not-yet-built
 image is therefore indistinguishable by message from a private package, and

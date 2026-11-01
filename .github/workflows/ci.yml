@@ -34,13 +34,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
 
       - name: Use Node.js 24
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -85,7 +85,7 @@ jobs:
           node -e "const pct=parseFloat(process.argv[1]); if (pct < 70) { console.error('Coverage below 70% threshold'); process.exit(1); }" "$COVERAGE"
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-report
           path: coverage/lcov.info
@@ -150,7 +150,7 @@ jobs:
     # lint-and-test job.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Dependency vulnerability audit (Trivy)
         # Replaces `pnpm audit`: npm retired the legacy quick-audit endpoint pnpm
@@ -162,7 +162,7 @@ jobs:
         # below, so suppressions live in one place. Scoped to PRODUCTION
         # dependencies (Trivy's default for lockfiles), matching the shipped-image
         # scan; dev/build-tooling advisories are out of this gate's scope.
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           scan-type: fs
           scan-ref: .
@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Start MySQL
         run: |
@@ -294,13 +294,13 @@ jobs:
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
 
       - name: Use Node.js 24
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -376,13 +376,13 @@ jobs:
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
 
       - name: Use Node.js 24
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -518,13 +518,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
 
       - name: Use Node.js 24
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -553,13 +553,13 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
 
       - name: Use Node.js 24
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -651,7 +651,7 @@ jobs:
         run: pnpm --filter vigabss-e2e test
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: playwright-report-${{ github.sha }}
@@ -682,11 +682,11 @@ jobs:
     permissions:
       contents: read
       security-events: write  # upload Trivy SARIF to GitHub Security tab
-      id-token: write         # keyless cosign signing via OIDC
       packages: write         # publish the scanned image to ghcr.io (main only)
+      # No id-token: this job never signs; publish-manifest does (OPS-08).
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Warm the BuildKit image (Docker Hub is intermittently unreachable)
         id: warm
@@ -731,7 +731,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: steps.warm.outcome == 'success'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       # Built ONCE, carrying its release tags from the start. The image that
       # Trivy scans below is then bit-for-bit the image that gets pushed — a
@@ -739,7 +739,7 @@ jobs:
       # which would mean publishing something that was never scanned.
       - name: Build Docker image
         if: steps.warm.outcome == 'success'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           push: false
@@ -762,7 +762,7 @@ jobs:
 
       - name: Generate SBOM with Syft
         if: steps.warm.outcome == 'success'
-        uses: anchore/sbom-action@v0.18.0
+        uses: anchore/sbom-action@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0 # v0.18.0
         with:
           image: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
           artifact-name: sbom-${{ github.sha }}-${{ matrix.arch }}.spdx.json
@@ -771,7 +771,7 @@ jobs:
 
       - name: Upload SBOM artifact
         if: steps.warm.outcome == 'success'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: sbom-${{ github.sha }}-${{ matrix.arch }}
           path: sbom.spdx.json
@@ -784,7 +784,7 @@ jobs:
       # HIGH/CRITICAL release gate.
       - name: Scan image with Trivy (SARIF report)
         if: steps.warm.outcome == 'success'
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
           format: sarif
@@ -801,7 +801,7 @@ jobs:
       # only a fixable HIGH/CRITICAL vulnerability blocks a PR or publication.
       - name: Scan image with Trivy (blocking)
         if: steps.warm.outcome == 'success'
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
           format: table
@@ -814,7 +814,7 @@ jobs:
           trivyignores: .trivyignore
 
       - name: Upload Trivy SARIF report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always() && steps.warm.outcome == 'success'
         with:
           name: trivy-results-${{ github.sha }}-${{ matrix.arch }}
@@ -824,7 +824,7 @@ jobs:
       # The job holds security-events: write for this: the report used to go
       # only to an artifact nobody opened (OPS-07).
       - name: Publish Trivy SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
         if: always() && steps.warm.outcome == 'success'
         with:
           sarif_file: trivy-results.sarif
@@ -851,7 +851,7 @@ jobs:
 
       - name: Log in to ghcr.io
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && steps.warm.outcome == 'success'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -906,7 +906,7 @@ jobs:
 
     steps:
       - name: Log in to ghcr.io
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -950,7 +950,7 @@ jobs:
           echo "::notice title=Image published::${RELEASE_IMAGE}:${PUBLISH_TAG} (linux/amd64 + linux/arm64)"
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3.8.1
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
 
       - name: Sign the published manifest (keyless)
         # Signs the MANIFEST LIST digest — that is what a host resolves when it
@@ -990,13 +990,13 @@ jobs:
           --health-retries=10
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
 
       - name: Use Node.js 24
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -1046,7 +1046,7 @@ jobs:
           exit 1
 
       - name: OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.15.0
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
         with:
           # Pinned. The action DEFAULTS to ghcr.io/zaproxy/zaproxy:stable — a moving
           # tag that is not written anywhere in this file, which is why nobody noticed
@@ -1064,7 +1064,7 @@ jobs:
           fail_action: false
 
       - name: Upload ZAP report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: zap-dast-report-${{ github.sha }}
@@ -1077,21 +1077,20 @@ jobs:
   # Helm chart lint + release
   # Lint runs on every push/PR; release (chart-releaser) runs only on v* tags.
   # ---------------------------------------------------------------------------
-  helm-release:
-    name: Helm lint & release
-    needs: publish-manifest
-    if: always()
+  helm-lint:
+    # Lint and render run everywhere with a read-only token. Releasing needs
+    # contents: write, which this job held on every push and PR (OPS-08), so
+    # it moved to the tag-only helm-release job below.
+    name: Helm lint
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # chart-releaser needs to push to gh-pages
+      contents: read
 
     steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0   # chart-releaser needs full history for gh-pages
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
         with:
           version: v3.14.4
 
@@ -1108,8 +1107,25 @@ jobs:
             --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             > /dev/null
 
+  helm-release:
+    name: Helm release
+    needs: [helm-lint, publish-manifest]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.publish-manifest.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # chart-releaser needs to push to gh-pages
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0   # chart-releaser needs full history for gh-pages
+
+      - name: Set up Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: v3.14.4
+
       - name: Verify release tag matches chart and image version
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           set -euo pipefail
           RELEASE_VERSION="${GITHUB_REF_NAME#v}"
@@ -1128,7 +1144,6 @@ jobs:
           test "${{ needs.publish-manifest.result }}" = success
 
       - name: Pin the packaged chart to its published release image
-        if: startsWith(github.ref, 'refs/tags/v') && needs.publish-manifest.result == 'success'
         run: |
           set -euo pipefail
           RELEASE_VERSION="${GITHUB_REF_NAME#v}"
@@ -1138,8 +1153,7 @@ jobs:
       # chart-releaser publishes packaged charts to the gh-pages branch and
       # generates an updated Helm repo index.yaml.  Only runs on v* tags.
       - name: Run chart-releaser
-        if: startsWith(github.ref, 'refs/tags/v') && needs.publish-manifest.result == 'success'
-        uses: helm/chart-releaser-action@v1.6.0
+        uses: helm/chart-releaser-action@a917fd15b20e8b64b94d9158ad54cd6345335584 # v1.6.0
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1170,7 +1184,7 @@ jobs:
       COMPOSE: docker compose -f docker-compose.prod.yml --env-file .env.prod
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       # Throwaway values. The compose file requires the other three passwords to
       # interpolate at all, even to start a single service.

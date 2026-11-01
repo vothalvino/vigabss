@@ -546,6 +546,76 @@ install_deploy_agent() {
   fi
 }
 
+# Verify the pulled image's keyless cosign signature and pin the deploy to its
+# digest (OPS-08). A tag is mutable: whoever can push to the registry — or
+# re-point a tag — chose what this root script started. CI signs the
+# manifest-list digest in publish-manifest; this checks that signature came
+# from this repository's ci.yml on main or a v* tag, then hands Compose the
+# digest, so the image that starts is the one that was checked.
+#
+# VIGABSS_VERIFY_SIGNATURE (environment or .env.prod):
+#   auto      (default) verify when cosign is installed; warn when it is not
+#   required  refuse to deploy unless the signature verifies
+#   off       skip (e.g. rolling back to an image published before signing)
+VERIFY_SIGNATURE="${VIGABSS_VERIFY_SIGNATURE:-${FIREISP_VERIFY_SIGNATURE:-}}"
+COSIGN_IDENTITY_REGEXP='^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/(heads/main|tags/v.*)$'
+COSIGN_OIDC_ISSUER='https://token.actions.githubusercontent.com'
+
+resolve_verify_signature_mode() {
+  local line raw
+  if [[ -z "$VERIFY_SIGNATURE" && -f "$ENV_FILE" ]]; then
+    line="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?VIGABSS_VERIFY_SIGNATURE[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
+    raw="$(printf '%s\n' "$line" | cut -d= -f2- | sed -E 's/[[:space:]]*#.*$//' | tr -d '\r"'"'"' \t' | tr '[:upper:]' '[:lower:]')"
+    VERIFY_SIGNATURE="$raw"
+  fi
+  case "${VERIFY_SIGNATURE:-auto}" in
+    auto|required|off) VERIFY_SIGNATURE="${VERIFY_SIGNATURE:-auto}" ;;
+    *)
+      echo "    warning: VIGABSS_VERIFY_SIGNATURE=${VERIFY_SIGNATURE} is not auto, required or off — using required." >&2
+      VERIFY_SIGNATURE=required ;;
+  esac
+}
+
+verify_image_signature() {
+  local digest_ref
+  resolve_verify_signature_mode
+  digest_ref="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$VIGABSS_IMAGE" 2>/dev/null \
+    | grep -F "${REGISTRY_IMAGE}@sha256:" | head -n1 || true)"
+  if [[ -z "$digest_ref" ]]; then
+    if [[ "$VERIFY_SIGNATURE" == "required" ]]; then
+      echo "error: cannot resolve the registry digest of ${VIGABSS_IMAGE}, so its signature cannot be checked." >&2
+      return 1
+    fi
+    echo "    warning: no registry digest for ${VIGABSS_IMAGE}; deploying by tag, unverified." >&2
+    return 0
+  fi
+
+  if [[ "$VERIFY_SIGNATURE" == "off" ]]; then
+    echo "    warning: signature check is OFF (VIGABSS_VERIFY_SIGNATURE=off); deploying ${digest_ref} unverified." >&2
+  elif command -v cosign >/dev/null 2>&1; then
+    echo "==> Verifying the image signature"
+    if ! cosign verify \
+        --certificate-oidc-issuer "$COSIGN_OIDC_ISSUER" \
+        --certificate-identity-regexp "$COSIGN_IDENTITY_REGEXP" \
+        "$digest_ref" >/dev/null; then
+      echo "error: ${digest_ref} is not signed by this repository's CI (ci.yml on main or a v* tag). Not deploying it." >&2
+      echo "       To roll back to an image published before signing, set VIGABSS_VERIFY_SIGNATURE=off in .env.prod for that run." >&2
+      return 1
+    fi
+    echo "    signature verified"
+  elif [[ "$VERIFY_SIGNATURE" == "required" ]]; then
+    echo "error: VIGABSS_VERIFY_SIGNATURE=required but cosign is not installed (https://docs.sigstore.dev/cosign/system_config/installation/)." >&2
+    return 1
+  else
+    echo "    warning: cosign is not installed, so the image signature was NOT checked. Install cosign, or set VIGABSS_VERIFY_SIGNATURE=required once it is." >&2
+  fi
+
+  # Deploy by digest: the image Compose starts is the one just checked.
+  export VIGABSS_IMAGE="$digest_ref"
+  export FIREISP_IMAGE="$digest_ref"
+  echo "    deploying ${digest_ref}"
+}
+
 # Sourced by tests to get the functions above without running a deploy.
 if [[ "${VIGABSS_LIB_ONLY:-${FIREISP_LIB_ONLY:-0}}" == "1" ]]; then
   return 0 2>/dev/null || exit 0
@@ -768,6 +838,8 @@ EOF
   echo >&2
   exit 1
 fi
+
+verify_image_signature || exit 1
 
 echo "==> Preparing database and Redis dependencies"
 dc up -d db-primary redis

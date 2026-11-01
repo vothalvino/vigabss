@@ -729,18 +729,21 @@ describe('k8s and Helm point at the image that is actually published', () => {
     expect(create.run).toContain('PUBLISH_TAG="${GITHUB_REF_NAME#v}"');
     expect(create.run).toContain('TARGET_TAGS=(-t "${RELEASE_IMAGE}:${PUBLISH_TAG}")');
 
+    // The release runs as its own tag-gated job (OPS-08), so the publish
+    // result gates the whole job rather than each step.
     const helm = ci.jobs['helm-release'];
-    expect(helm.needs).toBe('publish-manifest');
+    expect(helm.needs).toContain('publish-manifest');
+    expect(helm.if).toContain("startsWith(github.ref, 'refs/tags/v')");
+    expect(helm.if).toContain("needs.publish-manifest.result == 'success'");
     const verify = helm.steps.find(s => s.name === 'Verify release tag matches chart and image version');
     expect(verify.run).toContain('test "$RELEASE_VERSION" = "$CHART_VERSION"');
     expect(verify.run).toContain('test "$RELEASE_VERSION" = "$APP_VERSION"');
     const pin = helm.steps.find(s => s.name === 'Pin the packaged chart to its published release image');
-    expect(pin.if).toContain("needs.publish-manifest.result == 'success'");
     expect(pin.run).toContain(
       'grep -qx "  tag: \\"${RELEASE_VERSION}\\"" charts/fireisp/values.yaml',
     );
     const release = helm.steps.find(s => s.name === 'Run chart-releaser');
-    expect(release.if).toContain("needs.publish-manifest.result == 'success'");
+    expect(release).toBeDefined();
   });
 
   it('the cosign policies verify that same path', () => {
