@@ -37,18 +37,20 @@ function getSuspensionService() {
  * @param {number} organizationId
  * @param {string} triggerEvent  e.g. 'invoice.created', 'device.offline'
  * @param {object} payload       Event data for condition matching
- * @returns {{ evaluated: number, triggered: number }}
+ * @param {{ ruleId?: number }} [options]  limit to one rule (a manual run)
+ * @returns {{ evaluated: number, triggered: number, results: Array<{ rule_id, status, message }> }}
  */
-async function evaluateAutomationRules(organizationId, triggerEvent, payload = {}) {
+async function evaluateAutomationRules(organizationId, triggerEvent, payload = {}, { ruleId = null } = {}) {
   const [rules] = await db.query(
     `SELECT * FROM automation_rules
      WHERE organization_id = ? AND trigger_event = ? AND is_enabled = 1
-       AND deleted_at IS NULL
+       AND deleted_at IS NULL${ruleId ? ' AND id = ?' : ''}
      ORDER BY priority DESC`,
-    [organizationId, triggerEvent],
+    ruleId ? [organizationId, triggerEvent, ruleId] : [organizationId, triggerEvent],
   );
 
   let triggered = 0;
+  const results = [];
   for (const rule of rules) {
     const start = Date.now();
     let status = 'success';
@@ -61,12 +63,18 @@ async function evaluateAutomationRules(organizationId, triggerEvent, payload = {
         status = 'skipped';
         resultMessage = 'Conditions not met';
       } else {
-        resultMessage = await dispatchAction(rule.action_type, parseJsonColumn(rule.action_config, {}), payload, organizationId);
-        triggered++;
-        await db.query(
-          'UPDATE automation_rules SET run_count = run_count + 1, last_triggered_at = NOW() WHERE id = ?',
-          [rule.id],
-        );
+        const outcome = await dispatchAction(rule.action_type, parseJsonColumn(rule.action_config, {}), payload, organizationId);
+        resultMessage = outcome.message;
+        if (outcome.status === 'not_implemented') {
+          // Nothing was done, so nothing is recorded as a run (ASY-16).
+          status = 'skipped';
+        } else {
+          triggered++;
+          await db.query(
+            'UPDATE automation_rules SET run_count = run_count + 1, last_triggered_at = NOW() WHERE id = ?',
+            [rule.id],
+          );
+        }
       }
     } catch (err) {
       status = 'failure';
@@ -80,9 +88,10 @@ async function evaluateAutomationRules(organizationId, triggerEvent, payload = {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [organizationId, rule.id, triggerEvent, JSON.stringify(payload), status, resultMessage, Date.now() - start],
     );
+    results.push({ rule_id: rule.id, status, message: resultMessage });
   }
 
-  return { evaluated: rules.length, triggered };
+  return { evaluated: rules.length, triggered, results };
 }
 
 /**
@@ -124,29 +133,17 @@ function evaluateCondition(payload, condition) {
  * @param {object} actionConfig
  * @param {object} payload
  * @param {number} organizationId
- * @returns {string} result message
+ * @returns {Promise<{ status: 'done'|'not_implemented', message: string }>}
  */
 async function dispatchAction(actionType, actionConfig, payload, organizationId) {
-  switch (actionType) {
-    case 'send_notification': {
-      logger.info({ organizationId, actionType, actionConfig }, 'Automation: send_notification dispatched (notification service)');
-      return 'Notification queued via notificationService';
-    }
-    case 'create_ticket': {
-      logger.info({ organizationId, actionType, actionConfig }, 'Automation: create_ticket dispatched (stub)');
-      return 'Ticket creation enqueued (stub)';
-    }
-    case 'run_script': {
-      logger.info({ organizationId, actionType, actionConfig }, 'Automation: run_script dispatched (script executor stub)');
-      return 'Script execution queued (stub — see §18.2 scripting engine)';
-    }
-    case 'set_alert':
-      return 'Alert rule updated';
-    case 'suspend_contract':
-      return 'Contract suspension enqueued (stub)';
-    default:
-      return `Action type '${actionType}' acknowledged (no built-in handler)`;
-  }
+  // No action type has a handler yet. They used to return messages such as
+  // "Ticket creation enqueued (stub)" that were recorded as a successful run
+  // (ASY-16); say plainly that nothing happened.
+  logger.info({ organizationId, actionType }, 'Automation action is not implemented; nothing was done');
+  return {
+    status: 'not_implemented',
+    message: `Action '${actionType}' is not implemented yet; nothing was done`,
+  };
 }
 
 // ---------------------------------------------------------------------------

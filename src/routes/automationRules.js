@@ -144,7 +144,9 @@ router.post('/:id/execute', requirePermission('automation_rules.execute'), async
     if (!rows.length) return res.status(404).json({ error: { message: 'Automation rule not found' } });
     const rule = rows[0];
     const payload = req.body.payload || {};
-    const result = await automationService.evaluateAutomationRules(req.orgId, rule.trigger_event, payload);
+    // Run this rule only; other rules on the same event are not part of a
+    // manual run (ASY-16).
+    const result = await automationService.evaluateAutomationRules(req.orgId, rule.trigger_event, payload, { ruleId: rule.id });
     res.json({ data: { rule_id: rule.id, result } });
   } catch (err) { next(err); }
 });
