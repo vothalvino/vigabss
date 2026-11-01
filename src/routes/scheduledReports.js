@@ -8,6 +8,7 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const db = require('../config/database');
 const { parseJsonColumn } = require('../utils/jsonColumn');
+const { nextRunAt, assertValidCron } = require('../services/scheduledReportService');
 
 const router = Router();
 router.use(authenticate);
@@ -54,16 +55,17 @@ router.post('/', requirePermission('reports.schedule'), async (req, res, next) =
     if (!report_def_name) {
       return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'report_def_name is required' } });
     }
+    assertValidCron(cron_expression);
 
     const [result] = await db.query(
       `INSERT INTO scheduled_reports
          (organization_id, report_def_id, report_def_name, format, parameters, recipients,
           cron_expression, is_enabled, created_by, next_run_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.orgId, report_def_id, report_def_name, format,
         parameters ? JSON.stringify(parameters) : null,
         recipients ? JSON.stringify(recipients) : null,
-        cron_expression, is_enabled ? 1 : 0, req.user.id],
+        cron_expression, is_enabled ? 1 : 0, req.user.id, nextRunAt(cron_expression)],
     );
 
     const [rows] = await db.queryReplica(
@@ -84,6 +86,9 @@ router.put('/:id', requirePermission('reports.schedule'), async (req, res, next)
     if (!existing.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Scheduled report not found' } });
 
     const { format, parameters, recipients, cron_expression, is_enabled } = req.body;
+    // A new schedule takes effect from now, not after the old next_run_at.
+    if (cron_expression !== undefined && cron_expression !== null) assertValidCron(cron_expression);
+    const nextRun = cron_expression ? nextRunAt(cron_expression) : null;
 
     await db.query(
       `UPDATE scheduled_reports
@@ -91,6 +96,7 @@ router.put('/:id', requirePermission('reports.schedule'), async (req, res, next)
            parameters = COALESCE(?, parameters),
            recipients = COALESCE(?, recipients),
            cron_expression = COALESCE(?, cron_expression),
+           next_run_at = COALESCE(?, next_run_at),
            is_enabled = COALESCE(?, is_enabled),
            updated_at = NOW()
        WHERE id = ?`,
@@ -98,6 +104,7 @@ router.put('/:id', requirePermission('reports.schedule'), async (req, res, next)
         parameters !== undefined ? JSON.stringify(parameters) : null,
         recipients !== undefined ? JSON.stringify(recipients) : null,
         cron_expression ?? null,
+        nextRun,
         is_enabled !== undefined ? (is_enabled ? 1 : 0) : null,
         req.params.id],
     );

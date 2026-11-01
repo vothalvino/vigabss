@@ -13,6 +13,32 @@ const logger = require('../utils/logger');
 const { escapeHtmlForTemplate: esc } = require('./notificationService');
 const { orgScopeFilter } = require('./organizationFanOut');
 const { parseJsonColumn } = require('../utils/jsonColumn');
+const cron = require('node-cron');
+const cronParser = require('cron-parser');
+const { ValidationError } = require('../utils/errors');
+
+/**
+ * The next time a schedule's cron_expression fires after `from`, in the
+ * process timezone the task scheduler uses. Reports were re-run every hour
+ * whatever the schedule said (ASY-13).
+ */
+function nextRunAt(cronExpression, from = new Date()) {
+  return cronParser.parseExpression(cronExpression, { currentDate: from }).next().toDate();
+}
+
+/** Throws a 422 unless `cronExpression` is a five-field cron the scheduler can run. */
+function assertValidCron(cronExpression) {
+  const valid = typeof cronExpression === 'string'
+    && cronExpression.trim().split(/\s+/).length === 5
+    && cron.validate(cronExpression);
+  if (valid) {
+    try {
+      nextRunAt(cronExpression);
+      return;
+    } catch (_err) { /* fall through */ }
+  }
+  throw new ValidationError('cron_expression must be a valid five-field cron expression, e.g. "0 8 * * 1"');
+}
 
 /**
  * Process all due scheduled reports.
@@ -40,15 +66,30 @@ async function processScheduledReports() {
       processed++;
     } catch (err) {
       logger.error({ err, scheduleId: schedule.id }, 'Scheduled report failed');
+      // A failed run still waits for its next slot instead of retrying hourly.
       await db.query(
-        'UPDATE scheduled_reports SET last_run_at = NOW(), last_status = \'failed\' WHERE id = ?',
-        [schedule.id],
+        'UPDATE scheduled_reports SET last_run_at = NOW(), last_status = \'failed\', next_run_at = ? WHERE id = ?',
+        [safeNextRunAt(schedule), schedule.id],
       );
       failed++;
     }
   }
 
   return { processed, failed, total: schedules.length };
+}
+
+/**
+ * next_run_at after a run. A stored expression the parser rejects (written
+ * before validation existed) waits a day rather than re-running every hour.
+ */
+function safeNextRunAt(schedule) {
+  try {
+    return nextRunAt(schedule.cron_expression);
+  } catch (err) {
+    logger.warn({ err, scheduleId: schedule.id, cronExpression: schedule.cron_expression },
+      'Scheduled report has an invalid cron_expression');
+    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+  }
 }
 
 /**
@@ -96,13 +137,11 @@ async function runSchedule(schedule) {
     }
   }
 
-  // Update schedule last_run_at and next_run_at (simple: add 1 hour for now)
   await db.query(
     `UPDATE scheduled_reports
-     SET last_run_at = NOW(), last_status = 'completed',
-         next_run_at = DATE_ADD(NOW(), INTERVAL 1 HOUR)
+     SET last_run_at = NOW(), last_status = 'completed', next_run_at = ?
      WHERE id = ?`,
-    [schedule.id],
+    [safeNextRunAt(schedule), schedule.id],
   );
 
   return { reportId, recipients: recipients.length };
@@ -286,4 +325,6 @@ module.exports = {
   formatReport,
   toCSV,
   runOnDemand,
+  nextRunAt,
+  assertValidCron,
 };
