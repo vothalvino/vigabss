@@ -287,22 +287,9 @@ router.post('/:id/comments', requireOwnedTicket('tickets.update', 'tickets.comme
     const [rows] = await db.query('SELECT * FROM ticket_comments WHERE id = ?', [result.insertId]);
     pubsub.publish('TICKET_COMMENT_ADDED', { ticketCommentAdded: rows[0], ticketId: String(req.params.id) });
 
-    // Enqueue AI triage when a client posts a new non-internal comment
-    if (!is_internal) {
-      const [[ticket]] = await db.query(
-        'SELECT id, organization_id, contract_id FROM tickets WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-        [req.params.id, req.orgId],
-      );
-      if (ticket) {
-        jobQueue.add('ai-triage', {
-          orgId:       ticket.organization_id,
-          ticketId:    ticket.id,
-          channel:     'portal',
-          inboundText: body,
-          contractId:  ticket.contract_id || null,
-        }).catch(err => logger.warn({ err: err.message, ticketId: ticket.id }, 'aiTriage enqueue failed on comment'));
-      }
-    }
+    // No AI triage here: these comments are written by staff, and triaging a
+    // staff reply sent it (and the ticket history) to the LLM as if the
+    // customer had written it (ASY-10). The portal comment route enqueues it.
 
     res.status(201).json({ data: rows[0] });
   } catch (err) { next(err); }

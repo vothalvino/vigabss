@@ -531,12 +531,16 @@ router.post('/reply/draft', requirePermission('ai.reply.draft'), validate(replyD
       if (!owned) throw new NotFoundError('Contract not found');
     }
 
+    // forceDraft: this endpoint returns the draft for staff to review; it
+    // never auto-sends whatever the policy mode (ASY-10). With no
+    // inbound_text the latest customer-visible message is answered.
     const result = await aiReplyService.generate({
       orgId:       req.orgId,
       ticketId:    ticket_id,
       channel,
       inboundText: inbound_text,
       contractId:  contract_id || null,
+      forceDraft:  true,
     });
 
     res.json({ data: result });

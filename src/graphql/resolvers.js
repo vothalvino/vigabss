@@ -180,6 +180,7 @@ const resolvers = {
         channel,
         inboundText,
         contractId:  contractId ? Number(contractId) : null,
+        forceDraft:  true, // a draft for staff, never auto-sent (ASY-10)
       });
       return result;
     },

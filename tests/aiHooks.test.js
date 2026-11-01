@@ -434,12 +434,12 @@ describe('Ticket route — aiTriage enqueue', () => {
     expect(jobQueue.add).not.toHaveBeenCalledWith('ai-triage', expect.anything());
   });
 
-  it('enqueues ai-triage when a non-internal comment is posted', async () => {
-    // Mock DB for comment insert + ticket select
+  // Staff comments are not the customer's words: triage runs on portal
+  // comments instead (ASY-10; covered in aiPromptPrivacy.test.js).
+  it('does NOT enqueue ai-triage for a staff comment', async () => {
     mockDbQuery
       .mockResolvedValueOnce([{ insertId: 200 }])      // INSERT INTO ticket_comments
-      .mockResolvedValueOnce([[{ id: 200, body: 'Still down' }]])   // SELECT ticket_comment
-      .mockResolvedValueOnce([[{ id: 10, organization_id: 1, contract_id: 5 }]]); // SELECT ticket
+      .mockResolvedValueOnce([[{ id: 200, body: 'Still down' }]]);  // SELECT ticket_comment
 
     const jobQueue = require('../src/services/jobQueueService');
     const router   = require('../src/routes/tickets');
@@ -453,13 +453,7 @@ describe('Ticket route — aiTriage enqueue', () => {
     await handlers[handlers.length - 1](req, res, next);
     await new Promise(resolve => setImmediate(resolve));
 
-    expect(jobQueue.add).toHaveBeenCalledWith('ai-triage', expect.objectContaining({
-      orgId:       1,
-      ticketId:    10,
-      channel:     'portal',
-      inboundText: 'Still down',
-      contractId:  5,
-    }));
+    expect(jobQueue.add).not.toHaveBeenCalledWith('ai-triage', expect.anything());
   });
 
   it('does NOT enqueue ai-triage for internal comments', async () => {

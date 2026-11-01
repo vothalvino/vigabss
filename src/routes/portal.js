@@ -666,7 +666,7 @@ router.get('/tickets/:id', async (req, res, next) => {
 router.post('/tickets/:id/comments', validate(createCommentSchema), async (req, res, next) => {
   try {
     const [ticketRows] = await db.query(
-      'SELECT id FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      'SELECT id, contract_id FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
       [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!ticketRows[0]) throw new NotFoundError('Ticket');
@@ -680,6 +680,16 @@ router.post('/tickets/:id/comments', validate(createCommentSchema), async (req, 
       'SELECT id, ticket_id, body, is_internal, created_at FROM ticket_comments WHERE id = ?',
       [result.insertId],
     );
+
+    // AI triage answers what the customer wrote (ASY-10: it used to run on
+    // staff comments instead).
+    require('../services/jobQueueService').add('ai-triage', {
+      orgId:       req.client.organizationId,
+      ticketId:    ticketRows[0].id,
+      channel:     'portal',
+      inboundText: req.body.body,
+      contractId:  ticketRows[0].contract_id || null,
+    }).catch(err => logger.warn({ err: err.message, ticketId: ticketRows[0].id }, 'aiTriage enqueue failed on portal comment'));
 
     res.status(201).json({ data: rows[0] });
   } catch (err) {

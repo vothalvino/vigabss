@@ -365,7 +365,8 @@ module.exports = /* GraphQL */ `
     """
     aiDraftReply(
       ticketId: ID!
-      inboundText: String!
+      "Omitted: the latest customer-visible message on the ticket."
+      inboundText: String
       channel: String
       contractId: ID
     ): AiDraftReplyResult!

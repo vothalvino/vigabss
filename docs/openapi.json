@@ -59140,7 +59140,6 @@
           },
           "inbound_text": {
             "type": "string",
-            "minimum": 1,
             "maximum": 20000
           },
           "contract_id": {
@@ -59149,8 +59148,7 @@
           }
         },
         "required": [
-          "ticket_id",
-          "inbound_text"
+          "ticket_id"
         ]
       },
       "ai_replySend": {
