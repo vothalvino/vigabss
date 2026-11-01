@@ -24,9 +24,8 @@ interface FiberRoute {
   name: string;
   route_type: string;
   status: string;
-  total_length_m: number | null;
-  fiber_count: number | null;
-  installation_date: string | null;
+  cable_length_m: number | null;
+  installed_at: string | null;
   notes: string | null;
 }
 
@@ -39,9 +38,8 @@ interface FiberRouteBody {
   name: string;
   route_type?: string;
   status?: string;
-  total_length_m?: number;
-  fiber_count?: number;
-  installation_date?: string;
+  cable_length_m?: number;
+  installed_at?: string;
   notes?: string;
 }
 
@@ -49,7 +47,7 @@ interface OdfFrame {
   id: number;
   name: string;
   location_detail: string | null;
-  total_ports: number;
+  port_count: number;
   frame_type: string;
   status: string;
   ports?: OdfPort[];
@@ -71,12 +69,12 @@ interface OdfPort {
 
 interface OtdrTest {
   id: number;
-  device_id: number | null;
+  olt_device_id: number | null;
   olt_port_id: number | null;
-  test_date: string;
+  tested_at: string;
   wavelength_nm: number | null;
-  fiber_length_m: number | null;
-  fault_detected: boolean;
+  total_length_m: number | null;
+  fault_detected: number | boolean;
   fault_distance_m: number | null;
   fault_type: string | null;
   job_status: string;
@@ -89,12 +87,13 @@ interface OtdrTestsResponse {
 }
 
 interface OtdrTestBody {
-  device_id?: number;
+  olt_device_id?: number;
   olt_port_id?: number;
-  test_date?: string;
+  tested_at?: string;
   wavelength_nm?: number;
-  fiber_length_m?: number;
-  fault_detected?: boolean;
+  total_length_m?: number;
+  // 0/1: the column is TINYINT and the validator a number (FE2-02).
+  fault_detected?: number;
   fault_distance_m?: number;
   fault_type?: string;
   notes?: string;
@@ -102,15 +101,15 @@ interface OtdrTestBody {
 
 interface SfpItem {
   id: number;
-  device_id: number | null;
+  installed_device_id: number | null;
   inventory_item_id: number | null;
-  sfp_port_name: string | null;
+  port_name: string | null;
   form_factor: string;
   vendor_name: string | null;
   part_number: string | null;
   serial_number: string | null;
   wavelength_nm: number | null;
-  max_distance_km: number | null;
+  max_distance_m: number | null;
   lifecycle_status: string;
   installed_at: string | null;
   device_name?: string;
@@ -122,15 +121,15 @@ interface SfpResponse {
 }
 
 interface SfpBody {
-  device_id?: number;
+  installed_device_id?: number;
   inventory_item_id?: number;
-  sfp_port_name?: string;
+  port_name?: string;
   form_factor?: string;
   vendor_name?: string;
   part_number?: string;
   serial_number?: string;
   wavelength_nm?: number;
-  max_distance_km?: number;
+  max_distance_m?: number;
   lifecycle_status?: string;
   notes?: string;
 }
@@ -151,15 +150,25 @@ interface SfpDiagnostics {
 
 const PAGE_SIZE = 25;
 const ROUTE_TYPES = ['trunk', 'distribution', 'drop', 'feeder', 'other'];
-const ROUTE_STATUSES = ['active', 'inactive', 'planned', 'decommissioned'];
-const ODF_STATUSES = ['active', 'inactive', 'damaged', 'removed'];
-const FAULT_TYPES = ['fiber_break', 'splice_loss', 'connector_loss', 'bend_loss', 'reflection', 'other'];
+// Field names and lists follow the validators and tables (FE2-02): the old
+// ones made ODF and OTDR creates always 422, SFP creates 422 by default, and
+// routes/SFP send columns that do not exist.
+const ROUTE_STATUSES = ['active', 'inactive', 'damaged', 'removed'];
+const FRAME_TYPES = ['rack', 'wall_mount', 'splice_closure', 'patch_panel', 'other'];
+const FAULT_TYPES = ['reflection', 'break', 'high_splice', 'end_of_fiber', 'unknown'];
 const FORM_FACTORS = ['sfp', 'sfp_plus', 'sfp28', 'qsfp', 'qsfp_plus', 'xfp', 'gbic', 'other'];
-const LIFECYCLE_STATUSES = ['installed', 'spare', 'faulty', 'retired'];
+const LIFECYCLE_STATUSES = ['in_stock', 'installed', 'removed', 'failed', 'retired'];
 
 // ---------------------------------------------------------------------------
 // API helpers
 // ---------------------------------------------------------------------------
+
+/** The server's validation message, else a fallback (FE2-02). */
+function apiError(res: unknown, fallback: string): Error {
+  const body = (res as { error?: { error?: { message?: string } | string; message?: string } }).error;
+  const msg = typeof body?.error === 'string' ? body.error : body?.error?.message ?? body?.message;
+  return new Error(msg || fallback);
+}
 
 // Fiber Routes
 async function fetchFiberRoutes(page: number): Promise<FiberRoutesResponse> {
@@ -172,7 +181,7 @@ async function fetchFiberRoutes(page: number): Promise<FiberRoutesResponse> {
 
 async function createFiberRoute(body: FiberRouteBody): Promise<void> {
   const res = await api.POST('/fiber-plant/fiber-routes' as never, { body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create fiber route');
+  if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create fiber route');
 }
 
 async function updateFiberRoute(id: number, body: Partial<FiberRouteBody>): Promise<void> {
@@ -180,7 +189,7 @@ async function updateFiberRoute(id: number, body: Partial<FiberRouteBody>): Prom
     params: { path: { id } },
     body: body as never,
   } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to update fiber route');
+  if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to update fiber route');
 }
 
 async function deleteFiberRoute(id: number): Promise<void> {
@@ -207,9 +216,9 @@ async function fetchOdfFrameWithPorts(id: number): Promise<OdfFrame> {
   return unwrapData<OdfFrame>((res as { data: unknown }).data);
 }
 
-async function createOdfFrame(body: { name: string; location_detail?: string; total_ports?: number; frame_type?: string }): Promise<void> {
+async function createOdfFrame(body: { name: string; location_detail?: string; port_count?: number; frame_type?: string }): Promise<void> {
   const res = await api.POST('/fiber-plant/odf/frames' as never, { body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create ODF frame');
+  if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create ODF frame');
 }
 
 async function deleteOdfFrame(id: number): Promise<void> {
@@ -230,7 +239,7 @@ async function fetchOtdrTests(page: number): Promise<OtdrTestsResponse> {
 
 async function createOtdrTest(body: OtdrTestBody): Promise<void> {
   const res = await api.POST('/fiber-plant/otdr/tests' as never, { body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create OTDR test');
+  if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create OTDR test');
 }
 
 async function deleteOtdrTest(id: number): Promise<void> {
@@ -251,7 +260,7 @@ async function fetchSfp(page: number): Promise<SfpResponse> {
 
 async function createSfp(body: SfpBody): Promise<void> {
   const res = await api.POST('/fiber-plant/sfp' as never, { body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create SFP entry');
+  if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create SFP entry');
 }
 
 async function deleteSfp(id: number): Promise<void> {
@@ -310,8 +319,8 @@ export function FiberPlantManagementPage() {
     setEditingFr(fr ?? null);
     setFrForm(fr
       ? { name: fr.name, route_type: fr.route_type, status: fr.status,
-          total_length_m: fr.total_length_m ?? undefined,
-          fiber_count: fr.fiber_count ?? undefined, notes: fr.notes ?? '' }
+          cable_length_m: fr.cable_length_m ?? undefined,
+          notes: fr.notes ?? '' }
       : { route_type: 'drop', status: 'active' });
     setFrErr('');
     setShowFrModal(true);
@@ -350,7 +359,7 @@ export function FiberPlantManagementPage() {
     enabled: selectedFrameId !== null,
   });
   const [showOdfModal, setShowOdfModal] = useState(false);
-  const [odfForm, setOdfForm] = useState({ name: '', location_detail: '', total_ports: '24', frame_type: 'standard' });
+  const [odfForm, setOdfForm] = useState({ name: '', location_detail: '', port_count: '24', frame_type: 'rack' });
   const [odfErr, setOdfErr] = useState('');
 
   const createOdfMut = useMutation({
@@ -381,7 +390,7 @@ export function FiberPlantManagementPage() {
     enabled: tab === 'otdr',
   });
   const [showOtdrModal, setShowOtdrModal] = useState(false);
-  const [otdrForm, setOtdrForm] = useState<Partial<OtdrTestBody>>({ fault_detected: false });
+  const [otdrForm, setOtdrForm] = useState<Partial<OtdrTestBody>>({ fault_detected: 0 });
   const [otdrErr, setOtdrErr] = useState('');
 
   const createOtdrMut = useMutation({
@@ -409,7 +418,7 @@ export function FiberPlantManagementPage() {
     enabled: tab === 'sfp',
   });
   const [showSfpModal, setShowSfpModal] = useState(false);
-  const [sfpForm, setSfpForm] = useState<Partial<SfpBody>>({ form_factor: 'sfp_plus', lifecycle_status: 'spare' });
+  const [sfpForm, setSfpForm] = useState<Partial<SfpBody>>({ form_factor: 'sfp_plus', lifecycle_status: 'in_stock' });
   const [sfpErr, setSfpErr] = useState('');
   const [diagSfpId, setDiagSfpId] = useState<number | null>(null);
   const diagQ = useQuery({
@@ -482,7 +491,6 @@ export function FiberPlantManagementPage() {
                       <th style={styles.th}>{t('fiberPlantManagement.fiberRoutes.type')}</th>
                       <th style={styles.th}>{t('fiberPlantManagement.fiberRoutes.status')}</th>
                       <th style={styles.thNum}>{t('fiberPlantManagement.fiberRoutes.length')}</th>
-                      <th style={styles.thNum}>{t('fiberPlantManagement.fiberRoutes.fiberCount')}</th>
                       <th style={styles.th}>{t('fiberPlantManagement.fiberRoutes.installDate')}</th>
                       <th style={styles.th}></th>
                     </tr>
@@ -501,9 +509,8 @@ export function FiberPlantManagementPage() {
                             {fr.status}
                           </span>
                         </td>
-                        <td style={styles.tdNum}>{fr.total_length_m !== null ? `${fr.total_length_m} m` : '—'}</td>
-                        <td style={styles.tdNum}>{fr.fiber_count ?? '—'}</td>
-                        <td style={styles.td}>{fmtDate(fr.installation_date)}</td>
+                        <td style={styles.tdNum}>{fr.cable_length_m !== null ? `${fr.cable_length_m} m` : '—'}</td>
+                        <td style={styles.td}>{fmtDate(fr.installed_at)}</td>
                         <td style={styles.td}>
                           <button style={styles.actionBtn} onClick={() => openFrModal(fr)}>
                             {t('fiberPlantManagement.edit')}
@@ -546,7 +553,7 @@ export function FiberPlantManagementPage() {
           {/* Left: frame list */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-              <button style={styles.btnPrimary} onClick={() => { setOdfErr(''); setOdfForm({ name: '', location_detail: '', total_ports: '24', frame_type: 'standard' }); setShowOdfModal(true); }}>
+              <button style={styles.btnPrimary} onClick={() => { setOdfErr(''); setOdfForm({ name: '', location_detail: '', port_count: '24', frame_type: 'rack' }); setShowOdfModal(true); }}>
                 + {t('fiberPlantManagement.odf.newFrame')}
               </button>
             </div>
@@ -579,7 +586,7 @@ export function FiberPlantManagementPage() {
                           <td style={styles.tdNum}>{frame.id}</td>
                           <td style={styles.td}><strong>{frame.name}</strong></td>
                           <td style={styles.td}>{frame.location_detail ?? '—'}</td>
-                          <td style={styles.tdNum}>{frame.total_ports}</td>
+                          <td style={styles.tdNum}>{frame.port_count}</td>
                           <td style={styles.td}>
                             <span style={{ color: frame.status === 'active' ? '#059669' : '#6b7280', fontWeight: 600, fontSize: '0.82rem' }}>
                               {frame.status}
@@ -669,7 +676,7 @@ export function FiberPlantManagementPage() {
       {tab === 'otdr' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button style={styles.btnPrimary} onClick={() => { setOtdrErr(''); setOtdrForm({ fault_detected: false }); setShowOtdrModal(true); }}>
+            <button style={styles.btnPrimary} onClick={() => { setOtdrErr(''); setOtdrForm({ fault_detected: 0 }); setShowOtdrModal(true); }}>
               + {t('fiberPlantManagement.otdr.newTest')}
             </button>
           </div>
@@ -698,8 +705,8 @@ export function FiberPlantManagementPage() {
                     {otdrQ.data.data.map(test => (
                       <tr key={test.id} style={styles.tr}>
                         <td style={styles.tdNum}>{test.id}</td>
-                        <td style={styles.td}>{fmtDate(test.test_date)}</td>
-                        <td style={styles.tdNum}>{test.fiber_length_m !== null ? `${test.fiber_length_m} m` : '—'}</td>
+                        <td style={styles.td}>{fmtDate(test.tested_at)}</td>
+                        <td style={styles.tdNum}>{test.total_length_m !== null ? `${test.total_length_m} m` : '—'}</td>
                         <td style={styles.td}>
                           <span style={{ color: test.fault_detected ? '#dc2626' : '#059669', fontWeight: 600, fontSize: '0.82rem' }}>
                             {test.fault_detected ? t('fiberPlantManagement.otdr.yes') : t('fiberPlantManagement.otdr.no')}
@@ -749,7 +756,7 @@ export function FiberPlantManagementPage() {
       {tab === 'sfp' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button style={styles.btnPrimary} onClick={() => { setSfpErr(''); setSfpForm({ form_factor: 'sfp_plus', lifecycle_status: 'spare' }); setShowSfpModal(true); }}>
+            <button style={styles.btnPrimary} onClick={() => { setSfpErr(''); setSfpForm({ form_factor: 'sfp_plus', lifecycle_status: 'in_stock' }); setShowSfpModal(true); }}>
               + {t('fiberPlantManagement.sfp.new')}
             </button>
           </div>
@@ -785,7 +792,7 @@ export function FiberPlantManagementPage() {
                         <td style={styles.td}>
                           <span style={{
                             color: sfp.lifecycle_status === 'installed' ? '#059669'
-                              : sfp.lifecycle_status === 'faulty' ? '#dc2626'
+                              : sfp.lifecycle_status === 'failed' ? '#dc2626'
                                 : sfp.lifecycle_status === 'retired' ? '#6b7280'
                                   : '#d97706',
                             fontWeight: 600, fontSize: '0.82rem',
@@ -793,7 +800,7 @@ export function FiberPlantManagementPage() {
                             {sfp.lifecycle_status}
                           </span>
                         </td>
-                        <td style={styles.td}>{sfp.device_name ?? (sfp.device_id ? `#${sfp.device_id}` : '—')}</td>
+                        <td style={styles.td}>{sfp.device_name ?? (sfp.installed_device_id ? `#${sfp.installed_device_id}` : '—')}</td>
                         <td style={styles.td}>
                           {sfp.lifecycle_status === 'installed' && (
                             <button
@@ -911,18 +918,8 @@ export function FiberPlantManagementPage() {
                   style={modalStyles.input}
                   type="number"
                   min={0}
-                  value={frForm.total_length_m ?? ''}
-                  onChange={e => setFrForm(f => ({ ...f, total_length_m: e.target.value ? Number(e.target.value) : undefined }))}
-                />
-              </label>
-              <label style={modalStyles.label}>
-                {t('fiberPlantManagement.fiberRoutes.fiberCount')}
-                <input
-                  style={modalStyles.input}
-                  type="number"
-                  min={1}
-                  value={frForm.fiber_count ?? ''}
-                  onChange={e => setFrForm(f => ({ ...f, fiber_count: e.target.value ? Number(e.target.value) : undefined }))}
+                  value={frForm.cable_length_m ?? ''}
+                  onChange={e => setFrForm(f => ({ ...f, cable_length_m: e.target.value ? Number(e.target.value) : undefined }))}
                 />
               </label>
               <label style={modalStyles.label}>
@@ -978,8 +975,8 @@ export function FiberPlantManagementPage() {
                   style={modalStyles.input}
                   type="number"
                   min={1}
-                  value={odfForm.total_ports}
-                  onChange={e => setOdfForm(f => ({ ...f, total_ports: e.target.value }))}
+                  value={odfForm.port_count}
+                  onChange={e => setOdfForm(f => ({ ...f, port_count: e.target.value }))}
                 />
               </label>
               <label style={modalStyles.label}>
@@ -989,7 +986,7 @@ export function FiberPlantManagementPage() {
                   value={odfForm.frame_type}
                   onChange={e => setOdfForm(f => ({ ...f, frame_type: e.target.value }))}
                 >
-                  {ODF_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  {FRAME_TYPES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
                 </select>
               </label>
             </div>
@@ -1004,7 +1001,7 @@ export function FiberPlantManagementPage() {
                 onClick={() => createOdfMut.mutate({
                   name: odfForm.name,
                   location_detail: odfForm.location_detail || undefined,
-                  total_ports: Number(odfForm.total_ports) || undefined,
+                  port_count: Number(odfForm.port_count) || undefined,
                   frame_type: odfForm.frame_type || undefined,
                 })}
               >
@@ -1030,8 +1027,8 @@ export function FiberPlantManagementPage() {
                   style={modalStyles.input}
                   type="number"
                   min={0}
-                  value={otdrForm.fiber_length_m ?? ''}
-                  onChange={e => setOtdrForm(f => ({ ...f, fiber_length_m: e.target.value ? Number(e.target.value) : undefined }))}
+                  value={otdrForm.total_length_m ?? ''}
+                  onChange={e => setOtdrForm(f => ({ ...f, total_length_m: e.target.value ? Number(e.target.value) : undefined }))}
                 />
               </label>
               <label style={modalStyles.label}>
@@ -1047,12 +1044,12 @@ export function FiberPlantManagementPage() {
               <label style={modalStyles.checkboxLabel}>
                 <input
                   type="checkbox"
-                  checked={otdrForm.fault_detected ?? false}
-                  onChange={e => setOtdrForm(f => ({ ...f, fault_detected: e.target.checked }))}
+                  checked={!!otdrForm.fault_detected}
+                  onChange={e => setOtdrForm(f => ({ ...f, fault_detected: e.target.checked ? 1 : 0 }))}
                 />
                 {t('fiberPlantManagement.otdr.faultDetected')}
               </label>
-              {otdrForm.fault_detected && (
+              {!!otdrForm.fault_detected && (
                 <>
                   <label style={modalStyles.label}>
                     {t('fiberPlantManagement.otdr.faultType')}
@@ -1160,7 +1157,7 @@ export function FiberPlantManagementPage() {
                 {t('fiberPlantManagement.sfp.lifecycle')}
                 <select
                   style={modalStyles.select}
-                  value={sfpForm.lifecycle_status ?? 'spare'}
+                  value={sfpForm.lifecycle_status ?? 'in_stock'}
                   onChange={e => setSfpForm(f => ({ ...f, lifecycle_status: e.target.value }))}
                 >
                   {LIFECYCLE_STATUSES.map(ls => <option key={ls} value={ls}>{ls}</option>)}
@@ -1172,8 +1169,8 @@ export function FiberPlantManagementPage() {
                   style={modalStyles.input}
                   type="number"
                   min={1}
-                  value={sfpForm.device_id ?? ''}
-                  onChange={e => setSfpForm(f => ({ ...f, device_id: e.target.value ? Number(e.target.value) : undefined }))}
+                  value={sfpForm.installed_device_id ?? ''}
+                  onChange={e => setSfpForm(f => ({ ...f, installed_device_id: e.target.value ? Number(e.target.value) : undefined }))}
                 />
               </label>
             </div>
