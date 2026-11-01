@@ -295,6 +295,15 @@ function validateEnv(logger) {
     warnings.push('WHATSAPP_APP_SECRET is set (Meta inbound) but WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_ACCESS_TOKEN are not — inbound will be processed but bot replies cannot be sent');
   }
 
+  // ALLOW_UNSIGNED_WEBHOOKS turns off webhook authentication and is honoured
+  // only in development and test (src/utils/unsignedWebhooks.js). Set anywhere
+  // else it does nothing, but it signals an install that expects unsigned
+  // webhooks to work: say so loudly (TNB-24).
+  const { unsignedWebhooksRequested } = require('../utils/unsignedWebhooks');
+  if (unsignedWebhooksRequested() && !allowInsecureSecret && logger) {
+    logger.error(`ALLOW_UNSIGNED_WEBHOOKS is set but ignored in NODE_ENV=${config.env}: payment and WhatsApp webhooks without a signing secret are rejected`);
+  }
+
   // Database config: required in production
   const requiredDbVars = ['DB_HOST', 'DB_NAME'];
   for (const key of requiredDbVars) {
