@@ -325,8 +325,10 @@ VALUES (9000, 9000, 9000, 10, 'A', '1', '1');
 UPDATE inventory_stock SET quantity = 0 WHERE id = 9000;
 CALL assert_true(ROW_COUNT() = 1, 'F1: Inventory stock quantity=0 allowed');
 
--- F2. Set quantity to -1 — should fail
-CALL assert_sql_error('45000', 'UPDATE inventory_stock SET quantity = -1 WHERE id = 9000', 'F2: Inventory stock negative quantity rejected');
+-- F2. Set quantity to -1 — allowed: migration 390 dropped the negative-stock
+-- guard so a sale never fails on stock-count drift (negative renders red).
+UPDATE inventory_stock SET quantity = -1 WHERE id = 9000;
+CALL assert_true(ROW_COUNT() = 1, 'F2: Inventory stock negative quantity allowed (migration 390)');
 
 -- F3. Set quantity back to positive — should succeed
 UPDATE inventory_stock SET quantity = 5 WHERE id = 9000;
@@ -444,11 +446,17 @@ UPDATE contracts SET status = 'active' WHERE id = 9008;
 UPDATE contracts SET status = 'cancelled' WHERE id = 9008;
 CALL assert_true(ROW_COUNT() = 1, 'K4: Contract active -> cancelled succeeds');
 
--- K5. cancelled → active (invalid) — should fail
-CALL assert_sql_error('45000', 'UPDATE contracts SET status = ''active'' WHERE id = 9007', 'K5: Contract cancelled -> active rejected');
+-- Renewing a terminal contract (cancelled/expired -> active or pending) is
+-- valid since migrations 362 and 450, so these check transitions that stay
+-- invalid.
+-- K5. pending → suspended (invalid) — should fail
+INSERT INTO contracts (id, client_id, plan_id, start_date, connection_type, status)
+VALUES (9012, 9000, 9000, '2024-04-01', 'static', 'pending');
+CALL assert_sql_error('45000', 'UPDATE contracts SET status = ''suspended'' WHERE id = 9012', 'K5: Contract pending -> suspended rejected');
 
--- K6. expired → pending (invalid) — should fail
-CALL assert_sql_error('45000', 'UPDATE contracts SET status = ''pending'' WHERE id = 9006', 'K6: Contract expired -> pending rejected');
+-- K6. active → pending (invalid) — should fail
+UPDATE contracts SET status = 'active' WHERE id = 9012;
+CALL assert_sql_error('45000', 'UPDATE contracts SET status = ''pending'' WHERE id = 9012', 'K6: Contract active -> pending rejected');
 
 -- K7. pending → expired (invalid) — should fail
 INSERT INTO contracts (id, client_id, plan_id, start_date, connection_type, status)
@@ -502,7 +510,7 @@ DELETE FROM factura_publica_invoices WHERE id IN (9000, 9001);
 DELETE FROM payment_allocations WHERE id IN (9000, 9001, 9002, 9003);
 DELETE FROM payments WHERE id IN (9000, 9001);
 DELETE FROM invoices WHERE id IN (9000, 9001, 9002, 9003, 9004);
-DELETE FROM contracts WHERE id IN (9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009, 9010, 9011);
+DELETE FROM contracts WHERE id IN (9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009, 9010, 9011, 9012);
 DELETE FROM inventory_stock WHERE id = 9000;
 DELETE FROM inventory_items WHERE id = 9000;
 DELETE FROM inventory_transactions WHERE stock_id = 9000;

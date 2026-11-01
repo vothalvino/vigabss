@@ -243,6 +243,7 @@ async function doBackup(trigger) {
     logger.warn('Remote backup not configured — backup saved locally only');
   }
 
+  require('../utils/opsMetrics').noteBackupSuccess();
   await finishRun({
     status: 'success',
     filename,
@@ -287,4 +288,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { backup, rotate, isRunning, BACKUP_DIR };
+module.exports = { backup, rotate, isRunning, runDump, BACKUP_DIR, MIN_BACKUP_BYTES };

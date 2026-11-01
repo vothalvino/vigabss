@@ -192,6 +192,7 @@ function schedule(task) {
       });
     } catch (err) {
       logger.error({ err, taskName: task.task_name }, 'Scheduler error on task');
+      require('../utils/opsMetrics').noteTaskRun(task.task_name, 'failed');
       await db.query(
         'UPDATE scheduled_tasks SET last_status = ? WHERE id = ?',
         ['failed', task.id],

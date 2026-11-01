@@ -126,7 +126,7 @@ working. New documentation uses the VigaBSS names.
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 364 tables + column additions)
-│   └── migrations/          # Individual numbered migration files (001–489)
+│   └── migrations/          # Individual numbered migration files (001–491)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -162,17 +162,16 @@ VigaBSS 0.1.0-alpha.1 uses MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 
 
 ### Quick Start
 
-Apply the full schema in one step:
+Create the database with the migration runner, which applies every file in `database/migrations/` in order and records each one in `schema_migrations`:
 
 ```bash
-mysql -u <user> -p <database_name> < database/schema.sql
+# DB_HOST, DB_USER, DB_PASSWORD and DB_NAME come from .env
+pnpm run migrate
 ```
 
-Or apply each migration in order:
+Production installs use `install.sh`, which runs the same migrations.
 
-```bash
-for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"; done
-```
+`database/schema.sql` is **not an installer** (DB-08). It is the structure reference that `sql:check`, `schema:parity` and the SQL test suite read. It mirrors the tables, columns, keys and triggers but not the seed rows the migrations insert: about 690 permissions and their role grants, and about 37 scheduled tasks. A database loaded from it has no working roles (every request is a 403) and no automation, and its empty `schema_migrations` makes `migrate` replay every file. Do not apply each migration with a raw `mysql` loop either: nothing is recorded in `schema_migrations`, so a later `migrate` runs them all again.
 
 ### Database Tables
 
@@ -733,6 +732,18 @@ for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"
 > **Upgrade — payment webhooks for isolated organizations (WHK-11):** Webhooks were always processed against the primary database, so an organization on its own (isolated) database never had a Stripe or Conekta payment posted from a webhook, and the install-wide URL could match another tenant's transaction by its id. Gateway webhook URLs now include the organization: `/api/v1/payment-webhooks/<provider>/<organizationId>/<gatewayId>` (Settings → Payment gateways shows it). **Isolated organizations must change the webhook URL in their Stripe/Conekta dashboard**; the old `/<provider>/<gatewayId>` URL now answers 404 for them and keeps working for shared-database organizations. On the install-wide URL, a checkout created from now on carries its organization in the signed metadata; events for older sessions are matched by gateway reference only.
 
 > **Upgrade — fresh installs no longer get demo data (OPS-03):** The installer used to run the development seed on every fresh install: a "Demo ISP" organization, the login `admin@demo-isp.com`, sample clients, five active contracts dated 2025 that the daily invoicing task back-billed, and an **active NAS at 10.0.0.1 with the RADIUS secret `testing123`**. Fresh installs now create only your organization (name and country prompted) and an administrator who logs in with the `EMAIL` you gave, and the initial password is removed from `.env.prod` once it has been shown. `seed.js` now refuses `NODE_ENV=production`. **Existing installs keep whatever the old installer created:** if you never removed the demo data, deactivate or delete the "Main NAS" (10.0.0.1, secret `testing123`) under Network → NAS now, cancel the demo contracts, void their invoices, and change the `admin@demo-isp.com` login to your own address. Older `.env.prod.bak-*` backups may still hold the initial password.
+
+> **Upgrade — Kubernetes secure defaults (OPS-16, OPS-17):** The Helm chart no longer renders its own Namespace (the documented `--create-namespace` now works; set `namespace.create=true` only for a namespace the release should own) and keeps the storage PVC on `helm uninstall`. `ingress.tls.enabled` now defaults to `true` and rendering fails without `ingress.tls.secretName` or `ingress.tls.clusterIssuer`. A NetworkPolicy admits HTTP only from `networkPolicy.ingressNamespaces` (default `ingress-nginx`) and `networkPolicy.metricsNamespaces` (default `monitoring`) — **set these to your controller's and Prometheus's namespaces before upgrading**, or the ingress cannot reach the app. Pods no longer mount a service-account token, `k8s/namespace.yaml` carries `restricted` Pod Security labels, `k8s/networkpolicy.yaml` is new, and both cosign policies accept release-tag images as well as `main`.
+
+> **Upgrade — a database backup before every migration (OPS-14):** `redeploy`, the GUI Update button and installer reruns stopped the app and ran forward-only migrations with no backup; the nightly backup covers only the primary database, not isolated tenant databases. They now dump every database with a pending migration (the primary and each isolated tenant) into `storage/backups/pre-migration-<timestamp>/` first, print the restore commands, and keep the newest three sets (`PRE_MIGRATION_BACKUP_KEEP`). If a dump fails nothing is migrated and the previous app is restarted. `PRE_MIGRATION_BACKUP=0` in `.env.prod` skips the backup for one run. Make sure the storage volume has room for a full dump.
+
+> **Upgrade — supporting images pinned and refreshed; nginx 1.30 (OPS-12):** `redis:7-alpine` and `nginx:1.27-alpine` floated, and `redeploy` pulled only the app image, so long-lived installs kept whatever `install.sh` first fetched; nginx 1.27 is an end-of-life mainline. Every third-party image in the compose files is now pinned by exact version and digest (Dependabot proposes bumps), the bundled nginx moves to the 1.30 stable line (`nginx/nginx.conf` uses `http2 on;` instead of the deprecated `listen … http2`), Redis to 7.4.12, and `redeploy` refreshes the supporting images on every run. The weekly security scan also reports on these images. If you keep your own copy of `nginx/nginx.conf`, make the same `http2` change.
+
+> **Upgrade — redeploy verifies the image signature and deploys by digest (OPS-08):** `redeploy` (and the GUI deploy agent that runs it) pulled a mutable tag and started it without checking the cosign signature CI writes. It now resolves the pulled image's digest, runs `cosign verify` against this repository's CI identity when cosign is installed, and starts the image by digest. Install cosign on the host and set `VIGABSS_VERIFY_SIGNATURE=required` in `.env.prod`; the default `auto` only warns when cosign is missing, and `off` is for rolling back to an image published before signing. See docs/deployment.md. CI also pins every GitHub Action to a commit SHA, `container-scan` no longer holds `id-token: write`, and only the tag-gated `helm-release` job can write repository contents.
+
+> **Upgrade — positive inventory adjustments add stock (TNA-34):** An `adjustment` transaction subtracted its quantity whatever the sign, so recording `+5` after a cycle count lowered on-hand stock by 5 while the ledger said `+5`; an adjustment into a new location started it at `-N`. Adjustments now apply their signed quantity (zero is rejected). Stock already distorted is not changed automatically: each positive adjustment left that location `2 × quantity` too low. List them with `SELECT stock_id, SUM(quantity) AS added FROM inventory_transactions WHERE transaction_type = 'adjustment' AND quantity > 0 GROUP BY stock_id;`, check each against a count, and correct it with a new adjustment.
+
+> **Migration 490 — SKUs, IP pools and device serials are unique per organization (DB-18):** `inventory_items.sku`, the `ip_pools` network/mask/version and `devices.serial_number` were unique across the whole install, so on a shared database a second tenant creating the same SKU, the same private pool or the same serial got a 409 that also revealed the value existed in another tenant. The keys are now `(organization_id, …, active_flag)`, as migration 359 did for invoice numbers. `ip_assignments` already keys on the pool, which belongs to one organization. `devices` keeps a plain index on `serial_number` for the TR-069 auto-link lookup. Rollback 490 restores the global keys and fails if two organizations now share a value.
 
 > **Migration 479 — session logging works again on MySQL 8.4 (critical):** Migration 457 gave the partitioned `connection_logs` table both a stored generated column (`retention_at`) and a before-insert trigger. On MySQL 8.4 (the version VigaBSS ships) that combination makes every insert fail with `Incorrect datetime value '0000-00-00 00:00:00.000' for column 'retention_at'`, so **no RADIUS session, usage or lawful-intercept record has been stored since 457 was applied**. `retention_at` becomes an ordinary column kept by the table's triggers, and existing rows are backfilled. Apply this migration as soon as possible. Sessions that started before it are not recoverable from VigaBSS; FreeRADIUS's own logs (if kept) are the only other source.
 

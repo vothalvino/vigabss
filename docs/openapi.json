@@ -24281,6 +24281,17 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Include soft-deleted rows (default false)"
+          }
+        ],
         "responses": {
           "200": {
             "description": "File download",
@@ -24306,6 +24317,17 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Include soft-deleted rows (default false)"
           }
         ],
         "responses": {
@@ -24335,6 +24357,17 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Include soft-deleted rows (default false)"
+          }
+        ],
         "responses": {
           "200": {
             "description": "File download",
@@ -24360,6 +24393,17 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Include soft-deleted rows (default false)"
           }
         ],
         "responses": {

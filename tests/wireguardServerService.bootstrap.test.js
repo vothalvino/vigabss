@@ -77,7 +77,8 @@ function routeExec({ ifaceUp = false, tableExists = false, linkAddError = null }
     }
     if (cmd === 'nft' && args[0] === 'list' && args[1] === 'table') {
       return tableExists
-        ? cb(null, { stdout: 'table inet fireisp_wg {}', stderr: '' })
+        // An already-hardened table (OPS-10): it carries the input chain.
+        ? cb(null, { stdout: 'table inet fireisp_wg { chain input {} }', stderr: '' })
         : cb(new Error('No such file or directory'));
     }
     // When the table already exists, the upgrade path queries the postrouting chain

@@ -4,6 +4,7 @@
 // Generates reports per schedule and emails them to recipients.
 // =============================================================================
 
+const { toCsv: sharedToCsv } = require('../utils/csv');
 const db = require('../config/database');
 const reportService = require('./reportService');
 const emailTransport = require('./emailTransport');
@@ -336,18 +337,9 @@ function fmtCell(v) {
 /**
  * Convert array of objects to CSV string.
  */
+// utils/csv neutralizes spreadsheet formulas in text cells (TNA-25).
 function toCSV(rows) {
-  if (!rows || rows.length === 0) return '';
-  const headers = Object.keys(rows[0]);
-  const escape = v => {
-    const s = fmtCell(v);
-    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const lines = [headers.map(escape).join(',')];
-  for (const row of rows) {
-    lines.push(headers.map(h => escape(row[h])).join(','));
-  }
-  return lines.join('\n');
+  return sharedToCsv(rows);
 }
 
 /**

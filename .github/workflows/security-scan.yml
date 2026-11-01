@@ -1,0 +1,147 @@
+name: Security scan
+
+# Advisories are published between commits. CI only scanned on a push or PR,
+# so a new HIGH in the lockfile or the shipped image surfaced whenever the
+# next unrelated change happened to run (OPS-07). This re-scans weekly, and
+# on demand, and opens an issue when something blocking appears.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_IMAGE: ghcr.io/vothalvino/vigabss
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read          # pull the published image
+      security-events: write  # publish SARIF to code scanning
+      issues: write           # open an issue when a blocking finding appears
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Scan the lockfile (production dependencies)
+        id: fs
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          version: v0.71.1
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+
+      - name: Scan the published image
+        id: image
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.RELEASE_IMAGE }}:latest
+          format: table
+          version: v0.71.1
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          vuln-type: os,library
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+
+      - name: Full image report (SARIF)
+        if: always()
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.RELEASE_IMAGE }}:latest
+          format: sarif
+          output: trivy-scheduled.sarif
+          version: v0.71.1
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          exit-code: 0
+          vuln-type: os,library
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+
+      - name: Publish SARIF to code scanning
+        if: always() && hashFiles('trivy-scheduled.sarif') != ''
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
+        with:
+          sarif_file: trivy-scheduled.sarif
+          category: trivy-scheduled
+
+      - name: Open an issue for a blocking finding
+        if: steps.fs.outcome == 'failure' || steps.image.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FS: ${{ steps.fs.outcome }}
+          IMAGE: ${{ steps.image.outcome }}
+        run: |
+          set -euo pipefail
+          title="Scheduled security scan: fixable HIGH/CRITICAL finding"
+          body="The weekly Trivy scan found a fixable HIGH or CRITICAL vulnerability (lockfile: ${FS}, published image: ${IMAGE}). The next PR's container-scan will block on it. Details: ${RUN_URL}"
+          existing=$(gh issue list --state open --search "in:title \"${title}\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
+
+      - name: Fail the run so it shows red
+        if: steps.fs.outcome == 'failure' || steps.image.outcome == 'failure'
+        run: exit 1
+
+  third-party-images:
+    # The images the compose files run besides the app (OPS-12). Report-only:
+    # upstream images often carry findings this repository cannot fix, so they
+    # go to code scanning instead of failing the run. Keep this list in step
+    # with docker-compose.prod.yml (tests/thirdPartyImages.test.js checks it).
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - mysql:8.4.9@sha256:c36050afdca850f23cef85703f84c7531a5ae155a11b5ee1c60acb09937c4084
+          - redis:7.4.12-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+          - nginx:1.30.6-alpine@sha256:0e52bd054126cdc040b1276c0af347aeb02a41b9cfe305d6094767ac30e97949
+          - chromadb/chroma:1.0.4@sha256:94227fc91f8bc5358ff72f8474375905e05b7c2dc8e7ec400aaeee70cc7f0348
+          - certbot/certbot:v5.7.0@sha256:34ee91d2f43008eb78a007d22f23ed4b2eaa9a454cb27ca2c042b49527a695b4
+    steps:
+      - name: Name the report
+        id: name
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: echo "slug=$(echo "${IMAGE%%@*}" | tr '/:.' '---')" >> "$GITHUB_OUTPUT"
+
+      - name: Scan ${{ matrix.image }}
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ matrix.image }}
+          format: sarif
+          output: trivy-third-party.sarif
+          version: v0.71.1
+          severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+          exit-code: 0
+          vuln-type: os,library
+          ignore-unfixed: true
+
+      - name: Publish SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
+        with:
+          sarif_file: trivy-third-party.sarif
+          category: trivy-${{ steps.name.outputs.slug }}
+

@@ -1176,10 +1176,10 @@ function generateSpec() {
       '/dr-drill/runbook': { get: { tags: ['DR Drill'], summary: 'Get the disaster-recovery runbook document (markdown)', operationId: 'getDrDrillRunbook', security: [{ bearerAuth: [] }], responses: r200('DR runbook markdown') } },
 
       // ---- Export ----
-      '/export/invoices': { get: { tags: ['Export'], summary: 'Export invoices as CSV', operationId: 'exportInvoices', security: [{ bearerAuth: [] }], responses: r200File('text/csv') } },
-      '/export/clients': { get: { tags: ['Export'], summary: 'Export clients as CSV', operationId: 'exportClients', security: [{ bearerAuth: [] }], responses: r200File('text/csv') } },
-      '/export/contracts': { get: { tags: ['Export'], summary: 'Export contracts as CSV', operationId: 'exportContracts', security: [{ bearerAuth: [] }], responses: r200File('text/csv') } },
-      '/export/payments': { get: { tags: ['Export'], summary: 'Export payments as CSV', operationId: 'exportPayments', security: [{ bearerAuth: [] }], responses: r200File('text/csv') } },
+      '/export/invoices': { get: { tags: ['Export'], summary: 'Export invoices as CSV', operationId: 'exportInvoices', security: [{ bearerAuth: [] }], parameters: [{ name: 'include_deleted', in: 'query', required: false, schema: { type: 'boolean' }, description: 'Include soft-deleted rows (default false)' }], responses: r200File('text/csv') } },
+      '/export/clients': { get: { tags: ['Export'], summary: 'Export clients as CSV', operationId: 'exportClients', security: [{ bearerAuth: [] }], parameters: [{ name: 'include_deleted', in: 'query', required: false, schema: { type: 'boolean' }, description: 'Include soft-deleted rows (default false)' }], responses: r200File('text/csv') } },
+      '/export/contracts': { get: { tags: ['Export'], summary: 'Export contracts as CSV', operationId: 'exportContracts', security: [{ bearerAuth: [] }], parameters: [{ name: 'include_deleted', in: 'query', required: false, schema: { type: 'boolean' }, description: 'Include soft-deleted rows (default false)' }], responses: r200File('text/csv') } },
+      '/export/payments': { get: { tags: ['Export'], summary: 'Export payments as CSV', operationId: 'exportPayments', security: [{ bearerAuth: [] }], parameters: [{ name: 'include_deleted', in: 'query', required: false, schema: { type: 'boolean' }, description: 'Include soft-deleted rows (default false)' }], responses: r200File('text/csv') } },
 
       // ---- Import ----
       '/import/clients': { post: { tags: ['Import'], summary: 'Bulk import clients from CSV', operationId: 'importClients', security: [{ bearerAuth: [] }], requestBody: jsonBody('csv'), responses: r200('ImportResult') } },

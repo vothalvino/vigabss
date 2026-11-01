@@ -472,15 +472,28 @@ async function readPeerHandshakes(iface) {
  *
  * Base structure:
  *   table inet fireisp_wg {
- *     chain forward  — hook forward, priority filter
- *       1. established/related from wg-fireisp→wg-clients: accept  (device replies)
+ *     chain forward  — hook forward, priority filter, policy DROP
+ *       1. anything → wg-clients, established/related: accept   (device and internet replies)
  *       2. wg-clients→wg-clients: drop                             (no lateral movement)
  *       3. wg-clients→wg-fireisp: jump wg_user_fwd                (per-user ACL)
  *       4. wg-clients→wg-fireisp: drop                            (default-deny terminal)
+ *       5. wg-clients→private/link-local/CGNAT/loopback: drop     (the app's Docker networks)
+ *       6. wg-clients→anything else: accept                       (full-tunnel internet)
+ *       everything else, e.g. a NAS peer routing onward: dropped by the policy
+ *     chain input  — hook input: a tunnel may reach this host only for
+ *       RADIUS auth/acct and SNMP traps (NAS side) and ICMP; nothing else,
+ *       in particular not the app's HTTP port
  *     chain wg_user_fwd  — per-user accept rules (managed by setUserForwardScope)
  *     chain postrouting  — hook postrouting, priority srcnat
  *       MASQUERADE clientSubnet→wg-fireisp so device replies route back
  *   }
+ *
+ * The hub shares the app container's network namespace (network_mode:
+ * service:app) with ip_forward on. The forward chain used to accept by
+ * default and there was no input chain, so a technician or a compromised NAS
+ * peer could route into the backend network (MySQL, Redis, ChromaDB) and
+ * reach the app's HTTP port directly with a forged X-Forwarded-For, around
+ * nginx and the admin IP allowlist (OPS-10).
  *
  * Why MASQUERADE: the NAS peer's allowed-address is serverSubnet only (Part 1
  * §4); device replies to 10.99.x would be dropped by cryptokey routing without
@@ -489,6 +502,44 @@ async function readPeerHandshakes(iface) {
  *
  * @returns {Promise<{applied:boolean, reason?:string}>}
  */
+const PRIVATE_V4 = '{ 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 127.0.0.0/8 }';
+const PRIVATE_V6 = '{ fc00::/7, fe80::/10, ::1/128 }';
+
+function snmpTrapPort() {
+  const port = Number.parseInt(String(process.env.SNMP_TRAP_PORT || '1620').trim(), 10);
+  return Number.isInteger(port) && port > 0 && port < 65536 ? port : 1620;
+}
+
+/** Rule bodies (without the chain header) for the forward and input chains. */
+function hubFilterRules(clientIface, serverIface) {
+  const udpPorts = [...new Set([config.radiusServer?.authPort || 1812, config.radiusServer?.acctPort || 1813, snmpTrapPort()])].join(', ');
+  return {
+    forward: [
+      '# Replies to a tunnel client, from a NAS or from the internet (full tunnel)',
+      `oifname "${clientIface}" ct state established,related accept`,
+      '# Kill technician-to-technician lateral movement',
+      `iifname "${clientIface}" oifname "${clientIface}" drop`,
+      '# Per-user accept rules managed by setUserForwardScope',
+      `iifname "${clientIface}" oifname "${serverIface}" jump wg_user_fwd`,
+      '# Default-deny terminal: all remaining wg-clients→wg-fireisp traffic is dropped',
+      `iifname "${clientIface}" oifname "${serverIface}" drop`,
+      '# Never into the private ranges behind this namespace (the Docker networks)',
+      `iifname "${clientIface}" ip daddr ${PRIVATE_V4} drop`,
+      `iifname "${clientIface}" ip6 daddr ${PRIVATE_V6} drop`,
+      '# Full-tunnel clients reach the internet',
+      `iifname "${clientIface}" accept`,
+    ],
+    input: [
+      `iifname { "${clientIface}", "${serverIface}" } ct state established,related accept`,
+      `iifname { "${clientIface}", "${serverIface}" } meta l4proto { icmp, ipv6-icmp } accept`,
+      '# NAS peers send RADIUS and SNMP traps to the hub address',
+      `iifname "${serverIface}" udp dport { ${udpPorts} } accept`,
+      '# Nothing else on this host is for tunnel peers, in particular not the app HTTP port',
+      `iifname { "${clientIface}", "${serverIface}" } drop`,
+    ],
+  };
+}
+
 async function ensureBaseFirewall() {
   if (!config.wireguard.serverEnabled) return { ...NOOP_RESULT };
   if (proxyToHelper) return callHelper('ensureBaseFirewall');
@@ -499,12 +550,15 @@ async function ensureBaseFirewall() {
 
   // Check whether our table already exists (nft exits non-zero if not found)
   let tableExists = false;
+  let tableDump = '';
   try {
-    await execFileAsync('nft', ['list', 'table', 'inet', 'fireisp_wg']);
+    const listed = await execFileAsync('nft', ['list', 'table', 'inet', 'fireisp_wg']);
+    tableDump = (listed && listed.stdout) || '';
     tableExists = true;
   } catch (_) {
     // Table not found — proceed with fresh installation
   }
+  const rules = hubFilterRules(clientIface, serverIface);
 
   if (tableExists) {
     // CRITICAL idempotent-upgrade: check whether the WAN-egress masquerade rule is
@@ -537,21 +591,42 @@ async function ensureBaseFirewall() {
         'wireguardServerService: ensureBaseFirewall upgrade check failed (non-fatal)',
       );
     }
+
+    // OPS-10 upgrade: hubs installed before the input chain have an
+    // accept-by-default forward chain. Rebuild forward (the wg_user_fwd chain
+    // and the per-user sets are untouched) and add input, in one atomic script.
+    if (!/\bchain input\b/.test(tableDump)) {
+      const script = [
+        'flush chain inet fireisp_wg forward',
+        'add chain inet fireisp_wg forward { type filter hook forward priority filter; policy drop; }',
+        ...rules.forward.filter((r) => !r.startsWith('#')).map((r) => `add rule inet fireisp_wg forward ${r}`),
+        'add chain inet fireisp_wg input { type filter hook input priority filter; policy accept; }',
+        ...rules.input.filter((r) => !r.startsWith('#')).map((r) => `add rule inet fireisp_wg input ${r}`),
+      ].join('\n');
+      const tmpFile = writeTmpFile(script);
+      try {
+        await execFileAsync('nft', ['-f', tmpFile]);
+        logger.info({ clientIface, serverIface }, 'wireguardServerService: hub firewall hardened (forward default-deny, input chain)');
+      } catch (err) {
+        logger.error({ err: err.message }, 'wireguardServerService: hub firewall hardening failed');
+        throw err;
+      } finally {
+        unlinkSafe(tmpFile);
+      }
+      return { applied: true, reason: 'fireisp_wg table upgraded: forward default-deny and input chain' };
+    }
     return { applied: false, reason: 'fireisp_wg table already installed' };
   }
 
   const nftConfig = [
     'table inet fireisp_wg {',
     '  chain forward {',
-    '    type filter hook forward priority filter; policy accept;',
-    '    # Device-to-user replies: allow established/related returning from the NAS side',
-    `    iifname "${serverIface}" oifname "${clientIface}" ct state established,related accept`,
-    '    # Kill technician-to-technician lateral movement',
-    `    iifname "${clientIface}" oifname "${clientIface}" drop`,
-    '    # Per-user accept rules managed by setUserForwardScope',
-    `    iifname "${clientIface}" oifname "${serverIface}" jump wg_user_fwd`,
-    '    # Default-deny terminal: all remaining wg-clients→wg-fireisp traffic is dropped',
-    `    iifname "${clientIface}" oifname "${serverIface}" drop`,
+    '    type filter hook forward priority filter; policy drop;',
+    ...rules.forward.map((r) => `    ${r}`),
+    '  }',
+    '  chain input {',
+    '    type filter hook input priority filter; policy accept;',
+    ...rules.input.map((r) => `    ${r}`),
     '  }',
     '  chain wg_user_fwd {',
     '    # Populated by wireguardServerService.setUserForwardScope()',

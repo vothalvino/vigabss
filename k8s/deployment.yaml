@@ -27,6 +27,8 @@ spec:
         app.kubernetes.io/component: api
     spec:
       terminationGracePeriodSeconds: 30
+      # The app never calls the Kubernetes API (OPS-17).
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

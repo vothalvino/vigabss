@@ -420,6 +420,24 @@ pull** until it succeeds, up to `VIGABSS_IMAGE_WAIT` seconds (default `600`,
 VIGABSS_IMAGE_WAIT=1800 sudo -E redeploy    # note -E: sudo strips the variable otherwise
 ```
 
+After the pull, `redeploy` checks the image's signature and **deploys it by
+digest** (OPS-08). CI signs each published manifest list with keyless cosign;
+`redeploy` runs `cosign verify` and requires the signature to come from this
+repository's `.github/workflows/ci.yml` on `main` or a `v*` tag. Compose is
+then handed `ghcr.io/vothalvino/vigabss@sha256:…`, so the image that starts is
+the one that was checked, whatever the tag points at later. Set the mode in
+`.env.prod`:
+
+```bash
+VIGABSS_VERIFY_SIGNATURE=auto       # default: verify when cosign is installed, warn when not
+VIGABSS_VERIFY_SIGNATURE=required   # refuse to deploy unless the signature verifies
+VIGABSS_VERIFY_SIGNATURE=off        # one-off: roll back to an image published before signing
+```
+
+Install cosign on the host ([instructions](https://docs.sigstore.dev/cosign/system_config/installation/))
+and switch to `required`. The GUI deploy agent runs `redeploy`, so it gets the
+same check.
+
 It retries the real pull rather than probing first, because **GHCR answers
 `401 unauthorized` for a tag that does not exist**, not `404`. A not-yet-built
 image is therefore indistinguishable by message from a private package, and
@@ -1881,6 +1899,23 @@ cosignPolicy:
   enabled: true           # requires sigstore policy-controller CRDs
 ```
 
+Secure defaults (OPS-17):
+
+- **TLS is required.** `ingress.tls.enabled` defaults to `true` and rendering
+  fails until `ingress.tls.secretName` or `ingress.tls.clusterIssuer` is set:
+  the auth cookies are `Secure` in production, so a plain-HTTP login cannot
+  keep its session.
+- **NetworkPolicy.** The app accepts HTTP only from the `ingressNamespaces`
+  (default `ingress-nginx`) and `metricsNamespaces` (default `monitoring`) under
+  `networkPolicy`. Adjust them to your controller's and Prometheus's namespaces,
+  or the ingress returns 502/504.
+- **Pod Security.** The pod meets the `restricted` profile. A namespace created
+  with `--create-namespace` carries no PSA labels; add them with
+  `kubectl label ns fireisp pod-security.kubernetes.io/enforce=restricted`.
+- **No service-account token** is mounted; the app never calls the Kubernetes API.
+- **Signed images.** The cosign policy accepts images signed by CI on `main` or
+  a `v*` release tag, so the released chart's tag passes.
+
 ### Running Migrations
 
 The chart's pre-start init container runs migrations automatically, including
@@ -1905,9 +1940,9 @@ helm upgrade fireisp fireisp/fireisp \
 
 ```bash
 helm uninstall fireisp --namespace fireisp
-# The PVC is NOT deleted by default (Helm preserves PVCs by default). The
-# Secret also has helm.sh/resource-policy: keep — delete both manually if
-# doing a full teardown.
+# The storage PVC and the Secret carry helm.sh/resource-policy: keep, so an
+# uninstall leaves them (and the namespace, which --create-namespace made)
+# in place. Delete them manually for a full teardown.
 kubectl delete pvc -n fireisp fireisp-storage
 ```
 

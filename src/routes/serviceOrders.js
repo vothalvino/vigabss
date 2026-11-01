@@ -27,7 +27,7 @@ const lifecycleService = require('../services/lifecycleService');
 const { assertPlanSelectable } = require('../services/planAvailability');
 const auditLog = require('../services/auditLog');
 const db = require('../config/database');
-const { NotFoundError, ValidationError, ForbiddenError } = require('../utils/errors');
+const { NotFoundError, ValidationError, ForbiddenError, ConflictError } = require('../utils/errors');
 
 const router = Router();
 
@@ -122,9 +122,9 @@ router.get('/', requirePermission('service_orders.view'), async (req, res, next)
     }
 
     // Generic column filters — same allowlist crudController/BaseModel.findAll
-    // uses (fillable columns, plus id/status/organization_id).
+    // uses (fillable columns, plus id/status/organization_id/order_number).
     for (const [col, val] of Object.entries(filters)) {
-      if (ServiceOrder.fillable.includes(col) || col === 'id' || col === 'status' || col === 'organization_id') {
+      if (ServiceOrder.fillable.includes(col) || ['id', 'status', 'organization_id', 'order_number'].includes(col)) {
         conditions.push(`so.\`${col}\` = ?`);
         params.push(val);
       }
@@ -168,6 +168,15 @@ router.post('/', requirePermission('service_orders.create'), validate(createServ
     // Reject a cross-org client/lead/plan/contract before writing anything.
     await assertServiceOrderFks(req.body, req.orgId);
 
+    // A caller-chosen number that a live order holds is a 409 naming that
+    // order, not a bare duplicate-key error.
+    if (req.body.order_number) {
+      const [[held]] = await conn.query(
+        'SELECT id FROM service_orders WHERE organization_id <=> ? AND order_number = ? AND deleted_at IS NULL LIMIT 1',
+        [req.orgId ?? null, req.body.order_number],
+      );
+      if (held) throw new ConflictError(`Order number ${req.body.order_number} is already used by service order #${held.id}`);
+    }
     const orderNumber = req.body.order_number || await lifecycleService.nextOrderNumber(conn, req.orgId);
 
     const filtered = {};

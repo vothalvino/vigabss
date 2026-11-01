@@ -1,6 +1,20 @@
+{{- /*
+The release namespace is normally created by `helm install --create-namespace`,
+as docs/deployment.md does. Rendering it here as well made that command fail
+(AlreadyExists, or Helm's ownership check), and an uninstall then deleted the
+namespace with everything in it (OPS-16). Opt in only for a namespace this
+release should own.
+*/ -}}
+{{- if .Values.namespace.create }}
 apiVersion: v1
 kind: Namespace
 metadata:
   name: {{ .Release.Namespace }}
   labels:
     {{- include "fireisp.labels" . | nindent 4 }}
+    # The pod meets the restricted profile: non-root, RuntimeDefault seccomp,
+    # no privilege escalation, every capability dropped (OPS-17).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+{{- end }}

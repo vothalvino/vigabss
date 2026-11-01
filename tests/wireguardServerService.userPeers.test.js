@@ -327,8 +327,8 @@ describe('ensureBaseFirewall()', () => {
   });
 
   test('is idempotent — returns {applied:false} and skips nft -f when WAN masq rule already present', async () => {
-    // Call 1: nft list table → table already installed
-    okOnce('table inet fireisp_wg {}');
+    // Call 1: nft list table → table already installed and hardened (OPS-10)
+    okOnce('table inet fireisp_wg { chain input {} }');
     // Call 2: nft list chain postrouting → chain dump CONTAINS both the clientSubnet
     // (10.99.0.0/16) AND the oifname != negation pattern (WAN masq already installed)
     okOnce('chain inet fireisp_wg postrouting { ip saddr 10.99.0.0/16 oifname != { "wg-clients", "wg-fireisp" } masquerade }');
@@ -342,8 +342,8 @@ describe('ensureBaseFirewall()', () => {
   });
 
   test('adds WAN masq rule when table exists but postrouting chain lacks it', async () => {
-    // Call 1: nft list table → table exists
-    okOnce('table inet fireisp_wg {}');
+    // Call 1: nft list table → table exists (already hardened, OPS-10)
+    okOnce('table inet fireisp_wg { chain input {} }');
     // Call 2: nft list chain postrouting → chain exists but WAN masq rule is ABSENT
     okOnce('chain inet fireisp_wg postrouting { ip saddr 10.99.0.0/16 oifname "wg-fireisp" masquerade }');
     // Call 3: nft -f <tmpFile> to add the WAN masq rule
@@ -394,6 +394,57 @@ describe('ensureBaseFirewall()', () => {
     // The fresh install must include BOTH the per-serverIface masq AND the WAN masq
     expect(nftContent).toMatch(/oifname "wg-fireisp".*masquerade/s);
     expect(nftContent).toMatch(/oifname != \{[^}]+\}.*masquerade/s);
+  });
+
+  // OPS-10: the hub shares the app's network namespace. A forward chain that
+  // accepted by default, and no input chain, let a tunnel peer reach the
+  // Docker backend (MySQL, Redis, ChromaDB) and the app's HTTP port.
+  describe('hub isolation (OPS-10)', () => {
+    async function freshInstall() {
+      const { writeFileSync } = require('fs');
+      failOnce('table not found');
+      okOnce();
+      await service.ensureBaseFirewall();
+      return writeFileSync.mock.calls[0][1];
+    }
+
+    test('forward drops by default and keeps clients out of private ranges', async () => {
+      const nft = await freshInstall();
+      expect(nft).toMatch(/chain forward \{\s+type filter hook forward priority filter; policy drop;/);
+      expect(nft).not.toMatch(/policy accept;[^\n]*\n[^\n]*Replies to a tunnel client/);
+      const privateDrop = nft.indexOf('iifname "wg-clients" ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 127.0.0.0/8 } drop');
+      const internet = nft.indexOf('iifname "wg-clients" accept');
+      expect(privateDrop).toBeGreaterThan(-1);
+      expect(internet).toBeGreaterThan(privateDrop);
+      // Nothing in forward accepts traffic a NAS peer starts.
+      const forward = nft.slice(nft.indexOf('chain forward {'), nft.indexOf('chain input {'));
+      expect(forward).not.toMatch(/iifname "wg-fireisp"[^\n]*accept/);
+    });
+
+    test('input lets NAS peers reach only RADIUS and SNMP traps, and nothing reach the HTTP port', async () => {
+      const nft = await freshInstall();
+      const input = nft.slice(nft.indexOf('chain input {'), nft.indexOf('chain wg_user_fwd'));
+      expect(input).toMatch(/iifname "wg-fireisp" udp dport \{ 1812, 1813, 1620 \} accept/);
+      expect(input).toMatch(/iifname \{ "wg-clients", "wg-fireisp" \} drop/);
+      expect(input).not.toMatch(/tcp/);
+    });
+
+    test('an existing unhardened table is upgraded in one script that keeps the per-user rules', async () => {
+      const { writeFileSync } = require('fs');
+      okOnce('table inet fireisp_wg { chain forward { policy accept; } chain wg_user_fwd { ip saddr 10.99.0.5 accept } }');
+      okOnce('chain inet fireisp_wg postrouting { ip saddr 10.99.0.0/16 oifname != { "wg-clients", "wg-fireisp" } masquerade }');
+      okOnce();
+
+      const result = await service.ensureBaseFirewall();
+
+      expect(result).toMatchObject({ applied: true });
+      const script = writeFileSync.mock.calls[0][1];
+      expect(script.split('\n')[0]).toBe('flush chain inet fireisp_wg forward');
+      expect(script).toMatch(/add chain inet fireisp_wg forward \{ type filter hook forward priority filter; policy drop; \}/);
+      expect(script).toMatch(/add rule inet fireisp_wg forward iifname "wg-clients" oifname "wg-fireisp" jump wg_user_fwd/);
+      expect(script).toMatch(/add chain inet fireisp_wg input/);
+      expect(script).not.toMatch(/flush chain inet fireisp_wg wg_user_fwd|delete/);
+    });
   });
 
   test('returns NOOP result and never calls execFile when serverEnabled=false', async () => {

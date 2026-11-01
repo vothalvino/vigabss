@@ -5,40 +5,26 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { toCsv: csvToCsv } = require('../utils/csv');
 
-/**
- * Converts an array of objects to a CSV string.
- */
-// DATE/DATETIME columns arrive from mysql2 as JS Date objects; String(d) dumps
-// "Wed Aug 12 2026 00:00:00 GMT+0000 (Coordinated Universal Time)" into every
-// date cell. Format ISO instead — a DATE column is UTC midnight, so render it
-// as the bare day; anything with a time keeps "YYYY-MM-DD HH:mm:ss".
-function fmtCell(val) {
-  if (!(val instanceof Date)) return String(val);
-  const iso = val.toISOString();
-  return iso.endsWith('T00:00:00.000Z') ? iso.slice(0, 10) : `${iso.slice(0, 10)} ${iso.slice(11, 19)}`;
+// Cells are written by utils/csv, which neutralizes spreadsheet formulas
+// (TNA-25). Soft-deleted rows are left out unless ?include_deleted=true, and
+// each export is recorded in report_access_logs (it carries client PII).
+const toCsv = (rows) => csvToCsv(rows);
+
+function includeDeleted(req) {
+  return String(req.query?.include_deleted) === 'true';
 }
 
-function toCsv(rows) {
-  if (rows.length === 0) return '';
-  const headers = Object.keys(rows[0]);
-  const lines = [headers.join(',')];
-
-  for (const row of rows) {
-    const values = headers.map(h => {
-      const val = row[h];
-      if (val === null || val === undefined) return '';
-      const str = fmtCell(val);
-      // Escape commas, quotes, newlines
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    });
-    lines.push(values.join(','));
-  }
-
-  return lines.join('\n');
+async function logExport(req, entityType, rowCount) {
+  await db.query(
+    `INSERT INTO report_access_logs
+       (organization_id, user_id, api_token_id, report_type, entity_type, parameters, ip_address, user_agent, accessed_at)
+     VALUES (?, ?, ?, 'csv_export', ?, ?, ?, ?, NOW())`,
+    [req.orgId ?? null, req.user?.id ?? null, req.user?.apiTokenId ?? null, entityType,
+      JSON.stringify({ include_deleted: includeDeleted(req), row_count: rowCount }),
+      req.ip || null, (typeof req.get === 'function' && req.get('user-agent')) || null],
+  );
 }
 
 /**
@@ -51,12 +37,13 @@ async function exportInvoices(req, res, next) {
               i.subtotal, i.tax_amount, i.total, i.currency, i.status, i.due_date, i.created_at
        FROM invoices i
        LEFT JOIN clients cl ON cl.id = i.client_id
-       WHERE i.organization_id = ?
+       WHERE i.organization_id = ?${includeDeleted(req) ? '' : ' AND i.deleted_at IS NULL'}
        ORDER BY i.created_at DESC`,
       [req.orgId],
     );
 
     res.set('Content-Type', 'text/csv');
+    await logExport(req, 'invoices', rows.length);
     res.set('Content-Disposition', 'attachment; filename="invoices.csv"');
     res.send(toCsv(rows));
   } catch (err) {
@@ -72,12 +59,13 @@ async function exportClients(req, res, next) {
     const [rows] = await db.query(
       `SELECT id, name, email, phone, status, locale, country, city, state, created_at
        FROM clients
-       WHERE organization_id = ?
+       WHERE organization_id = ?${includeDeleted(req) ? '' : ' AND deleted_at IS NULL'}
        ORDER BY name`,
       [req.orgId],
     );
 
     res.set('Content-Type', 'text/csv');
+    await logExport(req, 'clients', rows.length);
     res.set('Content-Disposition', 'attachment; filename="clients.csv"');
     res.send(toCsv(rows));
   } catch (err) {
@@ -96,12 +84,13 @@ async function exportContracts(req, res, next) {
        FROM contracts c
        JOIN clients cl ON cl.id = c.client_id
        JOIN plans p ON p.id = c.plan_id
-       WHERE c.organization_id = ?
+       WHERE c.organization_id = ?${includeDeleted(req) ? '' : ' AND c.deleted_at IS NULL'}
        ORDER BY c.created_at DESC`,
       [req.orgId],
     );
 
     res.set('Content-Type', 'text/csv');
+    await logExport(req, 'contracts', rows.length);
     res.set('Content-Disposition', 'attachment; filename="contracts.csv"');
     res.send(toCsv(rows));
   } catch (err) {
@@ -119,12 +108,13 @@ async function exportPayments(req, res, next) {
               p.amount, p.currency, p.payment_method, p.payment_date, p.reference_number, p.status, p.created_at
        FROM payments p
        LEFT JOIN clients cl ON cl.id = p.client_id
-       WHERE p.organization_id = ?
+       WHERE p.organization_id = ?${includeDeleted(req) ? '' : ' AND p.deleted_at IS NULL'}
        ORDER BY p.created_at DESC`,
       [req.orgId],
     );
 
     res.set('Content-Type', 'text/csv');
+    await logExport(req, 'payments', rows.length);
     res.set('Content-Disposition', 'attachment; filename="payments.csv"');
     res.send(toCsv(rows));
   } catch (err) {
