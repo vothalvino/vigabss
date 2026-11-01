@@ -550,71 +550,17 @@ async function ensureBaseFirewall() {
 
   // Check whether our table already exists (nft exits non-zero if not found)
   let tableExists = false;
-  let tableDump = '';
   try {
-    const listed = await execFileAsync('nft', ['list', 'table', 'inet', 'fireisp_wg']);
-    tableDump = (listed && listed.stdout) || '';
+    await execFileAsync('nft', ['list', 'table', 'inet', 'fireisp_wg']);
     tableExists = true;
   } catch (_) {
     // Table not found — proceed with fresh installation
   }
   const rules = hubFilterRules(clientIface, serverIface);
 
+  // The table is created once per hub network namespace, atomically, by the
+  // script below, so an existing table already has this ruleset.
   if (tableExists) {
-    // CRITICAL idempotent-upgrade: check whether the WAN-egress masquerade rule is
-    // present in the postrouting chain. Hubs deployed before this rule was added
-    // early-returned here and never got it; we now ensure it on every startup.
-    try {
-      const { stdout: chainDump } = await execFileAsync('nft', [
-        'list', 'chain', 'inet', 'fireisp_wg', 'postrouting',
-      ]);
-      // The WAN-masq rule is identified by the clientSubnet src-addr AND the
-      // `oifname !=` negation pattern (the per-serverIface masq uses `oifname "..."`,
-      // without `!=`, so this distinguishes the two rules reliably).
-      const hasWanMasq = chainDump.includes(clientSubnet) && chainDump.includes('oifname !=');
-      if (!hasWanMasq) {
-        const ruleContent = `add rule inet fireisp_wg postrouting ip saddr ${clientSubnet} oifname != { "${clientIface}", "${serverIface}" } masquerade`;
-        const tmpFile = writeTmpFile(ruleContent);
-        try {
-          await execFileAsync('nft', ['-f', tmpFile]);
-        } finally {
-          unlinkSafe(tmpFile);
-        }
-        logger.info(
-          { clientSubnet, clientIface, serverIface },
-          'wireguardServerService: WAN-egress masquerade rule added to existing fireisp_wg table',
-        );
-      }
-    } catch (err) {
-      logger.warn(
-        { err: err.message },
-        'wireguardServerService: ensureBaseFirewall upgrade check failed (non-fatal)',
-      );
-    }
-
-    // OPS-10 upgrade: hubs installed before the input chain have an
-    // accept-by-default forward chain. Rebuild forward (the wg_user_fwd chain
-    // and the per-user sets are untouched) and add input, in one atomic script.
-    if (!/\bchain input\b/.test(tableDump)) {
-      const script = [
-        'flush chain inet fireisp_wg forward',
-        'add chain inet fireisp_wg forward { type filter hook forward priority filter; policy drop; }',
-        ...rules.forward.filter((r) => !r.startsWith('#')).map((r) => `add rule inet fireisp_wg forward ${r}`),
-        'add chain inet fireisp_wg input { type filter hook input priority filter; policy accept; }',
-        ...rules.input.filter((r) => !r.startsWith('#')).map((r) => `add rule inet fireisp_wg input ${r}`),
-      ].join('\n');
-      const tmpFile = writeTmpFile(script);
-      try {
-        await execFileAsync('nft', ['-f', tmpFile]);
-        logger.info({ clientIface, serverIface }, 'wireguardServerService: hub firewall hardened (forward default-deny, input chain)');
-      } catch (err) {
-        logger.error({ err: err.message }, 'wireguardServerService: hub firewall hardening failed');
-        throw err;
-      } finally {
-        unlinkSafe(tmpFile);
-      }
-      return { applied: true, reason: 'fireisp_wg table upgraded: forward default-deny and input chain' };
-    }
     return { applied: false, reason: 'fireisp_wg table already installed' };
   }
 

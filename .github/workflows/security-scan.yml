@@ -101,11 +101,28 @@ jobs:
         if: steps.fs.outcome == 'failure' || steps.image.outcome == 'failure'
         run: exit 1
 
+  third-party-image-list:
+    # Read from docker-compose.prod.yml, so a Dependabot pin bump is scanned
+    # without editing this file (a copied list went stale on every bump).
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.list.outputs.images }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: List the third-party images
+        id: list
+        run: |
+          set -euo pipefail
+          images=$(grep -E '^\s+image:\s' docker-compose.prod.yml | awk '{print $2}' | grep -v 'VIGABSS_IMAGE' | sort -u \
+            | jq -R . | jq -sc .)
+          echo "images=${images}" >> "$GITHUB_OUTPUT"
+          echo "$images"
+
   third-party-images:
     # The images the compose files run besides the app (OPS-12). Report-only:
     # upstream images often carry findings this repository cannot fix, so they
-    # go to code scanning instead of failing the run. Keep this list in step
-    # with docker-compose.prod.yml (tests/thirdPartyImages.test.js checks it).
+    # go to code scanning instead of failing the run.
+    needs: third-party-image-list
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -113,12 +130,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image:
-          - mysql:8.4.9@sha256:c36050afdca850f23cef85703f84c7531a5ae155a11b5ee1c60acb09937c4084
-          - redis:7.4.12-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
-          - nginx:1.30.6-alpine@sha256:0e52bd054126cdc040b1276c0af347aeb02a41b9cfe305d6094767ac30e97949
-          - chromadb/chroma:1.0.4@sha256:94227fc91f8bc5358ff72f8474375905e05b7c2dc8e7ec400aaeee70cc7f0348
-          - certbot/certbot:v5.7.0@sha256:34ee91d2f43008eb78a007d22f23ed4b2eaa9a454cb27ca2c042b49527a695b4
+        image: ${{ fromJSON(needs.third-party-image-list.outputs.images) }}
     steps:
       - name: Name the report
         id: name

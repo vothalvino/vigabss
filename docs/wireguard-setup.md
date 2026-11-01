@@ -161,9 +161,6 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
     reachable from a tunnel, so a peer cannot bypass nginx or the admin IP allowlist
     with a forged `X-Forwarded-For`.
 
-  Hubs created before this rule set are upgraded the next time the app starts: the
-  forward chain is rebuilt and the input chain added in one atomic `nft` script, and the
-  per-user sets are kept. Confirm with
-  `… exec wireguard-helper nft list table inet fireisp_wg`: `policy drop` on `forward`,
-  and a `chain input`.
+  Confirm with `… exec wireguard-helper nft list table inet fireisp_wg`: `policy drop`
+  on `forward`, and a `chain input`.
 

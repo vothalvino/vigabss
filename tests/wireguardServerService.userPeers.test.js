@@ -326,60 +326,15 @@ describe('ensureBaseFirewall()', () => {
     expect(nftContent).toMatch(/iifname "wg-clients".*oifname "wg-clients".*drop/s);
   });
 
-  test('is idempotent — returns {applied:false} and skips nft -f when WAN masq rule already present', async () => {
-    // Call 1: nft list table → table already installed and hardened (OPS-10)
-    okOnce('table inet fireisp_wg { chain input {} }');
-    // Call 2: nft list chain postrouting → chain dump CONTAINS both the clientSubnet
-    // (10.99.0.0/16) AND the oifname != negation pattern (WAN masq already installed)
-    okOnce('chain inet fireisp_wg postrouting { ip saddr 10.99.0.0/16 oifname != { "wg-clients", "wg-fireisp" } masquerade }');
+  test('is idempotent — returns {applied:false} and runs nothing when the table already exists', async () => {
+    okOnce('table inet fireisp_wg {}');
 
     const result = await service.ensureBaseFirewall();
 
     expect(result).toMatchObject({ applied: false });
     expect(result.reason).toBeTruthy();
-    // Two execFile calls: table check + chain check; no nft -f since rule already present
-    expect(execFile).toHaveBeenCalledTimes(2);
-  });
-
-  test('adds WAN masq rule when table exists but postrouting chain lacks it', async () => {
-    // Call 1: nft list table → table exists (already hardened, OPS-10)
-    okOnce('table inet fireisp_wg { chain input {} }');
-    // Call 2: nft list chain postrouting → chain exists but WAN masq rule is ABSENT
-    okOnce('chain inet fireisp_wg postrouting { ip saddr 10.99.0.0/16 oifname "wg-fireisp" masquerade }');
-    // Call 3: nft -f <tmpFile> to add the WAN masq rule
-    okOnce();
-
-    const result = await service.ensureBaseFirewall();
-
-    expect(result).toMatchObject({ applied: false });
-    // Three execFile calls: table check + chain dump + nft -f to add the rule
-    expect(execFile).toHaveBeenCalledTimes(3);
-
-    // The third call must be nft -f with a temp file
-    expect(execFile).toHaveBeenNthCalledWith(
-      3,
-      'nft', ['-f', expect.stringContaining('fireisp-wg-')],
-      expect.any(Object),
-      expect.any(Function),
-    );
-  });
-
-  test('WAN masq upgrade script contains oifname != pattern and clientSubnet', async () => {
-    const { writeFileSync } = require('fs');
-    // Table exists; chain dump lacks the WAN masq rule
-    okOnce('table inet fireisp_wg {}');
-    okOnce('chain inet fireisp_wg postrouting { }');
-    okOnce();
-
-    await service.ensureBaseFirewall();
-
-    // writeFileSync should have been called with the upgrade rule fragment
-    expect(writeFileSync).toHaveBeenCalled();
-    const [, upgradeContent] = writeFileSync.mock.calls[0];
-    expect(upgradeContent).toMatch(/add rule inet fireisp_wg postrouting/);
-    expect(upgradeContent).toMatch(/10\.99\.0\.0\/16/);   // clientSubnet
-    expect(upgradeContent).toMatch(/oifname !=/);          // WAN exclusion pattern
-    expect(upgradeContent).toMatch(/masquerade/);
+    // Only the table check: an existing table was created by this ruleset.
+    expect(execFile).toHaveBeenCalledTimes(1);
   });
 
   test('fresh install nft content includes WAN masq rule (oifname != pattern)', async () => {
@@ -427,23 +382,6 @@ describe('ensureBaseFirewall()', () => {
       expect(input).toMatch(/iifname "wg-fireisp" udp dport \{ 1812, 1813, 1620 \} accept/);
       expect(input).toMatch(/iifname \{ "wg-clients", "wg-fireisp" \} drop/);
       expect(input).not.toMatch(/tcp/);
-    });
-
-    test('an existing unhardened table is upgraded in one script that keeps the per-user rules', async () => {
-      const { writeFileSync } = require('fs');
-      okOnce('table inet fireisp_wg { chain forward { policy accept; } chain wg_user_fwd { ip saddr 10.99.0.5 accept } }');
-      okOnce('chain inet fireisp_wg postrouting { ip saddr 10.99.0.0/16 oifname != { "wg-clients", "wg-fireisp" } masquerade }');
-      okOnce();
-
-      const result = await service.ensureBaseFirewall();
-
-      expect(result).toMatchObject({ applied: true });
-      const script = writeFileSync.mock.calls[0][1];
-      expect(script.split('\n')[0]).toBe('flush chain inet fireisp_wg forward');
-      expect(script).toMatch(/add chain inet fireisp_wg forward \{ type filter hook forward priority filter; policy drop; \}/);
-      expect(script).toMatch(/add rule inet fireisp_wg forward iifname "wg-clients" oifname "wg-fireisp" jump wg_user_fwd/);
-      expect(script).toMatch(/add chain inet fireisp_wg input/);
-      expect(script).not.toMatch(/flush chain inet fireisp_wg wg_user_fwd|delete/);
     });
   });
 

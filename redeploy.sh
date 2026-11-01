@@ -556,7 +556,7 @@ install_deploy_agent() {
 # VIGABSS_VERIFY_SIGNATURE (environment or .env.prod):
 #   auto      (default) verify when cosign is installed; warn when it is not
 #   required  refuse to deploy unless the signature verifies
-#   off       skip (e.g. rolling back to an image published before signing)
+#   off       skip, for one run (e.g. while Sigstore cannot be reached)
 VERIFY_SIGNATURE="${VIGABSS_VERIFY_SIGNATURE:-${FIREISP_VERIFY_SIGNATURE:-}}"
 COSIGN_IDENTITY_REGEXP='^https://github.com/vothalvino/vigabss/.github/workflows/ci.yml@refs/(heads/main|tags/v.*)$'
 COSIGN_OIDC_ISSUER='https://token.actions.githubusercontent.com'
@@ -599,7 +599,7 @@ verify_image_signature() {
         --certificate-identity-regexp "$COSIGN_IDENTITY_REGEXP" \
         "$digest_ref" >/dev/null; then
       echo "error: ${digest_ref} is not signed by this repository's CI (ci.yml on main or a v* tag). Not deploying it." >&2
-      echo "       To roll back to an image published before signing, set VIGABSS_VERIFY_SIGNATURE=off in .env.prod for that run." >&2
+      echo "       If Sigstore is unreachable, VIGABSS_VERIFY_SIGNATURE=off in .env.prod skips the check for one run." >&2
       return 1
     fi
     echo "    signature verified"

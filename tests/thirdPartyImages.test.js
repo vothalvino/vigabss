@@ -32,11 +32,19 @@ test('the bundled nginx is on the current stable line, not the end-of-life 1.27 
   expect(read('nginx/nginx.conf')).not.toMatch(/^\s*listen\b[^;\n]*\bhttp2\b/m);
 });
 
-test('the scheduled scan covers exactly the production third-party images', () => {
+test('the scheduled scan reads its image list from docker-compose.prod.yml', () => {
   const sched = read('.github/workflows/security-scan.yml');
-  const block = sched.slice(sched.indexOf('  third-party-images:'));
-  const scanned = [...block.matchAll(/^\s+- (\S+@sha256:[0-9a-f]{64})$/gm)].map((m) => m[1]).sort();
-  expect(scanned).toEqual([...new Set(thirdParty('docker-compose.prod.yml'))].sort());
+  const list = sched.slice(sched.indexOf('  third-party-image-list:'), sched.indexOf('  third-party-images:'));
+  expect(list).toMatch(/grep -E '\^\\s\+image:\\s' docker-compose\.prod\.yml/);
+  expect(list).toMatch(/grep -v 'VIGABSS_IMAGE'/);
+  expect(sched).toMatch(/image: \$\{\{ fromJSON\(needs\.third-party-image-list\.outputs\.images\) \}\}/);
+
+  // The same filter, run here, yields exactly the pinned third-party images.
+  const derived = [...new Set(read('docker-compose.prod.yml').split('\n')
+    .filter((l) => /^\s+image:\s/.test(l)).map((l) => l.trim().split(/\s+/)[1])
+    .filter((i) => !i.includes('VIGABSS_IMAGE')))].sort();
+  expect(derived).toEqual([...new Set(thirdParty('docker-compose.prod.yml'))].sort());
+  expect(derived.length).toBeGreaterThanOrEqual(5);
 });
 
 test('redeploy refreshes the supporting images, and Dependabot bumps the compose pins', () => {
