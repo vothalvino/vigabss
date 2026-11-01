@@ -131,6 +131,9 @@ parsing, cookie parsing, output-oriented XSS posture, request logging, metrics,
 rate limits, and CSRF defense. Webhook and collector routes have deliberate raw
 body, parser, authentication, and limiter exceptions. Never make a global
 middleware change without checking those machine-to-machine paths.
+`orgScope` applies the per-organization API limiter and then, for an API
+token, that token's `api_key_rate_limits` policy (`apiTokenConfiguredLimiter`),
+counted once per request on every route including `/graphql`.
 
 A typical protected domain request follows this chain:
 
