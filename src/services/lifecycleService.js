@@ -36,7 +36,7 @@ const billingService = require('./billingService');
 const mxRegisteredTemplateService = require('./mxRegisteredContractTemplateService');
 const logger = require('../utils/logger').child({ service: 'lifecycle' });
 const {
-  ValidationError, NotFoundError, AppError, ForbiddenError,
+  ValidationError, NotFoundError, AppError, ForbiddenError, ConflictError,
 } = require('../utils/errors');
 
 // Default onboarding checklist applied to every new service order.
@@ -70,21 +70,35 @@ const DEFAULT_ONBOARDING_TASKS = [
  * @param {number|null} orgId
  * @returns {Promise<string>} e.g. "SO-000123"
  */
+const ORDER_NUMBER_ATTEMPTS = 50;
+
 async function nextOrderNumber(conn, orgId) {
   const bucket = orgId ?? 0;
   await conn.execute(
     'INSERT IGNORE INTO organization_order_sequences (organization_id, next_number) VALUES (?, 1)',
     [bucket],
   );
-  await conn.execute(
-    `UPDATE organization_order_sequences
-        SET next_number = LAST_INSERT_ID(next_number) + 1
-      WHERE organization_id = ?`,
-    [bucket],
-  );
-  const [[{ id }]] = await conn.query('SELECT LAST_INSERT_ID() AS id');
-  const next = Number(id);
-  return `SO-${String(next).padStart(6, '0')}`;
+  // A live order can already hold the drawn number (one created with a
+  // caller-chosen order_number). Taking it anyway hit the unique key, the
+  // rollback undid the advance, and every later create drew the same number
+  // again (RTE-05). Skip held numbers instead; each skip advances the
+  // sequence in this same transaction.
+  for (let attempt = 0; attempt < ORDER_NUMBER_ATTEMPTS; attempt++) {
+    await conn.execute(
+      `UPDATE organization_order_sequences
+          SET next_number = LAST_INSERT_ID(next_number) + 1
+        WHERE organization_id = ?`,
+      [bucket],
+    );
+    const [[{ id }]] = await conn.query('SELECT LAST_INSERT_ID() AS id');
+    const orderNumber = `SO-${String(Number(id)).padStart(6, '0')}`;
+    const [held] = await conn.query(
+      'SELECT id FROM service_orders WHERE organization_id <=> ? AND order_number = ? AND deleted_at IS NULL LIMIT 1',
+      [orgId ?? null, orderNumber],
+    );
+    if (held.length === 0) return orderNumber;
+  }
+  throw new ConflictError('Could not allocate a free service order number; too many numbers are already taken');
 }
 
 /**
