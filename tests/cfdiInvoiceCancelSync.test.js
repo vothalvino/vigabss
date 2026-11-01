@@ -24,8 +24,7 @@ const PAC = { id: 2, provider_name: 'dev_placeholder', organization_id: 1, statu
 
 beforeEach(() => {
   jest.clearAllMocks();
-  cfdiService.circuitBreaker.failures = 0;
-  cfdiService.circuitBreaker.lastFailure = 0;
+  cfdiService._resetProviderBreakers();
   db.query.mockImplementation((sql) => {
     if (/SELECT invoice_id, organization_id FROM cfdi_documents/.test(sql)) {
       return Promise.resolve([[{ invoice_id: 55, organization_id: 1 }]]);

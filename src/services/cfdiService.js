@@ -39,10 +39,11 @@ function makeBreaker() {
   };
 }
 
-// Global aggregate breaker (stamping health across all providers) + a
-// per-provider breaker so one down PAC is skipped fast without blocking a
-// healthy sibling in a failover setup.
-const circuitBreaker = makeBreaker();
+// One breaker per PAC row, so one down PAC is skipped fast without blocking a
+// healthy sibling in a failover setup. PAC rows belong to one organization, so
+// a tenant with bad credentials or bad receptor data trips only its own row.
+// There used to be a process-wide breaker as well; any five failed stamps from
+// any tenant blocked stamping for every tenant (CFD-04).
 const providerBreakers = new Map();
 function providerBreaker(pacId) {
   if (!providerBreakers.has(pacId)) providerBreakers.set(pacId, makeBreaker());
@@ -72,6 +73,9 @@ function pacRefusal(message, code = null) {
 }
 function isDefiniteRefusal(err) {
   return !!err && (err.pacRejected === true || isUnreachable(err));
+}
+function isPacTransportFailure(err) {
+  return !!err && err.pacRejected !== true && !(err instanceof AppError);
 }
 
 /**
@@ -579,18 +583,9 @@ async function sealXmlForProvider(pac, doc) {
 async function stamp(cfdiDocumentId) {
   logger.info({ cfdiDocumentId }, 'Stamping CFDI document');
 
-  if (circuitBreaker.isOpen()) {
-    throw new CfdiStampingError(
-      'PAC circuit breaker is open — too many consecutive failures',
-      { cfdiDocumentId },
-    );
-  }
-
   const [docs] = await db.query('SELECT * FROM cfdi_documents WHERE id = ?', [cfdiDocumentId]);
   const doc = docs[0];
-  // Same reasoning as cancel(): these reject the request, so they are 4xx. The
-  // circuit-breaker check above stays a 502 because it IS transient — retrying
-  // it later genuinely can succeed.
+  // Same reasoning as cancel(): these reject the request, so they are 4xx.
   if (!doc) throw new AppError('CFDI document not found', 404, 'CFDI_NOT_FOUND');
   if (!doc.xml_content) throw new AppError('XML not generated yet — call generateXml first', 422, 'CFDI_XML_NOT_GENERATED');
 
@@ -679,7 +674,6 @@ async function stamp(cfdiDocumentId) {
         selloSat = result.selloSat || null;
         stampedProvider = pac;
         breaker.recordSuccess();
-        circuitBreaker.recordSuccess();
         providerErr = null;
         break;
       } catch (pacErr) {
@@ -694,7 +688,11 @@ async function stamp(cfdiDocumentId) {
     if (uuid) break; // stamped
 
     lastErr = providerErr;
-    breaker.recordFailure();
+    // Only a failure of the PAC itself opens its circuit: unreachable, timed
+    // out, reset or a 5xx. A PAC that answered and refused the document
+    // (receptor data, UsoCFDI, amounts) is healthy, and a configuration error
+    // is the org's to fix; neither says anything about the next document.
+    if (isPacTransportFailure(providerErr)) breaker.recordFailure();
     // Fail over to the next PAC ONLY when this one was unreachable. Any other
     // outcome (timeout / PAC error) must not risk a second stamp elsewhere.
     if (isUnreachable(providerErr) && pac !== pacs[pacs.length - 1]) {
@@ -705,7 +703,6 @@ async function stamp(cfdiDocumentId) {
   }
 
   if (!uuid) {
-    circuitBreaker.recordFailure();
     // sat_status is ENUM('draft','vigente','cancelado','cancel_pending') — there is
     // no 'stamp_error' value (database/schema.sql), so the doc stays 'draft'
     // (not fiscally valid) and the caller gets the actual PAC error. The error
@@ -2384,5 +2381,7 @@ module.exports = {
   discardDraft,
   generatePaymentComplement, buildPaymentComplementXml, enrichRelatedDocumentsWithTaxes, getPaymentComplement,
   getReconciliationReport,
-  httpRequest, circuitBreaker, providerBreaker, receptorDataHint,
+  httpRequest, providerBreaker, receptorDataHint,
+  // Tests only: forget every PAC row's breaker state.
+  _resetProviderBreakers: () => providerBreakers.clear(),
 };

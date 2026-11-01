@@ -12,8 +12,7 @@ const cfdiService = require('../src/services/cfdiService');
 describe('CFDI Cancellation Flow', () => {
   beforeEach(() => {
     jest.resetAllMocks();
-    cfdiService.circuitBreaker.failures = 0;
-    cfdiService.circuitBreaker.lastFailure = 0;
+    cfdiService._resetProviderBreakers();
   });
 
   // ===========================================================================

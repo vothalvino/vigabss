@@ -27,8 +27,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   db.query.mockReset();
   db.getConnection.mockReset();
-  cfdiService.circuitBreaker.failures = 0;
-  cfdiService.circuitBreaker.lastFailure = 0;
+  cfdiService._resetProviderBreakers();
 });
 
 function lockedDoc(row) {
