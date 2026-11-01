@@ -841,6 +841,18 @@ fi
 
 verify_image_signature || exit 1
 
+# Only `app` was pulled above, and `dc up -d` fetches only missing images, so a
+# floating third-party tag stayed at whatever install.sh first pulled (OPS-12).
+# The compose files now pin each by version and digest, so this is normally a
+# no-op; it still refreshes any image an operator re-tagged by hand. A failed
+# pull of a supporting image keeps the copy already on disk.
+echo "==> Refreshing the supporting images"
+mapfile -t SUPPORT_SERVICES < <(dc config --services 2>/dev/null | grep -vx -e app -e wireguard-helper || true)
+if (( ${#SUPPORT_SERVICES[@]} )); then
+  dc pull --quiet --ignore-pull-failures "${SUPPORT_SERVICES[@]}" \
+    || echo "    warning: could not refresh every supporting image; continuing with the local copies" >&2
+fi
+
 echo "==> Preparing database and Redis dependencies"
 dc up -d db-primary redis
 

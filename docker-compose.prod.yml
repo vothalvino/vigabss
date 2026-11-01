@@ -60,7 +60,7 @@ services:
 
   # ── MySQL primary (write node) ──────────────────────────────────────────────
   db-primary:
-    image: mysql:8.4.9
+    image: mysql:8.4.9@sha256:c36050afdca850f23cef85703f84c7531a5ae155a11b5ee1c60acb09937c4084
     restart: unless-stopped
     networks:
       - backend
@@ -100,7 +100,7 @@ services:
 
   # ── MySQL replica (read node) ───────────────────────────────────────────────
   db-replica:
-    image: mysql:8.4.9
+    image: mysql:8.4.9@sha256:c36050afdca850f23cef85703f84c7531a5ae155a11b5ee1c60acb09937c4084
     restart: unless-stopped
     networks:
       - backend
@@ -145,7 +145,7 @@ services:
 
   # ── Redis ────────────────────────────────────────────────────────────────────
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.12-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
     restart: unless-stopped
     networks:
       - backend
@@ -388,7 +388,7 @@ services:
 
   # ── Nginx reverse proxy ───────────────────────────────────────────────────
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.30.6-alpine@sha256:0e52bd054126cdc040b1276c0af347aeb02a41b9cfe305d6094767ac30e97949
     restart: unless-stopped
     networks:
       - frontend
@@ -455,7 +455,7 @@ services:
 
   # ── ChromaDB vector store (optional — enable with --profile rag) ─────────
   chromadb:
-    image: chromadb/chroma:1.0.4
+    image: chromadb/chroma:1.0.4@sha256:94227fc91f8bc5358ff72f8474375905e05b7c2dc8e7ec400aaeee70cc7f0348
     profiles: ['rag']
     restart: unless-stopped
     networks:
@@ -495,7 +495,7 @@ services:
     # reads the authenticator back out of /etc/letsencrypt/renewal/<domain>.conf
     # and fails without it, silently, until the certificate expires.
     # tests/tlsRenewalConfig.test.js enforces exactly that.
-    image: certbot/certbot:v5.7.0
+    image: certbot/certbot:v5.7.0@sha256:34ee91d2f43008eb78a007d22f23ed4b2eaa9a454cb27ca2c042b49527a695b4
     restart: unless-stopped
     # Renewal loop: check every 12 hours. certbot renew is a no-op when
     # the certificate is not yet due for renewal (< 30 days to expiry).

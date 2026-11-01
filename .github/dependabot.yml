@@ -38,3 +38,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # The third-party images in the compose files, pinned by version and digest
+  # (OPS-12).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+
