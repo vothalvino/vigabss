@@ -18,6 +18,9 @@ module.exports = {
   // ("Ineffective mark-compacts near heap limit"). Restarting fat-but-idle
   // workers between suites keeps the run bounded with no test impact.
   workerIdleMemoryLimit: '1GB',
+  // CI's --detectOpenHandles runs in-band, where that limit does not apply;
+  // this clears the timers that would keep each suite's modules reachable.
+  setupFilesAfterEnv: ['<rootDir>/tests/setup/clearLeakedTimers.js'],
   coverageThreshold: {
     'src/services/': {
       lines: 70,
