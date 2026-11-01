@@ -190,7 +190,9 @@ describe('radiusAccountingService', () => {
       expect(usage).toMatchObject({ nextSessionComplete: false, rowComplete: false, anomalyReason: 'counter_reset' });
     });
 
-    test('ordinary midnight stays complete but a month boundary fails monetary use closed', () => {
+    // REG-02: a month boundary is split pro rata between the months and stays
+    // usable; it used to fail every always-on subscriber's month closed.
+    test('ordinary midnight and a month boundary both stay complete, labeled as estimates', () => {
       const withinMonth = calculateUsageDelta({
         previous: { bytesIn: 100, bytesOut: 100 },
         current: { bytesIn: 120, bytesOut: 130 },
@@ -204,7 +206,7 @@ describe('radiusAccountingService', () => {
         eventAt: new Date('2026-09-01T00:03:00Z'),
       });
       expect(withinMonth).toMatchObject({ rowComplete: true, anomalyReason: 'utc_daily_allocation_estimate' });
-      expect(monthBoundary).toMatchObject({ rowComplete: false, crossesUtcMonthBoundary: true });
+      expect(monthBoundary).toMatchObject({ rowComplete: true, crossesUtcMonthBoundary: true, anomalyReason: 'utc_month_boundary_estimate' });
     });
   });
 

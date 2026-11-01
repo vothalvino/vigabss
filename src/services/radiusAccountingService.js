@@ -180,10 +180,13 @@ function calculateUsageDelta({
   return {
     deltas,
     nextSessionComplete,
-    // End-day allocation is an estimate for daily operational charts. It only
-    // disables monetary automation when an interval crosses a calendar-month
-    // boundary; routine midnight heartbeats inside a month remain usable.
-    rowComplete: nextSessionComplete && !crossesUtcMonthBoundary,
+    // End-day allocation is an estimate for daily operational charts. An
+    // interval crossing a calendar-month boundary is split between the months
+    // pro rata (recordUsageDelta): a bounded estimate, not an unknown. Marking
+    // it incomplete made every always-on subscriber's month incomplete, so
+    // overage, FUP and rollover never applied to them (REG-02). Only a counter
+    // reset or a missing baseline leaves usage incomplete.
+    rowComplete: nextSessionComplete,
     anomalyReason,
     anomalyCount: anomalyReason ? 1 : 0,
     sessionAnomalyCount: (baselineReason || counterReset) ? 1 : 0,
@@ -236,19 +239,43 @@ async function recordUsageDelta(connection, {
       rowEventAt, rowEventAt],
   );
   if (usage.crossesUtcMonthBoundary && usage.previousEventAt) {
-    // Flag both sides of a month boundary. Assigning the entire cumulative
-    // delta to the receipt day would otherwise make the prior month silently
-    // under-count while only the new month failed closed.
+    // Split the interval between the months in proportion to the time on each
+    // side of the boundary, so neither month under-counts. The previous
+    // month's share goes to its last day; both rows say it is an estimate.
+    const { before, after } = splitAtMonthStart(deltas, usage.previousEventAt, eventAt);
+    const monthStart = new Date(`${utcMonth(eventAt)}-01T00:00:00.000Z`);
     await upsert(
-      utcDate(usage.previousEventAt),
-      Object.fromEntries(USAGE_FIELDS.map(field => [field, 0])),
-      false,
+      utcDate(new Date(monthStart.getTime() - 1)),
+      before,
+      rowComplete,
       'utc_month_boundary_estimate',
       1,
       usage.previousEventAt,
     );
+    await upsert(utcDate(eventAt), after, rowComplete, anomalyReason, anomalyCount, eventAt);
+    return;
   }
   await upsert(utcDate(eventAt), deltas, rowComplete, anomalyReason, anomalyCount, eventAt);
+}
+
+/**
+ * Split counter deltas of an interval that crosses the start of eventAt's UTC
+ * month, pro rata by time. Integer counters; the remainder goes to the later
+ * month so the two parts always add up to the whole.
+ */
+function splitAtMonthStart(deltas, previousEventAt, eventAt) {
+  const from = new Date(previousEventAt).getTime();
+  const to = new Date(eventAt).getTime();
+  const boundary = new Date(`${utcMonth(eventAt)}-01T00:00:00.000Z`).getTime();
+  const share = to > from ? Math.min(1, Math.max(0, (boundary - from) / (to - from))) : 0;
+  const before = {};
+  const after = {};
+  for (const field of USAGE_FIELDS) {
+    const total = Number(deltas[field] || 0);
+    before[field] = Math.floor(total * share);
+    after[field] = total - before[field];
+  }
+  return { before, after };
 }
 
 // ---------------------------------------------------------------------------
@@ -1429,6 +1456,8 @@ async function listMacMoveEvents(organizationId, { page = 1, limit = 25 } = {}) 
 // ---------------------------------------------------------------------------
 
 module.exports = {
+  splitAtMonthStart,
+  recordUsageDelta,
   ingestAccounting,
   exportCdr,
   purgeRadiusAccounting,

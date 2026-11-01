@@ -76,9 +76,13 @@ accepted application-ingest observations and assigns the delta to the
 normalized event's UTC day. It avoids summing repeated cumulative Interim
 counters, but it cannot split an interval exactly across midnight. A same-month
 UTC-day crossing is labeled as an allocation estimate while preserving the
-exact monthly total. A non-zero first observation, a counter appearing late or
-resetting, or an interval that crosses a UTC calendar-month boundary marks the
-affected accounting period incomplete. Billing, FUP, and rollover automation
+exact monthly total. An interval that crosses a UTC calendar-month boundary is
+split between the two months in proportion to its time on each side; both rows
+are labeled `utc_month_boundary_estimate` and stay complete, so a session
+online across the 1st does not make either month unbillable. The estimate is
+bounded by one Interim interval of traffic. A non-zero first observation, or a
+counter appearing late or resetting, marks the affected accounting period
+incomplete. Billing, FUP, and rollover automation
 must reject incomplete periods; daily estimates and any legal attribution still
 require operator review.
 
