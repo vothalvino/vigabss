@@ -64,28 +64,6 @@ jobs:
       - name: Offline schema.sql parity check
         run: node src/scripts/schema-parity-check.js
 
-      - name: Dependency vulnerability audit (Trivy)
-        # Replaces `pnpm audit`: npm retired the legacy quick-audit endpoint pnpm
-        # calls (HTTP 410 "This endpoint is being retired"), so `pnpm audit` can no
-        # longer function. Trivy scans the pnpm lockfile against its own regularly
-        # updated vuln DB, with no dependency on npm's audit API — a real, blocking
-        # gate again. Reuses the same pinned action, DB version, HIGH,CRITICAL
-        # threshold, ignore-unfixed policy and .trivyignore file as the image scan
-        # below, so suppressions live in one place. Scoped to PRODUCTION
-        # dependencies (Trivy's default for lockfiles), matching the shipped-image
-        # scan; dev/build-tooling advisories are out of this gate's scope.
-        uses: aquasecurity/trivy-action@0.35.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          format: table
-          version: v0.71.1
-          scanners: vuln
-          severity: HIGH,CRITICAL
-          exit-code: 1
-          ignore-unfixed: true
-          trivyignores: .trivyignore
-
       - name: Run tests with coverage
         # The main jest process aggregates coverage maps for all 330+ suites in
         # memory; with the fiscal-stack heavyweights (saxon-js + compiled SAT
@@ -165,6 +143,37 @@ jobs:
             exit 1
           fi
           echo "✓ README table count: $SCHEMA_TABLES"
+
+  dependency-scan:
+    # Runs on PRs as well as main (OPS-07): it needs no Docker, and a
+    # lockfile advisory used to surface only after merge, in the main-only
+    # lint-and-test job.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Dependency vulnerability audit (Trivy)
+        # Replaces `pnpm audit`: npm retired the legacy quick-audit endpoint pnpm
+        # calls (HTTP 410 "This endpoint is being retired"), so `pnpm audit` can no
+        # longer function. Trivy scans the pnpm lockfile against its own regularly
+        # updated vuln DB, with no dependency on npm's audit API — a real, blocking
+        # gate again. Reuses the same pinned action, DB version, HIGH,CRITICAL
+        # threshold, ignore-unfixed policy and .trivyignore file as the image scan
+        # below, so suppressions live in one place. Scoped to PRODUCTION
+        # dependencies (Trivy's default for lockfiles), matching the shipped-image
+        # scan; dev/build-tooling advisories are out of this gate's scope.
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          version: v0.71.1
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+
 
   database-tests:
     runs-on: ubuntu-latest
@@ -811,6 +820,15 @@ jobs:
           name: trivy-results-${{ github.sha }}-${{ matrix.arch }}
           path: trivy-results.sarif
           retention-days: 30
+
+      # The job holds security-events: write for this: the report used to go
+      # only to an artifact nobody opened (OPS-07).
+      - name: Publish Trivy SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && steps.warm.outcome == 'success'
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image-${{ matrix.arch }}
 
       # ── Publish ───────────────────────────────────────────────────────────
       # Deliberately AFTER the blocking Trivy scan: on main that scan exits 1 on
