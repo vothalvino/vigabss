@@ -1,9 +1,11 @@
 -- =============================================================================
 -- VigaBSS 5.0 - Combined Database Schema
 -- =============================================================================
--- Description : Full schema for VigaBSS 5.0 ISP management software.
---               Apply this file once to create all tables in order, or run
---               each numbered file in database/migrations/ individually.
+-- Description : Structure reference for VigaBSS 5.0 ISP management software,
+--               read by sql:check, schema:parity and the SQL test suite.
+--               NOT an installer: the seed rows (permissions, role grants,
+--               scheduled tasks) live only in database/migrations/, so install
+--               with `pnpm run migrate` or install.sh (DB-08).
 -- Database    : MySQL 8.0.29+ / MariaDB 10.6+
 -- Charset     : utf8mb4 / utf8mb4_unicode_ci
 -- =============================================================================

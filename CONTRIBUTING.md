@@ -47,7 +47,7 @@ pnpm run lint
 ```
 vigabss/
 ├── database/           # SQL schema and migrations
-│   ├── schema.sql      # Full schema (for fresh installs)
+│   ├── schema.sql      # Structure reference for sql:check / schema:parity (not an installer)
 │   └── migrations/     # Numbered migration files (150+)
 ├── docs/               # Deployment, RADIUS, API, and Grafana docs
 ├── k8s/                # Kubernetes manifests (deployment, HPA, ingress…)
@@ -127,7 +127,7 @@ Rules:
 - Always add `IF NOT EXISTS` / `IF EXISTS` guards
 - Include both the forward migration in the file
 - Test with `docker compose -f docker-compose.test.yml up --build`
-- **Always update `database/schema.sql`** — every migration that changes the database structure (new table, altered column, new index, new trigger, etc.) **must** be reflected in `database/schema.sql`. This file is the combined full schema used for fresh installs and developer onboarding. If your migration adds a table, append the `CREATE TABLE` to `schema.sql`; if it alters a column, update the corresponding table definition in `schema.sql`. Alternatively, after applying all migrations on a fresh database you can regenerate it with: `mysqldump -u root -p --no-data vigabss > database/schema.sql` (substitute the configured database name; legacy installs may still use `fireisp`).
+- **Always update `database/schema.sql`** — every migration that changes the database structure (new table, altered column, new index, new trigger, etc.) **must** be reflected in `database/schema.sql`. This file is the combined structure reference that `sql:check`, `schema:parity` and the SQL test suite read; it is not an installer, because seed rows (permissions, role grants, scheduled tasks) live only in migrations — install with `pnpm run migrate`. If your migration adds a table, append the `CREATE TABLE` to `schema.sql`; if it alters a column, update the corresponding table definition in `schema.sql`. Alternatively, after applying all migrations on a fresh database you can regenerate it with: `mysqldump -u root -p --no-data vigabss > database/schema.sql` (substitute the configured database name; legacy installs may still use `fireisp`).
 - **Always update `README.md`** — the README contains a **Database Tables** table and **migration notes** that serve as the project's living database reference. If your migration creates a new table, add a row to the Database Tables table. If your migration makes a notable structural change (ALTER TABLE, new trigger, new stored procedure, seed data, etc.), add a migration note blockquote (e.g. `> **Migration NNN — Short description:** ...`) to the README following the existing format.
 
 ### Commit Messages

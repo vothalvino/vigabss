@@ -162,17 +162,16 @@ VigaBSS 0.1.0-alpha.1 uses MySQL 8.0.29+ (MySQL 8.4 LTS recommended) or MariaDB 
 
 ### Quick Start
 
-Apply the full schema in one step:
+Create the database with the migration runner, which applies every file in `database/migrations/` in order and records each one in `schema_migrations`:
 
 ```bash
-mysql -u <user> -p <database_name> < database/schema.sql
+# DB_HOST, DB_USER, DB_PASSWORD and DB_NAME come from .env
+pnpm run migrate
 ```
 
-Or apply each migration in order:
+Production installs use `install.sh`, which runs the same migrations.
 
-```bash
-for f in database/migrations/*.sql; do mysql -u <user> -p <database_name> < "$f"; done
-```
+`database/schema.sql` is **not an installer** (DB-08). It is the structure reference that `sql:check`, `schema:parity` and the SQL test suite read. It mirrors the tables, columns, keys and triggers but not the seed rows the migrations insert: about 690 permissions and their role grants, and about 37 scheduled tasks. A database loaded from it has no working roles (every request is a 403) and no automation, and its empty `schema_migrations` makes `migrate` replay every file. Do not apply each migration with a raw `mysql` loop either: nothing is recorded in `schema_migrations`, so a later `migrate` runs them all again.
 
 ### Database Tables
 
