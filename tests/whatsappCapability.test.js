@@ -4,7 +4,7 @@
 
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/services/clientBalanceService', () => ({ computeClientBalance: jest.fn() }));
-jest.mock('../src/services/portalServiceRequestService', () => ({ queueWifiPasswordCpeTask: jest.fn() }));
+jest.mock('../src/services/portalServiceRequestService', () => ({ queueWifiPasswordCpeTask: jest.fn(), linkWifiRequestToTask: jest.fn() }));
 jest.mock('../src/services/emailTransport', () => ({ sendEmail: jest.fn().mockResolvedValue({ success: true }) }));
 // Mocked because the pay-now branch requires it lazily — the real module pulls
 // in the payment SDKs, which the bot path should not carry per inbound message.
@@ -40,12 +40,14 @@ describe('write actions', () => {
     db.query
       .mockResolvedValueOnce([[{ id: 9 }]])                        // contractStillOwned
       .mockResolvedValueOnce([[{ name: 'Bob', email: 'bob@x.com' }]]) // client
-      .mockResolvedValueOnce([{ insertId: 88 }])                   // INSERT request
-      .mockResolvedValueOnce([{ affectedRows: 1 }]);               // UPDATE completed
-    portalSR.queueWifiPasswordCpeTask.mockResolvedValue({ queued: true });
+      .mockResolvedValueOnce([{ insertId: 88 }]);                  // INSERT request
+    portalSR.queueWifiPasswordCpeTask.mockResolvedValue({ queued: true, taskId: 41 });
     const r = await cap.resetWifiPassword({ orgId: 3, clientId: 7, contract: { id: 9 } });
     expect(emailTransport.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 3, clientId: 7, emailFunction: 'general' }));
     expect(portalSR.queueWifiPasswordCpeTask).toHaveBeenCalledWith(expect.objectContaining({ contractId: 9 }));
+    // NET-12: linked to the task, completed only when the router confirms.
+    expect(portalSR.linkWifiRequestToTask).toHaveBeenCalledWith(88, 41);
+    expect(db.query.mock.calls.some(([sql]) => /SET status = 'completed'/.test(sql))).toBe(false);
     expect(r).toMatchObject({ ok: true, applied: true, emailMasked: 'b***@x.com', requestId: 88 });
   });
 

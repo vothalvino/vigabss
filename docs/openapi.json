@@ -62796,7 +62796,10 @@
             ]
           },
           "parameters": {
-            "type": "object"
+            "type": [
+              "object",
+              "array"
+            ]
           },
           "priority": {
             "type": "number",

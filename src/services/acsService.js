@@ -358,6 +358,9 @@ async function handleCwmpRequest(req, res) {
           'UPDATE cpe_tasks SET status = ?, error_message = ?, completed_at = NOW() WHERE id = ?',
           ['failed', faultMsg, activeTask.id],
         );
+        if (activeTask.task_type === 'set_parameter_values') {
+          await require('./portalServiceRequestService').settleWifiRequestForTask(activeTask.id, false, faultMsg);
+        }
         // §8.3: log fault
         cpeSessionLogService.logSessionEvent({
           orgId: cpeDevice.organization_id,

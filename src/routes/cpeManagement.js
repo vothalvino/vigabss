@@ -36,8 +36,10 @@ const {
   updateCpeFirmwareCampaign,
 } = require('../middleware/schemas/cpeFirmwareCampaigns');
 const bcrypt = require('bcryptjs');
+const { ValidationError } = require('../utils/errors');
 // §8.3
 const cpeDiagnosticsService = require('../services/cpeDiagnosticsService');
+const cwmpSessionService = require('../services/cwmpSessionService');
 const cpeSessionLogService = require('../services/cpeSessionLogService');
 // §8.4
 const cpeInventoryService = require('../services/cpeInventoryService');
@@ -231,6 +233,13 @@ router.get('/devices/:id/tasks', requirePermission('cpe_tasks.view'), async (req
 
 router.post('/devices/:id/tasks', requirePermission('cpe_tasks.create'), validate(createCpeTask), async (req, res, next) => {
   try {
+    const params = req.body.parameters;
+    if (params !== undefined && params !== null && typeof params !== 'object') {
+      throw new ValidationError('Validation failed', [{ field: 'parameters', message: 'parameters must be an object or an array' }]);
+    }
+    if (req.body.task_type === 'set_parameter_values' && cwmpSessionService.setParameterList(params).length === 0) {
+      throw new ValidationError('Validation failed', [{ field: 'parameters', message: 'set_parameter_values needs at least one {name, value}' }]);
+    }
     await CpeDevice.findByIdOrFail(req.params.id, req.orgId);
 
     const record = await CpeTask.create({
