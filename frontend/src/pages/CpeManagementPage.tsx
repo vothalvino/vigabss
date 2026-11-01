@@ -142,11 +142,16 @@ function DevicesTab() {
     onError: (e: Error) => setCreateError(e.message),
   });
 
+  // The server refuses to delete an installed or inventory-tracked unit and
+  // says which flow to use (FE2-04); show that instead of failing silently.
+  const [deleteError, setDeleteError] = useState('');
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      await api.DELETE('/cpe-management/devices/{id}' as never, { params: { path: { id } } } as never);
+      const { error } = await api.DELETE('/cpe-management/devices/{id}' as never, { params: { path: { id } } } as never) as { error?: { error?: { message?: string } } };
+      if (error) throw new Error(error.error?.message || 'Could not delete the device');
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-devices'] }),
+    onSuccess: () => { setDeleteError(''); qc.invalidateQueries({ queryKey: ['cpe-devices'] }); },
+    onError: (e: Error) => setDeleteError(e.message),
   });
 
   const devices = data?.data ?? [];
@@ -162,6 +167,7 @@ function DevicesTab() {
         </button>
       </div>
 
+      {deleteError && <p role="alert" style={{ color: '#dc2626' }}>{deleteError}</p>}
       {isLoading && <p>{t('common.loading')}</p>}
       {error && <p style={{ color: '#dc2626' }}>{t('cpeManagement.devices.error')}</p>}
 
