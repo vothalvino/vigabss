@@ -5,6 +5,11 @@
 // =============================================================================
 // Manages the data pack catalog and subscriber purchases.
 // Effective allowance = base_cap + active_packs + rollover_balance.
+//
+// A purchase is billed: a priced pack raises a one-off invoice in the same
+// transaction as the purchase row. Its GB count toward the cap in overage
+// billing (billingService.calculateOverageCharges) and in the FUP threshold
+// notices (fupNotificationService) through extraAllowanceGb (TNA-21).
 // =============================================================================
 
 const db = require('../config/database');
@@ -96,7 +101,7 @@ async function restorePack(id, organizationId) {
 
 async function purchasePack(organizationId, contractId, packId, { purchasedBy = 'admin', invoiceId = null } = {}) {
   const [[contract]] = await db.query(
-    'SELECT id FROM contracts WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+    'SELECT id, client_id FROM contracts WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
     [contractId, organizationId],
   );
   if (!contract) throw Object.assign(new Error('Contract not found'), { status: 404 });
@@ -113,21 +118,52 @@ async function purchasePack(organizationId, contractId, packId, { purchasedBy = 
 
   const activatedAt = new Date();
   const expiresAt = new Date(activatedAt.getTime() + pack.validity_days * 86400000);
+  const price = Math.round((parseFloat(pack.price) || 0) * 100) / 100;
 
-  const [result] = await db.query(
-    `INSERT INTO data_pack_purchases
-       (organization_id, contract_id, data_pack_id, purchased_by,
-        purchased_at, activated_at, expires_at, gb_applied, invoice_id, status)
-     VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, 'active')`,
-    [organizationId, contractId, packId, purchasedBy, activatedAt, expiresAt, pack.data_gb, invoiceId],
-  );
+  // The purchase and its invoice commit together: a pack is never granted
+  // without its charge, nor charged without being granted. A staff purchase
+  // may name an existing invoice that already carries the charge instead.
+  const conn = await db.getConnection();
+  let invoice = null;
+  let purchaseId;
+  try {
+    await conn.beginTransaction();
+    let billedInvoiceId = invoiceId;
+    if (!billedInvoiceId && price > 0) {
+      invoice = await require('./billingService').createOneOffInvoice({
+        orgId: organizationId,
+        clientId: contract.client_id,
+        contractId: contract.id,
+        description: `Data pack: ${pack.name} (${pack.data_gb} GB)`,
+        amount: price,
+        currency: pack.currency || null,
+        conn,
+      });
+      billedInvoiceId = invoice.id;
+    }
+    const [result] = await conn.execute(
+      `INSERT INTO data_pack_purchases
+         (organization_id, contract_id, data_pack_id, purchased_by,
+          purchased_at, activated_at, expires_at, gb_applied, invoice_id, status)
+       VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, 'active')`,
+      [organizationId, contractId, packId, purchasedBy, activatedAt, expiresAt, pack.data_gb, billedInvoiceId],
+    );
+    purchaseId = result.insertId;
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
+  }
+  if (invoice) await require('./businessEvents').emitInvoiceCreated(organizationId, invoice);
 
   const [[purchase]] = await db.query(
     `SELECT dpp.*, dp.name AS pack_name
      FROM data_pack_purchases dpp
      JOIN data_packs dp ON dpp.data_pack_id = dp.id
      WHERE dpp.id = ?`,
-    [result.insertId],
+    [purchaseId],
   );
   return purchase;
 }
@@ -178,45 +214,60 @@ async function cancelPurchase(purchaseId, organizationId) {
 // ---------------------------------------------------------------------------
 
 /**
- * Compute a subscriber's total effective data allowance:
- *   base_cap + active (non-expired) data packs + available rollover GB
+ * GB that data packs add to a contract's cap for a usage window: every live
+ * or since-expired purchase whose validity overlaps the window, plus the
+ * rollover still available.
  *
  * @param {number} contractId
- * @returns {Promise<object|null>}
+ * @param {number|null} organizationId
+ * @param {Date|string} windowStart
+ * @param {Date|string} windowEnd
+ * @returns {Promise<{pack_gb: number, rollover_gb: number, total_gb: number}>}
  */
-async function getEffectiveAllowance(contractId) {
-  const [[contract]] = await db.query(
-    `SELECT c.id, c.organization_id, p.data_cap_gb
-     FROM contracts c
-     JOIN plans p ON c.plan_id = p.id
-     WHERE c.id = ? AND c.deleted_at IS NULL`,
-    [contractId],
-  );
-  if (!contract) return null;
-
-  const baseCap = parseFloat(contract.data_cap_gb) || 0;
-
-  // Active non-expired packs
+async function extraAllowanceGb(contractId, organizationId, windowStart, windowEnd) {
   const [[packRow]] = await db.query(
     `SELECT COALESCE(SUM(gb_applied), 0) AS pack_gb
      FROM data_pack_purchases
      WHERE contract_id = ?
        AND organization_id <=> ?
-       AND status = 'active'
-       AND (expires_at IS NULL OR expires_at > NOW())`,
-    [contractId, contract.organization_id],
+       AND status IN ('active', 'expired')
+       AND activated_at <= ?
+       AND (expires_at IS NULL OR expires_at >= ?)`,
+    [contractId, organizationId, windowEnd, windowStart],
   );
-  const packGb = parseFloat(packRow.pack_gb) || 0;
-
-  // Rollover
+  const packGb = parseFloat(packRow?.pack_gb) || 0;
   const rollover = await rolloverService.getRolloverBalance(contractId);
-  const rolloverGb = rollover.total_available_gb || 0;
+  const rolloverGb = parseFloat(rollover?.total_available_gb) || 0;
+  return { pack_gb: packGb, rollover_gb: rolloverGb, total_gb: packGb + rolloverGb };
+}
+
+/**
+ * Compute a subscriber's total effective data allowance:
+ *   base_cap + active (non-expired) data packs + available rollover GB
+ *
+ * @param {number} contractId
+ * @param {number|null} organizationId - the contract must belong to it
+ * @returns {Promise<object|null>}
+ */
+async function getEffectiveAllowance(contractId, organizationId) {
+  const [[contract]] = await db.query(
+    `SELECT c.id, c.organization_id, p.data_cap_gb
+     FROM contracts c
+     JOIN plans p ON c.plan_id = p.id
+     WHERE c.id = ? AND c.organization_id <=> ? AND c.deleted_at IS NULL`,
+    [contractId, organizationId],
+  );
+  if (!contract) return null;
+
+  const baseCap = parseFloat(contract.data_cap_gb) || 0;
+  const now = new Date();
+  const extra = await extraAllowanceGb(contractId, contract.organization_id, now, now);
 
   return {
     base_cap_gb: baseCap,
-    pack_gb: packGb,
-    rollover_gb: rolloverGb,
-    total_gb: baseCap + packGb + rolloverGb,
+    pack_gb: extra.pack_gb,
+    rollover_gb: extra.rollover_gb,
+    total_gb: baseCap + extra.total_gb,
   };
 }
 
@@ -232,4 +283,5 @@ module.exports = {
   listPackPurchases,
   cancelPurchase,
   getEffectiveAllowance,
+  extraAllowanceGb,
 };

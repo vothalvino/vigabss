@@ -109,7 +109,7 @@ async function requireOwnedContract(req, res, next) {
 router.get('/contracts/:contractId/data-packs', requirePermission('data_pack_purchases.view'), requireOwnedContract, async (req, res, next) => {
   try {
     const [allowance, purchases] = await Promise.all([
-      dataPackService.getEffectiveAllowance(req.params.contractId),
+      dataPackService.getEffectiveAllowance(req.params.contractId, req.orgId),
       dataPackService.listPurchases(req.orgId, req.params.contractId),
     ]);
     res.json({ data: { allowance, purchases } });

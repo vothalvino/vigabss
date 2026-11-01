@@ -2300,7 +2300,7 @@ function generateSpec() {
         get: { tags: ['Data Packs'], summary: 'Effective data allowance and purchases for a contract', operationId: 'getContractDataPacks', security: [{ bearerAuth: [] }], parameters: [{ name: 'contractId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r200('{ allowance, purchases }') },
       },
       '/contracts/{contractId}/data-packs/{packId}/purchase': {
-        post: { tags: ['Data Packs'], summary: 'Purchase a data pack for a subscriber (admin)', operationId: 'purchaseDataPackAdmin', security: [{ bearerAuth: [] }], parameters: [{ name: 'contractId', in: 'path', required: true, schema: { type: 'integer' } }, { name: 'packId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r201('DataPackPurchase') },
+        post: { tags: ['Data Packs'], summary: 'Purchase a data pack for a subscriber (admin); a priced pack raises a one-off invoice unless invoice_id names one', operationId: 'purchaseDataPackAdmin', security: [{ bearerAuth: [] }], parameters: [{ name: 'contractId', in: 'path', required: true, schema: { type: 'integer' } }, { name: 'packId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r201('DataPackPurchase') },
       },
       '/data-pack-purchases/{id}/cancel': {
         put: { tags: ['Data Packs'], summary: 'Cancel a data pack purchase', operationId: 'cancelDataPackPurchase', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DataPackPurchase') },
@@ -2364,7 +2364,7 @@ function generateSpec() {
         get: { tags: ['Data Packs'], summary: 'List available data packs (portal)', operationId: 'portalListDataPacks', security: [{ bearerAuth: [] }], responses: r200('DataPack[]') },
       },
       '/portal/data-packs/{packId}/purchase': {
-        post: { tags: ['Data Packs'], summary: 'Purchase a data pack via subscriber portal', operationId: 'portalPurchaseDataPack', security: [{ bearerAuth: [] }], parameters: [{ name: 'packId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r201('DataPackPurchase') },
+        post: { tags: ['Data Packs'], summary: 'Purchase a data pack via subscriber portal; a priced pack raises a one-off invoice in the same transaction', operationId: 'portalPurchaseDataPack', security: [{ bearerAuth: [] }], parameters: [{ name: 'packId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r201('DataPackPurchase') },
       },
       '/portal/data-packs/my-purchases': {
         get: { tags: ['Data Packs'], summary: 'List subscriber data pack purchases (portal)', operationId: 'portalListMyDataPackPurchases', security: [{ bearerAuth: [] }], responses: r200('DataPackPurchase[]') },

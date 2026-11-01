@@ -799,7 +799,7 @@ router.get('/usage/allowance', async (req, res, next) => {
     );
     if (!contracts[0]) return res.json({ data: null });
 
-    const allowance = await dataPackService.getEffectiveAllowance(contracts[0].id);
+    const allowance = await dataPackService.getEffectiveAllowance(contracts[0].id, req.client.organizationId);
     res.json({ data: allowance });
   } catch (err) {
     next(err);

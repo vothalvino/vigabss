@@ -43503,7 +43503,7 @@
         "tags": [
           "Data Packs"
         ],
-        "summary": "Purchase a data pack for a subscriber (admin)",
+        "summary": "Purchase a data pack for a subscriber (admin); a priced pack raises a one-off invoice unless invoice_id names one",
         "operationId": "purchaseDataPackAdmin",
         "security": [
           {
@@ -44760,7 +44760,7 @@
         "tags": [
           "Data Packs"
         ],
-        "summary": "Purchase a data pack via subscriber portal",
+        "summary": "Purchase a data pack via subscriber portal; a priced pack raises a one-off invoice in the same transaction",
         "operationId": "portalPurchaseDataPack",
         "security": [
           {

@@ -536,6 +536,7 @@ function isContractInTrial(contract, plan) {
 async function calculateOverageCharges(contractId, periodStart, periodEnd) {
   const [rows] = await db.query(`
     SELECT
+      c.organization_id,
       p.data_cap_gb,
       p.overage_mode,
       p.overage_price_per_gb,
@@ -553,7 +554,7 @@ async function calculateOverageCharges(contractId, periodStart, periodEnd) {
       AND u.usage_date >= DATE(?)
       AND u.usage_date <= DATE(?)
     WHERE c.id = ?
-    GROUP BY p.data_cap_gb, p.overage_mode, p.overage_price_per_gb
+    GROUP BY c.organization_id, p.data_cap_gb, p.overage_mode, p.overage_price_per_gb
   `, [periodStart, periodEnd, periodStart, periodEnd, contractId]);
 
   if (rows.length === 0) return { overage_gb: 0, amount: 0 };
@@ -569,7 +570,10 @@ async function calculateOverageCharges(contractId, periodStart, periodEnd) {
 
   const BYTES_PER_GB = 1073741824;
   const usedGb = r.bytes_used / BYTES_PER_GB;
-  const overageGb = Math.max(0, usedGb - parseFloat(r.data_cap_gb));
+  // Data packs bought for the period, and available rollover, raise the cap
+  // before anything is billed as overage (TNA-21).
+  const extra = await require('./dataPackService').extraAllowanceGb(contractId, r.organization_id, periodStart, periodEnd);
+  const overageGb = Math.max(0, usedGb - parseFloat(r.data_cap_gb) - extra.total_gb);
 
   if (overageGb <= 0) return { overage_gb: 0, amount: 0 };
 
