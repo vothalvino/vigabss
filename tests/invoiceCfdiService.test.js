@@ -151,6 +151,52 @@ describe('stampInvoice — conversion', () => {
     expect(docParams).toContain('03'); // payment's sat_forma_pago
   });
 
+  // BIL-26: a cash payment without sat_forma_pago is 01, not the 03 default.
+  test('paid invoice → PUE forma_pago falls back to the payment method', async () => {
+    Invoice.findByIdOrFail.mockResolvedValue({ ...INVOICE, status: 'paid' });
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM cfdi_documents/.test(sql)) return [[]];
+      if (/FROM client_mx_profiles/.test(sql)) return [[{ ...RECEPTOR }]];
+      if (/FROM invoice_items/.test(sql)) return [ITEMS.map(i => ({ ...i }))];
+      if (/FROM payment_allocations/.test(sql)) return [[{ sat_forma_pago: null, payment_method: 'cash' }]];
+      return [[]];
+    });
+    const conn = makeConn();
+    db.getConnection.mockResolvedValue(conn);
+    await invoiceCfdiService.stampInvoice(60, 1);
+    const [, docParams] = conn.executed.find(([sql]) => sql.includes('INSERT INTO cfdi_documents'));
+    expect(docParams).toContain('01');
+    expect(docParams).not.toContain('03');
+  });
+
+  // BIL-26: G03 is not admitted for régimen 616/605 receptors.
+  test.each([['616'], ['605']])('a régimen %s receptor without a default gets S01, not G03', async (regimen) => {
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM cfdi_documents/.test(sql)) return [[]];
+      if (/FROM client_mx_profiles/.test(sql)) return [[{ ...RECEPTOR, regimen_fiscal: regimen }]];
+      if (/FROM invoice_items/.test(sql)) return [ITEMS.map(i => ({ ...i }))];
+      return [[]];
+    });
+    const conn = makeConn();
+    db.getConnection.mockResolvedValue(conn);
+    await invoiceCfdiService.stampInvoice(60, 1);
+    const [, docParams] = conn.executed.find(([sql]) => sql.includes('INSERT INTO cfdi_documents'));
+    expect(docParams).toContain('S01');
+    expect(docParams).not.toContain('G03');
+  });
+
+  test('an explicit G03 for a régimen 616 receptor is refused before the PAC', async () => {
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM cfdi_documents/.test(sql)) return [[]];
+      if (/FROM client_mx_profiles/.test(sql)) return [[{ ...RECEPTOR, regimen_fiscal: '616' }]];
+      if (/FROM invoice_items/.test(sql)) return [ITEMS.map(i => ({ ...i }))];
+      return [[]];
+    });
+    await expect(invoiceCfdiService.stampInvoice(60, 1, { uso_cfdi: 'G03' }))
+      .rejects.toMatchObject({ statusCode: 422, code: 'CFDI_USO_REGIMEN_MISMATCH' });
+    expect(cfdiService.stamp).not.toHaveBeenCalled();
+  });
+
   test('SAT-code defaults apply per line (81161700/E48) but explicit codes win', async () => {
     const conn = makeConn();
     db.getConnection.mockResolvedValue(conn);

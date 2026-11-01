@@ -29,6 +29,7 @@ const Invoice = require('../models/Invoice');
 const { invoiceTaxFraction } = require('./billingService');
 const { AppError } = require('../utils/errors');
 const { allocateLineTaxes } = require('../utils/cfdiAmounts');
+const { FORMA_PAGO_BY_METHOD, usoCfdiAllowed, defaultUsoCfdi } = require('../utils/satCatalogs');
 const cfdiService = require('./cfdiService');
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'invoiceCfdi' });
@@ -145,20 +146,33 @@ async function resolveStampInputs(exec, invoiceId, orgId, opts) {
   let formaPago;
   if (isPaid || isPublico) {
     const [payRows] = await exec(
-      `SELECT p.sat_forma_pago
+      `SELECT p.sat_forma_pago, p.payment_method
          FROM payment_allocations pa
          JOIN payments p ON p.id = pa.payment_id AND p.deleted_at IS NULL
         WHERE pa.invoice_id = ? AND pa.deleted_at IS NULL
         ORDER BY pa.id DESC LIMIT 1`,
       [invoiceId],
     );
-    formaPago = opts.forma_pago || payRows[0]?.sat_forma_pago || (isPublico ? '01' : '03'); // 01 efectivo / 03 transferencia
+    // The settling payment's own forma, else its method's SAT code: a cash
+    // payment is 01, not the 03 transfer default (BIL-26).
+    formaPago = opts.forma_pago || payRows[0]?.sat_forma_pago
+      || FORMA_PAGO_BY_METHOD[payRows[0]?.payment_method]
+      || (isPublico ? '01' : '03'); // 01 efectivo / 03 transferencia
   } else {
     formaPago = '99';
   }
   const metodoPago = (isPaid || isPublico) ? 'PUE' : 'PPD';
 
-  const usoCfdi = opts.uso_cfdi || receptor.uso_cfdi_default || 'G03';
+  // G03 is not admitted for every receptor (605 sueldos, 616 sin
+  // obligaciones): default by régimen and refuse a mismatched pair here,
+  // with a reason, instead of a PAC rejection (BIL-26).
+  const usoCfdi = opts.uso_cfdi || receptor.uso_cfdi_default || defaultUsoCfdi(receptor.regimen_fiscal);
+  if (!usoCfdiAllowed(usoCfdi, receptor.regimen_fiscal)) {
+    throw new AppError(
+      `UsoCFDI ${usoCfdi} is not allowed for a receptor in régimen ${receptor.regimen_fiscal}. Choose another use (S01 is always valid) or correct the client's fiscal profile.`,
+      422, 'CFDI_USO_REGIMEN_MISMATCH',
+    );
+  }
   // invoices.tax_rate can carry percent-style values on manually-created
   // invoices (a stored '8' means 8%) — normalize to a fraction exactly like
   // every other totals path (billingService.invoiceTaxFraction), otherwise the

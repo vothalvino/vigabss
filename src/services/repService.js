@@ -27,15 +27,8 @@ const auditLog = require('./auditLog');
 const { timeZoneForPostalCode } = require('../utils/mxTimeZone');
 const logger = require('../utils/logger').child({ service: 'rep' });
 
-// payments.payment_method → SAT c_FormaPago when sat_forma_pago isn't set.
-// Covers every value of the payment_method ENUM (schema.sql) — an unmapped
-// method would silently stamp the wrong forma.
-const FORMA_PAGO_BY_METHOD = {
-  cash: '01', check: '02', transfer: '03', card: '04', online: '03',
-  credit_card: '04', debit_card: '28', bank_transfer: '03',
-  oxxo_pay: '01', spei: '03', codi: '06', convenience_store: '01',
-  digital_wallet: '05', other: '03',
-};
+// payments.payment_method → SAT c_FormaPago (shared with the PUE invoice path).
+const { FORMA_PAGO_BY_METHOD } = require('../utils/satCatalogs');
 
 /**
  * Generate + stamp a REP for one (payment, invoice) allocation.

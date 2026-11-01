@@ -172,10 +172,10 @@ async function stampInvoiceAtSat(invoiceId: number, body: { uso_cfdi?: string; f
   return resBody.data as StampResult;
 }
 
-async function fetchClientMxProfile(clientId: number): Promise<{ rfc?: string; razon_social?: string; uso_cfdi_default?: string } | null> {
+async function fetchClientMxProfile(clientId: number): Promise<{ rfc?: string; razon_social?: string; uso_cfdi_default?: string; regimen_fiscal?: string } | null> {
   const res = await authedFetch(`${API_BASE}/clients/${clientId}/mx-profile`);
   if (!res.ok) return null;
-  const body = await res.json().catch(() => ({})) as { data?: { rfc?: string; razon_social?: string; uso_cfdi_default?: string } | null };
+  const body = await res.json().catch(() => ({})) as { data?: { rfc?: string; razon_social?: string; uso_cfdi_default?: string; regimen_fiscal?: string } | null };
   return body.data ?? null;
 }
 
@@ -528,6 +528,10 @@ const USO_CFDI_OPTIONS = [
   { code: 'I04', label: 'I04 — Equipo de cómputo y accesorios' },
   { code: 'S01', label: 'S01 — Sin efectos fiscales' },
 ];
+// Regímenes SAT admits G03 for (mirrors src/utils/satCatalogs.js). Others,
+// e.g. 605 sueldos or 616 sin obligaciones, default to S01 (BIL-26).
+const G03_REGIMES = new Set(['601', '603', '606', '612', '620', '621', '622', '623', '624', '625', '626']);
+
 const FORMA_PAGO_OPTIONS = [
   { code: '01', label: '01 — Efectivo' },
   { code: '03', label: '03 — Transferencia (SPEI)' },
@@ -561,8 +565,10 @@ function StampCfdiModal({ invoice, onClose, onStamped }: StampCfdiModalProps) {
   // never silently overwrite a manual selection.
   const appliedDefault = useRef(false);
   useEffect(() => {
-    if (!appliedDefault.current && profileQ.data?.uso_cfdi_default) {
-      setUsoCfdi(profileQ.data.uso_cfdi_default);
+    if (!appliedDefault.current && profileQ.data) {
+      const regimen = profileQ.data.regimen_fiscal;
+      const fallback = !regimen || G03_REGIMES.has(regimen) ? 'G03' : 'S01';
+      setUsoCfdi(profileQ.data.uso_cfdi_default || fallback);
       appliedDefault.current = true;
     }
   }, [profileQ.data]);

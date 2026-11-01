@@ -17,6 +17,7 @@ const { requireMxLocale } = require('../middleware/orgLocale');
 const paymentAllocationService = require('../services/paymentAllocationService');
 const db = require('../config/database');
 const { AppError } = require('../utils/errors');
+const { FORMA_PAGO_BY_METHOD } = require('../utils/satCatalogs');
 
 const router = Router();
 
@@ -140,6 +141,11 @@ router.post('/', requirePermission('payments.create'), validate(createPayment), 
     // currency in the request always wins.
     if (!req.body.currency) {
       req.body.currency = await Organization.getCurrency(req.orgId);
+    }
+    // The SAT forma de pago follows the method unless the caller set it, so a
+    // cash payment's invoice and REP say 01, not the 03 default (BIL-26).
+    if (!req.body.sat_forma_pago && FORMA_PAGO_BY_METHOD[req.body.payment_method]) {
+      req.body.sat_forma_pago = FORMA_PAGO_BY_METHOD[req.body.payment_method];
     }
     const payment = await Payment.create(req.body);
 
