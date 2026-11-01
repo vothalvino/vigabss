@@ -24,6 +24,7 @@ const cwmpSessionService = require('./cwmpSessionService');
 const cpeDiagnosticsService = require('./cpeDiagnosticsService');
 const cpeSessionLogService = require('./cpeSessionLogService');
 const cpeInventoryService = require('./cpeInventoryService');
+const cacheService = require('./cacheService');
 const logger = require('../utils/logger').child({ service: 'acsService' });
 
 // ---------------------------------------------------------------------------
@@ -122,6 +123,91 @@ async function verifyAcsCredentials(username, passwordPlaintext) {
 }
 
 // ---------------------------------------------------------------------------
+// CWMP session (NET-19)
+// ---------------------------------------------------------------------------
+// A TR-069 session is: CPE Inform -> ACS InformResponse -> CPE empty POST ->
+// ACS RPCs, one per POST, each answered by the CPE -> ACS empty 204 ends it.
+// Inform was answered with the queued task's RPC instead of InformResponse,
+// and the empty POST (the one place the ACS may send RPCs) ended the session,
+// so standards-compliant CPEs faulted or never ran queued tasks. The session
+// is tracked with a cookie set on the InformResponse; its token is kept in the
+// shared cache so any replica can continue it.
+
+const SESSION_COOKIE = 'cwmpsid';
+const SESSION_TTL_SECONDS = 300;
+const sessionKey = token => `acs:cwmp_session:${token}`;
+
+async function openSession(res, cpeDevice) {
+  const token = crypto.randomBytes(24).toString('hex');
+  await cacheService.set(sessionKey(token), { cpeDeviceId: cpeDevice.id }, SESSION_TTL_SECONDS);
+  res.set('Set-Cookie', `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Max-Age=${SESSION_TTL_SECONDS}`);
+}
+
+function sessionToken(req) {
+  const header = req.headers.cookie || '';
+  const match = header.split(';').map(c => c.trim()).find(c => c.startsWith(`${SESSION_COOKIE}=`));
+  const token = match ? match.slice(SESSION_COOKIE.length + 1) : '';
+  return /^[0-9a-f]{48}$/.test(token) ? token : null;
+}
+
+/** The device of an open session, or null. */
+async function sessionDevice(req) {
+  const token = sessionToken(req);
+  if (!token) return null;
+  const session = await cacheService.get(sessionKey(token));
+  if (!session || !session.cpeDeviceId) return null;
+  const [rows] = await db.query('SELECT * FROM cpe_devices WHERE id = ? AND deleted_at IS NULL LIMIT 1', [session.cpeDeviceId]);
+  return rows[0] || null;
+}
+
+/** Send the next queued RPC of the session, or end the session with 204. */
+async function dispatchNextOrEnd(res, cpeDevice, remoteIp) {
+  const nextTask = await cwmpSessionService.getNextTask(cpeDevice.id);
+  if (!nextTask) return res.status(204).send();
+  await db.query(
+    "UPDATE cpe_tasks SET status = 'in_progress', started_at = NOW() WHERE id = ?",
+    [nextTask.id],
+  );
+  cpeSessionLogService.logSessionEvent({
+    orgId: cpeDevice.organization_id,
+    cpeDeviceId: cpeDevice.id,
+    eventType: 'task_dispatched',
+    taskType: nextTask.task_type,
+    remoteIp: remoteIp || null,
+  }).catch(() => {});
+  return res
+    .status(200)
+    .set('Content-Type', 'text/xml; charset=utf-8')
+    .send(cwmpSessionService.buildResponseForTask(nextTask));
+}
+
+/**
+ * Fail tasks that were dispatched and never answered: the CPE dropped the
+ * session, faulted outside it, or never authenticated its response. They sat
+ * in_progress for ever and their requests never settled.
+ */
+async function reapStuckTasks(organizationId, { olderThanMinutes = 30 } = {}) {
+  const [stuck] = await db.query(
+    `SELECT id, task_type FROM cpe_tasks
+      WHERE organization_id <=> ? AND status = 'in_progress'
+        AND started_at < (NOW() - INTERVAL ? MINUTE)`,
+    [organizationId, olderThanMinutes],
+  );
+  for (const task of stuck) {
+    const [r] = await db.query(
+      `UPDATE cpe_tasks SET status = 'failed', completed_at = NOW(),
+              error_message = 'No response from the CPE within the session timeout'
+        WHERE id = ? AND status = 'in_progress'`,
+      [task.id],
+    );
+    if (r.affectedRows === 1 && task.task_type === 'set_parameter_values') {
+      await require('./portalServiceRequestService').settleWifiRequestForTask(task.id, false, 'No response from the CPE');
+    }
+  }
+  return { reaped: stuck.length };
+}
+
+// ---------------------------------------------------------------------------
 // handleCwmpRequest
 // ---------------------------------------------------------------------------
 
@@ -130,10 +216,15 @@ async function verifyAcsCredentials(username, passwordPlaintext) {
  */
 async function handleCwmpRequest(req, res) {
   try {
-    // 1. Connection-request check: empty body, no auth → 200 OK
+    // 1. Empty POST: the CPE is ready for the ACS's RPCs. Its own credentials
+    // or the session cookie identify it; anything else has no session, and a
+    // 204 says there is nothing to do.
     const body = req.body;
     if (!body || (typeof body === 'string' && body.trim() === '')) {
-      return res.status(200).send('');
+      const creds = parseBasicAuth(req.headers['authorization'] || '');
+      const device = (creds && await verifyAcsCredentials(creds.username, creds.password)) || await sessionDevice(req);
+      if (!device) return res.status(204).send();
+      return dispatchNextOrEnd(res, device, req.ip);
     }
 
     // Only the text parser fills the body (see app.js); anything else is not CWMP.
@@ -148,6 +239,16 @@ async function handleCwmpRequest(req, res) {
     if (credentials) {
       cpeDevice = await verifyAcsCredentials(credentials.username, credentials.password);
       if (!cpeDevice) firstContact = isSharedAcsCredential(credentials.username, credentials.password);
+    }
+    // Later messages of a session the device opened with a valid Inform: a
+    // CPE that authenticated (possibly with the ACS-wide credential) only on
+    // its first request is still known by its session.
+    if (!cpeDevice) {
+      const fromSession = await sessionDevice(req);
+      if (fromSession) {
+        cpeDevice = fromSession;
+        firstContact = false;
+      }
     }
     if (!cpeDevice && !firstContact) {
       if (credentials) {
@@ -313,28 +414,9 @@ async function handleCwmpRequest(req, res) {
 
       await cwmpSessionService.handleInform(cpeDevice, payload, cpeDevice.organization_id);
 
-      // Check for queued tasks
-      const nextTask = await cwmpSessionService.getNextTask(cpeDevice.id);
-      if (nextTask) {
-        await db.query(
-          "UPDATE cpe_tasks SET status = 'in_progress', started_at = NOW() WHERE id = ?",
-          [nextTask.id],
-        );
-        // §8.3: log task dispatched
-        cpeSessionLogService.logSessionEvent({
-          orgId: cpeDevice.organization_id,
-          cpeDeviceId: cpeDevice.id,
-          eventType: 'task_dispatched',
-          taskType: nextTask.task_type,
-          remoteIp: req.ip || null,
-        }).catch(() => {});
-        const taskXml = cwmpSessionService.buildResponseForTask(nextTask);
-        return res
-          .status(200)
-          .set('Content-Type', 'text/xml; charset=utf-8')
-          .send(taskXml);
-      }
-
+      // An Inform is always answered with InformResponse; queued RPCs go out on
+      // the CPE's following empty POST, inside this session.
+      await openSession(res, cpeDevice);
       return res
         .status(200)
         .set('Content-Type', 'text/xml; charset=utf-8')
@@ -398,22 +480,8 @@ async function handleCwmpRequest(req, res) {
       }
     }
 
-    // Check for next queued task
-    const nextTask = await cwmpSessionService.getNextTask(cpeDevice.id);
-    if (nextTask) {
-      await db.query(
-        "UPDATE cpe_tasks SET status = 'in_progress', started_at = NOW() WHERE id = ?",
-        [nextTask.id],
-      );
-      const taskXml = cwmpSessionService.buildResponseForTask(nextTask);
-      return res
-        .status(200)
-        .set('Content-Type', 'text/xml; charset=utf-8')
-        .send(taskXml);
-    }
-
-    // No more tasks — close session
-    return res.status(200).send('');
+    // Next queued RPC, or end the session.
+    return dispatchNextOrEnd(res, cpeDevice, req.ip);
 
   } catch (err) {
     logger.error({ err: err.message }, 'CWMP request error');
@@ -423,6 +491,7 @@ async function handleCwmpRequest(req, res) {
 
 module.exports = {
   handleCwmpRequest,
+  reapStuckTasks,
   verifyAcsCredentials,
   isCwmpBody,
   requireCwmpContentType,
