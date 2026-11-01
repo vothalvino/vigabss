@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS users (
     deleted_at      DATETIME        DEFAULT NULL,
     is_install_operator TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Runs this INSTALL (deploy, install-wide settings) — NOT a tenant role. Never settable through the API: absent from User.fillable and from every validation schema (migration 444).',
     must_change_password TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = the account must set a new password before doing anything else; set for the installer-created administrator (migration 480)',
+    password_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'When the current password was set; password_policies.rotation_days counts from here (migration 494)',
     token_version INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Embedded in access JWTs; bumped to revoke every outstanding access token (migration 482)',
     active_flag TINYINT(1) GENERATED ALWAYS AS (IF(deleted_at IS NULL, 1, NULL)) STORED COMMENT 'NULL when soft-deleted; appended to business unique keys so they ignore soft-deleted rows (migration 361)',
 
@@ -8868,6 +8869,24 @@ CREATE TABLE IF NOT EXISTS sso_saml_assertions_seen (
     CONSTRAINT fk_sso_saml_seen_org FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Table: password_history (migration 494)
+-- Purpose: Replaced password hashes per user, compared against a new password
+--          for password_policies.history_count (SEC-17).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS password_history (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id         BIGINT UNSIGNED NOT NULL,
+    password_hash   VARCHAR(255)    NOT NULL COMMENT 'bcrypt hash of a replaced password; never a plaintext',
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    KEY idx_password_history_user (user_id, id),
+    CONSTRAINT fk_password_history_user FOREIGN KEY (user_id)
+        REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Replaced password hashes per user for password_policies.history_count (migration 494)';
 
 -- Per-organization SSO identity links (migration 468): the IdP identity
 -- (issuer + subject), not the asserted email, decides the account after the

@@ -53343,7 +53343,8 @@
         "tags": [
           "Security"
         ],
-        "summary": "Register a WebAuthn credential",
+        "summary": "Register a WebAuthn credential (not implemented; always 501)",
+        "description": "WebAuthn has no registration challenge or sign-in ceremony yet, so registration is refused with 501 NOT_IMPLEMENTED. Use TOTP.",
         "operationId": "createWebAuthnCredential",
         "security": [
           {
@@ -53361,15 +53362,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "WebAuthnCredential",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+          "501": {
+            "description": "WebAuthn is not implemented"
           }
         }
       }
@@ -53581,7 +53575,7 @@
         "tags": [
           "Security"
         ],
-        "summary": "Get org password policy",
+        "summary": "Get the password policy in force (configured: false means the built-in defaults)",
         "operationId": "getPasswordPolicy",
         "security": [
           {
@@ -53605,7 +53599,8 @@
         "tags": [
           "Security"
         ],
-        "summary": "Update org password policy",
+        "summary": "Update org password policy; only the fields sent change",
+        "description": "Enforced on register, password change and reset, administrator-set passwords, sign-in lockout, password history and rotation.",
         "operationId": "updatePasswordPolicy",
         "security": [
           {
@@ -53624,7 +53619,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "PasswordPolicy",
             "content": {
               "application/json": {
                 "schema": {
@@ -74716,23 +74711,28 @@
           },
           "max_repeated_chars": {
             "type": "string",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 128
           },
           "rotation_days": {
             "type": "string",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3650
           },
           "history_count": {
             "type": "string",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 24
           },
           "lockout_attempts": {
             "type": "string",
-            "minimum": 0
+            "minimum": 1,
+            "maximum": 100
           },
           "lockout_duration_minutes": {
             "type": "string",
-            "minimum": 0
+            "minimum": 1,
+            "maximum": 1440
           }
         }
       },

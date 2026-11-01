@@ -125,8 +125,8 @@ working. New documentation uses the VigaBSS names.
 ```
 vigabss/
 ├── database/                # Database schema and migrations
-│   ├── schema.sql           # Combined schema (all 365 tables + column additions)
-│   └── migrations/          # Individual numbered migration files (001–493)
+│   ├── schema.sql           # Combined schema (all 366 tables + column additions)
+│   └── migrations/          # Individual numbered migration files (001–494)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -540,6 +540,7 @@ Production installs use `install.sh`, which runs the same migrations.
 | 361 | `user_sso_identities` | Migration 468 per-organization link from an SSO IdP identity (OIDC issuer + `sub`, or SAML IdP + NameID) to the local user it signs in; after the first sign-in this link, not the asserted email, decides the account |
 | 362 | `reseller_user_bindings` | Migration 471 binds a staff user to one reseller subtree per organization (unique per org+user); bound users are confined to that subtree on `/resellers` and `/reseller-portal`, unbound `reseller_admin` users are refused |
 | 363 | `sso_saml_assertions_seen` | Migration 492 records each verified SAML assertion ID per organization until its NotOnOrAfter, so the ACS refuses a replayed SAMLResponse |
+| 364 | `password_history` | Migration 494 keeps the bcrypt hashes of each user's last 24 replaced passwords so `password_policies.history_count` can refuse reuse; `users.password_changed_at` (same migration) drives `rotation_days` |
 
 > **Migration 323–335 — Security & Access Control (§17):** webauthn_credentials, admin_ip_allowlist, password_policies, api_key_rate_limits, firewall_rules, ddos_protection_rules, blackhole_routes, dns_blocklists, cpe_security_scans, encryption_key_metadata, data_masking_rules, secure_deletion_log; plus 4 new roles (super_admin, noc_operator, reseller_admin, auditor) and 36 security module permissions.
 

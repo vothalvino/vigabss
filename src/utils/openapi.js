@@ -2921,7 +2921,7 @@ function generateSpec() {
       // ---- §17 Security Admin ----
       '/security-admin/webauthn': {
         get: { tags: ['Security'], summary: 'List WebAuthn credentials for current user', operationId: 'listWebAuthnCredentials', security: [{ bearerAuth: [] }], responses: r200('WebAuthnCredential[]') },
-        post: { tags: ['Security'], summary: 'Register a WebAuthn credential', operationId: 'createWebAuthnCredential', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_createWebAuthn'), responses: r201('WebAuthnCredential') },
+        post: { tags: ['Security'], summary: 'Register a WebAuthn credential (not implemented; always 501)', description: 'WebAuthn has no registration challenge or sign-in ceremony yet, so registration is refused with 501 NOT_IMPLEMENTED. Use TOTP.', operationId: 'createWebAuthnCredential', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_createWebAuthn'), responses: { 501: { description: 'WebAuthn is not implemented' } } },
       },
       '/security-admin/webauthn/{id}': {
         delete: { tags: ['Security'], summary: 'Revoke a WebAuthn credential', operationId: 'deleteWebAuthnCredential', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Success') },
@@ -2938,8 +2938,8 @@ function generateSpec() {
         delete: { tags: ['Security'], summary: 'Delete admin IP allowlist entry', operationId: 'deleteAdminIpAllowlist', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Success') },
       },
       '/security-admin/password-policy': {
-        get: { tags: ['Security'], summary: 'Get org password policy', operationId: 'getPasswordPolicy', security: [{ bearerAuth: [] }], responses: r200('PasswordPolicy') },
-        put: { tags: ['Security'], summary: 'Update org password policy', operationId: 'updatePasswordPolicy', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_updatePasswordPolicy'), responses: r200('Success') },
+        get: { tags: ['Security'], summary: 'Get the password policy in force (configured: false means the built-in defaults)', operationId: 'getPasswordPolicy', security: [{ bearerAuth: [] }], responses: r200('PasswordPolicy') },
+        put: { tags: ['Security'], summary: 'Update org password policy; only the fields sent change', description: 'Enforced on register, password change and reset, administrator-set passwords, sign-in lockout, password history and rotation.', operationId: 'updatePasswordPolicy', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_updatePasswordPolicy'), responses: r200('PasswordPolicy') },
       },
       '/security-admin/api-key-rate-limits': {
         get: { tags: ['Security'], summary: 'List API key rate limits', operationId: 'listApiKeyRateLimits', security: [{ bearerAuth: [] }], responses: r200('ApiKeyRateLimit[]') },

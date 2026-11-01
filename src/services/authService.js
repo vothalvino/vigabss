@@ -12,6 +12,7 @@ const { sanitizeUser } = require('../utils/userSanitize');
 const db = require('../config/database');
 const emailTransport = require('./emailTransport');
 const { resolveOrgPrincipal } = require('./orgPrincipalService');
+const passwordPolicy = require('./passwordPolicyService');
 const { hasGlobalOrganizationAccessUser } = require('./globalOrganizationAccess');
 const emailTemplates = require('../views/emailTemplates');
 const logger = require('../utils/logger');
@@ -24,8 +25,6 @@ const {
 const { UnauthorizedError, ConflictError, ValidationError, NotFoundError } = require('../utils/errors');
 
 const SALT_ROUNDS = 12;
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 15;
 
 async function findGlobalFallbackOrganization(user) {
   // Production user rows are SELECT * and therefore always carry these
@@ -122,9 +121,7 @@ async function register({ firstName, lastName, email, password, organizationId, 
     throw new ConflictError('Email already registered');
   }
 
-  if (!password || password.length < 8) {
-    throw new ValidationError('Password must be at least 8 characters');
-  }
+  await passwordPolicy.assertPasswordAllowed(password, organizationId);
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
@@ -188,7 +185,8 @@ function requiresSecondFactor(user) {
 
 /**
  * Record one failed credential attempt (password or second factor) and lock
- * the account after MAX_LOGIN_ATTEMPTS. Both factors share the counter, so a
+ * the account after the home organization's lockout_attempts (default 5) for
+ * lockout_duration_minutes (default 15). Both factors share the counter, so a
  * stolen password cannot be used to grind through TOTP codes.
  */
 //
@@ -198,6 +196,7 @@ function requiresSecondFactor(user) {
 // expired restarts the count at 1; MySQL evaluates the SET list left to
 // right, so locked_until sees the new count.
 async function recordFailedLoginAttempt(user) {
+  const policy = await passwordPolicy.loadPolicy(user.organization_id);
   await db.query(
     `UPDATE users SET
        failed_login_attempts = CASE WHEN locked_until IS NOT NULL AND locked_until <= NOW() THEN 1
@@ -206,7 +205,7 @@ async function recordFailedLoginAttempt(user) {
                            WHEN failed_login_attempts >= ? THEN DATE_ADD(NOW(), INTERVAL ? MINUTE)
                            ELSE NULL END
      WHERE id = ?`,
-    [MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, user.id],
+    [policy.lockout_attempts, policy.lockout_duration_minutes, user.id],
   );
 }
 
@@ -305,6 +304,14 @@ async function login({ email, password }) {
     // Increment failed attempts and potentially lock the account
     await recordFailedLoginAttempt(user);
     throw new UnauthorizedError(INVALID_LOGIN);
+  }
+
+  // An expired password still signs in, but only to replace itself: the
+  // forced-change gate in auth.js (migration 480) does the rest.
+  if (Number(user.must_change_password) !== 1
+      && passwordPolicy.passwordExpired(user, await passwordPolicy.loadPolicy(user.organization_id))) {
+    await db.query('UPDATE users SET must_change_password = 1 WHERE id = ?', [user.id]);
+    user.must_change_password = 1;
   }
 
   if (requiresSecondFactor(user)) {
@@ -587,7 +594,10 @@ async function resetPassword(token, newPassword) {
   }
 
   const user = rows[0];
+  const policy = await passwordPolicy.assertPasswordAllowed(newPassword, user.organization_id);
+  await passwordPolicy.assertNotReused(user, newPassword, policy);
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await passwordPolicy.recordPasswordChange(user);
 
   // Clear the brute-force login lockout too: possession of the emailed reset
   // token is stronger proof of identity than a password (it required access
@@ -631,7 +641,10 @@ async function changePassword(userId, currentPassword, newPassword) {
     throw new UnauthorizedError('Current password is incorrect');
   }
 
+  const policy = await passwordPolicy.assertPasswordAllowed(newPassword, user.organization_id, 'newPassword');
+  await passwordPolicy.assertNotReused(user, newPassword, policy, 'newPassword');
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await passwordPolicy.recordPasswordChange(user);
   // Clears the forced-change flag (migration 480).
   await db.query(
     'UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?',

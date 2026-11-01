@@ -23,6 +23,24 @@ jest.mock('../src/services/emailTransport', () => ({
   sendEmail: jest.fn().mockResolvedValue({ success: true, messageId: 'test-message-id' }),
 }));
 
+// The organization password policy (SEC-17) is its own service with its own
+// tests (passwordPolicyEnforcement.test.js). Here it answers with the built-in
+// defaults without a query, so the positional db.query mocks below stay
+// aligned with authService's own statements.
+jest.mock('../src/services/passwordPolicyService', () => {
+  const actual = jest.requireActual('../src/services/passwordPolicyService');
+  return {
+    ...actual,
+    loadPolicy: jest.fn(async () => ({ ...actual.DEFAULT_POLICY })),
+    assertPasswordAllowed: jest.fn(async (password, _orgId, field) => {
+      actual.assertPasswordMeetsPolicy(password, actual.DEFAULT_POLICY, field);
+      return { ...actual.DEFAULT_POLICY };
+    }),
+    assertNotReused: jest.fn(async () => {}),
+    recordPasswordChange: jest.fn(async () => {}),
+  };
+});
+
 const crypto = require('crypto');
 const db = require('../src/config/database');
 const bcrypt = require('bcryptjs');

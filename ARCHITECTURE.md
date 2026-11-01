@@ -185,6 +185,17 @@ a user, and setting a portal password. A new surface that mints an access
 token must embed the current version; one that verifies a token must compare
 it.
 
+A staff password is governed by the password policy of the user's home
+organization (`src/services/passwordPolicyService.js`; built-in defaults of 8
+characters and 5 attempts / 15 minutes when no `password_policies` row is
+active). Every path that sets a password applies its composition rules
+(register, change, reset, `hashPasswordField` for administrator-set
+passwords); change and reset also refuse the last `history_count` passwords
+(`password_history`), sign-in failures lock by its lockout settings, and a
+password older than `rotation_days` sets `must_change_password` at password
+sign-in. WebAuthn is not implemented: `POST /security-admin/webauthn` returns
+501 and no sign-in path reads `webauthn_credentials`.
+
 Staff with TOTP enabled sign in in two steps. `POST /auth/login` (and an SSO
 callback) returns a 5-minute `type: 'mfa'` challenge signed with a third
 derived key; it sets no cookies and creates no session, and
