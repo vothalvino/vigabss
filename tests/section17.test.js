@@ -155,32 +155,17 @@ describe('POST /api/v1/security-admin/webauthn', () => {
   });
   afterEach(() => { jest.clearAllMocks(); });
 
-  it('returns 201 on webauthn credential create', async () => {
+  // SEC-17: no challenge, attestation or sign-in ceremony exists, so a
+  // client-supplied credential is refused rather than stored.
+  it('refuses registration with 501 and stores nothing', async () => {
     const res = await request(app)
       .post('/api/v1/security-admin/webauthn')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
       .send({ credential_id: 'cred-abc', public_key: 'pubkey-xyz', friendly_name: 'YubiKey 5' });
-    expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('id');
-  });
-
-  it('returns 422 when credential_id is missing', async () => {
-    const res = await request(app)
-      .post('/api/v1/security-admin/webauthn')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '1')
-      .send({ public_key: 'pubkey-xyz' });
-    expect(res.status).toBe(422);
-  });
-
-  it('returns 422 when public_key is missing', async () => {
-    const res = await request(app)
-      .post('/api/v1/security-admin/webauthn')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '1')
-      .send({ credential_id: 'cred-abc' });
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(501);
+    expect(res.body.error.code).toBe('NOT_IMPLEMENTED');
+    expect(db.query.mock.calls.some(([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO webauthn_credentials'))).toBe(false);
   });
 });
 
@@ -252,7 +237,7 @@ describe('GET /api/v1/security-admin/password-policy', () => {
     expect(res.body).toHaveProperty('data');
   });
 
-  it('returns 404 when no policy configured', async () => {
+  it('returns the built-in defaults, marked unconfigured, when no policy is stored', async () => {
     db.query.mockImplementation((sql) => {
       if (typeof sql === 'string' && sql.includes('WHERE id = ?')) {
         return Promise.resolve([[{ id: 1, email: 'admin@test.com', role: 'admin', status: 'active', organization_id: 1 }]]);
@@ -263,7 +248,8 @@ describe('GET /api/v1/security-admin/password-policy', () => {
       .get('/api/v1/security-admin/password-policy')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1');
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ configured: false, min_length: 8, lockout_attempts: 5 });
   });
 });
 
@@ -273,8 +259,11 @@ describe('PUT /api/v1/security-admin/password-policy', () => {
       if (typeof sql === 'string' && sql.includes('WHERE id = ?')) {
         return Promise.resolve([[{ id: 1, email: 'admin@test.com', role: 'admin', status: 'active', organization_id: 1 }]]);
       }
-      if (typeof sql === 'string' && sql.includes('password_policies')) {
+      if (typeof sql === 'string' && sql.includes('INSERT INTO password_policies')) {
         return Promise.resolve([{ insertId: 1, affectedRows: 1 }]);
+      }
+      if (typeof sql === 'string' && sql.includes('FROM password_policies')) {
+        return Promise.resolve([[{ id: 1, organization_id: 1, min_length: 12, require_uppercase: 1, require_digits: 1 }]]);
       }
       return Promise.resolve([{ affectedRows: 1 }]);
     });
@@ -288,7 +277,10 @@ describe('PUT /api/v1/security-admin/password-policy', () => {
       .set('X-Org-Id', '1')
       .send({ min_length: 12, require_uppercase: true, require_digits: true });
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('success', true);
+    expect(res.body.data).toMatchObject({ configured: true, min_length: 12 });
+    // Only the fields sent are updated on an existing row.
+    const upsert = db.query.mock.calls.map(([sql]) => sql).find(sql => typeof sql === 'string' && sql.includes('INSERT INTO password_policies'));
+    expect(upsert.split('ON DUPLICATE KEY UPDATE')[1]).not.toMatch(/lockout_attempts|rotation_days/);
   });
 
   it('returns 422 when min_length is below 8', async () => {

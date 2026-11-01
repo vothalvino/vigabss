@@ -11,11 +11,11 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const {
-  createWebAuthn,
   updatePasswordPolicy,
   createAdminIpAllowlist,
 } = require('../middleware/schemas/security');
-const { ValidationError, NotFoundError, ForbiddenError } = require('../utils/errors');
+const { AppError, ValidationError, NotFoundError, ForbiddenError } = require('../utils/errors');
+const passwordPolicyService = require('../services/passwordPolicyService');
 const { parseEntry, isAllowed } = require('../middleware/ipAllowlist');
 const {
   clientIp,
@@ -39,6 +39,11 @@ router.use(orgScope);
 // ---------------------------------------------------------------------------
 // WebAuthn Credentials
 // ---------------------------------------------------------------------------
+// Not implemented (SEC-17): there is no registration challenge, no
+// attestation check and no sign-in ceremony, so a stored credential would
+// protect nothing. Registration is refused rather than accepted as a security
+// control that does not exist; listing and revoking remain for rows that
+// already exist.
 
 // GET /webauthn — list WebAuthn credentials for current user
 router.get('/webauthn', requirePermission('webauthn.view'), async (req, res, next) => {
@@ -47,34 +52,19 @@ router.get('/webauthn', requirePermission('webauthn.view'), async (req, res, nex
       'SELECT * FROM webauthn_credentials WHERE organization_id = ? AND user_id = ? AND deleted_at IS NULL ORDER BY id DESC',
       [req.orgId, req.user.id],
     );
-    res.json({ data: rows });
+    res.json({ data: rows, meta: { enforced: false } });
   } catch (err) {
     next(err);
   }
 });
 
-// POST /webauthn — register WebAuthn credential
-router.post('/webauthn', requirePermission('webauthn.create'), validate(createWebAuthn), async (req, res, next) => {
-  try {
-    const { credential_id, public_key, friendly_name, aaguid, transports } = req.body;
-    const [result] = await db.query(
-      `INSERT INTO webauthn_credentials
-        (organization_id, user_id, credential_id, public_key, friendly_name, aaguid, transports)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        req.orgId,
-        req.user.id,
-        credential_id,
-        public_key,
-        friendly_name || null,
-        aaguid || null,
-        transports ? JSON.stringify(transports) : null,
-      ],
-    );
-    res.status(201).json({ id: result.insertId });
-  } catch (err) {
-    next(err);
-  }
+// POST /webauthn — refused until WebAuthn is implemented
+router.post('/webauthn', requirePermission('webauthn.create'), (_req, _res, next) => {
+  next(new AppError(
+    'WebAuthn sign-in is not implemented, so credentials cannot be registered. Use TOTP two-factor authentication.',
+    501,
+    'NOT_IMPLEMENTED',
+  ));
 });
 
 // DELETE /webauthn/:id — revoke WebAuthn credential
@@ -226,72 +216,60 @@ router.delete('/admin-ip-allowlist/:id', requirePermission('admin_ip_allowlist.d
 // Password Policy
 // ---------------------------------------------------------------------------
 
-// GET /password-policy — get org password policy
+// GET /password-policy — the policy in force for this organization. With no
+// stored row the built-in defaults apply (configured: false).
 router.get('/password-policy', requirePermission('password_policy.view'), async (req, res, next) => {
   try {
     const [[row]] = await db.query(
       'SELECT * FROM password_policies WHERE organization_id = ? LIMIT 1',
       [req.orgId],
     );
-    if (!row) return res.status(404).json({ error: 'No password policy configured' });
-    res.json({ data: row });
+    if (!row) return res.json({ data: { ...passwordPolicyService.DEFAULT_POLICY, configured: false } });
+    res.json({ data: { ...row, configured: true } });
   } catch (err) {
     next(err);
   }
 });
 
-// PUT /password-policy — update org password policy (upsert by org)
+// Columns PUT may write. A zero for the two optional limits means "off" and
+// is stored as NULL, as the column comments define.
+const POLICY_BOOLEANS = ['require_uppercase', 'require_lowercase', 'require_digits', 'require_special_chars'];
+const POLICY_NULLABLE = ['max_repeated_chars', 'rotation_days'];
+const POLICY_INTEGERS = ['min_length', 'history_count', 'lockout_attempts', 'lockout_duration_minutes'];
+
+// PUT /password-policy — update org password policy (upsert by org). Only the
+// fields sent change; the rest keep their stored or default value. Enforced
+// by passwordPolicyService on every password set and sign-in (SEC-17).
 router.put('/password-policy', requirePermission('password_policy.update'), validate(updatePasswordPolicy), async (req, res, next) => {
   try {
-    const {
-      min_length,
-      require_uppercase,
-      require_lowercase,
-      require_digits,
-      require_special_chars,
-      // Accept legacy require_symbols as alias for require_special_chars
-      require_symbols,
-      max_repeated_chars,
-      rotation_days,
-      history_count,
-      lockout_attempts,
-      lockout_duration_minutes,
-    } = req.body;
+    const body = { ...req.body };
+    // Accept legacy require_symbols as alias for require_special_chars
+    if (body.require_special_chars === undefined && body.require_symbols !== undefined) {
+      body.require_special_chars = body.require_symbols;
+    }
 
-    const specialChars = require_special_chars !== undefined ? require_special_chars : require_symbols;
+    const values = {};
+    for (const key of POLICY_BOOLEANS) if (body[key] !== undefined) values[key] = body[key] ? 1 : 0;
+    for (const key of POLICY_NULLABLE) if (body[key] !== undefined) values[key] = body[key] === 0 ? null : body[key];
+    for (const key of POLICY_INTEGERS) if (body[key] !== undefined) values[key] = body[key];
+    const columns = Object.keys(values);
+    if (columns.length === 0) {
+      throw new ValidationError('Send at least one password policy field');
+    }
 
+    // Columns not sent take the built-in default on first insert, so the
+    // stored row never starts stricter than what was in force before it.
+    const insertValues = { ...passwordPolicyService.DEFAULT_POLICY, ...values };
+    const insertColumns = Object.keys(insertValues);
     await db.query(
-      `INSERT INTO password_policies
-        (organization_id, min_length, require_uppercase, require_lowercase, require_digits, require_special_chars, max_repeated_chars, rotation_days, history_count, lockout_attempts, lockout_duration_minutes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         min_length = VALUES(min_length),
-         require_uppercase = VALUES(require_uppercase),
-         require_lowercase = VALUES(require_lowercase),
-         require_digits = VALUES(require_digits),
-         require_special_chars = VALUES(require_special_chars),
-         max_repeated_chars = VALUES(max_repeated_chars),
-         rotation_days = VALUES(rotation_days),
-         history_count = VALUES(history_count),
-         lockout_attempts = VALUES(lockout_attempts),
-         lockout_duration_minutes = VALUES(lockout_duration_minutes),
-         updated_at = NOW()`,
-      [
-        req.orgId,
-        min_length !== undefined ? min_length : null,
-        require_uppercase !== undefined ? (require_uppercase ? 1 : 0) : null,
-        require_lowercase !== undefined ? (require_lowercase ? 1 : 0) : null,
-        require_digits !== undefined ? (require_digits ? 1 : 0) : null,
-        specialChars !== undefined ? (specialChars ? 1 : 0) : null,
-        max_repeated_chars !== undefined ? max_repeated_chars : null,
-        rotation_days !== undefined ? rotation_days : null,
-        history_count !== undefined ? history_count : null,
-        lockout_attempts !== undefined ? lockout_attempts : null,
-        lockout_duration_minutes !== undefined ? lockout_duration_minutes : null,
-      ],
+      `INSERT INTO password_policies (organization_id, ${insertColumns.join(', ')})
+       VALUES (?, ${insertColumns.map(() => '?').join(', ')})
+       ON DUPLICATE KEY UPDATE ${columns.map(c => `${c} = VALUES(${c})`).join(', ')}, updated_at = NOW()`,
+      [req.orgId, ...insertColumns.map(c => insertValues[c])],
     );
 
-    res.json({ success: true });
+    const [[row]] = await db.query('SELECT * FROM password_policies WHERE organization_id = ? LIMIT 1', [req.orgId]);
+    res.json({ data: { ...row, configured: true } });
   } catch (err) {
     next(err);
   }

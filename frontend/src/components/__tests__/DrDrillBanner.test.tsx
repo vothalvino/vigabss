@@ -38,6 +38,21 @@ const adminUser: AuthUser = {
   is_active: true,
   email_verified_at: '2026-01-01T00:00:00.000Z',
   twofa_enabled: false,
+  is_install_operator: true,
+};
+
+// An organization's own administrator: legacy admin role, but not the
+// install operator. The drill status is install-wide, so it is not theirs.
+const tenantAdminUser: AuthUser = {
+  id: 3,
+  email: 'tenant-admin@test.com',
+  name: 'Tenant Admin',
+  role: 'admin',
+  organization_id: 2,
+  is_active: true,
+  email_verified_at: '2026-01-01T00:00:00.000Z',
+  twofa_enabled: false,
+  is_install_operator: false,
 };
 
 const techUser: AuthUser = {
@@ -221,6 +236,16 @@ describe('DrDrillBanner', () => {
     await new Promise(r => setTimeout(r, 50));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     // API should not be called for non-admins
+    expect(mockApiGet).not.toHaveBeenCalled();
+  });
+
+  it('does not show or fetch for a tenant admin who is not the install operator', async () => {
+    mockUseAuth(tenantAdminUser);
+
+    renderBanner();
+
+    await new Promise(r => setTimeout(r, 50));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(mockApiGet).not.toHaveBeenCalled();
   });
 

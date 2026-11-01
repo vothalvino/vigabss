@@ -44,8 +44,11 @@ const makeLimiter = (max, msg, extra = {}) => rateLimit({
 // user to the login screen.
 const SESSION_PATH_RE = /^\/api(?:\/v1)?\/(?:auth|portal\/auth)\/(?:me|refresh|logout|switch-organization)\/?$/;
 const isSessionPath = (req) => SESSION_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
-const COLLECTOR_PATH_RE = /^\/api(?:\/v1)?\/(?:radius\/accounting(?:\/tenant)?|connection-logs\/cgnat-attribution\/bindings\/ingest)\/?$/;
-const isCollectorPath = req => COLLECTOR_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
+const COLLECTOR_PATH_RE = /^\/api(?:\/v1)?\/(?:radius\/accounting(?:\/tenant)?|connection-logs\/cgnat-attribution\/bindings\/ingest|pppoe\/events(?:\/tenant)?)\/?$/;
+// Collectors only POST. GET /pppoe/events is the staff event list and stays
+// in the general API bucket.
+const isCollectorPath = req => (req.method || 'POST').toUpperCase() === 'POST'
+  && COLLECTOR_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
 // Signed provider callbacks have their own limiter (webhookLimiter below).
 const WEBHOOK_PATH_RE = /^\/api(?:\/v1)?\/(?:payment-webhooks|whatsapp\/webhook)(?:\/|$)/;
 const isWebhookPath = req => WEBHOOK_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
@@ -309,7 +312,8 @@ function configuredLimit(row, window) {
 /**
  * Enforce an active api_key_rate_limits row for an authenticated API token.
  *
- * This middleware must run after authenticate + orgScope. Authentication reads
+ * orgScope runs it for every token-authenticated request, /graphql included
+ * (GQL-09); it must run after authenticate + orgScope. Authentication reads
  * the policy in the same live primary-control-plane query that validates token
  * revocation and binds the organization. Counters use the same atomic shared
  * fixed-window primitive as the outer collector ceilings. The one-second burst
@@ -319,6 +323,10 @@ function configuredLimit(row, window) {
  */
 async function apiTokenConfiguredLimiter(req, res, next) {
   if (!req.user?.apiTokenId) return next();
+  // orgScope runs this for every token request and the collector routes also
+  // mount it; count a request once however many mounts it passes (SEC-13).
+  if (req.apiTokenPolicyCounted) return next();
+  req.apiTokenPolicyCounted = true;
 
   try {
     const tokenId = positiveDatabaseId(req.user.apiTokenId, 'API token ID');

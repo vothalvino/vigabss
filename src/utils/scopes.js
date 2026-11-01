@@ -5,7 +5,7 @@
 // can do, layered on top of the user's RBAC permissions.
 //
 // Format:  "resource:access" where access is "read", "write", or the
-// collector-only "ingest" access supported by connection_logs and the
+// collector-only "ingest" access supported by connection_logs, pppoe_events and the
 // privacy-minimal CGNAT attribution collector.
 // Examples: "clients:read", "invoices:write", "*:read"
 //
@@ -77,7 +77,7 @@ const VALID_RESOURCES = [
 const ACCESS_READ = 'read';
 const ACCESS_WRITE = 'write';
 const ACCESS_INGEST = 'ingest';
-const INGEST_RESOURCES = new Set(['connection_logs', 'cgnat_attribution']);
+const INGEST_RESOURCES = new Set(['connection_logs', 'cgnat_attribution', 'pppoe_events']);
 
 /**
  * Permission actions that are satisfied by `:read` scope.

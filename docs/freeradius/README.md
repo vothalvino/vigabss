@@ -468,7 +468,22 @@ configuration. Prefer API-SSL or a WireGuard management path.
 
 ### Optional raw/structured event ingest
 
-A syslog connector can also send events to:
+A syslog connector run by one organization sends its events with that
+organization's API token:
+
+```text
+POST /api/v1/pppoe/events/tenant
+X-API-Key: <token whose only scope is pppoe_events:ingest>
+Content-Type: application/json
+```
+
+The token's user needs the `pppoe_events.ingest` permission (admin and
+technician have it), and `nas_id` must be an active NAS of the token's
+organization. Each token has its own budget,
+`PPPOE_EVENTS_REQUESTS_PER_MINUTE` (default 6000).
+
+A connector the install operator runs for the whole installation can use the
+shared secret instead:
 
 ```text
 POST /api/v1/pppoe/events
@@ -476,8 +491,11 @@ X-Pppoe-Secret: <PPPOE_EVENTS_SECRET>
 Content-Type: application/json
 ```
 
-Use a dedicated `PPPOE_EVENTS_SECRET`; when absent, VigaBSS falls back to
-`RADIUS_ACCOUNTING_SECRET`. The endpoint fails closed when neither is set.
+`PPPOE_EVENTS_SECRET` is install-wide: whoever holds it can write events for
+any shared-database tenant's NAS, so never give it to a tenant. The endpoint
+fails closed when it is not set; it does not reuse `RADIUS_ACCOUNTING_SECRET`.
+Both paths share the collector limiter (`RATE_LIMIT_COLLECTOR_INGRESS_PER_MINUTE`)
+instead of the general API budget.
 
 Raw-line payload (VigaBSS parses stage/severity/reason and derives username/MAC
 when present):
@@ -506,7 +524,8 @@ Structured payload:
 
 `nas_id` is required. The server loads that NAS and stamps its
 `organization_id`; callers cannot supply tenant ownership. Payload shapes are
-strict, timestamps/enums/MACs are validated, and an omitted timestamp uses the
+strict, timestamps/enums/MACs are validated, `logged_at` must fall within the
+last 7 days and no more than 5 minutes ahead, and an omitted timestamp uses the
 database's `CURRENT_TIMESTAMP` default.
 
 `GET /api/v1/pppoe/diagnostics/readiness` drives the readiness banner. It reports
@@ -678,7 +697,8 @@ across the primary and active isolated database contexts.
 | `RADIUS_ACCOUNTING_RETENTION_MONTHS` | `24` | Calendar months for projections, lifecycle evidence, and usage rollups |
 | `RADIUS_ACCOUNTING_REQUESTS_PER_MINUTE` | `6000` | Tenant-endpoint requests per token/minute; clamped to 1–60,000 |
 | `RADIUS_ACCOUNTING_MAX_CLOCK_SKEW_SECONDS` | `300` | Accepted future Event-Timestamp skew; capped at 3,600 seconds |
-| `PPPOE_EVENTS_SECRET` | falls back to `RADIUS_ACCOUNTING_SECRET` | Shared secret for optional PPPoE event ingest |
+| `PPPOE_EVENTS_SECRET` | _(unset)_ | Install-wide secret for `POST /pppoe/events`; unset disables it |
+| `PPPOE_EVENTS_REQUESTS_PER_MINUTE` | `6000` | Per-token budget for `POST /pppoe/events/tenant` |
 | `PPPOE_EVENT_POLL_LIMIT` | `500` | Newest RouterOS log records considered per NAS poll (clamped 50–1,000) |
 | `RETENTION_RADPOSTAUTH_DAYS` | `90` | Days to retain post-authentication diagnostics (`radpostauth.authdate`) |
 | `RETENTION_PPPOE_EVENT_LOGS_DAYS` | `90` | Days to retain RouterOS/ingested PPPoE events (`pppoe_event_logs.logged_at`) |

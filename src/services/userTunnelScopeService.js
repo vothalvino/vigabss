@@ -55,26 +55,30 @@ function parseRoutedSubnets(raw) {
 
 /**
  * Return the set of device-side CIDRs this user is allowed to reach through
- * the WireGuard user-tunnel hub.
+ * the WireGuard user-tunnel hub, for a peer in one organization.
+ *
+ * The role is resolved FOR THAT ORGANIZATION (User.getOrgRole: the
+ * organization_users membership, else users.role only when it is the user's
+ * home organization). A global users.role of 'admin' grants nothing in an
+ * organization where the user is not an admin (NET-25).
  *
  * Admins/owners reach ALL active routed_subnets in the org.
- * Technicians/support reach only the subnets behind their assigned sites/NASes.
+ * Other members reach only the subnets behind their assigned sites/NASes in
+ * that org. A user who is not a member of the org reaches nothing.
  *
  * @param {number} userId
  * @param {number|null} orgId
- * @param {string|null} legacyRole   value of users.role for the requesting user
  * @returns {Promise<string[]>} deduped, sorted CIDR list (may be empty)
  */
-async function getScopedSubnets(userId, orgId, legacyRole) {
-  // Resolve the org-level role (organization_users takes precedence over users.role)
+async function getScopedSubnets(userId, orgId) {
+  // A failed lookup fails closed: no membership, no scope.
   const orgRole = await User.getOrgRole(userId, orgId).catch((err) => {
-    logger.warn({ userId, orgId, err: err.message }, 'getScopedSubnets: getOrgRole failed, falling back to legacyRole');
+    logger.warn({ userId, orgId, err: err.message }, 'getScopedSubnets: getOrgRole failed, granting no scope');
     return null;
   });
+  if (!orgRole) return [];
 
-  const isAdmin =
-    legacyRole === 'admin' ||
-    (orgRole && ['owner', 'admin'].includes(orgRole));
+  const isAdmin = ['owner', 'admin'].includes(orgRole);
 
   let rows;
 
@@ -94,8 +98,9 @@ async function getScopedSubnets(userId, orgId, legacyRole) {
     );
   } else {
     // Technician / support: union over subnets reachable through their
-    // durable admin-granted network assignments.  Scope can be 'nas' (single
-    // device) or 'site' (all NASes at a site).
+    // durable admin-granted network assignments IN THIS ORGANIZATION; a
+    // multi-org member's assignments elsewhere do not follow them here.
+    // Scope can be 'nas' (single device) or 'site' (all NASes at a site).
     [rows] = await db.query(
       `SELECT DISTINCT t.routed_subnets
          FROM user_network_assignments una
@@ -107,8 +112,10 @@ async function getScopedSubnets(userId, orgId, legacyRole) {
            ON t.nas_id = n.id
           AND t.deleted_at IS NULL
           AND t.state IN ('active', 'manual')
-        WHERE una.user_id = ? AND una.active_flag = 1`,
-      [userId],
+        WHERE una.user_id = ? AND una.active_flag = 1
+          AND una.organization_id <=> ?
+          AND n.organization_id <=> ?`,
+      [userId, orgId, orgId],
     );
   }
 

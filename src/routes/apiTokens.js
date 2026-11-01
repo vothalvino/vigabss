@@ -16,7 +16,28 @@ const { ValidationError, ForbiddenError } = require('../utils/errors');
 const db = require('../config/database');
 
 const router = Router();
-const ctrl = crudController(ApiToken);
+
+// token_hash never leaves the server (SEC-19). It is a SHA-256 of a 256-bit
+// secret, so it cannot be reversed, but nothing reads it either.
+function serializeToken(token) {
+  if (!token) return token;
+  const { token_hash: _hash, ...rest } = token;
+  return rest;
+}
+const ctrl = crudController(ApiToken, { serialize: serializeToken });
+
+// A token's scopes must be a non-empty, valid list. null means unrestricted,
+// so it is never accepted from a client.
+function requireScopes(scopes) {
+  if (!Array.isArray(scopes) || scopes.length === 0) {
+    throw new ValidationError('scopes must list at least one scope; use ["*:write"] for full access', [
+      { field: 'scopes', message: 'At least one scope is required' },
+    ]);
+  }
+  const { valid, errors } = validateScopes(scopes);
+  if (!valid) throw new ValidationError('Invalid scopes', errors);
+  return JSON.stringify(scopes);
+}
 
 function requireInteractiveJwt(req, _res, next) {
   if (req.user?.apiTokenId) {
@@ -43,15 +64,8 @@ router.get('/:id', requirePermission('api_tokens.view'), ctrl.get);
 // Create token — generate plaintext, store SHA-256 hash, validate scopes
 router.post('/', requireInteractiveJwt, requirePermission('api_tokens.create'), validate(createApiToken, { strip: true }), async (req, res, next) => {
   try {
-    // Validate scopes if provided
-    if (req.body.scopes !== undefined && req.body.scopes !== null) {
-      const { valid, errors } = validateScopes(req.body.scopes);
-      if (!valid) {
-        throw new ValidationError('Invalid scopes', errors);
-      }
-      // Store as JSON (MySQL JSON column)
-      req.body.scopes = JSON.stringify(req.body.scopes);
-    }
+    // Stored as JSON (MySQL JSON column)
+    req.body.scopes = requireScopes(req.body.scopes);
 
     const plaintext = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(plaintext).digest('hex');
@@ -65,7 +79,7 @@ router.post('/', requireInteractiveJwt, requirePermission('api_tokens.create'), 
     req.body.token_hash = tokenHash;
 
     const token = await ApiToken.create(req.body);
-    res.status(201).json({ data: { ...token, token: plaintext } });
+    res.status(201).json({ data: { ...serializeToken(token), token: plaintext } });
   } catch (err) {
     next(err);
   }
@@ -74,13 +88,8 @@ router.post('/', requireInteractiveJwt, requirePermission('api_tokens.create'), 
 // Update token — validate scopes if changing
 router.put('/:id', requireInteractiveJwt, requirePermission('api_tokens.update'), validate(updateApiToken, { strip: true }), async (req, res, next) => {
   try {
-    if (req.body.scopes !== undefined && req.body.scopes !== null) {
-      const { valid, errors } = validateScopes(req.body.scopes);
-      if (!valid) {
-        throw new ValidationError('Invalid scopes', errors);
-      }
-      req.body.scopes = JSON.stringify(req.body.scopes);
-    }
+    // `scopes: null` used to widen a token to unrestricted; it is now a 422.
+    if (req.body.scopes !== undefined) req.body.scopes = requireScopes(req.body.scopes);
 
     const old = await ApiToken.findByIdOrFail(req.params.id, req.orgId);
     const record = await ApiToken.update(req.params.id, req.body, req.orgId);
@@ -91,10 +100,35 @@ router.put('/:id', requireInteractiveJwt, requirePermission('api_tokens.update')
       action: 'update',
       tableName: ApiToken.tableName,
       recordId: record.id,
-      oldValues: old,
+      oldValues: serializeToken(old),
       newValues: req.body,
     });
-    res.json({ data: record });
+    res.json({ data: serializeToken(record) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Revocation is one-way: revoked_at is not part of the update schema, so PUT
+// cannot clear it, and revoking an already revoked token changes nothing.
+router.post('/:id/revoke', requireInteractiveJwt, requirePermission('api_tokens.update'), async (req, res, next) => {
+  try {
+    await ApiToken.findByIdOrFail(req.params.id, req.orgId);
+    await db.query(
+      'UPDATE api_tokens SET revoked_at = NOW() WHERE id = ? AND organization_id <=> ? AND revoked_at IS NULL',
+      [req.params.id, req.orgId],
+    );
+    const record = await ApiToken.findByIdOrFail(req.params.id, req.orgId);
+    const auditLog = require('../services/auditLog');
+    await auditLog.log({
+      userId: req.user?.id,
+      organizationId: req.orgId,
+      action: 'revoke',
+      tableName: ApiToken.tableName,
+      recordId: record.id,
+      newValues: { revoked_at: record.revoked_at },
+    });
+    res.json({ data: serializeToken(record) });
   } catch (err) {
     next(err);
   }

@@ -108,7 +108,6 @@ async function buildQr(confText) {
  *
  * @param {number} userId
  * @param {number|null} orgId
- * @param {string|null} legacyRole   users.role value (for admin scope detection)
  * @param {string} name              user-supplied peer label ("Laptop", "Phone")
  * @param {boolean} [fullTunnel=true]  When true, issued config uses AllowedIPs=0.0.0.0/0,::/0
  *                                     (full-tunnel, DEFAULT for new peers). When false, uses the
@@ -116,9 +115,9 @@ async function buildQr(confText) {
  *                                     their current mode unless explicitly updated.
  * @returns {Promise<{peer:object, config:string, config_base64:string, qr_svg:string}>}
  */
-async function createPeer(userId, orgId, legacyRole, name, fullTunnel = true) {
-  // 1. Compute the scope this user is allowed to reach
-  const subnets = await userTunnelScopeService.getScopedSubnets(userId, orgId, legacyRole);
+async function createPeer(userId, orgId, name, fullTunnel = true) {
+  // 1. Compute the scope this user is allowed to reach in this organization
+  const subnets = await userTunnelScopeService.getScopedSubnets(userId, orgId);
 
   // 2. Generate server-side x25519 keypair (never log privateKey)
   const { privateKey, publicKey } = wireguardServerService.generateKeypair();
@@ -231,12 +230,7 @@ async function rotatePeer(peerId, orgId, rotatedByUserId) {
   );
 
   // Recompute scope for firewall re-sync
-  const [userRows] = await db.query(
-    'SELECT organization_id, role FROM users WHERE id = ? AND deleted_at IS NULL',
-    [peer.user_id],
-  );
-  const userRole = userRows[0]?.role || null;
-  const subnets = await userTunnelScopeService.getScopedSubnets(peer.user_id, orgId, userRole);
+  const subnets = await userTunnelScopeService.getScopedSubnets(peer.user_id, orgId);
 
   // Replace the WireGuard kernel peer (best-effort)
   try {
@@ -394,11 +388,10 @@ async function refreshUserPeers(userId) {
   // users.organization_id is NULL — gating on the user column would skip that
   // peer entirely (a connectivity outage). Mirrors rehydrateUserPeers.
   const [userRows] = await db.query(
-    'SELECT id, role FROM users WHERE id = ? AND deleted_at IS NULL',
+    'SELECT id FROM users WHERE id = ? AND deleted_at IS NULL',
     [userId],
   );
   if (!userRows.length) return;
-  const { role } = userRows[0];
 
   // Find all live, non-revoked peers for this user, each with its own org
   const [peers] = await db.query(
@@ -416,7 +409,7 @@ async function refreshUserPeers(userId) {
     if (!scopeByOrg.has(peer.organization_id)) {
       scopeByOrg.set(
         peer.organization_id,
-        await userTunnelScopeService.getScopedSubnets(userId, peer.organization_id, role),
+        await userTunnelScopeService.getScopedSubnets(userId, peer.organization_id),
       );
     }
     const subnets = scopeByOrg.get(peer.organization_id);
@@ -551,7 +544,7 @@ async function rehydrateUserPeers() {
   // wrong org. Use the peer's own org for both the liveness gate and the scope.
   const [peers] = await db.query(
     `SELECT p.id, p.user_id, p.public_key, p.tunnel_address,
-            p.organization_id, u.role
+            p.organization_id
        FROM wg_user_peers p
        JOIN users u ON u.id = p.user_id AND u.deleted_at IS NULL
       WHERE p.deleted_at IS NULL
@@ -571,21 +564,19 @@ async function rehydrateUserPeers() {
         tunnelIp:  peer.tunnel_address,
       });
 
-      // 2. Rebuild the per-user nftables destination scope (recomputed once/user).
-      if (!scopeCache.has(peer.user_id)) {
+      // 2. Rebuild the peer's nftables destination scope, computed once per
+      //    user and organization: a multi-org user's peers differ by org.
+      const scopeKey = `${peer.user_id}:${peer.organization_id}`;
+      if (!scopeCache.has(scopeKey)) {
         scopeCache.set(
-          peer.user_id,
-          await userTunnelScopeService.getScopedSubnets(
-            peer.user_id,
-            peer.organization_id,
-            peer.role,
-          ),
+          scopeKey,
+          await userTunnelScopeService.getScopedSubnets(peer.user_id, peer.organization_id),
         );
       }
       await wireguardServerService.setUserForwardScope({
         peerId:   peer.id,
         tunnelIp: peer.tunnel_address,
-        subnets:  scopeCache.get(peer.user_id),
+        subnets:  scopeCache.get(scopeKey),
       });
       rehydrated += 1;
     } catch (err) {

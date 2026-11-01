@@ -544,10 +544,14 @@ async function createStripeSetupSession(gateway, { customerId, successUrl, cance
  * the saved payment_method + customer to persist on the autopay profile.
  */
 async function retrieveStripeCheckoutSession(gateway, sessionId) {
+  // The id comes from a webhook body; it is placed in a Stripe API path (WHK-12).
+  if (!/^cs_[A-Za-z0-9_]+$/.test(String(sessionId || ''))) {
+    throw new ValidationError('Invalid Stripe checkout session id');
+  }
   const secretKey = decrypt(gateway.secret_key_encrypted);
   // Expand setup_intent.payment_method so we get the card brand/last4/expiry
   // inline (to display "Visa ending 4242" on the autopay card) alongside the pm id.
-  const data = await stripeRequest(secretKey, 'GET', `/v1/checkout/sessions/${sessionId}?expand[]=setup_intent.payment_method`, null);
+  const data = await stripeRequest(secretKey, 'GET', `/v1/checkout/sessions/${encodeURIComponent(sessionId)}?expand[]=setup_intent.payment_method`, null);
   const pm = data.setup_intent?.payment_method;
   const pmId = typeof pm === 'string' ? pm : (pm?.id || null);
   const card = (pm && typeof pm === 'object') ? pm.card : null;

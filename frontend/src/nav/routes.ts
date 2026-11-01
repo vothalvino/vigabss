@@ -315,7 +315,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/ai-assistant', labelKey: 'nav.aiAssistant', section: 'admin', guard: 'admin', card: 'ai' },
   { path: '/ai-support', labelKey: 'nav.aiSupport', section: 'admin', guard: 'admin', card: 'ai' },
   { path: '/dsar', labelKey: 'nav.dsar', section: 'admin', guard: 'admin', card: 'governance' },
-  { path: '/dr-drill', labelKey: 'nav.drDrill', section: 'admin', guard: 'admin', card: 'governance' },
+  { path: '/dr-drill', labelKey: 'nav.drDrill', section: 'admin', guard: 'admin', card: 'governance', installOperatorOnly: true },
   { path: '/backups', labelKey: 'nav.backups', section: 'admin', guard: 'admin', card: 'governance', installOperatorOnly: true },
   { path: '/admin/user-tunnels', labelKey: 'nav.adminUserTunnels', section: 'admin', guard: 'admin', card: 'governance' },
 ];

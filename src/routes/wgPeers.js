@@ -162,12 +162,7 @@ router.get('/admin/assignments/:userId', requirePermission('wireguard.assignment
       [req.params.userId, req.orgId],
     );
     if (!userRows[0]) return next(new NotFoundError('user'));
-    const legacyRole = userRows[0].role || null;
-    const subnets = await userTunnelScopeService.getScopedSubnets(
-      req.params.userId,
-      req.orgId,
-      legacyRole,
-    );
+    const subnets = await userTunnelScopeService.getScopedSubnets(req.params.userId, req.orgId);
     res.json({ data: rows, computed_subnets: subnets });
   } catch (err) { next(err); }
 });
@@ -275,7 +270,6 @@ router.post(
       const { peer, config, config_base64, qr_svg } = await userTunnelService.createPeer(
         req.user.id,
         req.orgId,
-        req.user.role,
         req.body.name,
         fullTunnel,
       );
@@ -311,11 +305,7 @@ router.get('/:id/config', requirePermission('wireguard.peers.view'), async (req,
       : null;
 
     // Recompute scope at download time (reflects latest assignment changes)
-    const subnets = await userTunnelScopeService.getScopedSubnets(
-      req.user.id,
-      req.orgId,
-      req.user.role,
-    );
+    const subnets = await userTunnelScopeService.getScopedSubnets(req.user.id, req.orgId);
 
     const confText = userTunnelService.buildConfig(peer, privateKey, subnets, presharedKey);
     const format   = req.query.format === 'qr' ? 'qr' : 'conf';

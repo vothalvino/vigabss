@@ -4,11 +4,12 @@
 // Ensures every request is scoped to the user's current organization.
 // Attaches req.orgId for use in controllers/services.
 // Also enforces the per-tenant API rate limit so each organization's quota is
-// tracked independently across all of its users.
+// tracked independently across all of its users, and an API token's own
+// configured rate-limit policy (api_key_rate_limits) on every route.
 // =============================================================================
 
 const { ForbiddenError } = require('../utils/errors');
-const { tenantApiLimiter, isCollectorPath } = require('./rateLimit');
+const { tenantApiLimiter, apiTokenConfiguredLimiter, isCollectorPath } = require('./rateLimit');
 const db = require('../config/database');
 
 /**
@@ -29,13 +30,14 @@ function orgScope(req, res, next) {
   // Attach for downstream use
   req.orgId = orgId;
 
-  // Apply per-tenant rate limiting now that req.orgId is set
+  // Apply per-tenant rate limiting now that req.orgId is set, then the
+  // token's own policy (a no-op for staff sessions and tokens without one).
+  const tokenPolicy = err => (err ? next(err) : apiTokenConfiguredLimiter(req, res, next));
+  const limit = () => (isCollectorPath(req) ? tokenPolicy() : tenantApiLimiter(req, res, tokenPolicy));
   if (typeof db.withTenantContext === 'function') {
-    return db.withTenantContext(orgId, () => (isCollectorPath(req)
-      ? next()
-      : tenantApiLimiter(req, res, next)));
+    return db.withTenantContext(orgId, limit);
   }
-  return isCollectorPath(req) ? next() : tenantApiLimiter(req, res, next);
+  return limit();
 }
 
 module.exports = { orgScope };

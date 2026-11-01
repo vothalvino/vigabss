@@ -18,7 +18,7 @@ confirms they exist; gaps are noted as deferred.
 | Pagination / filtering / sorting | EXISTS | All list endpoints accept `?limit=&offset=&search=` |
 | Webhook event dispatch | EXISTS | `webhookService.js` dispatches: `payment.received`, `outage.reported`, `outage.resolved`, `ticket.created`, `device.offline`, `device.online`, `invoice.created`, `contract.suspended`, `contract.restored`, `service_order.activated`, `refund.processed`, `pppoe.auth_failures`, `maintenance.scheduled`, and more |
 | OpenAPI / Swagger docs | EXISTS | `docs/openapi.json` (regenerated via `pnpm openapi`); Swagger UI at `/api/docs` |
-| Rate limiting / throttling | EXISTS | `apiLimiter`, `authLimiter`, `exportLimiter`, `sseLimiter`, `webhookLimiter` in `src/middleware/rateLimit.js`; per-API-key rate limits via `api_key_rate_limits` table (§17) |
+| Rate limiting / throttling | EXISTS | `apiLimiter`, `authLimiter`, `exportLimiter`, `sseLimiter`, `webhookLimiter` in `src/middleware/rateLimit.js`; per-API-key rate limits via `api_key_rate_limits` table (§17), enforced by `orgScope` on every token request, `/graphql` included |
 
 ### Webhook Events (from notificationHooks.js)
 

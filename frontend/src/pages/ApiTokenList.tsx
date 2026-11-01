@@ -188,11 +188,12 @@ function TokenModal({ onClose, onCreated }: TokenModalProps) {
   const mutation = useMutation({
     mutationFn: () => {
       const body: CreateTokenBody = { name: form.name.trim() };
-      const scopes = form.scopes
+      // Scopes are required: a token without them used to be unrestricted
+      // by default (SEC-19). Full access is an explicit *:write.
+      body.scopes = form.scopes
         .split(/[\s,]+/)
         .map(s => s.trim())
         .filter(Boolean);
-      if (scopes.length) body.scopes = scopes;
       if (form.expires_at) body.expires_at = form.expires_at;
       return createToken(body);
     },
@@ -207,6 +208,10 @@ function TokenModal({ onClose, onCreated }: TokenModalProps) {
     e.preventDefault();
     if (!form.name.trim()) {
       setError('Name is required.');
+      return;
+    }
+    if (!form.scopes.trim()) {
+      setError('List at least one scope, or *:write for full access.');
       return;
     }
     setError('');
@@ -242,13 +247,14 @@ function TokenModal({ onClose, onCreated }: TokenModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Scopes (comma or space separated; blank = all scopes)
+            Scopes (comma or space separated; *:write for full access)
             <input
               style={modalStyles.input}
               type="text"
               value={form.scopes}
               onChange={e => setField('scopes', e.target.value)}
-              placeholder="clients.read, invoices.read"
+              placeholder="clients:read, invoices:read"
+              required
             />
           </label>
 

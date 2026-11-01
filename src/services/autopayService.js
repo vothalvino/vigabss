@@ -88,8 +88,15 @@ async function completeEnrollment({ sessionId, organizationId, metadata = {} }) 
   // to org-resolve only if the metadata is absent (older sessions).
   const metaGatewayId = metadata.gateway_id ? Number(metadata.gateway_id) : null;
   const metaOrgId = metadata.organization_id ? Number(metadata.organization_id) : null;
-  const gateway = (await loadStripeGatewayById(metaGatewayId))
-    || (await resolveStripeGateway(organizationId || metaOrgId));
+  // On a per-gateway route the organization is known, and the event's
+  // metadata is whatever the signer put there: a gateway_id from another
+  // organization used to be loaded and its Stripe key used (WHK-12).
+  let gateway = await loadStripeGatewayById(metaGatewayId);
+  if (gateway && organizationId && Number(gateway.organization_id) !== Number(organizationId)) {
+    logger.warn({ sessionId, metaGatewayId, organizationId }, 'Autopay completion: metadata gateway belongs to another organization — ignored');
+    gateway = null;
+  }
+  gateway = gateway || (await resolveStripeGateway(organizationId || metaOrgId));
   if (!gateway) {
     logger.warn({ sessionId, metaGatewayId, organizationId }, 'Autopay completion: no matching Stripe gateway — enrollment dropped');
     return;

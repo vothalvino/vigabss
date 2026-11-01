@@ -131,6 +131,9 @@ parsing, cookie parsing, output-oriented XSS posture, request logging, metrics,
 rate limits, and CSRF defense. Webhook and collector routes have deliberate raw
 body, parser, authentication, and limiter exceptions. Never make a global
 middleware change without checking those machine-to-machine paths.
+`orgScope` applies the per-organization API limiter and then, for an API
+token, that token's `api_key_rate_limits` policy (`apiTokenConfiguredLimiter`),
+counted once per request on every route including `/graphql`.
 
 A typical protected domain request follows this chain:
 
@@ -181,6 +184,17 @@ an admin change of a user's password, email, status, group or role, archiving
 a user, and setting a portal password. A new surface that mints an access
 token must embed the current version; one that verifies a token must compare
 it.
+
+A staff password is governed by the password policy of the user's home
+organization (`src/services/passwordPolicyService.js`; built-in defaults of 8
+characters and 5 attempts / 15 minutes when no `password_policies` row is
+active). Every path that sets a password applies its composition rules
+(register, change, reset, `hashPasswordField` for administrator-set
+passwords); change and reset also refuse the last `history_count` passwords
+(`password_history`), sign-in failures lock by its lockout settings, and a
+password older than `rotation_days` sets `must_change_password` at password
+sign-in. WebAuthn is not implemented: `POST /security-admin/webauthn` returns
+501 and no sign-in path reads `webauthn_credentials`.
 
 Staff with TOTP enabled sign in in two steps. `POST /auth/login` (and an SSO
 callback) returns a 5-minute `type: 'mfa'` challenge signed with a third
@@ -288,11 +302,16 @@ There is no production-wide `users.role = 'admin'` permission bypass in
 `src/middleware/rbac.js`. A narrow shortcut exists only for old query-only test
 doubles. Do not design production behavior around that test compatibility path.
 
-API token scope `NULL` is the legacy unrestricted sentinel; an empty or invalid
-scope list fails closed. A role is not expressible as a scope, so `requireRole`
-admits only that unrestricted sentinel and refuses scope-limited tokens.
+API tokens are always created with an explicit, non-empty scope list (full
+access is `["*:write"]`); the API refuses a missing, empty or `null` list on
+create and update, revocation is one-way (`POST /api-tokens/:id/revoke`), and
+`token_hash` is never returned. `NULL` scopes remain the unrestricted sentinel
+in the auth layer, but nothing can create them; an empty or invalid scope list
+fails closed. A role is not expressible as a scope, so `requireRole` admits
+only that sentinel — in practice role-gated admin routes (SSO configuration,
+FireRelay nodes) refuse API tokens.
 Installation-wide infrastructure (FireRelay node registry and tunnel commands,
-backup settings, system version) is gated on the install operator
+backup settings, DR-drill status and runbook, system version) is gated on the install operator
 (`src/services/installOperator.js`), never on a tenant admin/owner role.
 GraphQL must maintain permission parity with equivalent
 REST operations through `src/graphql/authz.js` and the field maps in

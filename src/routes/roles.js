@@ -12,6 +12,7 @@ const { createRole, updateRole, assignPermission, setPermissions } = require('..
 const db = require('../config/database');
 const User = require('../models/User');
 const { ForbiddenError, ValidationError } = require('../utils/errors');
+const auditLog = require('../services/auditLog');
 
 const router = Router();
 
@@ -205,37 +206,89 @@ router.delete('/:id', requirePermission('roles.manage'), async (req, res, next) 
   }
 });
 
+// ---------------------------------------------------------------------------
+// Permission-list edits (SEC-18)
+// ---------------------------------------------------------------------------
+// Groups and their permission lists are installation-wide (migration 377): an
+// edit applies in every organization that uses the group, and rbac.js reads
+// the list for every member except global principals, the admin-kind groups
+// included. So POST, PUT and DELETE share one policy:
+//   - a system group (is_system, or kind 'admin') is changed only by a global
+//     principal: the install operator or a system super_admin, the same
+//     accounts rbac.js lets past requirePermission;
+//   - anyone else may only add permissions they hold themselves;
+//   - every change is audited.
+
+function isGlobalPrincipal(user) {
+  return Boolean(user?.hasGlobalOrganizationAccess) && !user?.apiTokenId;
+}
+
+async function loadPermissionEditableRole(req) {
+  const [roleRows] = await db.query('SELECT * FROM roles WHERE id = ? AND deleted_at IS NULL', [req.params.id]);
+  const role = roleRows[0];
+  if (!role) return null;
+  if ((role.is_system || role.kind === 'admin') && !isGlobalPrincipal(req.user)) {
+    throw new ForbiddenError('System groups apply to every organization; only the install operator or a super administrator can change their permissions');
+  }
+  return role;
+}
+
+async function assertMayGrant(req, perms) {
+  if (perms.length === 0 || isGlobalPrincipal(req.user)) return;
+  const held = await User.getPermissions(req.user.id, req.orgId);
+  const notHeld = perms.filter(p => !held.includes(p.slug));
+  if (notHeld.length > 0) {
+    throw new ForbiddenError(`You cannot grant permission(s) you do not hold: ${notHeld.map(p => p.slug).join(', ')}`);
+  }
+}
+
+async function rolePermissionRows(roleId) {
+  const [rows] = await db.query(
+    `SELECT p.id, p.name AS slug, p.description
+     FROM role_permissions rp
+     JOIN permissions p ON p.id = rp.permission_id
+     WHERE rp.role_id = ?
+     ORDER BY p.name`,
+    [roleId],
+  );
+  return rows;
+}
+
+function auditPermissionChange(req, role, oldSlugs, newSlugs) {
+  return auditLog.log({
+    userId: req.user?.id,
+    organizationId: req.orgId,
+    action: 'update_permissions',
+    tableName: 'roles',
+    recordId: role.id,
+    oldValues: { name: role.name, permissions: oldSlugs },
+    newValues: { name: role.name, permissions: newSlugs },
+  });
+}
+
 // Assign a permission to a role
 router.post('/:id/permissions', requirePermission('roles.manage'), validate(assignPermission), async (req, res, next) => {
   try {
-    const { permission_id } = req.body;
-    // SECURITY: prevent privilege amplification. A non-admin holder of
-    // roles.manage may only grant a permission they themselves hold — otherwise
-    // they could attach users.update / api_tokens.create to their own role and
-    // escalate. Admins (legacy global role) may grant anything.
-    if (!req.user || req.user.role !== 'admin') {
-      const [permRows] = await db.query('SELECT name FROM permissions WHERE id = ?', [permission_id]);
-      const slug = permRows[0] && permRows[0].name;
-      if (!slug) {
-        return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Permission not found' } });
-      }
-      const held = await User.getPermissions(req.user.id, req.orgId);
-      if (!held.includes(slug)) {
-        return next(new ForbiddenError('You cannot grant a permission you do not hold'));
-      }
+    const role = await loadPermissionEditableRole(req);
+    if (!role) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Role not found' } });
     }
+    const { permission_id } = req.body;
+    const [permRows] = await db.query('SELECT id, name AS slug FROM permissions WHERE id = ?', [permission_id]);
+    if (!permRows[0]) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Permission not found' } });
+    }
+    // Privilege amplification: attaching users.update or api_tokens.create to
+    // one's own group would escalate.
+    await assertMayGrant(req, permRows);
+
+    const before = await rolePermissionRows(role.id);
     await db.query(
-      'INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
-      [req.params.id, permission_id],
+      'INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
+      [role.id, permission_id],
     );
-    const [rows] = await db.query(
-      `SELECT p.id, p.name AS slug, p.description
-       FROM role_permissions rp
-       JOIN permissions p ON p.id = rp.permission_id
-       WHERE rp.role_id = ?
-       ORDER BY p.name`,
-      [req.params.id],
-    );
+    const rows = await rolePermissionRows(role.id);
+    await auditPermissionChange(req, role, before.map(r => r.slug), rows.map(r => r.slug));
     res.status(201).json({ data: rows });
   } catch (err) {
     next(err);
@@ -246,20 +299,9 @@ router.post('/:id/permissions', requirePermission('roles.manage'), validate(assi
 // instead of many single POST/DELETE round-trips).
 router.put('/:id/permissions', requirePermission('roles.manage'), validate(setPermissions), async (req, res, next) => {
   try {
-    const [roleRows] = await db.query('SELECT * FROM roles WHERE id = ? AND deleted_at IS NULL', [req.params.id]);
-    const role = roleRows[0];
+    const role = await loadPermissionEditableRole(req);
     if (!role) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Role not found' } });
-    }
-
-    // The admin-kind system groups ('admin', 'super_admin') pass the legacy
-    // RBAC bypass (users.role === 'admin', see rbac.js) regardless of what
-    // rows exist in role_permissions — their permission list is never
-    // actually consulted. Letting a caller edit it would only mislead them
-    // into thinking it restricts access, so block it outright (checked by
-    // `kind`, not `name`, so it also covers 'super_admin').
-    if (role.kind === 'admin') {
-      return next(new ForbiddenError("The admin group's permissions are not editable — its access comes from the legacy admin bypass, not this list"));
     }
 
     const rawIds = Array.isArray(req.body.permission_ids) ? req.body.permission_ids : [];
@@ -281,11 +323,8 @@ router.put('/:id/permissions', requirePermission('roles.manage'), validate(setPe
       return next(new ValidationError(`Unknown permission id(s): ${unknownIds.join(', ')}`));
     }
 
-    // SECURITY: same privilege-amplification guard as POST /:id/permissions
-    // above, applied to the DELTA of a bulk replace. A non-admin holder of
-    // roles.manage may only ADD permissions they themselves hold; removals
-    // are always allowed (you can never escalate by taking permissions away
-    // from a group). Admins (legacy global role) may set anything.
+    // The amplification guard applies to the DELTA of a bulk replace: only
+    // additions are checked, since taking permissions away never escalates.
     const [currentRows] = await db.query(
       `SELECT p.id, p.name AS slug
        FROM role_permissions rp
@@ -296,13 +335,7 @@ router.put('/:id/permissions', requirePermission('roles.manage'), validate(setPe
     const currentIds = new Set(currentRows.map(r => r.id));
     const addedPerms = requestedPerms.filter(p => !currentIds.has(p.id));
 
-    if (addedPerms.length > 0 && (!req.user || req.user.role !== 'admin')) {
-      const held = await User.getPermissions(req.user.id, req.orgId);
-      const notHeld = addedPerms.filter(p => !held.includes(p.slug));
-      if (notHeld.length > 0) {
-        return next(new ForbiddenError(`You cannot grant permission(s) you do not hold: ${notHeld.map(p => p.slug).join(', ')}`));
-      }
-    }
+    await assertMayGrant(req, addedPerms);
 
     // Transactional replace: a mid-flight failure of DELETE-then-INSERT would
     // otherwise leave the group with ZERO permissions — and an empty live
@@ -325,14 +358,8 @@ router.put('/:id/permissions', requirePermission('roles.manage'), validate(setPe
       conn.release();
     }
 
-    const [rows] = await db.query(
-      `SELECT p.id, p.name AS slug, p.description
-       FROM role_permissions rp
-       JOIN permissions p ON p.id = rp.permission_id
-       WHERE rp.role_id = ?
-       ORDER BY p.name`,
-      [req.params.id],
-    );
+    const rows = await rolePermissionRows(role.id);
+    await auditPermissionChange(req, role, currentRows.map(r => r.slug).sort(), rows.map(r => r.slug));
     res.json({ data: rows });
   } catch (err) {
     next(err);
@@ -342,10 +369,19 @@ router.put('/:id/permissions', requirePermission('roles.manage'), validate(setPe
 // Remove a permission from a role
 router.delete('/:id/permissions/:permissionId', requirePermission('roles.manage'), async (req, res, next) => {
   try {
-    await db.query(
+    const role = await loadPermissionEditableRole(req);
+    if (!role) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Role not found' } });
+    }
+    const before = await rolePermissionRows(role.id);
+    const [result] = await db.query(
       'DELETE FROM role_permissions WHERE role_id = ? AND permission_id = ?',
-      [req.params.id, req.params.permissionId],
+      [role.id, req.params.permissionId],
     );
+    if (result && result.affectedRows > 0) {
+      const removed = String(req.params.permissionId);
+      await auditPermissionChange(req, role, before.map(r => r.slug), before.filter(r => String(r.id) !== removed).map(r => r.slug));
+    }
     res.status(204).end();
   } catch (err) {
     next(err);

@@ -12,7 +12,6 @@ const createBillingAdjustmentSchema = {
   adjustment_type: { type: 'string', required: true, enum: ADJUSTMENT_TYPES },
   amount_delta:    { type: 'number', required: true },
   reason:          { type: 'string', required: true, min: 1 },
-  approved_by:     { type: 'number' },
 };
 
 module.exports = { createBillingAdjustmentSchema };

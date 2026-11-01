@@ -17,6 +17,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { rejectOrgReassignment } = require('../middleware/rejectOrgReassignment');
 const {
   createCpeDevice,
   updateCpeDevice,
@@ -141,7 +142,10 @@ router.get('/devices/:id', requirePermission('cpe_devices.view'), async (req, re
   } catch (err) { next(err); }
 });
 
-router.post('/devices', requirePermission('cpe_devices.create'), validate(createCpeDevice), ownedReferences(CPE_DEVICE_REFS), async (req, res, next) => {
+// strip: lifecycle_state, inventory_item_id, ownership and subscriber_id are
+// moved only by the install, pickup and lifecycle flows; undeclared fields used
+// to reach the table and skip their guards (TNA-29).
+router.post('/devices', requirePermission('cpe_devices.create'), validate(createCpeDevice, { strip: true }), ownedReferences(CPE_DEVICE_REFS), async (req, res, next) => {
   try {
     const data = { ...req.body, organization_id: req.orgId };
     if (data.acs_password) {
@@ -153,7 +157,7 @@ router.post('/devices', requirePermission('cpe_devices.create'), validate(create
   } catch (err) { next(err); }
 });
 
-router.put('/devices/:id', requirePermission('cpe_devices.update'), validate(updateCpeDevice), ownedReferences(CPE_DEVICE_REFS), async (req, res, next) => {
+router.put('/devices/:id', requirePermission('cpe_devices.update'), rejectOrgReassignment, validate(updateCpeDevice, { strip: true }), ownedReferences(CPE_DEVICE_REFS), async (req, res, next) => {
   try {
     const data = { ...req.body };
     if (data.acs_password) {

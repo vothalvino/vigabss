@@ -1008,6 +1008,17 @@ app.use((err, req, res, _next) => {
     );
   }
 
+  // body-parser's own client errors (malformed JSON, a body over the limit)
+  // are the caller's mistake: they used to be reported as INTERNAL_ERROR,
+  // logged as unhandled and sent to Sentry (SEC-20).
+  if (err.expose === true && err.statusCode >= 400 && err.statusCode < 500) {
+    const tooLarge = err.type === 'entity.too.large' || err.statusCode === 413;
+    return res.status(err.statusCode).json(
+      errorBody(tooLarge ? 'PAYLOAD_TOO_LARGE' : 'VALIDATION_ERROR',
+        tooLarge ? 'Request body is too large' : 'Request body could not be parsed'),
+    );
+  }
+
   // Unexpected errors
   logger.error({ err, requestId: req.id }, 'Unhandled error');
   errorTracking.captureException(err, { requestId: req.id });

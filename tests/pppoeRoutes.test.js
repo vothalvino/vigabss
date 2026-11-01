@@ -92,7 +92,8 @@ describe('PPPoE routes', () => {
         reason_code: 'peer_timeout',
         username: 'bob',
         mac: 'aa-bb-cc-dd-ee-ff',
-        logged_at: '2026-08-14T12:34:56Z',
+        // Ingest accepts only recent timestamps (last 7 days).
+        logged_at: new Date(Date.now() - 60 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z'),
       });
 
     expect(res.status).toBe(201);

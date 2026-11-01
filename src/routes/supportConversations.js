@@ -340,6 +340,14 @@ router.post(
   async (req, res, next) => {
     try {
       const { clientId, channel = 'web', message } = req.body;
+      // The staff route is the one caller that takes a client id from the
+      // request: a foreign one used to be stored, and the diagnostics then
+      // reported that client's account state (ASY-27).
+      const [[ownClient]] = await db.query(
+        'SELECT id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+        [clientId, req.orgId],
+      );
+      if (!ownClient) throw new NotFoundError('Client');
       const conversation = await supportConversationService.startConversation({
         orgId: req.orgId,
         clientId,

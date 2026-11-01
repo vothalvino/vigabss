@@ -15,7 +15,10 @@ class Lead extends BaseModel {
       'estimated_value', 'currency', 'assigned_to', 'address', 'city', 'state',
       'zip_code', 'latitude', 'longitude', 'desired_plan_id',
       'rfc', 'curp', 'razon_social', 'regimen_fiscal', 'codigo_postal_fiscal',
-      'notes', 'converted_client_id', 'converted_at',
+      // converted_client_id / converted_at are written only by lead conversion
+      // (lifecycleService); through PUT they redirected /start's install to
+      // another client (RTE-10).
+      'notes',
     ];
   }
 

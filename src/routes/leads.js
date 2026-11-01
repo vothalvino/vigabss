@@ -9,6 +9,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { rejectOrgReassignment } = require('../middleware/rejectOrgReassignment');
 const { createLead, updateLead, patchLead, convertLead, geocodeLead } = require('../middleware/schemas/leads');
 const lifecycleService = require('../services/lifecycleService');
 const leadFeasibilityService = require('../services/leadFeasibilityService');
@@ -107,8 +108,8 @@ router.post('/:id/geocode', requirePermission('leads.update'), validate(geocodeL
 
 router.get('/:id', requirePermission('leads.view'), ctrl.get);
 router.post('/', requirePermission('leads.create'), validate(createLead), ctrl.create);
-router.put('/:id', requirePermission('leads.update'), validate(updateLead), ctrl.update);
-router.patch('/:id', requirePermission('leads.update'), validate(patchLead), ctrl.partialUpdate);
+router.put('/:id', requirePermission('leads.update'), rejectOrgReassignment, validate(updateLead, { strip: true }), ctrl.update);
+router.patch('/:id', requirePermission('leads.update'), rejectOrgReassignment, validate(patchLead, { strip: true }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('leads.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('leads.update'), ctrl.restore);
 

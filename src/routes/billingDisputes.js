@@ -11,6 +11,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { rejectOrgReassignment } = require('../middleware/rejectOrgReassignment');
 const { uploadSingle } = require('../middleware/upload');
 const { NotFoundError, ValidationError } = require('../utils/errors');
 const {
@@ -19,6 +20,7 @@ const {
   transitionBillingDisputeSchema,
 } = require('../middleware/schemas/billingDisputes');
 
+const { ownedReferences } = require('../utils/ownedReferences');
 const router = Router();
 const ctrl = crudController(BillingDispute);
 
@@ -36,7 +38,11 @@ router.get('/', requirePermission('billing_disputes.view'), ctrl.list);
 router.get('/:id', requirePermission('billing_disputes.view'), ctrl.get);
 
 // Create dispute
-router.post('/', requirePermission('billing_disputes.create'), validate(createBillingDisputeSchema), async (req, res, next) => {
+// Status, opener and resolver are set by the server (create, /transition), and
+// the client, invoice and payment must belong to this organization (TNA-29).
+const DISPUTE_REFS = { client_id: 'clients', invoice_id: 'invoices', payment_id: 'payments' };
+
+router.post('/', requirePermission('billing_disputes.create'), validate(createBillingDisputeSchema, { strip: true }), ownedReferences(DISPUTE_REFS), async (req, res, next) => {
   try {
     const dispute = await BillingDispute.create({
       organization_id: req.orgId || null,
@@ -55,7 +61,7 @@ router.post('/', requirePermission('billing_disputes.create'), validate(createBi
 });
 
 // Update dispute fields
-router.put('/:id', requirePermission('billing_disputes.update'), validate(updateBillingDisputeSchema), async (req, res, next) => {
+router.put('/:id', requirePermission('billing_disputes.update'), rejectOrgReassignment, validate(updateBillingDisputeSchema, { strip: true }), async (req, res, next) => {
   try {
     const updated = await BillingDispute.update(req.params.id, req.body, req.orgId);
     res.json({ data: updated });

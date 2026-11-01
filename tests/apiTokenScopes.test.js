@@ -288,9 +288,9 @@ describe('listAvailableScopes', () => {
   test('returns array of scope objects', () => {
     const scopes = listAvailableScopes();
     expect(Array.isArray(scopes)).toBe(true);
-    // Two wildcards, read/write for every resource, and the two explicit
+    // Two wildcards, read/write for every resource, and the three explicit
     // collector-only ingest scopes.
-    expect(scopes.length).toBe(2 + VALID_RESOURCES.length * 2 + 2);
+    expect(scopes.length).toBe(2 + VALID_RESOURCES.length * 2 + 3);
     expect(ACCESS_INGEST).toBe('ingest');
   });
 

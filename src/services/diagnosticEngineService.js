@@ -427,9 +427,9 @@ async function _diagSlowFiber(clientId, orgId, contract) {
       `SELECT c.status
          FROM contracts c
          JOIN clients cl ON cl.id = c.client_id
-        WHERE cl.id = ? AND c.status = 'active' AND c.deleted_at IS NULL
+        WHERE cl.id = ? AND cl.organization_id <=> ? AND c.status = 'active' AND c.deleted_at IS NULL
         ORDER BY c.id DESC LIMIT 1`,
-      [clientId],
+      [clientId, orgId],
     );
     if (rows.length > 0) {
       checks.push({
@@ -637,8 +637,8 @@ async function _diagNoInternetFiber(clientId, orgId, contract) {
       `SELECT c.status, cl.status AS client_status
          FROM contracts c
          JOIN clients cl ON cl.id = c.client_id
-        WHERE cl.id = ? ORDER BY c.id DESC LIMIT 1`,
-      [clientId],
+        WHERE cl.id = ? AND cl.organization_id <=> ? ORDER BY c.id DESC LIMIT 1`,
+      [clientId, orgId],
     );
     if (rows.length > 0) {
       const suspended = rows[0].client_status === 'suspended' || rows[0].status === 'suspended';
@@ -720,8 +720,8 @@ async function _diagNoInternetWireless(clientId, orgId, contract) {
   // Check 4: Account suspension
   try {
     const [rows] = await db.query(
-      'SELECT status FROM clients WHERE id = ?',
-      [clientId],
+      'SELECT status FROM clients WHERE id = ? AND organization_id <=> ?',
+      [clientId, orgId],
     );
     const suspended = rows[0]?.status === 'suspended';
     checks.push({

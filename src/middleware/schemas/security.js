@@ -68,11 +68,13 @@ const updatePasswordPolicy = {
   // New schema column name; legacy require_symbols also accepted by the route handler.
   require_special_chars: { type: 'boolean' },
   require_symbols: { type: 'boolean' },
-  max_repeated_chars: { type: 'integer', min: 0 },
-  rotation_days: { type: 'integer', min: 0 },
-  history_count: { type: 'integer', min: 0 },
-  lockout_attempts: { type: 'integer', min: 0 },
-  lockout_duration_minutes: { type: 'integer', min: 0 },
+  // 0 turns the limit off (stored as NULL).
+  max_repeated_chars: { type: 'integer', min: 0, max: 128 },
+  rotation_days: { type: 'integer', min: 0, max: 3650 },
+  history_count: { type: 'integer', min: 0, max: 24 },
+  // A zero lockout would lock on the first miss or never expire.
+  lockout_attempts: { type: 'integer', min: 1, max: 100 },
+  lockout_duration_minutes: { type: 'integer', min: 1, max: 1440 },
 };
 
 const createAdminIpAllowlist = {

@@ -142,7 +142,7 @@ describe('POST /api/wg-peers', () => {
     expect(res.body.data).not.toHaveProperty('private_key_encrypted');
     expect(res.body.data).not.toHaveProperty('preshared_key_encrypted');
     // Service called with correct arguments (full_tunnel defaults to true when not specified)
-    expect(userTunnelService.createPeer).toHaveBeenCalledWith(1, 1, 'admin', 'Laptop', true);
+    expect(userTunnelService.createPeer).toHaveBeenCalledWith(1, 1, 'Laptop', true);
   });
 
   test('201 response data still has no key columns even if service returns them', async () => {

@@ -256,16 +256,13 @@ describe('ssoService.generateOidcLoginUrl redirect persistence', () => {
   ])('stores %p as %p', async (redirectTo, expectedStoredValue) => {
     mockQuery
       .mockResolvedValueOnce([[{ id: 10, is_enabled: 1, oidc_issuer: 'https://idp.example', oidc_client_id: 'client' }]])
-      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+      .mockResolvedValue([{ affectedRows: 1 }]);
 
     await expect(ssoService.generateOidcLoginUrl(1, redirectTo))
       .resolves.toBe('https://idp.example/authorize');
 
-    expect(mockQuery).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining('INSERT INTO sso_auth_states'),
-      ['generated-state', 'generated-nonce', 1, expectedStoredValue],
-    );
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO sso_auth_states/.test(sql));
+    expect(insert[1]).toEqual(['generated-state', 'generated-nonce', 1, expectedStoredValue]);
   });
 });
 
