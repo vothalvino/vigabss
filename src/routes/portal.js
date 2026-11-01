@@ -977,7 +977,10 @@ router.get('/usage/current-month', async (req, res, next) => {
 
     res.json({
       data: rows.map(r => ({
-        date: r.date,
+        // A calendar day ('YYYY-MM-DD'): the DATE arrives as a UTC-midnight
+        // Date, and the portal chart sliced its ISO string into labels like
+        // '01T00:00:00.000Z' (FE-10).
+        date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10),
         download_gb: parseFloat((r.download_bytes / 1073741824).toFixed(3)),
         upload_gb: parseFloat((r.upload_bytes / 1073741824).toFixed(3)),
         total_gb: parseFloat((r.total_bytes / 1073741824).toFixed(3)),

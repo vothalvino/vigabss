@@ -6,6 +6,8 @@
 // accessibility consistent. Mirrors the inline styles used by ContractList.
 // =============================================================================
 
+import { formatDate } from '@/lib/dates';
+
 export const styles = {
   // §8.3/§8.4 helpers
   container: { padding: '1.5rem', fontFamily: 'var(--font-sans)', maxWidth: 1280 },
@@ -266,12 +268,8 @@ export function RequiredMark() {
 }
 
 export function fmtDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('es-MX', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  // Calendar dates must not shift a day in the browser's zone (FE-10).
+  return formatDate(dateStr);
 }
 
 export function fmtMoney(

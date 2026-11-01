@@ -8,6 +8,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { usePortalAuth, portalAuthedFetch } from '@/auth/PortalAuthContext';
+import { calendarDay } from '@/lib/dates';
 
 const API_BASE = '/api/v1/portal';
 
@@ -218,7 +219,7 @@ export function PortalDashboard() {
               {usageDays.map(d => (
                 <div key={d.date} style={styles.barGroup} title={`${d.date}: ${d.total_gb.toFixed(3)} GB`}>
                   <div style={{ ...styles.bar, height: `${Math.max(2, (d.total_gb / maxUsage) * 100)}%` }} />
-                  <span style={styles.barLabel}>{d.date.slice(8)}</span>
+                  <span style={styles.barLabel}>{calendarDay(d.date).slice(8)}</span>
                 </div>
               ))}
             </div>

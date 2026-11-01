@@ -18,6 +18,7 @@ import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { GenerateInvoiceModal } from '@/components/GenerateInvoiceModal';
 import { Pagination } from '@/components/Pagination';
 import { useClientNames } from '@/api/clientNames';
+import { formatDate } from '@/lib/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -103,12 +104,8 @@ async function bulkVoidInvoices(ids: number[]): Promise<BulkVoidResult> {
 // ---------------------------------------------------------------------------
 
 function fmt(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('es-MX', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  // Calendar dates must not shift a day in the browser's zone (FE-10).
+  return formatDate(dateStr);
 }
 
 function fmtAmount(amount: string | null | undefined, currency: string): string {
