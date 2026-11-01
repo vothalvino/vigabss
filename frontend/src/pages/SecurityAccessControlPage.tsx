@@ -39,6 +39,8 @@ interface PasswordPolicy {
   rotation_days: number | null;
   lockout_attempts: number | null;
   lockout_duration_minutes: number | null;
+  /** false: no row is stored and the built-in defaults are in force. */
+  configured?: boolean;
 }
 
 interface AdminIpEntry {
@@ -321,6 +323,7 @@ function UserSecurityTab() {
   return (
     <div>
       <h2>{t('securityAccessControl.userSecurity.webauthn')}</h2>
+      <p role="note">{t('securityAccessControl.userSecurity.webauthnNotEnforced')}</p>
       {credentials.length === 0
         ? <p>{t('securityAccessControl.userSecurity.noCredentials')}</p>
         : (
@@ -348,6 +351,13 @@ function UserSecurityTab() {
       }
 
       <h2>{t('securityAccessControl.userSecurity.passwordPolicy')}</h2>
+      {policy && (
+        <p role="note">
+          {policy.configured === false
+            ? t('securityAccessControl.userSecurity.policyDefaults')
+            : t('securityAccessControl.userSecurity.policyEnforced')}
+        </p>
+      )}
       {policy
         ? (
           <table style={{ borderCollapse: 'collapse', marginBottom: 24 }}>

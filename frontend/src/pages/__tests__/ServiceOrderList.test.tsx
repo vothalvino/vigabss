@@ -275,6 +275,50 @@ describe('ServiceOrderList page', () => {
     confirmSpy.mockRestore();
   });
 
+  // FE2-10: each action is shown only to someone whose request will succeed.
+  describe('actions follow the permission each request needs', () => {
+    const relocation = { ...newOrder, id: 12, order_type: 'relocation', client_name: 'Gamma SA' };
+
+    it('hides + Link Contract without contracts.create (support / technician)', async () => {
+      mockRole = 'custom';
+      mockPermissions = ['service_orders.update'];
+      mockResponses([relocation]);
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Gamma SA')).toBeInTheDocument());
+      expect(screen.queryByText('+ Link Contract')).not.toBeInTheDocument();
+    });
+
+    it('shows + Link Contract with both service_orders.update and contracts.create', async () => {
+      mockRole = 'custom';
+      mockPermissions = ['service_orders.update', 'contracts.create'];
+      mockResponses([relocation]);
+      renderPage();
+      expect(await screen.findByText('+ Link Contract')).toBeInTheDocument();
+    });
+
+    it('offers no work-order create form without work_orders.create', async () => {
+      mockRole = 'custom';
+      mockPermissions = ['service_orders.update', 'work_orders.view'];
+      mockResponses([relocation]);
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Gamma SA')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Work Orders'));
+      const dialog = within(await screen.findByRole('dialog', { name: /Work Orders/i }));
+      expect(dialog.queryByText(/Create Work Order/)).not.toBeInTheDocument();
+    });
+
+    it('offers no equipment install without cpe_inventory.manage', async () => {
+      mockRole = 'custom';
+      mockPermissions = ['service_orders.update'];
+      mockResponses([inProcessOrder]);
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Beta LLC')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Equipment'));
+      const dialog = within(await screen.findByRole('dialog', { name: /Equipment/i }));
+      expect(dialog.queryByRole('button', { name: 'Install Equipment' })).not.toBeInTheDocument();
+    });
+  });
+
   // ---------------------------------------------------------------------
   // D — Equipment modal (Inventory Phase 3, migration 391)
   // ---------------------------------------------------------------------

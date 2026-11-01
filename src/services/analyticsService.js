@@ -41,10 +41,14 @@ const CHURN_WEIGHTS = {
  * HEURISTIC: no ML — uses rolling mean + stddev over last N samples.
  *
  * @param {number} organizationId
- * @param {{ window?: number }} opts  window = samples to use for baseline (default 48)
+ * @param {{ window?: number }} opts  window = samples to use for baseline (default 48, at most 2000)
  */
+// Samples per device; with up to 500 devices an unbounded window read the
+// whole metric history of the organization in one request.
+const MAX_ANOMALY_WINDOW = 2000;
+
 async function detectAnomalies(organizationId, { window: windowSize = 48 } = {}) {
-  const safeWindow = Math.max(1, parseInt(windowSize, 10) || 48);
+  const safeWindow = Math.min(MAX_ANOMALY_WINDOW, Math.max(1, parseInt(windowSize, 10) || 48));
   // Get distinct devices with SNMP metrics for this org. snmp_metrics is WIDE-format
   // (one column per metric), so we analyze each real metric column per device instead
   // of a nonexistent metric/value EAV pair.

@@ -290,6 +290,7 @@ function generateSpec() {
 
       // ---- API Tokens ----
       ...crudPaths('api-tokens', 'API Tokens', 'ApiToken'),
+      '/api-tokens/{id}/revoke': { post: { tags: ['API Tokens'], summary: 'Revoke an API token (one-way)', operationId: 'revokeApiToken', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ApiToken') } },
 
       // ---- Clients ----
       ...crudPaths('clients', 'Clients', 'Client'),
@@ -1172,8 +1173,8 @@ function generateSpec() {
       '/dsar/clients/{id}': { get: { tags: ['DSAR'], summary: 'Export all personal data held for a client', operationId: 'exportClientDsar', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DSAR export document') } },
 
       // ---- DR Drill ----
-      '/dr-drill/status': { get: { tags: ['DR Drill'], summary: 'Get latest disaster-recovery drill status', operationId: 'getDrDrillStatus', security: [{ bearerAuth: [] }], responses: r200('DR drill status') } },
-      '/dr-drill/runbook': { get: { tags: ['DR Drill'], summary: 'Get the disaster-recovery runbook document (markdown)', operationId: 'getDrDrillRunbook', security: [{ bearerAuth: [] }], responses: r200('DR runbook markdown') } },
+      '/dr-drill/status': { get: { tags: ['DR Drill'], summary: 'Get latest disaster-recovery drill status (install operator only)', operationId: 'getDrDrillStatus', security: [{ bearerAuth: [] }], responses: r200('DR drill status') } },
+      '/dr-drill/runbook': { get: { tags: ['DR Drill'], summary: 'Get the disaster-recovery runbook document (markdown; install operator only)', operationId: 'getDrDrillRunbook', security: [{ bearerAuth: [] }], responses: r200('DR runbook markdown') } },
 
       // ---- Export ----
       '/export/invoices': { get: { tags: ['Export'], summary: 'Export invoices as CSV', operationId: 'exportInvoices', security: [{ bearerAuth: [] }], parameters: [{ name: 'include_deleted', in: 'query', required: false, schema: { type: 'boolean' }, description: 'Include soft-deleted rows (default false)' }], responses: r200File('text/csv') } },
@@ -1598,7 +1599,7 @@ function generateSpec() {
         },
         post: {
           tags: ['PPPoE'],
-          summary: 'Ingest a raw or structured PPPoE event for a registered NAS (machine-to-machine, no JWT)',
+          summary: 'Ingest a raw or structured PPPoE event for a registered NAS (install-wide shared secret, no JWT)',
           operationId: 'ingestPppoeEvent',
           security: [],
           parameters: [{
@@ -1606,13 +1607,30 @@ function generateSpec() {
             in: 'header',
             required: false,
             schema: { type: 'string' },
-            description: 'Shared ingest secret; Authorization: Bearer is also accepted',
+            description: 'Install-wide PPPOE_EVENTS_SECRET; Authorization: Bearer is also accepted',
           }],
           requestBody: pppoeEventIngestBody(),
           responses: {
             ...pppoeEventIngestResponse(),
             401: { description: 'Invalid or missing ingest secret' },
             422: { description: 'Invalid raw or structured event payload' },
+          },
+        },
+      },
+      '/pppoe/events/tenant': {
+        post: {
+          tags: ['PPPoE'],
+          summary: 'Organization-bound PPPoE event ingest',
+          description: 'Requires an organization API token whose only scope is pppoe_events:ingest, held by a user with pppoe_events.ingest. nas_id must be an active NAS of the token organization.',
+          operationId: 'ingestTenantPppoeEvent',
+          security: [{ apiKeyAuth: [] }],
+          requestBody: pppoeEventIngestBody(),
+          responses: {
+            ...pppoeEventIngestResponse(),
+            401: { description: 'Missing or invalid API token' },
+            403: { description: 'Not an API token, token has scopes other than pppoe_events:ingest, or the user lacks pppoe_events.ingest' },
+            422: { description: 'Invalid payload or nas_id is not an active NAS of the token organization' },
+            429: { description: 'Per-token or collector ingest rate exceeded' },
           },
         },
       },
@@ -2903,7 +2921,7 @@ function generateSpec() {
       // ---- §17 Security Admin ----
       '/security-admin/webauthn': {
         get: { tags: ['Security'], summary: 'List WebAuthn credentials for current user', operationId: 'listWebAuthnCredentials', security: [{ bearerAuth: [] }], responses: r200('WebAuthnCredential[]') },
-        post: { tags: ['Security'], summary: 'Register a WebAuthn credential', operationId: 'createWebAuthnCredential', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_createWebAuthn'), responses: r201('WebAuthnCredential') },
+        post: { tags: ['Security'], summary: 'Register a WebAuthn credential (not implemented; always 501)', description: 'WebAuthn has no registration challenge or sign-in ceremony yet, so registration is refused with 501 NOT_IMPLEMENTED. Use TOTP.', operationId: 'createWebAuthnCredential', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_createWebAuthn'), responses: { 501: { description: 'WebAuthn is not implemented' } } },
       },
       '/security-admin/webauthn/{id}': {
         delete: { tags: ['Security'], summary: 'Revoke a WebAuthn credential', operationId: 'deleteWebAuthnCredential', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Success') },
@@ -2920,8 +2938,8 @@ function generateSpec() {
         delete: { tags: ['Security'], summary: 'Delete admin IP allowlist entry', operationId: 'deleteAdminIpAllowlist', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Success') },
       },
       '/security-admin/password-policy': {
-        get: { tags: ['Security'], summary: 'Get org password policy', operationId: 'getPasswordPolicy', security: [{ bearerAuth: [] }], responses: r200('PasswordPolicy') },
-        put: { tags: ['Security'], summary: 'Update org password policy', operationId: 'updatePasswordPolicy', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_updatePasswordPolicy'), responses: r200('Success') },
+        get: { tags: ['Security'], summary: 'Get the password policy in force (configured: false means the built-in defaults)', operationId: 'getPasswordPolicy', security: [{ bearerAuth: [] }], responses: r200('PasswordPolicy') },
+        put: { tags: ['Security'], summary: 'Update org password policy; only the fields sent change', description: 'Enforced on register, password change and reset, administrator-set passwords, sign-in lockout, password history and rotation.', operationId: 'updatePasswordPolicy', security: [{ bearerAuth: [] }], requestBody: jsonBody('security_updatePasswordPolicy'), responses: r200('PasswordPolicy') },
       },
       '/security-admin/api-key-rate-limits': {
         get: { tags: ['Security'], summary: 'List API key rate limits', operationId: 'listApiKeyRateLimits', security: [{ bearerAuth: [] }], responses: r200('ApiKeyRateLimit[]') },
@@ -3112,7 +3130,7 @@ function generateSpec() {
         get: { tags: ['Analytics'], summary: 'List detected traffic anomalies (heuristic z-score)', operationId: 'listAnalyticsAnomalies', security: [{ bearerAuth: [] }], responses: r200('Anomaly[]') },
       },
       '/analytics/anomalies/detect': {
-        post: { tags: ['Analytics'], summary: 'Run z-score anomaly detection now (heuristic)', operationId: 'detectAnomalies', security: [{ bearerAuth: [] }], responses: r200('AnomalyDetectionResult') },
+        post: { tags: ['Analytics'], summary: 'Run z-score anomaly detection now (heuristic); needs analytics_anomalies.acknowledge', operationId: 'detectAnomalies', parameters: [{ name: 'window', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 2000, default: 48 }, description: 'Samples per device for the baseline; values above 2000 are capped' }], security: [{ bearerAuth: [] }], responses: r200('AnomalyDetectionResult') },
       },
       '/analytics/anomalies/{id}/acknowledge': {
         post: { tags: ['Analytics'], summary: 'Acknowledge an anomaly detection', operationId: 'acknowledgeAnomaly', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Anomaly') },

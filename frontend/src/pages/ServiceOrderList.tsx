@@ -468,7 +468,7 @@ function ProvisioningResultModal({ credentials, onClose }: { credentials: PppoeC
 // B — Work Orders modal for a service order
 // ---------------------------------------------------------------------------
 
-function WorkOrdersModal({ order, onClose, onCreated }: { order: ServiceOrder; onClose: () => void; onCreated: () => void }) {
+function WorkOrdersModal({ order, onClose, onCreated, canCreate }: { order: ServiceOrder; onClose: () => void; onCreated: () => void; canCreate: boolean }) {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
@@ -535,7 +535,8 @@ function WorkOrdersModal({ order, onClose, onCreated }: { order: ServiceOrder; o
           </ul>
         )}
 
-        {showForm ? (
+        {/* POST /work-orders needs work_orders.create (technicians hold only view). */}
+        {!canCreate ? null : showForm ? (
           <div style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '0.75rem' }}>
             {formErr && <div style={errorBox}>{formErr}</div>}
             <label style={labelStyle}>{t('serviceOrders.workOrderTitleField', 'Title')}</label>
@@ -594,7 +595,7 @@ async function fetchInStockUnits(itemId: number): Promise<InStockUnit[]> {
   return ((res.data as unknown as { data: InStockUnit[] }).data) ?? [];
 }
 
-function EquipmentModal({ order, onClose, onAssigned }: { order: ServiceOrder; onClose: () => void; onAssigned: () => void }) {
+function EquipmentModal({ order, onClose, onAssigned, canInstall }: { order: ServiceOrder; onClose: () => void; onAssigned: () => void; canInstall: boolean }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [itemId, setItemId] = useState('');
@@ -666,19 +667,23 @@ function EquipmentModal({ order, onClose, onAssigned }: { order: ServiceOrder; o
                   <span style={{ flex: 1 }}>{u.item_name ?? ''}</span>
                   <span style={{ textTransform: 'capitalize', color: 'var(--text-secondary)' }}>{u.lifecycle_state}</span>
                   {u.ownership && <span style={{ textTransform: 'capitalize', color: 'var(--text-secondary)' }}>{u.ownership}</span>}
-                  <UndoInstallButton
-                    deviceId={u.id}
-                    serialNumber={u.serial_number}
-                    itemName={u.item_name}
-                    lifecycleState={u.lifecycle_state}
-                    onDone={handleUndone}
-                  />
+                  {canInstall && (
+                    <UndoInstallButton
+                      deviceId={u.id}
+                      serialNumber={u.serial_number}
+                      itemName={u.item_name}
+                      lifecycleState={u.lifecycle_state}
+                      onDone={handleUndone}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
           </div>
         )}
 
+        {/* Install and undo need cpe_inventory.manage (support does not hold it). */}
+        {canInstall && (
         <div style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '0.75rem' }}>
           {formErr && <div style={errorBox}>{formErr}</div>}
 
@@ -734,6 +739,7 @@ function EquipmentModal({ order, onClose, onAssigned }: { order: ServiceOrder; o
             {installMut.isPending ? t('common.saving', 'Saving…') : t('serviceOrders.equipmentInstall', 'Install Equipment')}
           </button>
         </div>
+        )}
       </div>
     </div>
   );
@@ -926,6 +932,10 @@ export function ServiceOrderList() {
   const canCreate = can(user, 'service_orders.create');
   const canUpdate = can(user, 'service_orders.update');
   const canUpdateContracts = can(user, 'contracts.update');
+  // '+ Link Contract' opens CreateContractModal, which POSTs /contracts.
+  const canLinkContract = canUpdate && can(user, 'contracts.create');
+  const canCreateWorkOrders = can(user, 'work_orders.create');
+  const canInstallEquipment = can(user, 'cpe_inventory.manage');
   const canCreateInvoices = can(user, 'invoices.create');
 
   const { data, isLoading, error } = useQuery({
@@ -1017,7 +1027,7 @@ export function ServiceOrderList() {
                         #{o.contract_id}
                       </Link>
                     ) : (
-                      canUpdate && o.order_type !== 'new_install' && (
+                      canLinkContract && o.order_type !== 'new_install' && (
                         <button type="button"
                           style={{ background: 'transparent', border: '1px dashed var(--border)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: '0.78rem' }}
                           onClick={() => setContractFor(o)}>
@@ -1104,6 +1114,7 @@ export function ServiceOrderList() {
           order={workOrdersFor}
           onClose={() => setWorkOrdersFor(null)}
           onCreated={refresh}
+          canCreate={canCreateWorkOrders}
         />
       )}
 
@@ -1113,6 +1124,7 @@ export function ServiceOrderList() {
           order={equipmentFor}
           onClose={() => setEquipmentFor(null)}
           onAssigned={refresh}
+          canInstall={canInstallEquipment}
         />
       )}
 

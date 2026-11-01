@@ -26,6 +26,13 @@ vi.mock('@/api/client', () => ({
   tokenStore: { getAccess: () => 'tok', setAccess: vi.fn(), getRefresh: () => null, setRefresh: vi.fn(), clear: vi.fn() },
 }));
 
+// The signed-in staff member. A tenant admin by default; a test sets
+// has_global_organization_access for the install operator / super_admin.
+let mockAuthUser: { role: string; has_global_organization_access?: boolean } = { role: 'admin' };
+vi.mock('@/auth/AuthContext', () => ({
+  useAuth: () => ({ user: mockAuthUser }),
+}));
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -128,6 +135,7 @@ async function openPermissionsFor(name: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockAuthUser = { role: 'admin' };
 
   mockApiGet.mockImplementation((path: string, opts?: { params?: { path?: { id?: number } } }) => {
     if (path === '/roles') {
@@ -333,12 +341,12 @@ describe('RoleList page (User Groups)', () => {
     expect(ids.has(10)).toBe(false); // invoices.delete — never held
   });
 
-  it('renders an admin-kind group’s matrix read-only with a notice', async () => {
+  it('renders a system group’s matrix read-only with a notice for a tenant admin', async () => {
     renderList();
     await waitFor(() => expect(screen.getByText('Administrators')).toBeInTheDocument());
     const dialog = await openPermissionsFor('Administrators');
 
-    await waitFor(() => expect(within(dialog).getByText(/not editable/i)).toBeInTheDocument());
+    await waitFor(() => expect(within(dialog).getByText(/system group shared by every organization/i)).toBeInTheDocument());
     // The matrix rows come from a separate permissions fetch and can render
     // after the notice on slow CI runners — wait for them instead of assuming
     // they arrived with the notice (this exact line flaked in CI).
@@ -353,6 +361,19 @@ describe('RoleList page (User Groups)', () => {
 
     fireEvent.click(closeButtons[closeButtons.length - 1]);
     expect(mockApiPut).not.toHaveBeenCalledWith('/roles/{id}/permissions', expect.anything());
+  });
+
+  // SEC-18: the admin group's list is read by rbac.js for every tenant
+  // admin, so the install operator / super_admin can edit it.
+  it('lets a global principal edit a system group', async () => {
+    mockAuthUser = { role: 'admin', has_global_organization_access: true };
+    renderList();
+    await waitFor(() => expect(screen.getByText('Administrators')).toBeInTheDocument());
+    const dialog = await openPermissionsFor('Administrators');
+
+    await waitFor(() => expect(within(dialog).getByRole('radio', { name: /clients — Denied/i })).toBeEnabled());
+    expect(within(dialog).getByRole('button', { name: /Save Changes/i })).toBeInTheDocument();
+    expect(within(dialog).queryByText(/system group shared by every organization/i)).not.toBeInTheDocument();
   });
 
   it('shows empty message when no groups', async () => {

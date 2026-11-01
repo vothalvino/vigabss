@@ -2690,6 +2690,42 @@
         }
       }
     },
+    "/api-tokens/{id}/revoke": {
+      "post": {
+        "tags": [
+          "API Tokens"
+        ],
+        "summary": "Revoke an API token (one-way)",
+        "operationId": "revokeApiToken",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiToken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/clients": {
       "get": {
         "tags": [
@@ -24222,7 +24258,7 @@
         "tags": [
           "DR Drill"
         ],
-        "summary": "Get latest disaster-recovery drill status",
+        "summary": "Get latest disaster-recovery drill status (install operator only)",
         "operationId": "getDrDrillStatus",
         "security": [
           {
@@ -24248,7 +24284,7 @@
         "tags": [
           "DR Drill"
         ],
-        "summary": "Get the disaster-recovery runbook document (markdown)",
+        "summary": "Get the disaster-recovery runbook document (markdown; install operator only)",
         "operationId": "getDrDrillRunbook",
         "security": [
           {
@@ -30686,7 +30722,7 @@
         "tags": [
           "PPPoE"
         ],
-        "summary": "Ingest a raw or structured PPPoE event for a registered NAS (machine-to-machine, no JWT)",
+        "summary": "Ingest a raw or structured PPPoE event for a registered NAS (install-wide shared secret, no JWT)",
         "operationId": "ingestPppoeEvent",
         "security": [],
         "parameters": [
@@ -30697,7 +30733,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Shared ingest secret; Authorization: Bearer is also accepted"
+            "description": "Install-wide PPPOE_EVENTS_SECRET; Authorization: Bearer is also accepted"
           }
         ],
         "requestBody": {
@@ -30907,6 +30943,236 @@
           },
           "422": {
             "description": "Invalid raw or structured event payload"
+          }
+        }
+      }
+    },
+    "/pppoe/events/tenant": {
+      "post": {
+        "tags": [
+          "PPPoE"
+        ],
+        "summary": "Organization-bound PPPoE event ingest",
+        "description": "Requires an organization API token whose only scope is pppoe_events:ingest, held by a user with pppoe_events.ingest. nas_id must be an active NAS of the token organization.",
+        "operationId": "ingestTenantPppoeEvent",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Raw RouterOS line or structured PPPoE event. Tenant ownership is derived from nas_id.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "nas_id",
+                      "line"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "nas_id": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "logged_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "line": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8192
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "nas_id",
+                      "message"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "nas_id": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "logged_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "username": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "mac": {
+                        "type": "string",
+                        "pattern": "^[0-9A-Fa-f]{2}(?:[:-][0-9A-Fa-f]{2}){5}$"
+                      },
+                      "stage": {
+                        "type": "string",
+                        "enum": [
+                          "PADI",
+                          "PADO",
+                          "PADR",
+                          "PADS",
+                          "PADT",
+                          "LCP",
+                          "IPCP",
+                          "IPV6CP",
+                          "AUTH",
+                          "OTHER"
+                        ]
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "info",
+                          "warning",
+                          "error"
+                        ]
+                      },
+                      "message": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8192
+                      },
+                      "reason_code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 50,
+                        "pattern": "^[A-Za-z0-9_.:-]+$"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Validated event accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "organization_id",
+                        "nas_id",
+                        "source_key",
+                        "username",
+                        "mac",
+                        "stage",
+                        "severity",
+                        "message",
+                        "reason_code",
+                        "logged_at"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "organization_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "nas_id": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "source_key": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "username": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "mac": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "stage": {
+                          "type": "string",
+                          "enum": [
+                            "PADI",
+                            "PADO",
+                            "PADR",
+                            "PADS",
+                            "PADT",
+                            "LCP",
+                            "IPCP",
+                            "IPV6CP",
+                            "AUTH",
+                            "OTHER"
+                          ]
+                        },
+                        "severity": {
+                          "type": "string",
+                          "enum": [
+                            "info",
+                            "warning",
+                            "error"
+                          ]
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "reason_code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "logged_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API token"
+          },
+          "403": {
+            "description": "Not an API token, token has scopes other than pppoe_events:ingest, or the user lacks pppoe_events.ingest"
+          },
+          "422": {
+            "description": "Invalid payload or nas_id is not an active NAS of the token organization"
+          },
+          "429": {
+            "description": "Per-token or collector ingest rate exceeded"
           }
         }
       }
@@ -53077,7 +53343,8 @@
         "tags": [
           "Security"
         ],
-        "summary": "Register a WebAuthn credential",
+        "summary": "Register a WebAuthn credential (not implemented; always 501)",
+        "description": "WebAuthn has no registration challenge or sign-in ceremony yet, so registration is refused with 501 NOT_IMPLEMENTED. Use TOTP.",
         "operationId": "createWebAuthnCredential",
         "security": [
           {
@@ -53095,15 +53362,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "WebAuthnCredential",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+          "501": {
+            "description": "WebAuthn is not implemented"
           }
         }
       }
@@ -53315,7 +53575,7 @@
         "tags": [
           "Security"
         ],
-        "summary": "Get org password policy",
+        "summary": "Get the password policy in force (configured: false means the built-in defaults)",
         "operationId": "getPasswordPolicy",
         "security": [
           {
@@ -53339,7 +53599,8 @@
         "tags": [
           "Security"
         ],
-        "summary": "Update org password policy",
+        "summary": "Update org password policy; only the fields sent change",
+        "description": "Enforced on register, password change and reset, administrator-set passwords, sign-in lockout, password history and rotation.",
         "operationId": "updatePasswordPolicy",
         "security": [
           {
@@ -53358,7 +53619,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "PasswordPolicy",
             "content": {
               "application/json": {
                 "schema": {
@@ -55810,8 +56071,22 @@
         "tags": [
           "Analytics"
         ],
-        "summary": "Run z-score anomaly detection now (heuristic)",
+        "summary": "Run z-score anomaly detection now (heuristic); needs analytics_anomalies.acknowledge",
         "operationId": "detectAnomalies",
+        "parameters": [
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2000,
+              "default": 48
+            },
+            "description": "Samples per device for the baseline; values above 2000 are capped"
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -59669,7 +59944,8 @@
           }
         },
         "required": [
-          "name"
+          "name",
+          "scopes"
         ]
       },
       "apiTokens_updateApiToken": {
@@ -59684,9 +59960,6 @@
             "type": "string"
           },
           "expires_at": {
-            "type": "string"
-          },
-          "revoked_at": {
             "type": "string"
           }
         }
@@ -60328,9 +60601,6 @@
           "reason": {
             "type": "string",
             "minimum": 1
-          },
-          "approved_by": {
-            "type": "number"
           }
         },
         "required": [
@@ -62324,6 +62594,10 @@
             "type": "string",
             "maximum": 100
           },
+          "acs_password": {
+            "type": "string",
+            "maximum": 128
+          },
           "device_id": {
             "type": "number",
             "minimum": 1
@@ -62408,6 +62682,10 @@
           "acs_username": {
             "type": "string",
             "maximum": 100
+          },
+          "acs_password": {
+            "type": "string",
+            "maximum": 128
           },
           "device_id": {
             "type": "number",
@@ -74447,23 +74725,28 @@
           },
           "max_repeated_chars": {
             "type": "string",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 128
           },
           "rotation_days": {
             "type": "string",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3650
           },
           "history_count": {
             "type": "string",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 24
           },
           "lockout_attempts": {
             "type": "string",
-            "minimum": 0
+            "minimum": 1,
+            "maximum": 100
           },
           "lockout_duration_minutes": {
             "type": "string",
-            "minimum": 0
+            "minimum": 1,
+            "maximum": 1440
           }
         }
       },

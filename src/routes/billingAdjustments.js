@@ -35,7 +35,8 @@ router.post('/', requirePermission('billing_adjustments.create'), validate(creat
       adjustmentType: req.body.adjustment_type,
       amountDelta: req.body.amount_delta,
       reason: req.body.reason,
-      approvedBy: req.body.approved_by || null,
+      // The approver is whoever records it; it used to be any user id from the body (TNA-29).
+      approvedBy: req.user.id,
       createdBy: req.user.id,
     });
     res.status(201).json({ data: adjustment });

@@ -58,7 +58,11 @@ function validate(schema, options = {}) {
       } else if (rules.type === 'object'
           && (typeof value !== 'object' || Array.isArray(value))) {
         errors.push({ field, message: `${field} must be an object` });
-      } else if (rules.type === 'email' && typeof value === 'string') {
+      } else if (rules.type === 'email' && typeof value !== 'string') {
+        // An object or number used to pass and reach email.toLowerCase(), a
+        // 500 on the unauthenticated portal login and reset routes (SEC-20).
+        errors.push({ field, message: `${field} must be a valid email` });
+      } else if (rules.type === 'email') {
         // Simple, ReDoS-safe email validation: local@domain.tld
         if (!/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(value)) {
           errors.push({ field, message: `${field} must be a valid email` });

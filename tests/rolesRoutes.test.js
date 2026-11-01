@@ -74,6 +74,10 @@ jest.mock('../src/middleware/orgLocale', () => ({
 // roles.js itself calls requirePermission('roles.manage') as route-entry
 // gating only — bypassed here so the tests exercise the handlers' own
 // is_system / kind / anti-amplification logic instead of RBAC resolution.
+// Audit writes are asserted directly, not routed through the positional
+// db.query queue below.
+jest.mock('../src/services/auditLog', () => ({ log: jest.fn(async () => {}) }));
+
 jest.mock('../src/middleware/rbac', () => ({
   userHasPermission: async () => true,
   requirePermission: () => (_req, _res, next) => next(),
@@ -122,6 +126,8 @@ beforeEach(() => {
   mockUser.id = 1;
   mockUser.email = 'staff@test.com';
   mockUser.role = 'admin';
+  delete mockUser.hasGlobalOrganizationAccess;
+  require('../src/services/auditLog').log.mockClear();
 });
 
 // ---------------------------------------------------------------------------
@@ -275,7 +281,9 @@ describe('DELETE /api/roles/:id', () => {
 // ---------------------------------------------------------------------------
 describe('PUT /api/roles/:id/permissions', () => {
   test('happy path replaces the set and returns the full updated list', async () => {
-    mockUser.role = 'admin'; // legacy bypass — skips the anti-amplification check entirely
+    // A global principal (install operator / super_admin) skips the
+    // anti-amplification check entirely.
+    mockUser.hasGlobalOrganizationAccess = true;
 
     mockQuery
       .mockResolvedValueOnce([[CUSTOM_BILLING_ROLE]])                                     // SELECT role
@@ -302,6 +310,11 @@ describe('PUT /api/roles/:id/permissions', () => {
     const [insertSql, insertParams] = mockQuery.mock.calls[4];
     expect(insertSql).toMatch(/INSERT INTO role_permissions/);
     expect(insertParams).toEqual(['5', 1, '5', 2]);
+    expect(require('../src/services/auditLog').log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'update_permissions', tableName: 'roles', recordId: 5,
+      oldValues: { name: 'ar_specialist', permissions: ['clients.delete'] },
+      newValues: { name: 'ar_specialist', permissions: ['clients.view', 'clients.create'] },
+    }));
   });
 
   test('an unknown permission id returns 422', async () => {
@@ -319,8 +332,8 @@ describe('PUT /api/roles/:id/permissions', () => {
     expect(res.body.error.message).toContain('999');
   });
 
-  test('editing the system admin group is rejected with 403', async () => {
-    mockUser.role = 'admin';
+  test('a tenant admin editing the system admin group is rejected with 403', async () => {
+    mockUser.role = 'admin'; // a tenant admin is not a global principal
     mockQuery.mockResolvedValueOnce([[SYSTEM_ADMIN_ROLE]]); // SELECT role — kind 'admin'
 
     const res = await request(app)
@@ -386,5 +399,77 @@ describe('PUT /api/roles/:id/permissions', () => {
 
     expect(res.status).toBe(422);
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SEC-18 — one policy for every permission-list edit
+// ---------------------------------------------------------------------------
+// Groups are installation-wide and rbac.js reads every group's list for every
+// member except global principals, the admin group included. The single-
+// permission routes had no system-group guard, and the amplification check
+// trusted users.role = 'admin' (any tenant's admin).
+describe('permission-list edits share one policy (SEC-18)', () => {
+  const auditLog = require('../src/services/auditLog');
+
+  test.each([
+    ['POST', r => r.post('/api/roles/1/permissions').send({ permission_id: 2 })],
+    ['DELETE', r => r.delete('/api/roles/1/permissions/2')],
+  ])('%s on a system group by a tenant admin is 403 and changes nothing', async (_m, send) => {
+    mockUser.role = 'admin';
+    mockQuery.mockResolvedValueOnce([[SYSTEM_ADMIN_ROLE]]);
+
+    const res = await send(request(app));
+
+    expect(res.status).toBe(403);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(auditLog.log).not.toHaveBeenCalled();
+  });
+
+  test('a global principal can edit the admin group, and the edit is audited', async () => {
+    mockUser.hasGlobalOrganizationAccess = true;
+    mockQuery
+      .mockResolvedValueOnce([[SYSTEM_ADMIN_ROLE]])                    // SELECT role
+      .mockResolvedValueOnce([[{ id: 1, slug: 'clients.view' }]])       // SELECT requested perms
+      .mockResolvedValueOnce([[]])                                      // SELECT current perms
+      .mockResolvedValueOnce([{ affectedRows: 0 }])                     // DELETE
+      .mockResolvedValueOnce([{ affectedRows: 1 }])                     // INSERT
+      .mockResolvedValueOnce([[{ id: 1, slug: 'clients.view', description: 'View clients' }]]);
+
+    const res = await request(app).put('/api/roles/1/permissions').send({ permission_ids: [1] });
+
+    expect(res.status).toBe(200);
+    expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'update_permissions', recordId: 1 }));
+  });
+
+  test('a tenant admin adding to a custom group must hold the permission', async () => {
+    mockUser.role = 'admin'; // no longer an amplification bypass
+    mockQuery
+      .mockResolvedValueOnce([[CUSTOM_BILLING_ROLE]])                  // SELECT role
+      .mockResolvedValueOnce([[{ id: 9, slug: 'api_tokens.create' }]]) // SELECT permission
+      .mockResolvedValueOnce([[]])                                      // User.getPermissions: group lookup
+      .mockResolvedValueOnce([[{ slug: 'clients.view' }]]);             // User.getPermissions: memberships
+
+    const res = await request(app).post('/api/roles/5/permissions').send({ permission_id: 9 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.message).toContain('api_tokens.create');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT IGNORE INTO role_permissions/.test(sql))).toBe(false);
+  });
+
+  test('removing a permission from a custom group is audited', async () => {
+    mockUser.role = 'billing';
+    mockQuery
+      .mockResolvedValueOnce([[CUSTOM_BILLING_ROLE]])                                         // SELECT role
+      .mockResolvedValueOnce([[{ id: 2, slug: 'clients.create', description: 'Create' }]])    // SELECT before
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);                                          // DELETE
+
+    const res = await request(app).delete('/api/roles/5/permissions/2');
+
+    expect(res.status).toBe(204);
+    expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({
+      oldValues: { name: 'ar_specialist', permissions: ['clients.create'] },
+      newValues: { name: 'ar_specialist', permissions: [] },
+    }));
   });
 });

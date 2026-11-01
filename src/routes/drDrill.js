@@ -8,6 +8,7 @@ const path = require('path');
 const { authenticate } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 const drDrillService = require('../services/drDrillService');
+const { isInstallOperator, OPERATOR_ONLY_MESSAGE } = require('../services/installOperator');
 
 const router = Router();
 
@@ -17,9 +18,23 @@ const RUNBOOK_PATH = path.join(__dirname, '..', '..', 'docs', 'dr-drill.md');
 
 router.use(authenticate);
 
+async function requireInstallOperator(req, res, next) {
+  try {
+    if (await isInstallOperator(req)) return next();
+    return res.status(403).json({
+      error: { code: 'INSTALL_OPERATOR_ONLY', message: OPERATOR_ONLY_MESSAGE },
+    });
+  } catch (err) { return next(err); }
+}
+
+// The drill log describes the whole installation (its backups, restore
+// timings and last_error), not one organization, so a tenant's settings.view
+// grant cannot authorize it. settings.view stays as defense in depth.
+router.use(requireInstallOperator);
+
 // GET /dr-drill/status
 // Returns the latest drill log entry plus an overdue flag.
-// Accessible to all authenticated admins.
+// Install operator only.
 router.get('/status', requirePermission('settings.view'), async (req, res, next) => {
   try {
     const status = await drDrillService.getDrillStatus();

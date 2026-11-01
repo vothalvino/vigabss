@@ -2689,9 +2689,14 @@ describe('Role Routes — /api/roles', () => {
   describe('POST /api/roles/:id/permissions', () => {
     test('assigns a permission to a role and returns 201', async () => {
       mockAuthUser();
+      // A tenant admin may add to a custom group only what they hold (SEC-18).
+      User.getPermissions.mockResolvedValue(['clients.create']);
       db.query
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT role_permissions
-        .mockResolvedValueOnce([mockPermissions]);       // SELECT updated permissions
+        .mockResolvedValueOnce([[{ id: 1, name: 'field_crew', kind: 'technician', is_system: 0 }]]) // SELECT role
+        .mockResolvedValueOnce([[{ id: 2, slug: 'clients.create' }]])  // SELECT permission
+        .mockResolvedValueOnce([[]])                                   // SELECT permissions before
+        .mockResolvedValueOnce([{ affectedRows: 1 }])                  // INSERT role_permissions
+        .mockResolvedValueOnce([mockPermissions]);                     // SELECT updated permissions
 
       const res = await request(app)
         .post('/api/roles/1/permissions')
@@ -2707,7 +2712,10 @@ describe('Role Routes — /api/roles', () => {
   describe('DELETE /api/roles/:id/permissions/:permissionId', () => {
     test('removes a permission from a role and returns 204', async () => {
       mockAuthUser();
-      db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);  // DELETE role_permission
+      db.query
+        .mockResolvedValueOnce([[{ id: 1, name: 'field_crew', kind: 'technician', is_system: 0 }]]) // SELECT role
+        .mockResolvedValueOnce([[{ id: 2, slug: 'clients.create' }]])  // SELECT permissions before
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);                 // DELETE role_permission
 
       const res = await request(app)
         .delete('/api/roles/1/permissions/2')

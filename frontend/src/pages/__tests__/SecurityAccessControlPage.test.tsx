@@ -188,7 +188,16 @@ describe('SecurityAccessControlPage (§17)', () => {
     renderPage();
     // WebAuthn section heading
     await waitFor(() =>
-      expect(screen.getByText(/webauthn/i)).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /webauthn/i })).toBeInTheDocument(),
+    );
+  });
+
+  // SEC-17: WebAuthn has no sign-in ceremony, so the page must not present
+  // stored credentials as protection.
+  it('says WebAuthn is not enforced', async () => {
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText(/not enforced/i)).toBeInTheDocument(),
     );
   });
 

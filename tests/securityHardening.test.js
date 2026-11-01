@@ -144,7 +144,7 @@ describe('security hardening — integration', () => {
     mockCurrentUser = { id: 5, role: 'support', organizationId: 1 };
     const res = await request(app)
       .post('/api/v1/api-tokens')
-      .send({ name: 'evil', user_id: 1 }); // attacker tries to bind to admin user_id=1
+      .send({ name: 'evil', user_id: 1, scopes: ['clients:read'] }); // attacker tries to bind to admin user_id=1
 
     expect(res.status).toBe(201);
     expect(mockApiTokenCreate).toHaveBeenCalledTimes(1);
