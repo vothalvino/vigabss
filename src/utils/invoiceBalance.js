@@ -18,4 +18,17 @@ function creditAppliedSql(alias = 'i') {
                      WHERE cna.invoice_id = ${alias}.id AND cna.deleted_at IS NULL), 0)`;
 }
 
-module.exports = { creditAppliedSql };
+/**
+ * SQL that is true when the invoice aliased `alias` is NOT being paid off
+ * under an active payment plan (BIL-17). Suspension and late fees skip an
+ * invoice the client is paying in installments.
+ * @param {string} [alias]
+ * @returns {string}
+ */
+function notUnderActivePlanSql(alias = 'i') {
+  return `NOT EXISTS (SELECT 1 FROM payment_plan_installments ppi
+                        JOIN payment_plans pp ON pp.id = ppi.plan_id
+                       WHERE ppi.invoice_id = ${alias}.id AND pp.status = 'active' AND pp.deleted_at IS NULL)`;
+}
+
+module.exports = { creditAppliedSql, notUnderActivePlanSql };

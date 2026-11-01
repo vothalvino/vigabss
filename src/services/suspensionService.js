@@ -8,7 +8,7 @@
 const crypto = require('crypto');
 const dgram = require('dgram');
 const db = require('../config/database');
-const { creditAppliedSql } = require('../utils/invoiceBalance');
+const { creditAppliedSql, notUnderActivePlanSql } = require('../utils/invoiceBalance');
 const logger = require('../utils/logger').child({ service: 'suspension' });
 const { ValidationError } = require('../utils/errors');
 const mxRegisteredTemplateService = require('./mxRegisteredContractTemplateService');
@@ -78,6 +78,7 @@ async function findOverdueContracts(organizationId, { minDays, maxDays = null, p
        WHERE i.contract_id = c.id AND i.organization_id = ? AND i.deleted_at IS NULL
          AND i.status IN ('issued', 'sent', 'overdue')
          AND ${OPEN_BALANCE_SQL}
+         AND ${notUnderActivePlanSql('i')}
        ORDER BY i.due_date ASC, i.id ASC
        LIMIT 1
     )
@@ -277,6 +278,7 @@ async function suspendContract(contractId, ruleId, userId, invoiceId) {
             AND i.status IN ('issued', 'sent', 'overdue')
             AND i.due_date < CURDATE()
             AND ${OPEN_BALANCE_SQL}
+            AND ${notUnderActivePlanSql('i')}
           LIMIT 1`,
         [contractId],
       );

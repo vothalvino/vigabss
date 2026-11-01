@@ -44,6 +44,38 @@ describe('paymentPlanService', () => {
   // createPlan
   // ===========================================================================
   describe('createPlan', () => {
+    // BIL-17: neither the plan nor its installments stored the invoice, so
+    // paying an installment never allocated to it and the invoice stayed due.
+    test('a plan for an invoice splits its balance due and links every installment to it', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 99, client_id: 5, status: 'issued', total: '1160.00', balance_due: '900.00' }]])
+        .mockResolvedValueOnce([[{ id: 7, total_amount: '900.00' }]]);
+      mockConnection.execute.mockResolvedValue([{ insertId: 7 }]);
+
+      const { installments } = await paymentPlanService.createPlan({
+        organizationId: 1, clientId: 5, invoiceId: 99, installmentCount: 3, frequency: 'monthly', createdBy: 8,
+      });
+
+      expect(db.query.mock.calls[0][0]).toMatch(/AS balance_due/);
+      const planInsert = mockConnection.execute.mock.calls.find(([sql]) => /INSERT INTO payment_plans/.test(sql));
+      expect(planInsert[1][2]).toBe(900);
+      const instInserts = mockConnection.execute.mock.calls.filter(([sql]) => /INSERT INTO payment_plan_installments/.test(sql));
+      expect(instInserts).toHaveLength(3);
+      for (const [sql, params] of instInserts) {
+        expect(sql).toMatch(/\(organization_id, plan_id, invoice_id, sequence/);
+        expect(params.slice(0, 3)).toEqual([1, 7, 99]);
+      }
+      expect(installments.every((i) => i.invoice_id === 99)).toBe(true);
+    });
+
+    test('a paid invoice cannot be split into a plan', async () => {
+      db.query.mockResolvedValueOnce([[{ id: 99, client_id: 5, status: 'paid', total: '1160.00', balance_due: '0.00' }]]);
+      await expect(paymentPlanService.createPlan({
+        organizationId: 1, clientId: 5, invoiceId: 99, installmentCount: 3, frequency: 'monthly',
+      })).rejects.toThrow(/Only an unpaid invoice/);
+      expect(mockConnection.execute).not.toHaveBeenCalled();
+    });
+
     test('creates plan and installments for monthly frequency', async () => {
       const planId = 7;
       const inst1Id = 101;
@@ -183,114 +215,123 @@ describe('paymentPlanService', () => {
   // payInstallment
   // ===========================================================================
   describe('payInstallment', () => {
-    test('marks installment as paid and creates allocation when invoice_id exists', async () => {
-      const plan = { id: 1, organization_id: 1 };
+    // The reads run on the transaction, with the plan, installment, payment and
+    // invoice rows locked; answer them by statement rather than by position.
+    function wire({ plan = { id: 1, organization_id: 1, client_id: 10, status: 'active' },
+      installment, payment, allocated = '0', usedBy = null, invoice = null, remaining = 2 }) {
+      mockConnection.execute.mockImplementation(async (sql) => {
+        if (/FROM payment_plans WHERE id = \?/.test(sql)) return [plan ? [plan] : []];
+        if (/FROM payment_plan_installments WHERE plan_id = \? AND sequence = \?/.test(sql)) return [installment ? [installment] : []];
+        if (/FROM payments WHERE id = \?/.test(sql)) return [payment ? [payment] : []];
+        if (/WHERE paid_payment_id = \?/.test(sql)) return [usedBy ? [{ id: usedBy }] : []];
+        if (/AS allocated FROM payment_allocations WHERE payment_id = \?/.test(sql)) return [[{ allocated }]];
+        if (/FROM invoices i/.test(sql)) return [invoice ? [invoice] : []];
+        if (/total_allocated/.test(sql)) return [[{ total_allocated: invoice ? invoice.total : 0 }]];
+        if (/COUNT\(\*\) AS remaining/.test(sql)) return [[{ remaining }]];
+        return [{ affectedRows: 1 }];
+      });
+      db.query.mockResolvedValue([[{ ...installment, status: 'paid' }]]);
+    }
+    const sqls = () => mockConnection.execute.mock.calls.map(([sql]) => sql);
+
+    test('marks installment as paid and allocates to its invoice, inside the transaction', async () => {
       const installment = { id: 10, plan_id: 1, sequence: 2, amount: '50.00', invoice_id: 99, status: 'pending' };
-      const payment = { id: 5, organization_id: 1, amount: '50.00', status: 'completed' };
-
-      db.query
-        .mockResolvedValueOnce([[plan]])       // SELECT plan
-        .mockResolvedValueOnce([[installment]]) // SELECT installment
-        .mockResolvedValueOnce([[payment]]);    // SELECT payment
-
-      mockConnection.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT payment_allocations
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE installment paid
-        .mockResolvedValueOnce([[{ remaining: 3 }]]);   // SELECT COUNT remaining
-
-      // REP hook (post-commit, best-effort): cfdi_documents lookup finds no
-      // PPD CFDI → skipped. Then the SELECT of the updated installment.
-      db.query.mockResolvedValueOnce([[]]);
-      db.query.mockResolvedValueOnce([[{ ...installment, status: 'paid' }]]);
+      wire({
+        installment,
+        payment: { id: 5, organization_id: 1, client_id: 10, amount: '50.00', status: 'completed' },
+        invoice: { id: 99, client_id: 10, total: '150.00', balance_due: '150.00', status: 'issued' },
+      });
 
       const result = await paymentPlanService.payInstallment(1, 2, 5, 1);
 
       expect(mockConnection.beginTransaction).toHaveBeenCalled();
-      // Allocation INSERT
-      expect(mockConnection.execute.mock.calls[0][0]).toContain('INSERT INTO payment_allocations');
-      // UPDATE installment
-      expect(mockConnection.execute.mock.calls[1][0]).toContain("SET status = 'paid'");
+      const alloc = mockConnection.execute.mock.calls.find(([sql]) => /INSERT INTO payment_allocations/.test(sql));
+      expect(alloc[1]).toEqual([5, 99, 50]);
+      expect(sqls().some((sql) => /SET status = 'paid', paid_payment_id = \?/.test(sql))).toBe(true);
       expect(mockConnection.commit).toHaveBeenCalled();
       expect(result.status).toBe('paid');
     });
 
+    test('locks the plan, the installment and the payment', async () => {
+      wire({
+        installment: { id: 10, plan_id: 1, sequence: 1, amount: '50.00', invoice_id: null, status: 'pending' },
+        payment: { id: 5, organization_id: 1, client_id: 10, amount: '50.00', status: 'completed' },
+      });
+      await paymentPlanService.payInstallment(1, 1, 5, 1);
+      for (const table of ['payment_plans', 'payment_plan_installments', 'payments']) {
+        expect(sqls().some((sql) => new RegExp(`FROM ${table} WHERE.*FOR UPDATE`).test(sql))).toBe(true);
+      }
+    });
+
     test('marks plan as completed when all installments are paid', async () => {
-      const plan = { id: 1, organization_id: 1 };
-      const installment = { id: 11, plan_id: 1, sequence: 1, amount: '100.00', invoice_id: null, status: 'pending' };
-      const payment = { id: 6, organization_id: 1, status: 'completed' };
-
-      db.query
-        .mockResolvedValueOnce([[plan]])
-        .mockResolvedValueOnce([[installment]])
-        .mockResolvedValueOnce([[payment]]);
-
-      mockConnection.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE installment paid (no allocation, no invoice_id)
-        .mockResolvedValueOnce([[{ remaining: 0 }]])    // SELECT COUNT remaining = 0
-        .mockResolvedValueOnce([{ affectedRows: 1 }]);  // UPDATE plan to completed
-
-      db.query.mockResolvedValueOnce([[{ ...installment, status: 'paid' }]]);
+      wire({
+        installment: { id: 11, plan_id: 1, sequence: 1, amount: '100.00', invoice_id: null, status: 'pending' },
+        payment: { id: 6, organization_id: 1, client_id: 10, amount: '100.00', status: 'completed' },
+        remaining: 0,
+      });
 
       await paymentPlanService.payInstallment(1, 1, 6, 1);
 
-      // The last execute should update the plan to 'completed'
-      const planUpdateCall = mockConnection.execute.mock.calls[2];
-      expect(planUpdateCall[0]).toContain("'completed'");
-      expect(planUpdateCall[1]).toContain(1);
+      const planUpdate = mockConnection.execute.mock.calls.find(([sql]) => /UPDATE payment_plans SET status = 'completed'/.test(sql));
+      expect(planUpdate[1]).toEqual([1]);
     });
 
     test('throws NOT_FOUND if plan does not exist for org', async () => {
-      db.query.mockResolvedValueOnce([[]]); // no plan
-
-      await expect(
-        paymentPlanService.payInstallment(999, 1, 1, 1),
-      ).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+      wire({ plan: null });
+      await expect(paymentPlanService.payInstallment(999, 1, 1, 1))
+        .rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+      expect(mockConnection.rollback).toHaveBeenCalled();
     });
 
     test('throws NOT_FOUND if installment does not exist', async () => {
-      db.query
-        .mockResolvedValueOnce([[{ id: 1 }]])  // plan found
-        .mockResolvedValueOnce([[]]); // installment not found
-
-      await expect(
-        paymentPlanService.payInstallment(1, 999, 1, 1),
-      ).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+      wire({ installment: null });
+      await expect(paymentPlanService.payInstallment(1, 999, 1, 1))
+        .rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
     });
 
     test('throws ValidationError if installment is already paid', async () => {
-      const plan = { id: 1, organization_id: 1 };
-      const installment = { id: 10, plan_id: 1, sequence: 1, status: 'paid' };
-
-      db.query
-        .mockResolvedValueOnce([[plan]])
-        .mockResolvedValueOnce([[installment]]);
-
-      await expect(
-        paymentPlanService.payInstallment(1, 1, 5, 1),
-      ).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
+      wire({ installment: { id: 10, plan_id: 1, sequence: 1, status: 'paid' } });
+      await expect(paymentPlanService.payInstallment(1, 1, 5, 1))
+        .rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
     });
 
     test('does not create allocation when invoice_id is null', async () => {
-      const plan = { id: 1, organization_id: 1 };
-      const installment = { id: 12, plan_id: 1, sequence: 1, amount: '75.00', invoice_id: null, status: 'pending' };
-      const payment = { id: 7, organization_id: 1, status: 'completed' };
-
-      db.query
-        .mockResolvedValueOnce([[plan]])
-        .mockResolvedValueOnce([[installment]])
-        .mockResolvedValueOnce([[payment]]);
-
-      mockConnection.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE installment
-        .mockResolvedValueOnce([[{ remaining: 2 }]]); // COUNT
-
-      db.query.mockResolvedValueOnce([[{ ...installment, status: 'paid' }]]);
-
+      wire({
+        installment: { id: 12, plan_id: 1, sequence: 1, amount: '75.00', invoice_id: null, status: 'pending' },
+        payment: { id: 7, organization_id: 1, client_id: 10, amount: '75.00', status: 'completed' },
+      });
       await paymentPlanService.payInstallment(1, 1, 7, 1);
+      expect(sqls().some((sql) => /INSERT INTO payment_allocations/.test(sql))).toBe(false);
+    });
 
-      // Only 2 execute calls: UPDATE installment + SELECT count (no allocation INSERT)
-      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
-      expect(mockConnection.execute.mock.calls[0][0]).not.toContain('INSERT INTO payment_allocations');
+    // BIL-17: any payment could mark any number of installments paid.
+    describe('refuses a payment that cannot pay the installment', () => {
+      const installment = { id: 10, plan_id: 1, sequence: 1, amount: '100.00', invoice_id: 99, status: 'pending' };
+      const payment = { id: 5, organization_id: 1, client_id: 10, amount: '100.00', status: 'completed' };
+
+      test.each([
+        ['another client\'s payment', { payment: { ...payment, client_id: 11 } }, /different client/],
+        ['a payment that already paid an installment', { payment, usedBy: 9 }, /already settled another installment/],
+        ['a payment without enough left unallocated', { payment: { ...payment, amount: '30.00' } }, /left unallocated/],
+        ['a payment already spent on invoices', { payment, allocated: '80.00' }, /20\.00 left unallocated/],
+        ['a plan that is no longer active', { payment, plan: { id: 1, organization_id: 1, client_id: 10, status: 'cancelled' } }, /plan is cancelled/],
+      ])('%s', async (_name, over, message) => {
+        wire({ installment, ...over });
+        await expect(paymentPlanService.payInstallment(1, 1, 5, 1)).rejects.toThrow(message);
+        expect(sqls().some((sql) => /^\s*(INSERT|UPDATE)/.test(sql))).toBe(false);
+        expect(mockConnection.commit).not.toHaveBeenCalled();
+      });
+    });
+
+    test('the allocation never exceeds what the invoice still owes', async () => {
+      wire({
+        installment: { id: 10, plan_id: 1, sequence: 3, amount: '100.00', invoice_id: 99, status: 'pending' },
+        payment: { id: 5, organization_id: 1, client_id: 10, amount: '100.00', status: 'completed' },
+        invoice: { id: 99, client_id: 10, total: '300.00', balance_due: '40.00', status: 'issued' },
+      });
+      await paymentPlanService.payInstallment(1, 3, 5, 1);
+      const alloc = mockConnection.execute.mock.calls.find(([sql]) => /INSERT INTO payment_allocations/.test(sql));
+      expect(alloc[1]).toEqual([5, 99, 40]);
     });
   });
 
@@ -381,5 +422,27 @@ describe('paymentPlanService', () => {
         [42, 7],
       );
     });
+  });
+});
+
+// BIL-17: the invoice a client is paying in installments is not suspended for
+// and does not accrue late fees while the plan is active.
+describe('invoices under an active plan', () => {
+  const planClause = /NOT EXISTS \(SELECT 1 FROM payment_plan_installments ppi\s+JOIN payment_plans pp ON pp\.id = ppi\.plan_id\s+WHERE ppi\.invoice_id = i\.id AND pp\.status = 'active'/;
+
+  test('suspension skips them, both when choosing and when acting', () => {
+    const src = require('fs').readFileSync(require.resolve('../src/services/suspensionService'), 'utf8');
+    expect(src.match(/notUnderActivePlanSql\('i'\)/g)).toHaveLength(2);
+    expect(require('../src/utils/invoiceBalance').notUnderActivePlanSql('i')).toMatch(planClause);
+  });
+
+  test('late fees skip them', async () => {
+    const lateFeeService = require('../src/services/lateFeeService');
+    db.query
+      .mockResolvedValueOnce([[{ id: 1, organization_id: 1, is_active: 1, days_after_due: 1, fee_type: 'fixed', fee_amount: '10.00' }]])
+      .mockResolvedValue([[]]);
+    await lateFeeService.applyLateFees(1).catch(() => {});
+    const overdue = db.query.mock.calls.find(([sql]) => /DATEDIFF\(NOW\(\), i\.due_date\) AS days_overdue/.test(sql));
+    expect(overdue[0]).toMatch(planClause);
   });
 });

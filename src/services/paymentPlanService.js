@@ -6,6 +6,7 @@ const db = require('../config/database');
 const repService = require('./repService');
 const logger = require('../utils/logger').child({ service: 'paymentPlan' });
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 
 /**
  * Compute installment due dates starting from the day after creation.
@@ -66,11 +67,15 @@ async function createPlan({
   notes,
   createdBy,
 }) {
-  // If an invoice is provided, use its total
+  // A plan for an invoice splits what the invoice still owes.
   let resolvedTotal = totalAmount;
   if (invoiceId) {
     const [invRows] = await db.query(
-      'SELECT * FROM invoices WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      `SELECT i.*,
+              (i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
+                                    WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+                       - ${creditAppliedSql('i')}) AS balance_due
+         FROM invoices i WHERE i.id = ? AND i.organization_id = ? AND i.deleted_at IS NULL`,
       [invoiceId, organizationId],
     );
     const invoice = invRows[0];
@@ -80,7 +85,10 @@ async function createPlan({
     if (Number(invoice.client_id) !== Number(clientId)) {
       throw new ValidationError('invoice_id does not belong to client_id', [{ field: 'invoice_id', message: 'the invoice must belong to the plan\'s client' }]);
     }
-    resolvedTotal = parseFloat(invoice.total);
+    if (!['issued', 'sent', 'overdue'].includes(invoice.status)) {
+      throw new ValidationError(`Only an unpaid invoice can be split into a payment plan (this one is ${invoice.status}).`);
+    }
+    resolvedTotal = Math.round(parseFloat(invoice.balance_due ?? invoice.total) * 100) / 100;
   }
 
   if (!resolvedTotal || resolvedTotal <= 0) {
@@ -108,15 +116,18 @@ async function createPlan({
 
     const installments = [];
     for (let i = 0; i < installmentCount; i++) {
+      // invoice_id on every installment: paying one allocates to the invoice,
+      // and suspension and late fees skip it while the plan is active (BIL-17).
       const [instResult] = await conn.execute(
         `INSERT INTO payment_plan_installments
-           (plan_id, sequence, amount, due_date, status)
-         VALUES (?, ?, ?, ?, 'pending')`,
-        [planId, i + 1, amounts[i], dueDates[i]],
+           (organization_id, plan_id, invoice_id, sequence, amount, due_date, status)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+        [organizationId, planId, invoiceId || null, i + 1, amounts[i], dueDates[i]],
       );
       installments.push({
         id: instResult.insertId,
         plan_id: planId,
+        invoice_id: invoiceId || null,
         sequence: i + 1,
         amount: amounts[i],
         due_date: dueDates[i],
@@ -137,100 +148,129 @@ async function createPlan({
 }
 
 /**
- * Record payment for an installment.
- * Creates a payment_allocations entry linking the payment to the installment's invoice.
- * Marks installment as paid. If all installments paid → mark plan completed.
+ * Record payment for an installment (BIL-17).
+ *
+ * In one transaction, with the plan, the installment and the payment locked:
+ * the payment must be the plan client's own completed payment, not already
+ * used for another installment, with enough left unallocated to cover the
+ * installment. When the installment covers an invoice, the payment is
+ * allocated to it and the invoice turns paid once covered. After commit:
+ * reconnect, cancel pending charge retries and generate the REP.
  */
 async function payInstallment(planId, sequence, paymentId, orgId) {
-  // Verify plan belongs to org
-  const [planRows] = await db.query(
-    'SELECT * FROM payment_plans WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-    [planId, orgId],
-  );
-  const plan = planRows[0];
-  if (!plan) throw new NotFoundError('payment_plans');
-
-  // Fetch installment
-  const [instRows] = await db.query(
-    'SELECT * FROM payment_plan_installments WHERE plan_id = ? AND sequence = ?',
-    [planId, sequence],
-  );
-  const installment = instRows[0];
-  if (!installment) throw new NotFoundError('payment_plan_installments');
-
-  if (installment.status === 'paid') {
-    throw new ValidationError('Installment is already paid');
-  }
-
-  // Verify payment exists and belongs to org
-  const [payRows] = await db.query(
-    'SELECT * FROM payments WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
-    [paymentId, orgId],
-  );
-  const payment = payRows[0];
-  if (!payment) throw new NotFoundError('payments');
-  if (payment.status !== 'completed') {
-    throw new ValidationError(`Only a completed payment can settle an installment (this payment is ${payment.status}).`);
-  }
-
+  const paymentAllocationService = require('./paymentAllocationService');
   const conn = await db.getConnection();
-  let connReleased = false;
+  const exec = conn.execute.bind(conn);
+  let settled;
   try {
     await conn.beginTransaction();
 
-    // Create payment allocation if invoice is linked to this installment
-    if (installment.invoice_id) {
-      await conn.execute(
-        'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
-        [paymentId, installment.invoice_id, installment.amount],
+    const [planRows] = await exec(
+      'SELECT * FROM payment_plans WHERE id = ? AND organization_id = ? AND deleted_at IS NULL FOR UPDATE',
+      [planId, orgId],
+    );
+    const plan = planRows[0];
+    if (!plan) throw new NotFoundError('payment_plans');
+    if (plan.status !== 'active') throw new ValidationError(`This payment plan is ${plan.status}.`);
+
+    const [instRows] = await exec(
+      'SELECT * FROM payment_plan_installments WHERE plan_id = ? AND sequence = ? FOR UPDATE',
+      [planId, sequence],
+    );
+    const installment = instRows[0];
+    if (!installment) throw new NotFoundError('payment_plan_installments');
+    if (installment.status === 'paid') throw new ValidationError('Installment is already paid');
+
+    const [payRows] = await exec(
+      'SELECT * FROM payments WHERE id = ? AND organization_id = ? AND deleted_at IS NULL FOR UPDATE',
+      [paymentId, orgId],
+    );
+    const payment = payRows[0];
+    if (!payment) throw new NotFoundError('payments');
+    if (payment.status !== 'completed') {
+      throw new ValidationError(`Only a completed payment can settle an installment (this payment is ${payment.status}).`);
+    }
+    if (Number(payment.client_id) !== Number(plan.client_id)) {
+      throw new ValidationError('The payment belongs to a different client than the payment plan.');
+    }
+    const [usedRows] = await exec(
+      'SELECT id FROM payment_plan_installments WHERE paid_payment_id = ? LIMIT 1',
+      [paymentId],
+    );
+    if (usedRows[0]) throw new ValidationError('This payment already settled another installment.');
+
+    const [allocRows] = await exec(
+      'SELECT COALESCE(SUM(amount), 0) AS allocated FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
+      [paymentId],
+    );
+    const unallocated = Math.round((Number(payment.amount) - Number(allocRows[0]?.allocated || 0)) * 100) / 100;
+    const due = Number(installment.amount);
+    if (unallocated + 0.005 < due) {
+      throw new ValidationError(
+        `The payment has ${unallocated.toFixed(2)} left unallocated; the installment is ${due.toFixed(2)}.`,
       );
     }
 
-    // Mark installment as paid
-    await conn.execute(
+    let invoice = null;
+    let allocated = 0;
+    if (installment.invoice_id) {
+      const invoices = await paymentAllocationService.getInvoicesWithBalance(
+        exec, orgId, plan.client_id, [installment.invoice_id], true,
+      );
+      invoice = invoices[0] || null;
+      // Never more than the invoice still owes (it may have been paid down
+      // outside the plan); the rest of the installment stays client credit.
+      allocated = invoice ? Math.min(due, Math.round(Number(invoice.balance_due) * 100) / 100) : 0;
+      if (allocated > 0.005) {
+        await exec(
+          'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
+          [paymentId, invoice.id, allocated],
+        );
+      }
+    }
+    const becamePaid = invoice && allocated > 0.005
+      ? await paymentAllocationService.finalizeIfFullyPaid(exec, invoice)
+      : false;
+
+    await exec(
       `UPDATE payment_plan_installments
          SET status = 'paid', paid_payment_id = ?, paid_at = NOW()
-       WHERE plan_id = ? AND sequence = ?`,
-      [paymentId, planId, sequence],
+       WHERE id = ?`,
+      [paymentId, installment.id],
     );
-
-    // Check if all installments are now paid
-    const [remainRows] = await conn.execute(
-      `SELECT COUNT(*) AS remaining
-       FROM payment_plan_installments
-       WHERE plan_id = ? AND status != 'paid'`,
+    const [remainRows] = await exec(
+      "SELECT COUNT(*) AS remaining FROM payment_plan_installments WHERE plan_id = ? AND status != 'paid'",
       [planId],
     );
-    const remaining = remainRows[0].remaining;
-
-    if (remaining === 0) {
-      await conn.execute(
-        "UPDATE payment_plans SET status = 'completed' WHERE id = ?",
-        [planId],
-      );
+    if (Number(remainRows[0].remaining) === 0) {
+      await exec("UPDATE payment_plans SET status = 'completed' WHERE id = ?", [planId]);
     }
 
     await conn.commit();
-    // Committed — free the pool slot before the REP/PAC I/O.
-    conn.release();
-    connReleased = true;
-
-    // MX/SAT: REP for the installment's allocation (best-effort, post-commit).
-    if (installment.invoice_id) {
-      await repService.maybeGenerateRep(paymentId, installment.invoice_id, installment.amount, orgId, null);
-    }
-
-    const [updatedInst] = await db.query(
-      'SELECT * FROM payment_plan_installments WHERE plan_id = ? AND sequence = ?',
-      [planId, sequence],
-    );
-    return updatedInst[0];
+    settled = { invoice, allocated, becamePaid, installmentId: installment.id };
   } catch (err) {
-    if (!connReleased) await conn.rollback();
+    try { await conn.rollback(); } catch (_rollbackErr) { /* keep the original error */ }
     throw err;
   } finally {
-    if (!connReleased) conn.release();
+    conn.release();
   }
+
+  // Post-commit, best-effort: the money is already posted.
+  const { invoice, allocated, becamePaid } = settled;
+  if (invoice && becamePaid) {
+    try {
+      await paymentAllocationService.reconnectIfSuspended(invoice, null, orgId);
+      await require('./paymentRetryService').cancelRetries({ invoiceId: invoice.id });
+    } catch (err) {
+      logger.error({ err, planId, invoiceId: invoice.id }, 'Post-payment follow-up for an installment failed');
+    }
+  }
+  if (invoice && allocated > 0.005) {
+    await repService.maybeGenerateRep(paymentId, invoice.id, allocated, orgId, null);
+  }
+
+  const [updatedInst] = await db.query('SELECT * FROM payment_plan_installments WHERE id = ?', [settled.installmentId]);
+  return updatedInst[0];
 }
 
 /**
