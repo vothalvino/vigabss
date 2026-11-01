@@ -94,3 +94,21 @@ describe('query limits (SEC-25)', () => {
     }
   });
 });
+
+// OPS-06: yoga parsed multipart bodies with busboy for any token holder by
+// default, although the schema has no Upload scalar.
+describe('multipart requests (OPS-06)', () => {
+  test('a multipart/form-data body is not parsed as a GraphQL request', async () => {
+    const res = await request(app).post('/api/v1/graphql')
+      .field('operations', JSON.stringify({ query: '{ __typename }' }))
+      .field('map', '{}');
+    expect(res.status).not.toBe(200);
+    expect(res.body?.data?.__typename).toBeUndefined();
+  });
+
+  test('a JSON request still works', async () => {
+    const res = await gql('{ __typename }');
+    expect(res.body.data).toEqual({ __typename: 'Query' });
+  });
+});
+
