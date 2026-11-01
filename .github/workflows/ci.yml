@@ -1107,6 +1107,41 @@ jobs:
             --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             > /dev/null
 
+  helm-install:
+    # helm lint/template never install, so a chart that rendered its own
+    # release Namespace (breaking the documented --create-namespace) and a
+    # PVC deleted on uninstall both passed CI (OPS-16). Install, upgrade and
+    # uninstall on a throwaway kind cluster. Pods need not become ready.
+    name: Helm install / upgrade / uninstall
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: v3.14.4
+
+      - name: Create a kind cluster
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+
+      - name: Install, upgrade and uninstall the chart
+        run: |
+          set -euo pipefail
+          ARGS=(--namespace fireisp
+            --set-string image.tag=${{ github.sha }}
+            --set secrets.JWT_SECRET=test-jwt-secret-placeholder
+            --set secrets.ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000)
+          helm install fireisp charts/fireisp --create-namespace "${ARGS[@]}"
+          helm upgrade fireisp charts/fireisp "${ARGS[@]}"
+          kubectl get pvc -n fireisp fireisp-storage
+          helm uninstall fireisp --namespace fireisp
+          # The claim and the namespace outlive the release.
+          kubectl get pvc -n fireisp fireisp-storage
+          kubectl get namespace fireisp
+
   helm-release:
     name: Helm release
     needs: [helm-lint, publish-manifest]

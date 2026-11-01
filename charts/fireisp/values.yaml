@@ -131,6 +131,11 @@ pdb:
   minAvailable: 1
 
 ## Persistent storage for uploads / generated files.
+## Leave false: `helm install --create-namespace` creates the namespace. Set
+## true only when this release should own (and on uninstall delete) it.
+namespace:
+  create: false
+
 persistence:
   enabled: true
   size: 10Gi

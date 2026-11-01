@@ -1923,9 +1923,9 @@ helm upgrade fireisp fireisp/fireisp \
 
 ```bash
 helm uninstall fireisp --namespace fireisp
-# The PVC is NOT deleted by default (Helm preserves PVCs by default). The
-# Secret also has helm.sh/resource-policy: keep — delete both manually if
-# doing a full teardown.
+# The storage PVC and the Secret carry helm.sh/resource-policy: keep, so an
+# uninstall leaves them (and the namespace, which --create-namespace made)
+# in place. Delete them manually for a full teardown.
 kubectl delete pvc -n fireisp fireisp-storage
 ```
 
