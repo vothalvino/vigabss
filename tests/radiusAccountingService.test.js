@@ -260,7 +260,24 @@ describe('radiusAccountingService', () => {
       const connection = makeConnection();
       await ingestAccounting(attrs({ eventTimestamp: null, acctDelayTime: 15 }));
       const insert = connection.execute.mock.calls.find(([sql]) => sql.includes('INSERT INTO connection_logs'));
-      expect(insert[1][13]).toEqual(new Date('2026-08-14T11:59:45.000Z'));
+      // event_at follows framed_ipv6_prefix, ipv6_delegated_prefix and ipv6_address (REG-08).
+      expect(insert[1][15]).toEqual(new Date('2026-08-14T11:59:45.000Z'));
+    });
+
+    // REG-08: the delegated prefix and the WAN address were never stored.
+    test('stores Delegated-IPv6-Prefix and Framed-IPv6-Address canonical on the session', async () => {
+      const connection = makeConnection();
+      await ingestAccounting(attrs({
+        delegatedIpv6Prefix: '2806:2F0:1234:5600:0:0:0:0/56', framedIpv6Address: '2806:2F0:0:0:0:0:0:1',
+      }));
+      const [sql, params] = connection.execute.mock.calls.find(([q]) => q.includes('INSERT INTO connection_logs'));
+      expect(sql).toMatch(/framed_ipv6_prefix, ipv6_delegated_prefix, ipv6_address,/);
+      expect(params.slice(12, 15)).toEqual([null, '2806:2f0:1234:5600::/56', '2806:2f0::1']);
+    });
+
+    test('rejects a malformed Delegated-IPv6-Prefix', async () => {
+      await expect(ingestAccounting(attrs({ delegatedIpv6Prefix: 'not-a-prefix' })))
+        .rejects.toMatchObject({ statusCode: 422 });
     });
 
     test('updates an existing Interim and records only monotonic usage deltas', async () => {

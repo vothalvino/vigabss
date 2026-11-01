@@ -323,6 +323,8 @@ async function ingestAccounting(attrs) {
     callingStationId = null,
     framedIpAddress = null,
     framedIpv6Prefix: rawFramedIpv6Prefix = null,
+    delegatedIpv6Prefix: rawDelegatedIpv6Prefix = null,
+    framedIpv6Address: rawFramedIpv6Address = null,
     acctInputOctets = null,
     acctOutputOctets = null,
     acctInputGigawords = null,
@@ -361,6 +363,27 @@ async function ingestAccounting(attrs) {
         field: 'Framed-IPv6-Prefix', message: 'expected a valid IPv6 CIDR prefix from /0 through /128',
       }]);
     }
+  }
+  // REG-08: the delegated prefix (DHCPv6-PD) and the WAN address. Ingest
+  // read only Framed-IPv6-Prefix, so connection_logs.ipv6_delegated_prefix and
+  // ipv6_address were never filled and an address on a subscriber's LAN could
+  // not be traced. Stored canonical, so the session search can match on them.
+  let delegatedIpv6Prefix = null;
+  if (rawDelegatedIpv6Prefix !== null && rawDelegatedIpv6Prefix !== '') {
+    try {
+      delegatedIpv6Prefix = canonicalIpv6Prefix(String(rawDelegatedIpv6Prefix));
+    } catch (_error) {
+      throw new ValidationError('Invalid Delegated-IPv6-Prefix', [{
+        field: 'Delegated-IPv6-Prefix', message: 'expected a valid IPv6 CIDR prefix from /0 through /128',
+      }]);
+    }
+  }
+  let framedIpv6Address = null;
+  if (rawFramedIpv6Address !== null && rawFramedIpv6Address !== '') {
+    if (net.isIP(String(rawFramedIpv6Address)) !== 6) {
+      throw new ValidationError('Invalid Framed-IPv6-Address', [{ field: 'Framed-IPv6-Address', message: 'expected an IPv6 address' }]);
+    }
+    framedIpv6Address = canonicalIpv6(String(rawFramedIpv6Address));
   }
   for (const [field, value, maximum] of [
     ['nasPortId', nasPortId, 100], ['calledStationId', calledStationId, 100],
@@ -436,7 +459,7 @@ async function ingestAccounting(attrs) {
   const bytesOut = acctOutputOctets === null && acctOutputGigawords === null
     ? null
     : combineOctetsGigawords(acctOutputOctets, acctOutputGigawords);
-  const stackType = deriveStackType(framedIpAddress, framedIpv6Prefix);
+  const stackType = deriveStackType(framedIpAddress, framedIpv6Prefix || delegatedIpv6Prefix || framedIpv6Address);
   const delaySeconds = Number.isInteger(Number(acctDelayTime)) && Number(acctDelayTime) >= 0
     ? Number(acctDelayTime)
     : 0;
@@ -719,7 +742,7 @@ async function ingestAccounting(attrs) {
           acct_session_id, session_id,
           session_instance_id,
           nas_port_id, called_station_id, calling_station_id,
-          framed_ip, framed_ipv6_prefix,
+          framed_ip, framed_ipv6_prefix, ipv6_delegated_prefix, ipv6_address,
           event_type, event_at,
           bytes_in, bytes_out, packets_in, packets_out, session_duration, terminate_cause,
           acct_input_octets_v6, acct_output_octets_v6, stack_type,
@@ -728,7 +751,7 @@ async function ingestAccounting(attrs) {
           usage_accounting_complete, usage_anomaly_count,
           usage_last_bytes_in, usage_last_bytes_out,
           usage_last_packets_in, usage_last_packets_out, usage_last_duration)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'start', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'start', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userName,
           contractId,
@@ -743,6 +766,8 @@ async function ingestAccounting(attrs) {
           callingStationId,
           framedIpAddress,
           framedIpv6Prefix,
+          delegatedIpv6Prefix,
+          framedIpv6Address,
           observedEventAt,
           bytesIn,
           bytesOut,
@@ -1059,6 +1084,8 @@ async function ingestAccounting(attrs) {
          terminate_cause       = ?,
          framed_ip             = COALESCE(?, framed_ip),
          framed_ipv6_prefix    = COALESCE(?, framed_ipv6_prefix),
+         ipv6_delegated_prefix = COALESCE(?, ipv6_delegated_prefix),
+         ipv6_address          = COALESCE(?, ipv6_address),
          acct_input_octets_v6  = COALESCE(?, acct_input_octets_v6),
          acct_output_octets_v6 = COALESCE(?, acct_output_octets_v6),
          stack_type            = COALESCE(?, stack_type),
@@ -1089,6 +1116,8 @@ async function ingestAccounting(attrs) {
         terminateCause,
         framedIpAddress,
         framedIpv6Prefix,
+        delegatedIpv6Prefix,
+        framedIpv6Address,
         acctInputOctetsV6,
         acctOutputOctetsV6,
         stackType,
@@ -1140,7 +1169,7 @@ async function ingestAccounting(attrs) {
         acct_session_id, session_id,
         session_instance_id,
         nas_port_id, called_station_id, calling_station_id,
-        framed_ip, framed_ipv6_prefix,
+        framed_ip, framed_ipv6_prefix, ipv6_delegated_prefix, ipv6_address,
         event_type, event_at,
         bytes_in, bytes_out, packets_in, packets_out, session_duration, terminate_cause,
         acct_input_octets_v6, acct_output_octets_v6, stack_type,
@@ -1149,7 +1178,7 @@ async function ingestAccounting(attrs) {
         usage_accounting_complete, usage_anomaly_count,
         usage_last_bytes_in, usage_last_bytes_out,
         usage_last_packets_in, usage_last_packets_out, usage_last_duration)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userName,
         contractId,
@@ -1164,6 +1193,8 @@ async function ingestAccounting(attrs) {
         callingStationId,
         framedIpAddress,
         framedIpv6Prefix,
+        delegatedIpv6Prefix,
+        framedIpv6Address,
         eventType,
         new Date(observedEventAt.getTime() - Math.max(0, acctSessionTime || 0) * 1000),
         bytesIn,

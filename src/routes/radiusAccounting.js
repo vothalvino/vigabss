@@ -105,6 +105,8 @@ function normalizeAccountingBody(body = {}) {
     callingStationId: pick(body, 'Calling-Station-Id', 'callingStationId') || null,
     framedIpAddress: pick(body, 'Framed-IP-Address', 'framedIpAddress') || null,
     framedIpv6Prefix: pick(body, 'Framed-IPv6-Prefix', 'framedIpv6Prefix') || null,
+    delegatedIpv6Prefix: pick(body, 'Delegated-IPv6-Prefix', 'delegatedIpv6Prefix') || null,
+    framedIpv6Address: pick(body, 'Framed-IPv6-Address', 'framedIpv6Address') || null,
     acctInputOctetsV6: pickInt(body, 'Acct-Input-Octets-IPv6', 'acctInputOctetsV6'),
     acctOutputOctetsV6: pickInt(body, 'Acct-Output-Octets-IPv6', 'acctOutputOctetsV6'),
     acctInputOctets: pickInt(body, 'Acct-Input-Octets', 'acctInputOctets'),

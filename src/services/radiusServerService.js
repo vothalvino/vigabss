@@ -489,6 +489,9 @@ async function handleAcct(msg, rinfo, respond) {
         callingStationId: codec.getString(pkt.attributes, ATTR.CALLING_STATION_ID),
         framedIpAddress: codec.getIp(pkt.attributes, ATTR.FRAMED_IP_ADDRESS),
         framedIpv6Prefix: codec.getIpv6Prefix(pkt.attributes),
+        // REG-08: the DHCPv6-PD prefix and the WAN /128, never read before.
+        delegatedIpv6Prefix: codec.getIpv6Prefix(pkt.attributes, ATTR.DELEGATED_IPV6_PREFIX),
+        framedIpv6Address: codec.getIpv6Address(pkt.attributes),
         acctInputOctets: codec.getInt(pkt.attributes, ATTR.ACCT_INPUT_OCTETS),
         acctOutputOctets: codec.getInt(pkt.attributes, ATTR.ACCT_OUTPUT_OCTETS),
         acctInputGigawords: codec.getInt(pkt.attributes, ATTR.ACCT_INPUT_GIGAWORDS),

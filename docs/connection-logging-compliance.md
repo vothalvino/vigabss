@@ -20,6 +20,13 @@ subscriber/contract association when resolvable, RADIUS username and session
 identifier, assigned IPv4/IPv6 address, MAC/circuit identifiers, NAS, traffic
 counters, start/last-seen/end state, duration, and termination cause.
 
+IPv6: ingest records Framed-IPv6-Prefix, Delegated-IPv6-Prefix (DHCPv6-PD) and
+Framed-IPv6-Address in canonical form. The session list's `ip_address` filter
+accepts an IPv6 address or prefix and matches the sessions whose prefix contains
+it, or whose WAN address it is. The case-gated legal IP attribution lookup and
+government requests accept routable IPv4 only; IPv6 attribution through them is
+**not yet supported** and must be answered from the session search and NAS logs.
+
 Date filters on the session list, the session export, the CDR export and the
 binding report select sessions **active during** the window: a session that
 started before the window ends and had not stopped before it begins. A
