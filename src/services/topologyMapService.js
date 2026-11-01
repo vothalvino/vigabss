@@ -40,18 +40,8 @@ async function getNetworkGraph(orgId, layer = null) {
 
   let edgeSql = `
     SELECT nl.id, nl.device_a_id, nl.device_b_id, nl.medium, nl.role,
-           nl.status, nl.capacity_mbps AS bandwidth_mbps,
-           sm.if_in_octets, sm.if_out_octets
+           nl.status, nl.capacity_mbps AS bandwidth_mbps
      FROM network_links nl
-     LEFT JOIN (
-       SELECT device_id,
-              MAX(id) AS max_id,
-              SUM(if_in_octets)  AS if_in_octets,
-              SUM(if_out_octets) AS if_out_octets
-       FROM snmp_metrics
-       WHERE polled_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
-       GROUP BY device_id
-     ) sm ON sm.device_id = nl.device_a_id
      WHERE nl.deleted_at IS NULL
        AND nl.status != 'decommissioned'
        AND nl.organization_id = ?`;
@@ -67,16 +57,15 @@ async function getNetworkGraph(orgId, layer = null) {
   }
 
   const [edges] = await db.query(edgeSql, params);
+  const rates = await latestDeviceRates([...new Set(edges.filter(e => e.bandwidth_mbps).map(e => e.device_a_id))]);
 
-  // Compute utilization percentage per edge (0-100, null if no metrics)
+  // Compute utilization percentage per edge (0-100, null if no rate)
   const enrichedEdges = edges.map(e => {
     let utilization = null;
-    if (e.bandwidth_mbps && (e.if_in_octets || e.if_out_octets)) {
-      const maxOctets = Math.max(e.if_in_octets || 0, e.if_out_octets || 0);
-      // Rough 5-minute byte-to-bps conversion → utilization %
-      const bps = (maxOctets * 8) / 300;
+    const rate = rates.get(e.device_a_id);
+    if (e.bandwidth_mbps && rate) {
       const capacityBps = e.bandwidth_mbps * 1_000_000;
-      utilization = Math.min(100, Math.round((bps / capacityBps) * 100));
+      utilization = Math.min(100, Math.round((Math.max(rate.inBps, rate.outBps) / capacityBps) * 100));
     }
     return {
       id: e.id,
@@ -91,6 +80,55 @@ async function getNetworkGraph(orgId, layer = null) {
   });
 
   return { nodes, edges: enrichedEdges };
+}
+
+/**
+ * Current in/out rate of each device, in bits per second, from the counter
+ * delta between its two newest poll buckets over their real elapsed time.
+ *
+ * snmp_metrics stores the raw cumulative ifHC*Octets counters. Treating their
+ * 5-minute sum as bytes moved in 300 s gave tens of Gbps for any device with
+ * real uptime, so every edge sat at 100% (NPR-04). Same approach as GET
+ * /snmp-metrics/devices and rateTransform.currentRate: interface rows are
+ * bucketed to the minute and summed per device; a pair whose interface set
+ * differs, or whose counters went backwards (reset, wrap), yields no rate
+ * rather than an invented one.
+ *
+ * @param {number[]} deviceIds
+ * @returns {Promise<Map<number, {inBps: number, outBps: number}>>}
+ */
+async function latestDeviceRates(deviceIds) {
+  const rates = new Map();
+  if (!deviceIds.length) return rates;
+  const [rows] = await db.query(
+    `SELECT device_id,
+            FLOOR(UNIX_TIMESTAMP(polled_at) / 60) AS minute_bucket,
+            UNIX_TIMESTAMP(MAX(polled_at)) AS ts,
+            SUM(if_in_octets) AS in_octets,
+            SUM(if_out_octets) AS out_octets,
+            GROUP_CONCAT(DISTINCT interface_id ORDER BY interface_id) AS iface_signature
+       FROM snmp_metrics
+      WHERE device_id IN (${deviceIds.map(() => '?').join(', ')}) AND interface_id IS NOT NULL
+        AND polled_at >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+      GROUP BY device_id, minute_bucket
+      ORDER BY device_id ASC, minute_bucket DESC`,
+    deviceIds,
+  );
+  const latestTwo = new Map();
+  for (const row of rows) {
+    const list = latestTwo.get(row.device_id) || [];
+    if (list.length < 2) list.push(row);
+    latestTwo.set(row.device_id, list);
+  }
+  for (const [deviceId, [newer, older]] of latestTwo) {
+    if (!older || newer.iface_signature !== older.iface_signature) continue;
+    const seconds = Number(newer.ts) - Number(older.ts);
+    const dIn = Number(newer.in_octets) - Number(older.in_octets);
+    const dOut = Number(newer.out_octets) - Number(older.out_octets);
+    if (!(seconds > 0) || dIn < 0 || dOut < 0) continue;
+    rates.set(deviceId, { inBps: (dIn * 8) / seconds, outBps: (dOut * 8) / seconds });
+  }
+  return rates;
 }
 
 /**
