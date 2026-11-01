@@ -865,6 +865,20 @@ dc up -d db-primary redis
 echo "==> Stopping and draining the previous application before migration"
 dc stop -t 30 app
 
+# Migrations are forward-only, and nothing used to dump the databases first: a
+# migration that failed halfway left the app down with only last night's
+# backup, which did not cover isolated tenant databases (OPS-14). Dump every
+# database with a pending migration now, into the storage volume; if that
+# fails, nothing has changed yet, so the previous app comes back up.
+echo "==> Backing up the databases before migrating"
+if ! dc run --rm -T -e MIGRATE_ISOLATED_TENANTS=true app node src/scripts/preMigrationBackup.js; then
+  echo "error: the pre-migration backup failed, so nothing was migrated. Restarting the previous app." >&2
+  dc start app || true
+  echo "       Fix the backup (free space in the storage volume, database credentials), then rerun sudo redeploy." >&2
+  echo "       To migrate without a backup, set PRE_MIGRATION_BACKUP=0 in .env.prod for that one run." >&2
+  exit 1
+fi
+
 # Run the NEW image's migrations while no application writer/listener is live.
 # `docker compose run` does not publish HTTP/RADIUS/SNMP ports. On failure the
 # old app deliberately remains stopped: restarting legacy code against a

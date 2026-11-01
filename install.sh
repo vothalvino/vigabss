@@ -1274,6 +1274,15 @@ for i in $(seq 1 "$MAX_DB_WAIT_ITERATIONS"); do
 done
 
 # ── Database migrations ────────────────────────────────────────────────────────
+# A rerun against an existing database migrates real data; dump it first
+# (OPS-14). A fresh database is skipped by the script itself.
+info "Backing up existing databases before migrating..."
+if ! $COMPOSE run --rm -T --no-deps -e MIGRATE_ISOLATED_TENANTS=true \
+    app node src/scripts/preMigrationBackup.js; then
+  die "The pre-migration backup failed, so nothing was migrated.
+  Free space in the storage volume or fix the database credentials, then rerun
+  the installer. Set PRE_MIGRATION_BACKUP=0 in .env.prod to skip the backup."
+fi
 info "Running database migrations before application startup..."
 if ! $COMPOSE run --rm -T --no-deps -e MIGRATE_ISOLATED_TENANTS=true \
     app node src/scripts/migrate.js; then
