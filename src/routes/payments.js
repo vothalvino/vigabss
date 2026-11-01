@@ -323,27 +323,7 @@ router.post('/:id/rep', requireMxLocale, requirePermission('cfdi_documents.creat
     if (!invoiceId) {
       return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'invoice_id is required.' } });
     }
-    const [allocRows] = await db.query(
-      `SELECT pa.amount FROM payment_allocations pa
-         JOIN payments p ON p.id = pa.payment_id AND p.organization_id = ? AND p.deleted_at IS NULL
-        WHERE pa.payment_id = ? AND pa.invoice_id = ? AND pa.deleted_at IS NULL LIMIT 1`,
-      [req.orgId, paymentId, invoiceId],
-    );
-    if (!allocRows[0]) {
-      return res.status(422).json({ error: { code: 'ALLOCATION_NOT_FOUND', message: 'This payment is not applied to that invoice.' } });
-    }
-    const result = await repService.generateRepForAllocation(paymentId, invoiceId, allocRows[0].amount, req.orgId, req.user?.id);
-    if (!result.generated) {
-      const REASONS = {
-        NO_PPD_CFDI: 'the invoice needs a vigente PPD CFDI (PUE invoices are covered by their own CFDI).',
-        NON_MXN: 'the payment is not in MXN — REPs apply to MXN payments only.',
-        PAYMENT_NOT_SETTLED: 'the payment is not settled (failed/refunded/cancelled payments are never REP-reported).',
-        CFDI_FULLY_REPORTED: 'the invoice CFDI is already fully covered by prior REPs.',
-        REP_ALREADY_EXISTS: `a live REP (#${result.cfdi_document_id}) already covers this allocation.`,
-      };
-      const status = result.reason === 'REP_ALREADY_EXISTS' ? 409 : 422;
-      return res.status(status).json({ error: { code: `REP_${result.reason}`, message: `No REP generated: ${REASONS[result.reason] || result.reason}` } });
-    }
+    const result = await repService.generateManualRep(paymentId, invoiceId, req.orgId, req.user?.id);
     res.status(201).json({ data: result });
   } catch (err) {
     next(err);

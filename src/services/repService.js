@@ -253,4 +253,38 @@ async function maybeGenerateRep(paymentId, invoiceId, allocatedAmount, orgId, us
   }
 }
 
-module.exports = { generateRepForAllocation, maybeGenerateRep, FORMA_PAGO_BY_METHOD };
+const NOT_GENERATED = {
+  NO_PPD_CFDI: 'the invoice needs a vigente PPD CFDI (PUE invoices are covered by their own CFDI).',
+  NON_MXN: 'the payment is not in MXN — REPs apply to MXN payments only.',
+  PAYMENT_NOT_SETTLED: 'the payment is not settled (failed/refunded/cancelled payments are never REP-reported).',
+  CFDI_FULLY_REPORTED: 'the invoice CFDI is already fully covered by prior REPs.',
+};
+
+/**
+ * Manual REP for one (payment, invoice) pair, for allocations made before the
+ * automation existed or after an automatic attempt failed. Everything SAT sees
+ * is derived here: the amount is the live allocation, the issuer comes from the
+ * org's fiscal profile, the folio from the org's sequence and the parcialidad
+ * chain from the org's own REPs. Throws an AppError when no REP is generated.
+ */
+async function generateManualRep(paymentId, invoiceId, orgId, userId = null) {
+  const [allocRows] = await db.query(
+    `SELECT pa.amount FROM payment_allocations pa
+       JOIN payments p ON p.id = pa.payment_id AND p.organization_id = ? AND p.deleted_at IS NULL
+      WHERE pa.payment_id = ? AND pa.invoice_id = ? AND pa.deleted_at IS NULL LIMIT 1`,
+    [orgId, paymentId, invoiceId],
+  );
+  if (!allocRows[0]) {
+    throw new AppError('This payment is not applied to that invoice.', 422, 'ALLOCATION_NOT_FOUND');
+  }
+  const result = await generateRepForAllocation(paymentId, invoiceId, allocRows[0].amount, orgId, userId);
+  if (!result.generated) {
+    const why = result.reason === 'REP_ALREADY_EXISTS'
+      ? `a live REP (#${result.cfdi_document_id}) already covers this allocation.`
+      : (NOT_GENERATED[result.reason] || result.reason);
+    throw new AppError(`No REP generated: ${why}`, result.reason === 'REP_ALREADY_EXISTS' ? 409 : 422, `REP_${result.reason}`);
+  }
+  return result;
+}
+
+module.exports = { generateRepForAllocation, generateManualRep, maybeGenerateRep, FORMA_PAGO_BY_METHOD };
