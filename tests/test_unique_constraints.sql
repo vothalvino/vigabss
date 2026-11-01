@@ -76,8 +76,9 @@ CALL assert_sql_error(NULL, 'INSERT INTO ip_assignments (id, pool_id, ip_address
 -- Migration 486 (NET-18): uniqueness is per pool and ignores expired rows, so
 -- another organization's overlapping pool may hold the same address, and an
 -- expired address can be assigned again.
+-- (ip_pools is itself unique per network/mask, so the overlapping pool is a /16.)
 INSERT INTO ip_pools (id, site_id, name, network, subnet_mask, ip_version, status)
-VALUES (7001, 7000, 'Pool-B', '10.0.0.0', '255.255.255.0', '4', 'active');
+VALUES (7001, 7000, 'Pool-B', '10.0.0.0', '255.255.0.0', '4', 'active');
 INSERT INTO ip_assignments (id, pool_id, ip_address, client_id, type, status)
 VALUES (7002, 7001, '10.0.0.1', 7000, 'static', 'active');
 UPDATE ip_assignments SET status = 'expired' WHERE id = 7000;
