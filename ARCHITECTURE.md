@@ -476,6 +476,13 @@ documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;
 do not replace those with process-local state.
 
+Business events (`invoice.created`, `payment.received`, `contract.suspended` /
+`.restored`, `suspension.warning`, `ticket.created`, `maintenance.scheduled`)
+are emitted through `src/services/businessEvents.js` once the write commits;
+`src/services/notificationHooks.js` turns them into webhooks, SSE and, where
+the emitter supplies a `client`, subscriber messages. A new path that creates
+one of these records must call the matching helper.
+
 ### SNMP polling and metric history
 
 SNMP polling is profile-driven but deliberately not auto-matched at runtime.

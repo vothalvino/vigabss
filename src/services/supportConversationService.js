@@ -489,6 +489,7 @@ async function _createEscalationTicket({ conversationId, orgId, reason }) {
         [ticketResult.insertId, conversationId, orgId],
       );
       logger.info({ conversationId, orgId, ticketId: ticketResult.insertId }, 'supportConversationService: escalation ticket created');
+      await require('./businessEvents').emitTicketCreated(orgId, ticketResult.insertId);
     }
   } catch (err) {
     // Ticket creation failure must not abort the escalation itself

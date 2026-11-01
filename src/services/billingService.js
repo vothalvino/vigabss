@@ -803,7 +803,9 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
     await conn.commit();
 
     logger.info({ contractId: contract.id, invoiceId, invoiceNumber, total: finalTotal, currency }, 'Invoice generated');
-    return Invoice.findById(invoiceId);
+    const created = await Invoice.findById(invoiceId);
+    await require('./businessEvents').emitInvoiceCreated(orgId, created);
+    return created;
   } catch (err) {
     await conn.rollback();
     throw new InvoiceGenerationError(
@@ -918,7 +920,9 @@ async function createOneOffInvoice({
     if (ownsTransaction) {
       await conn.commit();
       invoice = await Invoice.findById(invoiceId);
+      await require('./businessEvents').emitInvoiceCreated(orgId, invoice);
     } else {
+      // The caller emits invoice.created once its transaction commits.
       // The caller owns the transaction and hasn't committed yet — read back
       // through the SAME connection so the not-yet-committed row is visible
       // (a separate pool connection wouldn't see it under any isolation level

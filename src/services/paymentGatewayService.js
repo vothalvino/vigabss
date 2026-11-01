@@ -1461,6 +1461,7 @@ async function reconcilePayment(transactionId) {
 
   const { tx, orgId, paymentId, allocations, justPaidInvoices, remainder } = posted;
   logger.info({ transactionId, paymentId, allocated: allocations.length, remainder }, 'Gateway payment reconciled');
+  await require('./businessEvents').emitPaymentReceived(orgId, paymentId);
 
   // Post-commit side effects, best-effort: the money is already posted.
   for (const invoice of justPaidInvoices) {

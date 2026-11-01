@@ -629,6 +629,7 @@ router.post('/tickets', validate(createTicketSchema), async (req, res, next) => 
       'SELECT id, subject, priority, category, status, created_at FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ?',
       [result.insertId, req.client.id, req.client.organizationId],
     );
+    await require('../services/businessEvents').emitTicketCreated(req.client.organizationId, result.insertId);
 
     res.status(201).json({ data: rows[0] });
   } catch (err) {
@@ -1405,6 +1406,7 @@ router.post('/callback-request', async (req, res, next) => {
       'SELECT id, subject, priority, status, created_at FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ?',
       [result.insertId, req.client.id, req.client.organizationId],
     );
+    await require('../services/businessEvents').emitTicketCreated(req.client.organizationId, result.insertId);
 
     res.status(201).json({ data: rows[0] });
   } catch (err) {

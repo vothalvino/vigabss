@@ -230,6 +230,7 @@ router.post('/from-alert', requirePermission('tickets.create'), async (req, res,
       'SELECT * FROM tickets WHERE id = ? AND organization_id = ?',
       [result.insertId, req.orgId],
     );
+    await require('../services/businessEvents').emitTicketCreated(req.orgId, row);
     res.status(201).json({ data: row });
   } catch (err) { next(err); }
 });
@@ -242,6 +243,7 @@ router.post('/', requirePermission('tickets.create'), validate(createTicket), as
       req.body.organization_id = req.orgId;
     }
     const record = await Ticket.create(req.body);
+    await require('../services/businessEvents').emitTicketCreated(req.orgId, record);
 
     // Enqueue AI triage for the initial description (fires async, non-blocking)
     if (record.description) {

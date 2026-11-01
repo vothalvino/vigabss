@@ -319,6 +319,7 @@ async function payGroup(orgId, groupId, opts = {}) {
   }
 
   logger.info({ groupId, paymentId: payment.id, amount: payment.amount, allocatedTotal, settledCount: settled.length }, 'Group payment settled');
+  await require('./businessEvents').emitPaymentReceived(orgId, payment.id);
 
   return {
     payment,

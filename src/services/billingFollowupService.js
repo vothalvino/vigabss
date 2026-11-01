@@ -101,6 +101,7 @@ async function dispatch() {
         await db.query('UPDATE tickets SET deleted_at = NOW() WHERE id = ?', [ins.insertId]);
         continue;
       }
+      await require('./businessEvents').emitTicketCreated(order.organization_id, ins.insertId);
       created += 1;
     } catch (err) {
       logger.warn({ err: err.message, serviceOrderId: order.id }, 'billing follow-up ticket creation failed');

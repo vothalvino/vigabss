@@ -608,7 +608,7 @@ async function runSuspensionWarnings(organizationId) {
       let claimed = false;
       try {
         const [clientRows] = await db.query(
-          `SELECT cl.name, cl.email, o.name AS org_name
+          `SELECT cl.id, cl.name, cl.email, cl.phone, o.name AS org_name
            FROM clients cl
            JOIN organizations o ON o.id = cl.organization_id
            WHERE cl.id = ?`,
@@ -643,6 +643,16 @@ async function runSuspensionWarnings(organizationId) {
           });
           if (sent && sent.success === false) throw new Error(sent.error || 'Suspension warning email failed');
           warnings_sent++;
+          // The email is sent; the suspension.warning hook adds the SMS (ASY-08).
+          await require('./businessEvents').emitSuspensionWarning(contract.organization_id, {
+            contract,
+            client,
+            invoice: {
+              id: contract.invoice_id, client_id: contract.client_id, invoice_number: contract.invoice_number,
+              total: contract.total, currency: contract.currency, due_date: contract.due_date,
+            },
+            daysOverdue: contract.days_overdue,
+          });
         }
       } catch (err) {
         // Email failure must not block the suspension cycle. Release the claim

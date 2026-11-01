@@ -345,6 +345,7 @@ async function suspendContract(contractId, ruleId, userId, invoiceId) {
     coaResponse,
     invoiceId,
   });
+  await require('./businessEvents').emitContractSuspended(contractId, { invoiceId, mode: 'suspend' });
 }
 
 /**
@@ -553,6 +554,7 @@ async function reconnectContract(contractId, userId, invoiceId, { orgId = null }
     const radiusService = require('./radiusService');
     await radiusService.walledGardenReconnect(contractId, userId);
   }
+  await require('./businessEvents').emitContractRestored(contractId);
   return { contract_id: Number(contractId), status: 'active', activation_required: false };
 }
 
@@ -681,6 +683,7 @@ async function softSuspendContract(contractId, ruleId, userId, invoiceId, downlo
     coaResponse,
     invoiceId,
   });
+  await require('./businessEvents').emitContractSuspended(contractId, { invoiceId, mode: 'soft_suspend' });
 }
 
 /**

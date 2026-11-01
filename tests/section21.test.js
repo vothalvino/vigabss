@@ -10,6 +10,13 @@ const app = require('../src/app');
 // Mocks
 // ---------------------------------------------------------------------------
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
+// Business events load rows and run hooks that query too; these positional
+// fixtures cover the conversation logic only (events: businessEventsEmitted.test.js).
+jest.mock('../src/services/businessEvents', () => ({
+  emitInvoiceCreated: jest.fn(), emitPaymentReceived: jest.fn(), emitContractSuspended: jest.fn(),
+  emitContractRestored: jest.fn(), emitSuspensionWarning: jest.fn(), emitTicketCreated: jest.fn(),
+  emitMaintenanceScheduled: jest.fn(),
+}));
 
 jest.mock('../src/middleware/auth', () => ({
   authenticate: (req, _res, next) => {
