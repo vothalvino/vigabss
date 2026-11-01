@@ -585,6 +585,7 @@ CREATE TABLE IF NOT EXISTS nas (
     api_use_tls BOOLEAN         NOT NULL DEFAULT FALSE COMMENT 'Use api-ssl (TLS) for the RouterOS API connection (migration 360)',
     access_mode ENUM('direct','nated') NOT NULL DEFAULT 'direct' COMMENT 'How VigaBSS connects to this NAS: direct (routable IP) or nated (ip_address = WG tunnel address) (migration 371)',
     maintenance_mode BOOLEAN    NOT NULL DEFAULT FALSE COMMENT 'Keep NAS active but exclude it from automated PPPoE diagnostics polling/readiness (migration 456)',
+    require_message_authenticator BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'Drop Access-Requests without a valid Message-Authenticator (Blast-RADIUS hardening; migration 487)',
     created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME        DEFAULT NULL,

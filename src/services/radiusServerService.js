@@ -42,7 +42,57 @@ let acctSocket = null;
 const counters = {
   authRequests: 0, accepts: 0, rejects: 0, authDropped: 0,
   acctRequests: 0, acctIngested: 0, acctDropped: 0,
+  droppedOverload: 0, droppedSourceRate: 0, droppedNoMessageAuth: 0, postAuthSkipped: 0,
 };
+
+// ---------------------------------------------------------------------------
+// Ingress bounds (NET-20)
+// ---------------------------------------------------------------------------
+// Every datagram used to start its own async handler, and one from a known NAS
+// IP costs a secret fetch, a subscriber query and a radpostauth INSERT. Access-
+// Requests without Message-Authenticator cannot be authenticated, so a spoofed-
+// source flood from a registered NAS's address saturated the shared MySQL pool
+// and the event loop. Same shape as the SNMP trap receiver: a fixed in-flight
+// cap and per-source token buckets in a fixed-size table (spoofing cannot grow
+// it), with drop counters on /radius/server-status.
+
+const envInt = (name, fallback, min, max) => {
+  const n = Number.parseInt(process.env[name] || '', 10);
+  return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
+};
+const MAX_IN_FLIGHT = envInt('RADIUS_SERVER_MAX_IN_FLIGHT', 64, 1, 4096);
+const SOURCE_RATE_PER_SEC = envInt('RADIUS_SERVER_SOURCE_RATE', 200, 1, 100000);
+const SOURCE_BURST = envInt('RADIUS_SERVER_SOURCE_BURST', 400, 1, 200000);
+const SOURCE_BUCKETS = 4096;
+const sourceBuckets = new Array(SOURCE_BUCKETS).fill(null);
+let inFlight = 0;
+
+function bucketIndex(address) {
+  let h = 2166136261;
+  for (let i = 0; i < address.length; i++) h = Math.imul(h ^ address.charCodeAt(i), 16777619);
+  return (h >>> 0) % SOURCE_BUCKETS;
+}
+
+function takeSourceToken(address, now = Date.now()) {
+  const i = bucketIndex(String(address || ''));
+  const bucket = sourceBuckets[i] || { tokens: SOURCE_BURST, at: now };
+  bucket.tokens = Math.min(SOURCE_BURST, bucket.tokens + ((now - bucket.at) / 1000) * SOURCE_RATE_PER_SEC);
+  bucket.at = now;
+  sourceBuckets[i] = bucket;
+  if (bucket.tokens < 1) return false;
+  bucket.tokens -= 1;
+  return true;
+}
+
+/** Past half the in-flight cap, optional work (radpostauth rows) is skipped. */
+function saturated() {
+  return inFlight >= MAX_IN_FLIGHT / 2;
+}
+
+function resetIngressBounds() {
+  sourceBuckets.fill(null);
+  inFlight = 0;
+}
 
 // ---------------------------------------------------------------------------
 // Data lookups
@@ -58,7 +108,7 @@ async function findNasByIp(ip) {
   // lookup. Production always resolves every database scope above so a reused
   // private NAS IP fails closed as ambiguous.
   const [rows] = await db.query(
-    `SELECT n.id, n.organization_id, n.secret
+    `SELECT n.id, n.organization_id, n.secret, n.require_message_authenticator
        FROM nas n
       WHERE n.ip_address = ?
         AND n.status = 'active'
@@ -231,7 +281,7 @@ function buildAcceptAttributes(subscriber, plan, withMessageAuth) {
     }
   }
   // Message-Authenticator placeholder (filled by signResponse) when the client used one.
-  if (withMessageAuth) parts.push(codec.messageAuthenticatorPlaceholder());
+  if (withMessageAuth) parts.unshift(codec.messageAuthenticatorPlaceholder());
   return Buffer.concat(parts);
 }
 
@@ -266,7 +316,18 @@ async function handleAuth(msg, rinfo, respond) {
     logger.warn({ from: rinfo.address }, 'RADIUS: invalid Message-Authenticator — dropped');
     return;
   }
-  const withMessageAuth = !!codec.getAttr(pkt.attributes, ATTR.MESSAGE_AUTHENTICATOR);
+  // A NAS marked require_message_authenticator (default for new NAS rows,
+  // migration 487) must sign every Access-Request: without it a spoofed request
+  // cannot be told apart from a real one.
+  if (nas && nas.require_message_authenticator && !codec.getAttr(pkt.attributes, ATTR.MESSAGE_AUTHENTICATOR)) {
+    counters.authDropped++;
+    counters.droppedNoMessageAuth++;
+    logger.warn({ from: rinfo.address }, 'RADIUS: Access-Request without Message-Authenticator from a NAS that requires it — dropped');
+    return;
+  }
+  // Replies always carry Message-Authenticator, as the first attribute
+  // (Blast-RADIUS guidance), whether or not the request had one.
+  const withMessageAuth = true;
 
   const username = codec.getString(pkt.attributes, ATTR.USER_NAME);
   const nasIpAddress = codec.getIp(pkt.attributes, ATTR.NAS_IP_ADDRESS) || rinfo.address;
@@ -329,7 +390,7 @@ async function handleAuth(msg, rinfo, respond) {
     code = CODE.ACCESS_REJECT;
     counters.rejects++;
     const parts = [coa.encodeAttributes([{ type: ATTR.REPLY_MESSAGE, value: 'Access denied' }])];
-    if (withMessageAuth) parts.push(codec.messageAuthenticatorPlaceholder());
+    if (withMessageAuth) parts.unshift(codec.messageAuthenticatorPlaceholder());
     attrsBuf = Buffer.concat(parts);
     logger.info({ from: rinfo.address, username }, 'RADIUS: Access-Reject');
   }
@@ -337,7 +398,12 @@ async function handleAuth(msg, rinfo, respond) {
   const packet = coa.buildRadiusPacket(code, pkt.identifier, Buffer.alloc(16), attrsBuf);
   codec.signResponse(packet, pkt.authenticator, secret, withMessageAuth);
   respond(packet);
-  // Best effort only, deliberately after the response is handed to the socket.
+  // Best effort only, deliberately after the response is handed to the socket,
+  // and skipped under load so a flood does not also become a write flood.
+  if (saturated()) {
+    counters.postAuthSkipped++;
+    return;
+  }
   persistAuthOutcome({
     nas,
     username,
@@ -442,11 +508,31 @@ async function handleAcct(msg, rinfo, respond) {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
+/**
+ * Admit one datagram to `onMessage`, or drop it when its source is over its
+ * rate or the server is at its in-flight cap. Returns the handler's promise,
+ * or null when dropped.
+ */
+function admit(msg, rinfo, respond, onMessage, label) {
+  if (!takeSourceToken(rinfo.address)) {
+    counters.droppedSourceRate++;
+    return null;
+  }
+  if (inFlight >= MAX_IN_FLIGHT) {
+    counters.droppedOverload++;
+    return null;
+  }
+  inFlight++;
+  return Promise.resolve()
+    .then(() => onMessage(msg, rinfo, respond))
+    .catch((err) => logger.error({ err: err.message }, `RADIUS ${label} handler error`))
+    .finally(() => { inFlight--; });
+}
+
 function bind(socket, port, onMessage, label) {
   socket.on('message', (msg, rinfo) => {
     const respond = (buf) => socket.send(buf, rinfo.port, rinfo.address);
-    Promise.resolve(onMessage(msg, rinfo, respond)).catch((err) =>
-      logger.error({ err: err.message }, `RADIUS ${label} handler error`));
+    admit(msg, rinfo, respond, onMessage, label);
   });
   socket.on('error', (err) => logger.error({ err: err.message, port }, `RADIUS ${label} socket error`));
   socket.bind(port, () => logger.info({ port }, `RADIUS ${label} server listening`));
@@ -476,12 +562,16 @@ function getStatus() {
     authPort: config.radiusServer.authPort,
     acctPort: config.radiusServer.acctPort,
     counters: { ...counters },
+    limits: { maxInFlight: MAX_IN_FLIGHT, sourceRatePerSec: SOURCE_RATE_PER_SEC, sourceBurst: SOURCE_BURST },
+    inFlight,
   };
 }
 
 module.exports = {
   start,
   stop,
+  admit,
+  resetIngressBounds,
   getStatus,
   // exported for tests
   handleAuth,

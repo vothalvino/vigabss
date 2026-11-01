@@ -67625,6 +67625,9 @@
           },
           "maintenance_mode": {
             "type": "boolean"
+          },
+          "require_message_authenticator": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -67721,6 +67724,9 @@
             ]
           },
           "maintenance_mode": {
+            "type": "boolean"
+          },
+          "require_message_authenticator": {
             "type": "boolean"
           }
         }

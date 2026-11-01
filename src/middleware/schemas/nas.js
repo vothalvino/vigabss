@@ -32,6 +32,7 @@ const createNas = {
   // Maintenance mode leaves the NAS active and available for manual actions,
   // but excludes it from automated PPPoE diagnostics polling/readiness.
   maintenance_mode: { type: 'boolean' },
+  require_message_authenticator: { type: 'boolean' },
 };
 
 const updateNas = {
@@ -58,6 +59,7 @@ const updateNas = {
   // Per-NAS connectivity mode (migration 371)
   access_mode: { type: 'string', enum: ['direct', 'nated'] },
   maintenance_mode: { type: 'boolean' },
+  require_message_authenticator: { type: 'boolean' },
 };
 
 // Seed (one-click bootstrap) parameters for POST /nas/:id/seed. Flat scalars so
