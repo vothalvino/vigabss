@@ -5254,8 +5254,8 @@ CREATE TABLE IF NOT EXISTS cfdi_documents (
     -- Issuer & receiver references
     organization_id         BIGINT UNSIGNED NOT NULL
                                 COMMENT 'Organization (ISP) that issued this CFDI',
-    client_id               BIGINT UNSIGNED NOT NULL
-                                COMMENT 'Client (receptor) for this CFDI',
+    client_id               BIGINT UNSIGNED NULL
+                                COMMENT 'Client (receptor) for this CFDI; NULL only for a factura global to PUBLICO EN GENERAL',
 
     -- SAT folio fiscal (UUID assigned by PAC after stamping)
     uuid                    CHAR(36)        NULL     UNIQUE
@@ -5296,6 +5296,12 @@ CREATE TABLE IF NOT EXISTS cfdi_documents (
                                 COMMENT 'Receiver regimen_fiscal captured at stamp time',
     receptor_cp             VARCHAR(5)      NULL
                                 COMMENT 'Receiver codigo_postal_fiscal captured at stamp time',
+    global_periodicidad     VARCHAR(2)      NULL
+                                COMMENT 'InformacionGlobal c_Periodicidad (01-05); NULL = not a global or derived from the date',
+    global_meses            VARCHAR(2)      NULL
+                                COMMENT 'InformacionGlobal c_Meses (01-12, or 13-18 for bimestral)',
+    global_anio             SMALLINT UNSIGNED NULL
+                                COMMENT 'InformacionGlobal Año',
 
     -- Amounts
     subtotal                DECIMAL(12, 2)  NOT NULL DEFAULT 0.00

@@ -14,7 +14,7 @@ const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
 const { timeZoneForPostalCode, DEFAULT_TIME_ZONE } = require('../utils/mxTimeZone');
-const { cfdiText } = require('../utils/satCatalogs');
+const { cfdiText, isPublicoEnGeneral } = require('../utils/satCatalogs');
 
 // ---------------------------------------------------------------------------
 // Simple circuit breaker for PAC stamping calls
@@ -360,8 +360,16 @@ async function generateXml(cfdiDocumentId) {
 // come from the CFDI date. The receptor rules (Nombre "PUBLICO EN GENERAL",
 // RegimenFiscalReceptor 616, DomicilioFiscalReceptor = LugarExpedicion,
 // UsoCFDI S01) are supplied by the client's MX profile / stamp options.
+//
+// The node is emitted only for the PUBLICO EN GENERAL receptor (an XAXX RFC
+// with a person's name is a nominative sale, not a global). A factura global
+// carries its own period (global_* columns, migration 496); a single invoice
+// stamped to público en general is a daily global for its date (BIL-24).
 function informacionGlobalXml(doc, fecha) {
-  if (doc.receptor_rfc !== 'XAXX010101000') return '';
+  if (!isPublicoEnGeneral(doc.receptor_rfc, doc.receptor_nombre)) return '';
+  if (doc.global_periodicidad) {
+    return `\n  <cfdi:InformacionGlobal Periodicidad="${escapeXml(doc.global_periodicidad)}" Meses="${escapeXml(doc.global_meses)}" Año="${escapeXml(String(doc.global_anio))}" />`;
+  }
   const anio = String(fecha || '').slice(0, 4) || String(new Date().getFullYear());
   const mes = String(fecha || '').slice(5, 7) || '01';
   return `\n  <cfdi:InformacionGlobal Periodicidad="01" Meses="${mes}" Año="${anio}" />`;

@@ -80,7 +80,36 @@ function catalogIvaRate(rate) {
   return match === undefined ? null : match;
 }
 
+// InformacionGlobal (factura global): c_Periodicidad 01-04 (diario, semanal,
+// quincenal, mensual) report one month (Meses 01-12); 05 (bimestral) reports
+// a two-month block (Meses 13-18 = Ene-Feb … Nov-Dic). BIL-24.
+const PUBLICO_EN_GENERAL_RFC = 'XAXX010101000';
+const PUBLICO_EN_GENERAL_NOMBRE = 'PUBLICO EN GENERAL';
+
+/** Why a global period cannot be filed, or null when it can. */
+function globalPeriodProblem(periodicidad, meses, anio) {
+  const p = String(periodicidad ?? '');
+  const m = Number(meses);
+  if (!['01', '02', '03', '04', '05'].includes(p)) return 'Periodicidad must be 01, 02, 03, 04 or 05';
+  if (!/^\d{2}$/.test(String(meses ?? ''))) return 'Meses must be a two-digit code';
+  if (p === '05' ? (m < 13 || m > 18) : (m < 1 || m > 12)) {
+    return p === '05'
+      ? 'a bimestral (05) global reports Meses 13-18'
+      : `Periodicidad ${p} reports a single month, Meses 01-12`;
+  }
+  const y = Number(anio);
+  if (!Number.isInteger(y) || y < 2022 || y > 2099) return 'Año must be a year from 2022';
+  return null;
+}
+
+/** InformacionGlobal applies only to the PUBLICO EN GENERAL receptor. */
+function isPublicoEnGeneral(rfc, nombre) {
+  return rfc === PUBLICO_EN_GENERAL_RFC
+    && String(nombre ?? '').trim().toUpperCase() === PUBLICO_EN_GENERAL_NOMBRE;
+}
+
 module.exports = {
   FORMA_PAGO_BY_METHOD, usoCfdiAllowed, defaultUsoCfdi,
+  PUBLICO_EN_GENERAL_RFC, PUBLICO_EN_GENERAL_NOMBRE, globalPeriodProblem, isPublicoEnGeneral,
   CFDI_FORBIDDEN_CHARS, NOMBRE_MAX, cfdiText, nombreProblem, catalogIvaRate,
 };

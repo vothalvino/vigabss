@@ -652,6 +652,9 @@ function generateSpec() {
 
       // ---- Facturas Publicas ----
       ...crudPaths('facturas-publicas', 'Facturas Publicas', 'FacturaPublica'),
+      '/facturas-publicas/{id}/stamp': {
+        post: { tags: ['Facturas Publicas'], summary: 'Build and stamp the factura global (CFDI to PUBLICO EN GENERAL) from the linked paid invoices', description: 'One concepto per invoice (01010101/ACT), InformacionGlobal from the record period, PUE with the predominant forma de pago. 201 when stamped, 202 when the CFDI was created but the PAC failed (retry from the CFDI page).', operationId: 'stampFacturaPublica', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 201: { description: 'Stamped' }, 202: { description: 'Created, stamp pending' }, 409: { description: 'Not a draft' }, 422: { description: 'Unpaid invoices, invoices with their own CFDI, empty, mixed currency, or a period SAT cannot file' } } },
+      },
       '/facturas-publicas/{id}/items': {
         get: { tags: ['Facturas Publicas'], summary: 'List linked invoices', operationId: 'listFacturaPublicaItems', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Item[]') },
         post: { tags: ['Facturas Publicas'], summary: 'Link an invoice', operationId: 'addFacturaPublicaItem', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('invoice_id'), responses: r201('Item') },

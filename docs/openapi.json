@@ -9994,6 +9994,45 @@
         }
       }
     },
+    "/facturas-publicas/{id}/stamp": {
+      "post": {
+        "tags": [
+          "Facturas Publicas"
+        ],
+        "summary": "Build and stamp the factura global (CFDI to PUBLICO EN GENERAL) from the linked paid invoices",
+        "description": "One concepto per invoice (01010101/ACT), InformacionGlobal from the record period, PUE with the predominant forma de pago. 201 when stamped, 202 when the CFDI was created but the PAC failed (retry from the CFDI page).",
+        "operationId": "stampFacturaPublica",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Stamped"
+          },
+          "202": {
+            "description": "Created, stamp pending"
+          },
+          "409": {
+            "description": "Not a draft"
+          },
+          "422": {
+            "description": "Unpaid invoices, invoices with their own CFDI, empty, mixed currency, or a period SAT cannot file"
+          }
+        }
+      }
+    },
     "/facturas-publicas/{id}/items": {
       "get": {
         "tags": [
@@ -60909,6 +60948,25 @@
             "type": "string",
             "maximum": 5
           },
+          "global_periodicidad": {
+            "type": "string",
+            "enum": [
+              "01",
+              "02",
+              "03",
+              "04",
+              "05"
+            ]
+          },
+          "global_meses": {
+            "type": "string",
+            "pattern": "^(0[1-9]|1[0-8])$"
+          },
+          "global_anio": {
+            "type": "number",
+            "minimum": 2022,
+            "maximum": 2099
+          },
           "subtotal": {
             "type": "number",
             "minimum": 0
@@ -64736,28 +64794,22 @@
           },
           "meses": {
             "type": "string",
-            "maximum": 2
+            "pattern": "^(0[1-9]|1[0-8])$"
           },
           "anio": {
             "type": "number",
-            "minimum": 2020,
+            "minimum": 2022,
             "maximum": 2099
           },
           "notes": {
             "type": "string",
             "maximum": 5000
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "stamped",
-              "cancelled"
-            ]
           }
         },
         "required": [
-          "periodicidad"
+          "periodicidad",
+          "meses",
+          "anio"
         ]
       },
       "facturasPublicas_updateFacturaPublica": {
@@ -64775,24 +64827,16 @@
           },
           "meses": {
             "type": "string",
-            "maximum": 2
+            "pattern": "^(0[1-9]|1[0-8])$"
           },
           "anio": {
             "type": "number",
-            "minimum": 2020,
+            "minimum": 2022,
             "maximum": 2099
           },
           "notes": {
             "type": "string",
             "maximum": 5000
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "stamped",
-              "cancelled"
-            ]
           }
         }
       },
@@ -67206,7 +67250,8 @@
           },
           "razon_social": {
             "type": "string",
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]*$"
           },
           "regimen_fiscal": {
             "type": "string",
@@ -67321,7 +67366,8 @@
           },
           "razon_social": {
             "type": "string",
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]*$"
           },
           "regimen_fiscal": {
             "type": "string",
@@ -67433,7 +67479,8 @@
           },
           "razon_social": {
             "type": "string",
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]*$"
           },
           "regimen_fiscal": {
             "type": "string",
