@@ -10,7 +10,7 @@ const cookieParser = require('cookie-parser');
 const config = require('./config');
 const { AppError } = require('./utils/errors');
 const errorTracking = require('./utils/errorTracking');
-const { apiLimiter, authLimiter, passwordResetLimiter, verifyEmailResendLimiter, sessionLimiter, exportLimiter, sseLimiter, webhookLimiter, acsLimiter, collectorIngressLimiter, isCollectorPath } = require('./middleware/rateLimit');
+const { apiLimiter, authLimiter, passwordResetLimiter, verifyEmailResendLimiter, sessionLimiter, portalSessionLimiter, exportLimiter, sseLimiter, webhookLimiter, acsLimiter, collectorIngressLimiter, isCollectorPath } = require('./middleware/rateLimit');
 const { requestLogger } = require('./middleware/requestLogger');
 const { requestId } = require('./middleware/requestId');
 const { firerelay } = require('./middleware/firerelay');
@@ -435,8 +435,9 @@ app.use('/api/v1/auth/verify-email/resend', verifyEmailResendLimiter);
 for (const sub of ['/me', '/refresh', '/logout', '/switch-organization']) {
   app.use(`/api/auth${sub}`, sessionLimiter);
   app.use(`/api/v1/auth${sub}`, sessionLimiter);
-  app.use(`/api/portal/auth${sub}`, sessionLimiter);
-  app.use(`/api/v1/portal/auth${sub}`, sessionLimiter);
+  // The portal has its own instance of the same budget (FE-17).
+  app.use(`/api/portal/auth${sub}`, portalSessionLimiter);
+  app.use(`/api/v1/portal/auth${sub}`, portalSessionLimiter);
 }
 app.use('/api/export', exportLimiter);
 app.use('/api/v1/export', exportLimiter);

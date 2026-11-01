@@ -208,7 +208,14 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
         }
         await backoff(attempt);
       }
-      if (!accessToken) { settleLoggedOut(); return; } // exhausted transient retries
+      // Exhausted transient retries (429/5xx): the refresh token may well be
+      // valid, so keep it for the next load instead of signing the subscriber
+      // out for a rate limit (FE-17).
+      if (!accessToken) {
+        clearPortalQueries();
+        setState({ client: null, loading: false, initialized: true });
+        return;
+      }
 
       // Phase 2 — load the client profile (retry transient /me failures WITHOUT
       // re-refreshing, since the refresh token was already rotated above).

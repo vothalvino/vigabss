@@ -82,11 +82,14 @@ describe('AuthContext', () => {
       { ok: false, status: 401 },         // POST /auth/refresh → lost the rotation race
       { ok: true, json: { data: user } }, // GET /auth/me → winner's cookie restores us
     ]);
+    // The winning tab's refresh set a fresh CSRF cookie alongside the session.
+    document.cookie = 'fireisp_csrf=from-winner';
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     await waitFor(() => expect(result.current.initialized).toBe(true), { timeout: 3000 });
     expect(result.current.user).toMatchObject({ id: 1, email: 'admin@test.com' });
+    document.cookie = 'fireisp_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   });
 
   it('settles logged-out when the API client signals a dead session mid-use', async () => {
@@ -194,9 +197,7 @@ describe('AuthContext', () => {
 
     mockFetch([
       { ok: false, status: 401 }, // mount GET /auth/me → 401
-      { ok: false, status: 401 }, // mount POST /auth/refresh → 401 (no session yet)
-      { ok: false, status: 401 }, // mount GET /auth/me (race re-check)
-      { ok: false, status: 401 }, // mount POST /auth/refresh → second denial settles
+      { ok: false, status: 401 }, // mount POST /auth/refresh → 401; no CSRF cookie, so no race re-check (FE-17)
       { ok: true, json: { data: { accessToken: 'acc', refreshToken: 'ref', expiresIn: 900, user } } }, // POST /auth/login
     ]);
 
@@ -217,9 +218,7 @@ describe('AuthContext', () => {
   it('login() throws on server error', async () => {
     mockFetch([
       { ok: false, status: 401 }, // mount GET /auth/me → 401
-      { ok: false, status: 401 }, // mount POST /auth/refresh → 401
-      { ok: false, status: 401 }, // mount GET /auth/me (race re-check)
-      { ok: false, status: 401 }, // mount POST /auth/refresh → second denial settles
+      { ok: false, status: 401 }, // mount POST /auth/refresh → 401; no CSRF cookie, so no race re-check (FE-17)
       { ok: false, status: 401, json: { error: { message: 'Invalid credentials' } } }, // POST /auth/login
     ]);
 
@@ -236,9 +235,7 @@ describe('AuthContext', () => {
 
     mockFetch([
       { ok: false, status: 401 }, // mount GET /auth/me → 401
-      { ok: false, status: 401 }, // mount POST /auth/refresh → 401
-      { ok: false, status: 401 }, // mount GET /auth/me (race re-check)
-      { ok: false, status: 401 }, // mount POST /auth/refresh → second denial settles
+      { ok: false, status: 401 }, // mount POST /auth/refresh → 401; no CSRF cookie, so no race re-check (FE-17)
       { ok: true, json: { data: { accessToken: 'a', refreshToken: 'r', expiresIn: 900, user } } }, // login
       { ok: true, json: {} }, // logout
     ]);
