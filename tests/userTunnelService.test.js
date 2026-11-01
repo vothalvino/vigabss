@@ -290,7 +290,7 @@ describe('createPeer() — full_tunnel flag', () => {
   test('passes full_tunnel=1 to INSERT when called without explicit arg (default=true)', async () => {
     setupCreatePeerMocks(1);
 
-    await userTunnelService.createPeer(1, 1, 'technician', 'Laptop');
+    await userTunnelService.createPeer(1, 1, 'Laptop');
 
     // The INSERT call must include 1 for the full_tunnel bind parameter
     const insertCall = db.query.mock.calls.find(
@@ -307,7 +307,7 @@ describe('createPeer() — full_tunnel flag', () => {
   test('passes full_tunnel=0 to INSERT when fullTunnel=false is explicitly passed', async () => {
     setupCreatePeerMocks(0);
 
-    await userTunnelService.createPeer(1, 1, 'technician', 'Laptop', false);
+    await userTunnelService.createPeer(1, 1, 'Laptop', false);
 
     const insertCall = db.query.mock.calls.find(
       ([sql]) => typeof sql === 'string' && /INSERT INTO wg_user_peers/.test(sql),
@@ -321,7 +321,7 @@ describe('createPeer() — full_tunnel flag', () => {
   test('returned config uses 0.0.0.0/0,::/0 when peer row has full_tunnel=1', async () => {
     setupCreatePeerMocks(1);
 
-    const result = await userTunnelService.createPeer(1, 1, 'technician', 'Laptop', true);
+    const result = await userTunnelService.createPeer(1, 1, 'Laptop', true);
 
     expect(result.config).toContain('AllowedIPs          = 0.0.0.0/0, ::/0');
   });
@@ -343,7 +343,7 @@ describe('createPeer() — full_tunnel flag', () => {
 
     QRCode.toString.mockResolvedValue('<svg/>');
 
-    const result = await userTunnelService.createPeer(1, 1, 'technician', 'Laptop', false);
+    const result = await userTunnelService.createPeer(1, 1, 'Laptop', false);
 
     expect(result.config).toContain('AllowedIPs          = 192.168.1.0/24');
     expect(result.config).not.toContain('0.0.0.0/0');
@@ -383,7 +383,6 @@ describe('rotatePeer()', () => {
     db.query
       .mockResolvedValueOnce([[{ ...mockPeer }]])                  // SELECT peer by id
       .mockResolvedValueOnce([{ affectedRows: 1 }])               // UPDATE public_key + encrypted key
-      .mockResolvedValueOnce([[{ role: 'technician' }]])          // SELECT user role
       .mockResolvedValueOnce([{ affectedRows: 1 }])               // UPDATE server_peer_synced = 1
       .mockResolvedValueOnce([[{ ...mockPeer, public_key: updatedPublicKey }]]); // SELECT updated row
   }
@@ -627,7 +626,7 @@ describe('refreshAffectedByNas()', () => {
 describe('refreshUserPeers()', () => {
   test('passes each peer\'s own organization_id to getScopedSubnets', async () => {
     db.query
-      // user lookup (role only — no org column needed)
+      // user lookup (existence only; the role is resolved per org)
       .mockResolvedValueOnce([[{ id: 7, role: 'admin' }]])
       // peers, each carrying its own org
       .mockResolvedValueOnce([[
@@ -642,8 +641,8 @@ describe('refreshUserPeers()', () => {
 
     await userTunnelService.refreshUserPeers(7);
 
-    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenCalledWith(7, 5, 'admin');
-    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenCalledWith(7, 9, 'admin');
+    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenCalledWith(7, 5);
+    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenCalledWith(7, 9);
     expect(wireguardServerService.setUserForwardScope).toHaveBeenCalledWith(
       expect.objectContaining({ peerId: 1, subnets: ['10.5.0.0/16'] }));
     expect(wireguardServerService.setUserForwardScope).toHaveBeenCalledWith(
@@ -760,11 +759,11 @@ describe('rehydrateUserPeers()', () => {
     // a swapped/wrong publicKey or tunnelIp must fail the test.
     expect(wireguardServerService.syncUserPeer).toHaveBeenNthCalledWith(1, { publicKey: 'PK1==', tunnelIp: '10.99.0.2' });
     expect(wireguardServerService.syncUserPeer).toHaveBeenNthCalledWith(3, { publicKey: 'PK3==', tunnelIp: '10.99.0.4' });
-    // Scope computed once per distinct user, not once per peer — and with the
-    // peer's own org + the user's role for BOTH users.
+    // Scope computed once per distinct user and org, not once per peer — with
+    // the peer's own org (the role is resolved per org inside the service).
     expect(userTunnelScopeService.getScopedSubnets).toHaveBeenCalledTimes(2);
-    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenNthCalledWith(1, 10, 1, 'admin');
-    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenNthCalledWith(2, 20, 1, 'technician');
+    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenNthCalledWith(1, 10, 1);
+    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenNthCalledWith(2, 20, 1);
     // Both of user 10's peers get the cached admin scope.
     expect(wireguardServerService.setUserForwardScope).toHaveBeenCalledWith({
       peerId: 1, tunnelIp: '10.99.0.2', subnets: ['0.0.0.0/0'],
@@ -774,6 +773,27 @@ describe('rehydrateUserPeers()', () => {
     });
     expect(wireguardServerService.setUserForwardScope).toHaveBeenCalledWith({
       peerId: 3, tunnelIp: '10.99.0.4', subnets: ['192.168.7.0/24'],
+    });
+  });
+
+  // NET-25: a multi-org user's peers in different orgs must not share one
+  // cached scope (the first org's admin scope reused for the second org).
+  test('a user with peers in two orgs gets each org\'s own scope', async () => {
+    config.wireguard.serverEnabled = true;
+    db.query.mockResolvedValueOnce([[
+      { id: 1, user_id: 10, public_key: 'PK1==', tunnel_address: '10.99.0.2', organization_id: 1 },
+      { id: 2, user_id: 10, public_key: 'PK2==', tunnel_address: '10.99.0.3', organization_id: 2 },
+    ]]);
+    userTunnelScopeService.getScopedSubnets
+      .mockResolvedValueOnce(['10.1.0.0/16'])  // org 1 (admin there)
+      .mockResolvedValueOnce([]);              // org 2 (no assignments there)
+
+    await userTunnelService.rehydrateUserPeers();
+
+    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenNthCalledWith(1, 10, 1);
+    expect(userTunnelScopeService.getScopedSubnets).toHaveBeenNthCalledWith(2, 10, 2);
+    expect(wireguardServerService.setUserForwardScope).toHaveBeenCalledWith({
+      peerId: 2, tunnelIp: '10.99.0.3', subnets: [],
     });
   });
 
