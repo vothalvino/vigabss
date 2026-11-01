@@ -118,6 +118,51 @@ describe('POST /api/v1/inventory/transactions', () => {
     expect(ledgerCall[1]).toEqual([55, 'adjustment', 3, null, null, null, null, 1, 'ADJ-1', null]);
   });
 
+  // TNA-34: an adjustment applies its signed quantity. It used to subtract
+  // |N| whatever the sign, so +N lowered stock while the ledger said +N.
+  describe('adjustments apply their sign', () => {
+    const post = (body) => request(app)
+      .post('/api/v1/inventory/transactions')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .set('X-Org-Id', '10')
+      .send(body);
+    const stockDelta = (conn) => conn.query.mock.calls.find(c => c[0].includes('UPDATE inventory_stock SET quantity'))[1][0];
+    const ledgerQty = (conn) => conn.query.mock.calls.find(c => c[0].includes('INSERT INTO inventory_transactions'))[1][2];
+
+    it.each([[3, 3], [-4, -4]])('an adjustment of %d moves stock by %d and the ledger matches', async (qty, delta) => {
+      const conn = buildConn({ stockOrgMatch: true });
+      db.getConnection.mockResolvedValue(conn);
+      const res = await post({ stock_id: 55, transaction_type: 'adjustment', quantity: qty });
+      expect(res.status).toBe(201);
+      expect(stockDelta(conn)).toBe(delta);
+      expect(ledgerQty(conn)).toBe(delta);
+    });
+
+    it('an adjustment into a new location starts at +N, not -N', async () => {
+      const conn = buildConn({ stockExists: false });
+      db.getConnection.mockResolvedValue(conn);
+      const res = await post({ item_id: 1, warehouse_id: 5, transaction_type: 'adjustment', quantity: 6 });
+      expect(res.status).toBe(201);
+      expect(stockDelta(conn)).toBe(6);
+    });
+
+    it('a zero adjustment is rejected before anything is written', async () => {
+      const conn = buildConn({ stockOrgMatch: true });
+      db.getConnection.mockResolvedValue(conn);
+      const res = await post({ stock_id: 55, transaction_type: 'adjustment', quantity: 0 });
+      expect(res.status).toBe(422);
+      expect(conn.query.mock.calls.some(c => c[0].includes('INSERT INTO inventory_transactions'))).toBe(false);
+    });
+
+    it.each([['transfer_out', 2, -2], ['transfer_out', -2, -2], ['receive', -5, 5]])('a typed %s of %d still moves stock by %d', async (type, qty, delta) => {
+      const conn = buildConn({ stockOrgMatch: true });
+      db.getConnection.mockResolvedValue(conn);
+      const res = await post({ stock_id: 55, transaction_type: type, quantity: qty });
+      expect(res.status).toBe(201);
+      expect(stockDelta(conn)).toBe(delta);
+    });
+  });
+
   it('returns 404 when stock_id does not resolve to a row in this org', async () => {
     const conn = buildConn({ stockOrgMatch: false });
     db.getConnection.mockResolvedValue(conn);
