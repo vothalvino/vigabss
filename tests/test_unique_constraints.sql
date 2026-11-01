@@ -48,12 +48,18 @@ VALUES (7000, 7000, 'pppoe_unique_user', 'hash', 'active');
 CALL assert_sql_error(NULL, 'INSERT INTO radius (id, client_id, username, password, status) VALUES (7001, 7000, ''pppoe_unique_user'', ''hash2'', ''active'')', 'C: Duplicate RADIUS username rejected');
 
 -- =========================================================================
--- D. devices — uq_devices_serial_number
+-- D. devices — uq_devices_org_serial_number (serials are unique per
+--    organization since migration 490, DB-18)
 -- =========================================================================
-INSERT INTO devices (id, site_id, name, serial_number, category, type, status)
-VALUES (7000, 7000, 'Router-A', 'SN-UNIQUE-001', 'pop', 'router', 'online');
+INSERT INTO devices (id, organization_id, site_id, name, serial_number, category, type, status)
+VALUES (7000, 7000, 7000, 'Router-A', 'SN-UNIQUE-001', 'pop', 'router', 'online');
 
-CALL assert_sql_error(NULL, 'INSERT INTO devices (id, site_id, name, serial_number, category, type, status) VALUES (7001, 7000, ''Router-B'', ''SN-UNIQUE-001'', ''pop'', ''switch'', ''online'')', 'D: Duplicate device serial number rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO devices (id, organization_id, site_id, name, serial_number, category, type, status) VALUES (7001, 7000, 7000, ''Router-B'', ''SN-UNIQUE-001'', ''pop'', ''switch'', ''online'')', 'D: Duplicate device serial number rejected');
+
+-- D2. Another organization may hold the same serial.
+INSERT INTO devices (id, organization_id, site_id, name, serial_number, category, type, status)
+VALUES (7002, 7001, 7000, 'Router-C', 'SN-UNIQUE-001', 'pop', 'router', 'online');
+CALL assert_true(ROW_COUNT() = 1, 'D2: Same serial number allowed in another organization');
 
 -- =========================================================================
 -- E. invoices — uq_invoices_org_number (numbers are unique per organization)
@@ -133,12 +139,12 @@ INSERT INTO roles (id, name, description) VALUES (7000, 'test_unique_role', 'Tes
 CALL assert_sql_error(NULL, 'INSERT INTO roles (id, name, description) VALUES (7001, ''test_unique_role'', ''Dupe'')', 'L: Duplicate role name rejected');
 
 -- =========================================================================
--- M. inventory_items — uq_inventory_items_sku
+-- M. inventory_items — uq_inventory_items_org_sku (migration 490)
 -- =========================================================================
-INSERT INTO inventory_items (id, name, sku, category, unit, status)
-VALUES (7000, 'Item-A', 'SKU-UQ-001', 'router', 'unit', 'active');
+INSERT INTO inventory_items (id, organization_id, name, sku, category, unit, status)
+VALUES (7000, 7000, 'Item-A', 'SKU-UQ-001', 'router', 'unit', 'active');
 
-CALL assert_sql_error(NULL, 'INSERT INTO inventory_items (id, name, sku, category, unit, status) VALUES (7001, ''Item-B'', ''SKU-UQ-001'', ''switch'', ''unit'', ''active'')', 'M: Duplicate inventory item SKU rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO inventory_items (id, organization_id, name, sku, category, unit, status) VALUES (7001, 7000, ''Item-B'', ''SKU-UQ-001'', ''switch'', ''unit'', ''active'')', 'M: Duplicate inventory item SKU rejected');
 
 -- =========================================================================
 -- N. api_tokens — uq_api_tokens_hash
@@ -165,7 +171,7 @@ DELETE FROM vlans WHERE id IN (7000, 7001);
 DELETE FROM ip_assignments WHERE id IN (7000, 7001, 7002, 7003);
 DELETE FROM ip_pools WHERE id IN (7000, 7001);
 DELETE FROM invoices WHERE id IN (7000, 7001);
-DELETE FROM devices WHERE id IN (7000, 7001);
+DELETE FROM devices WHERE id IN (7000, 7001, 7002);
 DELETE FROM radius WHERE id IN (7000, 7001);
 DELETE FROM nas WHERE id IN (7000, 7001);
 DELETE FROM users WHERE id IN (7000, 7001);

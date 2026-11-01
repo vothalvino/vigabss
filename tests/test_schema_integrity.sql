@@ -185,7 +185,9 @@ CALL assert_index_exists('payments',     'idx_payments_client_id',         'Inde
 CALL assert_index_exists('payments',     'idx_payments_payment_date',      'Index: payments.idx_payments_payment_date');
 CALL assert_index_exists('nas',          'uq_nas_ip_address',              'Index: nas.uq_nas_ip_address');
 CALL assert_index_exists('radius',       'uq_radius_username',             'Index: radius.uq_radius_username');
-CALL assert_index_exists('devices',      'uq_devices_serial_number',       'Index: devices.uq_devices_serial_number');
+CALL assert_index_exists('devices',      'uq_devices_org_serial_number',   'Index: devices.uq_devices_org_serial_number (migration 490)');
+CALL assert_index_exists('inventory_items', 'uq_inventory_items_org_sku',  'Index: inventory_items.uq_inventory_items_org_sku (migration 490)');
+CALL assert_index_exists('ip_pools',     'uq_ip_pools_org_network_mask_ver', 'Index: ip_pools.uq_ip_pools_org_network_mask_ver (migration 490)');
 CALL assert_index_exists('tickets',      'idx_tickets_status',             'Index: tickets.idx_tickets_status');
 CALL assert_index_exists('ip_assignments', 'uq_ip_assignments_pool_ip',    'Index: ip_assignments.uq_ip_assignments_pool_ip');
 
