@@ -1082,7 +1082,7 @@ async function refreshInvoicePaidStatus(invoiceId) {
 
 /**
  * Release (soft-delete) all live payment_allocations for a single invoice.
- * Used when voiding a paid invoice so its payments become unallocated credits
+ * Used when an invoice turns void or cancelled so its payments become unallocated credits
  * rather than leaving orphaned allocation rows. The payment ledger credits are
  * NOT touched — the client keeps each payment as an unallocated balance credit.
  *
@@ -1255,12 +1255,19 @@ async function settleInvoiceTerminal(invoiceId, orgId, userId, { status, action,
   const record = await Invoice.update(invoiceId, { status }, orgId);
 
   const wasTerminal = existing.status === 'void' || existing.status === 'cancelled';
+  let released = [];
   if (!wasTerminal) {
-    if (existing.status === 'paid') {
-      // Release the allocations that pointed to this invoice so each payment
-      // becomes an unallocated credit on the client.
-      await releaseInvoiceAllocations(existing.id);
-    }
+    // Release the allocations that pointed to this invoice so each payment
+    // becomes an unallocated credit on the client. Not only for 'paid': a
+    // partly paid invoice is still 'issued', and SAT cancelling it cannot be
+    // refused, so leaving its allocations on a cancelled row would drop that
+    // money from the balance altogether.
+    const [liveAllocs] = await db.query(
+      'SELECT payment_id, amount FROM payment_allocations WHERE invoice_id = ? AND deleted_at IS NULL',
+      [existing.id],
+    );
+    released = Array.isArray(liveAllocs) ? liveAllocs : [];
+    if (released.length > 0) await releaseInvoiceAllocations(existing.id);
 
     // Remove any earlier reversal credit for this invoice…
     await db.query(
@@ -1285,7 +1292,12 @@ async function settleInvoiceTerminal(invoiceId, orgId, userId, { status, action,
     tableName: 'invoices',
     recordId: record.id,
     oldValues: existing,
-    newValues: { status },
+    newValues: released.length > 0
+      ? {
+        status,
+        released_allocations: released.map((a) => ({ payment_id: a.payment_id, amount: String(a.amount) })),
+      }
+      : { status },
   });
 
   return record;

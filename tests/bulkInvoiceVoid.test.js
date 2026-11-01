@@ -233,11 +233,12 @@ describe('POST /api/bulk/invoices/void', () => {
     db.query
       .mockResolvedValueOnce([[]]) // stamped-CFDI guard for 30
       .mockResolvedValueOnce([[]]) // allocation guard for 30
+      .mockResolvedValueOnce([[]]) // live allocations for 30 (none)
       .mockResolvedValueOnce([{ affectedRows: 0 }]) // DELETE credit for 30
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // zero debits for 30
       .mockResolvedValueOnce([[]]) // stamped-CFDI guard for 31
       .mockResolvedValueOnce([[]]) // allocation guard for 31 (paid but already deallocated)
-      .mockResolvedValueOnce([{ affectedRows: 0 }]) // releaseInvoiceAllocations for 31 (no-op)
+      .mockResolvedValueOnce([[]]) // live allocations for 31 (none: already deallocated)
       .mockResolvedValueOnce([{ affectedRows: 0 }]) // DELETE credit for 31
       .mockResolvedValueOnce([{ affectedRows: 1 }]); // zero debits for 31
 
@@ -251,10 +252,10 @@ describe('POST /api/bulk/invoices/void', () => {
     expect(res.body.data.failed).toBe(0);
     expect(res.body.data.errors).toHaveLength(0);
 
-    // allocation release ran for paid invoice
-    const allocCall = db.query.mock.calls.find(c => /UPDATE payment_allocations SET deleted_at/.test(c[0]));
-    expect(allocCall).toBeTruthy();
-    expect(allocCall[1]).toContain(31);
+    // Both were checked for live allocations; with none left, nothing was released.
+    const allocReads = db.query.mock.calls.filter(c => /SELECT payment_id, amount FROM payment_allocations/.test(c[0]));
+    expect(allocReads.map(c => c[1][0])).toEqual([30, 31]);
+    expect(db.query.mock.calls.some(c => /UPDATE payment_allocations SET deleted_at/.test(c[0]))).toBe(false);
   });
 
   test('requires authentication → 401 without token', async () => {
