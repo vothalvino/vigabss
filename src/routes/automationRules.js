@@ -14,7 +14,8 @@ const createAutomationRule = {
   name:               { type: 'string', required: true, min: 1, max: 255 },
   description:        { type: 'string' },
   trigger_event:      { type: 'string', required: true, min: 1, max: 100 },
-  trigger_conditions: { type: 'object' },
+  // An array of { field, operator, value }; every one must hold (DB-05).
+  trigger_conditions: { type: 'array' },
   action_type:        { type: 'string', required: true, min: 1, max: 100 },
   action_config:      { type: 'object' },
   is_enabled:         { type: 'boolean' },
@@ -25,7 +26,7 @@ const updateAutomationRule = {
   name:               { type: 'string', min: 1, max: 255 },
   description:        { type: 'string' },
   trigger_event:      { type: 'string', min: 1, max: 100 },
-  trigger_conditions: { type: 'object' },
+  trigger_conditions: { type: 'array' },
   action_type:        { type: 'string', min: 1, max: 100 },
   action_config:      { type: 'object' },
   is_enabled:         { type: 'boolean' },

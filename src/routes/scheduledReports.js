@@ -7,6 +7,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const db = require('../config/database');
+const { parseJsonColumn } = require('../utils/jsonColumn');
 
 const router = Router();
 router.use(authenticate);
@@ -124,7 +125,7 @@ router.post('/:id/run', requirePermission('reports.generate'), async (req, res, 
       organizationId: req.orgId,
       reportDefName: schedule.report_def_name,
       format: schedule.format,
-      parameters: schedule.parameters ? JSON.parse(schedule.parameters) : {},
+      parameters: parseJsonColumn(schedule.parameters, {}),
       scheduledReportId: schedule.id,
       generatedBy: req.user.id,
     });

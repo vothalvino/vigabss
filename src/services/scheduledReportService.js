@@ -12,6 +12,7 @@ const logger = require('../utils/logger');
 // the HTML report-delivery email — escape it.
 const { escapeHtmlForTemplate: esc } = require('./notificationService');
 const { orgScopeFilter } = require('./organizationFanOut');
+const { parseJsonColumn } = require('../utils/jsonColumn');
 
 /**
  * Process all due scheduled reports.
@@ -54,8 +55,8 @@ async function processScheduledReports() {
  * Run a single schedule: generate report data, format, insert history, email.
  */
 async function runSchedule(schedule) {
-  const params = schedule.parameters ? JSON.parse(schedule.parameters) : {};
-  const recipients = schedule.recipients ? JSON.parse(schedule.recipients) : [];
+  const params = parseJsonColumn(schedule.parameters, {});
+  const recipients = parseJsonColumn(schedule.recipients, []);
 
   // Generate report data
   const data = await generateReportData(schedule.organization_id, schedule.report_def_name, params);

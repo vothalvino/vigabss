@@ -16,6 +16,7 @@ const auditLog = require('./auditLog');
 const { assertPlanSelectable } = require('./planAvailability');
 const { assertOwnedReferences } = require('../utils/ownedReferences');
 const { ValidationError } = require('../utils/errors');
+const { parseJsonColumn } = require('../utils/jsonColumn');
 const { SNMP_METRICS } = require('./alertService');
 
 // Lazily required to avoid circular deps at module load
@@ -54,13 +55,13 @@ async function evaluateAutomationRules(organizationId, triggerEvent, payload = {
     let resultMessage;
 
     try {
-      const conditions = rule.trigger_conditions ? JSON.parse(rule.trigger_conditions) : [];
+      const conditions = ruleConditions(rule.trigger_conditions);
       const match = conditions.every(c => evaluateCondition(payload, c));
       if (!match) {
         status = 'skipped';
         resultMessage = 'Conditions not met';
       } else {
-        resultMessage = await dispatchAction(rule.action_type, rule.action_config ? JSON.parse(rule.action_config) : {}, payload, organizationId);
+        resultMessage = await dispatchAction(rule.action_type, parseJsonColumn(rule.action_config, {}), payload, organizationId);
         triggered++;
         await db.query(
           'UPDATE automation_rules SET run_count = run_count + 1, last_triggered_at = NOW() WHERE id = ?',
@@ -82,6 +83,17 @@ async function evaluateAutomationRules(organizationId, triggerEvent, payload = {
   }
 
   return { evaluated: rules.length, triggered };
+}
+
+/**
+ * trigger_conditions is a JSON array of { field, operator, value }, all of
+ * which must hold. A row stored as one condition object is read as a list of
+ * one; any other shape means no conditions.
+ */
+function ruleConditions(raw) {
+  const parsed = parseJsonColumn(raw, []);
+  if (Array.isArray(parsed)) return parsed;
+  return parsed && typeof parsed === 'object' && parsed.field ? [parsed] : [];
 }
 
 /**

@@ -374,7 +374,10 @@ MySQL wire types are therefore part of the effective API contract. Verify them
 in `database/schema.sql` or the migration rather than guessing aliases in the
 frontend. MySQL booleans commonly return as `0`/`1`, and `DECIMAL` values return
 as strings under the current mysql2 configuration; convert deliberately before
-boolean logic, comparison, or arithmetic.
+boolean logic, comparison, or arithmetic. `JSON` columns arrive already decoded
+(objects and arrays), so never `JSON.parse` them directly: use
+`parseJsonColumn` from `src/utils/jsonColumn.js`, which also accepts JSON text
+from older rows and test doubles.
 
 A client's headline balance is computed live by
 `src/services/clientBalanceService.js` from invoices, payments, and
