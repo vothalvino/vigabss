@@ -21,6 +21,7 @@
 // =============================================================================
 
 const net = require('net');
+const { assertManagementTarget } = require('../utils/managementTarget');
 const tls = require('tls');
 const logger = require('../utils/logger').child({ service: 'routerosService' });
 
@@ -464,6 +465,9 @@ class RouterOSClient {
  * @returns {Promise<RouterOSClient>}
  */
 async function createClient(conn) {
+  // Every RouterOS connection the platform opens goes through here: refuse a
+  // target inside the platform's own network before any socket (NET-21).
+  assertManagementTarget(conn && conn.host, 'host');
   const client = new RouterOSClient(conn);
   await client.connect();
   return client;
