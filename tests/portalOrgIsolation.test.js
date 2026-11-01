@@ -196,14 +196,17 @@ describe('AI chat binds the session and its tickets to the subscriber\'s organiz
     expect(aiReplyService.generate).toHaveBeenCalledWith(expect.objectContaining({ orgId: ORG_A }));
   });
 
-  test('closing the temporary ticket and saving the session bind client and org', async () => {
-    aiReplyService.generate.mockResolvedValue({ action: 'reply', draftText: 'answer' });
+  // The session's ticket is no longer closed after each reply (ASY-09); an
+  // auto-sent answer moves it to 'waiting'. That write, like the session
+  // save, is bound to the client and organization.
+  test('updating the session ticket and saving the session bind client and org', async () => {
+    aiReplyService.generate.mockResolvedValue({ action: 'auto_sent', draftText: 'answer' });
     const res = await portal('post', '/api/v1/portal/chat/tok-own/message').send({ message: 'hi' });
     expect(res.status).toBe(200);
-    expect(T.tickets[0].status).toBe('closed');
-    const close = writesTo('tickets').find(w => /^\s*UPDATE/i.test(w.sql));
-    expect(close.sql).toMatch(/organization_id <=> \?/);
-    expect(close.params.slice(-2)).toEqual([10, ORG_A]);
+    const update = writesTo('tickets').find(w => /^\s*UPDATE/i.test(w.sql));
+    expect(update.sql).toMatch(/SET status = 'waiting'/);
+    expect(update.sql).toMatch(/organization_id <=> \?/);
+    expect(update.params.slice(1, 3)).toEqual([10, ORG_A]);
     const save = writesTo('portal_chat_sessions')[0];
     expect(save.sql).toMatch(/organization_id <=> \?/);
     expect(save.params.slice(-3)).toEqual([501, 10, ORG_A]);
