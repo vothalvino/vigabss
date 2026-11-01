@@ -19,6 +19,16 @@ const reportService = require('../src/services/reportService');
 const emailTransport = require('../src/services/emailTransport');
 const { parseJsonColumn } = require('../src/utils/jsonColumn');
 
+// Recipients must be staff who can view reports, and the creator must still be
+// allowed to schedule (ASY-14; covered in scheduledReportRecipients.test.js).
+const User = require('../src/models/User');
+beforeEach(() => {
+  jest.spyOn(User, 'getUsersWithPermission').mockResolvedValue([
+    { id: 8, email: 'ops@example.com' }, { id: 9, email: 'cfo@example.com' },
+  ]);
+  jest.spyOn(User, 'hasEffectivePermission').mockResolvedValue(true);
+});
+
 beforeEach(() => jest.clearAllMocks());
 
 test('parseJsonColumn accepts decoded values and JSON text', () => {
@@ -32,9 +42,11 @@ test('parseJsonColumn accepts decoded values and JSON text', () => {
 test('a schedule read from MySQL (decoded recipients and parameters) is mailed', async () => {
   const { runSchedule } = require('../src/services/scheduledReportService');
   reportService.agingReport.mockResolvedValue({ rows: [{ client: 'Ana', total: 10 }] });
-  db.query.mockResolvedValue([{ insertId: 5, affectedRows: 1 }]);
+  db.query.mockImplementation(async (sql) => (/FROM users WHERE id = \?/.test(sql)
+    ? [[{ id: 8, status: 'active' }]]
+    : [{ insertId: 5, affectedRows: 1 }]));
   await runSchedule({
-    id: 1, organization_id: 1, report_def_name: 'aging', format: 'csv', cron_expression: '0 8 * * 1',
+    id: 1, organization_id: 1, report_def_name: 'aging', format: 'csv', cron_expression: '0 8 * * 1', created_by: 8,
     parameters: { as_of: '2026-10-31' },
     recipients: ['ops@example.com', 'cfo@example.com'],
   });

@@ -40,6 +40,16 @@ const emailTransport = require('../src/services/emailTransport');
 const { runSchedule } = require('../src/services/scheduledReportService');
 const { escapeHtmlForTemplate } = require('../src/services/notificationService');
 
+// Recipients must be staff who can view reports, and the creator must still be
+// allowed to schedule (ASY-14; covered in scheduledReportRecipients.test.js).
+const User = require('../src/models/User');
+beforeEach(() => {
+  jest.spyOn(User, 'getUsersWithPermission').mockResolvedValue([
+    { id: 8, email: 'ops@example.com' }, { id: 9, email: 'cfo@example.com' },
+  ]);
+  jest.spyOn(User, 'hasEffectivePermission').mockResolvedValue(true);
+});
+
 describe('scheduledReportService.runSchedule', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -47,9 +57,11 @@ describe('scheduledReportService.runSchedule', () => {
 
   test('emails recipients with the report name embedded in subject and html', async () => {
     reportService.agingReport.mockResolvedValue({ rows: [{ client_id: 1, name: 'Alice', total: 100 }] });
-    db.query
-      .mockResolvedValueOnce([{ insertId: 5 }])       // INSERT INTO generated_reports
-      .mockResolvedValueOnce([{ affectedRows: 1 }]);  // UPDATE scheduled_reports
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM users WHERE id = \?/.test(sql)) return [[{ id: 8, status: 'active' }]]; // creator
+      if (/INSERT INTO generated_reports/.test(sql)) return [{ insertId: 5 }];
+      return [{ affectedRows: 1 }];                     // access log, UPDATE scheduled_reports
+    });
 
     const schedule = {
       id: 1,
@@ -58,6 +70,7 @@ describe('scheduledReportService.runSchedule', () => {
       format: 'csv',
       parameters: null,
       recipients: JSON.stringify(['ops@example.com']),
+      created_by: 8,
     };
 
     const result = await runSchedule(schedule);

@@ -29,9 +29,21 @@ const service = require('../src/services/scheduledReportService');
 
 const HOUR = 60 * 60 * 1000;
 
+// Recipients must be staff who can view reports, and the creator must still be
+// allowed to schedule (ASY-14; covered in scheduledReportRecipients.test.js).
+const User = require('../src/models/User');
+beforeEach(() => {
+  jest.spyOn(User, 'getUsersWithPermission').mockResolvedValue([
+    { id: 8, email: 'ops@example.com' }, { id: 9, email: 'cfo@example.com' },
+  ]);
+  jest.spyOn(User, 'hasEffectivePermission').mockResolvedValue(true);
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
-  db.query.mockResolvedValue([{ insertId: 9, affectedRows: 1 }]);
+  db.query.mockImplementation(async (sql) => (/FROM users WHERE id = \?/.test(sql)
+    ? [[{ id: 8, status: 'active' }]]
+    : [{ insertId: 9, affectedRows: 1 }]));
   db.queryReplica.mockResolvedValue([[{ id: 9 }]]);
 });
 
@@ -64,7 +76,7 @@ test('a completed weekly run is next due in days, not an hour', async () => {
   const before = Date.now();
   await service.runSchedule({
     id: 1, organization_id: 1, report_def_name: 'aging', format: 'csv',
-    cron_expression: '0 8 * * 1', parameters: null, recipients: [],
+    cron_expression: '0 8 * * 1', parameters: null, recipients: [], created_by: 8,
   });
   const [sql, params] = updateOf();
   expect(sql).not.toMatch(/INTERVAL 1 HOUR/);
@@ -79,8 +91,9 @@ test('a completed weekly run is next due in days, not an hour', async () => {
 test('a failed run also waits for its next slot', async () => {
   db.query.mockImplementation(async (sql) => {
     if (/FROM scheduled_reports sr/.test(sql)) {
-      return [[{ id: 2, organization_id: 1, report_def_name: 'nope', format: 'csv', cron_expression: '30 6 1 * *' }]];
+      return [[{ id: 2, organization_id: 1, report_def_name: 'nope', format: 'csv', cron_expression: '30 6 1 * *', created_by: 8 }]];
     }
+    if (/FROM users WHERE id = \?/.test(sql)) return [[{ id: 8, status: 'active' }]];
     return [{ affectedRows: 1 }];
   });
   const result = await service.processScheduledReports();

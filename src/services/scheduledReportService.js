@@ -26,6 +26,57 @@ function nextRunAt(cronExpression, from = new Date()) {
   return cronParser.parseExpression(cronExpression, { currentDate: from }).next().toDate();
 }
 
+const MAX_RECIPIENTS = 20;
+
+/**
+ * Who may receive an organization's scheduled reports: its active staff who
+ * can view reports. The attachment can carry subscriber identities, IPs and
+ * fiscal data, so an arbitrary external address is refused (ASY-14).
+ * @returns {Promise<Map<string, number>>} lower-cased email → user id
+ */
+async function allowedRecipients(organizationId) {
+  const User = require('../models/User');
+  const staff = await User.getUsersWithPermission(organizationId, 'reports.view');
+  return new Map(staff.filter(u => u.email).map(u => [String(u.email).toLowerCase(), u.id]));
+}
+
+/**
+ * Validate a recipients list for a schedule of `organizationId`.
+ * @returns {Promise<string[]>} the normalized addresses
+ */
+async function assertValidRecipients(organizationId, recipients) {
+  if (recipients === null || recipients === undefined) return [];
+  if (!Array.isArray(recipients) || recipients.length > MAX_RECIPIENTS
+    || !recipients.every(r => typeof r === 'string' && /^[^\s@]+@[^\s@]+$/.test(r.trim()))) {
+    throw new ValidationError(`recipients must be a list of at most ${MAX_RECIPIENTS} email addresses`);
+  }
+  const normalized = [...new Set(recipients.map(r => r.trim().toLowerCase()))];
+  const allowed = await allowedRecipients(organizationId);
+  const refused = normalized.filter(email => !allowed.has(email));
+  if (refused.length) {
+    throw new ValidationError(
+      `Scheduled reports can only be sent to active staff of this organization who can view reports: ${refused.join(', ')}`,
+    );
+  }
+  return normalized;
+}
+
+/**
+ * A schedule acts with its creator's authority: it stops when the creator is
+ * archived or inactive or no longer holds reports.schedule.
+ */
+async function creatorMayStillSchedule(schedule) {
+  if (!schedule.created_by) return false;
+  const User = require('../models/User');
+  const { runInPrimaryContext } = require('../utils/primaryContext');
+  const [[creator]] = await runInPrimaryContext(() => db.query(
+    'SELECT id, status FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+    [schedule.created_by],
+  ));
+  if (!creator || creator.status !== 'active') return false;
+  return User.hasEffectivePermission(creator.id, schedule.organization_id, 'reports.schedule');
+}
+
 /** Throws a 422 unless `cronExpression` is a five-field cron the scheduler can run. */
 function assertValidCron(cronExpression) {
   const valid = typeof cronExpression === 'string'
@@ -97,7 +148,22 @@ function safeNextRunAt(schedule) {
  */
 async function runSchedule(schedule) {
   const params = parseJsonColumn(schedule.parameters, {});
-  const recipients = parseJsonColumn(schedule.recipients, []);
+
+  if (!await creatorMayStillSchedule(schedule)) {
+    await db.query(
+      "UPDATE scheduled_reports SET is_enabled = 0, last_run_at = NOW(), last_status = 'failed' WHERE id = ?",
+      [schedule.id],
+    );
+    logger.warn({ scheduleId: schedule.id, createdBy: schedule.created_by },
+      'Scheduled report disabled: its creator is inactive or can no longer schedule reports');
+    return { reportId: null, recipients: 0, disabled: true };
+  }
+  // Re-checked at send time: a recipient who left or lost reports.view since
+  // the schedule was saved is dropped.
+  const allowed = await allowedRecipients(schedule.organization_id);
+  const recipients = parseJsonColumn(schedule.recipients, [])
+    .map(r => String(r).trim().toLowerCase())
+    .filter(email => allowed.has(email));
 
   // Generate report data
   const data = await generateReportData(schedule.organization_id, schedule.report_def_name, params);
@@ -131,6 +197,13 @@ async function runSchedule(schedule) {
             contentType,
           }],
         });
+        await db.query(
+          `INSERT INTO report_access_logs
+             (organization_id, user_id, report_type, entity_type, entity_id, parameters)
+           VALUES (?, ?, ?, 'scheduled_reports', ?, ?)`,
+          [schedule.organization_id, allowed.get(email), schedule.report_def_name, schedule.id,
+            JSON.stringify({ delivery: 'email', recipient: email, generated_report_id: reportId, created_by: schedule.created_by })],
+        );
       } catch (emailErr) {
         logger.warn({ emailErr, email }, 'Failed to email report');
       }
@@ -327,4 +400,5 @@ module.exports = {
   runOnDemand,
   nextRunAt,
   assertValidCron,
+  assertValidRecipients,
 };

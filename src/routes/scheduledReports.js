@@ -8,7 +8,7 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const db = require('../config/database');
 const { parseJsonColumn } = require('../utils/jsonColumn');
-const { nextRunAt, assertValidCron } = require('../services/scheduledReportService');
+const { nextRunAt, assertValidCron, assertValidRecipients } = require('../services/scheduledReportService');
 
 const router = Router();
 router.use(authenticate);
@@ -56,6 +56,7 @@ router.post('/', requirePermission('reports.schedule'), async (req, res, next) =
       return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'report_def_name is required' } });
     }
     assertValidCron(cron_expression);
+    const validRecipients = await assertValidRecipients(req.orgId, recipients);
 
     const [result] = await db.query(
       `INSERT INTO scheduled_reports
@@ -64,7 +65,7 @@ router.post('/', requirePermission('reports.schedule'), async (req, res, next) =
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.orgId, report_def_id, report_def_name, format,
         parameters ? JSON.stringify(parameters) : null,
-        recipients ? JSON.stringify(recipients) : null,
+        JSON.stringify(validRecipients),
         cron_expression, is_enabled ? 1 : 0, req.user.id, nextRunAt(cron_expression)],
     );
 
@@ -88,6 +89,7 @@ router.put('/:id', requirePermission('reports.schedule'), async (req, res, next)
     const { format, parameters, recipients, cron_expression, is_enabled } = req.body;
     // A new schedule takes effect from now, not after the old next_run_at.
     if (cron_expression !== undefined && cron_expression !== null) assertValidCron(cron_expression);
+    const validRecipients = recipients !== undefined ? await assertValidRecipients(req.orgId, recipients) : undefined;
     const nextRun = cron_expression ? nextRunAt(cron_expression) : null;
 
     await db.query(
@@ -102,7 +104,7 @@ router.put('/:id', requirePermission('reports.schedule'), async (req, res, next)
        WHERE id = ?`,
       [format ?? null,
         parameters !== undefined ? JSON.stringify(parameters) : null,
-        recipients !== undefined ? JSON.stringify(recipients) : null,
+        validRecipients !== undefined ? JSON.stringify(validRecipients) : null,
         cron_expression ?? null,
         nextRun,
         is_enabled !== undefined ? (is_enabled ? 1 : 0) : null,
