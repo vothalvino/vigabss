@@ -110,8 +110,18 @@ function fakeSql(sql, params = []) {
     return Promise.resolve([{ affectedRows: 1 }]);
   }
 
-  const from = text.match(/ FROM `?(\w+)`?/i);
-  const table = from && from[1];
+  // The outermost FROM: skip FROMs inside parenthesised subqueries in the
+  // select list (the portal invoice detail computes balance_due that way).
+  let depth = 0;
+  let table = null;
+  for (let i = 0; i < text.length && !table; i++) {
+    if (text[i] === '(') depth++;
+    else if (text[i] === ')') depth--;
+    else if (depth === 0) {
+      const m = /^ FROM `?(\w+)`?/i.exec(text.slice(i, i + 80));
+      if (m) table = m[1];
+    }
+  }
   if (!table || !tables[table]) return Promise.resolve([[]]);
 
   // Apply every `col = ?` / `col <=> ?` predicate of the OUTERMOST WHERE

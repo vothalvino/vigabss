@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
@@ -42,6 +42,9 @@ interface Invoice {
   status: string;
   notes: string | null;
   created_at: string;
+  balance_due?: number;
+  pending_checkout?: boolean;
+  has_cfdi?: boolean;
   items: InvoiceItem[];
   payments: Payment[];
 }
@@ -58,7 +61,8 @@ async function startPayment(invoiceId: number): Promise<{ payment_url: string }>
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ return_url: window.location.href }),
+    // Success and cancel both come back here, as ?payment=success|cancelled.
+    body: JSON.stringify({ return_url: `${window.location.origin}/portal/invoices/${invoiceId}` }),
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
@@ -67,14 +71,27 @@ async function startPayment(invoiceId: number): Promise<{ payment_url: string }>
   return (await res.json() as { data: { payment_url: string } }).data;
 }
 
+const POLL_MS = 5000;
+const POLL_FOR_MS = 2 * 60 * 1000;
+
 export function PortalInvoiceDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const paymentReturn = searchParams.get('payment'); // 'success' | 'cancelled' | null
   const [payError, setPayError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [returnedAt] = useState(() => Date.now());
 
+  // Back from the provider with ?payment=success: the webhook usually lands
+  // seconds later, so poll until the invoice is paid (for up to two minutes)
+  // instead of offering Pay Now again (FE-14).
   const { data: invoice, isLoading, error } = useQuery({
     queryKey: ['portal-invoice', id],
     queryFn: () => portalGet<Invoice>(`/invoices/${id}`),
     enabled: !!id,
+    refetchInterval: (query) => (paymentReturn === 'success'
+      && query.state.data?.status !== 'paid'
+      && Date.now() - returnedAt < POLL_FOR_MS ? POLL_MS : false),
   });
 
   const payMutation = useMutation({
@@ -90,21 +107,28 @@ export function PortalInvoiceDetail() {
   if (isLoading) return <p style={{ color: '#6b7280' }}>Loading…</p>;
   if (error || !invoice) return <p style={{ color: '#b91c1c' }}>Invoice not found.</p>;
 
-  const canPay = invoice.status === 'issued' || invoice.status === 'overdue';
+  const balanceDue = invoice.balance_due ?? Number(invoice.total);
+  const canPay = ['issued', 'sent', 'overdue'].includes(invoice.status) && balanceDue > 0.005;
+  const confirming = paymentReturn === 'success' && invoice.status !== 'paid';
 
+  // An error response (e.g. 404 "no stamped CFDI") used to be saved as the
+  // PDF/XML file itself (FE-14).
   function downloadFile(url: string, filename: string) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    // For auth headers we fetch as blob
+    setDownloadError(null);
     portalAuthedFetch(url)
-      .then(r => r.blob())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.blob();
+      })
       .then(blob => {
+        const a = document.createElement('a');
         const blobUrl = URL.createObjectURL(blob);
         a.href = blobUrl;
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(blobUrl);
-      });
+      })
+      .catch(() => setDownloadError('The file is not available right now. Please try again later.'));
   }
 
   return (
@@ -131,7 +155,16 @@ export function PortalInvoiceDetail() {
               {invoice.status.toUpperCase()}
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}>
-              {canPay && (
+              {paymentReturn === 'success' && invoice.status === 'paid' && (
+                <p role="status" style={styles.meta}>Payment received. Thank you!</p>
+              )}
+              {confirming && (
+                <p role="status" style={styles.meta}>We are confirming your payment with the payment provider. This page updates on its own.</p>
+              )}
+              {paymentReturn === 'cancelled' && invoice.status !== 'paid' && (
+                <p role="status" style={styles.meta}>The payment was not completed. You can try again.</p>
+              )}
+              {canPay && !confirming && (
                 <>
                   {payError && <p style={styles.payError}>{payError}</p>}
                   <button
@@ -139,22 +172,25 @@ export function PortalInvoiceDetail() {
                     disabled={payMutation.isPending}
                     style={styles.payBtn}
                   >
-                    {payMutation.isPending ? 'Processing…' : 'Pay Now'}
+                    {payMutation.isPending ? 'Processing…' : invoice.pending_checkout ? 'Continue payment' : 'Pay Now'}
                   </button>
                 </>
               )}
+              {downloadError && <p style={styles.payError}>{downloadError}</p>}
               <button
                 onClick={() => downloadFile(`${API_BASE}/invoices/${invoice.id}/pdf`, `invoice-${invoice.invoice_number}.pdf`)}
                 style={styles.dlBtn}
               >
                 Download PDF
               </button>
-              <button
-                onClick={() => downloadFile(`${API_BASE}/invoices/${invoice.id}/cfdi`, `cfdi-${invoice.invoice_number}.xml`)}
-                style={styles.dlBtn}
-              >
-                Download CFDI XML
-              </button>
+              {invoice.has_cfdi && (
+                <button
+                  onClick={() => downloadFile(`${API_BASE}/invoices/${invoice.id}/cfdi`, `cfdi-${invoice.invoice_number}.xml`)}
+                  style={styles.dlBtn}
+                >
+                  Download CFDI XML
+                </button>
+              )}
             </div>
           </div>
         </div>

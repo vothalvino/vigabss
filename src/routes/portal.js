@@ -83,6 +83,7 @@ const whatsappService = require('../services/whatsappService');
 const config = require('../config');
 const logger = require('../utils/logger');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
+const { creditAppliedSql } = require('../utils/invoiceBalance');
 const radiusService = require('../services/radiusService');
 
 const router = Router();
@@ -430,6 +431,11 @@ router.delete('/autopay', async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // GET /portal/invoices — list own invoices (paginated)
+// An issued or sent invoice past its due date shows (and filters) as overdue,
+// the same derivation as the staff invoice list (FE-14).
+const PORTAL_PAST_DUE_SQL = "(i.status IN ('issued', 'sent', 'overdue') AND i.due_date < CURDATE())";
+const PORTAL_STATUS_SQL = `CASE WHEN ${PORTAL_PAST_DUE_SQL} THEN 'overdue' ELSE i.status END AS status`;
+
 router.get('/invoices', async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
@@ -448,7 +454,14 @@ router.get('/invoices', async (req, res, next) => {
     let whereClause = 'WHERE i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL';
     const params = [req.client.id, req.client.organizationId];
 
-    if (status) {
+    // 'overdue' is derived, never stored (see routes/invoices.js): filtering
+    // on the column returned nothing and past-due invoices read ISSUED (FE-14).
+    if (status === 'overdue') {
+      whereClause += ` AND ${PORTAL_PAST_DUE_SQL}`;
+    } else if (status === 'issued' || status === 'sent') {
+      whereClause += ` AND i.status = ? AND NOT ${PORTAL_PAST_DUE_SQL}`;
+      params.push(status);
+    } else if (status) {
       whereClause += ' AND i.status = ?';
       params.push(status);
     }
@@ -463,7 +476,7 @@ router.get('/invoices', async (req, res, next) => {
     // joining, so list and count are always consistent.
     const [rows] = await db.query(
       `SELECT i.id, i.invoice_number, i.subtotal, i.tax_amount, i.total,
-              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, i.status, i.created_at
+              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, ${PORTAL_STATUS_SQL}, i.created_at
        FROM invoices i
        LEFT JOIN (
          SELECT invoice_id, period_start, period_end,
@@ -500,7 +513,16 @@ router.get('/invoices/:id', async (req, res, next) => {
     // no UNIQUE constraint of its own).
     const [rows] = await db.query(
       `SELECT i.id, i.invoice_number, i.subtotal, i.tax_amount, i.total,
-              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, i.status, i.notes, i.created_at
+              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, ${PORTAL_STATUS_SQL}, i.notes, i.created_at,
+              (i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
+                                    WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
+                       - ${creditAppliedSql('i')}) AS balance_due,
+              EXISTS (SELECT 1 FROM payment_transactions pt
+                       WHERE pt.invoice_id = i.id AND pt.organization_id <=> i.organization_id
+                         AND pt.gateway_status = 'pending' AND pt.payment_id IS NULL) AS pending_checkout,
+              EXISTS (SELECT 1 FROM cfdi_documents cd
+                       WHERE cd.invoice_id = i.id AND cd.organization_id <=> i.organization_id
+                         AND cd.sat_status = 'vigente') AS has_cfdi
        FROM invoices i
        LEFT JOIN (
          SELECT invoice_id, period_start, period_end,
@@ -532,7 +554,16 @@ router.get('/invoices/:id', async (req, res, next) => {
       [req.params.id],
     );
 
-    res.json({ data: { ...rows[0], items, payments } });
+    res.json({
+      data: {
+        ...rows[0],
+        balance_due: Math.max(0, Math.round(Number(rows[0].balance_due || 0) * 100) / 100),
+        pending_checkout: Boolean(Number(rows[0].pending_checkout)),
+        has_cfdi: Boolean(Number(rows[0].has_cfdi)),
+        items,
+        payments,
+      },
+    });
   } catch (err) {
     next(err);
   }

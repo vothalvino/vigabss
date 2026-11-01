@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
@@ -48,6 +48,9 @@ const STATUS_LABELS: Record<string, string> = {
 export function PortalInvoices() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
+  // Fallback return target of a checkout started without a return page (FE-14).
+  const [searchParams] = useSearchParams();
+  const paymentReturn = searchParams.get('payment');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['portal-invoices', page, statusFilter],
@@ -61,6 +64,10 @@ export function PortalInvoices() {
     <div>
       <div style={styles.header}>
         <h1 style={styles.heading}>🧾 My Invoices</h1>
+        {paymentReturn === 'success' && (
+          <p role="status">Thank you — we are confirming your payment. The invoice shows as paid once the provider confirms it.</p>
+        )}
+        {paymentReturn === 'cancelled' && <p role="status">The payment was not completed. You can try again from the invoice.</p>}
         <select
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
