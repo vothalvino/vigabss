@@ -1126,6 +1126,17 @@ router.get('/payments', async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // GET /portal/service-requests — list own requests
+// GET /portal/service-requests/plan-options — plans this subscriber may
+// request a change to (the plan picker on the account page).
+router.get('/service-requests/plan-options', async (req, res, next) => {
+  try {
+    const plans = await portalServiceRequestService.listUpgradePlans(req.client.id, req.client.organizationId);
+    res.json({ data: plans });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/service-requests', async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));

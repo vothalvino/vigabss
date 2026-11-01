@@ -45624,6 +45624,32 @@
         }
       }
     },
+    "/portal/service-requests/plan-options": {
+      "get": {
+        "tags": [
+          "Portal Service Requests"
+        ],
+        "summary": "Plans this subscriber may request a change to (active org or global plans, minus the current one)",
+        "operationId": "portalListPlanOptions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/portal/service-requests/{id}/cancel": {
       "post": {
         "tags": [

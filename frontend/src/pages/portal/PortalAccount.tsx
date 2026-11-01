@@ -22,6 +22,16 @@ interface ServiceRequest {
   created_at: string;
 }
 
+interface PlanOption {
+  id: number;
+  name: string;
+  price: string;
+  currency: string;
+  billing_cycle: string;
+  download_speed_mbps: number;
+  upload_speed_mbps: number;
+}
+
 interface WaLink {
   id: number;
   phone: string;
@@ -74,6 +84,14 @@ export function PortalAccount() {
   const { data: reqData, isLoading } = useQuery({
     queryKey: ['portal-service-requests'],
     queryFn: () => portalFetch<{ data: ServiceRequest[] }>('/service-requests?limit=50'),
+  });
+
+  // The plans the subscriber may move to, picked from a list instead of a
+  // typed plan id (BIL-23).
+  const { data: planOptions } = useQuery({
+    queryKey: ['portal-plan-options'],
+    queryFn: () => portalFetch<{ data: PlanOption[] }>('/service-requests/plan-options'),
+    enabled: reqType === 'plan_upgrade',
   });
 
   const createMutation = useMutation({
@@ -280,14 +298,20 @@ export function PortalAccount() {
           {/* Dynamic payload fields per request type */}
           {reqType === 'plan_upgrade' && (
             <div style={styles.formGroup}>
-              <label style={styles.label}>{t('portalAccount.newPlanId')}</label>
-              <input
-                type="number"
+              <label style={styles.label} htmlFor="portal-new-plan">{t('portalAccount.newPlanId')}</label>
+              <select
+                id="portal-new-plan"
                 value={payload.new_plan_id ?? ''}
                 onChange={e => setPayload(p => ({ ...p, new_plan_id: e.target.value }))}
                 style={styles.input}
-                placeholder={t('portalAccount.newPlanIdPlaceholder')}
-              />
+              >
+                <option value="">{t('portalAccount.newPlanIdPlaceholder')}</option>
+                {(planOptions?.data ?? []).map(plan => (
+                  <option key={plan.id} value={String(plan.id)}>
+                    {`${plan.name} — ${plan.download_speed_mbps}/${plan.upload_speed_mbps} Mbps — ${plan.price} ${plan.currency}`}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

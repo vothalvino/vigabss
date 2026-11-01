@@ -2463,6 +2463,9 @@ function generateSpec() {
         get: { tags: ['Portal Service Requests'], summary: 'List own service requests', operationId: 'portalListServiceRequests', security: [{ bearerAuth: [] }], responses: r200('PortalServiceRequest[]') },
         post: { tags: ['Portal Service Requests'], summary: 'Submit a new self-service request', operationId: 'portalCreateServiceRequest', security: [{ bearerAuth: [] }], requestBody: jsonBody('request_type + payload'), responses: r201('PortalServiceRequest') },
       },
+      '/portal/service-requests/plan-options': {
+        get: { tags: ['Portal Service Requests'], summary: 'Plans this subscriber may request a change to (active org or global plans, minus the current one)', operationId: 'portalListPlanOptions', security: [{ bearerAuth: [] }], responses: r200('Plan[]') },
+      },
       '/portal/service-requests/{id}/cancel': {
         post: { tags: ['Portal Service Requests'], summary: 'Cancel a pending service request', operationId: 'portalCancelServiceRequest', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('PortalServiceRequest') },
       },
