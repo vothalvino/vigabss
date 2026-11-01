@@ -3130,7 +3130,7 @@ function generateSpec() {
         get: { tags: ['Analytics'], summary: 'List detected traffic anomalies (heuristic z-score)', operationId: 'listAnalyticsAnomalies', security: [{ bearerAuth: [] }], responses: r200('Anomaly[]') },
       },
       '/analytics/anomalies/detect': {
-        post: { tags: ['Analytics'], summary: 'Run z-score anomaly detection now (heuristic)', operationId: 'detectAnomalies', security: [{ bearerAuth: [] }], responses: r200('AnomalyDetectionResult') },
+        post: { tags: ['Analytics'], summary: 'Run z-score anomaly detection now (heuristic); needs analytics_anomalies.acknowledge', operationId: 'detectAnomalies', parameters: [{ name: 'window', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 2000, default: 48 }, description: 'Samples per device for the baseline; values above 2000 are capped' }], security: [{ bearerAuth: [] }], responses: r200('AnomalyDetectionResult') },
       },
       '/analytics/anomalies/{id}/acknowledge': {
         post: { tags: ['Analytics'], summary: 'Acknowledge an anomaly detection', operationId: 'acknowledgeAnomaly', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Anomaly') },

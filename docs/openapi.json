@@ -56071,8 +56071,22 @@
         "tags": [
           "Analytics"
         ],
-        "summary": "Run z-score anomaly detection now (heuristic)",
+        "summary": "Run z-score anomaly detection now (heuristic); needs analytics_anomalies.acknowledge",
         "operationId": "detectAnomalies",
+        "parameters": [
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2000,
+              "default": 48
+            },
+            "description": "Samples per device for the baseline; values above 2000 are capped"
+          }
+        ],
         "security": [
           {
             "bearerAuth": []

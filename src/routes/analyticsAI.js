@@ -44,8 +44,10 @@ router.get('/anomalies', requirePermission('analytics_anomalies.view'), async (r
   } catch (err) { next(err); }
 });
 
-// POST /analytics/anomalies/detect — run anomaly detection now
-router.post('/anomalies/detect', requirePermission('analytics_anomalies.view'), async (req, res, next) => {
+// POST /analytics/anomalies/detect — run anomaly detection now. It writes
+// analytics_anomalies rows and scans every device, so it needs the same
+// grant as acting on anomalies, not merely seeing them (TNA-36).
+router.post('/anomalies/detect', requirePermission('analytics_anomalies.acknowledge'), async (req, res, next) => {
   try {
     const { window } = req.query;
     const result = await analyticsService.detectAnomalies(req.orgId, { window: window ? parseInt(window, 10) : 48 });
