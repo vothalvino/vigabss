@@ -239,6 +239,9 @@ secrets:
 ## Prometheus monitoring resources (requires Prometheus Operator CRDs).
 monitoring:
   enabled: false
+  # The high-memory alert threshold, in MiB: 85% of resources.limits.memory.
+  # Raise it with the limit, or the alert sits above the OOM-kill point.
+  memoryAlertMiB: 435
 
 ## Sigstore cosign policy (requires policy-controller CRDs).
 cosignPolicy:

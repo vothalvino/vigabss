@@ -21,7 +21,10 @@ const jwt = require('jsonwebtoken');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const User = require('../src/models/User');
-const { latencySamples, MAX_SERIES } = require('../src/routes/metrics');
+const { httpDuration, MAX_SERIES } = require('../src/routes/metrics');
+
+// The latency histogram's series, as { method, path }.
+const series = () => [...httpDuration.series.map.values()].map(({ values: [method, path] }) => ({ method, path }));
 const app = require('../src/app');
 
 const ENV = { ...process.env };
@@ -31,7 +34,7 @@ afterEach(() => {
   else process.env.METRICS_TOKEN = ENV.METRICS_TOKEN;
 });
 beforeEach(() => {
-  latencySamples.clear();
+  httpDuration.reset();
   db.query.mockReset();
   db.query.mockImplementation(async (sql) => (/COUNT\(\*\)/.test(sql) ? [[{ total: 0 }]] : [[]]));
   User.findById.mockResolvedValue({ id: 1, email: 'u@test.com', status: 'active', role: 'admin', organization_id: 1 });
@@ -42,27 +45,28 @@ describe('series', () => {
     for (let i = 0; i < 1000; i++) {
       await request(app).post(`/random-${i}-${'x'.repeat(200)}`);
     }
-    const paths = [...latencySamples.values()].map(s => s.path);
+    const paths = series().map(s => s.path);
     expect(paths).toEqual(['unmatched']);
   });
 
   test('a matched request is labelled by its full route template', async () => {
     const token = jwt.sign({ sub: 1, email: 'u@test.com', role: 'admin', orgId: 1 }, config.jwt.secret, { expiresIn: '1h' });
     await request(app).get('/api/v1/onu-management/profiles/5').set('Authorization', `Bearer ${token}`);
-    expect([...latencySamples.values()].map(s => s.path)).toContain('/api/v1/onu-management/profiles/:id');
+    expect(series().map(s => s.path)).toContain('/api/v1/onu-management/profiles/:id');
   });
 
   test('past the cap, new series share one overflow series', async () => {
-    for (let i = 0; i < MAX_SERIES; i++) latencySamples.set(`GET /prefill/${i}`, { method: 'GET', path: `/prefill/${i}`, samples: [] });
+    for (let i = 0; i < MAX_SERIES; i++) httpDuration.observe({ method: 'GET', path: `/prefill/${i}` }, 0.001);
     await request(app).get('/healthz');
     await request(app).post('/nowhere');
-    expect(latencySamples.size).toBe(MAX_SERIES + 2); // GET and POST overflow series, nothing else
-    expect([...latencySamples.values()].filter(s => s.path === '__other__').map(s => s.method).sort()).toEqual(['GET', 'POST']);
+    // One overflow series for everything past the cap, nothing else.
+    expect(httpDuration.series.map.size).toBe(MAX_SERIES + 1);
+    expect(series().filter(s => s.path === '__other__')).toHaveLength(1);
   });
 
   test('an unknown method does not create its own series', async () => {
     await request(app).search('/whatever');
-    expect([...latencySamples.values()].map(s => s.method)).toEqual(['OTHER']);
+    expect(series().map(s => s.method)).toEqual(['OTHER']);
   });
 });
 
