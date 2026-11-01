@@ -126,13 +126,16 @@ async function generateRepForAllocation(paymentId, invoiceId, allocatedAmount, o
 
     // Parcialidad chain: prior non-cancelled REP items against this CFDI UUID.
     // saldo_ant = invoice CFDI total minus everything already REP-reported.
+    // Only this org's REPs count: a REP another tenant filed citing this UUID
+    // must not use up this invoice's balance (CFD-08).
     const [[prior]] = await conn.execute(
       `SELECT COUNT(*) AS n, COALESCE(SUM(pci.imp_pagado), 0) AS pagado
          FROM cfdi_payment_complement_items pci
          JOIN cfdi_payment_complements pc ON pc.id = pci.complement_id
          JOIN cfdi_documents d ON d.id = pc.cfdi_document_id
-        WHERE pci.related_cfdi_uuid = ? AND d.sat_status IN ('draft', 'vigente', 'cancel_pending')`,
-      [invoiceCfdi.uuid],
+        WHERE pci.related_cfdi_uuid = ? AND d.organization_id = ?
+          AND d.sat_status IN ('draft', 'vigente', 'cancel_pending')`,
+      [invoiceCfdi.uuid, orgId],
     );
     numParcialidad = Number(prior.n) + 1;
     saldoAnt = Math.max(0, Math.round((Number(invoiceCfdi.total) - Number(prior.pagado)) * 100) / 100);

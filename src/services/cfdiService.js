@@ -1076,9 +1076,12 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null) {
        JOIN cfdi_payment_complements pc ON pc.id = pci.complement_id
        JOIN cfdi_documents d ON d.id = pc.cfdi_document_id
       WHERE pci.related_cfdi_uuid = ?
+        AND d.organization_id = ?
         AND d.sat_status IN ('vigente', 'cancel_pending')
       LIMIT 1`,
-    [doc.uuid],
+    // Scoped to the CFDI's own org, so another tenant's REP citing this UUID
+    // cannot block its cancellation (CFD-08).
+    [doc.uuid, doc.organization_id],
   );
   if (liveReps.length > 0) {
     throw new AppError(
