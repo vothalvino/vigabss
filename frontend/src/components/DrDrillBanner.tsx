@@ -76,13 +76,14 @@ export function DrDrillBanner() {
   const { t } = useTranslation();
   const [dismissed, setDismissedState] = useState(() => isDismissed());
 
-  // Only fetch for admin users
-  const isAdmin = user?.role === 'admin';
+  // The drill status is install-wide, so only the install operator sees it.
+  // Backend-resolved (GET /auth/me) — see AuthUser.is_install_operator.
+  const isInstallOperator = user?.is_install_operator === true;
 
   const { data: drStatus } = useQuery<DrDrillStatus>({
     queryKey: ['dr-drill-status'],
     queryFn: fetchDrillStatus,
-    enabled: isAdmin && !dismissed,
+    enabled: isInstallOperator && !dismissed,
     // Stale after 10 minutes — this is a slow-moving metric
     staleTime: 10 * 60 * 1000,
     // Don't retry on error — quietly skip if endpoint is unavailable
@@ -95,7 +96,7 @@ export function DrDrillBanner() {
     setDismissedState(isDismissed());
   }, []);
 
-  if (!isAdmin) return null;
+  if (!isInstallOperator) return null;
   if (dismissed) return null;
   if (!drStatus) return null;
   if (!drStatus.overdue) return null;

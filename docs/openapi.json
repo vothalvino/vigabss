@@ -24258,7 +24258,7 @@
         "tags": [
           "DR Drill"
         ],
-        "summary": "Get latest disaster-recovery drill status",
+        "summary": "Get latest disaster-recovery drill status (install operator only)",
         "operationId": "getDrDrillStatus",
         "security": [
           {
@@ -24284,7 +24284,7 @@
         "tags": [
           "DR Drill"
         ],
-        "summary": "Get the disaster-recovery runbook document (markdown)",
+        "summary": "Get the disaster-recovery runbook document (markdown; install operator only)",
         "operationId": "getDrDrillRunbook",
         "security": [
           {
@@ -60362,9 +60362,6 @@
           "reason": {
             "type": "string",
             "minimum": 1
-          },
-          "approved_by": {
-            "type": "number"
           }
         },
         "required": [
@@ -62358,6 +62355,10 @@
             "type": "string",
             "maximum": 100
           },
+          "acs_password": {
+            "type": "string",
+            "maximum": 128
+          },
           "device_id": {
             "type": "number",
             "minimum": 1
@@ -62442,6 +62443,10 @@
           "acs_username": {
             "type": "string",
             "maximum": 100
+          },
+          "acs_password": {
+            "type": "string",
+            "maximum": 128
           },
           "device_id": {
             "type": "number",

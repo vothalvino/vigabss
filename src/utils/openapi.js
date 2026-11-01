@@ -1173,8 +1173,8 @@ function generateSpec() {
       '/dsar/clients/{id}': { get: { tags: ['DSAR'], summary: 'Export all personal data held for a client', operationId: 'exportClientDsar', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DSAR export document') } },
 
       // ---- DR Drill ----
-      '/dr-drill/status': { get: { tags: ['DR Drill'], summary: 'Get latest disaster-recovery drill status', operationId: 'getDrDrillStatus', security: [{ bearerAuth: [] }], responses: r200('DR drill status') } },
-      '/dr-drill/runbook': { get: { tags: ['DR Drill'], summary: 'Get the disaster-recovery runbook document (markdown)', operationId: 'getDrDrillRunbook', security: [{ bearerAuth: [] }], responses: r200('DR runbook markdown') } },
+      '/dr-drill/status': { get: { tags: ['DR Drill'], summary: 'Get latest disaster-recovery drill status (install operator only)', operationId: 'getDrDrillStatus', security: [{ bearerAuth: [] }], responses: r200('DR drill status') } },
+      '/dr-drill/runbook': { get: { tags: ['DR Drill'], summary: 'Get the disaster-recovery runbook document (markdown; install operator only)', operationId: 'getDrDrillRunbook', security: [{ bearerAuth: [] }], responses: r200('DR runbook markdown') } },
 
       // ---- Export ----
       '/export/invoices': { get: { tags: ['Export'], summary: 'Export invoices as CSV', operationId: 'exportInvoices', security: [{ bearerAuth: [] }], parameters: [{ name: 'include_deleted', in: 'query', required: false, schema: { type: 'boolean' }, description: 'Include soft-deleted rows (default false)' }], responses: r200File('text/csv') } },

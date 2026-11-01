@@ -297,7 +297,7 @@ fails closed. A role is not expressible as a scope, so `requireRole` admits
 only that sentinel — in practice role-gated admin routes (SSO configuration,
 FireRelay nodes) refuse API tokens.
 Installation-wide infrastructure (FireRelay node registry and tunnel commands,
-backup settings, system version) is gated on the install operator
+backup settings, DR-drill status and runbook, system version) is gated on the install operator
 (`src/services/installOperator.js`), never on a tenant admin/owner role.
 GraphQL must maintain permission parity with equivalent
 REST operations through `src/graphql/authz.js` and the field maps in
