@@ -40,4 +40,47 @@ function defaultUsoCfdi(regimen) {
   return usoCfdiAllowed('G03', regimen) ? 'G03' : 'S01';
 }
 
-module.exports = { FORMA_PAGO_BY_METHOD, usoCfdiAllowed, defaultUsoCfdi };
+// CFDI 4.0 XSD text patterns are [^|]{1,n}, and XML 1.0 forbids most C0
+// control characters; either makes the PAC reject the document (CFD-12).
+// eslint-disable-next-line no-control-regex
+const CFDI_FORBIDDEN_CHARS = /[|\u0000-\u001F\u007F]/;
+const NOMBRE_MAX = 254;
+const DESCRIPCION_MAX = 1000;
+
+/** Text safe for a CFDI attribute: '|' becomes '/', control characters go. */
+function cfdiText(value, max = DESCRIPCION_MAX) {
+  // eslint-disable-next-line no-control-regex
+  const clean = String(value ?? '').replace(/\|/g, '/').replace(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+  return clean.slice(0, max);
+}
+
+/** Why a fiscal Nombre (razón social) cannot be filed, or null when it can. */
+function nombreProblem(value) {
+  const text = String(value ?? '');
+  if (text.length > NOMBRE_MAX) return `is ${text.length} characters; SAT allows at most ${NOMBRE_MAX}`;
+  if (CFDI_FORBIDDEN_CHARS.test(text)) return "contains '|' or a control character, which SAT does not accept";
+  return null;
+}
+
+// c_TasaOCuota for IVA traslado (Tasa): 16%, the 8% border-zone rate, 0%.
+const IVA_RATES = [0.16, 0.08, 0];
+
+/**
+ * The catalog IVA rate an invoice rate stands for, or null. A rate derived
+ * back from tax_amount / subtotal drifts by the cent rounding of the tax
+ * (1.60 / 10.03 = 0.1595, 1.61 / 10 = 0.161); within 0.15 of a point it is
+ * that catalog rate, beyond it (12%, 17%) it is not a rate SAT has.
+ */
+const IVA_RATE_TOLERANCE = 0.0015;
+function catalogIvaRate(rate) {
+  const r = Number(rate);
+  if (!Number.isFinite(r)) return null;
+  const match = IVA_RATES.find(c => Math.abs(c - r) <= IVA_RATE_TOLERANCE);
+  return match === undefined ? null : match;
+}
+
+module.exports = {
+  FORMA_PAGO_BY_METHOD, usoCfdiAllowed, defaultUsoCfdi,
+  CFDI_FORBIDDEN_CHARS, NOMBRE_MAX, cfdiText, nombreProblem, catalogIvaRate,
+};

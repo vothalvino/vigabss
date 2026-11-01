@@ -14,6 +14,7 @@ const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
 const { timeZoneForPostalCode, DEFAULT_TIME_ZONE } = require('../utils/mxTimeZone');
+const { cfdiText } = require('../utils/satCatalogs');
 
 // ---------------------------------------------------------------------------
 // Simple circuit breaker for PAC stamping calls
@@ -405,7 +406,7 @@ function buildCfdi40Xml(doc, emisor, conceptos, impuestos, relacionados = []) {
     // Amounts at the precision they were computed with, not the DECIMAL(x,4)
     // column scale: Anexo 20 derives each limit from the decimals written
     // ("824.1900" narrows it), CFD-03.
-    return `    <cfdi:Concepto ClaveProdServ="${c.clave_prod_serv || ''}"${noIdent} Cantidad="${formatQuantity(c.cantidad)}" ClaveUnidad="${c.clave_unidad || ''}" Descripcion="${escapeXml(c.descripcion || '')}" ValorUnitario="${formatUnitValue(c.valor_unitario)}" Importe="${formatMoney(c.importe)}" ObjetoImp="${c.objeto_imp || '02'}">${taxesXml}
+    return `    <cfdi:Concepto ClaveProdServ="${c.clave_prod_serv || ''}"${noIdent} Cantidad="${formatQuantity(c.cantidad)}" ClaveUnidad="${c.clave_unidad || ''}" Descripcion="${escapeXml(cfdiText(c.descripcion || ''))}" ValorUnitario="${formatUnitValue(c.valor_unitario)}" Importe="${formatMoney(c.importe)}" ObjetoImp="${c.objeto_imp || '02'}">${taxesXml}
     </cfdi:Concepto>`;
   }).join('\n');
 

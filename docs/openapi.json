@@ -61562,7 +61562,8 @@
           "razon_social": {
             "type": "string",
             "minimum": 1,
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]+$"
           },
           "regimen_fiscal": {
             "type": "string",
@@ -70537,7 +70538,8 @@
           "razon_social": {
             "type": "string",
             "minimum": 1,
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]+$"
           },
           "regimen_fiscal": {
             "type": "string",

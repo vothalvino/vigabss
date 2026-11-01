@@ -430,7 +430,7 @@ function LeadFormModal({
               <input style={inputStyle} type="text" maxLength={18} value={form.curp ?? ''}
                 onChange={e => setForm(p => ({ ...p, curp: e.target.value.toUpperCase() }))} />
               <label style={labelStyle}>Razón social</label>
-              <input style={inputStyle} type="text" maxLength={300} value={form.razon_social ?? ''}
+              <input style={inputStyle} type="text" maxLength={254} value={form.razon_social ?? ''}
                 onChange={e => setForm(p => ({ ...p, razon_social: e.target.value }))} />
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>

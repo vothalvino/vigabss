@@ -29,7 +29,9 @@ const Invoice = require('../models/Invoice');
 const { invoiceTaxFraction } = require('./billingService');
 const { AppError } = require('../utils/errors');
 const { allocateLineTaxes } = require('../utils/cfdiAmounts');
-const { FORMA_PAGO_BY_METHOD, usoCfdiAllowed, defaultUsoCfdi } = require('../utils/satCatalogs');
+const {
+  FORMA_PAGO_BY_METHOD, usoCfdiAllowed, defaultUsoCfdi, cfdiText, nombreProblem, catalogIvaRate,
+} = require('../utils/satCatalogs');
 const cfdiService = require('./cfdiService');
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'invoiceCfdi' });
@@ -177,7 +179,23 @@ async function resolveStampInputs(exec, invoiceId, orgId, opts) {
   // invoices (a stored '8' means 8%) — normalize to a fraction exactly like
   // every other totals path (billingService.invoiceTaxFraction), otherwise the
   // per-line IVA math explodes and tasa_o_cuota stores a non-catalog rate.
-  const taxRate = invoiceTaxFraction(Number(invoice.tax_rate || 0));
+  // It must also be a c_TasaOCuota value: a rate back-derived from
+  // tax_amount / subtotal snaps to the catalog rate it stands for, and any
+  // other value is refused here, before a folio is spent (CFD-12).
+  const taxRate = catalogIvaRate(invoiceTaxFraction(Number(invoice.tax_rate || 0)));
+  if (taxRate === null) {
+    throw new AppError(
+      `The invoice tax rate (${(invoiceTaxFraction(Number(invoice.tax_rate || 0)) * 100).toFixed(4)}%) is not an IVA rate SAT accepts (16%, 8% or 0%). Correct the invoice's tax rate before stamping.`,
+      422, 'CFDI_TASA_NOT_IN_CATALOG',
+    );
+  }
+  const receptorNameProblem = nombreProblem(receptor.razon_social);
+  if (receptorNameProblem) {
+    throw new AppError(
+      `The client's fiscal name (razón social) ${receptorNameProblem}. Correct it in the client's MX fiscal profile.`,
+      422, 'CFDI_NOMBRE_INVALID',
+    );
+  }
   // An IVA-exempt client (invoice tax_rate = 0 because billingService zero-rated
   // it) must be represented as ObjetoImp='02' + a TipoFactor='Exento' traslado —
   // NOT ObjetoImp='01' (no object of tax). A telecom service IS an object of IVA;
@@ -211,6 +229,13 @@ async function stampInvoice(invoiceId, orgId, opts = {}) {
   // fix the CLIENT profile instead. That is the most common first-run failure
   // and pointing it at the wrong thing costs two support round-trips.
   const emisor = await cfdiService.getEmisorProfile(orgId);
+  const emisorNameProblem = nombreProblem(emisor?.razon_social);
+  if (emisorNameProblem) {
+    throw new AppError(
+      `The organization's fiscal name (razón social) ${emisorNameProblem}. Correct it under Organization → Fiscal (SAT).`,
+      422, 'CFDI_NOMBRE_INVALID',
+    );
+  }
 
   // Pre-flight, on the pool. Its job is to reject bad requests BEFORE a row
   // lock is taken — an unstampable status, a missing fiscal profile, no line
@@ -317,7 +342,8 @@ async function stampInvoice(invoiceId, orgId, opts = {}) {
         [docId,
           item.clave_prod_serv || DEFAULT_CLAVE_PROD_SERV,
           item.clave_unidad || DEFAULT_CLAVE_UNIDAD,
-          Number(item.quantity || 1), item.description || '',
+          // '|' and control characters break the CFDI XSD (CFD-12).
+          Number(item.quantity || 1), cfdiText(item.description || '') || 'Servicio',
           Number(item.unit_price || 0), importe, objetoImp],
       );
 

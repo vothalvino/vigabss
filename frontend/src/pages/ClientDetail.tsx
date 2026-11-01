@@ -1039,7 +1039,7 @@ function MxProfileModal({
             <label style={labelStyle}>RFC *</label>
             <input style={inputStyle} value={form.rfc} onChange={set('rfc')} maxLength={13} />
             <label style={labelStyle}>Razón social *</label>
-            <input style={inputStyle} value={form.razon_social} onChange={set('razon_social')} />
+            <input style={inputStyle} maxLength={254} value={form.razon_social} onChange={set('razon_social')} />
             <div style={twoCol}>
               <div>
                 <label style={labelStyle}>Régimen fiscal *</label>

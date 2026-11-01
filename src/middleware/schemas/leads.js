@@ -26,7 +26,9 @@ const createLead = {
   // client fiscal profile on conversion when the org is MX-locale.
   rfc: { type: 'string', max: 13 },
   curp: { type: 'string', max: 18 },
-  razon_social: { type: 'string', max: 300 },
+  // Becomes the client's CFDI Nombre on conversion (CFD-12).
+  // eslint-disable-next-line no-control-regex
+  razon_social: { type: 'string', max: 254, pattern: /^[^|\u0000-\u001F\u007F]*$/ },
   regimen_fiscal: { type: 'string', max: 3 },
   codigo_postal_fiscal: { type: 'string', max: 5 },
   notes: { type: 'string', max: 65535 },

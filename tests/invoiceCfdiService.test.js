@@ -197,6 +197,48 @@ describe('stampInvoice — conversion', () => {
     expect(cfdiService.stamp).not.toHaveBeenCalled();
   });
 
+  // CFD-12: refused before a folio is spent, not by the PAC.
+  test('a non-catalog IVA rate is refused before conversion', async () => {
+    Invoice.findByIdOrFail.mockResolvedValue({ ...INVOICE, tax_rate: '0.1200' });
+    await expect(invoiceCfdiService.stampInvoice(60, 1)).rejects.toMatchObject({ statusCode: 422, code: 'CFDI_TASA_NOT_IN_CATALOG' });
+    expect(db.getConnection).not.toHaveBeenCalled();
+  });
+
+  test('a drifted back-derived rate is filed as the catalog rate', async () => {
+    Invoice.findByIdOrFail.mockResolvedValue({ ...INVOICE, tax_rate: '0.1595' });
+    const conn = makeConn();
+    db.getConnection.mockResolvedValue(conn);
+    await invoiceCfdiService.stampInvoice(60, 1).catch(() => {});
+    const tasa = conn.executed.filter(([sql]) => sql.includes('INSERT INTO cfdi_concepto_impuestos')).map(([, p]) => p[2]);
+    expect(tasa.length).toBeGreaterThan(0);
+    expect(tasa.every(t => t === '0.160000')).toBe(true);
+  });
+
+  test('a description with | and control characters is cleaned before filing', async () => {
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM cfdi_documents/.test(sql)) return [[]];
+      if (/FROM client_mx_profiles/.test(sql)) return [[{ ...RECEPTOR }]];
+      if (/FROM invoice_items/.test(sql)) return [[{ ...ITEMS[0], description: 'Internet | 100M\u0007' }]];
+      return [[]];
+    });
+    Invoice.findByIdOrFail.mockResolvedValue({ ...INVOICE, subtotal: '500.00', tax_amount: '80.00', total: '580.00' });
+    const conn = makeConn();
+    db.getConnection.mockResolvedValue(conn);
+    await invoiceCfdiService.stampInvoice(60, 1).catch(() => {});
+    const concepto = conn.executed.find(([sql]) => sql.includes('INSERT INTO cfdi_conceptos'));
+    expect(concepto[1][4]).toBe('Internet / 100M');
+  });
+
+  test('a receptor name SAT cannot file is refused', async () => {
+    db.query.mockImplementation(async (sql) => {
+      if (/FROM cfdi_documents/.test(sql)) return [[]];
+      if (/FROM client_mx_profiles/.test(sql)) return [[{ ...RECEPTOR, razon_social: 'X'.repeat(260) }]];
+      if (/FROM invoice_items/.test(sql)) return [ITEMS.map(i => ({ ...i }))];
+      return [[]];
+    });
+    await expect(invoiceCfdiService.stampInvoice(60, 1)).rejects.toMatchObject({ statusCode: 422, code: 'CFDI_NOMBRE_INVALID' });
+  });
+
   test('SAT-code defaults apply per line (81161700/E48) but explicit codes win', async () => {
     const conn = makeConn();
     db.getConnection.mockResolvedValue(conn);
