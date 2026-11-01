@@ -47,6 +47,7 @@ const { encrypt }           = require('../utils/encryption');
 const { NotFoundError, ValidationError } = require('../utils/errors');
 const db     = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'routes/ai' });
+const { assertAllowedEndpoint } = require('../utils/safeJsonPost');
 
 const router = Router();
 
@@ -191,6 +192,20 @@ function _normaliseEndpoint(kind, endpointUrl) {
   return FIXED_ENDPOINT_KINDS.includes(kind) ? null : (endpointUrl || null);
 }
 
+// Kinds whose adapter POSTs to endpoint_url (ollama falls back to a local
+// default). The URL must be public HTTPS or a host the install operator
+// allows in AI_PROVIDER_ALLOWED_HOSTS; checked here and again at call time,
+// where the connection is pinned (ASY-11).
+const TENANT_ENDPOINT_KINDS = ['ollama', 'custom'];
+const OLLAMA_DEFAULT_ENDPOINT = 'http://localhost:11434';
+
+async function _assertEndpointAllowed(kind, endpointUrl) {
+  if (!TENANT_ENDPOINT_KINDS.includes(kind)) return;
+  const url = endpointUrl || (kind === 'ollama' ? OLLAMA_DEFAULT_ENDPOINT : null);
+  if (!url) return;
+  await assertAllowedEndpoint(url, 'endpoint_url');
+}
+
 /**
  * GET /api/v1/ai/providers/catalog
  * Static list of supported provider kinds + recommended models.
@@ -289,6 +304,7 @@ router.post('/providers', requirePermission('ai.providers.write'), validate(crea
     if (!PROVIDER_KINDS.includes(rest.kind)) {
       return next(new ValidationError(`kind must be one of: ${PROVIDER_KINDS.join(', ')}`));
     }
+    await _assertEndpointAllowed(rest.kind, _normaliseEndpoint(rest.kind, rest.endpoint_url));
 
     const record = await AiProvider.create({
       organization_id:   req.orgId,
@@ -341,6 +357,8 @@ router.put('/providers/:id', requirePermission('ai.providers.write'), validate(u
     } else if (updates.endpoint_url !== undefined) {
       updates.endpoint_url = updates.endpoint_url || null;
     }
+    await _assertEndpointAllowed(effectiveKind,
+      updates.endpoint_url !== undefined ? updates.endpoint_url : provider.endpoint_url);
 
     await AiProvider.update(provider.id, updates);
     const updated = await AiProvider.findById(provider.id, req.orgId);
