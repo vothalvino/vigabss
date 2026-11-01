@@ -82,9 +82,12 @@ CALL assert_true(@ro_perms < @admin_perms, 'C3: Readonly role has fewer permissi
 -- =========================================================================
 -- D. SETTINGS (migration 120)
 -- =========================================================================
+-- Migration 443 deleted the 23 keys migration 120 seeded that nothing read
+-- (numbering, automation, SMTP and company settings live elsewhere).
 SET @cnt = 0;
-SELECT COUNT(*) INTO @cnt FROM settings;
-CALL assert_true(@cnt >= 24, 'D1: At least 24 default settings seeded');
+SELECT COUNT(*) INTO @cnt FROM settings
+WHERE setting_key IN ('invoice_prefix', 'quote_prefix', 'credit_note_prefix', 'auto_suspend_enabled', 'auto_suspend_days_overdue');
+CALL assert_true(@cnt = 0, 'D1: Dead migration-120 settings removed (migration 443)');
 
 -- Spot-check key settings
 -- Note: `default_currency` was removed by migration 405 (currency lives on
@@ -103,11 +106,11 @@ CALL assert_true(@val IS NULL, 'D3: Setting "default_tax_rate" removed (migratio
 
 SET @val = NULL;
 SELECT setting_value INTO @val FROM settings WHERE setting_key = 'invoice_prefix';
-CALL assert_true(@val IS NOT NULL, 'D4: Setting "invoice_prefix" exists');
+CALL assert_true(@val IS NULL, 'D4: Setting "invoice_prefix" removed (per-org sequences, migration 443)');
 
 SET @val = NULL;
 SELECT setting_value INTO @val FROM settings WHERE setting_key = 'auto_suspend_enabled';
-CALL assert_true(@val IS NOT NULL, 'D5: Setting "auto_suspend_enabled" exists');
+CALL assert_true(@val IS NULL, 'D5: Setting "auto_suspend_enabled" removed (scheduled_tasks, migration 443)');
 
 -- =========================================================================
 -- E. TAX RATES (migration 121)

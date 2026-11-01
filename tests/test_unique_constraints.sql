@@ -56,12 +56,12 @@ VALUES (7000, 7000, 'Router-A', 'SN-UNIQUE-001', 'pop', 'router', 'online');
 CALL assert_sql_error(NULL, 'INSERT INTO devices (id, site_id, name, serial_number, category, type, status) VALUES (7001, 7000, ''Router-B'', ''SN-UNIQUE-001'', ''pop'', ''switch'', ''online'')', 'D: Duplicate device serial number rejected');
 
 -- =========================================================================
--- E. invoices — uq_invoices_number
+-- E. invoices — uq_invoices_org_number (numbers are unique per organization)
 -- =========================================================================
-INSERT INTO invoices (id, client_id, invoice_number, issue_date, due_date, total, status)
-VALUES (7000, 7000, 'INV-UQ-001', '2024-01-01', '2024-01-31', 100.00, 'draft');
+INSERT INTO invoices (id, organization_id, client_id, invoice_number, issue_date, due_date, total, status)
+VALUES (7000, 7000, 7000, 'INV-UQ-001', '2024-01-01', '2024-01-31', 100.00, 'draft');
 
-CALL assert_sql_error(NULL, 'INSERT INTO invoices (id, client_id, invoice_number, issue_date, due_date, total, status) VALUES (7001, 7000, ''INV-UQ-001'', ''2024-02-01'', ''2024-02-28'', 200.00, ''draft'')', 'E: Duplicate invoice number rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO invoices (id, organization_id, client_id, invoice_number, issue_date, due_date, total, status) VALUES (7001, 7000, 7000, ''INV-UQ-001'', ''2024-02-01'', ''2024-02-28'', 200.00, ''draft'')', 'E: Duplicate invoice number rejected');
 
 -- =========================================================================
 -- F. ip_assignments — uq_ip_assignments_ip
@@ -110,20 +110,20 @@ VALUES (7000, 'test_unique_key', 'value1', 'Test');
 CALL assert_sql_error(NULL, 'INSERT INTO settings (id, setting_key, setting_value, description) VALUES (7001, ''test_unique_key'', ''value2'', ''Test'')', 'I: Duplicate settings key rejected');
 
 -- =========================================================================
--- J. quotes — uq_quotes_number
+-- J. quotes — uq_quotes_org_number
 -- =========================================================================
-INSERT INTO quotes (id, client_id, quote_number, issue_date, total, status)
-VALUES (7000, 7000, 'QT-UQ-001', '2024-01-01', 100.00, 'draft');
+INSERT INTO quotes (id, organization_id, client_id, quote_number, issue_date, total, status)
+VALUES (7000, 7000, 7000, 'QT-UQ-001', '2024-01-01', 100.00, 'draft');
 
-CALL assert_sql_error(NULL, 'INSERT INTO quotes (id, client_id, quote_number, issue_date, total, status) VALUES (7001, 7000, ''QT-UQ-001'', ''2024-02-01'', 200.00, ''draft'')', 'J: Duplicate quote number rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO quotes (id, organization_id, client_id, quote_number, issue_date, total, status) VALUES (7001, 7000, 7000, ''QT-UQ-001'', ''2024-02-01'', 200.00, ''draft'')', 'J: Duplicate quote number rejected');
 
 -- =========================================================================
--- K. credit_notes — uq_credit_notes_number
+-- K. credit_notes — uq_credit_notes_org_number
 -- =========================================================================
-INSERT INTO credit_notes (id, client_id, credit_note_number, issue_date, subtotal, tax_amount, total, reason, status)
-VALUES (7000, 7000, 'CN-UQ-001', '2024-01-01', 100.00, 0.00, 100.00, 'promotional_credit', 'draft');
+INSERT INTO credit_notes (id, organization_id, client_id, credit_note_number, issue_date, subtotal, tax_amount, total, reason, status)
+VALUES (7000, 7000, 7000, 'CN-UQ-001', '2024-01-01', 100.00, 0.00, 100.00, 'promotional_credit', 'draft');
 
-CALL assert_sql_error(NULL, 'INSERT INTO credit_notes (id, client_id, credit_note_number, issue_date, subtotal, tax_amount, total, reason, status) VALUES (7001, 7000, ''CN-UQ-001'', ''2024-02-01'', 50.00, 0.00, 50.00, ''promotional_credit'', ''draft'')', 'K: Duplicate credit note number rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO credit_notes (id, organization_id, client_id, credit_note_number, issue_date, subtotal, tax_amount, total, reason, status) VALUES (7001, 7000, 7000, ''CN-UQ-001'', ''2024-02-01'', 50.00, 0.00, 50.00, ''promotional_credit'', ''draft'')', 'K: Duplicate credit note number rejected');
 
 -- =========================================================================
 -- L. roles — uq_roles_name

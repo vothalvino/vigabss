@@ -26,7 +26,7 @@ CALL assert_table_exists('tickets',                 'Table: tickets exists');
 CALL assert_table_exists('invoices',                'Table: invoices exists');
 CALL assert_table_exists('payments',                'Table: payments exists');
 CALL assert_table_exists('quotes',                  'Table: quotes exists');
-CALL assert_table_exists('jobs',                    'Table: jobs exists');
+CALL assert_table_exists('work_orders',             'Table: work_orders exists (jobs folded in by migration 363)');
 CALL assert_table_exists('expenses',                'Table: expenses exists');
 CALL assert_table_exists('organizations',           'Table: organizations exists');
 CALL assert_table_exists('files',                   'Table: files exists');
@@ -163,7 +163,6 @@ CALL assert_trigger_exists('trg_payment_alloc_invoice_bi',       'Trigger: trg_p
 CALL assert_trigger_exists('trg_payment_alloc_invoice_bu',       'Trigger: trg_payment_alloc_invoice_bu exists');
 
 -- Inventory stock negative guard (migration 127)
-CALL assert_trigger_exists('trg_inventory_stock_negative_bu',    'Trigger: trg_inventory_stock_negative_bu exists');
 
 -- RADIUS consistency trigger (migration 128)
 CALL assert_trigger_exists('trg_contracts_radius_consistency_bu', 'Trigger: trg_contracts_radius_consistency_bu exists');
@@ -178,7 +177,7 @@ CALL assert_index_exists('contracts',    'idx_contracts_client_id',         'Ind
 CALL assert_index_exists('contracts',    'idx_contracts_status',            'Index: contracts.idx_contracts_status');
 CALL assert_index_exists('contracts',    'idx_contracts_connection_type',   'Index: contracts.idx_contracts_connection_type');
 CALL assert_index_exists('contracts',    'idx_contracts_facturar',          'Index: contracts.idx_contracts_facturar');
-CALL assert_index_exists('invoices',     'uq_invoices_number',             'Index: invoices.uq_invoices_number');
+CALL assert_index_exists('invoices',     'uq_invoices_org_number',         'Index: invoices.uq_invoices_org_number (migration 359)');
 CALL assert_index_exists('invoices',     'idx_invoices_client_id',         'Index: invoices.idx_invoices_client_id');
 CALL assert_index_exists('invoices',     'idx_invoices_status',            'Index: invoices.idx_invoices_status');
 CALL assert_index_exists('invoices',     'idx_invoices_due_date',          'Index: invoices.idx_invoices_due_date');

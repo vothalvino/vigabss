@@ -194,7 +194,10 @@ jobs:
         run: mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_test < database/schema.sql
 
       - name: Run SQL test suite
+        # test_summary raises an SQL error when any assertion failed, so the
+        # mysql client — and this step — exits non-zero (DB-09).
         run: |
+          set -euo pipefail
           for f in tests/test_*.sql; do
             echo "=== Running $f ==="
             mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_test < "$f"
@@ -252,6 +255,17 @@ jobs:
             exit 1
           fi
           echo "✓ All FK column types match their referenced PK types"
+
+      - name: Run SQL test suite against the migrated database
+        # Installs come from migrations (install.sh), so the assertions must
+        # hold there as well as on schema.sql (DB-09).
+        run: |
+          set -euo pipefail
+          for f in tests/test_*.sql; do
+            echo "=== Running $f (migrated) ==="
+            mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_migrate_test < "$f"
+          done
+          echo "All SQL tests passed on the migrated database"
 
   migration-runner-tests:
     # Exercises the real Node migration tooling (migrate.js / rollback.js /
