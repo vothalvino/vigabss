@@ -20,6 +20,7 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const config = require('../src/config');
 const db = require('../src/config/database');
+const { mockTxConnection } = require('./fixtures/mockTxConnection');
 const User = require('../src/models/User');
 jest.mock('../src/middleware/adminIpAllowlist', () => ({
   enforceAdminIpAllowlist: (_req, _res, next) => next(),
@@ -417,15 +418,21 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
   describe('Step 6: Allocate Payment — POST /api/v1/payments/:id/allocate', () => {
     test('allocates payment to invoice and marks invoice paid', async () => {
       mockAuthUser();
+      // The allocation transaction's statements reach db.query (DAL-04).
+      mockTxConnection(db);
 
       const mockAllocation = { id: 1, payment_id: 300, invoice_id: 200, amount: '694.84' };
 
-      // Route: SELECT payment (org-verify) → SELECT invoice (void guard) →
-      //        Payment.allocate (INSERT → SELECT) → SUM allocations →
-      //        UPDATE invoice → SELECT contract
+      // Route, on one transaction: SELECT payment FOR UPDATE → lock the
+      //        invoice → SELECT invoice (void guard) → remaining amounts →
+      //        INSERT → SELECT allocation → SUM allocations → UPDATE invoice;
+      //        then SELECT contract
       db.query
         .mockResolvedValueOnce([[{ id: 300, client_id: 10, amount: '694.84', organization_id: 1, status: 'completed' }]])
+        .mockResolvedValueOnce([[]])                                    // lock the invoice (DAL-04)
         .mockResolvedValueOnce([[{ id: 200, total: '694.84', contract_id: 1, status: 'issued' }]])
+        .mockResolvedValueOnce([[{ allocated: '0' }]])                 // what the payment has used
+        .mockResolvedValueOnce([[]])                                    // balance read (falls back to the total)
         .mockResolvedValueOnce([{ insertId: 1 }])
         .mockResolvedValueOnce([[mockAllocation]])
         .mockResolvedValueOnce([[{ total_allocated: '694.84' }]])
@@ -454,15 +461,21 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
 
     test('allocates partial payment without marking invoice paid', async () => {
       mockAuthUser();
+      // The allocation transaction's statements reach db.query (DAL-04).
+      mockTxConnection(db);
 
       const mockAllocation = { id: 2, payment_id: 301, invoice_id: 200, amount: '300.00' };
 
-      // Route: SELECT payment (org-verify) → SELECT invoice (void guard) →
-      //        Payment.allocate (INSERT → SELECT) → SUM allocations (partial —
-      //        no UPDATE since not fully paid)
+      // Route, on one transaction: SELECT payment FOR UPDATE → lock the
+      //        invoice → SELECT invoice (void guard) → remaining amounts →
+      //        INSERT → SELECT allocation → SUM allocations (partial — no
+      //        UPDATE since not fully paid)
       db.query
         .mockResolvedValueOnce([[{ id: 301, client_id: 10, amount: '300.00', organization_id: 1, status: 'completed' }]])
+        .mockResolvedValueOnce([[]])                                    // lock the invoice (DAL-04)
         .mockResolvedValueOnce([[{ id: 200, total: '694.84', contract_id: 1, status: 'issued' }]])
+        .mockResolvedValueOnce([[{ allocated: '0' }]])                 // what the payment has used
+        .mockResolvedValueOnce([[]])                                    // balance read (falls back to the total)
         .mockResolvedValueOnce([{ insertId: 2 }])
         .mockResolvedValueOnce([[mockAllocation]])
         .mockResolvedValueOnce([[{ total_allocated: '300.00' }]]);
@@ -474,9 +487,11 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
 
       expect(res.status).toBe(201);
       expect(res.body.data).toMatchObject({ id: 2, amount: '300.00' });
-      // Invoice should NOT have been marked paid. 5 core calls + 1 from the
-      // best-effort REP hook (cfdi_documents lookup after the allocation).
-      expect(db.query).toHaveBeenCalledTimes(6);
+      // Invoice should NOT have been marked paid. 8 calls on the allocation
+      // transaction + 1 from the best-effort REP hook (cfdi_documents lookup
+      // after the allocation).
+      expect(db.query).toHaveBeenCalledTimes(9);
+      expect(db.query.mock.calls.some(([sql]) => /UPDATE invoices SET status/.test(sql))).toBe(false);
     });
   });
 
@@ -711,12 +726,17 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       expect(paymentId).toBe(300);
 
       // --- Step 6: Allocate payment to invoice ---
-      // Route: SELECT payment (org-verify) → SELECT invoice (void guard) →
-      //        Payment.allocate (INSERT → SELECT) → SUM allocations →
-      //        UPDATE invoice → SELECT contract
+      // Route, on one transaction (DAL-04): SELECT payment FOR UPDATE → lock
+      //        the invoice → SELECT invoice (void guard) → what the payment has
+      //        used → what the invoice owes → INSERT → SELECT allocation →
+      //        covered? → UPDATE invoice; then SELECT contract
+      mockTxConnection(db);
       db.query
         .mockResolvedValueOnce([[{ id: paymentId, client_id: clientId, amount: '694.84', organization_id: 1, status: 'completed' }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ id: invoiceId, total: '694.84', contract_id: contractId, status: 'issued' }]])
+        .mockResolvedValueOnce([[{ allocated: '0' }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([{ insertId: 1 }])
         .mockResolvedValueOnce([[{ id: 1, payment_id: paymentId, invoice_id: invoiceId, amount: '694.84' }]])
         .mockResolvedValueOnce([[{ total_allocated: '694.84' }]])

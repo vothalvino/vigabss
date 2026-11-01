@@ -82,6 +82,8 @@ async function run(sql, params = []) {
   const p = params;
 
   // --- payment_transactions ------------------------------------------------
+  // The pre-read invoice lock (DAL-04): a pure locking read, nothing to return.
+  if (/^SELECT id FROM invoices WHERE organization_id <=> \? AND \(/.test(s)) return [[]];
   if (/^SELECT \* FROM payment_transactions WHERE id = \? FOR UPDATE/.test(s)) {
     return [state.transactions.filter((t) => t.id === Number(p[0])).map(clone)];
   }

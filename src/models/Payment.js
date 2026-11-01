@@ -39,19 +39,9 @@ class Payment extends BaseModel {
     return rows;
   }
 
-  /**
-   * Allocate a payment amount to an invoice.
-   * The DB trigger prevents over-allocation.
-   */
-  static async allocate(paymentId, invoiceId, amount) {
-    const db = require('../config/database');
-    const [result] = await db.query(
-      'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
-      [paymentId, invoiceId, amount],
-    );
-    const [rows] = await db.query('SELECT * FROM payment_allocations WHERE id = ?', [result.insertId]);
-    return rows[0];
-  }
+  // No allocate() here: an allocation runs inside the caller's transaction,
+  // after the payment and its invoices are locked (POST /payments/:id/allocate,
+  // DAL-04). An autocommit INSERT relying on the triggers raced.
 }
 
 module.exports = Payment;

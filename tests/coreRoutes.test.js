@@ -1270,11 +1270,15 @@ describe('Payment Routes — /api/payments', () => {
       const allocation = { id: 1, payment_id: 1, invoice_id: 5, amount: 578.84 };
       const invoice = { id: 5, total: 578.84, contract_id: 3, organization_id: 1, status: 'issued' };
 
-      // Payment org-verify happens FIRST, then invoice lookup (void guard),
-      // then Payment.allocate runs (INSERT → SELECT), then SUM + status update.
+      // On one transaction: the payment is locked and org-verified FIRST, then
+      // the invoice is locked and looked up (void guard), the remaining amounts
+      // are read, then INSERT → SELECT, then SUM + status update (DAL-04).
       db.query
         .mockResolvedValueOnce([[PAYMENT_ROW]])                        // SELECT payment (org-verify)
+        .mockResolvedValueOnce([[]])                                    // lock the invoice (DAL-04)
         .mockResolvedValueOnce([[invoice]])                            // SELECT invoice (void guard)
+        .mockResolvedValueOnce([[{ allocated: '0' }]])                 // what the payment has used
+        .mockResolvedValueOnce([[]])                                    // balance read (falls back to the total)
         .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 }])   // INSERT allocation
         .mockResolvedValueOnce([[allocation]])                         // SELECT allocation
         .mockResolvedValueOnce([[{ total_allocated: '578.84' }]])      // SUM allocations
@@ -1299,7 +1303,10 @@ describe('Payment Routes — /api/payments', () => {
 
       db.query
         .mockResolvedValueOnce([[PAYMENT_ROW]])                        // SELECT payment (org-verify)
+        .mockResolvedValueOnce([[]])                                    // lock the invoice (DAL-04)
         .mockResolvedValueOnce([[invoice]])                            // SELECT invoice (void guard)
+        .mockResolvedValueOnce([[{ allocated: '0' }]])                 // what the payment has used
+        .mockResolvedValueOnce([[]])                                    // balance read (falls back to the total)
         .mockResolvedValueOnce([{ insertId: 2, affectedRows: 1 }])
         .mockResolvedValueOnce([[allocation]])
         .mockResolvedValueOnce([[{ total_allocated: '200' }]]);  // partial — not enough

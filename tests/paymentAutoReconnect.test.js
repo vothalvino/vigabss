@@ -48,9 +48,13 @@ describe('POST /payments/:id/allocate → auto-reconnect of a suspended contract
       id: 1, email: 'admin@test.com', status: 'active', role: 'admin', organization_id: 1,
     });
 
+    // The allocation runs in a transaction too (DAL-04): its reads go to the
+    // suite's db.query dispatcher; the reconnect's writes succeed.
     conn = {
       beginTransaction: jest.fn(),
-      execute: jest.fn().mockResolvedValue([{ affectedRows: 1 }]),
+      execute: jest.fn(async (sql, params) => (/^\s*(UPDATE contracts|UPDATE radius|INSERT INTO suspension_logs)/i.test(sql)
+        ? [{ affectedRows: 1 }]
+        : db.query(sql, params))),
       commit: jest.fn(),
       rollback: jest.fn(),
       release: jest.fn(),
@@ -138,6 +142,6 @@ describe('POST /payments/:id/allocate → auto-reconnect of a suspended contract
       .send({ invoice_id: 50, amount: 500 });
 
     expect(res.status).toBe(201);
-    expect(db.getConnection).not.toHaveBeenCalled();
+    expect(conn.execute.mock.calls.some(([sql]) => /UPDATE contracts SET status/i.test(sql))).toBe(false);
   });
 });

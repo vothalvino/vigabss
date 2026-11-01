@@ -193,6 +193,8 @@ async function payInstallment(planId, sequence, paymentId, orgId) {
     if (Number(payment.client_id) !== Number(plan.client_id)) {
       throw new ValidationError('The payment belongs to a different client than the payment plan.');
     }
+    // The invoice too, before any read that sums allocations (DAL-04).
+    await paymentAllocationService.lockInvoicesForAllocation(exec, orgId, { invoiceIds: [installment.invoice_id] });
     const [usedRows] = await exec(
       'SELECT id FROM payment_plan_installments WHERE paid_payment_id = ? LIMIT 1',
       [paymentId],

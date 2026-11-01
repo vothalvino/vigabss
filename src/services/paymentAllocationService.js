@@ -106,6 +106,40 @@ async function reconnectIfSuspended(invoice, userId, orgId) {
 }
 
 /**
+ * Lock the invoice rows an allocation will touch, with a plain locking read
+ * and nothing else (DAL-04). Call it right after locking the payment and
+ * BEFORE any read that sums allocations.
+ *
+ * The over-allocation triggers and every balance_due here sum
+ * payment_allocations with non-locking reads, and MySQL does not lock the
+ * rows of a subquery for an outer FOR UPDATE. Under REPEATABLE READ the
+ * transaction's snapshot is fixed by its first non-locking read, so a sum
+ * read before the parent rows were locked could miss an allocation another
+ * transaction committed while this one waited. Two allocators could then both
+ * pass, and one payment settled two invoices, or one invoice collected two
+ * payments. With the payment and its invoices locked first (always payment,
+ * then invoices in id order), concurrent allocators serialize and each one's
+ * snapshot starts after the previous committed.
+ *
+ * @param {Function} exec - bound query function on the open transaction
+ * @param {number|null} orgId
+ * @param {{invoiceIds?: number[], clientIds?: number[]}} which
+ */
+async function lockInvoicesForAllocation(exec, orgId, { invoiceIds = [], clientIds = [] } = {}) {
+  const ids = invoiceIds.filter((v) => v !== null && v !== undefined);
+  const clients = clientIds.filter((v) => v !== null && v !== undefined);
+  if (ids.length === 0 && clients.length === 0) return;
+  const where = [
+    ids.length ? `id IN (${ids.map(() => '?').join(', ')})` : null,
+    clients.length ? `client_id IN (${clients.map(() => '?').join(', ')})` : null,
+  ].filter(Boolean).join(' OR ');
+  await exec(
+    `SELECT id FROM invoices WHERE organization_id <=> ? AND (${where}) ORDER BY id FOR UPDATE`,
+    [orgId, ...ids, ...clients],
+  );
+}
+
+/**
  * A client's invoices with a computed, live balance_due, oldest issue_date
  * first (ties broken by id) — the FIFO waterfall order. Shared by
  * GET /clients/:id/open-invoices (frontend checklist display) and
@@ -209,6 +243,7 @@ function isOverAllocationError(err) {
 }
 
 module.exports = {
+  lockInvoicesForAllocation,
   PAYABLE_STATUSES,
   isPaymentSettled,
   paymentNotSettledError,

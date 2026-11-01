@@ -171,6 +171,10 @@ async function payGroup(orgId, groupId, opts = {}) {
   try {
     await conn.beginTransaction();
 
+    // Lock every member's invoices first, with a plain locking read, so the
+    // balance_due reads below see allocations committed meanwhile (DAL-04).
+    await paymentAllocationService.lockInvoicesForAllocation(conn.execute.bind(conn), orgId, { clientIds: memberIds });
+
     // Gather the group's open invoices, locked, oldest→newest across members.
     let invoiceRows = [];
     for (const memberId of memberIds) {

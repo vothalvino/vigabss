@@ -1389,6 +1389,11 @@ async function reconcilePayment(transactionId) {
       await conn.rollback();
       return { status: 'not_succeeded' };
     }
+    // Lock the invoices this capture may settle before any non-locking read
+    // (DAL-04), so their balance_due includes allocations committed while
+    // this transaction waited.
+    await paymentAllocationService.lockInvoicesForAllocation(exec, tx.organization_id,
+      tx.invoice_id ? { invoiceIds: [tx.invoice_id] } : { clientIds: [tx.client_id] });
     const [legacy] = await exec(
       `SELECT id FROM client_balance_ledger
         WHERE reference_type = 'payment_transaction' AND reference_id = ? AND entry_type = 'credit' LIMIT 1`,
