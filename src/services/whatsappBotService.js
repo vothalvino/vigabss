@@ -66,9 +66,11 @@ const MSG = {
   wifiNoEmail:
     'To reset your Wi-Fi password securely I need an email on file to send the new one to. '
     + 'Please add one in your customer portal, or reply 7 to talk to a human.',
+  // The router applies it on its next check-in, so this is a request, not a
+  // confirmation (NET-12).
   wifiApplied: (emailMasked) =>
-    `✅ Done — your new Wi-Fi password has been emailed to ${emailMasked}. `
-    + 'Reconnect your devices with it (it may take a few minutes to take effect).',
+    `✅ Your new Wi-Fi password has been emailed to ${emailMasked} and sent to your router. `
+    + 'It takes effect when the router applies it, usually within a few minutes; then reconnect your devices with it.',
   wifiFiled: (id) =>
     `✅ Request submitted (#${id}). Our team will set a new Wi-Fi password and contact you shortly.`,
   wifiEmailFailed:

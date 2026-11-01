@@ -172,8 +172,10 @@ describe('GET /connection-logs', () => {
     expect(sql).toContain('COALESCE(cl.acct_session_id, cl.session_id) = ?');
     expect(sql).toContain('calling_station_id');
     expect(sql).toContain('filter_nas.organization_id = cl.organization_id');
-    expect(sql).toContain('cl.event_at >= ?');
+    // Active during the window, not started inside it (REG-07).
+    expect(sql).toContain("(cl.event_type <> 'stop' OR COALESCE(cl.last_accounting_at, cl.event_at) >= ?)");
     expect(sql).toContain('cl.event_at <= ?');
+    expect(sql).not.toContain('cl.event_at >= ?');
     expect(sql).toContain('cl.last_accounting_received_at');
     expect(sql).toContain("THEN 'unknown'");
     expect(params).toEqual([

@@ -170,7 +170,7 @@ router.post('/:id/cancel', requirePermission('cfdi_documents.update'), validate(
       throw new NotFoundError('CFDI document');
     }
 
-    const result = await cfdiService.cancel(req.params.id, cancellation_reason, replacement_uuid || null);
+    const result = await cfdiService.cancel(req.params.id, cancellation_reason, replacement_uuid || null, { userId: req.user?.id ?? null });
     res.status(201).json({ data: result });
   } catch (err) {
     next(err);

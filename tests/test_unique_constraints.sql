@@ -71,7 +71,19 @@ VALUES (7000, 7000, 'Pool-A', '10.0.0.0', '255.255.255.0', '4', 'active');
 INSERT INTO ip_assignments (id, pool_id, ip_address, client_id, type, status)
 VALUES (7000, 7000, '10.0.0.1', 7000, 'static', 'active');
 
-CALL assert_sql_error(NULL, 'INSERT INTO ip_assignments (id, pool_id, ip_address, client_id, type, status) VALUES (7001, 7000, ''10.0.0.1'', 7000, ''static'', ''active'')', 'F: Duplicate IP assignment rejected');
+CALL assert_sql_error(NULL, 'INSERT INTO ip_assignments (id, pool_id, ip_address, client_id, type, status) VALUES (7001, 7000, ''10.0.0.1'', 7000, ''static'', ''active'')', 'F: Duplicate IP assignment in one pool rejected');
+
+-- Migration 486 (NET-18): uniqueness is per pool and ignores expired rows, so
+-- another organization's overlapping pool may hold the same address, and an
+-- expired address can be assigned again.
+-- (ip_pools is itself unique per network/mask, so the overlapping pool is a /16.)
+INSERT INTO ip_pools (id, site_id, name, network, subnet_mask, ip_version, status)
+VALUES (7001, 7000, 'Pool-B', '10.0.0.0', '255.255.0.0', '4', 'active');
+INSERT INTO ip_assignments (id, pool_id, ip_address, client_id, type, status)
+VALUES (7002, 7001, '10.0.0.1', 7000, 'static', 'active');
+UPDATE ip_assignments SET status = 'expired' WHERE id = 7000;
+INSERT INTO ip_assignments (id, pool_id, ip_address, client_id, type, status)
+VALUES (7003, 7000, '10.0.0.1', 7000, 'static', 'active');
 
 -- =========================================================================
 -- G. vlans — uq_vlans_site_vlan (composite)
@@ -150,8 +162,8 @@ DELETE FROM settings WHERE id IN (7000, 7001);
 DELETE FROM payment_allocations WHERE id IN (7000, 7001);
 DELETE FROM payments WHERE id = 7000;
 DELETE FROM vlans WHERE id IN (7000, 7001);
-DELETE FROM ip_assignments WHERE id IN (7000, 7001);
-DELETE FROM ip_pools WHERE id = 7000;
+DELETE FROM ip_assignments WHERE id IN (7000, 7001, 7002, 7003);
+DELETE FROM ip_pools WHERE id IN (7000, 7001);
 DELETE FROM invoices WHERE id IN (7000, 7001);
 DELETE FROM devices WHERE id IN (7000, 7001);
 DELETE FROM radius WHERE id IN (7000, 7001);

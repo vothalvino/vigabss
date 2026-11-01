@@ -83,7 +83,8 @@ interface DdosRule {
   rule_type: string;
   target_prefix: string;
   action: string;
-  is_active: number;
+  // ddos_protection_rules has a status ENUM and no is_active column (RTE-07).
+  status: 'inactive' | 'active' | 'auto_triggered' | 'expired';
   triggered_at: string | null;
 }
 
@@ -619,7 +620,7 @@ function NetworkSecurityTab() {
                   <td style={{ padding: '6px 8px', borderBottom: '1px solid #eee' }}>{r.rule_type}</td>
                   <td style={{ padding: '6px 8px', borderBottom: '1px solid #eee', fontFamily: 'monospace' }}>{r.target_prefix}</td>
                   <td style={{ padding: '6px 8px', borderBottom: '1px solid #eee' }}>{r.action}</td>
-                  <td style={{ padding: '6px 8px', borderBottom: '1px solid #eee' }}>{r.is_active ? t('common.active') : t('common.inactive')}</td>
+                  <td style={{ padding: '6px 8px', borderBottom: '1px solid #eee' }}>{r.status === 'active' || r.status === 'auto_triggered' ? t('common.active') : t('common.inactive')}</td>
                 </tr>
               ))}
             </tbody>

@@ -370,7 +370,7 @@ async function stampCreditNote(creditNoteId, orgId, opts = {}) {
   // in 'draft' with its XML stored — retryable, never a lost conversion.
   await cfdiService.generateXml(docId);
   try {
-    const stampResult = await cfdiService.stamp(docId);
+    const stampResult = await cfdiService.stamp(docId, { userId: opts.userId ?? null });
     return {
       cfdi_document_id: docId, serie: emisor.cfdi_serie_egreso || 'E',
       uuid: stampResult.uuid, sat_status: stampResult.status || 'vigente', stamped: true,

@@ -21,6 +21,8 @@ class Nas extends BaseModel {
       // Keep an operational NAS active while pausing automated PPPoE
       // diagnostics collection/readiness coverage (migration 456).
       'maintenance_mode',
+      // Drop Access-Requests without Message-Authenticator (migration 487).
+      'require_message_authenticator',
     ];
   }
 

@@ -180,10 +180,13 @@ function calculateUsageDelta({
   return {
     deltas,
     nextSessionComplete,
-    // End-day allocation is an estimate for daily operational charts. It only
-    // disables monetary automation when an interval crosses a calendar-month
-    // boundary; routine midnight heartbeats inside a month remain usable.
-    rowComplete: nextSessionComplete && !crossesUtcMonthBoundary,
+    // End-day allocation is an estimate for daily operational charts. An
+    // interval crossing a calendar-month boundary is split between the months
+    // pro rata (recordUsageDelta): a bounded estimate, not an unknown. Marking
+    // it incomplete made every always-on subscriber's month incomplete, so
+    // overage, FUP and rollover never applied to them (REG-02). Only a counter
+    // reset or a missing baseline leaves usage incomplete.
+    rowComplete: nextSessionComplete,
     anomalyReason,
     anomalyCount: anomalyReason ? 1 : 0,
     sessionAnomalyCount: (baselineReason || counterReset) ? 1 : 0,
@@ -236,19 +239,43 @@ async function recordUsageDelta(connection, {
       rowEventAt, rowEventAt],
   );
   if (usage.crossesUtcMonthBoundary && usage.previousEventAt) {
-    // Flag both sides of a month boundary. Assigning the entire cumulative
-    // delta to the receipt day would otherwise make the prior month silently
-    // under-count while only the new month failed closed.
+    // Split the interval between the months in proportion to the time on each
+    // side of the boundary, so neither month under-counts. The previous
+    // month's share goes to its last day; both rows say it is an estimate.
+    const { before, after } = splitAtMonthStart(deltas, usage.previousEventAt, eventAt);
+    const monthStart = new Date(`${utcMonth(eventAt)}-01T00:00:00.000Z`);
     await upsert(
-      utcDate(usage.previousEventAt),
-      Object.fromEntries(USAGE_FIELDS.map(field => [field, 0])),
-      false,
+      utcDate(new Date(monthStart.getTime() - 1)),
+      before,
+      rowComplete,
       'utc_month_boundary_estimate',
       1,
       usage.previousEventAt,
     );
+    await upsert(utcDate(eventAt), after, rowComplete, anomalyReason, anomalyCount, eventAt);
+    return;
   }
   await upsert(utcDate(eventAt), deltas, rowComplete, anomalyReason, anomalyCount, eventAt);
+}
+
+/**
+ * Split counter deltas of an interval that crosses the start of eventAt's UTC
+ * month, pro rata by time. Integer counters; the remainder goes to the later
+ * month so the two parts always add up to the whole.
+ */
+function splitAtMonthStart(deltas, previousEventAt, eventAt) {
+  const from = new Date(previousEventAt).getTime();
+  const to = new Date(eventAt).getTime();
+  const boundary = new Date(`${utcMonth(eventAt)}-01T00:00:00.000Z`).getTime();
+  const share = to > from ? Math.min(1, Math.max(0, (boundary - from) / (to - from))) : 0;
+  const before = {};
+  const after = {};
+  for (const field of USAGE_FIELDS) {
+    const total = Number(deltas[field] || 0);
+    before[field] = Math.floor(total * share);
+    after[field] = total - before[field];
+  }
+  return { before, after };
 }
 
 // ---------------------------------------------------------------------------
@@ -296,6 +323,8 @@ async function ingestAccounting(attrs) {
     callingStationId = null,
     framedIpAddress = null,
     framedIpv6Prefix: rawFramedIpv6Prefix = null,
+    delegatedIpv6Prefix: rawDelegatedIpv6Prefix = null,
+    framedIpv6Address: rawFramedIpv6Address = null,
     acctInputOctets = null,
     acctOutputOctets = null,
     acctInputGigawords = null,
@@ -334,6 +363,27 @@ async function ingestAccounting(attrs) {
         field: 'Framed-IPv6-Prefix', message: 'expected a valid IPv6 CIDR prefix from /0 through /128',
       }]);
     }
+  }
+  // REG-08: the delegated prefix (DHCPv6-PD) and the WAN address. Ingest
+  // read only Framed-IPv6-Prefix, so connection_logs.ipv6_delegated_prefix and
+  // ipv6_address were never filled and an address on a subscriber's LAN could
+  // not be traced. Stored canonical, so the session search can match on them.
+  let delegatedIpv6Prefix = null;
+  if (rawDelegatedIpv6Prefix !== null && rawDelegatedIpv6Prefix !== '') {
+    try {
+      delegatedIpv6Prefix = canonicalIpv6Prefix(String(rawDelegatedIpv6Prefix));
+    } catch (_error) {
+      throw new ValidationError('Invalid Delegated-IPv6-Prefix', [{
+        field: 'Delegated-IPv6-Prefix', message: 'expected a valid IPv6 CIDR prefix from /0 through /128',
+      }]);
+    }
+  }
+  let framedIpv6Address = null;
+  if (rawFramedIpv6Address !== null && rawFramedIpv6Address !== '') {
+    if (net.isIP(String(rawFramedIpv6Address)) !== 6) {
+      throw new ValidationError('Invalid Framed-IPv6-Address', [{ field: 'Framed-IPv6-Address', message: 'expected an IPv6 address' }]);
+    }
+    framedIpv6Address = canonicalIpv6(String(rawFramedIpv6Address));
   }
   for (const [field, value, maximum] of [
     ['nasPortId', nasPortId, 100], ['calledStationId', calledStationId, 100],
@@ -409,7 +459,7 @@ async function ingestAccounting(attrs) {
   const bytesOut = acctOutputOctets === null && acctOutputGigawords === null
     ? null
     : combineOctetsGigawords(acctOutputOctets, acctOutputGigawords);
-  const stackType = deriveStackType(framedIpAddress, framedIpv6Prefix);
+  const stackType = deriveStackType(framedIpAddress, framedIpv6Prefix || delegatedIpv6Prefix || framedIpv6Address);
   const delaySeconds = Number.isInteger(Number(acctDelayTime)) && Number(acctDelayTime) >= 0
     ? Number(acctDelayTime)
     : 0;
@@ -692,7 +742,7 @@ async function ingestAccounting(attrs) {
           acct_session_id, session_id,
           session_instance_id,
           nas_port_id, called_station_id, calling_station_id,
-          framed_ip, framed_ipv6_prefix,
+          framed_ip, framed_ipv6_prefix, ipv6_delegated_prefix, ipv6_address,
           event_type, event_at,
           bytes_in, bytes_out, packets_in, packets_out, session_duration, terminate_cause,
           acct_input_octets_v6, acct_output_octets_v6, stack_type,
@@ -701,7 +751,7 @@ async function ingestAccounting(attrs) {
           usage_accounting_complete, usage_anomaly_count,
           usage_last_bytes_in, usage_last_bytes_out,
           usage_last_packets_in, usage_last_packets_out, usage_last_duration)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'start', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'start', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userName,
           contractId,
@@ -716,6 +766,8 @@ async function ingestAccounting(attrs) {
           callingStationId,
           framedIpAddress,
           framedIpv6Prefix,
+          delegatedIpv6Prefix,
+          framedIpv6Address,
           observedEventAt,
           bytesIn,
           bytesOut,
@@ -1032,6 +1084,8 @@ async function ingestAccounting(attrs) {
          terminate_cause       = ?,
          framed_ip             = COALESCE(?, framed_ip),
          framed_ipv6_prefix    = COALESCE(?, framed_ipv6_prefix),
+         ipv6_delegated_prefix = COALESCE(?, ipv6_delegated_prefix),
+         ipv6_address          = COALESCE(?, ipv6_address),
          acct_input_octets_v6  = COALESCE(?, acct_input_octets_v6),
          acct_output_octets_v6 = COALESCE(?, acct_output_octets_v6),
          stack_type            = COALESCE(?, stack_type),
@@ -1062,6 +1116,8 @@ async function ingestAccounting(attrs) {
         terminateCause,
         framedIpAddress,
         framedIpv6Prefix,
+        delegatedIpv6Prefix,
+        framedIpv6Address,
         acctInputOctetsV6,
         acctOutputOctetsV6,
         stackType,
@@ -1113,7 +1169,7 @@ async function ingestAccounting(attrs) {
         acct_session_id, session_id,
         session_instance_id,
         nas_port_id, called_station_id, calling_station_id,
-        framed_ip, framed_ipv6_prefix,
+        framed_ip, framed_ipv6_prefix, ipv6_delegated_prefix, ipv6_address,
         event_type, event_at,
         bytes_in, bytes_out, packets_in, packets_out, session_duration, terminate_cause,
         acct_input_octets_v6, acct_output_octets_v6, stack_type,
@@ -1122,7 +1178,7 @@ async function ingestAccounting(attrs) {
         usage_accounting_complete, usage_anomaly_count,
         usage_last_bytes_in, usage_last_bytes_out,
         usage_last_packets_in, usage_last_packets_out, usage_last_duration)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userName,
         contractId,
@@ -1137,6 +1193,8 @@ async function ingestAccounting(attrs) {
         callingStationId,
         framedIpAddress,
         framedIpv6Prefix,
+        delegatedIpv6Prefix,
+        framedIpv6Address,
         eventType,
         new Date(observedEventAt.getTime() - Math.max(0, acctSessionTime || 0) * 1000),
         bytesIn,
@@ -1275,8 +1333,14 @@ async function exportCdr(opts) {
     throw new ValidationError('username must be at most 64 characters');
   }
 
-  const conditions = ['cl.event_at >= ?', 'cl.event_at < DATE_ADD(?, INTERVAL 1 DAY)'];
-  const params = [from, to];
+  // Sessions active during [from, to]: started before the window ends and not
+  // stopped before it began (REG-07). Start-only matching left out a session
+  // that began before `from` and ran into the window.
+  const conditions = [
+    'cl.event_at < DATE_ADD(?, INTERVAL 1 DAY)',
+    "(cl.event_type <> 'stop' OR COALESCE(cl.last_accounting_at, cl.event_at) >= ?)",
+  ];
+  const params = [to, from];
 
   if (organizationId) {
     conditions.push('cl.organization_id = ?');
@@ -1423,6 +1487,8 @@ async function listMacMoveEvents(organizationId, { page = 1, limit = 25 } = {}) 
 // ---------------------------------------------------------------------------
 
 module.exports = {
+  splitAtMonthStart,
+  recordUsageDelta,
   ingestAccounting,
   exportCdr,
   purgeRadiusAccounting,

@@ -11,7 +11,11 @@ const createCpeTask = {
       'download', 'reboot', 'factory_reset', 'add_object', 'delete_object',
     ],
   },
-  parameters: { type: 'object' },
+  // An object or an array (validate() has no union type, so the route checks
+  // the shape). set_parameter_values takes [{name, value, type}] or a
+  // {path: value} map; the array form was refused, so manual set tasks were
+  // always empty (NET-12).
+  parameters: { types: ['object', 'array'] },
   priority: { type: 'number', min: 1, max: 10 },
 };
 

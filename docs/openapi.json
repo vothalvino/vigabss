@@ -62796,7 +62796,10 @@
             ]
           },
           "parameters": {
-            "type": "object"
+            "type": [
+              "object",
+              "array"
+            ]
           },
           "priority": {
             "type": "number",
@@ -67622,6 +67625,9 @@
           },
           "maintenance_mode": {
             "type": "boolean"
+          },
+          "require_message_authenticator": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -67718,6 +67724,9 @@
             ]
           },
           "maintenance_mode": {
+            "type": "boolean"
+          },
+          "require_message_authenticator": {
             "type": "boolean"
           }
         }

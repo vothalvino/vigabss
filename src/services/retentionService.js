@@ -110,6 +110,17 @@ const POLICY_CONFIG = Object.freeze({
       SELECT 1 FROM cgnat_attribution_bindings binding
        WHERE binding.organization_id = radius_accounting_events.organization_id
          AND binding.session_instance_id = radius_accounting_events.session_instance_id
+    ) AND NOT EXISTS (
+      -- Kept while its session is (REG-03). Only milestones are stored (Start,
+      -- the first Interim, Stop), and connection_logs is kept by its last
+      -- activity, so purging each event by its own age deleted the Start of a
+      -- long session while the session was still kept: a direct-IP lookup for
+      -- an instant inside the window then had no anchor and said unavailable.
+      SELECT 1 FROM connection_logs owning
+       WHERE owning.organization_id = radius_accounting_events.organization_id
+         AND (owning.id = radius_accounting_events.connection_log_id
+              OR (radius_accounting_events.session_instance_id IS NOT NULL
+                  AND owning.session_instance_id = radius_accounting_events.session_instance_id))
     )`,
   },
   radius_accounting_usage_daily: {
