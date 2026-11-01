@@ -152,6 +152,20 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
+      - name: Playwright image matches the Playwright library
+        # The e2e container installs browsers for the library version, on the
+        # OS dependencies of the image; a mismatch is easy to miss because CI
+        # itself runs Playwright on the runner, not in that container.
+        run: |
+          set -euo pipefail
+          lib=$(grep -oE '^  playwright@[0-9]+\.[0-9]+\.[0-9]+:' pnpm-lock.yaml | head -1 | sed -E 's/^  playwright@([0-9.]+):/\1/')
+          img=$(grep -oE 'mcr\.microsoft\.com/playwright:v[0-9]+\.[0-9]+\.[0-9]+' docker-compose.e2e.yml | sed -E 's/.*:v//')
+          echo "library ${lib}, image ${img}"
+          if [ -z "$lib" ] || [ "$lib" != "$img" ]; then
+            echo "::error::docker-compose.e2e.yml runs Playwright image v${img} but pnpm-lock.yaml resolves playwright ${lib}. Bump the image (tag and digest) in the same PR."
+            exit 1
+          fi
+
       - name: Dependency vulnerability audit (Trivy)
         # Replaces `pnpm audit`: npm retired the legacy quick-audit endpoint pnpm
         # calls (HTTP 410 "This endpoint is being retired"), so `pnpm audit` can no
