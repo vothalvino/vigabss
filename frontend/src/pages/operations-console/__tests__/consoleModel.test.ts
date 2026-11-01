@@ -18,10 +18,15 @@ const summary = (total: number, active: number): SummaryData => ({
 });
 
 describe('demo↔real gate', () => {
-  it('is demo when there is no summary', () => {
+  // A summary the user cannot read (403) or one still loading is not an empty
+  // install: no fabricated figures, and the summary-only KPIs are unknown (FE-08).
+  it('is not demo when there is no summary', () => {
     expect(hasRealData(undefined)).toBe(false);
-    expect(resolveModel({}).isDemo).toBe(true);
-    expect(resolveModel({}).kpis.activeClients.value).toBe('12,847');
+    const m = resolveModel({ mrr: [{ currency: 'MXN', active_contracts: 7, mrr: '4280', arpu: '600' }] });
+    expect(m.isDemo).toBe(false);
+    expect(m.kpis.activeClients.value).toBe('—');
+    expect(m.kpis.openTickets.value).toBe('—');
+    expect(m.kpis.mrr.value).not.toBe(DEMO_MODEL.kpis.mrr.value);
   });
 
   it('is demo when the system has zero clients', () => {
@@ -37,11 +42,11 @@ describe('demo↔real gate', () => {
   });
 
   it('labels demo MRR with the org currency', () => {
-    const usd = resolveModel({ orgCurrency: 'USD' });
+    const usd = resolveModel({ summary: summary(0, 0), orgCurrency: 'USD' });
     expect(usd.isDemo).toBe(true);
     expect(usd.kpis.mrr.code).toBe('USD');
     // Default (MXN) returns the shared DEMO_MODEL unchanged.
-    expect(resolveModel({ orgCurrency: 'MXN' })).toBe(DEMO_MODEL);
+    expect(resolveModel({ summary: summary(0, 0), orgCurrency: 'MXN' })).toBe(DEMO_MODEL);
   });
 });
 
