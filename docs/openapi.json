@@ -6876,6 +6876,113 @@
         }
       }
     },
+    "/contracts/{id}/addons/{addonId}": {
+      "patch": {
+        "tags": [
+          "Contracts"
+        ],
+        "summary": "Change an active contract add-on: quantity, agreed unit price, end date or notes",
+        "operationId": "updateContractAddon",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "addonId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "contracts_updateContractAddon",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated add-on",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contract or add-on not found"
+          },
+          "422": {
+            "description": "The add-on is not active"
+          }
+        }
+      }
+    },
+    "/contracts/{id}/addons/{addonId}/cancel": {
+      "post": {
+        "tags": [
+          "Contracts"
+        ],
+        "summary": "Cancel a contract add-on so later billing periods no longer charge it; end_date is capped at today",
+        "operationId": "cancelContractAddon",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "addonId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled add-on",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contract or add-on not found"
+          }
+        }
+      }
+    },
     "/contracts/{id}/suspend": {
       "post": {
         "tags": [
@@ -61950,6 +62057,27 @@
         "required": [
           "plan_addon_id"
         ]
+      },
+      "contracts_updateContractAddon": {
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "number",
+            "minimum": 1
+          },
+          "unit_price": {
+            "type": "number",
+            "minimum": 0
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        }
       },
       "contracts_prepareContractActivation": {
         "type": "object",

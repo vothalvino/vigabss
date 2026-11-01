@@ -343,6 +343,54 @@ function fmtDateOnly(d) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
+const CONTRACT_CYCLE_MONTHS = { monthly: 1, quarterly: 3, semi_annual: 6, annual: 12 };
+
+/**
+ * The invoice line a contract add-on contributes to one billing period, or
+ * null when it bills nothing in it. The catalog entry's billing_cycle decides:
+ *   - monthly: the monthly price times the months the contract's cycle covers
+ *     (a quarterly contract bills three months of it);
+ *   - yearly: once, in the period that contains the anniversary of its start;
+ *   - one_time: once (the caller then marks it expired).
+ */
+function addonLineForPeriod(addon, period, cycleMonths) {
+  const unitPrice = Number(addon.unit_price || addon.addon_price || 0);
+  const units = Number(addon.quantity || 1);
+  if (addon.addon_cycle === 'yearly') {
+    if (!anniversaryInPeriod(addon.start_date || addon.created_at, period)) return null;
+    return { description: `${addon.addon_name} (yearly)`, quantity: units, unitPrice, amount: round2(unitPrice * units) };
+  }
+  if (addon.addon_cycle === 'one_time') {
+    return { description: addon.addon_name, quantity: units, unitPrice, amount: round2(unitPrice * units) };
+  }
+  const months = Math.max(1, cycleMonths);
+  const periodPrice = round2(unitPrice * months);
+  return {
+    description: months > 1 ? `${addon.addon_name} (${months} months)` : addon.addon_name,
+    quantity: units, unitPrice: periodPrice, amount: round2(periodPrice * units),
+  };
+}
+
+function anniversaryInPeriod(start, period) {
+  if (!start) return false;
+  const from = fmtDateOnly(period.period_start);
+  const to = fmtDateOnly(period.period_end);
+  const md = fmtDateOnly(start).slice(5);
+  // Every year the period touches; a period never spans more than two.
+  for (const year of new Set([from.slice(0, 4), to.slice(0, 4)])) {
+    // 29 Feb falls on 28 Feb in a common year.
+    const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+    const day = md === '02-29' && !isLeap(Number(year)) ? '02-28' : md;
+    const date = `${year}-${day}`;
+    if (date >= from && date <= to) return true;
+  }
+  return false;
+}
+
+function round2(n) {
+  return Math.round(Number(n) * 100) / 100;
+}
+
 /**
  * Atomically allocate the next sequential invoice number for an organization,
  * e.g. INV-000123. Backed by `organization_invoice_sequences` (migration 381)
@@ -690,28 +738,38 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
       }
     }
 
-    // Add line items for contract add-ons. Only add-ons in force today bill:
-    // a pre-dated (start_date in the future) or expired (end_date passed)
-    // assignment must not be charged, and a soft-deleted one never is.
+    // Add line items for contract add-ons in force during THIS period (GQL-03):
+    // the period, not today, decides, so an invoice generated early or late
+    // bills what the period covered. Neither a soft-deleted assignment nor a
+    // soft-deleted catalog entry bills.
     const [addons] = await conn.execute(
-      `SELECT ca.*, pa.name AS addon_name, pa.price AS addon_price
+      `SELECT ca.*, pa.name AS addon_name, pa.price AS addon_price, pa.billing_cycle AS addon_cycle
        FROM contract_addons ca
        JOIN plan_addons pa ON pa.id = ca.plan_addon_id
-       WHERE ca.contract_id = ? AND ca.status = 'active' AND ca.deleted_at IS NULL
-         AND (ca.start_date IS NULL OR ca.start_date <= CURDATE())
-         AND (ca.end_date IS NULL OR ca.end_date >= CURDATE())`,
-      [contract.id],
+       WHERE ca.contract_id = ? AND ca.status = 'active' AND ca.deleted_at IS NULL AND pa.deleted_at IS NULL
+         AND (ca.start_date IS NULL OR ca.start_date <= ?)
+         AND (ca.end_date IS NULL OR ca.end_date >= ?)`,
+      [contract.id, fmtDateOnly(billingPeriod.period_end), fmtDateOnly(billingPeriod.period_start)],
     );
 
+    const cycleMonths = CONTRACT_CYCLE_MONTHS[contract.billing_cycle || plan.billing_cycle] || 1;
     for (const addon of addons) {
-      const addonPrice = addon.unit_price || addon.addon_price;
-      const addonTotal = addonPrice * (addon.quantity || 1);
+      const line = addonLineForPeriod(addon, billingPeriod, cycleMonths);
+      if (!line) continue;
       await conn.execute(
         `INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, amount)
          VALUES (?, ?, ?, ?, ?)`,
-        [invoiceId, addon.addon_name, addon.quantity || 1, addonPrice, addonTotal],
+        [invoiceId, line.description, line.quantity, line.unitPrice, line.amount],
       );
-      runningSubtotal += addonTotal;
+      runningSubtotal += line.amount;
+      // A one-time charge bills once; expiring it here, in the same
+      // transaction, keeps the next period from billing it again.
+      if (addon.addon_cycle === 'one_time') {
+        await conn.execute(
+          "UPDATE contract_addons SET status = 'expired' WHERE id = ? AND status = 'active'",
+          [addon.id],
+        );
+      }
     }
 
     // Fold overage + add-ons into the stored totals (single UPDATE); the

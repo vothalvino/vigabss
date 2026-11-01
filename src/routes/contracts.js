@@ -12,7 +12,7 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission, userHasPermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const {
-  createContract, updateContract, patchContract, createContractAddon,
+  createContract, updateContract, patchContract, createContractAddon, updateContractAddon,
   prepareContractActivation, activateContract,
 } = require('../middleware/schemas/contracts');
 const db = require('../config/database');
@@ -28,7 +28,7 @@ const testWindowService = require('../services/testWindowService');
 const { assertPlanSelectable } = require('../services/planAvailability');
 const Nas = require('../models/Nas');
 const auditLog = require('../services/auditLog');
-const { ValidationError, ForbiddenError } = require('../utils/errors');
+const { ValidationError, ForbiddenError, NotFoundError, AppError } = require('../utils/errors');
 const logger = require('../utils/logger').child({ service: 'routes/contracts' });
 
 const router = Router();
@@ -1164,6 +1164,57 @@ router.post('/:id/addons', requirePermission('contracts.update'), validate(creat
     );
     const [rows] = await db.query('SELECT * FROM contract_addons WHERE id = ?', [result.insertId]);
     res.status(201).json({ data: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// No route could change or stop an add-on, so one created by mistake, or one
+// the subscriber dropped, billed on every invoice for ever (GQL-03).
+async function findContractAddon(req) {
+  await Contract.findByIdOrFail(req.params.id, req.orgId);
+  const [rows] = await db.query(
+    'SELECT * FROM contract_addons WHERE id = ? AND contract_id = ? AND deleted_at IS NULL',
+    [req.params.addonId, req.params.id],
+  );
+  if (!rows[0]) throw new NotFoundError('Contract add-on');
+  return rows[0];
+}
+
+router.patch('/:id/addons/:addonId', requirePermission('contracts.update'), validate(updateContractAddon), async (req, res, next) => {
+  try {
+    const addon = await findContractAddon(req);
+    if (addon.status !== 'active') {
+      throw new AppError(`This add-on is ${addon.status}; only an active add-on can be changed.`, 422, 'ADDON_NOT_ACTIVE');
+    }
+    const fields = ['quantity', 'unit_price', 'end_date', 'notes'].filter((f) => req.body[f] !== undefined);
+    if (fields.length === 0) return res.json({ data: addon });
+    await db.query(
+      `UPDATE contract_addons SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`,
+      [...fields.map((f) => req.body[f]), addon.id],
+    );
+    const [rows] = await db.query('SELECT * FROM contract_addons WHERE id = ?', [addon.id]);
+    res.json({ data: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Cancelling stops billing from the next period: end_date is set to today
+// unless an earlier end was already agreed.
+router.post('/:id/addons/:addonId/cancel', requirePermission('contracts.update'), async (req, res, next) => {
+  try {
+    const addon = await findContractAddon(req);
+    if (addon.status === 'active') {
+      await db.query(
+        `UPDATE contract_addons
+            SET status = 'cancelled', end_date = LEAST(COALESCE(end_date, CURDATE()), CURDATE())
+          WHERE id = ? AND status = 'active'`,
+        [addon.id],
+      );
+    }
+    const [rows] = await db.query('SELECT * FROM contract_addons WHERE id = ?', [addon.id]);
+    res.json({ data: rows[0] });
   } catch (err) {
     next(err);
   }
