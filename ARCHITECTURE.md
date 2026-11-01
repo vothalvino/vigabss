@@ -445,7 +445,11 @@ without a specific explanation.
 ### Scheduled and asynchronous work
 
 The scheduler reads `scheduled_tasks`, but executable task names must also be
-registered in the `switch` in `src/services/taskRunner.js`. A seed row without a
+registered in the `switch` in `src/services/taskRunner.js`. Every scheduler
+process re-syncs its cron handles from the table each minute, and the
+`/scheduled-tasks` API reloads its own process at once, so a created, edited,
+disabled or deleted row needs no restart; the BullMQ worker skips a queued job
+whose row was disabled or deleted. A seed row without a
 cron expression, dispatcher case, scope classification, and dispatch test is a
 dead feature. Keep global versus organization-scoped execution explicit.
 A seeded install-wide row runs with `organizationId = null`; a handler that
