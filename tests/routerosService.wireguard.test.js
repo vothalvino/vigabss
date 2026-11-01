@@ -10,6 +10,10 @@
 // (only /interface/wireguard, /ip/address, /interface/wireguard/peers, /ip/route).
 // =============================================================================
 
+// The fake router listens on loopback, which management targets refuse by
+// default (NET-21); admit it as an install operator would.
+process.env.MANAGEMENT_TARGET_ALLOW_CIDRS = '127.0.0.0/8';
+
 jest.mock('../src/utils/logger', () => ({
   child: () => ({
     info: jest.fn(),

@@ -43,4 +43,37 @@ function normalizeIpAddress(value) {
   }
 }
 
-module.exports = { canonicalIpv6, canonicalIpv6Prefix, normalizeIpAddress };
+function ipv6ToBigInt(value) {
+  const canonical = canonicalIpv6(value);
+  const [head, tail = ''] = canonical.split('::');
+  const left = head ? head.split(':') : [];
+  const right = canonical.includes('::') && tail ? tail.split(':') : [];
+  const groups = canonical.includes('::')
+    ? [...left, ...Array(8 - left.length - right.length).fill('0'), ...right]
+    : left;
+  return groups.reduce((n, g) => (n << 16n) | BigInt(parseInt(g, 16)), 0n);
+}
+
+function bigIntToIpv6(n) {
+  const groups = [];
+  for (let i = 7; i >= 0; i--) groups.push(((n >> BigInt(i * 16)) & 0xffffn).toString(16));
+  return canonicalIpv6(groups.join(':'));
+}
+
+/**
+ * Every canonical "network/length" prefix, for lengths minLength..maxLength,
+ * that contains `address`. connection_logs stores IPv6 prefixes canonical, so
+ * "which session's prefix contains this address" is an IN over this list.
+ */
+function containingIpv6Prefixes(address, { minLength = 0, maxLength = 128 } = {}) {
+  const n = ipv6ToBigInt(address);
+  const all = (1n << 128n) - 1n;
+  const out = [];
+  for (let len = minLength; len <= maxLength; len++) {
+    const mask = len === 0 ? 0n : (all << BigInt(128 - len)) & all;
+    out.push(`${bigIntToIpv6(n & mask)}/${len}`);
+  }
+  return out;
+}
+
+module.exports = { canonicalIpv6, canonicalIpv6Prefix, normalizeIpAddress, containingIpv6Prefixes };

@@ -73,7 +73,8 @@ describe('POST /api/v1/cfdi-documents/:id/cancel', () => {
     // Delegated with the org-scoped document id, the reason, and the
     // replacement uuid — never issued its own INSERT/UPDATE against
     // cfdi_cancellations or cfdi_documents.
-    expect(cfdiService.cancel).toHaveBeenCalledWith('5', '02', null);
+    // The caller is attributed (CFD-09).
+    expect(cfdiService.cancel).toHaveBeenCalledWith('5', '02', null, { userId: 1 });
     const sqlIssued = db.query.mock.calls.map(([sql]) => sql).join('\n');
     expect(sqlIssued).not.toMatch(/INSERT INTO cfdi_cancellations/i);
     expect(sqlIssued).not.toMatch(/UPDATE cfdi_documents/i);
@@ -91,7 +92,7 @@ describe('POST /api/v1/cfdi-documents/:id/cancel', () => {
       .send({ cancellation_reason: '01', replacement_uuid: 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE' });
 
     expect(cfdiService.cancel).toHaveBeenCalledWith(
-      '5', '01', 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE',
+      '5', '01', 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE', { userId: 1 },
     );
   });
 

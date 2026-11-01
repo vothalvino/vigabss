@@ -14,6 +14,10 @@ class Radius extends BaseModel {
       // BaseModel.create filters strictly to `fillable` — omit it and every
       // create silently drops the org, writing a row no tenant can see.
       'organization_id',
+      // Set on create only, after the route verified it is the org's client;
+      // updates drop it (TNB-26). It was missing, so every POST /radius
+      // failed on the NOT NULL column.
+      'client_id',
       'contract_id', 'nas_id', 'username', 'password',
       'ip_address', 'ipv4_pool_id', 'ipv6_address',
       'ipv6_delegated_prefix', 'ipv6_prefix_len', 'ipv6_pool_id',

@@ -90,6 +90,30 @@ async function getNextTask(cpeDeviceId) {
  * @param {object} task
  * @returns {string} XML
  */
+/**
+ * The ParameterValueStruct list of a set_parameter_values task, whatever shape
+ * it was stored in: a list of {name, value, type}, the {parameters: [...]}
+ * wrapper the portal and WhatsApp Wi-Fi reset wrote, or a {path: value} map
+ * (the shape POST /cpe-management/devices/:id/tasks accepted). Anything else
+ * yielded an empty list, so the CPE got a SetParameterValues with nothing in
+ * it and the task still completed (NET-12).
+ */
+function setParameterList(params) {
+  const list = Array.isArray(params) ? params
+    : (params && Array.isArray(params.parameters) ? params.parameters : null);
+  if (list) {
+    return list
+      .map((p) => ({ name: p.name || p.path, value: p.value, type: p.type || 'xsd:string' }))
+      .filter((p) => p.name && p.value !== undefined && p.value !== null);
+  }
+  if (params && typeof params === 'object') {
+    return Object.entries(params)
+      .filter(([, value]) => value !== undefined && value !== null && typeof value !== 'object')
+      .map(([name, value]) => ({ name, value: String(value), type: 'xsd:string' }));
+  }
+  return [];
+}
+
 function buildResponseForTask(task) {
   const msgId = `TASK-${task.id}`;
   const params = task.parameters ? (typeof task.parameters === 'string' ? JSON.parse(task.parameters) : task.parameters) : {};
@@ -101,7 +125,7 @@ function buildResponseForTask(task) {
       });
     case 'set_parameter_values':
       return buildCwmpResponse(msgId, 'SetParameterValues', {
-        parameterValueList: Array.isArray(params) ? params : [],
+        parameterValueList: setParameterList(params),
       });
     case 'get_parameter_names':
       return buildCwmpResponse(msgId, 'GetParameterNames', {
@@ -163,6 +187,13 @@ async function processTaskResponse(task, responsePayload) {
     'UPDATE cpe_tasks SET status = \'done\', completed_at = ?, result = ? WHERE id = ?',
     [now, JSON.stringify(responsePayload), task.id],
   );
+
+  // Status 0 = applied, 1 = applied and committed after a reboot (TR-069).
+  if (task.task_type === 'set_parameter_values') {
+    const applied = responsePayload.status === 0 || responsePayload.status === 1;
+    await require('./portalServiceRequestService').settleWifiRequestForTask(task.id, applied,
+      applied ? null : `SetParameterValuesResponse status ${responsePayload.status}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -215,6 +246,7 @@ async function applyZeroTouchProvisioning(cpeDevice, orgId) {
 }
 
 module.exports = {
+  setParameterList,
   handleInform,
   getNextTask,
   buildResponseForTask,

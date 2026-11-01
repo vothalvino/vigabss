@@ -287,6 +287,9 @@ async function dispatchTask(taskName, organizationId) {
     // (receptor acceptance / 72-hour plazo) — CFD-01.
     case 'poll_cfdi_cancellations':
       return perOrganization(taskName, organizationId, orgId => require('./cfdiService').pollPendingCancellations(orgId));
+    // Migration 485: fail CPE tasks dispatched and never answered (NET-19).
+    case 'reap_stuck_cpe_tasks':
+      return perOrganization(taskName, organizationId, orgId => require('./acsService').reapStuckTasks(orgId));
     case 'data_retention':
       return retentionService.runGeneral();
     case 'database_backup':

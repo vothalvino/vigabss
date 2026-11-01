@@ -653,23 +653,40 @@ async function arpuReport(organizationId, { months = 12 } = {}) {
   };
 }
 
+// ifIn/OutOctets are cumulative counters. A daily rollup row's traffic is the
+// counter's movement within the day, max - min, not its average position: the
+// old AVG(avg_if_*_octets) grew with counter age, so every busy-looking device
+// was just an old one (NPR-04). GREATEST(..., 0) drops a reset day's negative
+// movement; a counter reset or wrap mid-day undercounts that day, as in
+// top-talkers. Daily averages divide by a full day.
+const DAY_IN_BYTES = 'GREATEST(COALESCE(m.max_if_in_octets - m.min_if_in_octets, 0), 0)';
+const DAY_OUT_BYTES = 'GREATEST(COALESCE(m.max_if_out_octets - m.min_if_out_octets, 0), 0)';
+const BYTES_PER_DAY_TO_MBPS = '* 8 / 86400 / 1000000';
+
 /**
- * Bandwidth Utilization — per-device averages and peaks from snmp_metrics_1day.
+ * Bandwidth Utilization — per-device daily average and peak-day rates from
+ * snmp_metrics_1day.
  */
 async function bandwidthUtilization(organizationId, { days = 30 } = {}) {
   const [rows] = await db.queryReplica(`
     SELECT
-      m.device_id,
-      d.name AS device_name,
-      ROUND(AVG(m.avg_if_in_octets) * 8 / 1000000, 4) AS avg_in_mbps,
-      ROUND(AVG(m.avg_if_out_octets) * 8 / 1000000, 4) AS avg_out_mbps,
-      ROUND(MAX(m.avg_if_in_octets) * 8 / 1000000, 4) AS peak_in_mbps,
-      ROUND(MAX(m.avg_if_out_octets) * 8 / 1000000, 4) AS peak_out_mbps
-    FROM \`snmp_metrics_1day\` m
-    JOIN \`devices\` d ON d.id = m.device_id
-    WHERE d.organization_id = ?
-      AND m.period_start >= DATE_SUB(NOW(), INTERVAL ? DAY)
-    GROUP BY m.device_id, d.name
+      daily.device_id,
+      daily.device_name,
+      ROUND(AVG(daily.in_bytes) ${BYTES_PER_DAY_TO_MBPS}, 4) AS avg_in_mbps,
+      ROUND(AVG(daily.out_bytes) ${BYTES_PER_DAY_TO_MBPS}, 4) AS avg_out_mbps,
+      ROUND(MAX(daily.in_bytes) ${BYTES_PER_DAY_TO_MBPS}, 4) AS peak_in_mbps,
+      ROUND(MAX(daily.out_bytes) ${BYTES_PER_DAY_TO_MBPS}, 4) AS peak_out_mbps
+    FROM (
+      SELECT m.device_id, d.name AS device_name, m.period_start,
+             SUM(${DAY_IN_BYTES}) AS in_bytes,
+             SUM(${DAY_OUT_BYTES}) AS out_bytes
+        FROM \`snmp_metrics_1day\` m
+        JOIN \`devices\` d ON d.id = m.device_id
+       WHERE d.organization_id = ?
+         AND m.period_start >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY m.device_id, d.name, m.period_start
+    ) daily
+    GROUP BY daily.device_id, daily.device_name
     ORDER BY avg_out_mbps DESC
   `, [organizationId, days]);
 
@@ -689,9 +706,9 @@ async function topConsumers(organizationId, { days = 30, limit = 10 } = {}) {
     SELECT
       m.device_id,
       d.name AS device_name,
-      ROUND(SUM(m.avg_if_in_octets * m.sample_count) / 1073741824, 4) AS total_in_gb,
-      ROUND(SUM(m.avg_if_out_octets * m.sample_count) / 1073741824, 4) AS total_out_gb,
-      ROUND(SUM((m.avg_if_in_octets + m.avg_if_out_octets) * m.sample_count) / 1073741824, 4) AS total_gb
+      ROUND(SUM(${DAY_IN_BYTES}) / 1073741824, 4) AS total_in_gb,
+      ROUND(SUM(${DAY_OUT_BYTES}) / 1073741824, 4) AS total_out_gb,
+      ROUND(SUM(${DAY_IN_BYTES} + ${DAY_OUT_BYTES}) / 1073741824, 4) AS total_gb
     FROM \`snmp_metrics_1day\` m
     JOIN \`devices\` d ON d.id = m.device_id
     WHERE d.organization_id = ?
@@ -814,7 +831,7 @@ async function installationCompletion(organizationId, { from, to } = {}) {
 // =============================================================================
 
 /**
- * Congested Links — top 20 interfaces by average out-octets from snmp_metrics_1day.
+ * Congested Links — top 20 interfaces by average daily outbound rate from snmp_metrics_1day.
  */
 async function congestedLinks(organizationId, { days = 7, threshold_pct = 80 } = {}) {
   const [rows] = await db.queryReplica(`
@@ -822,8 +839,8 @@ async function congestedLinks(organizationId, { days = 7, threshold_pct = 80 } =
       m.device_id,
       d.name AS device_name,
       m.interface_id,
-      ROUND(AVG(m.avg_if_out_octets) * 8 / 1000000, 4) AS avg_out_mbps,
-      ROUND(AVG(m.avg_if_in_octets) * 8 / 1000000, 4) AS avg_in_mbps
+      ROUND(AVG(${DAY_OUT_BYTES}) ${BYTES_PER_DAY_TO_MBPS}, 4) AS avg_out_mbps,
+      ROUND(AVG(${DAY_IN_BYTES}) ${BYTES_PER_DAY_TO_MBPS}, 4) AS avg_in_mbps
     FROM \`snmp_metrics_1day\` m
     JOIN \`devices\` d ON d.id = m.device_id
     WHERE d.organization_id = ?

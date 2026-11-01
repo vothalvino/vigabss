@@ -20,6 +20,19 @@ subscriber/contract association when resolvable, RADIUS username and session
 identifier, assigned IPv4/IPv6 address, MAC/circuit identifiers, NAS, traffic
 counters, start/last-seen/end state, duration, and termination cause.
 
+IPv6: ingest records Framed-IPv6-Prefix, Delegated-IPv6-Prefix (DHCPv6-PD) and
+Framed-IPv6-Address in canonical form. The session list's `ip_address` filter
+accepts an IPv6 address or prefix and matches the sessions whose prefix contains
+it, or whose WAN address it is. The case-gated legal IP attribution lookup and
+government requests accept routable IPv4 only; IPv6 attribution through them is
+**not yet supported** and must be answered from the session search and NAS logs.
+
+Date filters on the session list, the session export, the CDR export and the
+binding report select sessions **active during** the window: a session that
+started before the window ends and had not stopped before it begins. A
+session that started before `date_from` and was still online inside the
+window is included.
+
 Application-level append-only accounting evidence preserves lifecycle
 milestones separately from the mutable current-session projection: Start, the
 first transition to Interim, Stop, and a later corrected final Stop when
@@ -70,9 +83,13 @@ accepted application-ingest observations and assigns the delta to the
 normalized event's UTC day. It avoids summing repeated cumulative Interim
 counters, but it cannot split an interval exactly across midnight. A same-month
 UTC-day crossing is labeled as an allocation estimate while preserving the
-exact monthly total. A non-zero first observation, a counter appearing late or
-resetting, or an interval that crosses a UTC calendar-month boundary marks the
-affected accounting period incomplete. Billing, FUP, and rollover automation
+exact monthly total. An interval that crosses a UTC calendar-month boundary is
+split between the two months in proportion to its time on each side; both rows
+are labeled `utc_month_boundary_estimate` and stay complete, so a session
+online across the 1st does not make either month unbillable. The estimate is
+bounded by one Interim interval of traffic. A non-zero first observation, or a
+counter appearing late or resetting, marks the affected accounting period
+incomplete. Billing, FUP, and rollover automation
 must reject incomplete periods; daily estimates and any legal attribution still
 require operator review.
 

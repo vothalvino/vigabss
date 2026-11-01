@@ -141,7 +141,10 @@ describe('POST /api/nas/:id/test-connection', () => {
 
     expect(res.status).toBe(502);
     expect(res.body.error.code).toBe('ROUTER_UNREACHABLE');
-    expect(res.body.error.message).toMatch(/ETIMEDOUT/);
+    // The socket error stays in the log: echoing it made the route a port and
+    // DNS oracle (NET-21).
+    expect(res.body.error.message).not.toMatch(/ETIMEDOUT/);
+    expect(res.body.error.message).toMatch(/could not be reached/);
   });
 
   test('returns 422 ROUTER_AUTH_FAILED when the router rejects the credentials', async () => {

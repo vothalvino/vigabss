@@ -580,7 +580,7 @@ async function sealXmlForProvider(pac, doc) {
   return cfdiSealService.sealXml(doc.xml_content, csd).xml;
 }
 
-async function stamp(cfdiDocumentId) {
+async function stamp(cfdiDocumentId, { userId = null } = {}) {
   logger.info({ cfdiDocumentId }, 'Stamping CFDI document');
 
   const [docs] = await db.query('SELECT * FROM cfdi_documents WHERE id = ?', [cfdiDocumentId]);
@@ -745,6 +745,12 @@ async function stamp(cfdiDocumentId) {
     try { await db.query('UPDATE pac_providers SET last_stamp_at = NOW() WHERE id = ?', [stampedProvider.id]); } catch (_) { /* best-effort */ }
   }
   logger.info({ cfdiDocumentId, uuid, provider: stampedProvider && stampedProvider.provider_name }, 'CFDI document stamped successfully');
+  // Who registered it at SAT (CFD-09); conversions also log 'stamp_request'.
+  await auditLog.log({
+    userId, organizationId: doc.organization_id, action: 'cfdi_stamped',
+    tableName: 'cfdi_documents', recordId: cfdiDocumentId,
+    newValues: { uuid, tipo_comprobante: doc.tipo_comprobante || null, serie: doc.serie || null, folio: doc.folio || null, pac: stampedProvider && stampedProvider.provider_name },
+  });
   return { cfdi_document_id: cfdiDocumentId, uuid, status: 'vigente', provider: stampedProvider && stampedProvider.provider_name };
 }
 
@@ -1090,7 +1096,7 @@ async function cancelCreditNoteForSat(doc) {
  *   03 = No se llevó a cabo la operación
  *   04 = Operación nominativa relacionada en CFDI global
  */
-async function cancel(cfdiDocumentId, reason, replacementUuid = null) {
+async function cancel(cfdiDocumentId, reason, replacementUuid = null, { userId = null } = {}) {
   logger.info({ cfdiDocumentId, reason, replacementUuid }, 'Cancelling CFDI document');
 
   // The guards below reject the REQUEST; only a real PAC/SAT failure is a 502.
@@ -1173,11 +1179,17 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null) {
   const [insertResult] = await db.query(
     `INSERT INTO cfdi_cancellations
        (cfdi_document_id, organization_id, uuid, motivo, folio_sustitucion,
-        cancellation_status, requested_at, pac_provider_id)
-     VALUES (?, ?, ?, ?, ?, 'pending', NOW(), ?)`,
-    [cfdiDocumentId, doc.organization_id, doc.uuid, reason, replacementUuid, pacs[0].id],
+        cancellation_status, requested_at, requested_by_user_id, pac_provider_id)
+     VALUES (?, ?, ?, ?, ?, 'pending', NOW(), ?, ?)`,
+    [cfdiDocumentId, doc.organization_id, doc.uuid, reason, replacementUuid, userId, pacs[0].id],
   );
   const cancellationId = insertResult.insertId;
+  // An irreversible fiscal act: who asked, with which motivo (CFD-09).
+  await auditLog.log({
+    userId, organizationId: doc.organization_id, action: 'cfdi_cancel_requested',
+    tableName: 'cfdi_documents', recordId: cfdiDocumentId,
+    newValues: { cancellation_id: cancellationId, uuid: doc.uuid, motivo: reason, folio_sustitucion: replacementUuid },
+  });
 
   let lastErr;
   let pacResult;
@@ -1274,6 +1286,14 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null) {
   }
   // rejected: the CFDI stays as it was (vigente; a retried cancel_pending
   // keeps waiting on its earlier request).
+
+  if (finalStatus !== 'pending') {
+    await auditLog.log({
+      userId, organizationId: doc.organization_id, action: 'cfdi_cancel_resolved',
+      tableName: 'cfdi_documents', recordId: cfdiDocumentId,
+      newValues: { cancellation_id: cancellationId, uuid: doc.uuid, motivo: reason, status: finalStatus, pac: usedPac?.provider_name || null, error: errorMessage },
+    });
+  }
 
   logger.info({ cfdiDocumentId, cancellationId, finalStatus }, 'CFDI cancellation processed');
   return {
@@ -1576,6 +1596,12 @@ async function getCancellationStatus(cancellationId) {
         [cancellation.cfdi_document_id],
       );
     }
+    // Resolved by SAT later; attributed to whoever requested it.
+    await auditLog.log({
+      userId: cancellation.requested_by_user_id ?? null, organizationId: cancellation.organization_id,
+      action: 'cfdi_cancel_resolved', tableName: 'cfdi_documents', recordId: cancellation.cfdi_document_id,
+      newValues: { cancellation_id: cancellationId, uuid: cancellation.uuid, motivo: cancellation.motivo, status: finalStatus },
+    });
   }
 
   return {

@@ -116,7 +116,12 @@ server, and drains them on shutdown.
   `ACS_PASSWORD` for first contact by a CPE with none), never resolves a device
   by serial+OUI without that, has its own per-IP limiter, and reads its body
   only as bounded XML text — the global JSON/form parsers skip it and the
-  CWMP parser is a linear tokenizer with no DTD/entity processing.
+  CWMP parser is a linear tokenizer with no DTD/entity processing. It follows
+  the CWMP session: an Inform is always answered with InformResponse and a
+  `cwmpsid` session cookie (kept in the shared cache), queued RPCs go out one
+  per empty POST or response, and an empty 204 ends the session. Within a
+  session the cookie identifies the device. `reap_stuck_cpe_tasks` fails
+  tasks left in_progress for 30 minutes.
 - API documentation is mounted by `src/utils/openapi.js`.
 - The production backend serves `frontend/dist` and falls back to the SPA for
   non-API routes.

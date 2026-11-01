@@ -307,7 +307,7 @@ async function createQualityClass(body: QualityClassBody): Promise<void> {
 }
 
 async function updateQualityClass(id: number, body: Partial<QualityClassBody>): Promise<void> {
-  const res = await api.PATCH('/quality-classes/{id}' as never, {
+  const res = await api.PUT('/quality-classes/{id}' as never, {
     params: { path: { id } },
     body: body as never,
   } as never);
@@ -339,7 +339,7 @@ async function createQueueTreeNode(body: QueueTreeNodeBody): Promise<void> {
 }
 
 async function updateQueueTreeNode(id: number, body: Partial<QueueTreeNodeBody>): Promise<void> {
-  const res = await api.PATCH('/queue-tree-nodes/{id}' as never, {
+  const res = await api.PUT('/queue-tree-nodes/{id}' as never, {
     params: { path: { id } },
     body: body as never,
   } as never);
@@ -377,7 +377,7 @@ async function createRateLimitTemplate(body: RateLimitTemplateBody): Promise<voi
 }
 
 async function updateRateLimitTemplate(id: number, body: Partial<RateLimitTemplateBody>): Promise<void> {
-  const res = await api.PATCH('/rate-limit-templates/{id}' as never, {
+  const res = await api.PUT('/rate-limit-templates/{id}' as never, {
     params: { path: { id } },
     body: body as never,
   } as never);
@@ -415,7 +415,7 @@ async function createProtocolShapingRule(body: ProtocolShapingRuleBody): Promise
 }
 
 async function updateProtocolShapingRule(id: number, body: Partial<ProtocolShapingRuleBody>): Promise<void> {
-  const res = await api.PATCH('/protocol-shaping-rules/{id}' as never, {
+  const res = await api.PUT('/protocol-shaping-rules/{id}' as never, {
     params: { path: { id } },
     body: body as never,
   } as never);
@@ -453,7 +453,7 @@ async function createDataPack(body: DataPackBody): Promise<void> {
 }
 
 async function updateDataPack(id: number, body: Partial<DataPackBody>): Promise<void> {
-  const res = await api.PATCH('/data-packs/{id}' as never, {
+  const res = await api.PUT('/data-packs/{id}' as never, {
     params: { path: { id } },
     body: body as never,
   } as never);
@@ -493,7 +493,7 @@ async function createInterfaceQosPolicy(body: InterfaceQosPolicyBody): Promise<v
 }
 
 async function updateInterfaceQosPolicy(id: number, body: Partial<InterfaceQosPolicyBody>): Promise<void> {
-  const res = await api.PATCH('/interface-qos-policies/{id}' as never, {
+  const res = await api.PUT('/interface-qos-policies/{id}' as never, {
     params: { path: { id } },
     body: body as never,
   } as never);
@@ -521,7 +521,7 @@ async function createDscpMarkingPolicy(body: DscpMarkingPolicyBody): Promise<voi
 }
 
 async function updateDscpMarkingPolicy(id: number, body: Partial<DscpMarkingPolicyBody>): Promise<void> {
-  const res = await api.PATCH('/dscp-marking-policies/{id}' as never, {
+  const res = await api.PUT('/dscp-marking-policies/{id}' as never, {
     params: { path: { id } },
     body: body as never,
   } as never);
@@ -555,7 +555,7 @@ async function createMplsVlanRule(body: MplsVlanRuleBody): Promise<void> {
 }
 
 async function updateMplsVlanRule(id: number, body: Partial<MplsVlanRuleBody>): Promise<void> {
-  const res = await api.PATCH('/mpls-vlan-prioritization/{id}' as never, {
+  const res = await api.PUT('/mpls-vlan-prioritization/{id}' as never, {
     params: { path: { id } },
     body: body as never,
   } as never);

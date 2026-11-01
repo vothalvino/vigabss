@@ -302,17 +302,11 @@ async function resetWifiPassword({ orgId, clientId, contract }) {
   const sent = await sendWifiPasswordEmail({ orgId, clientId, client, password: newPassword });
   if (!sent) return { ok: false, reason: 'email_failed', requestId };
 
-  const { queued } = await portalServiceRequests.queueWifiPasswordCpeTask({
+  const { queued, taskId } = await portalServiceRequests.queueWifiPasswordCpeTask({
     organizationId: orgId, contractId, newPassword, createdBy: null,
   });
-  if (queued) {
-    await db.query(
-      `UPDATE portal_service_requests
-       SET status = 'completed', completed_at = NOW(), updated_at = NOW()
-       WHERE id = ?`,
-      [requestId],
-    );
-  }
+  // Completed when the router confirms the change (NET-12), not when queued.
+  if (queued) await portalServiceRequests.linkWifiRequestToTask(requestId, taskId);
   return { ok: true, applied: queued, requestId, emailMasked: maskEmail(client.email) };
 }
 

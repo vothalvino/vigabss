@@ -251,6 +251,25 @@ describe('SecurityAccessControlPage (§17)', () => {
     );
   });
 
+  // RTE-07: ddos_protection_rules carries a status ENUM, not is_active, so
+  // every rule rendered as Inactive.
+  it('shows a DDoS rule as active from its status', async () => {
+    mockFetch.mockImplementation((url: string) => (String(url).endsWith('/network-security/ddos-protection')
+      ? Promise.resolve(makeJsonResponse({ data: [
+        { id: 1, name: 'edge', rule_type: 'rtbh', target_prefix: '203.0.113.0/24', action: 'blackhole', status: 'active', triggered_at: null },
+        { id: 2, name: 'old', rule_type: 'flowspec', target_prefix: '198.51.100.0/24', action: 'flowspec_drop', status: 'expired', triggered_at: null },
+      ] }))
+      : Promise.resolve(makeJsonResponse({ data: [] }))));
+    renderPage();
+    const netTab = screen.getAllByRole('button').find(b => /network/i.test(b.textContent ?? ''));
+    await userEvent.click(netTab!);
+    const activeRow = (await screen.findByText('203.0.113.0/24')).closest('tr')!;
+    const expiredRow = screen.getByText('198.51.100.0/24').closest('tr')!;
+    expect(activeRow.textContent).toMatch(/Active/);
+    expect(activeRow.textContent).not.toMatch(/Inactive/);
+    expect(expiredRow.textContent).toMatch(/Inactive/);
+  });
+
   it('switches to Data Security tab and shows TLS info', async () => {
     renderPage();
     const tabs = screen.getAllByRole('button');

@@ -107,7 +107,7 @@ async function currentSnapshot() {
 async function fetchSecret(descriptor) {
   const read = async () => {
     const [rows] = await db.query(
-      `SELECT id, organization_id, ip_address, secret
+      `SELECT id, organization_id, ip_address, secret, require_message_authenticator
          FROM nas WHERE id = ? AND organization_id = ? AND ip_address = ?
           AND status = 'active' AND deleted_at IS NULL LIMIT 1`,
       [descriptor.id, descriptor.organization_id, descriptor.ip_address],

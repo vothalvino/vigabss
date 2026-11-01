@@ -17,6 +17,7 @@
 // =============================================================================
 
 const crypto = require('crypto');
+const net = require('net');
 
 // RADIUS packet codes (RFC 2865 §3, RFC 2866)
 const CODE = {
@@ -58,6 +59,10 @@ const ATTR = {
   CHAP_CHALLENGE: 60,
   NAS_PORT_ID: 87,
   FRAMED_IPV6_PREFIX: 97,
+  FRAMED_IPV6_POOL: 100,              // RFC 3162
+  DELEGATED_IPV6_PREFIX: 123,         // RFC 4818
+  FRAMED_IPV6_ADDRESS: 168,           // RFC 6911
+  DELEGATED_IPV6_PREFIX_POOL: 171,    // RFC 6911
   MESSAGE_AUTHENTICATOR: 80,
 };
 
@@ -118,6 +123,60 @@ function getInt(attributes, type) {
 function getIp(attributes, type) {
   const v = getAttr(attributes, type);
   return v && v.length === 4 ? `${v[0]}.${v[1]}.${v[2]}.${v[3]}` : null;
+}
+
+/** The 16 bytes of an IPv6 address, or null when it is not one. */
+function ipv6Bytes(address) {
+  const text = String(address || '').split('%')[0].toLowerCase();
+  if (net.isIP(text) !== 6) return null;
+  let value = text;
+  const dotted = value.match(/(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (dotted) {
+    const o = dotted[1].split('.').map(Number);
+    value = `${value.slice(0, dotted.index)}${((o[0] << 8) | o[1]).toString(16)}:${((o[2] << 8) | o[3]).toString(16)}`;
+  }
+  const [left, right = ''] = value.split('::');
+  const head = left ? left.split(':') : [];
+  const tail = value.includes('::') && right ? right.split(':') : [];
+  const groups = value.includes('::')
+    ? [...head, ...Array(8 - head.length - tail.length).fill('0'), ...tail]
+    : head;
+  if (groups.length !== 8) return null;
+  const buf = Buffer.alloc(16);
+  groups.forEach((g, i) => buf.writeUInt16BE(parseInt(g || '0', 16), i * 2));
+  return buf;
+}
+
+/** RFC 3162 / 4818 prefix attribute: reserved 0, prefix length, prefix bytes. */
+function encodeIpv6PrefixAttr(type, prefix, prefixLength) {
+  const bytes = ipv6Bytes(prefix);
+  const len = Number(prefixLength);
+  if (!bytes || !Number.isInteger(len) || len < 0 || len > 128) return null;
+  const n = Math.ceil(len / 8);
+  const body = Buffer.from(bytes.subarray(0, n));
+  if (len % 8 && n) body[n - 1] &= 0xff << (8 - (len % 8)); // clear host bits
+  return Buffer.concat([Buffer.from([type, 4 + n, 0, len]), body]);
+}
+
+/** RFC 6911 Framed-IPv6-Address: the 16-byte address. */
+function encodeIpv6AddressAttr(type, address) {
+  const bytes = ipv6Bytes(address);
+  return bytes ? Buffer.concat([Buffer.from([type, 18]), bytes]) : null;
+}
+
+/** A text attribute (a pool name). */
+function encodeStringAttr(type, text) {
+  const value = Buffer.from(String(text || ''), 'utf8');
+  if (!value.length || value.length > 253) return null;
+  return Buffer.concat([Buffer.from([type, 2 + value.length]), value]);
+}
+
+/** Decode RFC 6911 Framed-IPv6-Address to text, or null. */
+function getIpv6Address(attributes, type = ATTR.FRAMED_IPV6_ADDRESS) {
+  const value = getAttr(attributes, type);
+  if (!value || value.length !== 16) return null;
+  const prefixAttr = Buffer.concat([Buffer.from([0, 128]), value]);
+  return getIpv6Prefix([{ type: -1, value: prefixAttr }], -1)?.split('/')[0] || null;
 }
 
 /** Decode RFC 3162 Framed-IPv6-Prefix (reserved byte, length, prefix bytes). */
@@ -324,6 +383,11 @@ module.exports = {
   getInt,
   getIp,
   getIpv6Prefix,
+  getIpv6Address,
+  ipv6Bytes,
+  encodeIpv6PrefixAttr,
+  encodeIpv6AddressAttr,
+  encodeStringAttr,
   decodePapPassword,
   encodePapPassword,
   verifyChap,

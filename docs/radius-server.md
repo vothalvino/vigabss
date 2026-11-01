@@ -12,14 +12,20 @@ accounting pipeline (`connection_logs`).
 
 ## Enabling
 
-Opt-in via environment variables (disabled by default):
+Configured with environment variables. The application default is off, but
+`docker-compose.prod.yml` turns it **on** (`RADIUS_SERVER_ENABLED=true`) and
+publishes UDP 1812/1813 on all interfaces unless `RADIUS_PUBLISH_IP` names one.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `RADIUS_SERVER_ENABLED` | `false` | Start the embedded auth+accounting server |
+| `RADIUS_SERVER_ENABLED` | `false` (`true` in prod compose) | Start the embedded auth+accounting server |
 | `RADIUS_AUTH_PORT` | `1812` | UDP port for Access-Request |
 | `RADIUS_ACCT_PORT` | `1813` | UDP port for Accounting-Request |
 | `RADIUS_SERVER_SECRET` | _(empty)_ | Fallback shared secret for NAS clients with no per-NAS secret |
+| `RADIUS_PUBLISH_IP` | `0.0.0.0` | Host address prod compose publishes 1812/1813 on |
+| `RADIUS_SERVER_MAX_IN_FLIGHT` | `64` | Requests handled at once; more are dropped |
+| `RADIUS_SERVER_SOURCE_RATE` | `200` | Requests per second admitted per source IP |
+| `RADIUS_SERVER_SOURCE_BURST` | `400` | Per-source burst above that rate |
 
 The **per-NAS shared secret** is the `secret` column on the `nas` row whose
 `ip_address` matches the request's source IP; `RADIUS_SERVER_SECRET` is only a
@@ -57,8 +63,11 @@ verified and echoed (Blast-RADIUS / CVE-2024-3596 hardening).
 ## Operational status
 
 `GET /api/v1/radius/server-status` returns `{ data: { enabled, running, authPort,
-acctPort, counters } }`. Counters: `authRequests`, `accepts`, `rejects`,
-`authDropped`, `acctRequests`, `acctIngested`, `acctDropped`.
+acctPort, counters, limits, inFlight } }`. Counters: `authRequests`, `accepts`,
+`rejects`, `authDropped`, `acctRequests`, `acctIngested`, `acctDropped`, and the
+ingress drops `droppedOverload` (in-flight cap), `droppedSourceRate` (per-source
+rate), `droppedNoMessageAuth` and `postAuthSkipped` (radpostauth rows not written
+while the server is past half its in-flight cap).
 
 ## Security & hardening
 
@@ -72,10 +81,20 @@ acctPort, counters } }`. Counters: `authRequests`, `accepts`, `rejects`,
 - **Constant-time PAP/CHAP/Message-Authenticator checks.** A NAS that sends a
   Message-Authenticator (RFC 9579 / Blast-RADIUS hardening) is verified, and blank
   stored passwords never authenticate.
+- **Require Message-Authenticator per NAS.** With `nas.require_message_authenticator`
+  set (the default for NAS rows created after migration 487; existing rows are
+  left off), an Access-Request without a valid Message-Authenticator is dropped.
+  Turn it on once the router sends it. Replies always carry Message-Authenticator,
+  as the first attribute.
+- **Bounded ingress.** Requests beyond the in-flight cap or a source IP's rate are
+  dropped and counted; the firewall guidance above still applies.
 
 ## Current limitations (embedded server)
 
-- Reply policy is **bandwidth-only** (Mikrotik-Rate-Limit / WISPr bandwidth).
+- Reply policy is bandwidth (Mikrotik-Rate-Limit / WISPr bandwidth) plus the
+  account's addresses: static IPv4 (Framed-IP-Address) and, for dual-stack
+  accounts, Framed-IPv6-Address, Delegated-IPv6-Prefix and
+  Delegated-IPv6-Prefix-Pool from the account's IPv6 pool.
   Session-Timeout / Idle-Timeout / VLAN attributes are emitted by the external
   FreeRADIUS sync path but not yet by the embedded server.
 - Vendor reply-attribute support: **MikroTik**, **Cisco**, **generic (WISPr)**. A
@@ -83,7 +102,6 @@ acctPort, counters } }`. Counters: `authRequests`, `accepts`, `rejects`,
   silently uncapped.
 - **IPv6 accounting** (delegated prefix, v6 octet counters) is not yet captured by
   the embedded accounting listener; IPv4 accounting is.
-- No built-in per-source rate limiting — rely on the firewall guidance above.
 
 ## Testing without a PPPoE client
 

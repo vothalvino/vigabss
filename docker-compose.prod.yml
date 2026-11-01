@@ -320,8 +320,10 @@ services:
     expose:
       - '3000'
     ports:
-      - '${RADIUS_AUTH_PORT:-1812}:1812/udp'
-      - '${RADIUS_ACCT_PORT:-1813}:1813/udp'
+      # RADIUS_PUBLISH_IP binds 1812/1813 to one host address (for example the
+      # interface facing your NAS network); the default keeps every interface.
+      - '${RADIUS_PUBLISH_IP:-0.0.0.0}:${RADIUS_AUTH_PORT:-1812}:1812/udp'
+      - '${RADIUS_PUBLISH_IP:-0.0.0.0}:${RADIUS_ACCT_PORT:-1813}:1813/udp'
       - '${SNMP_TRAP_PUBLISH_IP:-127.0.0.1}:${SNMP_TRAP_PORT:-1620}:${SNMP_TRAP_PORT:-1620}/udp'
       # Inert while the GUI setting is off: no WireGuard interface listens.
       # Publishing them here lets the GUI activate the hub without recreating

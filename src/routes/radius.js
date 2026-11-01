@@ -62,9 +62,39 @@ async function purgeFreeradiusUsername(username) {
   await db.query('DELETE FROM radusergroup WHERE username = ?', [username]);
 }
 
+// The contract a RADIUS account points at must be the account's client's
+// (TNB-26). ownedRefs below proves each referenced row is the caller's own.
+async function assertContractIsClients(contractId, clientId, orgId) {
+  if (contractId === undefined || contractId === null) return;
+  const [rows] = await db.query(
+    'SELECT client_id FROM contracts WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+    [contractId, orgId],
+  );
+  if (rows[0] && String(rows[0].client_id) !== String(clientId)) {
+    throw new ValidationError('contract_id belongs to a different client', [{ field: 'contract_id', message: 'The contract must belong to the account\'s client' }]);
+  }
+}
+
 const ctrl = crudController(Radius, {
   serialize: Radius.sanitize,
+  // A foreign contract put the account in another tenant's credential listing
+  // and broke its activation ('multiple RADIUS accounts'); a foreign NAS or
+  // pool reached across tenants too (TNB-26).
+  ownedRefs: {
+    client_id: 'clients', contract_id: 'contracts', nas_id: 'nas',
+    ipv4_pool_id: 'ip_pools', ipv6_pool_id: 'ip_pools',
+  },
+  beforeCreate: async (req) => {
+    await assertContractIsClients(req.body.contract_id, req.body.client_id, req.orgId);
+  },
   beforeUpdate: async (old, req) => {
+    // Moving an account to another client re-homes it (reads scope through
+    // clients); that is not an edit.
+    if (req.body.client_id !== undefined && String(req.body.client_id) !== String(old.client_id)) {
+      throw new ValidationError('A RADIUS account cannot move to another client', [{ field: 'client_id', message: 'client_id cannot be changed' }]);
+    }
+    delete req.body.client_id;
+    await assertContractIsClients(req.body.contract_id, old.client_id, req.orgId);
     const renamed = req.body.username !== undefined && req.body.username !== old.username;
     const deactivated = req.body.status !== undefined && req.body.status !== 'active';
     if (renamed || deactivated) await purgeFreeradiusUsername(old.username);

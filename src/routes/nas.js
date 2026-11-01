@@ -3,6 +3,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { assertManagementTarget } = require('../utils/managementTarget');
 const Nas = require('../models/Nas');
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
@@ -19,6 +20,7 @@ const wgProvisioningService = require('../services/wgProvisioningService');
 const wireguardServerService = require('../services/wireguardServerService');
 const config = require('../config');
 const db = require('../config/database');
+const logger = require('../utils/logger').child({ route: 'nas' });
 
 const router = Router();
 
@@ -52,7 +54,10 @@ function sendRouterError(res, next, e) {
   if (e.routerAuthFailed) {
     return res.status(422).json({ error: { code: 'ROUTER_AUTH_FAILED', message: e.message } });
   }
-  return res.status(502).json({ error: { code: 'ROUTER_UNREACHABLE', message: e.message } });
+  // The raw socket error (refused, reset, DNS failure) told a caller what is
+  // listening where (NET-21); keep it in the log only.
+  logger.warn({ err: e.message }, 'Router unreachable');
+  return res.status(502).json({ error: { code: 'ROUTER_UNREACHABLE', message: 'The router could not be reached on its management address.' } });
 }
 
 // After validation, fold a plaintext `api_password` into the encrypted column
@@ -80,6 +85,11 @@ function validateNasIpAddress(req, _res, next) {
       return next(new ValidationError('Validation failed', [
         { field: 'ip_address', message: 'ip_address is required for direct-mode NAS' },
       ]));
+    }
+    try {
+      assertManagementTarget(ip.trim());
+    } catch (err) {
+      return next(err);
     }
   }
   next();
@@ -182,7 +192,19 @@ router.get('/:id/secret', requirePermission('radius.credentials.view'), async (r
   }
 });
 router.post('/', requirePermission('devices.create'), validate(createNas), validateNasIpAddress, preallocateNatedTunnelIp, encryptApiPassword, ctrl.create);
-router.put('/:id', requirePermission('devices.update'), keepBlankSecrets(['secret']), validate(updateNas), encryptApiPassword, ctrl.update);
+// A changed management address gets the same target check as a new one.
+function validateNasIpUpdate(req, _res, next) {
+  const ip = req.body?.ip_address;
+  if (typeof ip !== 'string' || !ip.trim()) return next();
+  try {
+    assertManagementTarget(ip.trim());
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+}
+
+router.put('/:id', requirePermission('devices.update'), keepBlankSecrets(['secret']), validate(updateNas), validateNasIpUpdate, encryptApiPassword, ctrl.update);
 router.delete('/:id', requirePermission('devices.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('devices.update'), ctrl.restore);
 

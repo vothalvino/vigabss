@@ -110,13 +110,13 @@ interface IftReport {
   id: number;
   report_period: string;
   status: string;
-  avg_download_speed: number | null;
-  avg_upload_speed: number | null;
+  avg_download_speed_mbps: number | null;
+  avg_upload_speed_mbps: number | null;
   subscribers_by_speed_tier: Record<string, number> | null;
   subscribers_by_state: Record<string, number> | null;
   subscribers_by_technology: Record<string, number> | null;
   coverage_municipalities: number | null;
-  revenue: number | null;
+  revenue_total: number | null;
   created_at: string;
 }
 interface IftListData {
@@ -519,10 +519,10 @@ const IFT_STATUSES: Record<string, { label: string; color: string }> = {
 
 interface IftFormState {
   report_period: string;
-  avg_download_speed: string;
-  avg_upload_speed: string;
+  avg_download_speed_mbps: string;
+  avg_upload_speed_mbps: string;
   coverage_municipalities: string;
-  revenue: string;
+  revenue_total: string;
   status: string;
 }
 
@@ -563,10 +563,10 @@ function IftTab() {
   const [selected, setSelected] = useState<IftReport | null>(null);
   const [form, setForm] = useState<IftFormState>({
     report_period: '',
-    avg_download_speed: '',
-    avg_upload_speed: '',
+    avg_download_speed_mbps: '',
+    avg_upload_speed_mbps: '',
     coverage_municipalities: '',
-    revenue: '',
+    revenue_total: '',
     status: 'draft',
   });
   const [createError, setCreateError] = useState('');
@@ -582,7 +582,7 @@ function IftTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ift-statistical-reports'] });
       setShowCreate(false);
-      setForm({ report_period: '', avg_download_speed: '', avg_upload_speed: '', coverage_municipalities: '', revenue: '', status: 'draft' });
+      setForm({ report_period: '', avg_download_speed_mbps: '', avg_upload_speed_mbps: '', coverage_municipalities: '', revenue_total: '', status: 'draft' });
       setCreateError('');
     },
     onError: (err: Error) => setCreateError(err.message),
@@ -600,10 +600,10 @@ function IftTab() {
       report_period: form.report_period.trim(),
       period_start: bounds.start,
       period_end: bounds.end,
-      avg_download_speed: form.avg_download_speed ? Number(form.avg_download_speed) : undefined,
-      avg_upload_speed: form.avg_upload_speed ? Number(form.avg_upload_speed) : undefined,
+      avg_download_speed_mbps: form.avg_download_speed_mbps ? Number(form.avg_download_speed_mbps) : undefined,
+      avg_upload_speed_mbps: form.avg_upload_speed_mbps ? Number(form.avg_upload_speed_mbps) : undefined,
       coverage_municipalities: form.coverage_municipalities ? Number(form.coverage_municipalities) : undefined,
-      revenue: form.revenue ? Number(form.revenue) : undefined,
+      revenue_total: form.revenue_total ? Number(form.revenue_total) : undefined,
       status: form.status,
     });
   }
@@ -636,10 +636,10 @@ function IftTab() {
               <tr key={r.id} onClick={() => setSelected(r)} style={{ cursor: 'pointer' }}>
                 <td style={styles.td}>{r.report_period ?? '—'}</td>
                 <td style={styles.td}><span style={{ ...styles.badge, background: st.color }}>{st.label}</span></td>
-                <td style={styles.td}>{r.avg_download_speed ?? '—'}</td>
-                <td style={styles.td}>{r.avg_upload_speed ?? '—'}</td>
+                <td style={styles.td}>{r.avg_download_speed_mbps ?? '—'}</td>
+                <td style={styles.td}>{r.avg_upload_speed_mbps ?? '—'}</td>
                 <td style={styles.td}>{r.coverage_municipalities ?? '—'}</td>
-                <td style={styles.td}>{r.revenue != null ? currency(r.revenue) : '—'}</td>
+                <td style={styles.td}>{r.revenue_total != null ? currency(r.revenue_total) : '—'}</td>
                 <td style={styles.td}>{r.created_at?.slice(0, 10)}</td>
               </tr>
             );
@@ -666,10 +666,10 @@ function IftTab() {
             {[
               ['Period', selected.report_period],
               ['Status', <span key="s" style={{ ...styles.badge, background: IFT_STATUSES[selected.status]?.color ?? '#999' }}>{IFT_STATUSES[selected.status]?.label ?? selected.status}</span>],
-              ['Avg ↓ Mbps', selected.avg_download_speed ?? '—'],
-              ['Avg ↑ Mbps', selected.avg_upload_speed ?? '—'],
+              ['Avg ↓ Mbps', selected.avg_download_speed_mbps ?? '—'],
+              ['Avg ↑ Mbps', selected.avg_upload_speed_mbps ?? '—'],
               ['Municipalities', selected.coverage_municipalities ?? '—'],
-              ['Revenue', selected.revenue != null ? currency(selected.revenue) : '—'],
+              ['Revenue', selected.revenue_total != null ? currency(selected.revenue_total) : '—'],
               ['Created', selected.created_at?.slice(0, 10)],
             ].map(([k, v]) => (
               <div key={String(k)} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -709,16 +709,16 @@ function IftTab() {
             </Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field label="Avg Download (Mbps)">
-                <input type="number" step="0.1" value={form.avg_download_speed} onChange={e => setForm(f => ({ ...f, avg_download_speed: e.target.value }))} style={styles.input} />
+                <input type="number" step="0.1" value={form.avg_download_speed_mbps} onChange={e => setForm(f => ({ ...f, avg_download_speed_mbps: e.target.value }))} style={styles.input} />
               </Field>
               <Field label="Avg Upload (Mbps)">
-                <input type="number" step="0.1" value={form.avg_upload_speed} onChange={e => setForm(f => ({ ...f, avg_upload_speed: e.target.value }))} style={styles.input} />
+                <input type="number" step="0.1" value={form.avg_upload_speed_mbps} onChange={e => setForm(f => ({ ...f, avg_upload_speed_mbps: e.target.value }))} style={styles.input} />
               </Field>
               <Field label="Coverage Municipalities">
                 <input type="number" value={form.coverage_municipalities} onChange={e => setForm(f => ({ ...f, coverage_municipalities: e.target.value }))} style={styles.input} />
               </Field>
               <Field label="Revenue (MXN)">
-                <input type="number" step="0.01" value={form.revenue} onChange={e => setForm(f => ({ ...f, revenue: e.target.value }))} style={styles.input} />
+                <input type="number" step="0.01" value={form.revenue_total} onChange={e => setForm(f => ({ ...f, revenue_total: e.target.value }))} style={styles.input} />
               </Field>
             </div>
             {createError && <p style={styles.error}>{createError}</p>}

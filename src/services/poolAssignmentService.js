@@ -262,6 +262,28 @@ async function assertNoOverlap(pool, excludePoolId = null) {
 
 // ---- Assignment ----
 
+const isDuplicateKey = err => err && (err.code === 'ER_DUP_ENTRY' || err.errno === 1062);
+
+/**
+ * Insert one candidate address, or return null when another writer took it
+ * first (the unique key answers ER_DUP_ENTRY): assign-next then moves on to the
+ * next candidate instead of failing with a generic 409 (NET-18).
+ */
+async function tryInsertAssignment(exec, pool, candidate, { contractId, clientId, type }) {
+  try {
+    const [result] = await exec(
+      `INSERT INTO ip_assignments (pool_id, organization_id, ip_address, contract_id, client_id, type, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+      [pool.id, pool.organization_id, candidate, contractId || null, clientId || null, type],
+    );
+    const [rows] = await exec('SELECT * FROM ip_assignments WHERE id = ?', [result.insertId]);
+    return rows[0];
+  } catch (err) {
+    if (isDuplicateKey(err)) return null;
+    throw err;
+  }
+}
+
 /**
  * Assign the next free IPv4 address from a pool.
  * Skips: network address, broadcast, gateway, excluded_ranges, and already-assigned IPs.
@@ -292,14 +314,8 @@ async function assignNextFreeIpv4(pool, { contractId, clientId, type }, exec = d
     const candidate = intToIpv4(i);
     if (taken.has(candidate)) continue;
 
-    // Insert assignment
-    const [result] = await exec(
-      `INSERT INTO ip_assignments (pool_id, organization_id, ip_address, contract_id, client_id, type, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-      [pool.id, pool.organization_id, candidate, contractId || null, clientId || null, type],
-    );
-    const [rows] = await exec('SELECT * FROM ip_assignments WHERE id = ?', [result.insertId]);
-    return rows[0];
+    const row = await tryInsertAssignment(exec, pool, candidate, { contractId, clientId, type });
+    if (row) return row;
   }
 
   throw Object.assign(new Error('No free IPv4 addresses available in pool'), { status: 422 });
@@ -338,13 +354,8 @@ async function assignNextFreeIpv6Prefix(pool, { contractId, clientId, type }, ex
     // Check both the full CIDR and the address part
     if (taken.has(candidate) || taken.has(candidateAddr)) continue;
 
-    const [result] = await exec(
-      `INSERT INTO ip_assignments (pool_id, organization_id, ip_address, contract_id, client_id, type, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-      [pool.id, pool.organization_id, candidate, contractId || null, clientId || null, type],
-    );
-    const [rows] = await exec('SELECT * FROM ip_assignments WHERE id = ?', [result.insertId]);
-    return rows[0];
+    const row = await tryInsertAssignment(exec, pool, candidate, { contractId, clientId, type });
+    if (row) return row;
   }
 
   throw Object.assign(new Error('No free IPv6 prefixes available in pool'), { status: 422 });

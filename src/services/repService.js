@@ -229,7 +229,7 @@ async function generateRepForAllocation(paymentId, invoiceId, allocatedAmount, o
 
   // Stamp — a PAC failure leaves the tipo-P doc as a retryable draft.
   try {
-    const stamped = await cfdiService.stamp(result.cfdi_document_id);
+    const stamped = await cfdiService.stamp(result.cfdi_document_id, { userId });
     return {
       generated: true, cfdi_document_id: result.cfdi_document_id,
       uuid: stamped.uuid, sat_status: stamped.status || 'vigente',

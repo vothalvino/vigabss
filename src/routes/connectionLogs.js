@@ -5,6 +5,7 @@
 const { Router } = require('express');
 const rateLimit = require('express-rate-limit');
 const net = require('net');
+const { canonicalIpv6, containingIpv6Prefixes } = require('../utils/ipAddress');
 const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
@@ -182,8 +183,17 @@ function buildSessionWhere(organizationId, query, alias = 'cl') {
     if (version === 4) {
       conditions.push(`COALESCE(${alias}.framed_ip, ${alias}.ip_address) = ?`); params.push(query.ip_address);
     } else {
-      conditions.push(`(${alias}.framed_ipv6_prefix = ? OR ${alias}.ipv6_delegated_prefix = ? OR ${alias}.ipv6_address = ?)`);
-      params.push(query.ip_address, query.ip_address, query.ip_address);
+      // An IPv6 address (or prefix) matches the sessions whose prefix contains
+      // it, and the session holding it as its WAN address. Exact string
+      // equality matched only the stored prefix text itself, so an address on
+      // a subscriber's LAN found nothing (REG-08).
+      const length = prefix === undefined ? 128 : Number(prefix);
+      const containing = containingIpv6Prefixes(address, { maxLength: length });
+      const inList = containing.map(() => '?').join(', ');
+      const own = length === 128 ? ` OR ${alias}.ipv6_address = ?` : '';
+      conditions.push(`(${alias}.framed_ipv6_prefix IN (${inList}) OR ${alias}.ipv6_delegated_prefix IN (${inList})${own})`);
+      params.push(...containing, ...containing);
+      if (own) params.push(canonicalIpv6(address));
     }
   }
   if (query.event_type) {
@@ -230,8 +240,15 @@ function buildSessionWhere(organizationId, query, alias = 'cl') {
       params.push(`%${nasFilter}%`, nasFilter);
     }
   }
-  if (query.date_from) { conditions.push(`${alias}.event_at >= ?`); params.push(dateQuery(query.date_from, 'date_from')); }
-  if (query.date_to) { conditions.push(`${alias}.event_at <= ?`); params.push(dateQuery(query.date_to, 'date_to')); }
+  // A session matches when it was active during the window, as in the binding
+  // report: it started before the window ends and had not stopped before it
+  // began. Matching the start alone dropped a session that began before
+  // date_from and held the address inside the window (REG-07).
+  if (query.date_from) {
+    conditions.push(`(${alias}.event_type <> 'stop' OR COALESCE(${alias}.last_accounting_at, ${alias}.event_at) >= ?)`);
+    params.push(dateQuery(query.date_from, 'date_from'));
+  }
+  if (query.date_to) { conditions.push(`${sessionStartExpression(alias)} <= ?`); params.push(dateQuery(query.date_to, 'date_to')); }
   if (query.date_from && query.date_to && Date.parse(query.date_from) > Date.parse(query.date_to)) {
     throw new ValidationError('Invalid date range', [{ field: 'date_to', message: 'date_to must not be before date_from' }]);
   }

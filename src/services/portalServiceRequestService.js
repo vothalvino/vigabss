@@ -290,24 +290,60 @@ async function queueWifiPasswordCpeTask({ organizationId, contractId, newPasswor
   );
   if (!cpeRows[0]) return { queued: false };
   const CpeTask = require('../models/CpeTask');
-  await CpeTask.create({
+  const task = await CpeTask.create({
     organization_id: cpeRows[0].organization_id,
     cpe_device_id: cpeRows[0].id,
     task_type: 'set_parameter_values',
-    parameters: JSON.stringify({
-      parameters: [
-        {
-          name: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey',
-          value: newPassword,
-          type: 'xsd:string',
-        },
-      ],
-    }),
+    parameters: JSON.stringify([
+      {
+        name: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey',
+        value: newPassword,
+        type: 'xsd:string',
+      },
+    ]),
     priority: 3,
     status: 'queued',
     created_by: createdBy,
   });
-  return { queued: true };
+  return { queued: true, taskId: task?.id ?? null };
+}
+
+/**
+ * Link a Wi-Fi password request to the CPE task that applies it. The request
+ * stays 'approved' until the router confirms (settleWifiRequestForTask): it
+ * used to turn 'completed' as soon as the task was queued (NET-12).
+ */
+async function linkWifiRequestToTask(requestId, taskId) {
+  await db.query(
+    `UPDATE portal_service_requests
+        SET status = 'approved', payload = JSON_SET(COALESCE(payload, JSON_OBJECT()), '$.cpe_task_id', ?), updated_at = NOW()
+      WHERE id = ? AND status IN ('pending', 'approved')`,
+    [taskId, requestId],
+  );
+}
+
+/**
+ * The router answered the Wi-Fi task: complete the request it applies, or
+ * record why it did not apply (the request stays 'approved' for staff).
+ */
+async function settleWifiRequestForTask(taskId, applied, error = null) {
+  if (applied) {
+    await db.query(
+      `UPDATE portal_service_requests
+          SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+        WHERE request_type = 'wifi_password_change' AND status = 'approved'
+          AND JSON_EXTRACT(payload, '$.cpe_task_id') = ?`,
+      [taskId],
+    );
+    return;
+  }
+  await db.query(
+    `UPDATE portal_service_requests
+        SET payload = JSON_SET(payload, '$.cpe_error', ?), updated_at = NOW()
+      WHERE request_type = 'wifi_password_change' AND status = 'approved'
+        AND JSON_EXTRACT(payload, '$.cpe_task_id') = ?`,
+    [String(error || 'the router refused the change').slice(0, 500), taskId],
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -438,20 +474,16 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
   } else if (req.request_type === 'wifi_password_change') {
     // Queue a CPE set-parameter task for the Wi-Fi password if we can resolve the
     // device; if no CPE device is found, leave as approved for manual fulfillment.
-    const { queued } = await queueWifiPasswordCpeTask({
+    const { queued, taskId } = await queueWifiPasswordCpeTask({
       organizationId,
       contractId: req.contract_id,
       newPassword: payload.new_password || null,
       createdBy: approvedByUserId,
     });
     if (queued) {
-      await db.query(
-        `UPDATE portal_service_requests
-         SET status = 'completed', completed_at = NOW(), updated_at = NOW()
-         WHERE id = ?`,
-        [requestId],
-      );
-      logger.info({ requestId }, 'Wi-Fi password change queued via CPE task');
+      // Completed once the router confirms the change, not when queued.
+      await linkWifiRequestToTask(requestId, taskId);
+      logger.info({ requestId, taskId }, 'Wi-Fi password change queued via CPE task');
     }
   } else {
     // static_ip_request, cancellation, visit_schedule — approved, manual fulfillment
@@ -668,6 +700,8 @@ async function rateKbArticle(organizationId, slugOrId, helpful) {
 }
 
 module.exports = {
+  linkWifiRequestToTask,
+  settleWifiRequestForTask,
   createRequest,
   listRequests,
   cancelRequest,

@@ -4933,6 +4933,9 @@ function convertSchemaToOpenApi(schema) {
       }
       default: prop.type = 'string';
     }
+    // A field validate() cannot type (it has no union type) documents its
+    // accepted JSON types here; the route checks the shape.
+    if (Array.isArray(rules.types)) prop.type = rules.types;
 
     if (rules.min !== undefined) prop.minimum = rules.min;
     if (rules.max !== undefined) prop.maximum = rules.max;
