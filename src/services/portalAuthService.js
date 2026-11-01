@@ -17,6 +17,7 @@ const db = require('../config/database');
 const { UnauthorizedError, ValidationError } = require('../utils/errors');
 const { signPortalAccessToken } = require('../utils/accessTokens');
 const { revokePortalSessions } = require('./sessionRevocation');
+const { isolatedOrganizationIds } = require('./organizationFanOut');
 
 const SALT_ROUNDS = 12;
 const MAX_ATTEMPTS = 5;
@@ -34,6 +35,35 @@ function generateRefreshToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// A subscriber of an organization in isolated-database mode lives in that
+// organization's database, not the primary (TNB-27). The public endpoints
+// below know only an email or a token, so they search the primary and then
+// each isolated organization's database. A row found on the primary for an
+// isolated organization is a stale pre-cutover copy and is ignored; a row in a
+// tenant database counts only for that organization. Each match carries
+// `scopeOrgId` (null = primary) so its writes go back to the same database.
+function inScope(scopeOrgId, callback) {
+  if (scopeOrgId === null) {
+    return typeof db.withPrimaryContext === 'function' ? db.withPrimaryContext(callback) : callback();
+  }
+  return db.withTenantContext(scopeOrgId, callback);
+}
+
+async function findAcrossScopes(lookup) {
+  const [primaryRows] = await inScope(null, lookup);
+  const isolated = await isolatedOrganizationIds();
+  const found = primaryRows
+    .filter(row => !isolated.includes(Number(row.organization_id)))
+    .map(row => ({ ...row, scopeOrgId: null }));
+  for (const orgId of isolated) {
+    const [rows] = await inScope(orgId, lookup);
+    for (const row of rows) {
+      if (Number(row.organization_id) === orgId) found.push({ ...row, scopeOrgId: orgId });
+    }
+  }
+  return found;
+}
+
 // ---------------------------------------------------------------------------
 // login — validate email + password, return tokens
 // ---------------------------------------------------------------------------
@@ -49,14 +79,14 @@ async function login({ email, password }) {
     throw new ValidationError('email and password are required');
   }
 
-  const [rows] = await db.query(
+  const rows = await findAcrossScopes(() => db.query(
     `SELECT id, organization_id, name, email, status,
             portal_password_hash, portal_login_attempts, portal_locked_until, portal_token_version
      FROM clients
      WHERE email = ? AND deleted_at IS NULL
      LIMIT ?`,
     [email.toLowerCase().trim(), MAX_SHARED_EMAIL_ACCOUNTS + 1],
-  );
+  ));
 
   // One answer, after the same bcrypt work, for an unknown email, an inactive
   // client, a client without portal access and a locked account, so neither
@@ -89,7 +119,7 @@ async function login({ email, password }) {
     // Atomic, and an expired lock restarts the count (see authService). Every
     // candidate the password was tried against counts the failure.
     for (const candidate of candidates) {
-      await db.query(
+      await inScope(candidate.scopeOrgId, () => db.query(
         `UPDATE clients SET
            portal_login_attempts = CASE WHEN portal_locked_until IS NOT NULL AND portal_locked_until <= NOW() THEN 1
                                         ELSE portal_login_attempts + 1 END,
@@ -98,12 +128,15 @@ async function login({ email, password }) {
                                       ELSE NULL END
          WHERE id = ?`,
         [MAX_ATTEMPTS, LOCKOUT_MINUTES, candidate.id],
-      );
+      ));
     }
     throw invalidCreds();
   }
   const [client] = matches;
+  return inScope(client.scopeOrgId, () => issueLoginTokens(client));
+}
 
+async function issueLoginTokens(client) {
   // Reset lockout on success
   await db.query(
     'UPDATE clients SET portal_login_attempts = 0, portal_locked_until = NULL WHERE id = ?',
@@ -148,7 +181,7 @@ async function refreshToken(token) {
 
   const hash = crypto.createHash('sha256').update(token).digest('hex');
 
-  const [rows] = await db.query(
+  const rows = await findAcrossScopes(() => db.query(
     `SELECT prt.*, c.id AS client_id, c.organization_id, c.name, c.email, c.status, c.portal_token_version
      FROM portal_refresh_tokens prt
      JOIN clients c ON c.id = prt.client_id
@@ -158,11 +191,14 @@ async function refreshToken(token) {
        AND c.deleted_at IS NULL
      LIMIT 1`,
     [hash],
-  );
+  ));
 
   if (rows.length === 0) throw new UnauthorizedError('Invalid or expired refresh token');
 
-  const row = rows[0];
+  return inScope(rows[0].scopeOrgId, () => rotateRefreshToken(rows[0]));
+}
+
+async function rotateRefreshToken(row) {
 
   if (row.status === 'inactive') {
     throw new UnauthorizedError('Account is not active');
@@ -220,10 +256,12 @@ async function refreshToken(token) {
 async function logout(token) {
   if (!token) return;
   const hash = crypto.createHash('sha256').update(token).digest('hex');
-  await db.query(
+  const revoke = () => db.query(
     'UPDATE portal_refresh_tokens SET revoked_at = NOW() WHERE token_hash = ?',
     [hash],
   );
+  await inScope(null, revoke);
+  for (const orgId of await isolatedOrganizationIds()) await inScope(orgId, revoke);
 }
 
 // ---------------------------------------------------------------------------
@@ -259,13 +297,13 @@ async function setPassword(clientId, newPassword) {
 // ---------------------------------------------------------------------------
 
 async function requestPasswordReset(email) {
-  const [rows] = await db.query(
+  const rows = await findAcrossScopes(() => db.query(
     `SELECT id, organization_id, name, email, status, portal_password_hash
      FROM clients
      WHERE email = ? AND deleted_at IS NULL
      LIMIT ?`,
     [email.toLowerCase().trim(), MAX_SHARED_EMAIL_ACCOUNTS + 1],
-  );
+  ));
 
   const generic = { message: 'If that email exists, a reset link has been sent' };
   // Client email is not globally unique. Each portal-enabled account at the
@@ -280,11 +318,11 @@ async function requestPasswordReset(email) {
   for (const client of eligible) {
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const [updated] = await db.query(
+    const [updated] = await inScope(client.scopeOrgId, () => db.query(
       `UPDATE clients SET portal_reset_token_hash = ?, portal_reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR)
        WHERE id = ? AND organization_id <=> ? AND deleted_at IS NULL`,
       [tokenHash, client.id, client.organization_id],
-    );
+    ));
     if (updated.affectedRows !== 1) continue;
     resets.push({
       token,
@@ -340,18 +378,21 @@ async function resetPassword(token, newPassword) {
 
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-  const [rows] = await db.query(
+  const rows = await findAcrossScopes(() => db.query(
     `SELECT * FROM clients
      WHERE portal_reset_token_hash = ? AND portal_reset_token_expires > NOW() AND deleted_at IS NULL
      LIMIT 2`,
     [tokenHash],
-  );
+  ));
 
   if (rows.length !== 1) {
     throw new UnauthorizedError('Invalid or expired reset token');
   }
 
-  const client = rows[0];
+  return inScope(rows[0].scopeOrgId, () => redeemResetToken(rows[0], tokenHash, newPassword));
+}
+
+async function redeemResetToken(client, tokenHash, newPassword) {
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
   // Clear the reset token AND the brute-force lockout: possession of the

@@ -153,4 +153,4 @@ async function forEachDatabaseScope(label, handler) {
   return summary;
 }
 
-module.exports = { forEachActiveOrganization, forEachDatabaseScope, orgScopeFilter };
+module.exports = { forEachActiveOrganization, forEachDatabaseScope, orgScopeFilter, isolatedOrganizationIds };

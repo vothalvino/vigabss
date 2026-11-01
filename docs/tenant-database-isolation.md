@@ -29,7 +29,10 @@ VigaBSS defaults to a shared database with strict `organization_id` scoping. For
    Do not copy staff identity: `users`, `roles` (user groups),
    `role_permissions`, `organization_users` and API tokens stay in the primary
    database. Authentication, RBAC (REST and GraphQL), `/users`, `/roles` and
-   `/api-tokens` always read and write them there.
+   `/api-tokens` always read and write them there. Subscriber portal accounts
+   (`clients`, `portal_refresh_tokens`) are tenant data: after cutover the
+   portal authenticates and serves the subscriber from the tenant database,
+   and the stale primary copy of an isolated organization's clients is ignored.
 6. Test the candidate settings without saving them by sending the same payload
    to the test endpoint:
    ```http
