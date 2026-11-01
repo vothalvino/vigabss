@@ -188,7 +188,7 @@ CALL assert_index_exists('nas',          'uq_nas_ip_address',              'Inde
 CALL assert_index_exists('radius',       'uq_radius_username',             'Index: radius.uq_radius_username');
 CALL assert_index_exists('devices',      'uq_devices_serial_number',       'Index: devices.uq_devices_serial_number');
 CALL assert_index_exists('tickets',      'idx_tickets_status',             'Index: tickets.idx_tickets_status');
-CALL assert_index_exists('ip_assignments', 'uq_ip_assignments_ip',         'Index: ip_assignments.uq_ip_assignments_ip');
+CALL assert_index_exists('ip_assignments', 'uq_ip_assignments_pool_ip',    'Index: ip_assignments.uq_ip_assignments_pool_ip');
 
 -- =========================================================================
 -- 4. Key columns exist with expected properties

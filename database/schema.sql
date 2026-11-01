@@ -1389,9 +1389,11 @@ CREATE TABLE IF NOT EXISTS ip_assignments (
     updated_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at      DATETIME        DEFAULT NULL,
     active_flag TINYINT(1) GENERATED ALWAYS AS (IF(deleted_at IS NULL, 1, NULL)) STORED COMMENT 'NULL when soft-deleted; appended to business unique keys so they ignore soft-deleted rows (migration 361)',
+    live_flag TINYINT(1) GENERATED ALWAYS AS (IF(deleted_at IS NULL AND status <> 'expired', 1, NULL)) STORED COMMENT 'NULL when soft-deleted or expired; keeps those rows out of uq_ip_assignments_pool_ip (migration 486)',
 
     PRIMARY KEY (id),
-    UNIQUE KEY uq_ip_assignments_ip (ip_address, active_flag),
+    UNIQUE KEY uq_ip_assignments_pool_ip (pool_id, ip_address, live_flag),
+    KEY idx_ip_assignments_ip (ip_address),
     KEY idx_ip_assignments_organization_id (organization_id),
     KEY idx_ip_assignments_pool_id (pool_id),
     KEY idx_ip_assignments_contract_id (contract_id),
