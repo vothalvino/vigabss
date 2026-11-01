@@ -1189,7 +1189,7 @@
       "ariaLabel": "Permissões de {{name}}",
       "loadError": "Falha ao carregar as permissões.",
       "empty": "Nenhuma permissão definida.",
-      "readOnlyNotice": "As permissões deste grupo não podem ser editadas — o acesso vem do bypass herdado de administrador, e esta lista nunca é consultada. Exibida aqui apenas como referência, em modo somente leitura.",
+      "readOnlyNotice": "Este é um grupo do sistema compartilhado por todas as organizações, então apenas o operador da instalação ou um superadministrador pode alterar suas permissões. Exibido somente para leitura.",
       "columnModule": "Módulo",
       "stateDenied": "Negado",
       "stateView": "Visualizar",

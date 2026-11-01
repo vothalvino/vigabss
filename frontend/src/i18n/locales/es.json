@@ -1189,7 +1189,7 @@
       "ariaLabel": "Permisos de {{name}}",
       "loadError": "Error al cargar los permisos.",
       "empty": "No hay permisos definidos.",
-      "readOnlyNotice": "Los permisos de este grupo no se pueden editar — su acceso proviene del bypass heredado de administrador, y esta lista nunca se consulta. Se muestra aquí solo de referencia, en modo lectura.",
+      "readOnlyNotice": "Este es un grupo del sistema compartido por todas las organizaciones, así que solo el operador de la instalación o un superadministrador puede cambiar sus permisos. Se muestra en modo lectura.",
       "columnModule": "Módulo",
       "stateDenied": "Denegado",
       "stateView": "Ver",

@@ -1189,7 +1189,7 @@
       "ariaLabel": "Permissions for {{name}}",
       "loadError": "Failed to load permissions.",
       "empty": "No permissions are defined.",
-      "readOnlyNotice": "This group's permissions are not editable — its access comes from the legacy admin bypass, and this list is never consulted. Shown here read-only for reference only.",
+      "readOnlyNotice": "This is a system group shared by every organization, so only the install operator or a super administrator can change its permissions. Shown read-only.",
       "columnModule": "Module",
       "stateDenied": "Denied",
       "stateView": "View",

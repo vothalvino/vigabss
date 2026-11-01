@@ -30,6 +30,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
+import { useAuth } from '@/auth/AuthContext';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
 
 // ---------------------------------------------------------------------------
@@ -414,10 +415,12 @@ interface PermissionMatrixModalProps {
 function PermissionMatrixModal({ role, onClose }: PermissionMatrixModalProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  // admin-kind groups pass the legacy RBAC bypass regardless of what's in
-  // role_permissions — the backend rejects PUT /roles/{id}/permissions for
-  // them (403), so the matrix is presentational-only here.
-  const readOnly = role.kind === 'admin';
+  // System groups (and every admin-kind group) are installation-wide: an edit
+  // changes them in every organization, so the backend lets only a global
+  // principal (install operator / super_admin) change their permissions.
+  const { user } = useAuth();
+  const systemGroup = Boolean(role.is_system) || role.kind === 'admin';
+  const readOnly = systemGroup && user?.has_global_organization_access !== true;
 
   const permissionsLoadError = t('userGroups.permissions.loadError');
 
