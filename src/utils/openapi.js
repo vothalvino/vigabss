@@ -290,6 +290,7 @@ function generateSpec() {
 
       // ---- API Tokens ----
       ...crudPaths('api-tokens', 'API Tokens', 'ApiToken'),
+      '/api-tokens/{id}/revoke': { post: { tags: ['API Tokens'], summary: 'Revoke an API token (one-way)', operationId: 'revokeApiToken', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ApiToken') } },
 
       // ---- Clients ----
       ...crudPaths('clients', 'Clients', 'Client'),

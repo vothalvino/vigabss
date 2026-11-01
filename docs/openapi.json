@@ -2690,6 +2690,42 @@
         }
       }
     },
+    "/api-tokens/{id}/revoke": {
+      "post": {
+        "tags": [
+          "API Tokens"
+        ],
+        "summary": "Revoke an API token (one-way)",
+        "operationId": "revokeApiToken",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ApiToken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/clients": {
       "get": {
         "tags": [
@@ -59669,7 +59705,8 @@
           }
         },
         "required": [
-          "name"
+          "name",
+          "scopes"
         ]
       },
       "apiTokens_updateApiToken": {
@@ -59684,9 +59721,6 @@
             "type": "string"
           },
           "expires_at": {
-            "type": "string"
-          },
-          "revoked_at": {
             "type": "string"
           }
         }

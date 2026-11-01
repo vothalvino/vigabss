@@ -288,9 +288,14 @@ There is no production-wide `users.role = 'admin'` permission bypass in
 `src/middleware/rbac.js`. A narrow shortcut exists only for old query-only test
 doubles. Do not design production behavior around that test compatibility path.
 
-API token scope `NULL` is the legacy unrestricted sentinel; an empty or invalid
-scope list fails closed. A role is not expressible as a scope, so `requireRole`
-admits only that unrestricted sentinel and refuses scope-limited tokens.
+API tokens are always created with an explicit, non-empty scope list (full
+access is `["*:write"]`); the API refuses a missing, empty or `null` list on
+create and update, revocation is one-way (`POST /api-tokens/:id/revoke`), and
+`token_hash` is never returned. `NULL` scopes remain the unrestricted sentinel
+in the auth layer, but nothing can create them; an empty or invalid scope list
+fails closed. A role is not expressible as a scope, so `requireRole` admits
+only that sentinel — in practice role-gated admin routes (SSO configuration,
+FireRelay nodes) refuse API tokens.
 Installation-wide infrastructure (FireRelay node registry and tunnel commands,
 backup settings, system version) is gated on the install operator
 (`src/services/installOperator.js`), never on a tenant admin/owner role.
