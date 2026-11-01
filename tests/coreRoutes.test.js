@@ -977,7 +977,8 @@ describe('Invoice Routes — /api/invoices', () => {
       mockAuthUser();
       db.query
         .mockResolvedValueOnce([[mockInvoice]])
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([[]]) // live CFDI guard
+        .mockResolvedValueOnce([[]]) // live allocations guard (DAL-05)
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const res = await request(app)

@@ -32,7 +32,7 @@ function sameOriginUrl(url, base) {
 async function createCheckoutSession({ organizationId, invoiceId, clientId, returnUrl }) {
   // Get the invoice
   const [invoices] = await db.query(
-    'SELECT * FROM invoices WHERE id = ? AND organization_id = ?',
+    'SELECT * FROM invoices WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
     [invoiceId, organizationId],
   );
   if (invoices.length === 0) throw new Error('Invoice not found');
@@ -216,7 +216,7 @@ async function createCheckoutSession({ organizationId, invoiceId, clientId, retu
  */
 async function generatePaymentLink({ organizationId, invoiceId }) {
   const [invoices] = await db.query(
-    'SELECT i.*, c.name, c.email FROM invoices i JOIN clients c ON c.id = i.client_id WHERE i.id = ? AND i.organization_id = ?',
+    'SELECT i.*, c.name, c.email FROM invoices i JOIN clients c ON c.id = i.client_id WHERE i.id = ? AND i.organization_id = ? AND i.deleted_at IS NULL',
     [invoiceId, organizationId],
   );
   if (invoices.length === 0) throw new Error('Invoice not found');

@@ -44,7 +44,7 @@ async function summary(req, res, next) {
            COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) AS collected,
            COALESCE(SUM(CASE WHEN status NOT IN ('draft', 'void', 'cancelled') THEN total ELSE 0 END), 0) AS total_invoiced
          FROM invoices
-         WHERE organization_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`,
+         WHERE organization_id = ? AND deleted_at IS NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`,
         [orgId],
       ),
       db.queryReplica(
@@ -85,7 +85,7 @@ async function revenue(req, res, next) {
          COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) AS collected,
          COUNT(CASE WHEN status NOT IN ('draft', 'void', 'cancelled') THEN 1 END) AS invoice_count
        FROM invoices
-       WHERE organization_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+       WHERE organization_id = ? AND deleted_at IS NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
        GROUP BY month, currency
        ORDER BY month DESC`,
       [req.orgId],
@@ -110,7 +110,7 @@ async function mrr(req, res, next) {
          ROUND(COALESCE(SUM(COALESCE(c.price_override, p.price)), 0) / NULLIF(COUNT(DISTINCT c.client_id), 0), 2) AS arpu
        FROM contracts c
        JOIN plans p ON p.id = c.plan_id
-       WHERE c.organization_id = ? AND c.status = 'active'
+       WHERE c.organization_id = ? AND c.status = 'active' AND c.deleted_at IS NULL
        GROUP BY p.currency`,
       [req.orgId],
     );
@@ -177,6 +177,7 @@ async function overdue(req, res, next) {
        FROM invoices i
        JOIN clients cl ON cl.id = i.client_id
        WHERE i.organization_id = ?
+         AND i.deleted_at IS NULL
          AND i.status = 'issued'
          AND i.due_date < NOW()
        ORDER BY days_overdue DESC

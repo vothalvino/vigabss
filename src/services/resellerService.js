@@ -96,6 +96,7 @@ async function getResellerDashboard(resellerId, orgId) {
     `SELECT COALESCE(SUM(total), 0) AS rev
      FROM invoices
      WHERE client_id IN (${idsIn})
+       AND deleted_at IS NULL
        AND status = 'paid'
        AND YEAR(issue_date) = YEAR(CURDATE())
        AND MONTH(issue_date) = MONTH(CURDATE())`,
