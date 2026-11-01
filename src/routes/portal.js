@@ -680,6 +680,7 @@ router.post('/tickets/:id/comments', validate(createCommentSchema), async (req, 
       'SELECT id, ticket_id, body, is_internal, created_at FROM ticket_comments WHERE id = ?',
       [result.insertId],
     );
+    require('../services/pubsub').publishTicketComment(req.client.organizationId, ticketRows[0].id, rows[0]);
 
     // AI triage answers what the customer wrote (ASY-10: it used to run on
     // staff comments instead).
@@ -1336,7 +1337,8 @@ router.post('/chat/:token/message', validate(chatMessageSchema), async (req, res
       if (!live) ticketId = null;
     }
     if (ticketId) {
-      await db.query('INSERT INTO ticket_comments (ticket_id, body, is_internal) VALUES (?, ?, 0)', [ticketId, message]);
+      const [comment] = await db.query('INSERT INTO ticket_comments (ticket_id, body, is_internal) VALUES (?, ?, 0)', [ticketId, message]);
+      require('../services/pubsub').publishTicketComment(req.client.organizationId, ticketId, { id: comment.insertId, ticket_id: ticketId });
     } else {
       const [ticketResult] = await db.query(
         `INSERT INTO tickets

@@ -449,6 +449,12 @@ app.use('/api/v1/pdf', exportLimiter);
 app.use('/api/events', sseLimiter);
 app.use('/api/v1/events', sseLimiter);
 app.use('/api/v1/graphql', (req, res, next) => (isEventStream(req) ? sseLimiter(req, res, next) : next()));
+// nginx buffers proxied responses by default, which holds subscription events
+// until the buffer fills (GQL-05).
+app.use('/api/v1/graphql', (req, res, next) => {
+  if (isEventStream(req)) res.setHeader('X-Accel-Buffering', 'no');
+  next();
+});
 app.use('/api/payment-webhooks', webhookLimiter);
 app.use('/api/v1/payment-webhooks', webhookLimiter);
 app.use('/api/whatsapp/webhook', webhookLimiter);

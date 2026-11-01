@@ -570,7 +570,8 @@ const resolvers = {
           }
         }
         for await (const event of pubsub.subscribe('TICKET_COMMENT_ADDED')) {
-          if (String(event.ticketId) === String(ticketId)) {
+          // The same ticket id can exist in another (isolated) organization.
+          if (String(event.ticketId) === String(ticketId) && String(event.orgId) === String(ctx.orgId)) {
             yield event;
           }
         }
