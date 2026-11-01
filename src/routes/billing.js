@@ -2,6 +2,7 @@
 // VigaBSS 5.0 — Billing Workflow Routes
 // =============================================================================
 
+const { toCsv } = require('../utils/csv');
 const { Router } = require('express');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
@@ -124,15 +125,8 @@ router.get('/tax-reports',
           res.set('Content-Type', 'text/csv');
           return res.send('');
         }
-        const headers = Object.keys(rows[0]).join(',');
-        const csvRows = rows.map(row =>
-          Object.values(row).map(v => {
-            if (v === null || v === undefined) return '';
-            const s = String(v).replace(/"/g, '""');
-            return /[,"\n\r]/.test(s) ? `"${s}"` : s;
-          }).join(','),
-        );
-        const csv = [headers, ...csvRows].join('\n');
+        // utils/csv neutralizes spreadsheet formulas in text cells (TNA-25).
+        const csv = toCsv(rows);
         res.set('Content-Type', 'text/csv; charset=utf-8');
         res.set('Content-Disposition', `attachment; filename="tax-report-${type}-${new Date().toISOString().slice(0,10)}.csv"`);
         return res.send(csv);
