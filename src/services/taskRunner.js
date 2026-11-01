@@ -585,6 +585,11 @@ async function runSuspensionWarnings(organizationId) {
   const [rules] = await db.query(sql, params);
 
   let warnings_sent = 0;
+  // One warning per contract per run, and one ever per contract, invoice and
+  // rule: suspension_warning_logs is claimed before sending, so this function
+  // running from both billing_cycle and auto_suspend_overdue, and again every
+  // day of the window, no longer re-sends it (ASY-19).
+  const warnedThisRun = new Set();
   for (const rule of rules) {
     if (!suspensionService.ENFORCED_RULE_ACTIONS.includes(rule.action)) continue;
     // Contracts approaching suspension: overdue, within notify_before_days of
@@ -599,6 +604,8 @@ async function runSuspensionWarnings(organizationId) {
     })).map(c => ({ ...c, contract_id: c.id }));
 
     for (const contract of contracts) {
+      if (warnedThisRun.has(contract.contract_id)) continue;
+      let claimed = false;
       try {
         const [clientRows] = await db.query(
           `SELECT cl.name, cl.email, o.name AS org_name
@@ -609,6 +616,14 @@ async function runSuspensionWarnings(organizationId) {
         );
         const client = clientRows[0];
         if (client && client.email) {
+          const [claim] = await db.query(
+            `INSERT IGNORE INTO suspension_warning_logs (organization_id, contract_id, invoice_id, rule_id)
+             VALUES (?, ?, ?, ?)`,
+            [contract.organization_id, contract.contract_id, contract.invoice_id, rule.id],
+          );
+          if (!claim || claim.affectedRows !== 1) continue;
+          claimed = true;
+          warnedThisRun.add(contract.contract_id);
           const { subject, html } = emailTemplates.suspensionWarningEmail({
             clientName: client.name,
             orgName: client.org_name,
@@ -618,7 +633,7 @@ async function runSuspensionWarnings(organizationId) {
             currency: contract.currency,
             dueDate: contract.due_date ? new Date(contract.due_date).toISOString().slice(0, 10) : '',
           });
-          await emailTransport.sendEmail({
+          const sent = await emailTransport.sendEmail({
             organizationId: contract.organization_id,
             clientId: contract.client_id,
             messageClass: 'transactional',
@@ -626,10 +641,20 @@ async function runSuspensionWarnings(organizationId) {
             subject,
             html,
           });
+          if (sent && sent.success === false) throw new Error(sent.error || 'Suspension warning email failed');
           warnings_sent++;
         }
-      } catch (_err) {
-        // Email failure must not block the suspension cycle
+      } catch (err) {
+        // Email failure must not block the suspension cycle. Release the claim
+        // so the next run retries this warning.
+        logger.warn({ err, contractId: contract.contract_id, ruleId: rule.id }, 'Suspension warning not sent');
+        if (claimed) {
+          warnedThisRun.delete(contract.contract_id);
+          await db.query(
+            'DELETE FROM suspension_warning_logs WHERE contract_id = ? AND invoice_id = ? AND rule_id = ?',
+            [contract.contract_id, contract.invoice_id, rule.id],
+          ).catch(() => {});
+        }
       }
     }
   }
