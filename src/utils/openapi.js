@@ -1599,7 +1599,7 @@ function generateSpec() {
         },
         post: {
           tags: ['PPPoE'],
-          summary: 'Ingest a raw or structured PPPoE event for a registered NAS (machine-to-machine, no JWT)',
+          summary: 'Ingest a raw or structured PPPoE event for a registered NAS (install-wide shared secret, no JWT)',
           operationId: 'ingestPppoeEvent',
           security: [],
           parameters: [{
@@ -1607,13 +1607,30 @@ function generateSpec() {
             in: 'header',
             required: false,
             schema: { type: 'string' },
-            description: 'Shared ingest secret; Authorization: Bearer is also accepted',
+            description: 'Install-wide PPPOE_EVENTS_SECRET; Authorization: Bearer is also accepted',
           }],
           requestBody: pppoeEventIngestBody(),
           responses: {
             ...pppoeEventIngestResponse(),
             401: { description: 'Invalid or missing ingest secret' },
             422: { description: 'Invalid raw or structured event payload' },
+          },
+        },
+      },
+      '/pppoe/events/tenant': {
+        post: {
+          tags: ['PPPoE'],
+          summary: 'Organization-bound PPPoE event ingest',
+          description: 'Requires an organization API token whose only scope is pppoe_events:ingest, held by a user with pppoe_events.ingest. nas_id must be an active NAS of the token organization.',
+          operationId: 'ingestTenantPppoeEvent',
+          security: [{ apiKeyAuth: [] }],
+          requestBody: pppoeEventIngestBody(),
+          responses: {
+            ...pppoeEventIngestResponse(),
+            401: { description: 'Missing or invalid API token' },
+            403: { description: 'Not an API token, token has scopes other than pppoe_events:ingest, or the user lacks pppoe_events.ingest' },
+            422: { description: 'Invalid payload or nas_id is not an active NAS of the token organization' },
+            429: { description: 'Per-token or collector ingest rate exceeded' },
           },
         },
       },

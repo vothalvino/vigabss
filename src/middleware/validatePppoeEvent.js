@@ -47,6 +47,16 @@ function parseLoggedAt(value) {
   return parsed;
 }
 
+// A collector forwards live syslog, so a timestamp far from now is a clock
+// fault or a forged backdated row, not a delayed event.
+const LOGGED_AT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const LOGGED_AT_MAX_FUTURE_MS = 5 * 60 * 1000;
+
+function withinLoggedAtWindow(date, now = Date.now()) {
+  const t = date.getTime();
+  return t >= now - LOGGED_AT_MAX_AGE_MS && t <= now + LOGGED_AT_MAX_FUTURE_MS;
+}
+
 /**
  * Strictly validate one PPPoE ingest payload.
  *
@@ -118,6 +128,8 @@ function validatePppoeEvent(req, _res, next) {
     const parsed = parseLoggedAt(body.logged_at);
     if (!parsed) {
       addError(errors, 'logged_at', 'logged_at must be a valid ISO-8601 datetime');
+    } else if (!withinLoggedAtWindow(parsed)) {
+      addError(errors, 'logged_at', 'logged_at must be within the last 7 days and at most 5 minutes in the future');
     } else {
       body.logged_at = parsed;
     }
