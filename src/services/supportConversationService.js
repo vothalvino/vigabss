@@ -145,15 +145,14 @@ async function _generateResponse({ intent, context, content, conversationHistory
     if (intent === 'billing') {
       const billingModule = getSupportBillingModule();
       if (typeof billingModule.handle === 'function') {
-        const reply = await billingModule.handle(intent, context, content);
+        // The modules scope every query by orgId; without it each handler's
+        // SQL bound undefined and failed behind a reply claiming success
+        // (SUP-02).
+        const reply = await billingModule.handle(intent, context, content, orgId);
         // reply is { response, requiresConfirmation, actionType, actionData }
         // — NOT a string. String-concatenating it (`PREFIX + reply`) is what
         // produced the live "[object Object]" bug; use reply.response.
-        return wrap(reply.response, {
-          requiresConfirmation: Boolean(reply.requiresConfirmation),
-          actionType: reply.actionType || null,
-          actionData: reply.actionData || null,
-        });
+        return wrap(reply.response, moduleExtras(reply));
       }
     }
 
@@ -174,24 +173,41 @@ async function _generateResponse({ intent, context, content, conversationHistory
     if (intent === 'general') {
       const generalModule = getSupportGeneralModule();
       if (typeof generalModule.handle === 'function') {
-        const reply = await generalModule.handle(intent, context, content);
+        const reply = await generalModule.handle(intent, context, content, orgId);
         // Same object shape (and same historical bug) as the billing branch above.
-        return wrap(reply.response, {
-          requiresConfirmation: Boolean(reply.requiresConfirmation),
-          actionType: reply.actionType || null,
-          actionData: reply.actionData || null,
-        });
+        return wrap(reply.response, moduleExtras(reply));
       }
       // Generic general fallback
       return wrap('¿En qué más puedo ayudarte? Si necesitas información sobre horarios, direcciones o contactos, estoy aquí para asistirte.');
     }
 
   } catch (err) {
-    logger.warn({ err: err.message, intent, orgId }, 'supportConversationService: module response failed — using generic fallback');
+    logger.warn({ err: err.message, intent, orgId }, 'supportConversationService: module response failed — handing to staff');
+    return wrap('No pude completar tu solicitud en este momento. Te paso con un agente de soporte.', {
+      escalate: true,
+      escalationReason: 'module_failed',
+    });
   }
 
-  // Default / 'other' intent
-  return wrap('Permíteme conectarte con el área correcta. Un momento, por favor.');
+  // Default / 'other' intent. This used to say "Permíteme conectarte con el
+  // área correcta" without connecting anyone; ask instead, and say how to
+  // reach a person (HUMAN_REQUEST_RE escalates).
+  return wrap('No estoy seguro de haber entendido. ¿Tu consulta es sobre facturación, tu conexión o información general? Si prefieres, escribe "hablar con un agente".');
+}
+
+/**
+ * Carry a module reply's confirmation fields, and its escalation request: a
+ * module that cannot do what the customer asked (a cancellation, a dispute, a
+ * ticket it failed to write) asks for a person instead of claiming success.
+ */
+function moduleExtras(reply) {
+  return {
+    requiresConfirmation: Boolean(reply.requiresConfirmation),
+    actionType: reply.actionType || null,
+    actionData: reply.actionData || null,
+    escalate: Boolean(reply.escalate),
+    escalationReason: reply.escalationReason || null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -247,6 +263,10 @@ async function startConversation({ orgId, clientId, channel = 'web', message }) 
 
   // Keyword-only classification for the opening message (deterministic; no LLM cost)
   const { intent, confidence } = await intentClassifierService.classify(message, null);
+  // An opening message can already be a dispute or a request for a person;
+  // only follow-ups were checked (SUP-02).
+  const openingEscalation = HUMAN_REQUEST_RE.test(message) ? 'human_requested'
+    : BILLING_DISPUTE_RE.test(message) ? 'billing_dispute' : null;
 
   // Insert conversation row
   const [convResult] = await db.query(
@@ -306,8 +326,8 @@ async function startConversation({ orgId, clientId, channel = 'web', message }) 
   // required — a reply that talks about connecting the customer to a
   // technician must not be a no-op (see PR F brief: no fake "technician
   // scheduled").
-  if (aiResponse.escalate) {
-    await escalate({ conversationId, reason: aiResponse.escalationReason || 'diagnostic_escalation', orgId });
+  if (aiResponse.escalate || openingEscalation) {
+    await escalate({ conversationId, reason: aiResponse.escalationReason || openingEscalation || 'diagnostic_escalation', orgId });
   }
 
   return _loadConversation(conversationId, orgId);

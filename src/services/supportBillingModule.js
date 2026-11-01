@@ -39,6 +39,9 @@ const DISPATCH = [
  * @returns {Promise<{ response: string, requiresConfirmation: boolean, actionType: string, actionData: object }>}
  */
 async function handle(intent, context, messageContent, orgId) {
+  // Every handler scopes its queries by organization; refuse rather than run
+  // them with an undefined bind (SUP-02).
+  if (orgId === undefined || orgId === null) throw new Error('supportBillingModule.handle: orgId is required');
   const text = messageContent || '';
 
   for (const entry of DISPATCH) {
@@ -271,10 +274,13 @@ async function _dataUsage(context, _messageContent, orgId) {
 
 async function _cancellationFlow(context) {
   return {
-    response: 'Lamentamos que desees cancelar tu servicio. Para proceder con la baja, necesitamos tu confirmación. Un agente se pondrá en contacto contigo para gestionar la cancelación. ¿Confirmas que deseas cancelar?',
-    requiresConfirmation: true,
+    response: 'Lamentamos que desees cancelar tu servicio. Un agente se pondrá en contacto contigo para gestionar la cancelación.',
+    requiresConfirmation: false,
     actionType: 'cancellation',
     actionData: { clientId: context?.customer?.id },
+    // The promised contact needs a ticket: nothing else recorded the request.
+    escalate: true,
+    escalationReason: 'cancellation_request',
   };
 }
 
@@ -351,14 +357,19 @@ async function _overchargeReview(context, messageContent) {
       requiresConfirmation: false,
       actionType: 'overcharge_review',
       actionData: { invoiceId: lastInvoice?.id ?? null, message: messageContent },
+      // "Registered" is made true by the escalation ticket.
+      escalate: true,
+      escalationReason: 'billing_dispute',
     };
   } catch (err) {
     logger.warn({ err }, 'billingModule: overchargeReview failed');
     return {
-      response: 'Hemos registrado tu disputa. Un agente te contactará en breve.',
+      response: 'Un agente revisará tu disputa y te contactará en breve.',
       requiresConfirmation: false,
       actionType: 'overcharge_review',
       actionData: {},
+      escalate: true,
+      escalationReason: 'billing_dispute',
     };
   }
 }

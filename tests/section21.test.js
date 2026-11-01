@@ -616,10 +616,12 @@ describe('supportBillingModule', () => {
     expect(result.response).toContain('Basic');
   });
 
-  test('handle cancellation sets requiresConfirmation=true', async () => {
+  // Nothing consumed the confirmation, so the request was lost; it now asks
+  // for a person, who records the cancellation (SUP-02).
+  test('handle cancellation escalates to an agent', async () => {
     const result = await billingModule.handle('billing', mockCtx, 'quiero cancelar mi servicio', 1);
-    expect(result.requiresConfirmation).toBe(true);
-    expect(result.actionType).toBe('cancellation');
+    expect(result.requiresConfirmation).toBe(false);
+    expect(result).toMatchObject({ actionType: 'cancellation', escalate: true, escalationReason: 'cancellation_request' });
   });
 
   test('handle next due date returns date response', async () => {

@@ -37,6 +37,9 @@ const DISPATCH = [
  * @returns {Promise<{ response: string, requiresConfirmation: boolean, actionType: string, actionData: object }>}
  */
 async function handle(intent, context, messageContent, orgId) {
+  // Every handler scopes its queries by organization; refuse rather than run
+  // them with an undefined bind (SUP-02).
+  if (orgId === undefined || orgId === null) throw new Error('supportGeneralModule.handle: orgId is required');
   const text = messageContent || '';
 
   for (const entry of DISPATCH) {
@@ -253,10 +256,13 @@ async function _damageReport(context, messageContent, orgId) {
   } catch (err) {
     logger.warn({ err }, 'generalModule: damageReport ticket creation failed');
     return {
-      response: 'Registramos tu reporte de daño. Por favor llama a soporte para agilizar la atención.',
+      // The ticket was NOT written: say so and hand to a person (SUP-02).
+      response: 'No pude registrar tu reporte de daño en este momento. Te paso con un agente de soporte.',
       requiresConfirmation: false,
       actionType: 'damage_report',
       actionData: { ticketCreated: false },
+      escalate: true,
+      escalationReason: 'ticket_creation_failed',
     };
   }
 }
@@ -285,10 +291,12 @@ async function _obstructionReport(context, messageContent, orgId) {
   } catch (err) {
     logger.warn({ err }, 'generalModule: obstructionReport ticket creation failed');
     return {
-      response: 'Registramos tu reporte de obstrucción. Nuestro equipo técnico lo revisará pronto.',
+      response: 'No pude registrar tu reporte de obstrucción en este momento. Te paso con un agente de soporte.',
       requiresConfirmation: false,
       actionType: 'obstruction_report',
       actionData: { ticketCreated: false },
+      escalate: true,
+      escalationReason: 'ticket_creation_failed',
     };
   }
 }
@@ -353,10 +361,12 @@ async function _technicianComplaint(context, messageContent, orgId) {
   } catch (err) {
     logger.warn({ err }, 'generalModule: technicianComplaint ticket creation failed');
     return {
-      response: 'Hemos registrado tu queja sobre el técnico. Nuestro supervisor se pondrá en contacto contigo.',
+      response: 'No pude registrar tu queja en este momento. Te paso con un agente de soporte.',
       requiresConfirmation: false,
       actionType: 'technician_complaint',
       actionData: { ticketCreated: false },
+      escalate: true,
+      escalationReason: 'ticket_creation_failed',
     };
   }
 }
