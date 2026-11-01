@@ -10658,7 +10658,7 @@ CREATE TABLE IF NOT EXISTS alert_escalation_steps (
   message_template      TEXT             NULL,
   created_at            DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_aes_chain_step (chain_id, step_number),
+  UNIQUE KEY uq_escalation_step (chain_id, step_number),
   KEY idx_aes_chain (chain_id),
   CONSTRAINT fk_aes_chain FOREIGN KEY (chain_id) REFERENCES alert_escalation_chains(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
