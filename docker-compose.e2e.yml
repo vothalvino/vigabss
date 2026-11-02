@@ -9,8 +9,6 @@
 #   docker compose -f docker-compose.e2e.yml down -v
 # =============================================================================
 
-version: '3.8'
-
 services:
   # ---------------------------------------------------------------------------
   # MySQL 8.4 — ephemeral, RAM-disk backed for speed
@@ -63,7 +61,8 @@ services:
     ports:
       - '3000:3000'
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/health/live | grep -q ok']
+      # The bookworm-slim image has no wget or curl; probe with node (OPS-18).
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/health/live').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 5s
       timeout: 5s
       retries: 12
