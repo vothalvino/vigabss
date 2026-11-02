@@ -125,6 +125,7 @@ const twoFactorRoutes = require('./routes/twoFactor');
 const bulkRoutes = require('./routes/bulk');
 const mapConfigRoutes = require('./routes/mapConfig');
 const portalRoutes = require('./routes/portal');
+const { applyDefaultDeny } = require('./middleware/v1DefaultDeny');
 const portalKbRoutes = require('./routes/portalKb');
 const portalServiceRequestsRoutes = require('./routes/portalServiceRequests');
 const smsRoutes = require('./routes/sms');
@@ -859,6 +860,9 @@ v1.use('/wg-peers', wgPeerRoutes);
 // GraphQL subscriptions stream over text/event-stream: they get the SSE
 // limiter, the concurrent-stream caps and a bounded lifetime (GQL-06).
 v1.use('/graphql', authenticate, orgScope, streamGuard({ when: isEventStream }), graphqlMiddleware);
+
+// Every v1 route authenticates unless it is a reviewed public route (SEC-22).
+applyDefaultDeny(v1);
 
 // Mount v1 at both /api (backward compat) and /api/v1 (versioned)
 app.use('/api/v1', v1);

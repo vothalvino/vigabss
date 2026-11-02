@@ -337,6 +337,16 @@ that inevitably fail, but they never replace server-side authorization.
 
 - Routes compose middleware and handlers. Use a permission slug that is seeded
   and granted to every intended role.
+- Every `/api/v1` route authenticates by default: `applyDefaultDeny`
+  (`src/middleware/v1DefaultDeny.js`) puts `authenticate` in front of each
+  route's handlers, except the reviewed `PUBLIC_V1_ROUTES` (sign-in, portal,
+  provider webhooks, collectors). Route files still add `authenticate`,
+  `orgScope` and `requirePermission` themselves.
+  `tests/routeSecurityInventory.test.js` walks the route tree and fails on a
+  route that lacks the organization scope or a permission guard without a
+  reviewed reason, or a write that only a `*.view` permission guards. Custom
+  guards are marked with `tagGuard` from `src/middleware/routeGuard.js` so the test
+  can see them.
 - Validation schemas live in `src/middleware/schemas/`. The custom `validate()`
   middleware validates declared fields but, by default, leaves undeclared fields
   in the body. Sensitive mutation routes can opt into `{ strip: true }`.
