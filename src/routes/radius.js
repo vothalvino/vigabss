@@ -359,6 +359,35 @@ router.post('/:id/disconnect', requirePermission('devices.update'), validate(dis
 // =============================================================================
 // Placed with the other `/:id/...` item routes (above the generic `/:id` CRUD
 // block) so it stays tidy alongside `/:id/disconnect` and `/:id/routes`.
+// A subscriber who moves, or lives in two places, connects through other NAS
+// of the same organization. RADIUS already authenticates them on any of them;
+// a local RouterOS secret exists only where it was pushed, so the push (and a
+// removal) also goes to every other active NAS of the organization that has
+// API credentials. The home NAS stays authoritative for the response; the
+// others are reported per NAS and never fail the request.
+async function otherProvisionableNas(organizationId, homeNasId) {
+  const [rows] = await db.query(
+    `SELECT * FROM nas
+      WHERE organization_id <=> ? AND id <> ? AND status = 'active' AND deleted_at IS NULL
+        AND api_username IS NOT NULL AND api_username <> ''
+      ORDER BY id`,
+    [organizationId, homeNasId],
+  );
+  return rows || [];
+}
+
+async function fanOut(nasRows, action) {
+  const results = [];
+  for (const nas of nasRows) {
+    try {
+      results.push({ nas_id: nas.id, ok: true, ...(await action(nas)) });
+    } catch (e) {
+      results.push({ nas_id: nas.id, ok: false, error: e.message });
+    }
+  }
+  return results;
+}
+
 router.post('/:id/push', requirePermission('radius.sync'), async (req, res, next) => {
   try {
     const radius = await Radius.findByIdOrFail(req.params.id, req.orgId);
@@ -409,6 +438,8 @@ router.post('/:id/push', requirePermission('radius.sync'), async (req, res, next
         const removed = await routerProvisioningService.removeSubscriber(nas, {
           username: radius.username,
         });
+        const otherNas = await fanOut(await otherProvisionableNas(req.orgId, nas.id),
+          (other) => routerProvisioningService.removeSubscriber(other, { username: radius.username }));
         return res.json({
           data: {
             mode: 'bounded_radius',
@@ -417,6 +448,7 @@ router.post('/:id/push', requirePermission('radius.sync'), async (req, res, next
             updated: false,
             ...removed,
           },
+          other_nas: otherNas,
         });
       } catch (e) {
         if (e instanceof ValidationError || e.statusCode === 422) return next(e);
@@ -441,7 +473,10 @@ router.post('/:id/push', requirePermission('radius.sync'), async (req, res, next
     };
 
     try {
-      res.json({ data: await routerProvisioningService.pushSubscriber(nas, sub) });
+      const data = await routerProvisioningService.pushSubscriber(nas, sub);
+      const otherNas = await fanOut(await otherProvisionableNas(req.orgId, nas.id),
+        (other) => routerProvisioningService.pushSubscriber(other, sub));
+      res.json({ data, other_nas: otherNas });
     } catch (e) {
       // Misconfiguration (e.g. NAS missing API username) is a 422, not "unreachable".
       if (e instanceof ValidationError || e.statusCode === 422) return next(e);

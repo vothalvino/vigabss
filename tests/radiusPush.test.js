@@ -93,7 +93,8 @@ describe('POST /api/radius/:id/push', () => {
     db.query
       .mockResolvedValueOnce([[mockRadius]])
       .mockResolvedValueOnce([[activeContract]])
-      .mockResolvedValueOnce([[mockNas]]);
+      .mockResolvedValueOnce([[mockNas]])
+      .mockResolvedValueOnce([[]]); // no other NAS of the organization
 
     routerProvisioningService.pushSubscriber.mockResolvedValue({
       id: '*5',
@@ -155,7 +156,8 @@ describe('POST /api/radius/:id/push', () => {
     mockAuthUser();
     db.query
       .mockResolvedValueOnce([[{ ...mockRadius, contract_id: null }]])
-      .mockResolvedValueOnce([[mockNas]]);
+      .mockResolvedValueOnce([[mockNas]])
+      .mockResolvedValueOnce([[]]);
     routerProvisioningService.pushSubscriber.mockResolvedValue({
       id: '*6', created: true, updated: false,
     });
@@ -175,7 +177,8 @@ describe('POST /api/radius/:id/push', () => {
       .mockResolvedValueOnce([[
         { ...activeContract, status: 'pending', test_window_open: 1 },
       ]])
-      .mockResolvedValueOnce([[mockNas]]);
+      .mockResolvedValueOnce([[mockNas]])
+      .mockResolvedValueOnce([[]]);
     routerProvisioningService.removeSubscriber.mockResolvedValue({
       deleted: false, alreadyAbsent: true, name: 'pppoe-user',
     });
@@ -228,5 +231,37 @@ describe('POST /api/radius/:id/push', () => {
   test('returns 401 without an auth header', async () => {
     const res = await request(app).post('/api/radius/7/push');
     expect(res.status).toBe(401);
+  });
+
+  // A client who moves or lives in two places connects through another NAS of
+  // the same organization; a local secret must exist there too.
+  test('also pushes the secret to every other provisionable NAS of the organization', async () => {
+    mockAuthUser();
+    const nasB = { ...mockNas, id: 5, name: 'NAS-2', ip_address: '10.0.0.2' };
+    const nasC = { ...mockNas, id: 6, name: 'NAS-3', ip_address: '10.0.0.3' };
+    db.query
+      .mockResolvedValueOnce([[mockRadius]])
+      .mockResolvedValueOnce([[activeContract]])
+      .mockResolvedValueOnce([[mockNas]])
+      .mockResolvedValueOnce([[nasB, nasC]]);
+    routerProvisioningService.pushSubscriber.mockImplementation(async (nas) => {
+      if (nas.id === 6) throw new Error('connect ETIMEDOUT');
+      return { id: `*${nas.id}`, created: true, updated: false };
+    });
+
+    const res = await request(app)
+      .post('/api/radius/7/push')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ id: '*4', created: true, updated: false });
+    expect(routerProvisioningService.pushSubscriber.mock.calls.map(([n]) => n.id)).toEqual([4, 5, 6]);
+    expect(res.body.other_nas).toEqual([
+      { nas_id: 5, ok: true, id: '*5', created: true, updated: false },
+      { nas_id: 6, ok: false, error: 'connect ETIMEDOUT' },
+    ]);
+    const lookup = db.query.mock.calls.find(([sql]) => /FROM nas\s+WHERE organization_id <=> \? AND id <> \?/.test(sql));
+    expect(lookup[0]).toMatch(/status = 'active' AND deleted_at IS NULL/);
+    expect(lookup[1]).toEqual([1, 4]);
   });
 });
