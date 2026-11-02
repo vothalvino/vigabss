@@ -159,6 +159,27 @@ function createPortalLinkCode({ organizationId, clientId }) {
   });
 }
 
+// Wrong email-OTP guesses allowed against ONE client in a rolling day, across
+// every phone and every code (SUP-10). The per-code ceiling alone let an
+// attacker cycling numbers keep guessing at one account indefinitely.
+const CLIENT_LINK_GUESSES_PER_DAY = 20;
+
+/** True once a client's email-linking codes absorbed the day's wrong guesses. */
+async function clientLinkGuessesExhausted(clientId) {
+  const [rows] = await db.query(
+    `SELECT COALESCE(SUM(attempts), 0) - COALESCE(SUM(consumed_at IS NOT NULL), 0) AS failed
+       FROM whatsapp_verifications
+      WHERE client_id = ? AND purpose = 'link_email' AND created_at > (NOW() - INTERVAL 1 DAY)`,
+    [clientId],
+  );
+  const failed = Number(rows[0]?.failed || 0);
+  if (failed >= CLIENT_LINK_GUESSES_PER_DAY) {
+    logger.warn({ clientId, failed }, 'WhatsApp email linking locked for the day: too many wrong codes');
+    return true;
+  }
+  return false;
+}
+
 /**
  * Verify a code tied to a specific phone + purpose (email-OTP, step-up).
  * Increments attempts on mismatch and refuses once the attempt ceiling is hit.
@@ -174,13 +195,24 @@ async function verifyPhoneCode({ phone, purpose, code }) {
   );
   const v = rows[0];
   if (!v) return { ok: false, reason: 'no_pending' };
-  if (v.attempts >= config.whatsapp.maxCodeAttempts) return { ok: false, reason: 'locked' };
+  if (v.client_id && await clientLinkGuessesExhausted(v.client_id)) return { ok: false, reason: 'locked' };
 
-  if (!hexEqual(hashCode(code), v.code_hash)) {
-    await db.query('UPDATE whatsapp_verifications SET attempts = attempts + 1 WHERE id = ?', [v.id]);
-    return { ok: false, reason: 'mismatch' };
-  }
-  await db.query('UPDATE whatsapp_verifications SET consumed_at = NOW() WHERE id = ?', [v.id]);
+  // Claim an attempt BEFORE comparing (SUP-10). Reading attempts and
+  // incrementing afterwards let concurrently processed guesses all pass the
+  // ceiling; this conditional UPDATE lets exactly maxCodeAttempts through.
+  const [claim] = await db.query(
+    `UPDATE whatsapp_verifications SET attempts = attempts + 1
+      WHERE id = ? AND attempts < ? AND consumed_at IS NULL`,
+    [v.id, config.whatsapp.maxCodeAttempts],
+  );
+  if (!claim || claim.affectedRows !== 1) return { ok: false, reason: 'locked' };
+
+  if (!hexEqual(hashCode(code), v.code_hash)) return { ok: false, reason: 'mismatch' };
+  const [consumed] = await db.query(
+    'UPDATE whatsapp_verifications SET consumed_at = NOW() WHERE id = ? AND consumed_at IS NULL',
+    [v.id],
+  );
+  if (!consumed || consumed.affectedRows !== 1) return { ok: false, reason: 'no_pending' };
   return { ok: true, clientId: v.client_id, organizationId: v.organization_id };
 }
 
@@ -507,6 +539,8 @@ async function clearConversationState(phone) {
 
 module.exports = {
   normalizeSenderId,
+  clientLinkGuessesExhausted,
+  CLIENT_LINK_GUESSES_PER_DAY,
   normalizeE164,
   generateNumericCode,
   hashCode,

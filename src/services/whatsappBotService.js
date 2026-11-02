@@ -136,6 +136,8 @@ async function maybeSendEmailOtp({ phone, email }) {
     // Per-target-inbox budget (the per-phone budget above protects the sender,
     // not the victim's inbox against a number-cycling attacker).
     if (await wa.clientEmailCodeBudgetExceeded(client.id, client.organization_id ?? null)) return;
+    // No new codes for an account whose linking is locked for the day (SUP-10).
+    if (await wa.clientLinkGuessesExhausted(client.id)) return;
 
     const code = await wa.createVerification({
       organizationId: client.organization_id,
