@@ -3,37 +3,42 @@
 // =============================================================================
 // Wraps protected routes:
 //   • Redirects unauthenticated users to /login
-//   • Renders <NotAllowed> when the user lacks the required role
+//   • Renders the not-allowed page when the user may not open the page
 //   • Shows a full-page spinner while auth state is initialising
+//
+// A page in the nav registry opens when the session's resolved permissions
+// include one of its viewPermissions, so custom groups and grants to built-in
+// groups work (FE-25). The role tier (requiredRole) decides only for pages
+// outside the registry or a session without resolved permissions.
 // =============================================================================
 
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { permitsByPermissions, routeForPath } from '@/nav/routes';
 import { useAuth } from './AuthContext';
 import { ForcePasswordChange } from './ForcePasswordChange';
+import { hasRole } from './roles';
 
-// ---------------------------------------------------------------------------
-// Role hierarchy — higher index = broader privilege
-// ---------------------------------------------------------------------------
-const ROLE_RANK: Record<string, number> = {
-  readonly: 1,
-  support: 2,
-  technician: 3,
-  billing: 3,
-  admin: 10,
-};
+export { hasRole };
 
-export function hasRole(userRole: string, required: string): boolean {
-  // admin always passes
-  if (userRole === 'admin') return true;
-  // readonly "must see everything, change nothing" (CLAUDE.md persona
-  // contract) — it passes every requiredRole gate so it reaches every page;
-  // the backend still rejects every mutation, and each page's own GETs are
-  // covered by the readonly permission grants (migration 399 and prior).
-  if (userRole === 'readonly') return true;
-  // exact match
-  if (userRole === required) return true;
-  // rank-based fallback
-  return (ROLE_RANK[userRole] ?? 0) >= (ROLE_RANK[required] ?? 0);
+function NotAllowed() {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        fontFamily: 'sans-serif',
+        gap: 8,
+      }}
+    >
+      <h2>{t('notAllowed.title')}</h2>
+      <p>{t('notAllowed.body')}</p>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -78,25 +83,10 @@ export function PrivateRoute({ requiredRole }: PrivateRouteProps) {
     return <ForcePasswordChange />;
   }
 
-  // Authenticated but lacks the required role.
-  if (requiredRole && !hasRole(user.role, requiredRole)) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          fontFamily: 'sans-serif',
-          gap: 8,
-        }}
-      >
-        <h2>403 — Not Allowed</h2>
-        <p>You don't have permission to view this page.</p>
-      </div>
-    );
-  }
+  const route = routeForPath(location.pathname);
+  const byPermissions = user.role === 'admin' || !route ? null : permitsByPermissions(user, route);
+  const allowed = byPermissions ?? (!requiredRole || hasRole(user.role, requiredRole));
+  if (!allowed) return <NotAllowed />;
 
   return <Outlet />;
 }

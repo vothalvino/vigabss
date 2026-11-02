@@ -6630,5 +6630,9 @@
     "unchained_other": "{{count}} older entries predate the hash chain.",
     "position": "position {{seq}}",
     "installScope": "Show install-wide events (no organization)"
+  },
+  "notAllowed": {
+    "title": "403 — Not Allowed",
+    "body": "You don't have permission to view this page."
   }
 }
