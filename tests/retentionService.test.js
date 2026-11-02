@@ -64,6 +64,7 @@ describe('retentionService', () => {
       expect(policies).toEqual({
         audit_logs: 365,
         alert_events: 90,
+        analytics_anomalies: 180,
         webhook_deliveries: 90,
         snmp_trap_forwarding_deliveries: 90,
         snmp_traps: 180,
