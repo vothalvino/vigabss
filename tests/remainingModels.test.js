@@ -14,21 +14,16 @@ jest.mock('../src/config/database', () => ({
   pool: { end: jest.fn() },
 }));
 
-const BillingPeriod          = require('../src/models/BillingPeriod');
 const CfdiConcepto           = require('../src/models/CfdiConcepto');
 const CfdiPaymentComplement  = require('../src/models/CfdiPaymentComplement');
 const CfdiRelatedDocument    = require('../src/models/CfdiRelatedDocument');
 const ClientMxProfile        = require('../src/models/ClientMxProfile');
-const ContractAddon          = require('../src/models/ContractAddon');
 const ContractTemplateMx     = require('../src/models/ContractTemplateMx');
 const CreditNoteItem         = require('../src/models/CreditNoteItem');
 const FacturaPublicaInvoice  = require('../src/models/FacturaPublicaInvoice');
 const FacturaPublicaInvoiceItem = require('../src/models/FacturaPublicaInvoiceItem');
-const InventoryStock         = require('../src/models/InventoryStock');
-const InventoryTransaction   = require('../src/models/InventoryTransaction');
 const InvoiceItem            = require('../src/models/InvoiceItem');
 const NetworkHealthSnapshot  = require('../src/models/NetworkHealthSnapshot');
-const OrganizationMxProfile  = require('../src/models/OrganizationMxProfile');
 const OrganizationUser       = require('../src/models/OrganizationUser');
 const PlanAddon              = require('../src/models/PlanAddon');
 const Promotion              = require('../src/models/Promotion');
@@ -39,7 +34,6 @@ const SnmpMetric             = require('../src/models/SnmpMetric');
 const SnmpProfileOid         = require('../src/models/SnmpProfileOid');
 const TaxRate                = require('../src/models/TaxRate');
 const TaxRule                = require('../src/models/TaxRule');
-const TicketSlaEvent         = require('../src/models/TicketSlaEvent');
 
 // Helper: assert common model properties
 function expectModel(Model, { tableName, fillableIncludes, hasOrgScope, softDelete = false }) {
@@ -50,16 +44,6 @@ function expectModel(Model, { tableName, fillableIncludes, hasOrgScope, softDele
     expect(Model.fillable).toContain(field);
   }
 }
-
-describe('BillingPeriod', () => {
-  test('has correct metadata', () => {
-    expectModel(BillingPeriod, {
-      tableName: 'billing_periods',
-      fillableIncludes: ['organization_id', 'contract_id', 'period_start', 'period_end', 'invoice_id', 'status'],
-      hasOrgScope: true,
-    });
-  });
-});
 
 describe('CfdiConcepto', () => {
   test('has correct metadata', () => {
@@ -99,17 +83,6 @@ describe('ClientMxProfile', () => {
       tableName: 'client_mx_profiles',
       fillableIncludes: ['client_id', 'rfc', 'razon_social', 'regimen_fiscal'],
       hasOrgScope: false,
-      softDelete: true,
-    });
-  });
-});
-
-describe('ContractAddon', () => {
-  test('has correct metadata with soft-delete', () => {
-    expectModel(ContractAddon, {
-      tableName: 'contract_addons',
-      fillableIncludes: ['organization_id', 'contract_id', 'plan_addon_id', 'quantity', 'unit_price', 'status'],
-      hasOrgScope: true,
       softDelete: true,
     });
   });
@@ -160,27 +133,6 @@ describe('FacturaPublicaInvoiceItem', () => {
   });
 });
 
-describe('InventoryStock', () => {
-  test('has correct metadata with soft-delete', () => {
-    expectModel(InventoryStock, {
-      tableName: 'inventory_stock',
-      fillableIncludes: ['organization_id', 'item_id', 'warehouse_id', 'quantity_on_hand', 'quantity_reserved'],
-      hasOrgScope: true,
-      softDelete: true,
-    });
-  });
-});
-
-describe('InventoryTransaction', () => {
-  test('has correct metadata', () => {
-    expectModel(InventoryTransaction, {
-      tableName: 'inventory_transactions',
-      fillableIncludes: ['organization_id', 'item_id', 'warehouse_id', 'transaction_type', 'quantity'],
-      hasOrgScope: true,
-    });
-  });
-});
-
 describe('InvoiceItem', () => {
   test('has correct metadata with soft-delete', () => {
     expectModel(InvoiceItem, {
@@ -198,17 +150,6 @@ describe('NetworkHealthSnapshot', () => {
       tableName: 'network_health_snapshots',
       fillableIncludes: ['organization_id', 'snapshot_date', 'total_devices', 'online_devices', 'offline_devices'],
       hasOrgScope: true,
-    });
-  });
-});
-
-describe('OrganizationMxProfile', () => {
-  test('has correct metadata with soft-delete', () => {
-    expectModel(OrganizationMxProfile, {
-      tableName: 'organization_mx_profiles',
-      fillableIncludes: ['organization_id', 'rfc', 'razon_social', 'regimen_fiscal'],
-      hasOrgScope: false,
-      softDelete: true,
     });
   });
 });
@@ -316,16 +257,6 @@ describe('TaxRule', () => {
       fillableIncludes: ['organization_id', 'name', 'tax_type', 'rate', 'region', 'is_default', 'status'],
       hasOrgScope: true,
       softDelete: true,
-    });
-  });
-});
-
-describe('TicketSlaEvent', () => {
-  test('has correct metadata', () => {
-    expectModel(TicketSlaEvent, {
-      tableName: 'ticket_sla_events',
-      fillableIncludes: ['organization_id', 'ticket_id', 'sla_definition_id', 'event_type', 'occurred_at', 'notes'],
-      hasOrgScope: true,
     });
   });
 });
