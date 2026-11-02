@@ -46,7 +46,7 @@ function mockMakeConnection() {
 
 jest.mock('../src/config/database', () => ({
   query: jest.fn(async () => [{ affectedRows: 1 }]),
-  getConnection: jest.fn(async () => mockMakeConnection()),
+  getLockConnection: jest.fn(async () => mockMakeConnection()),
   baseConnectionConfig: { database: 'vigabss_test' },
 }));
 
