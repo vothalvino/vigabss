@@ -15,6 +15,7 @@ import { api, tokenStore, authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { extractApiError, errorBox, inputStyle, labelStyle, submitBtn, cancelBtn, dangerBtn } from '@/components/ClientFormModal';
+import { queryKeys } from '@/api/queryKeys';
 
 // ---------------------------------------------------------------------------
 // Shared local styles
@@ -89,7 +90,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['client-raw', clientId] });
-    qc.invalidateQueries({ queryKey: ['client-detail-gql', String(clientId)] });
+    qc.invalidateQueries({ queryKey: queryKeys.clients.detail(clientId) });
   };
 
   const geocode = useMutation({

@@ -308,6 +308,34 @@ describe('ContractDetail — guided activation', () => {
     expect(screen.queryByText(/subscriber line (is|are) off/i)).not.toBeInTheDocument();
   });
 
+  it('cancelling activation also refreshes the contract list and client page (FE2-14)', async () => {
+    (global.fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return jsonResponse({
+          ...pendingActivation(),
+          status: 'cancelled',
+          cancelled: true,
+          cancellation: { contract_cancelled: true, service_order_id: 71, service_order_cancelled: true },
+        });
+      }
+      return jsonResponse(pendingActivation());
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={['/contracts/5']}>
+          <Routes><Route path="/contracts/:id" element={<ContractDetail />} /></Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel activation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel activation' }));
+    expect(await screen.findByText(/Activation and the installation visit were cancelled/)).toBeInTheDocument();
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['contracts'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['client-detail-gql'] });
+  });
+
   it('clears stale cancellation success and returns a never-activated renewal to the activation card', async () => {
     let contractStatus = 'pending';
     let renewed = false;

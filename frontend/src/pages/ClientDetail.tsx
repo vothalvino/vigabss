@@ -40,6 +40,7 @@ import { NewContractModal } from '@/components/NewContractModal';
 import { UndoInstallButton } from '@/components/UndoInstallButton';
 import { CreditNoteModal, reasonLabel, type CreditNote } from '@/pages/CreditNoteList';
 import { formatDate } from '@/lib/dates';
+import { queryKeys } from '@/api/queryKeys';
 
 // ---------------------------------------------------------------------------
 // GraphQL query — fetches the client + all sub-resources in one request
@@ -1171,7 +1172,7 @@ export function ClientDetail() {
   const isMxOrg = user?.organization_locale === 'MX';
 
   const { data: client, isLoading, error } = useQuery({
-    queryKey: ['client-detail-gql', id],
+    queryKey: queryKeys.clients.detail(id),
     queryFn: () => fetchClientDetail(id!),
     enabled: Boolean(id),
   });
@@ -1200,7 +1201,7 @@ export function ClientDetail() {
     },
   });
 
-  const refetchClient = () => queryClient.invalidateQueries({ queryKey: ['client-detail-gql', id] });
+  const refetchClient = () => queryClient.invalidateQueries({ queryKey: queryKeys.clients.detail(id) });
 
   async function handleDeleteContact(contactId: string) {
     if (!window.confirm('Delete this contact?')) return;
