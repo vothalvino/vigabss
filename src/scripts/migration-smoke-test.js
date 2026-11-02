@@ -17,6 +17,7 @@ const path = require('path');
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ script: 'migration-smoke-test' });
 const product = require('../product');
+const { listMigrationFiles } = require('../utils/migrationFiles');
 
 const SCHEMA_SQL = path.resolve(__dirname, '../../database/schema.sql');
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../database/migrations');
@@ -117,9 +118,7 @@ async function runSmokeTest() {
   // -------------------------------------------------------------------------
   // 1. Verify all migration files were applied (recorded in schema_migrations)
   // -------------------------------------------------------------------------
-  const migrationFiles = fs.readdirSync(MIGRATIONS_DIR)
-    .filter(f => f.endsWith('.sql'))
-    .sort();
+  const migrationFiles = listMigrationFiles(MIGRATIONS_DIR);
 
   const [applied] = await db.query('SELECT filename FROM schema_migrations ORDER BY id');
   const appliedSet = new Set(applied.map(r => r.filename));

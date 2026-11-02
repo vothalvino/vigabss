@@ -29,6 +29,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { listMigrationFiles } = require('../utils/migrationFiles');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'database', 'schema.sql');
@@ -1138,7 +1139,7 @@ function checkMigrations(tables, errors, skipped, gaps) {
   let checked = 0;
   let grandfathered = 0;
 
-  for (const name of fs.readdirSync(MIGRATIONS_DIR).sort()) {
+  for (const name of listMigrationFiles(MIGRATIONS_DIR)) {
     if (!name.endsWith('.sql')) continue;
     const num = parseInt(name.slice(0, name.indexOf('_')), 10);
     if (!Number.isFinite(num)) continue;

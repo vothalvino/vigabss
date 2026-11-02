@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS alert_suppression_rules (
 -- ---------------------------------------------------------------------------
 -- 6. ALTER alert_rules — add new columns (INFORMATION_SCHEMA-guarded)
 -- ---------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS migration_260_alter_alert_rules;
 DELIMITER $$
 CREATE PROCEDURE migration_260_alter_alert_rules()
 BEGIN
@@ -146,6 +147,7 @@ DROP PROCEDURE IF EXISTS migration_260_alter_alert_rules;
 -- ---------------------------------------------------------------------------
 -- 7. ALTER alert_events — add new columns (INFORMATION_SCHEMA-guarded)
 -- ---------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS migration_260_alter_alert_events;
 DELIMITER $$
 CREATE PROCEDURE migration_260_alter_alert_events()
 BEGIN

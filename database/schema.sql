@@ -4621,6 +4621,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     id         BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
     filename   VARCHAR(255)     NOT NULL COMMENT 'Migration filename, e.g. 001_create_users_table.sql',
     applied_at TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    checksum   CHAR(64)         NULL COMMENT 'sha256 of the SQL without comments when applied (migration 504)',
 
     PRIMARY KEY (id),
     UNIQUE KEY uq_schema_migrations_filename (filename)
