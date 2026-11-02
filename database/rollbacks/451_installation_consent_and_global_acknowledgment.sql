@@ -2,6 +2,85 @@
 -- service_acknowledgment rows retain their frozen content but are classified as
 -- custom before the ENUM is narrowed, avoiding data truncation in strict mode.
 
+-- DESTRUCTIVE: drops signature-envelope hashes, communication choices, who
+-- captured each signature, and subscriber-consent provenance. It fails closed
+-- while any of that evidence is populated (DB-14); see docs/deployment.md.
+
+DROP PROCEDURE IF EXISTS rollback_451_installation_consent_preflight;
+DELIMITER //
+CREATE PROCEDURE rollback_451_installation_consent_preflight()
+BEGIN
+  -- One guard per column: a re-run after a partial rollback must not trip on a
+  -- column an earlier run already dropped.
+  IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'signed_documents' AND COLUMN_NAME = 'evidence_sha256') THEN
+    IF EXISTS (SELECT 1 FROM signed_documents WHERE evidence_sha256 IS NOT NULL LIMIT 1) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rollback 451 refused: signed_documents.evidence_sha256 holds signing or consent evidence';
+    END IF;
+  END IF;
+  IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'signed_documents' AND COLUMN_NAME = 'captured_by') THEN
+    IF EXISTS (SELECT 1 FROM signed_documents WHERE captured_by IS NOT NULL LIMIT 1) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rollback 451 refused: signed_documents.captured_by holds signing or consent evidence';
+    END IF;
+  END IF;
+  IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'signed_documents' AND COLUMN_NAME = 'communication_choices') THEN
+    IF EXISTS (SELECT 1 FROM signed_documents WHERE communication_choices IS NOT NULL LIMIT 1) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rollback 451 refused: signed_documents.communication_choices holds signing or consent evidence';
+    END IF;
+  END IF;
+  IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscriber_consents' AND COLUMN_NAME = 'captured_by') THEN
+    IF EXISTS (SELECT 1 FROM subscriber_consents WHERE captured_by IS NOT NULL LIMIT 1) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rollback 451 refused: subscriber_consents.captured_by holds signing or consent evidence';
+    END IF;
+  END IF;
+  IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscriber_consents' AND COLUMN_NAME = 'signed_document_id') THEN
+    IF EXISTS (SELECT 1 FROM subscriber_consents WHERE signed_document_id IS NOT NULL LIMIT 1) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rollback 451 refused: subscriber_consents.signed_document_id holds signing or consent evidence';
+    END IF;
+  END IF;
+  IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscriber_consents' AND COLUMN_NAME = 'work_order_id') THEN
+    IF EXISTS (SELECT 1 FROM subscriber_consents WHERE work_order_id IS NOT NULL LIMIT 1) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rollback 451 refused: subscriber_consents.work_order_id holds signing or consent evidence';
+    END IF;
+  END IF;
+  IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscriber_consents' AND COLUMN_NAME = 'service_order_id') THEN
+    IF EXISTS (SELECT 1 FROM subscriber_consents WHERE service_order_id IS NOT NULL LIMIT 1) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rollback 451 refused: subscriber_consents.service_order_id holds signing or consent evidence';
+    END IF;
+  END IF;
+  IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscriber_consents' AND COLUMN_NAME = 'source_context') THEN
+    IF EXISTS (SELECT 1 FROM subscriber_consents WHERE source_context IS NOT NULL LIMIT 1) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rollback 451 refused: subscriber_consents.source_context holds signing or consent evidence';
+    END IF;
+  END IF;
+  IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscriber_consents' AND COLUMN_NAME = 'communication_channel') THEN
+    IF EXISTS (SELECT 1 FROM subscriber_consents WHERE communication_channel IS NOT NULL LIMIT 1) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rollback 451 refused: subscriber_consents.communication_channel holds signing or consent evidence';
+    END IF;
+  END IF;
+END //
+DELIMITER ;
+
+CALL rollback_451_installation_consent_preflight();
+DROP PROCEDURE IF EXISTS rollback_451_installation_consent_preflight;
+
 DROP PROCEDURE IF EXISTS rollback_451_installation_consent;
 DELIMITER //
 CREATE PROCEDURE rollback_451_installation_consent()
