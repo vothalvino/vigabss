@@ -361,6 +361,11 @@ CALL assert_sql_error('45000', 'UPDATE contracts SET status = ''active'' WHERE i
 UPDATE contracts SET notes = 'Updated notes' WHERE id = 9002;
 CALL assert_true(ROW_COUNT() = 1, 'G5: Update non-status field on active PPPoE contract succeeds');
 
+-- G6. A soft-deleted RADIUS account does not satisfy the guard (migration 499)
+INSERT INTO radius (id, client_id, contract_id, nas_id, username, password, status, deleted_at)
+VALUES (9001, 9000, 9005, 9000, 'test_user_deleted', 'hash123', 'active', NOW());
+CALL assert_sql_error('45000', 'UPDATE contracts SET status = ''active'' WHERE id = 9005', 'G6: PPPoE activation rejected when its only RADIUS account is soft-deleted');
+
 -- =========================================================================
 -- H. CREDIT NOTE INVOICE TOTAL GUARD (migration 146)
 -- =========================================================================
@@ -385,6 +390,17 @@ CALL assert_sql_error('45000', 'UPDATE credit_notes SET total = 201.00 WHERE id 
 INSERT INTO credit_notes (id, client_id, credit_note_number, issue_date, reason, subtotal, total, status)
 VALUES (9002, 9001, 'CN-T9002', '2024-03-01', 'promotional_credit', 9999.00, 9999.00, 'draft');
 CALL assert_true(ROW_COUNT() = 1, 'H5: Credit note without invoice_id succeeds regardless of amount');
+
+-- H6. Soft-deleting a note frees its share of the cap (migration 499):
+--     delete the $200 note, then a $200 note fits beside the $100 one
+UPDATE credit_notes SET deleted_at = NOW() WHERE id = 9000;
+CALL assert_true(ROW_COUNT() = 1, 'H6a: Soft-deleting a credit note succeeds');
+INSERT INTO credit_notes (id, client_id, invoice_id, credit_note_number, issue_date, reason, subtotal, total, status)
+VALUES (9003, 9001, 9002, 'CN-T9003', '2024-03-01', 'billing_error', 200.00, 200.00, 'draft');
+CALL assert_true(ROW_COUNT() = 1, 'H6b: Corrected credit note fits once the deleted note no longer counts');
+
+-- H7. The cap still holds for live notes ($100 + $200 + $1 > $300)
+CALL assert_sql_error('45000', 'UPDATE credit_notes SET total = 101.00 WHERE id = 9001', 'H7: Live credit notes still cannot exceed the invoice total');
 
 -- =========================================================================
 -- I. AUDIT LOG IMMUTABILITY (migration 147)
@@ -502,8 +518,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 DELETE FROM outages WHERE id IN (9000, 9001);
 DELETE FROM audit_logs WHERE id = 9000;
-DELETE FROM credit_notes WHERE id IN (9000, 9001, 9002);
-DELETE FROM radius WHERE id = 9000;
+DELETE FROM credit_notes WHERE id IN (9000, 9001, 9002, 9003);
+DELETE FROM radius WHERE id IN (9000, 9001);
 DELETE FROM nas WHERE id = 9000;
 DELETE FROM factura_publica_invoice_items WHERE id IN (9000, 9001);
 DELETE FROM factura_publica_invoices WHERE id IN (9000, 9001);
