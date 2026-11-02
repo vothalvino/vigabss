@@ -71,6 +71,22 @@ function normalizeE164(raw, defaultCountry = config.whatsapp.defaultCountry) {
   return `+${digits}`;
 }
 
+/**
+ * Normalize a sender id delivered by a WhatsApp provider. Meta's wa_id and
+ * Twilio's `whatsapp:+…` always carry the country code, so a 10-digit id is
+ * NOT a bare Mexican number: +45 Denmark, +47 Norway, +65 Singapore and +354
+ * Iceland have 10-digit international forms, and treating them as MX
+ * collided them with real MX bindings and misaddressed replies (SUP-03).
+ *
+ * @param {string} raw  e.g. "4521234567" (Meta) or "whatsapp:+5215512345678"
+ * @returns {string|null}
+ */
+function normalizeSenderId(raw) {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim().replace(/^whatsapp:/i, '').trim();
+  return normalizeE164(s.startsWith('+') ? s : `+${s}`);
+}
+
 // ---------------------------------------------------------------------------
 // Code generation / hashing
 // ---------------------------------------------------------------------------
@@ -490,6 +506,7 @@ async function clearConversationState(phone) {
 }
 
 module.exports = {
+  normalizeSenderId,
   normalizeE164,
   generateNumericCode,
   hashCode,
