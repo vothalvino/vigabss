@@ -6,7 +6,6 @@ describe('database tenant routing', () => {
   beforeEach(() => {
     jest.resetModules();
     delete process.env.DB_REPLICA_HOST;
-    delete process.env.TENANT_DB_CONFIG_CACHE_MS;
     delete process.env.TENANT_DB_POOL_MAX;
     delete process.env.TENANT_DB_POOL_IDLE_MS;
     delete process.env.TENANT_DB_SSL_REJECT_UNAUTHORIZED;
@@ -114,7 +113,6 @@ describe('database tenant routing', () => {
       ssl_enabled: 0,
     }], []]);
     tenantPool.execute.mockResolvedValue([[{ id: 1 }], []]);
-    process.env.TENANT_DB_CONFIG_CACHE_MS = '60000';
 
     const { db, createPool } = loadDatabaseWithPools([primaryPool, tenantPool]);
 
@@ -129,6 +127,38 @@ describe('database tenant routing', () => {
     );
     expect(registryReads).toHaveLength(2);
     expect(createPool).toHaveBeenCalledTimes(2);
+  });
+
+  test('one tenant context reads the registry once, however many statements it runs (DB-22)', async () => {
+    const primaryPool = makePool();
+    const tenantPool = makePool();
+    primaryPool.execute.mockResolvedValue([[{
+      organization_id: 8, isolation_mode: 'isolated', db_host: 'tenant-db', db_port: 3306,
+      db_name: 'fireisp_org_8', db_user: 'tenant_user', db_password_encrypted: 'secret', ssl_enabled: 0,
+    }], []]);
+    tenantPool.execute.mockResolvedValue([[{ id: 1 }], []]);
+    // The invalidation below retires the pool; the next query builds another.
+    const nextTenantPool = makePool();
+    nextTenantPool.execute.mockResolvedValue([[{ id: 1 }], []]);
+    const { db } = loadDatabaseWithPools([primaryPool, tenantPool, nextTenantPool]);
+    const registryReads = () => primaryPool.execute.mock.calls
+      .filter(([sql]) => /organization_database_configs/.test(sql)).length;
+
+    await db.withTenantContext(8, async () => {
+      await db.query('SELECT 1', []);
+      await db.query('SELECT 2', []);
+      await db.query('SELECT 3', []);
+    });
+    expect(registryReads()).toBe(1);
+    expect(tenantPool.execute).toHaveBeenCalledTimes(3);
+
+    // An invalidation inside the context drops the memo.
+    await db.withTenantContext(8, async () => {
+      await db.query('SELECT 4', []);
+      await db.invalidateTenantDbConfig(8);
+      await db.query('SELECT 5', []);
+    });
+    expect(registryReads()).toBe(3);
   });
 
   test('tenant routing reads the authoritative primary registry even when a read replica exists', async () => {
@@ -164,7 +194,6 @@ describe('database tenant routing', () => {
   });
 
   test('a cross-replica config change replaces a cached tenant pool by fingerprint', async () => {
-    process.env.TENANT_DB_CONFIG_CACHE_MS = '60000';
     const primaryPool = makePool();
     const oldTenantPool = makePool();
     const newTenantPool = makePool();
@@ -204,7 +233,6 @@ describe('database tenant routing', () => {
   });
 
   test('an invalidation racing a slow config lookup cannot republish the stale isolated route', async () => {
-    process.env.TENANT_DB_CONFIG_CACHE_MS = '60000';
     const primaryPool = makePool();
     const staleTenantPool = makePool();
     let releaseOldLookup;
@@ -275,7 +303,6 @@ describe('database tenant routing', () => {
 
   test('LRU-evicts the oldest tenant pool when the cache cap is exceeded', async () => {
     process.env.TENANT_DB_POOL_MAX = '1';
-    process.env.TENANT_DB_CONFIG_CACHE_MS = '60000';
     const primaryPool = makePool();
     const tenantPoolA = makePool();
     const tenantPoolB = makePool();
@@ -307,7 +334,6 @@ describe('database tenant routing', () => {
   });
 
   test('enables TLS with explicit certificate verification for isolated tenants', async () => {
-    process.env.TENANT_DB_CONFIG_CACHE_MS = '60000';
     const primaryPool = makePool();
     const tenantPool = makePool();
     primaryPool.execute.mockResolvedValue([[{

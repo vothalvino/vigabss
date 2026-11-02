@@ -149,9 +149,33 @@ function tenantConfigGeneration(key) {
   return tenantConfigGenerations.get(key) || 0;
 }
 
+// One registry read per tenant context (one request or job) rather than per
+// statement (DB-22). The memo lives in the AsyncLocalStorage store, is dropped
+// when this process invalidates the org (generation bump), and expires after
+// a few seconds so a long scheduler job still sees another replica's change.
+const TENANT_SNAPSHOT_MAX_AGE_MS = parseIntEnv('TENANT_DB_SNAPSHOT_MAX_AGE_MS', 5000);
+
+function memoizedSnapshot(key) {
+  const store = tenantContext.getStore();
+  const memo = store?.tenantSnapshot;
+  if (!memo || memo.key !== key) return null;
+  if (memo.generation !== tenantConfigGeneration(key)) return null;
+  if (Date.now() - memo.at > TENANT_SNAPSHOT_MAX_AGE_MS) return null;
+  return memo.snapshot;
+}
+
+function rememberSnapshot(key, snapshot) {
+  const store = tenantContext.getStore();
+  if (store && String(store.orgId) === key) {
+    store.tenantSnapshot = { key, generation: snapshot.generation, at: Date.now(), snapshot };
+  }
+}
+
 async function getTenantConnectionConfigSnapshot(orgId) {
   if (!orgId) return null;
   const key = String(orgId);
+  const memo = memoizedSnapshot(key);
+  if (memo) return memo;
   for (let attempt = 0; attempt < 3; attempt++) {
     const generation = tenantConfigGeneration(key);
     const [rows] = await pool.execute(
@@ -164,10 +188,12 @@ async function getTenantConnectionConfigSnapshot(orgId) {
     const row = rows[0] || null;
     const value = normalizeTenantConfig(row);
     if (tenantConfigGeneration(key) !== generation) continue;
-    // Deliberately no positive config cache: every routed request rechecks the
-    // authoritative primary registry, so a change made by another replica is
-    // visible before this process can reuse a tenant pool.
-    return { value, generation, fingerprint: tenantConfigFingerprint(row) };
+    // No cross-request cache: every routed request (or job) rechecks the
+    // authoritative primary registry once, so a change made by another replica
+    // is visible before this process can reuse a tenant pool.
+    const snapshot = { value, generation, fingerprint: tenantConfigFingerprint(row) };
+    rememberSnapshot(key, snapshot);
+    return snapshot;
   }
   const err = new Error('Tenant database configuration changed during resolution');
   err.code = 'TENANT_DB_CONFIG_CHANGED';
