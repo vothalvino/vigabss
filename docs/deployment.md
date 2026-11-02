@@ -1428,6 +1428,10 @@ mysqlrouter --bootstrap root@primary:3306 --directory /etc/mysqlrouter
 
 ### Connection String Configuration
 
+VigaBSS stores and compares times in UTC. Each pooled connection runs
+`SET time_zone = '+00:00'`, so an external MySQL server need not default to
+UTC, but its account must be allowed to set the session time zone.
+
 Configure read replicas in your environment:
 
 ```env

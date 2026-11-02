@@ -4,6 +4,8 @@
 
 const { ValidationError } = require('../utils/errors');
 
+const TIMESTAMP_MAX_MS = Date.UTC(2038, 0, 19, 3, 14, 7);
+
 /**
  * Returns middleware that validates req.body against a Joi-like schema object.
  * Simple field-level validation without external dependencies.
@@ -101,6 +103,17 @@ function validate(schema, options = {}) {
       // Pattern check
       if (rules.pattern && typeof value === 'string' && !rules.pattern.test(value)) {
         errors.push({ field, message: `${field} has an invalid format` });
+      }
+
+      // A MySQL TIMESTAMP column holds 1970-01-01 to 2038-01-19 UTC; a later
+      // user-chosen date failed the INSERT with a 500 in strict mode (DB-27).
+      if (rules.timestamp && typeof value === 'string' && value !== '') {
+        const at = Date.parse(value);
+        if (Number.isNaN(at)) {
+          errors.push({ field, message: `${field} must be a date` });
+        } else if (at > TIMESTAMP_MAX_MS || at < 1000) {
+          errors.push({ field, message: `${field} must be between 1970-01-01 and 2038-01-19` });
+        }
       }
     }
 

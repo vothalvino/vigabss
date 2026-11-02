@@ -9,13 +9,13 @@
 const createApiToken = {
   name: { type: 'string', required: true, min: 1, max: 255 },
   scopes: { type: 'array', required: true },
-  expires_at: { type: 'string' },
+  expires_at: { type: 'string', timestamp: true },
 };
 
 const updateApiToken = {
   name: { type: 'string', min: 1, max: 255 },
   scopes: { type: 'array' },
-  expires_at: { type: 'string' },
+  expires_at: { type: 'string', timestamp: true },
 };
 
 module.exports = { createApiToken, updateApiToken };
