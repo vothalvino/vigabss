@@ -1921,7 +1921,8 @@
   "errorBoundary": {
     "title": "Algo salió mal en esta página",
     "body": "El resto de la aplicación sigue funcionando. Inténtalo de nuevo o abre otra página.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "reload": "Recargar la página"
   },
   "forcePasswordChange": {
     "title": "Elige una nueva contraseña",

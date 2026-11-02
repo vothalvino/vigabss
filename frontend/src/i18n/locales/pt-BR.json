@@ -1921,7 +1921,8 @@
   "errorBoundary": {
     "title": "Algo deu errado nesta página",
     "body": "O restante do aplicativo continua funcionando. Tente novamente ou abra outra página.",
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "reload": "Recarregar a página"
   },
   "forcePasswordChange": {
     "title": "Defina uma nova senha",

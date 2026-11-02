@@ -1921,7 +1921,8 @@
   "errorBoundary": {
     "title": "Something went wrong on this page",
     "body": "The rest of the app still works. Try again, or open another page.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "reload": "Reload the page"
   },
   "forcePasswordChange": {
     "title": "Set a new password",
