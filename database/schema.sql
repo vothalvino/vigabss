@@ -2862,7 +2862,9 @@ proc: BEGIN
         AVG(rx_rate_mbps),       MIN(rx_rate_mbps),        MAX(rx_rate_mbps),
         COUNT(*)
     FROM snmp_metrics
-    WHERE polled_at >  v_from_ts
+    -- Half-open [from, to): a sample polled exactly at HH:00:00 belongs to the
+    -- hour it starts (DAL-09, migration 497).
+    WHERE polled_at >= v_from_ts
       AND polled_at <  v_to_ts
     GROUP BY
         device_id,
