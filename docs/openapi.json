@@ -20510,6 +20510,7 @@
           "Reports"
         ],
         "summary": "Generate a report on-demand",
+        "description": "Generates the report and emails the file to the requesting user. The generated_reports row is completed only once the email was sent.",
         "operationId": "generateReport",
         "security": [
           {
@@ -20528,7 +20529,7 @@
         },
         "responses": {
           "202": {
-            "description": "Accepted — generated_reports record created",
+            "description": "Accepted — generated_reports record created; the file was emailed to the requester",
             "content": {
               "application/json": {
                 "schema": {
@@ -20880,6 +20881,7 @@
           "Reports"
         ],
         "summary": "Manually trigger a scheduled report now",
+        "description": "Generates the schedule's report and emails the file to the requesting user.",
         "operationId": "runScheduledReport",
         "security": [
           {
@@ -20898,7 +20900,7 @@
         ],
         "responses": {
           "202": {
-            "description": "Accepted — generated_reports record created",
+            "description": "Accepted — generated_reports record created; the file was emailed to the requester",
             "content": {
               "application/json": {
                 "schema": {
