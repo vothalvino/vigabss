@@ -17,6 +17,7 @@ import { useGraphQLSubscription } from '@/api/useGraphQLSubscription';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { useTranslation } from 'react-i18next';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,7 +106,7 @@ async function patchTicket(id: number, patch: TicketPatch): Promise<void> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || 'Failed to update ticket');
+    throw new Error(parseApiError(err, 'Failed to update ticket'));
   }
 }
 
@@ -121,7 +122,7 @@ async function addComment(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || 'Failed to add comment');
+    throw new Error(parseApiError(err, 'Failed to add comment'));
   }
 }
 
@@ -138,7 +139,7 @@ async function updateComment(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || 'Failed to update comment');
+    throw new Error(parseApiError(err, 'Failed to update comment'));
   }
 }
 
@@ -148,7 +149,7 @@ async function deleteComment(ticketId: number, commentId: number): Promise<void>
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || 'Failed to delete comment');
+    throw new Error(parseApiError(err, 'Failed to delete comment'));
   }
 }
 
@@ -658,7 +659,7 @@ async function generateDraft(ticketId: number, contractId: number | null): Promi
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || 'Failed to generate draft');
+    throw new Error(parseApiError(err, 'Failed to generate draft'));
   }
   const body = await res.json() as { data: { logId: number; draftText: string | null; skipped?: boolean; reason?: string } };
   if (body.data?.skipped) throw new Error(body.data.reason ?? 'Draft skipped');
@@ -673,7 +674,7 @@ async function finalizeReply(logId: number, finalText: string, action: 'sent' | 
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || 'Failed to finalize reply');
+    throw new Error(parseApiError(err, 'Failed to finalize reply'));
   }
 }
 
@@ -1186,8 +1187,8 @@ async function addRelation(ticketId: number, relatedId: number, relationType: st
     body: JSON.stringify({ related_ticket_id: relatedId, relation_type: relationType }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error || 'Failed to add relation');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseApiError(err, 'Failed to add relation'));
   }
 }
 
@@ -1332,8 +1333,8 @@ async function addTimeLog(ticketId: number, minutes: number, workDate: string, d
     body: JSON.stringify({ minutes, work_date: workDate, description }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error || 'Failed to log time');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseApiError(err, 'Failed to log time'));
   }
 }
 
@@ -1461,8 +1462,8 @@ async function createWorkOrderFromTicket(payload: {
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error || 'Failed to create work order');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseApiError(err, 'Failed to create work order'));
   }
 }
 
@@ -1602,8 +1603,8 @@ async function createEscalation(ticketId: number, reason: string, escalatedTo: n
     body: JSON.stringify({ ticket_id: ticketId, reason, ...(escalatedTo != null ? { escalated_to: escalatedTo } : {}) }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error || 'Failed to create escalation');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseApiError(err, 'Failed to create escalation'));
   }
 }
 
@@ -1720,8 +1721,8 @@ async function createFollowUp(body: { client_id: number; ticket_id: number; titl
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error || 'Failed to create follow-up');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseApiError(err, 'Failed to create follow-up'));
   }
 }
 
@@ -1856,8 +1857,8 @@ function AttachmentsPanel({ ticketId }: { ticketId: number }) {
         body: formData,
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(err.error || 'Upload failed');
+        const err = await res.json().catch(() => ({}));
+        throw new Error(parseApiError(err, 'Upload failed'));
       }
       void refetch();
     } catch (err) {

@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next';
 import { authedFetch, tokenStore } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Pagination } from '@/components/Pagination';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -160,9 +161,7 @@ interface CreateUserBody {
 // Surface the message (or joined validation details) — the old code read `err.error`
 // as a string, so `new Error(err.error)` stringified the object to "[object Object]".
 export function apiErrorMessage(json: unknown, fallback: string): string {
-  const e = (json as { error?: { message?: string; details?: Array<{ message?: string }> } })?.error;
-  const details = e?.details?.map((d) => d.message).filter(Boolean).join(', ');
-  return details || e?.message || fallback;
+  return parseApiError(json, fallback);
 }
 
 async function createUser(body: CreateUserBody): Promise<void> {

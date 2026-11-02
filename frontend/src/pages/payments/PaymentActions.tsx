@@ -19,6 +19,7 @@ import { extractApiError } from '@/components/ClientFormModal';
 import { ClientPicker } from '@/components/ClientPicker';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -229,7 +230,7 @@ export async function sendReceipt(paymentId: number): Promise<{ to: string }> {
     },
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as { error?: string }).error || 'Failed to send receipt');
+  if (!res.ok) throw new Error(parseApiError(body, 'Failed to send receipt'));
   return body as { to: string };
 }
 

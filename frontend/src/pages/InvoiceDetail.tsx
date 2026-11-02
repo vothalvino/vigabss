@@ -19,6 +19,7 @@ import { extractApiError } from '@/components/ClientFormModal';
 import { fetchAddonCatalog, fetchSellableInventoryItems, buildProductPickerEntries } from '@/api/addonCatalog';
 import { RecordPaymentModal } from '@/components/RecordPaymentModal';
 import { formatDate } from '@/lib/dates';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -184,7 +185,7 @@ async function sendInvoiceEmail(invoiceId: number): Promise<{ to: string }> {
     method: 'POST',
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as { error?: string }).error || 'Failed to send email');
+  if (!res.ok) throw new Error(parseApiError(body, 'Failed to send email'));
   return body as { to: string };
 }
 
