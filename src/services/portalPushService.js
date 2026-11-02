@@ -61,6 +61,26 @@ const NOTIFY_FLAG = {
  * @param {string}        [opts.payload.url]
  * @returns {Promise<{ sent: number, failed: number }>}
  */
+// Browsers hand out endpoints on these push services only. Anything else is
+// refused at subscribe and skipped at dispatch: web-push POSTs to the
+// endpoint's host, so a free-form URL was a blind SSRF (ASY-12).
+const PUSH_HOSTS = [
+  /^fcm\.googleapis\.com$/,
+  /^android\.googleapis\.com$/,
+  /^updates\.push\.services\.mozilla\.com$/,
+  /^([a-z0-9-]+\.)*push\.apple\.com$/,
+  /^([a-z0-9-]+\.)*notify\.windows\.com$/,
+];
+const PUSH_TIMEOUT_MS = 10000;
+
+/** True for an https endpoint on a known browser push service. */
+function isAllowedPushEndpoint(endpoint) {
+  let url;
+  try { url = new URL(String(endpoint)); } catch { return false; }
+  if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) return false;
+  return PUSH_HOSTS.some(re => re.test(url.hostname.toLowerCase()));
+}
+
 async function dispatch({ clientId, eventType, payload }) {
   const wp = getWebPush();
   if (!vapidConfigured) {
@@ -94,10 +114,17 @@ async function dispatch({ clientId, eventType, payload }) {
   let failed = 0;
 
   for (const sub of rows) {
+    if (!isAllowedPushEndpoint(sub.endpoint)) {
+      logger.warn({ subscriptionId: sub.id }, 'Push subscription on an unknown host skipped');
+      failed++;
+      continue;
+    }
     try {
+      // Bounded: an endpoint that never answers must not hold the caller.
       await wp.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         pushPayload,
+        { timeout: PUSH_TIMEOUT_MS },
       );
       // Update last_sent_at on success
       await db.query(
@@ -124,4 +151,4 @@ async function dispatch({ clientId, eventType, payload }) {
   return { sent, failed };
 }
 
-module.exports = { dispatch };
+module.exports = { dispatch, isAllowedPushEndpoint };

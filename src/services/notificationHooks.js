@@ -486,29 +486,6 @@ function registerHooks() {
         severity: outage.severity,
       });
 
-      // Web Push — send to all clients in the org that have outage notifications enabled
-      try {
-        const db = require('../config/database');
-        const [subs] = await db.query(
-          `SELECT DISTINCT client_id FROM portal_push_subscriptions
-           WHERE organization_id = ? AND notify_outage = 1 AND deleted_at IS NULL`,
-          [organizationId],
-        );
-        for (const sub of subs) {
-          await portalPushService.dispatch({
-            clientId: sub.client_id,
-            eventType: 'outage',
-            payload: {
-              title: 'Interrupción de servicio',
-              body: outage.title || 'Se reportó una interrupción en su área',
-              url: '/portal/dashboard',
-            },
-          }).catch(err2 => logger.warn({ err: err2, clientId: sub.client_id }, 'Portal push outage dispatch error'));
-        }
-      } catch (pushErr) {
-        logger.warn({ err: pushErr, event: 'outage.reported' }, 'Portal push bulk dispatch error');
-      }
-
       // Notify admins/support by email when a new outage is reported — §1.4
       // (also creates the in-app bell row for the same recipient set, off
       // the same query — no second lookup needed for the bell leg)
@@ -542,6 +519,32 @@ function registerHooks() {
         }
       } catch (notifyErr) {
         logger.warn({ err: notifyErr, event: 'outage.reported' }, 'Admin outage notification error');
+      }
+
+      // Web Push — send to all clients in the org that have outage notifications enabled
+      try {
+        const db = require('../config/database');
+        const [subs] = await db.query(
+          `SELECT DISTINCT client_id FROM portal_push_subscriptions
+           WHERE organization_id = ? AND notify_outage = 1 AND deleted_at IS NULL`,
+          [organizationId],
+        );
+        // A few at a time, after the staff alerts above (ASY-12): a slow
+        // push endpoint must not hold back the people handling the outage.
+        const PUSH_CONCURRENCY = 10;
+        for (let i = 0; i < subs.length; i += PUSH_CONCURRENCY) {
+          await Promise.all(subs.slice(i, i + PUSH_CONCURRENCY).map(sub => portalPushService.dispatch({
+            clientId: sub.client_id,
+            eventType: 'outage',
+            payload: {
+              title: 'Interrupción de servicio',
+              body: outage.title || 'Se reportó una interrupción en su área',
+              url: '/portal/dashboard',
+            },
+          }).catch(err2 => logger.warn({ err: err2, clientId: sub.client_id }, 'Portal push outage dispatch error'))));
+        }
+      } catch (pushErr) {
+        logger.warn({ err: pushErr, event: 'outage.reported' }, 'Portal push bulk dispatch error');
       }
     } catch (err) {
       logger.error({ err, event: 'outage.reported' }, 'Notification hook error');
