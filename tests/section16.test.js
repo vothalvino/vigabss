@@ -1106,7 +1106,8 @@ describe('POST /api/v1/consumer-protection/service-modifications', () => {
       .post('/api/v1/consumer-protection/service-modifications')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10')
-      .send({ notice_type: 'price_change', effective_date: '2026-07-01', notice_required_days: 30 });
+      // description is NOT NULL and required (REG-12).
+      .send({ notice_type: 'price_change', description: 'Nuevo precio', effective_date: '2026-07-01', notice_required_days: 30 });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
   });

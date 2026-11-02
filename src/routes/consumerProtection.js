@@ -14,6 +14,10 @@ const { crudController } = require('../controllers/crudController');
 const mxRegisteredTemplateService = require('../services/mxRegisteredContractTemplateService');
 const legalDocumentService = require('../services/legalDocumentService');
 const { AppError, ValidationError } = require('../utils/errors');
+const { validate } = require('../middleware/validate');
+const {
+  createServiceModificationNotice, updateServiceModificationNotice,
+} = require('../middleware/schemas/serviceModificationNotices');
 
 const router = Router();
 
@@ -414,14 +418,40 @@ router.get('/service-modifications', requirePermission('service_modification_not
   }
 });
 
-router.post('/service-modifications', requirePermission('service_modification_notices.create'), async (req, res, next) => {
-  try {
-    const { notice_type, description, effective_date, notice_required_days, channel, client_id, contract_id, notes } = req.body;
+// The client and contract a notice names must be the caller's; the FKs only
+// proved they existed in some organization (REG-12).
+async function assertNoticeTargetsOwned(orgId, clientId, contractId) {
+  if (clientId !== undefined && clientId !== null) {
+    const [[client]] = await db.query(
+      'SELECT id FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [clientId, orgId],
+    );
+    if (!client) throw new ValidationError('client_id is not a client of this organization', [{ field: 'client_id', message: 'Not found' }]);
+  }
+  if (contractId !== undefined && contractId !== null) {
+    const [[contract]] = await db.query(
+      'SELECT id, client_id FROM contracts WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      [contractId, orgId],
+    );
+    if (!contract) throw new ValidationError('contract_id is not a contract of this organization', [{ field: 'contract_id', message: 'Not found' }]);
+    if (clientId !== undefined && clientId !== null && Number(contract.client_id) !== Number(clientId)) {
+      throw new ValidationError('contract_id belongs to another client', [{ field: 'contract_id', message: 'Not this client' }]);
+    }
+  }
+}
 
+const NOTICE_FIELDS = ['notice_type', 'description', 'effective_date', 'notice_required_days', 'channel', 'client_id', 'contract_id', 'notes'];
+
+router.post('/service-modifications', requirePermission('service_modification_notices.create'), validate(createServiceModificationNotice, { strip: true }), async (req, res, next) => {
+  try {
+    await assertNoticeTargetsOwned(req.orgId, req.body.client_id, req.body.contract_id);
+    // Absent fields are left out so the column defaults apply (30 days,
+    // email, pending); binding them as NULL failed the NOT NULL columns.
+    const columns = NOTICE_FIELDS.filter(f => req.body[f] !== undefined);
     const [result] = await db.query(
-      `INSERT INTO service_modification_notices (organization_id, notice_type, description, effective_date, notice_required_days, channel, client_id, contract_id, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.orgId, notice_type, description || null, effective_date || null, notice_required_days || null, channel || null, client_id || null, contract_id || null, notes || null],
+      `INSERT INTO service_modification_notices (organization_id, ${columns.join(', ')})
+       VALUES (?, ${columns.map(() => '?').join(', ')})`,
+      [req.orgId, ...columns.map(f => req.body[f])],
     );
 
     res.status(201).json({ id: result.insertId });
@@ -446,16 +476,33 @@ router.get('/service-modifications/:id', requirePermission('service_modification
   }
 });
 
-router.put('/service-modifications/:id', requirePermission('service_modification_notices.manage'), async (req, res, next) => {
+// A pending notice can be corrected; once sent it is what the subscriber
+// received, so a correction is a new notice (REG-12).
+router.put('/service-modifications/:id', requirePermission('service_modification_notices.manage'), validate(updateServiceModificationNotice, { strip: true }), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { notice_type, description, effective_date, notice_required_days, channel, client_id, contract_id, status, notes } = req.body;
-
-    await db.query(
-      `UPDATE service_modification_notices SET notice_type = ?, description = ?, effective_date = ?, notice_required_days = ?, channel = ?, client_id = ?, contract_id = ?, status = ?, notes = ?, updated_at = NOW()
-       WHERE id = ? AND organization_id = ?`,
-      [notice_type, description || null, effective_date || null, notice_required_days || null, channel || null, client_id || null, contract_id || null, status || 'draft', notes || null, id, req.orgId],
+    const [[current]] = await db.query(
+      'SELECT id, status, client_id FROM service_modification_notices WHERE id = ? AND organization_id = ?',
+      [id, req.orgId],
     );
+    if (!current) return res.status(404).json({ error: 'Not found' });
+    if (current.status !== 'pending') {
+      throw new AppError(`A ${current.status} notice cannot be edited; issue a new notice instead.`, 409, 'NOTICE_NOT_PENDING');
+    }
+    const columns = NOTICE_FIELDS.filter(f => req.body[f] !== undefined);
+    if (columns.length === 0) throw new ValidationError('Send at least one field to change');
+    await assertNoticeTargetsOwned(
+      req.orgId,
+      req.body.client_id !== undefined ? req.body.client_id : current.client_id,
+      req.body.contract_id,
+    );
+
+    const [result] = await db.query(
+      `UPDATE service_modification_notices SET ${columns.map(c => `${c} = ?`).join(', ')}, updated_at = NOW()
+       WHERE id = ? AND organization_id = ? AND status = 'pending'`,
+      [...columns.map(f => req.body[f]), id, req.orgId],
+    );
+    if (!result.affectedRows) throw new AppError('The notice is no longer pending.', 409, 'NOTICE_NOT_PENDING');
 
     res.json({ success: true });
   } catch (err) {
