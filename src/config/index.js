@@ -176,6 +176,9 @@ const config = {
     keepalive:        parseIntEnv('WG_KEEPALIVE',           25),
     clientInterface:  process.env.WG_CLIENT_INTERFACE   || 'wg-clients',
     clientSubnet:     process.env.WG_CLIENT_SUBNET      || '10.99.0.0/16',  // user peer pool
+    // Active self-service peers per user and per organization (RTE-12).
+    maxPeersPerUser:  parseIntEnv('WG_MAX_PEERS_PER_USER', 5),
+    maxPeersPerOrg:   parseIntEnv('WG_MAX_PEERS_PER_ORG', 250),
     clientListenPort: parseIntEnv('WG_CLIENT_LISTEN_PORT', 51821),
     clientPublicKey:  process.env.WG_CLIENT_SERVER_PUBLIC_KEY || '', // wg-clients public key handed to users in .conf
     keyDir:           process.env.WG_KEY_DIR || '/etc/wireguard', // persistent dir for auto-generated server keypairs (mount a volume here)

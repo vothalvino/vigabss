@@ -25,7 +25,7 @@ const QRCode = require('qrcode');
 const db = require('../config/database');
 const config = require('../config');
 const { encrypt } = require('../utils/encryption');
-const { NotFoundError } = require('../utils/errors');
+const { NotFoundError, ConflictError } = require('../utils/errors');
 const auditLog = require('./auditLog');
 const userTunnelScopeService = require('./userTunnelScopeService');
 const wireguardServerService = require('./wireguardServerService');
@@ -115,7 +115,27 @@ async function buildQr(confText) {
  *                                     their current mode unless explicitly updated.
  * @returns {Promise<{peer:object, config:string, config_base64:string, qr_svg:string}>}
  */
+// Every peer takes an address from the install-wide client subnet and is
+// programmed on the shared hub, so one user or tenant cannot create them
+// without limit (RTE-12).
+async function assertPeerCapacity(userId, orgId) {
+  const [[counts]] = await db.query(
+    `SELECT SUM(user_id = ?) AS user_peers, COUNT(*) AS org_peers
+       FROM wg_user_peers
+      WHERE organization_id = ? AND deleted_at IS NULL AND revoked_at IS NULL`,
+    [userId, orgId],
+  );
+  const { maxPeersPerUser, maxPeersPerOrg } = config.wireguard;
+  if (Number(counts?.user_peers || 0) >= maxPeersPerUser) {
+    throw new ConflictError(`You already have ${maxPeersPerUser} active WireGuard tunnels; revoke one before creating another`);
+  }
+  if (Number(counts?.org_peers || 0) >= maxPeersPerOrg) {
+    throw new ConflictError(`This organization already has ${maxPeersPerOrg} active WireGuard tunnels`);
+  }
+}
+
 async function createPeer(userId, orgId, name, fullTunnel = true) {
+  await assertPeerCapacity(userId, orgId);
   // 1. Compute the scope this user is allowed to reach in this organization
   const subnets = await userTunnelScopeService.getScopedSubnets(userId, orgId);
 
