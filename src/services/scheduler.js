@@ -20,9 +20,9 @@ let syncTimer = null;
 // cache, so with two or more replicas (the shipped k8s/Helm default, and no
 // REDIS_URL) every replica ran every task: autopay at 07:00, the hourly
 // payment retries, SNMP polling (ASY-01). Two database guards now decide:
-//   1. a MySQL advisory lock per task id, held on one dedicated primary
-//      connection for the whole run, so a run never overlaps a previous one
-//      still going, in this process or another;
+//   1. a MySQL advisory lock per task id, held for the whole run on a session
+//      from the separate lock pool (db.getLockConnection), so a run never
+//      overlaps a previous one still going, in this process or another;
 //   2. a per-minute claim on the task row: only the process whose UPDATE
 //      moves last_run_at into the current minute runs it.
 const crypto = require('crypto');
@@ -30,19 +30,12 @@ const crypto = require('crypto');
 const lockDatabaseName = db.baseConnectionConfig?.database || process.env.DB_NAME || 'fireisp';
 const lockPrefix = `fireisp:${crypto.createHash('sha256').update(lockDatabaseName).digest('hex').slice(0, 16)}:scheduled-task:`;
 
-async function primaryConnection() {
-  const getConnection = () => db.getConnection();
-  return typeof db.withPrimaryContext === 'function'
-    ? db.withPrimaryContext(getConnection)
-    : getConnection();
-}
-
 /**
  * Run `fn` only if this process wins the task's lock and its minute slot.
  * @returns {Promise<boolean>} whether `fn` ran
  */
 async function runClaimed(task, fn) {
-  const connection = await primaryConnection();
+  const connection = await db.getLockConnection();
   const lockName = `${lockPrefix}${task.id}`;
   let locked = false;
   let discardConnection = false;
