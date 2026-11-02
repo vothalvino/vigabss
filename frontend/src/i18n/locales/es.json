@@ -3568,6 +3568,9 @@
       "notes": "Notas"
     },
     "apCommands": {
+      "cancelJob": "Cancelar trabajo",
+      "confirmCancel": "¿Cancelar este comando pendiente?",
+      "cancelFailed": "No se pudo cancelar el comando.",
       "new": "Nuevo Comando",
       "loadError": "Error al cargar trabajos de comandos AP.",
       "noItems": "No se encontraron trabajos de comandos AP.",
