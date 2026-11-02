@@ -271,6 +271,12 @@ services:
       - .env.prod
     environment:
       NODE_ENV:   production
+      # .env.prod also holds the MySQL root and replication secrets, which only
+      # db-primary and db-replica need. Blank them for the app so a compromise
+      # of the app process does not hand over root on the database (OPS-09).
+      DB_ROOT_PASSWORD:    ''
+      MYSQL_REPL_USER:     ''
+      MYSQL_REPL_PASSWORD: ''
       DB_HOST:    db-primary
       DB_PORT:    3306
       # Keep the application aligned with the database container even when an

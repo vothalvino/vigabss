@@ -20,6 +20,7 @@ import { fetchAddonCatalog, fetchSellableInventoryItems, buildProductPickerEntri
 import { RecordPaymentModal } from '@/components/RecordPaymentModal';
 import { formatDate } from '@/lib/dates';
 import { parseApiError } from '@/api/errors';
+import { SandboxCfdiBadge } from '@/components/SandboxFiscal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -81,6 +82,7 @@ interface Client {
 interface CfdiDoc {
   id: number;
   uuid: string | null;
+  pac_environment?: 'sandbox' | 'production' | null;
   sat_status: 'draft' | 'vigente' | 'cancelado' | 'cancel_pending' | null;
   /** Last failed stamp attempt (draft only). */
   stamp_error?: string | null;
@@ -1143,6 +1145,7 @@ export function InvoiceDetail() {
                   value={
                     <span title={displayCfdi.uuid ?? undefined}>
                       <CfdiSatBadge satStatus={displayCfdi.sat_status} />
+                      <SandboxCfdiBadge doc={displayCfdi} />
                       {displayCfdi.uuid && (
                         <span style={{ marginLeft: 8, fontSize: '0.75rem', color: '#9ca3af', fontFamily: 'monospace' }}>
                           {displayCfdi.uuid.slice(0, 13)}…

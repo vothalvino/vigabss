@@ -10,7 +10,6 @@ const { runInPrimaryContext } = require('../utils/primaryContext');
 const { validate } = require('../middleware/validate');
 const { createRole, updateRole, assignPermission, setPermissions } = require('../middleware/schemas/roles');
 const db = require('../config/database');
-const User = require('../models/User');
 const { ForbiddenError, ValidationError } = require('../utils/errors');
 const auditLog = require('../services/auditLog');
 
@@ -22,6 +21,20 @@ router.use(orgScope);
 // RBAC read them from the primary database, so manage them there even when
 // the organization uses an isolated subscriber database (DB-07).
 router.use((req, res, next) => runInPrimaryContext(() => next()));
+
+// Groups and their permission lists have no organization_id: one edit applies
+// in every organization that uses the group (migration 377). Every role and
+// role-permission mutation therefore needs a global principal, the install
+// operator or a system super_admin, acting interactively rather than through
+// an API token (TNB-38).
+function isGlobalPrincipal(user) {
+  return Boolean(user?.hasGlobalOrganizationAccess) && !user?.apiTokenId;
+}
+
+function requireGlobalPrincipal(req, _res, next) {
+  if (isGlobalPrincipal(req.user)) return next();
+  return next(new ForbiddenError('Groups apply to every organization; only the install operator or a super administrator can change them'));
+}
 
 // List all roles
 router.get('/', requirePermission('roles.view'), async (req, res, next) => {
@@ -84,7 +97,7 @@ router.get('/:id', requirePermission('roles.view'), async (req, res, next) => {
 
 // Create a role (user group). kind is required and 'admin' is rejected by
 // the schema enum (src/middleware/schemas/roles.js) — see the comment there.
-router.post('/', requirePermission('roles.manage'), validate(createRole), async (req, res, next) => {
+router.post('/', requirePermission('roles.manage'), requireGlobalPrincipal, validate(createRole), async (req, res, next) => {
   try {
     const { name, description, kind } = req.body;
     const [result] = await db.query(
@@ -99,7 +112,7 @@ router.post('/', requirePermission('roles.manage'), validate(createRole), async 
 });
 
 // Update a role
-router.put('/:id', requirePermission('roles.manage'), validate(updateRole), async (req, res, next) => {
+router.put('/:id', requirePermission('roles.manage'), requireGlobalPrincipal, validate(updateRole), async (req, res, next) => {
   try {
     const { name, description, kind } = req.body;
 
@@ -170,7 +183,7 @@ router.put('/:id', requirePermission('roles.manage'), validate(updateRole), asyn
 });
 
 // Delete a role
-router.delete('/:id', requirePermission('roles.manage'), async (req, res, next) => {
+router.delete('/:id', requirePermission('roles.manage'), requireGlobalPrincipal, async (req, res, next) => {
   try {
     const [rows] = await db.query('SELECT * FROM roles WHERE id = ? AND deleted_at IS NULL', [req.params.id]);
     const role = rows[0];
@@ -207,39 +220,16 @@ router.delete('/:id', requirePermission('roles.manage'), async (req, res, next) 
 });
 
 // ---------------------------------------------------------------------------
-// Permission-list edits (SEC-18)
+// Permission-list edits (SEC-18, TNB-38)
 // ---------------------------------------------------------------------------
-// Groups and their permission lists are installation-wide (migration 377): an
-// edit applies in every organization that uses the group, and rbac.js reads
-// the list for every member except global principals, the admin-kind groups
-// included. So POST, PUT and DELETE share one policy:
-//   - a system group (is_system, or kind 'admin') is changed only by a global
-//     principal: the install operator or a system super_admin, the same
-//     accounts rbac.js lets past requirePermission;
-//   - anyone else may only add permissions they hold themselves;
-//   - every change is audited.
-
-function isGlobalPrincipal(user) {
-  return Boolean(user?.hasGlobalOrganizationAccess) && !user?.apiTokenId;
-}
+// Only a global principal reaches these handlers (requireGlobalPrincipal), so
+// system and admin-kind groups need no separate check, and there is no
+// "may only grant what you hold" path left to enforce. Every change is
+// audited.
 
 async function loadPermissionEditableRole(req) {
   const [roleRows] = await db.query('SELECT * FROM roles WHERE id = ? AND deleted_at IS NULL', [req.params.id]);
-  const role = roleRows[0];
-  if (!role) return null;
-  if ((role.is_system || role.kind === 'admin') && !isGlobalPrincipal(req.user)) {
-    throw new ForbiddenError('System groups apply to every organization; only the install operator or a super administrator can change their permissions');
-  }
-  return role;
-}
-
-async function assertMayGrant(req, perms) {
-  if (perms.length === 0 || isGlobalPrincipal(req.user)) return;
-  const held = await User.getPermissions(req.user.id, req.orgId);
-  const notHeld = perms.filter(p => !held.includes(p.slug));
-  if (notHeld.length > 0) {
-    throw new ForbiddenError(`You cannot grant permission(s) you do not hold: ${notHeld.map(p => p.slug).join(', ')}`);
-  }
+  return roleRows[0] || null;
 }
 
 async function rolePermissionRows(roleId) {
@@ -267,7 +257,7 @@ function auditPermissionChange(req, role, oldSlugs, newSlugs) {
 }
 
 // Assign a permission to a role
-router.post('/:id/permissions', requirePermission('roles.manage'), validate(assignPermission), async (req, res, next) => {
+router.post('/:id/permissions', requirePermission('roles.manage'), requireGlobalPrincipal, validate(assignPermission), async (req, res, next) => {
   try {
     const role = await loadPermissionEditableRole(req);
     if (!role) {
@@ -278,10 +268,6 @@ router.post('/:id/permissions', requirePermission('roles.manage'), validate(assi
     if (!permRows[0]) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Permission not found' } });
     }
-    // Privilege amplification: attaching users.update or api_tokens.create to
-    // one's own group would escalate.
-    await assertMayGrant(req, permRows);
-
     const before = await rolePermissionRows(role.id);
     await db.query(
       'INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
@@ -297,7 +283,7 @@ router.post('/:id/permissions', requirePermission('roles.manage'), validate(assi
 
 // Bulk-replace a role's entire permission set (used by the group editor UI
 // instead of many single POST/DELETE round-trips).
-router.put('/:id/permissions', requirePermission('roles.manage'), validate(setPermissions), async (req, res, next) => {
+router.put('/:id/permissions', requirePermission('roles.manage'), requireGlobalPrincipal, validate(setPermissions), async (req, res, next) => {
   try {
     const role = await loadPermissionEditableRole(req);
     if (!role) {
@@ -323,8 +309,6 @@ router.put('/:id/permissions', requirePermission('roles.manage'), validate(setPe
       return next(new ValidationError(`Unknown permission id(s): ${unknownIds.join(', ')}`));
     }
 
-    // The amplification guard applies to the DELTA of a bulk replace: only
-    // additions are checked, since taking permissions away never escalates.
     const [currentRows] = await db.query(
       `SELECT p.id, p.name AS slug
        FROM role_permissions rp
@@ -332,11 +316,6 @@ router.put('/:id/permissions', requirePermission('roles.manage'), validate(setPe
        WHERE rp.role_id = ?`,
       [req.params.id],
     );
-    const currentIds = new Set(currentRows.map(r => r.id));
-    const addedPerms = requestedPerms.filter(p => !currentIds.has(p.id));
-
-    await assertMayGrant(req, addedPerms);
-
     // Transactional replace: a mid-flight failure of DELETE-then-INSERT would
     // otherwise leave the group with ZERO permissions — and an empty live
     // group is authoritative (getPermissions), instantly locking out every
@@ -367,7 +346,7 @@ router.put('/:id/permissions', requirePermission('roles.manage'), validate(setPe
 });
 
 // Remove a permission from a role
-router.delete('/:id/permissions/:permissionId', requirePermission('roles.manage'), async (req, res, next) => {
+router.delete('/:id/permissions/:permissionId', requirePermission('roles.manage'), requireGlobalPrincipal, async (req, res, next) => {
   try {
     const role = await loadPermissionEditableRole(req);
     if (!role) {

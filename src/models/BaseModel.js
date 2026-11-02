@@ -346,6 +346,16 @@ class BaseModel {
   static get hasOrgScope() {
     return false;
   }
+
+  /**
+   * Why hasOrgScope deliberately disagrees with the table's organization_id
+   * column, or null when it does not. tests/modelOrgScope.test.js fails on
+   * any disagreement without a reason here (TNA-39).
+   * @returns {string|null}
+   */
+  static get orgScopeExempt() {
+    return null;
+  }
 }
 
 module.exports = BaseModel;

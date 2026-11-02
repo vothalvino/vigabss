@@ -5,15 +5,17 @@
 // Separate from the admin Layout — no sidebar nav for internal routes.
 // =============================================================================
 
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { usePortalAuth, portalAuthedFetch } from '@/auth/PortalAuthContext';
 import { useDarkMode } from '@/auth/DarkModeContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { BrandLockup } from '@/components/BrandLockup';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export function PortalLayout() {
+  const location = useLocation();
   const { client, logout } = usePortalAuth();
   const { t } = useTranslation();
   const { effectiveTheme, toggleTheme } = useDarkMode();
@@ -114,7 +116,10 @@ export function PortalLayout() {
             </Link>
           </div>
         )}
-        <Outlet />
+        {/* A subscriber page that throws keeps the portal shell (FE2-12). */}
+        <ErrorBoundary key={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       <footer style={styles.footer}>

@@ -9,8 +9,10 @@
 //   • IPv4 address          — 192.168.1.10
 //   • IPv4 CIDR range       — 10.0.0.0/8
 //   • IPv4-mapped IPv6      — ::ffff:192.168.1.10  (normalised to IPv4)
+//   • IPv6 address or CIDR  — 2001:db8::10, 2001:db8::/32 (SEC-26)
 // =============================================================================
 
+const net = require('node:net');
 const { ForbiddenError } = require('../utils/errors');
 
 // ---------------------------------------------------------------------------
@@ -68,12 +70,26 @@ function normalizeIp(ip) {
  * Returns null when the entry cannot be parsed.
  *
  * @param {string} entry
- * @returns {{ network: number, mask: number }|null}
+ * @returns {{ network: number, mask: number }|{ family: 6, block: import('node:net').BlockList }|null}
  */
 function parseEntry(entry) {
   if (!entry || typeof entry !== 'string') return null;
   const trimmed = entry.trim();
   if (!trimmed) return null;
+
+  // Native IPv6 (an IPv4-mapped address is normalised to IPv4 below).
+  const [addrPart, prefixPart] = trimmed.split('/');
+  const addr = normalizeIp(addrPart.trim());
+  if (addr && net.isIPv6(addr)) {
+    const prefix = prefixPart === undefined ? 128 : Number(prefixPart.trim());
+    if (!/^\d+$/.test(String(prefixPart ?? '128').trim()) || prefix < 0 || prefix > 128) return null;
+    const block = new net.BlockList();
+    block.addSubnet(addr, prefix, 'ipv6');
+    return { family: 6, block };
+  }
+  if (addr && net.isIPv4(addr) && addr !== addrPart.trim()) {
+    return parseEntry(prefixPart === undefined ? addr : `${addr}/${prefixPart}`);
+  }
 
   if (trimmed.includes('/')) {
     // CIDR notation
@@ -119,9 +135,12 @@ function isAllowed(ip, allowlist) {
   if (!allowlist) return true; // feature disabled
   const normalized = normalizeIp(ip);
   if (!normalized) return false;
+  if (net.isIPv6(normalized)) {
+    return allowlist.some(entry => entry.family === 6 && entry.block.check(normalized, 'ipv6'));
+  }
   const ipInt = ipv4ToInt(normalized);
   if (ipInt === null) return false;
-  return allowlist.some(({ network, mask }) => (ipInt & mask) >>> 0 === network);
+  return allowlist.some(({ family, network, mask }) => family !== 6 && (ipInt & mask) >>> 0 === network);
 }
 
 // ---------------------------------------------------------------------------

@@ -192,7 +192,7 @@ async function generateInvoicePdf(invoiceId, { locale = 'en', orgId } = {}) {
   let mxRemision = false;
   if (invoice.org_locale === 'MX') {
     const [cfdis] = await db.query(
-      `SELECT signed_xml, sat_status FROM cfdi_documents
+      `SELECT signed_xml, sat_status, pac_environment, uuid FROM cfdi_documents
         WHERE invoice_id = ? AND organization_id <=> ? AND tipo_comprobante = 'I'
           AND sat_status IN ('vigente', 'cancel_pending', 'cancelado') AND signed_xml IS NOT NULL
         ORDER BY id DESC LIMIT 1`,
@@ -215,6 +215,7 @@ async function generateInvoicePdf(invoiceId, { locale = 'en', orgId } = {}) {
         xml: cfdis[0].signed_xml,
         satStatus: cfdis[0].sat_status === 'cancelado' ? 'cancelado' : 'vigente',
         headerColor,
+        sandbox: isSandboxCfdi(cfdis[0]),
       });
     }
     mxRemision = true;
@@ -550,6 +551,12 @@ async function generateQuotePdf(quoteId, { locale = 'en', orgId } = {}) {
 // CFDI Representation PDF
 // ---------------------------------------------------------------------------
 
+// Stamped by a sandbox PAC, or by the simulator before migration 500 recorded
+// the environment (BIL-35).
+function isSandboxCfdi(cfdi) {
+  return cfdi?.pac_environment === 'sandbox' || String(cfdi?.uuid || '').startsWith('SIMULADO-');
+}
+
 async function generateCfdiPdf(cfdiDocumentId, { locale = 'en', orgId } = {}) {
   requireOrgId(orgId);
   const L = pdfLabels(locale);
@@ -571,6 +578,7 @@ async function generateCfdiPdf(cfdiDocumentId, { locale = 'en', orgId } = {}) {
     return cfdiRepresentacionPdf.renderRepresentacionImpresa({
       xml: cfdi.signed_xml,
       satStatus: cfdi.sat_status === 'cancelado' ? 'cancelado' : 'vigente',
+      sandbox: isSandboxCfdi(cfdi),
     });
   }
 

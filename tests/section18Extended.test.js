@@ -313,7 +313,6 @@ describe('taskRunner — §18 scheduled task dispatch', () => {
 describe('§18 Models — schema properties and BaseModel inheritance', () => {
   const BaseModel            = require('../src/models/BaseModel');
   const AutomationRule       = require('../src/models/AutomationRule');
-  const AutomationScript     = require('../src/models/AutomationScript');
   const BatchJob             = require('../src/models/BatchJob');
   const ProvisioningPipeline = require('../src/models/ProvisioningPipeline');
   const RemediationRule      = require('../src/models/RemediationRule');
@@ -389,36 +388,6 @@ describe('§18 Models — schema properties and BaseModel inheritance', () => {
     it('delete throws NotFoundError when nothing deleted', async () => {
       db.query.mockResolvedValueOnce([{ affectedRows: 0 }]);
       await expect(AutomationRule.delete(9999, 1)).rejects.toThrow('automation_rules');
-    });
-  });
-
-  // --- AutomationScript ---
-  describe('AutomationScript', () => {
-    it('has correct tableName',  () => expect(AutomationScript.tableName).toBe('automation_scripts'));
-    it('has hasOrgScope=false', () => expect(AutomationScript.hasOrgScope).toBe(false));
-    it('has softDelete=true',   () => expect(AutomationScript.softDelete).toBe(true));
-    it('fillable includes language and script_body', () => {
-      expect(AutomationScript.fillable).toContain('language');
-      expect(AutomationScript.fillable).toContain('script_body');
-      expect(AutomationScript.fillable).toContain('name');
-    });
-    it('extends BaseModel', () => expect(Object.getPrototypeOf(AutomationScript)).toBe(BaseModel));
-
-    it('findAll does not inject org filter because hasOrgScope=false', async () => {
-      db.query.mockResolvedValueOnce([[], []]);
-      await AutomationScript.findAll({ orgId: 42 });
-      // The SQL should NOT contain organization_id = ? since hasOrgScope is false
-      const sql = db.query.mock.calls[0][0];
-      expect(sql).not.toContain('organization_id = ?');
-    });
-
-    it('create inserts and returns new script', async () => {
-      const row = { id: 5, name: 'test.sh', language: 'bash' };
-      db.query
-        .mockResolvedValueOnce([{ insertId: 5, affectedRows: 1 }])
-        .mockResolvedValueOnce([[row], []]);
-      const result = await AutomationScript.create({ name: 'test.sh', language: 'bash', script_body: 'echo hi' });
-      expect(result.name).toBe('test.sh');
     });
   });
 

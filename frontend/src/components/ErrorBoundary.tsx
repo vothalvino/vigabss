@@ -17,7 +17,11 @@ function Fallback({ onRetry }: { onRetry: () => void }) {
     <div role="alert" style={{ padding: '2rem', maxWidth: 560 }}>
       <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>{t('errorBoundary.title')}</h2>
       <p style={{ margin: '0 0 1rem', color: 'var(--text-muted, #6b7280)' }}>{t('errorBoundary.body')}</p>
-      <button type="button" onClick={onRetry}>{t('errorBoundary.retry')}</button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" onClick={onRetry}>{t('errorBoundary.retry')}</button>
+        {/* A broken bundle or stale chunk needs a full reload, not a re-render (FE2-12). */}
+        <button type="button" onClick={() => window.location.reload()}>{t('errorBoundary.reload')}</button>
+      </div>
     </div>
   );
 }

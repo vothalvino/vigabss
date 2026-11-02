@@ -14,6 +14,7 @@
 
 const crypto = require('crypto');
 const { Router } = require('express');
+const { enforceAdminIpAllowlist } = require('../middleware/adminIpAllowlist');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requireRole } = require('../middleware/rbac');
@@ -123,6 +124,9 @@ async function requireInstallOperator(req, res, next) {
 router.use(authenticate);
 router.use(orgScope);
 router.use(requireInstallOperator);
+// Relay node and tunnel commands are admin actions (SEC-26); the token-auth
+// /health probe above is not behind it.
+router.use(enforceAdminIpAllowlist);
 
 // ---------------------------------------------------------------------------
 // GET /api/firerelay/nodes — list all registered nodes

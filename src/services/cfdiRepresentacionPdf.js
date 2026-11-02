@@ -260,9 +260,10 @@ function money(v, moneda) {
  * @param {string} args.xml       signed_xml (must carry the TFD) — fiscal truth
  * @param {string} [args.satStatus]  'vigente' | 'cancelado' (cancelado gets a watermark)
  * @param {string} [args.headerColor] org branding color
+ * @param {boolean} [args.sandbox] stamped by a sandbox PAC: watermarked as not fiscally valid (BIL-35)
  * @returns {Promise<Buffer>}
  */
-async function renderRepresentacionImpresa({ xml, satStatus = 'vigente', headerColor = COLORS.primary }) {
+async function renderRepresentacionImpresa({ xml, satStatus = 'vigente', headerColor = COLORS.primary, sandbox = false }) {
   const model = parseCfdiXml(xml);
   if (!model.tfd) {
     throw new Error('The XML carries no TimbreFiscalDigital — a representación impresa requires a stamped CFDI');
@@ -427,6 +428,16 @@ async function renderRepresentacionImpresa({ xml, satStatus = 'vigente', headerC
 
     doc.font('Helvetica').fontSize(6).fillColor(COLORS.muted)
       .text('Este documento es una representación impresa de un CFDI · Verifique en https://verificacfdi.facturaelectronica.sat.gob.mx', PAGE_MARGIN, y, { width: W, align: 'center' });
+
+    // ---- Sandbox watermark (BIL-35) ----
+    if (sandbox) {
+      doc.save();
+      doc.rotate(-35, { origin: [doc.page.width / 2, doc.page.height / 2] });
+      doc.font('Helvetica-Bold').fontSize(46).fillColor(COLORS.danger).opacity(0.16)
+        .text('SIN VALIDEZ FISCAL · PRUEBAS', 0, doc.page.height / 2 + 40, { width: doc.page.width, align: 'center' });
+      doc.restore();
+      doc.opacity(1);
+    }
 
     // ---- CANCELADO watermark ----
     if (satStatus === 'cancelado') {

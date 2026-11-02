@@ -1921,7 +1921,8 @@
   "errorBoundary": {
     "title": "Algo salió mal en esta página",
     "body": "El resto de la aplicación sigue funcionando. Inténtalo de nuevo o abre otra página.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "reload": "Recargar la página"
   },
   "forcePasswordChange": {
     "title": "Elige una nueva contraseña",
@@ -4481,6 +4482,13 @@
       "accessedAt": "Accedido En",
       "userId": "ID de Usuario"
     }
+  },
+  "sandboxFiscal": {
+    "badge": "Pruebas",
+    "badgeTitle": "Timbrado por un PAC de pruebas: este CFDI no tiene validez fiscal",
+    "bannerTitle": "Los CFDI se están timbrando en el ambiente de pruebas.",
+    "bannerDetail": "Esta organización usa su PAC de pruebas, así que los CFDI nuevos no tienen validez fiscal. Cambie el ambiente fiscal a producción antes de facturar a clientes reales.",
+    "bannerAction": "Proveedores PAC"
   },
   "adminIpAllowlistBanner": {
     "title": "La protección de IP para administración no ha sido activada.",

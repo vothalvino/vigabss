@@ -25,14 +25,18 @@ function resolveLegacyTestPrincipal(user, organizationId) {
   if (homeOrganizationId !== organizationId) return null;
   const authorizationRole = user?.authority_persona || user?.role;
   if (!authorizationRole) return null;
+  // The same identity rules as the primary-database path below, read from the
+  // stubbed user row.
+  const isInstallOperator = Number(user?.is_install_operator) === 1;
+  const isSuperAdmin = user?.group_name === 'super_admin' && Number(user?.group_is_system) === 1;
   return {
     organizationId,
     organizationName: null,
     membershipRole: authorizationRole,
     authorizationRole,
-    isInstallOperator: false,
-    isSuperAdmin: false,
-    hasGlobalOrganizationAccess: false,
+    isInstallOperator,
+    isSuperAdmin,
+    hasGlobalOrganizationAccess: isInstallOperator || isSuperAdmin,
     accessKind: 'home',
   };
 }

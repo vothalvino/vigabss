@@ -939,6 +939,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     KEY idx_tickets_priority (priority),
     KEY idx_tickets_client_status (client_id, status, created_at DESC),
     KEY idx_tickets_assigned_status (assigned_to, status),
+    KEY idx_tickets_org_status_created (organization_id, status, created_at),
     KEY idx_tickets_deleted_at (deleted_at),
     CONSTRAINT fk_tickets_client FOREIGN KEY (client_id)
         REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -1042,6 +1043,8 @@ CREATE TABLE IF NOT EXISTS payments (
     KEY idx_payments_payment_date (payment_date),
     KEY idx_payments_status (status),
     KEY idx_payments_client_created (client_id, created_at DESC),
+    KEY idx_payments_org_payment_date (organization_id, payment_date),
+    KEY idx_payments_org_created (organization_id, created_at),
     KEY idx_payments_deleted_at (deleted_at),
     CONSTRAINT fk_payments_client FOREIGN KEY (client_id)
         REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -5260,7 +5263,7 @@ CREATE TABLE IF NOT EXISTS cfdi_documents (
                                 COMMENT 'Client (receptor) for this CFDI; NULL only for a factura global to PUBLICO EN GENERAL',
 
     -- SAT folio fiscal (UUID assigned by PAC after stamping)
-    uuid                    CHAR(36)        NULL     UNIQUE
+    uuid                    CHAR(36)        NULL
                                 COMMENT 'Folio fiscal UUID assigned by the PAC after successful stamping; NULL while in draft',
 
     -- Series and folio (issuer-assigned numbering)
@@ -5322,6 +5325,8 @@ CREATE TABLE IF NOT EXISTS cfdi_documents (
     -- PAC stamping metadata
     pac_provider            VARCHAR(50)     NULL
                                 COMMENT 'PAC that stamped this CFDI (e.g. Finkok, TimbraSoft)',
+    pac_environment         ENUM('sandbox', 'production') NULL
+                                COMMENT 'Environment of the PAC row that stamped this CFDI; sandbox = not fiscally valid (migration 500)',
     stamp_date              DATETIME        NULL
                                 COMMENT 'FechaTimbrado from the PAC timbrado complement',
     stamp_error             TEXT            NULL
@@ -12695,6 +12700,7 @@ CREATE TABLE IF NOT EXISTS work_orders (
   KEY idx_wo_contract (contract_id),
   KEY idx_wo_service_order (service_order_id),
   KEY idx_wo_legacy_job (legacy_job_id),
+  KEY idx_wo_org_status_created (organization_id, status, created_at),
   CONSTRAINT fk_work_orders_organization FOREIGN KEY (organization_id)
     REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_work_orders_ticket FOREIGN KEY (ticket_id)

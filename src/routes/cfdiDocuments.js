@@ -16,6 +16,7 @@ const { globalPeriodProblem } = require('../utils/satCatalogs');
 const cfdiService = require('../services/cfdiService');
 const invoiceCfdiService = require('../services/invoiceCfdiService');
 const db = require('../config/database');
+const config = require('../config');
 
 const router = Router();
 // PUT /:id is a DRAFT-only edit (BIL-10). It used to run ctrl.update with no
@@ -98,6 +99,20 @@ function assertGlobalPeriod(req, _res, next) {
 }
 
 router.get('/', requirePermission('cfdi_documents.view'), ctrl.list);
+
+// The organization's fiscal environment, and whether this install runs in
+// production, so billing and CFDI pages can warn that new CFDIs are stamped
+// by a sandbox PAC and are not fiscally valid (BIL-35). Before '/:id'.
+router.get('/environment', requirePermission('cfdi_documents.view'), async (req, res, next) => {
+  try {
+    res.json({
+      data: {
+        pac_environment: await cfdiService.orgPacEnvironment(req.orgId),
+        production_install: config.env === 'production',
+      },
+    });
+  } catch (err) { next(err); }
+});
 router.get('/:id', requirePermission('cfdi_documents.view'), ctrl.get);
 router.post('/', requirePermission('cfdi_documents.create'), refuseInvoiceLink, validate(createCfdiDocument), assertGlobalPeriod, assertLinkedRecordsOwned, ctrl.create);
 router.put('/:id', requirePermission('cfdi_documents.update'), validate(updateCfdiDocument, { strip: true }), ctrl.update);

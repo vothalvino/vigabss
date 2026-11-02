@@ -32,6 +32,8 @@ jest.mock('../src/config', () => ({
     clientInterface: 'wg-clients',
     clientSubnet: '10.99.0.0/16',
     clientListenPort: 51821,
+    maxPeersPerUser: 5,
+    maxPeersPerOrg: 250,
     clientPublicKey: '',
   },
 }));
@@ -259,6 +261,26 @@ describe('buildConfig()', () => {
 // =============================================================================
 // createPeer() — full_tunnel persistence
 // =============================================================================
+describe('createPeer() — active peer caps (RTE-12)', () => {
+  test.each([
+    [{ user_peers: 5, org_peers: 5 }, /You already have 5 active WireGuard tunnels/],
+    [{ user_peers: 0, org_peers: 250 }, /This organization already has 250/],
+  ])('refuses with 409 at %o', async (counts, message) => {
+    db.query.mockResolvedValueOnce([[counts]]);
+    await expect(userTunnelService.createPeer(1, 1, 'Laptop')).rejects.toMatchObject({ statusCode: 409, message: expect.stringMatching(message) });
+    expect(wireguardServerService.allocateUserTunnelIp).not.toHaveBeenCalled();
+    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO wg_user_peers/.test(sql))).toBe(false);
+  });
+
+  test('counts only live, unrevoked peers of the organization', async () => {
+    db.query.mockResolvedValueOnce([[{ user_peers: 5, org_peers: 5 }]]);
+    await expect(userTunnelService.createPeer(7, 3, 'Laptop')).rejects.toThrow();
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/deleted_at IS NULL AND revoked_at IS NULL/);
+    expect(params).toEqual([7, 3]);
+  });
+});
+
 describe('createPeer() — full_tunnel flag', () => {
   const CREATED_PEER_ROW = {
     ...mockPeer,
@@ -280,6 +302,7 @@ describe('createPeer() — full_tunnel flag', () => {
     userTunnelScopeService.getScopedSubnets.mockResolvedValue(['192.168.1.0/24']);
 
     db.query
+      .mockResolvedValueOnce([[{ user_peers: 0, org_peers: 0 }]])              // capacity check (RTE-12)
       .mockResolvedValueOnce([{ insertId: 55 }])                              // INSERT
       .mockResolvedValueOnce([[{ ...CREATED_PEER_ROW, full_tunnel: fullTunnelInRow }]]) // SELECT
       .mockResolvedValueOnce([{ affectedRows: 1 }]);                          // UPDATE server_peer_synced
@@ -337,6 +360,7 @@ describe('createPeer() — full_tunnel flag', () => {
     userTunnelScopeService.getScopedSubnets.mockResolvedValue(['192.168.1.0/24']);
 
     db.query
+      .mockResolvedValueOnce([[{ user_peers: 0, org_peers: 0 }]])
       .mockResolvedValueOnce([{ insertId: 55 }])
       .mockResolvedValueOnce([[{ ...CREATED_PEER_ROW, full_tunnel: 0 }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }]);

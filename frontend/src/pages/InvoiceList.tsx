@@ -19,6 +19,7 @@ import { GenerateInvoiceModal } from '@/components/GenerateInvoiceModal';
 import { Pagination } from '@/components/Pagination';
 import { useClientNames } from '@/api/clientNames';
 import { formatDate } from '@/lib/dates';
+import { SandboxEnvironmentBanner } from '@/components/SandboxFiscal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -261,6 +262,7 @@ export function InvoiceList() {
 
   return (
     <div style={{ padding: '1.5rem' }}>
+      <SandboxEnvironmentBanner />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>🧾 {t('invoiceList.title')}</h1>

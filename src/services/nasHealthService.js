@@ -10,6 +10,8 @@ const dgram = require('dgram');
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'nasHealth' });
 
+const PROBE_CONCURRENCY = 10;
+
 // ---------------------------------------------------------------------------
 // Status-Server packet construction
 // ---------------------------------------------------------------------------
@@ -27,8 +29,7 @@ const logger = require('../utils/logger').child({ service: 'nasHealth' });
  * @param {string} secret - shared RADIUS secret
  * @returns {Buffer} fully authenticated Status-Server packet
  */
-function buildStatusServerPacket(secret) {
-  const identifier = crypto.randomInt(0, 256);
+function buildStatusServerPacket(secret, identifier = crypto.randomInt(0, 256)) {
 
   // Message-Authenticator attribute: type=80, length=18, value=16 zero bytes (placeholder)
   const msgAuthAttr = Buffer.alloc(18);
@@ -56,6 +57,28 @@ function buildStatusServerPacket(secret) {
   mac.copy(packet, 22);  // offset 20 (type+len) + 2 = 22
 
   return packet;
+}
+
+/**
+ * Whether a datagram is the NAS's authenticated reply to our Status-Server
+ * (NET-32): it must come from the probed address and port, echo our
+ * identifier, carry a consistent length, and hold the Response Authenticator
+ * MD5(Code | Identifier | Length | Request Authenticator | Attributes | Secret).
+ * Our Request Authenticator is all zeros (RFC 5997).
+ */
+function isAuthenticReply(msg, rinfo, { address, port, identifier, secret }) {
+  if (!Buffer.isBuffer(msg) || msg.length < 20) return false;
+  if (!rinfo || rinfo.address !== address || rinfo.port !== port) return false;
+  if (msg[1] !== identifier) return false;
+  const length = msg.readUInt16BE(2);
+  if (length < 20 || length > msg.length) return false;
+  const expected = crypto.createHash('md5')
+    .update(msg.subarray(0, 4))
+    .update(Buffer.alloc(16, 0))
+    .update(msg.subarray(20, length))
+    .update(Buffer.from(secret, 'utf8'))
+    .digest();
+  return crypto.timingSafeEqual(expected, msg.subarray(4, 20));
 }
 
 // ---------------------------------------------------------------------------
@@ -95,7 +118,14 @@ function probeNas(nas) {
       finish(false, null);
     }, 5000);
 
-    socket.on('message', (msg) => {
+    const identifier = crypto.randomInt(0, 256);
+    socket.on('message', (msg, rinfo) => {
+      // Anything else on the socket (a spoofed or stray datagram) is ignored;
+      // the probe keeps waiting until the timeout.
+      if (!isAuthenticReply(msg, rinfo, { address: nas.ip_address, port, identifier, secret: nas.secret })) {
+        logger.debug({ nasId: nas.id, from: rinfo?.address }, 'Ignored an unauthenticated NAS probe reply');
+        return;
+      }
       clearTimeout(timer);
       socket.close();
       const responseCode = msg[0];
@@ -114,7 +144,7 @@ function probeNas(nas) {
 
     let packet;
     try {
-      packet = buildStatusServerPacket(nas.secret);
+      packet = buildStatusServerPacket(nas.secret, identifier);
     } catch (err) {
       clearTimeout(timer);
       socket.close();
@@ -184,14 +214,25 @@ async function runHealthChecks(organizationId = null) {
   let downCount = 0;
   const transitions = [];
 
-  for (const nas of nasDevices) {
-    let probeResult;
-    try {
-      probeResult = await probeNas(nas);
-    } catch (err) {
-      logger.error({ nasId: nas.id, err: err.message }, 'Unexpected error probing NAS');
-      probeResult = { up: false, responseCode: null, responseMs: 0 };
+  // Probe concurrently with a bound: one at a time, a fleet of silent NAS took
+  // 5 s each and stretched the 5-minute task (NET-32).
+  const results = new Array(nasDevices.length);
+  let next = 0;
+  async function worker() {
+    while (next < nasDevices.length) {
+      const index = next++;
+      try {
+        results[index] = await probeNas(nasDevices[index]);
+      } catch (err) {
+        logger.error({ nasId: nasDevices[index].id, err: err.message }, 'Unexpected error probing NAS');
+        results[index] = { up: false, responseCode: null, responseMs: 0 };
+      }
     }
+  }
+  await Promise.all(Array.from({ length: Math.min(PROBE_CONCURRENCY, nasDevices.length) }, worker));
+
+  for (const [index, nas] of nasDevices.entries()) {
+    const probeResult = results[index];
 
     const newStatus = probeResult.up ? 'up' : 'down';
     const previousStatus = nas.health_status || null;
@@ -256,4 +297,4 @@ async function runHealthChecks(organizationId = null) {
 // Exports
 // ---------------------------------------------------------------------------
 
-module.exports = { probeNas, runHealthChecks };
+module.exports = { probeNas, runHealthChecks, isAuthenticReply, buildStatusServerPacket };

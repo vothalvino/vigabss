@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authedFetch, tokenStore } from '@/api/client';
+import { SandboxCfdiBadge, SandboxEnvironmentBanner } from '@/components/SandboxFiscal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,6 +36,7 @@ interface CfdiDocument {
   stamp_ambiguous?: number | boolean | null;
   cancelled_at: string | null;
   pac_provider: string | null;
+  pac_environment?: 'sandbox' | 'production' | null;
   created_at: string;
 }
 
@@ -400,6 +402,7 @@ export function CfdiList() {
 
   return (
     <div style={{ padding: '1.5rem' }}>
+      <SandboxEnvironmentBanner />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>🧾 CFDI Management</h1>
@@ -516,6 +519,7 @@ export function CfdiList() {
                     {/* Status */}
                     <td style={{ padding: '9px 12px' }}>
                       <StatusBadge status={doc.sat_status} />
+                      <SandboxCfdiBadge doc={doc} />
                     </td>
 
                     {/* PAC that stamped it */}

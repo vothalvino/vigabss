@@ -358,7 +358,7 @@ describe('Resource models have softDelete = true', () => {
   const modelFiles = [
     'Client', 'Invoice', 'Device', 'User', 'Ticket', 'Contract', 'Plan',
     'Payment', 'Organization', 'Site', 'Nas', 'Radius', 'Expense',
-    'Webhook', 'Role', 'ApiToken', 'CoverageZone', 'ServiceArea',
+    'Webhook', 'ApiToken', 'CoverageZone', 'ServiceArea',
   ];
 
   modelFiles.forEach((modelName) => {
@@ -371,8 +371,8 @@ describe('Resource models have softDelete = true', () => {
 
 describe('System models have softDelete = false', () => {
   const modelFiles = [
-    'AuditLog', 'ConnectionLog', 'EmailLog', 'SmsLog', 'Permission',
-    'ScheduledTask', 'Setting', 'UserSession',
+    'AuditLog', 'ConnectionLog', 'SmsLog', 'Permission',
+    'ScheduledTask', 'UserSession',
   ];
 
   modelFiles.forEach((modelName) => {

@@ -53,6 +53,20 @@ function mockAuthUser() {
   });
 }
 
+// Groups are install-wide, so role mutations need a global principal (TNB-38):
+// a system super_admin group member.
+function mockSuperAdminUser() {
+  User.findById.mockResolvedValue({
+    id: 1,
+    email: 'test@example.com',
+    status: 'active',
+    role: 'admin',
+    organization_id: 1,
+    group_name: 'super_admin',
+    group_is_system: 1,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Setup / Teardown
 // ---------------------------------------------------------------------------
@@ -2559,7 +2573,7 @@ describe('Role Routes — /api/roles', () => {
   // --- GET / ---
   describe('GET /api/roles', () => {
     test('returns list of roles', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       db.query
         .mockResolvedValueOnce([[mockRole, { id: 2, name: 'support', description: 'Support staff' }]])
         .mockResolvedValueOnce([[{ total: 2 }]]);
@@ -2584,7 +2598,7 @@ describe('Role Routes — /api/roles', () => {
   // --- GET /:id ---
   describe('GET /api/roles/:id', () => {
     test('returns a role with its permissions', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       db.query
         .mockResolvedValueOnce([[mockRole]])        // SELECT role
         .mockResolvedValueOnce([mockPermissions]);   // SELECT permissions
@@ -2600,7 +2614,7 @@ describe('Role Routes — /api/roles', () => {
     });
 
     test('returns 404 when role not found', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       db.query.mockResolvedValueOnce([[]]);
 
       const res = await request(app)
@@ -2614,7 +2628,7 @@ describe('Role Routes — /api/roles', () => {
   // --- POST / ---
   describe('POST /api/roles', () => {
     test('creates a role and returns 201', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       const newRole = { id: 3, name: 'billing', description: 'Billing team', kind: 'billing' };
       db.query
         .mockResolvedValueOnce([{ insertId: 3, affectedRows: 1 }])  // INSERT
@@ -2634,7 +2648,7 @@ describe('Role Routes — /api/roles', () => {
   // --- PUT /:id ---
   describe('PUT /api/roles/:id', () => {
     test('updates a role', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       const updatedRole = { id: 1, name: 'superadmin', description: 'Updated description' };
       db.query
         .mockResolvedValueOnce([[{ id: 1, name: 'old-custom', kind: 'billing', is_system: 0 }]])  // pre-fetch (378 system-role guard)
@@ -2651,7 +2665,7 @@ describe('Role Routes — /api/roles', () => {
     });
 
     test('returns 404 when role not found for update', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       db.query
         .mockResolvedValueOnce([[]]);  // pre-fetch — not found (378 guard runs first)
 
@@ -2667,7 +2681,7 @@ describe('Role Routes — /api/roles', () => {
   // --- DELETE /:id ---
   describe('DELETE /api/roles/:id', () => {
     test('deletes a role and returns 204', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       db.query
         .mockResolvedValueOnce([[{ ...mockRole, name: 'custom', is_system: 0 }]])  // SELECT — exists, non-system (378 guard)
         .mockResolvedValueOnce([[{ cnt: 0 }]])             // COUNT assigned users (378 guard)
@@ -2681,7 +2695,7 @@ describe('Role Routes — /api/roles', () => {
     });
 
     test('returns 404 when role not found for delete', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       db.query.mockResolvedValueOnce([[]]);  // SELECT — not found
 
       const res = await request(app)
@@ -2695,7 +2709,7 @@ describe('Role Routes — /api/roles', () => {
   // --- POST /:id/permissions ---
   describe('POST /api/roles/:id/permissions', () => {
     test('assigns a permission to a role and returns 201', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       // A tenant admin may add to a custom group only what they hold (SEC-18).
       User.getPermissions.mockResolvedValue(['clients.create']);
       db.query
@@ -2718,7 +2732,7 @@ describe('Role Routes — /api/roles', () => {
   // --- DELETE /:id/permissions/:permissionId ---
   describe('DELETE /api/roles/:id/permissions/:permissionId', () => {
     test('removes a permission from a role and returns 204', async () => {
-      mockAuthUser();
+      mockSuperAdminUser();
       db.query
         .mockResolvedValueOnce([[{ id: 1, name: 'field_crew', kind: 'technician', is_system: 0 }]]) // SELECT role
         .mockResolvedValueOnce([[{ id: 2, slug: 'clients.create' }]])  // SELECT permissions before
