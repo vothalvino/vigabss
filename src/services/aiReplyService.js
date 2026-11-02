@@ -40,6 +40,7 @@ const llmProviderService     = require('./llmProviderService');
 const kbService              = require('./kbService');
 
 const logger = require('../utils/logger').child({ service: 'aiReplyService' });
+const { CHANNELS: AI_CHANNELS } = require('../middleware/schemas/ai');
 
 // ---------------------------------------------------------------------------
 // Maximum generation attempts (initial + 2 retries on validation failure)
@@ -423,7 +424,10 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
     ? JSON.parse(policy.enabled_channels)
     : (policy.enabled_channels || {});
 
-  if (!enabledChannels[channel]) {
+  // Only a real channel, looked up as an own property: 'constructor' or
+  // 'toString' read a truthy prototype member and passed the switch (GQL-04).
+  if (!AI_CHANNELS.includes(channel) || !Object.prototype.hasOwnProperty.call(enabledChannels, channel)
+      || !enabledChannels[channel]) {
     logger.info({ orgId, ticketId, channel }, 'aiReplyService: skipped — channel disabled');
     return { skipped: true, reason: 'channel_disabled' };
   }
