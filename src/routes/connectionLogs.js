@@ -270,27 +270,31 @@ router.get('/active/summary', requirePermission('connection_logs.summary'), asyn
       AND ${latestSessionPredicate('cl')}
       AND COALESCE(cl.last_accounting_received_at, cl.last_accounting_at, cl.event_at) >=
           DATE_SUB(NOW(), INTERVAL ${SESSION_LIVENESS_MINUTES} MINUTE)`;
-    const [nasSummary] = await db.query(
-      `SELECT cl.nas_id, n.name AS nas_name, n.ip_address AS nas_ip,
+    // One scan grouped by NAS and port, folded per NAS here; it used to re-run
+    // the whole liveness scan (with its correlated predicate) once per NAS
+    // (DAL-16). A session sits on one port, so the port counts sum per NAS.
+    const [rows] = await db.query(
+      `SELECT cl.nas_id, n.name AS nas_name, n.ip_address AS nas_ip, cl.nas_port_id,
               COUNT(DISTINCT COALESCE(cl.session_instance_id, CONCAT('legacy:', cl.id))) AS session_count
          FROM connection_logs cl
          LEFT JOIN nas n ON n.id = cl.nas_id AND n.organization_id = cl.organization_id
         WHERE cl.organization_id = ? AND ${activeClause}
-        GROUP BY cl.nas_id, n.name, n.ip_address ORDER BY session_count DESC`,
+        GROUP BY cl.nas_id, n.name, n.ip_address, cl.nas_port_id`,
       [req.orgId],
     );
-    const data = [];
-    for (const nasRow of nasSummary) {
-      const [ports] = await db.query(
-        `SELECT cl.nas_port_id,
-                COUNT(DISTINCT COALESCE(cl.session_instance_id, CONCAT('legacy:', cl.id))) AS session_count
-           FROM connection_logs cl
-          WHERE cl.organization_id = ? AND cl.nas_id <=> ? AND ${activeClause}
-          GROUP BY cl.nas_port_id ORDER BY session_count DESC`,
-        [req.orgId, nasRow.nas_id],
-      );
-      data.push({ ...nasRow, ports });
+    const byNas = new Map();
+    for (const row of rows) {
+      const key = row.nas_id ?? null;
+      if (!byNas.has(key)) {
+        byNas.set(key, { nas_id: row.nas_id, nas_name: row.nas_name, nas_ip: row.nas_ip, session_count: 0, ports: [] });
+      }
+      const entry = byNas.get(key);
+      entry.session_count += Number(row.session_count);
+      entry.ports.push({ nas_port_id: row.nas_port_id, session_count: row.session_count });
     }
+    const nasSummary = [...byNas.values()].sort((a, b) => b.session_count - a.session_count);
+    for (const entry of nasSummary) entry.ports.sort((a, b) => Number(b.session_count) - Number(a.session_count));
+    const data = nasSummary;
     res.json({ data, meta: {
       total_sessions: nasSummary.reduce((sum, row) => sum + Number(row.session_count), 0),
       nas_count: nasSummary.length,

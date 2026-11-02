@@ -30,66 +30,38 @@ const WHATSAPP_TICKET_CAP_PER_HOUR = 5;
 // client per hour — bounds a hijacked bound thread spamming password resets.
 const WHATSAPP_ACTION_CAP_PER_HOUR = 3;
 
+const { AsyncLocalStorage } = require('async_hooks');
+const { t } = require('../utils/i18n');
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const MSG = {
-  welcome:
-    '👋 Hi! I can connect you to your ISP account here on WhatsApp.\n\n' +
-    "To verify it's you, reply with your *account email* and I'll send you a code — " +
-    'or open your customer portal (Profile → Connect WhatsApp) to get a linking code.',
-  emailSent:
-    "If that email is on file, I've sent a 6-digit code to it. Reply here with the code to finish connecting.",
-  bindOk: (name) => `✅ You're connected${name ? `, ${name}` : ''}! Your account features will be available here soon.`,
-  menu: (name) =>
-    `Hi${name ? ` ${name}` : ''}! What can I help you with? Reply with a number:\n`
-    + '1️⃣ Account balance\n2️⃣ My plan & service\n3️⃣ My invoices\n4️⃣ Report a problem\n'
-    + '5️⃣ Reset Wi-Fi password\n6️⃣ Schedule a technician visit\n7️⃣ Talk to a human',
-  askProblem: "Please describe the problem in one message and I'll open a ticket for you. (Reply MENU to go back.)",
-  pickService: (contracts) =>
-    'Which service is this about? Reply with the number:\n'
-    + contracts.map((c, i) => `${i + 1}) ${c.label}`).join('\n'),
-  pickInvalid: 'Please reply with the number of the service (e.g. 1), or MENU to go back.',
-  problemLogged: (id) => `✅ Thanks — I've opened ticket #${id} and our team will follow up. Reply MENU anytime.`,
-  humanLogged: (id) => `👍 A team member will reach out. Your reference is ticket #${id}.`,
-  ticketCapped: 'You already have open requests with us — our team is on it. Reply MENU for other options.',
-  // The §21 engine returns its own answer text; these two frame it. Kept
-  // alongside the other bot copy rather than in i18n because whatsappBotService
-  // is server-side and speaks one language per install — the copy here is
-  // English to match every other string in this file, and translating the whole
-  // bot is its own job.
-  aiEscalated: "Thanks — I've passed this to our support team and someone will follow up here shortly. Reply MENU anytime.",
-  aiMenuHint: 'Reply MENU for the options list, or 7 to talk to a person.',
-  // Wi-Fi reset
-  wifiConfirm: (emailMasked) =>
-    `🔐 I'll set a *new* Wi-Fi password and email it to ${emailMasked} — I never show it here in chat. `
-    + 'Your devices will need to reconnect with the new password.\n\nReply *CONFIRM* to proceed, or MENU to cancel.',
-  wifiNoEmail:
-    'To reset your Wi-Fi password securely I need an email on file to send the new one to. '
-    + 'Please add one in your customer portal, or reply 7 to talk to a human.',
-  // The router applies it on its next check-in, so this is a request, not a
-  // confirmation (NET-12).
-  wifiApplied: (emailMasked) =>
-    `✅ Your new Wi-Fi password has been emailed to ${emailMasked} and sent to your router. `
-    + 'It takes effect when the router applies it, usually within a few minutes; then reconnect your devices with it.',
-  wifiFiled: (id) =>
-    `✅ Request submitted (#${id}). Our team will set a new Wi-Fi password and contact you shortly.`,
-  wifiEmailFailed:
-    "I couldn't email your new Wi-Fi password just now, so I did NOT change it (to avoid locking you out). "
-    + 'Please try again in a bit, or reply 7 to talk to a human.',
-  confirmInvalid: 'Reply *CONFIRM* to proceed, or MENU to cancel.',
-  // Technician visit
-  askVisitDate: 'What day would you like a technician to visit? Reply with a date (e.g. 2026-08-05). Reply MENU to cancel.',
-  visitDateInvalid: 'Please reply with a date like 2026-08-05, or MENU to cancel.',
-  askVisitSlot: 'What time works best? Reply:\n1) Morning (8am–12pm)\n2) Afternoon (12pm–5pm)\n3) Evening (5pm–8pm)',
-  visitLogged: (id, date, slot) => `✅ Visit requested for ${date} (${slot}) — reference #${id}. We'll confirm the appointment. Reply MENU anytime.`,
-  noService: "You don't have an active service on file, so there's nothing to change. Reply 7 to talk to a human.",
-  actionCapped: "You've made several requests recently — please wait a bit before trying again, or reply 7 to talk to a human.",
-  unlinked: 'Your WhatsApp number has been disconnected from your account. Reply with your email anytime to reconnect.',
-  codeBad: "That code isn't valid or has expired. Reply with your email for a new one, or get a fresh code from your portal.",
-  codeMismatch: "That code doesn't match. Check it and try again, or reply with your email for a new one.",
-  locked: 'Too many incorrect attempts. Please wait a bit, then request a new code.',
-  cooldown: "You've sent a lot of messages recently — please wait a few minutes and try again.",
+// Subscriber-facing copy lives in src/locales/{en,es,pt-BR}.json under
+// whatsappBot (ASY-40). The language is resolved once per inbound message (the
+// linked client's organization, or the install default before linking) and
+// carried in an AsyncLocalStorage store, so the handlers keep using MSG.x.
+const botLocaleStore = new AsyncLocalStorage();
+const currentLocale = () => botLocaleStore.getStore() || wa.defaultBotLocale?.() || 'es';
+const tr = (key, vars) => t(`whatsappBot.${key}`, currentLocale(), vars);
+const withName = (name) => (name ? ` ${name}` : '');
+
+const MSG_FORMATTERS = {
+  bindOk: (name) => tr('bindOk', { name: name ? `, ${name}` : '' }),
+  menu: (name) => tr('menu', { name: withName(name) }),
+  pickService: (contracts) => tr('pickService', { list: contracts.map((c, i) => `${i + 1}) ${c.label}`).join('\n') }),
+  problemLogged: (id) => tr('problemLogged', { id }),
+  humanLogged: (id) => tr('humanLogged', { id }),
+  wifiConfirm: (email) => tr('wifiConfirm', { email: email || tr('emailOnFile') }),
+  wifiApplied: (email) => tr('wifiApplied', { email }),
+  wifiFiled: (id) => tr('wifiFiled', { id }),
+  visitLogged: (id, date, slot) => tr('visitLogged', { id, date, slot: slot ? tr(`slots.${slot}`) : '' }),
 };
+
+const MSG = new Proxy({}, {
+  get(_target, key) {
+    if (typeof key !== 'string') return undefined;
+    return MSG_FORMATTERS[key] || tr(key);
+  },
+});
 
 function firstName(name) {
   return String(name || '').trim().split(/\s+/)[0] || '';
@@ -190,11 +162,18 @@ async function maybeSendEmailOtp({ phone, email }) {
  * @returns {Promise<{reply: string, clientId?: number}>}
  */
 async function handleInbound({ phone, body }) {
-  // 1. Already bound? Run the bound-client bot (menu + read-only capabilities).
+  // 1. Already bound? Run the bound-client bot (menu + read-only capabilities)
+  // in the client's organization's language.
   const binding = await wa.resolveBinding(phone);
   if (binding) {
-    return inClientDatabase(binding.organizationId, () => handleBound({ phone, body, binding }));
+    const locale = (await wa.botLocale?.(binding.organizationId)) || null;
+    return botLocaleStore.run(locale, () =>
+      inClientDatabase(binding.organizationId, () => handleBound({ phone, body, binding })));
   }
+  return botLocaleStore.run(null, () => handleUnbound({ phone, body }));
+}
+
+async function handleUnbound({ phone, body }) {
 
   // 2. Unbound — throttle binding attempts per phone.
   const recent = await wa.recentInboundCount(phone, 60);
@@ -503,7 +482,7 @@ async function handleBound({ phone, body, binding }) {
     const chosen = contracts[parseInt(text.replace(/\D/g, ''), 10) - 1];
     if (!chosen) return { reply: MSG.pickInvalid, clientId };
     await wa.setConversationState(phone, clientId, 'await_wifi_confirm', { contract: chosen, emailMasked: state.context?.emailMasked });
-    return { reply: MSG.wifiConfirm(state.context?.emailMasked || 'your email on file'), clientId };
+    return { reply: MSG.wifiConfirm(state.context?.emailMasked), clientId };
   }
   if (state && state.state === 'await_wifi_confirm') {
     if (!isConfirmCommand(text)) return { reply: MSG.confirmInvalid, clientId };

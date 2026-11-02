@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same pull request cancels the older run; main and tag
+# runs always finish (OPS-26).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   # The published image. Production pulls this instead of building on the box —
   # see docs/deployment.md. Must stay lowercase (registries reject uppercase)
@@ -31,6 +37,7 @@ jobs:
   # + Trivy), dast (compose + ZAP), helm.
   lint-and-test:
     if: github.event_name != 'pull_request'
+    timeout-minutes: 30
     runs-on: ubuntu-latest
 
     steps:
@@ -148,6 +155,7 @@ jobs:
     # Runs on PRs as well as main (OPS-07): it needs no Docker, and a
     # lockfile advisory used to surface only after merge, in the main-only
     # lint-and-test job.
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -190,6 +198,7 @@ jobs:
 
 
   database-tests:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
 
     steps:
@@ -209,9 +218,13 @@ jobs:
 
       - name: Wait for MySQL
         run: |
-          until mysqladmin ping -h 127.0.0.1 --silent; do
+          # Bounded: an unbounded loop ran until the 6-hour job limit (OPS-26).
+          for i in $(seq 1 60); do
+            mysqladmin ping -h 127.0.0.1 --silent && exit 0
             sleep 2
           done
+          echo "MySQL did not become ready within 120 s" >&2
+          exit 1
 
       - name: Load schema
         run: mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_test < database/schema.sql
@@ -295,6 +308,7 @@ jobs:
     # tests mock fetch, which is how a client still on Chroma's removed v1 API
     # and a healthcheck that could never pass both went unnoticed. The
     # container uses the compose healthcheck, so a broken one fails here too.
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     env:
       NODE_ENV: test
@@ -342,6 +356,7 @@ jobs:
     # migration-smoke-test.js) rather than the raw mysql CLI path used by
     # database-tests: double-run idempotency, schema.sql parity, and a full
     # rollback round-trip across every rollback file >= 130.
+    timeout-minutes: 30
     runs-on: ubuntu-latest
 
     env:
@@ -383,9 +398,13 @@ jobs:
 
       - name: Wait for MySQL
         run: |
-          until mysqladmin ping -h 127.0.0.1 --silent; do
+          # Bounded: an unbounded loop ran until the 6-hour job limit (OPS-26).
+          for i in $(seq 1 60); do
+            mysqladmin ping -h 127.0.0.1 --silent && exit 0
             sleep 2
           done
+          echo "MySQL did not become ready within 120 s" >&2
+          exit 1
 
       - name: Apply all migrations via migrate.js
         run: pnpm run migrate
@@ -576,6 +595,7 @@ jobs:
 
   frontend-test:
     if: github.event_name != 'pull_request'  # local-first: runs on main push only
+    timeout-minutes: 30
     runs-on: ubuntu-latest
 
     steps:
@@ -611,6 +631,7 @@ jobs:
     # Pinned to 24.04: ubuntu-latest moved to 26.04, which Playwright 1.59
     # cannot install browser dependencies on ("does not support chromium on
     # ubuntu26.04-x64"). Move back to ubuntu-latest once Playwright supports it.
+    timeout-minutes: 45
     runs-on: ubuntu-24.04
 
     steps:
@@ -651,9 +672,13 @@ jobs:
 
       - name: Wait for MySQL
         run: |
-          until mysqladmin ping -h 127.0.0.1 --silent; do
+          # Bounded: an unbounded loop ran until the 6-hour job limit (OPS-26).
+          for i in $(seq 1 60); do
+            mysqladmin ping -h 127.0.0.1 --silent && exit 0
             sleep 2
           done
+          echo "MySQL did not become ready within 120 s" >&2
+          exit 1
 
       - name: Run migrations and seed
         env:
@@ -739,6 +764,7 @@ jobs:
           - arch: arm64
             platform: linux/arm64
             runner: ubuntu-24.04-arm
+    timeout-minutes: 60
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -959,6 +985,7 @@ jobs:
       - migration-runner-tests
       - mariadb-compatibility
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1034,6 +1061,7 @@ jobs:
   # before switching to fail_action: true.
   # ---------------------------------------------------------------------------
   dast:
+    timeout-minutes: 45
     runs-on: ubuntu-latest
 
     services:
@@ -1143,6 +1171,7 @@ jobs:
     # contents: write, which this job held on every push and PR (OPS-08), so
     # it moved to the tag-only helm-release job below.
     name: Helm lint
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1175,6 +1204,7 @@ jobs:
     # PVC deleted on uninstall both passed CI (OPS-16). Install, upgrade and
     # uninstall on a throwaway kind cluster. Pods need not become ready.
     name: Helm install / upgrade / uninstall
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1209,6 +1239,7 @@ jobs:
     name: Helm release
     needs: [helm-lint, publish-manifest]
     if: startsWith(github.ref, 'refs/tags/v') && needs.publish-manifest.result == 'success'
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
       contents: write   # chart-releaser needs to push to gh-pages
@@ -1276,6 +1307,7 @@ jobs:
   # prove the parser semantics; only this can prove Redis itself agrees.
   prod-compose-redis:
     name: Prod compose — Redis starts, no secret in argv
+    timeout-minutes: 30
     runs-on: ubuntu-latest
 
     env:

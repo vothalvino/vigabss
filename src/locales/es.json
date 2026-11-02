@@ -103,5 +103,42 @@
     "cdr_export_complete": "Exportación de CDR completada",
     "nas_health_up": "El NAS {{name}} está activo",
     "nas_health_down": "El NAS {{name}} está inactivo"
+  },
+  "whatsappBot": {
+    "welcome": "👋 ¡Hola! Puedo conectarte con tu cuenta de internet aquí en WhatsApp.\n\nPara verificar que eres tú, responde con el *correo de tu cuenta* y te enviaré un código, o abre tu portal de cliente (Perfil → Conectar WhatsApp) para obtener un código de vinculación.",
+    "emailSent": "Si ese correo está registrado, te envié un código de 6 dígitos. Responde aquí con el código para terminar de conectar.",
+    "bindOk": "✅ ¡Listo, ya estás conectado{{name}}! Las funciones de tu cuenta estarán disponibles aquí pronto.",
+    "menu": "¡Hola{{name}}! ¿En qué te puedo ayudar? Responde con un número:\n1️⃣ Saldo de mi cuenta\n2️⃣ Mi plan y servicio\n3️⃣ Mis facturas\n4️⃣ Reportar un problema\n5️⃣ Cambiar la contraseña del Wi-Fi\n6️⃣ Agendar visita de un técnico\n7️⃣ Hablar con una persona",
+    "askProblem": "Describe el problema en un solo mensaje y abriré un ticket para ti. (Responde MENÚ para regresar.)",
+    "pickService": "¿De qué servicio se trata? Responde con el número:\n{{list}}",
+    "pickInvalid": "Responde con el número del servicio (por ejemplo 1), o MENÚ para regresar.",
+    "problemLogged": "✅ Gracias, abrí el ticket #{{id}} y nuestro equipo te dará seguimiento. Responde MENÚ cuando quieras.",
+    "humanLogged": "👍 Alguien de nuestro equipo te contactará. Tu referencia es el ticket #{{id}}.",
+    "ticketCapped": "Ya tienes solicitudes abiertas con nosotros y nuestro equipo las está atendiendo. Responde MENÚ para ver otras opciones.",
+    "aiEscalated": "Gracias, pasé tu mensaje a nuestro equipo de soporte y alguien te responderá aquí en breve. Responde MENÚ cuando quieras.",
+    "aiMenuHint": "Responde MENÚ para ver las opciones, o 7 para hablar con una persona.",
+    "wifiConfirm": "🔐 Pondré una contraseña de Wi-Fi *nueva* y te la enviaré a {{email}}; nunca la muestro aquí en el chat. Tus dispositivos tendrán que volver a conectarse con la nueva contraseña.\n\nResponde *CONFIRMAR* para continuar, o MENÚ para cancelar.",
+    "wifiNoEmail": "Para cambiar tu contraseña de Wi-Fi de forma segura necesito un correo registrado al cual enviarla. Agrega uno en tu portal de cliente, o responde 7 para hablar con una persona.",
+    "wifiApplied": "✅ Te enviamos la nueva contraseña de Wi-Fi a {{email}} y la mandamos a tu módem. Se aplica cuando el módem la recibe, normalmente en unos minutos; después vuelve a conectar tus dispositivos con ella.",
+    "wifiFiled": "✅ Solicitud enviada (#{{id}}). Nuestro equipo pondrá una nueva contraseña de Wi-Fi y te contactará en breve.",
+    "wifiEmailFailed": "No pude enviarte la nueva contraseña de Wi-Fi por correo en este momento, así que NO la cambié (para que no pierdas la conexión). Inténtalo de nuevo en un rato, o responde 7 para hablar con una persona.",
+    "confirmInvalid": "Responde *CONFIRMAR* para continuar, o MENÚ para cancelar.",
+    "askVisitDate": "¿Qué día quieres que vaya un técnico? Responde con una fecha (por ejemplo 2026-08-05). Responde MENÚ para cancelar.",
+    "visitDateInvalid": "Responde con una fecha como 2026-08-05, o MENÚ para cancelar.",
+    "askVisitSlot": "¿Qué horario te queda mejor? Responde:\n1) Mañana (8 a 12 h)\n2) Tarde (12 a 17 h)\n3) Noche (17 a 20 h)",
+    "visitLogged": "✅ Visita solicitada para el {{date}} ({{slot}}), referencia #{{id}}. Te confirmaremos la cita. Responde MENÚ cuando quieras.",
+    "noService": "No tienes un servicio activo registrado, así que no hay nada que cambiar. Responde 7 para hablar con una persona.",
+    "actionCapped": "Hiciste varias solicitudes recientemente; espera un poco antes de intentarlo de nuevo, o responde 7 para hablar con una persona.",
+    "unlinked": "Tu número de WhatsApp se desconectó de tu cuenta. Responde con tu correo cuando quieras para volver a conectarlo.",
+    "codeBad": "Ese código no es válido o ya expiró. Responde con tu correo para recibir uno nuevo, o genera otro en tu portal.",
+    "codeMismatch": "Ese código no coincide. Revísalo e inténtalo de nuevo, o responde con tu correo para recibir uno nuevo.",
+    "locked": "Demasiados intentos incorrectos. Espera un poco y luego solicita un código nuevo.",
+    "cooldown": "Enviaste muchos mensajes recientemente; espera unos minutos e inténtalo de nuevo.",
+    "emailOnFile": "tu correo registrado",
+    "slots": {
+      "morning": "mañana",
+      "afternoon": "tarde",
+      "evening": "noche"
+    }
   }
 }

@@ -18,8 +18,8 @@ const createPromotion = {
   max_uses_per_client: { type: 'number', min: 0 },
   min_order_value: { type: 'number', min: 0 },
   duration_months: { type: 'number', min: 0, max: 255 },
-  starts_at: { type: 'string' },
-  ends_at: { type: 'string' },
+  starts_at: { type: 'string', timestamp: true },
+  ends_at: { type: 'string', timestamp: true },
   is_active: { type: 'boolean' },
 };
 
@@ -35,8 +35,8 @@ const updatePromotion = {
   max_uses_per_client: { type: 'number', min: 0 },
   min_order_value: { type: 'number', min: 0 },
   duration_months: { type: 'number', min: 0, max: 255 },
-  starts_at: { type: 'string' },
-  ends_at: { type: 'string' },
+  starts_at: { type: 'string', timestamp: true },
+  ends_at: { type: 'string', timestamp: true },
   is_active: { type: 'boolean' },
 };
 

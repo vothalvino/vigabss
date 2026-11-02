@@ -254,6 +254,15 @@ radtest subscriber_username cleartext_password 127.0.0.1 0 testing123
 
 ---
 
+## CoA and Disconnect
+
+VigaBSS sends a Disconnect-Request (code 40) when a contract is suspended and a
+CoA-Request (code 43) when it is reconnected. Packets go to the NAS's
+`coa_port` (default 3799) and are roaming-aware: every registered NAS with an
+open session for the subscriber in `connection_logs` gets one, plus the home
+NAS (`radius.nas_id`) as a safety net. A NAS with no session for that username
+answers with a harmless NAK. Allow UDP 3799 inbound on the NAS.
+
 ## Authentication methods
 
 ### PPPoE (default)

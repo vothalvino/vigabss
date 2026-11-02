@@ -1,4 +1,7 @@
 #!/bin/bash
+# Fail fast: a failed step (secret generation, env write, install) must stop
+# the setup rather than report success over a half-written env file (OPS-27).
+set -euo pipefail
 
 # 1. Colors for feedback
 GREEN='\033[0;32m'
@@ -110,6 +113,20 @@ ensure_password() {
     return 0
 }
 
+# pnpm with the lockfile only: npm ignores pnpm-lock.yaml and the
+# pnpm.overrides security pins in package.json (OPS-27).
+install_dependencies() {
+    if ! command -v pnpm &> /dev/null && command -v corepack &> /dev/null; then
+        corepack enable
+    fi
+    if ! command -v pnpm &> /dev/null; then
+        echo "pnpm is required: run 'corepack enable' (Node.js 24+) and re-run setup.sh." >&2
+        exit 1
+    fi
+    echo -e "${GREEN}Installing dependencies with pnpm...${NC}"
+    pnpm install --frozen-lockfile
+}
+
 # 2. Parse flags
 PROD=false
 for arg in "$@"; do
@@ -137,34 +154,31 @@ if [ "$PROD" = true ]; then
     # 4. Generate secrets for production. Existing valid secrets are never rotated
     # automatically because doing so would invalidate sessions or make encrypted
     # database secrets unreadable.
-    ensure_hex_secret "$ENV_FILE" "JWT_SECRET" "JWT_SECRET"
+    ensure_hex_secret "$ENV_FILE" "JWT_SECRET" "JWT_SECRET" || true
     set_env_value "$ENV_FILE" "JWT_ALGORITHM" "HS256"
 
-    ensure_hex_secret "$ENV_FILE" "ENCRYPTION_KEY" "ENCRYPTION_KEY"
-    ensure_hex_secret "$ENV_FILE" "FIRERELAY_AUTH_TOKEN" "FIRERELAY_AUTH_TOKEN"
+    ensure_hex_secret "$ENV_FILE" "ENCRYPTION_KEY" "ENCRYPTION_KEY" || true
+    ensure_hex_secret "$ENV_FILE" "FIRERELAY_AUTH_TOKEN" "FIRERELAY_AUTH_TOKEN" || true
 
-    ensure_password "$ENV_FILE" "DB_PASSWORD" "DB_PASSWORD"
-    ensure_password "$ENV_FILE" "DB_ROOT_PASSWORD" "DB_ROOT_PASSWORD"
-    ensure_password "$ENV_FILE" "MYSQL_REPL_PASSWORD" "MYSQL_REPL_PASSWORD"
+    ensure_password "$ENV_FILE" "DB_PASSWORD" "DB_PASSWORD" || true
+    ensure_password "$ENV_FILE" "DB_ROOT_PASSWORD" "DB_ROOT_PASSWORD" || true
+    ensure_password "$ENV_FILE" "MYSQL_REPL_PASSWORD" "MYSQL_REPL_PASSWORD" || true
 
     if ensure_password "$ENV_FILE" "REDIS_PASSWORD" "REDIS_PASSWORD"; then
         NEW_REDIS_PASS=$(get_env_value "$ENV_FILE" "REDIS_PASSWORD")
-        # Update the embedded password inside REDIS_URL (template: redis://:placeholder@host)
-        if grep -qE '^REDIS_URL=redis://:[^@]*@' "$ENV_FILE"; then
-            sed -i "s|^REDIS_URL=redis://:[^@]*@|REDIS_URL=redis://:$NEW_REDIS_PASS@|" "$ENV_FILE"
+        # Update the embedded password inside REDIS_URL (template:
+        # redis://:placeholder@host) with bash only: `sed -i` put the new
+        # password in sed's argv, readable from /proc by any local account.
+        CURRENT_REDIS_URL=$(get_env_value "$ENV_FILE" "REDIS_URL")
+        if [[ "$CURRENT_REDIS_URL" =~ ^redis://:[^@]*@(.*)$ ]]; then
+            set_env_value "$ENV_FILE" "REDIS_URL" "redis://:${NEW_REDIS_PASS}@${BASH_REMATCH[1]}"
         else
-            set_env_value "$ENV_FILE" "REDIS_URL" "redis://:$NEW_REDIS_PASS@redis:6379"
+            set_env_value "$ENV_FILE" "REDIS_URL" "redis://:${NEW_REDIS_PASS}@redis:6379"
         fi
     fi
 
     # 5. Install dependencies
-    if command -v pnpm &> /dev/null; then
-        echo -e "${GREEN}Installing dependencies with pnpm...${NC}"
-        pnpm install
-    else
-        echo "pnpm not found. Falling back to npm install..."
-        npm install
-    fi
+    install_dependencies
 
     # 6. Final message
     echo -e "------------------------------------------------"
@@ -182,6 +196,7 @@ else
     if [ ! -f "$ENV_FILE" ]; then
         echo "Creating $ENV_FILE from .env.example..."
         cp .env.example "$ENV_FILE"
+        chmod 600 "$ENV_FILE"
     else
         echo "$ENV_FILE already exists, skipping creation."
     fi
@@ -189,23 +204,17 @@ else
     # 4. Generate secure local secrets. Existing valid secrets are never rotated
     # automatically because doing so would invalidate sessions or make encrypted
     # database secrets unreadable.
-    ensure_hex_secret "$ENV_FILE" "JWT_SECRET" "JWT_SECRET"
+    ensure_hex_secret "$ENV_FILE" "JWT_SECRET" "JWT_SECRET" || true
     set_env_value "$ENV_FILE" "JWT_ALGORITHM" "HS256"
 
-    ensure_hex_secret "$ENV_FILE" "ENCRYPTION_KEY" "ENCRYPTION_KEY"
-    ensure_hex_secret "$ENV_FILE" "FIRERELAY_AUTH_TOKEN" "FIRERELAY_AUTH_TOKEN"
+    ensure_hex_secret "$ENV_FILE" "ENCRYPTION_KEY" "ENCRYPTION_KEY" || true
+    ensure_hex_secret "$ENV_FILE" "FIRERELAY_AUTH_TOKEN" "FIRERELAY_AUTH_TOKEN" || true
 
     # 5. Generate random Database Password
-    ensure_password "$ENV_FILE" "DB_PASSWORD" "DB_PASSWORD"
+    ensure_password "$ENV_FILE" "DB_PASSWORD" "DB_PASSWORD" || true
 
     # 6. Install dependencies
-    if command -v pnpm &> /dev/null; then
-        echo -e "${GREEN}Installing dependencies with pnpm...${NC}"
-        pnpm install
-    else
-        echo "pnpm not found. Falling back to npm install..."
-        npm install
-    fi
+    install_dependencies
 
     # 7. Final message
     echo -e "------------------------------------------------"

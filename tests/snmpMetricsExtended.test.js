@@ -486,9 +486,12 @@ describe('SNMP Metrics extended routes (§6.2/6.3)', () => {
       // and carries the interface-membership signature needed to guard
       // against a reappearing-interface fabricated rate (see rateTransform).
       const trafficCall = db.query.mock.calls.find(([sql]) => sql.includes('minute_bucket'));
-      expect(trafficCall[0]).toMatch(/GROUP BY device_id, minute_bucket/);
-      expect(trafficCall[0]).toMatch(/COUNT\(DISTINCT interface_id\)/);
-      expect(trafficCall[0]).toMatch(/GROUP_CONCAT\(DISTINCT interface_id ORDER BY interface_id\)/);
+      expect(trafficCall[0]).toMatch(/GROUP BY m\.device_id, minute_bucket/);
+      expect(trafficCall[0]).toMatch(/COUNT\(DISTINCT m\.interface_id\)/);
+      expect(trafficCall[0]).toMatch(/GROUP_CONCAT\(DISTINCT m\.interface_id ORDER BY m\.interface_id\)/);
+      // Each device reads about three poll intervals back from its last poll,
+      // not three hours of interface rows (DAL-16).
+      expect(trafficCall[0]).toMatch(/m\.polled_at >= d\.last_polled_at - INTERVAL \(3 \* COALESCE\(sp\.poll_interval_sec, 300\)\) SECOND/);
     });
 
     test('a reappearing interface between two buckets carries a DIFFERENT interface_signature (never silently merged)', async () => {
