@@ -21,6 +21,7 @@ import { MapTiles } from '@/components/MapTiles';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
 import { NetworkFabricTab } from './topology/NetworkFabricTab';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -440,6 +441,9 @@ function GeographicMapTab() {
 function DependencyTab() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  // Only topology.dependency_manage may add edges; others would get a 403.
+  const canManageDependencies = can(user, 'topology.dependency_manage');
   const [deviceId, setDeviceId] = useState('');
   const [analysisType, setAnalysisType] = useState<'impact' | 'cascade'>('impact');
   const [analysisResult, setAnalysisResult] = useState<ImpactAnalysis | null>(null);
@@ -473,20 +477,23 @@ function DependencyTab() {
 
   const createEdgeMut = useMutation({
     mutationFn: async (body: typeof newEdge) => {
-      return api.POST('/topology/dependencies' as never, {
+      // openapi-fetch resolves with { error } instead of throwing, so a 403
+      // or 422 used to be reported as "edge created" (FE2-09).
+      const { error } = await api.POST('/topology/dependencies' as never, {
         body: {
           parent_device_id: Number(body.parent_device_id),
           child_device_id: Number(body.child_device_id),
           dependency_type: body.dependency_type,
         },
-      } as never);
+      } as never) as { error?: unknown };
+      if (error) throw new Error(parseApiError(error, t('topologyMap.edgeError')));
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['topology-dual-homed'] });
       setEdgeMsg(t('topologyMap.edgeCreated'));
       setNewEdge({ parent_device_id: '', child_device_id: '', dependency_type: 'network' });
     },
-    onError: () => { setEdgeMsg(t('topologyMap.edgeError')); },
+    onError: (e: Error) => { setEdgeMsg(e.message); },
   });
 
   return (
@@ -547,6 +554,7 @@ function DependencyTab() {
       </div>
 
       <div>
+        {canManageDependencies && (<>
         <h3 style={{ margin: '0 0 8px', fontSize: 14 }}>{t('topologyMap.addDependency')}</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <input
@@ -578,8 +586,13 @@ function DependencyTab() {
           >
             {createEdgeMut.isPending ? t('topologyMap.saving') : t('topologyMap.addEdge')}
           </button>
-          {edgeMsg && <p style={{ fontSize: 13, color: '#22c55e' }}>{edgeMsg}</p>}
+          {edgeMsg && (
+            <p role={createEdgeMut.isError ? 'alert' : undefined} style={{ fontSize: 13, color: createEdgeMut.isError ? '#dc2626' : '#22c55e' }}>
+              {edgeMsg}
+            </p>
+          )}
         </div>
+        </>)}
 
         <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>{t('topologyMap.dualHomed')}</h3>
         {(dualHomed ?? []).length === 0

@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
+import { parseApiError } from '@/api/errors';
 
 interface NotificationRow {
   id: number;
@@ -80,14 +81,16 @@ export function NotificationBell() {
 
   const markRead = useMutation({
     mutationFn: async (id: number) => {
-      await api.POST(`/notifications/{id}/read` as never, { params: { path: { id } as never } } as never);
+      const { error } = await api.POST(`/notifications/{id}/read` as never, { params: { path: { id } as never } } as never) as { error?: unknown };
+      if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSettled: refresh,
   });
 
   const markAll = useMutation({
     mutationFn: async () => {
-      await api.POST('/notifications/read-all' as never);
+      const { error } = await api.POST('/notifications/read-all' as never) as { error?: unknown };
+      if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSettled: refresh,
   });
