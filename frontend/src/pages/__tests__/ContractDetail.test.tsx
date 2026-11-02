@@ -1245,3 +1245,25 @@ describe('ContractDetail — Install equipment from inventory', () => {
     expect(mockApiPost).not.toHaveBeenCalled();
   });
 });
+
+// FE2-14 — a status action also refreshes the contract list and client caches.
+describe('ContractDetail — status actions refresh other views', () => {
+  it('suspend invalidates the contracts list and client detail queries', async () => {
+    mockRole = 'admin';
+    (global.fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => jsonResponse({ id: 5, status: 'suspended' }));
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={['/contracts/5']}>
+          <Routes><Route path="/contracts/:id" element={<ContractDetail />} /></Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await screen.findByRole('heading', { name: 'Contract #5' });
+    fireEvent.click(screen.getByRole('button', { name: /^suspend$/i }));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ['contracts'] }));
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['client-detail-gql'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['contract-detail-gql', '5'] });
+  });
+});

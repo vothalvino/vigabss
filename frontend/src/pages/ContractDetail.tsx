@@ -2229,6 +2229,11 @@ export function ContractDetail() {
     try {
       const result = await postContractAction(id, action);
       await refetchContract();
+      // The status shows in the contract list and on the client page too;
+      // without this they stayed stale for up to staleTime (FE2-14). The
+      // client key is a route param string, so invalidate by prefix.
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      void queryClient.invalidateQueries({ queryKey: ['client-detail-gql'] });
       // A renew may (re)provision the PPPoE account — surface the credentials.
       if (action === 'renew' && result.activation_required) {
         setRenewRequiresActivation(true);
