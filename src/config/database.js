@@ -8,7 +8,10 @@
 const mysql = require('mysql2/promise');
 const crypto = require('crypto');
 const { AsyncLocalStorage } = require('async_hooks');
-const { recordDbQuery } = require('../utils/dbMetrics');
+const {
+  recordDbQuery, registerPoolStats, recordPoolAcquire, notePoolAcquireFailure,
+} = require('../utils/dbMetrics');
+const { AppError } = require('../utils/errors');
 const { decrypt } = require('../utils/encryption');
 
 const parseIntEnv = (key, fallback) => {
@@ -68,12 +71,16 @@ function pinSessionToUtc(targetPool) {
   return targetPool;
 }
 
+// A finite queue: with 0 (unbounded) a saturated pool made every request wait
+// until its 30 s timeout. A full queue fails at once with a 503 (DB-25).
+const DEFAULT_QUEUE_LIMIT = 200;
+
 const pool = pinSessionToUtc(mysql.createPool({
   ...baseConnectionConfig,
   maxPreparedStatements: MAX_PREPARED_STATEMENTS,
   waitForConnections: true,
   connectionLimit: parseIntEnv('DB_POOL_SIZE', 20),
-  queueLimit: parseIntEnv('DB_QUEUE_LIMIT', 0),
+  queueLimit: parseIntEnv('DB_QUEUE_LIMIT', DEFAULT_QUEUE_LIMIT),
   enableKeepAlive: true,
   keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),
 }));
@@ -112,7 +119,7 @@ const replicaPool = process.env.DB_REPLICA_HOST
     waitForConnections: true,
     connectionLimit: parseIntEnv('DB_REPLICA_POOL_SIZE', 10),
     maxPreparedStatements: MAX_PREPARED_STATEMENTS,
-    queueLimit: parseIntEnv('DB_QUEUE_LIMIT', 0),
+    queueLimit: parseIntEnv('DB_QUEUE_LIMIT', DEFAULT_QUEUE_LIMIT),
     enableKeepAlive: true,
     keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),
   }))
@@ -311,7 +318,7 @@ async function getTenantPool(orgId) {
         waitForConnections: true,
         connectionLimit: parseIntEnv('TENANT_DB_POOL_SIZE', 10),
         maxPreparedStatements: MAX_PREPARED_STATEMENTS,
-        queueLimit: parseIntEnv('DB_QUEUE_LIMIT', 0),
+        queueLimit: parseIntEnv('DB_QUEUE_LIMIT', DEFAULT_QUEUE_LIMIT),
         enableKeepAlive: true,
         keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),
       })),
@@ -377,11 +384,87 @@ async function query(sql, params) {
   const targetPool = await getCurrentPool();
   const start = process.hrtime.bigint();
   try {
-    return await targetPool.execute(sql, params);
+    return await executeOn(targetPool, sql, params);
   } finally {
     const durationSeconds = Number(process.hrtime.bigint() - start) / 1e9;
     const op = /^\s*(SELECT|INSERT|UPDATE|DELETE|REPLACE)/i.exec(sql);
     recordDbQuery(durationSeconds, op ? op[1].toUpperCase() : 'OTHER');
+  }
+}
+
+// How long a request may wait for a connection before it fails with a 503
+// instead of hanging until the request timeout (DB-25). The lock pool has no
+// limit: a scheduled task waiting for a lock session holds nothing.
+const ACQUIRE_TIMEOUT_MS = parseIntEnv('DB_ACQUIRE_TIMEOUT_MS', 10000);
+
+function poolExhausted(poolName, reason) {
+  notePoolAcquireFailure(poolName, reason);
+  return new AppError('The database is busy; try again shortly', 503, 'DB_POOL_EXHAUSTED');
+}
+
+function poolName(targetPool) {
+  if (targetPool === pool) return 'primary';
+  if (targetPool === replicaPool) return 'replica';
+  return 'tenant';
+}
+
+/**
+ * Borrow a connection, waiting at most DB_ACQUIRE_TIMEOUT_MS. A connection
+ * that arrives after the caller gave up goes straight back to the pool, so a
+ * request that already failed never runs its query later.
+ */
+function acquireConnection(targetPool) {
+  const name = poolName(targetPool);
+  const start = process.hrtime.bigint();
+  const pending = targetPool.getConnection().catch((err) => {
+    throw /Queue limit reached/.test(err?.message) ? poolExhausted(name, 'queue_full') : err;
+  });
+  const record = (conn) => {
+    recordPoolAcquire(name, Number(process.hrtime.bigint() - start) / 1e9);
+    return conn;
+  };
+  if (!(ACQUIRE_TIMEOUT_MS > 0)) return pending.then(record);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      settled = true;
+      reject(poolExhausted(name, 'timeout'));
+    }, ACQUIRE_TIMEOUT_MS);
+    if (typeof timer.unref === 'function') timer.unref();
+    pending.then((conn) => {
+      if (settled) {
+        conn.release();
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      resolve(record(conn));
+    }, (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
+// True when a new request would have to wait for a connection.
+function saturated(targetPool) {
+  const core = targetPool?.pool;
+  if (!core?._allConnections) return false;
+  return core._freeConnections.length === 0 && core._allConnections.length >= core.config.connectionLimit;
+}
+
+// pool.execute queues without a limit on the wait, and a queued statement
+// cannot be withdrawn. When the pool is full, borrow a connection with the
+// bounded wait instead and run the statement on it.
+async function executeOn(targetPool, sql, params) {
+  if (!saturated(targetPool)) return targetPool.execute(sql, params);
+  const conn = await acquireConnection(targetPool);
+  try {
+    return await conn.execute(sql, params);
+  } finally {
+    conn.release();
   }
 }
 
@@ -394,7 +477,7 @@ async function queryReplica(sql, params) {
   const targetPool = await getCurrentPool({ preferReplica: true });
   const start = process.hrtime.bigint();
   try {
-    return await targetPool.execute(sql, params);
+    return await executeOn(targetPool, sql, params);
   } finally {
     const durationSeconds = Number(process.hrtime.bigint() - start) / 1e9;
     recordDbQuery(durationSeconds, 'SELECT');
@@ -408,7 +491,7 @@ async function queryReplica(sql, params) {
  */
 async function getReplicaConnection() {
   const targetPool = await getCurrentPool({ preferReplica: true });
-  return targetPool.getConnection();
+  return acquireConnection(targetPool);
 }
 
 /**
@@ -416,7 +499,7 @@ async function getReplicaConnection() {
  */
 async function getConnection() {
   const targetPool = await getCurrentPool();
-  return targetPool.getConnection();
+  return acquireConnection(targetPool);
 }
 
 // Advisory locks (GET_LOCK) stay on one session for as long as the work they
@@ -441,6 +524,26 @@ function getLockConnection() {
   }
   return lockPool.getConnection();
 }
+
+// mysql2 keeps the counts on the callback pool behind the promise wrapper.
+function readPool(name, targetPool) {
+  const core = targetPool?.pool;
+  if (!core?._allConnections) return null;
+  const all = core._allConnections.length;
+  const idle = core._freeConnections.length;
+  return { pool: name, inUse: all - idle, idle, limit: core.config.connectionLimit, waiting: core._connectionQueue.length };
+}
+
+registerPoolStats(() => {
+  const stats = [readPool('primary', pool), readPool('replica', replicaPool), readPool('lock', lockPool)];
+  const tenants = [...tenantPoolCache.values()].map(entry => readPool('tenant', entry.pool)).filter(Boolean);
+  if (tenants.length) {
+    stats.push(tenants.reduce((sum, t) => ({
+      pool: 'tenant', inUse: sum.inUse + t.inUse, idle: sum.idle + t.idle, limit: sum.limit + t.limit, waiting: sum.waiting + t.waiting,
+    })));
+  }
+  return stats.filter(Boolean);
+});
 
 /**
  * Close the pool (for graceful shutdown).

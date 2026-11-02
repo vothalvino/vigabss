@@ -1786,6 +1786,22 @@ scheduled tasks one instance runs at once; the rest wait their turn. These
 sessions used to come from the main pool, and the tasks' own queries need
 connections from it too, so 20 tasks due at the same minute deadlocked the API.
 
+When every connection of a pool is busy, a request waits at most
+`DB_ACQUIRE_TIMEOUT_MS` (default 10000) for one, and at most `DB_QUEUE_LIMIT`
+(default 200) requests wait at a time. Beyond either limit the request fails
+with `503 DB_POOL_EXHAUSTED` instead of hanging until the 30-second request
+timeout. `/metrics` reports each pool (`primary`, `replica`, `lock`, and
+`tenant` summed over isolated tenants):
+
+- `db_pool_connections{pool,state}` — connections `in_use` and `idle`.
+- `db_pool_connection_limit{pool}` and `db_pool_waiting_requests{pool}`.
+- `db_pool_acquire_wait_seconds{pool}` — time to get a connection, for
+  transactions and for statements run while the pool was full.
+- `db_pool_acquire_failures_total{pool,reason}` — `timeout` or `queue_full`.
+
+`VigaBSS_DbPoolSaturated` fires after requests have waited for 5 minutes, and
+`VigaBSS_DbPoolRefusals` on any refusal.
+
 ```sql
 -- Check current MySQL max connections
 SHOW VARIABLES LIKE 'max_connections';
