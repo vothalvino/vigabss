@@ -4156,6 +4156,7 @@
           "Client Groups"
         ],
         "summary": "Primary pays the group balance on behalf of members (FIFO across open invoices)",
+        "description": "One payment settles one currency. When the group has open invoices in several currencies, send currency (see payable_by_currency on GET /client-groups/{id}/billing).",
         "operationId": "payClientGroup",
         "security": [
           {
@@ -61244,6 +61245,10 @@
           },
           "invoice_ids": {
             "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Za-z]{3}$"
           }
         }
       },

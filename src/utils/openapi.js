@@ -342,7 +342,7 @@ function generateSpec() {
         delete: { tags: ['Client Groups'], summary: 'Remove a client from the group', operationId: 'removeClientGroupMember', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'clientId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r200('GroupMembersResult') },
       },
       '/client-groups/{id}/billing': { get: { tags: ['Client Groups'], summary: 'Shared-billing group: combined balance + open invoices across members', operationId: 'getClientGroupBilling', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('GroupBilling') } },
-      '/client-groups/{id}/pay': { post: { tags: ['Client Groups'], summary: 'Primary pays the group balance on behalf of members (FIFO across open invoices)', operationId: 'payClientGroup', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('GroupPay'), responses: r201('GroupPaymentResult') } },
+      '/client-groups/{id}/pay': { post: { tags: ['Client Groups'], summary: 'Primary pays the group balance on behalf of members (FIFO across open invoices)', description: 'One payment settles one currency. When the group has open invoices in several currencies, send currency (see payable_by_currency on GET /client-groups/{id}/billing).', operationId: 'payClientGroup', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('GroupPay'), responses: r201('GroupPaymentResult') } },
       '/client-groups/{id}/restore': { post: { tags: ['Client Groups'], summary: 'Restore a soft-deleted client group', operationId: 'restoreClientGroup', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ClientGroup') } },
 
       // ---- Leads (prospect pipeline) ----

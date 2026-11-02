@@ -140,6 +140,37 @@ describe('ClientGroupList page', () => {
     await waitFor(() => expect(within(dialog).getByText(/Applied MXN 150.00/)).toBeInTheDocument());
   });
 
+  // A group with MXN and USD open is paid one currency at a time.
+  it('a mixed-currency group picks the currency to pay and sends it', async () => {
+    mockApiGet.mockImplementation((path: string) => {
+      if (path === '/client-groups/{id}/billing')
+        return Promise.resolve({ data: { data: {
+          group: { id: 1, name: 'Familia García', primary_client_id: 7 },
+          members: [], open_invoices: [],
+          group_balance: null, group_currency: null, group_mixed_currency: true,
+          group_balances: [{ currency: 'MXN', balance: 100 }, { currency: 'USD', balance: 50 }],
+          payable_by_currency: [{ currency: 'MXN', amount: 100 }, { currency: 'USD', amount: 50 }],
+          payable_total: null,
+        } }, error: undefined });
+      if (path === '/client-groups')
+        return Promise.resolve({ data: { data: [group1], meta: { total: 1, page: 1, limit: 200, totalPages: 1 } }, error: undefined });
+      return Promise.resolve({ data: { data: [] }, error: undefined });
+    });
+    mockApiPost.mockResolvedValue({ data: { data: { allocated_total: 50, unallocated_credit: 0, settled_invoices: [{}] } }, error: undefined });
+    await expandGroup();
+    fireEvent.click(await screen.findByRole('button', { name: /Pay group balance/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Pay group balance' });
+
+    fireEvent.change(within(dialog).getByLabelText('Currency to pay'), { target: { value: 'USD' } });
+    expect((within(dialog).getByRole('spinbutton') as HTMLInputElement).value).toBe('50.00');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Pay now' }));
+
+    await waitFor(() => expect(mockApiPost).toHaveBeenCalledWith('/client-groups/{id}/pay', expect.objectContaining({
+      body: expect.objectContaining({ amount: 50, currency: 'USD' }),
+    })));
+    await waitFor(() => expect(within(dialog).getByText(/Applied USD 50.00/)).toBeInTheDocument());
+  });
+
   it('the add-members picker disables clients already in the group (no double-add)', async () => {
     // /clients returns a client (id 7) who is already a member of this group.
     mockApiGet.mockImplementation((path: string) => {

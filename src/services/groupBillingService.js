@@ -138,6 +138,7 @@ async function getGroupBilling(orgId, groupId) {
   const groupBalance = groupMixed ? null : (groupBalances[0]?.balance ?? 0);
   const groupCurrency = groupMixed ? null : (groupBalances[0]?.currency ?? await Organization.getCurrency(orgId));
 
+  const payable = payableByCurrency(openInvoices);
   return {
     group: { id: Number(group.id), name: group.name, billing_mode: group.billing_mode, primary_client_id: primaryId },
     members: memberBalances,
@@ -146,8 +147,22 @@ async function getGroupBilling(orgId, groupId) {
     group_currency: groupCurrency,
     group_balances: groupBalances,
     group_mixed_currency: groupMixed,
-    payable_total: Math.round(openInvoices.reduce((s, i) => s + i.balance_due, 0) * 100) / 100,
+    // What a group payment can settle, per currency: one payment settles one
+    // currency (payGroup's `currency`). payable_total exists only when every
+    // open invoice is in a single currency.
+    payable_by_currency: payable,
+    payable_total: payable.length > 1 ? null : (payable[0]?.amount ?? 0),
   };
+}
+
+function payableByCurrency(openInvoices) {
+  const byCurrency = new Map();
+  for (const inv of openInvoices) {
+    byCurrency.set(inv.currency, (byCurrency.get(inv.currency) || 0) + inv.balance_due);
+  }
+  return [...byCurrency.entries()]
+    .map(([currency, amount]) => ({ currency, amount: Math.round(amount * 100) / 100 }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
 /**
@@ -161,6 +176,8 @@ async function getGroupBilling(orgId, groupId) {
  * @param {string} [opts.payment_method]
  * @param {string} [opts.reference_number]
  * @param {number[]} [opts.invoice_ids]   - restrict to a subset of the group's open invoices
+ * @param {string} [opts.currency]        - settle only the invoices in this currency; required
+ *        when the group's open invoices are in more than one (one payment, one currency)
  * @param {number} [opts.actorUserId]
  * @returns {Promise<object>} settlement summary
  */
@@ -208,6 +225,14 @@ async function payGroup(orgId, groupId, opts = {}) {
       }
       invoiceRows = invoiceRows.filter((r) => requestedIds.has(Number(r.id)));
     }
+    if (opts.currency !== undefined) {
+      const wanted = String(opts.currency).toUpperCase();
+      invoiceRows = invoiceRows.filter((r) => String(r.currency).toUpperCase() === wanted);
+      if (!invoiceRows.some((r) => Math.round(Number(r.balance_due) * 100) / 100 > 0)) {
+        await conn.rollback();
+        throw new ValidationError(`This group has no open ${wanted} balance to pay.`);
+      }
+    }
 
     // A single payment cannot honestly settle invoices in different currencies
     // (there is no conversion here) — refuse to cross currencies. The payment
@@ -217,7 +242,10 @@ async function payGroup(orgId, groupId, opts = {}) {
     const currencies = new Set(payableRows.map((inv) => inv.currency));
     if (currencies.size > 1) {
       await conn.rollback();
-      throw new ValidationError('This group has open invoices in more than one currency. Pay each currency separately (use invoice_ids to select one currency).');
+      throw new ValidationError(
+        `This group has open invoices in ${[...currencies].sort().join(' and ')}. A payment settles one currency: choose which one to pay (currency).`,
+        [{ field: 'currency', message: `One of ${[...currencies].sort().join(', ')}` }],
+      );
     }
     const currency = currencies.size === 1 ? [...currencies][0] : await Organization.getCurrency(orgId);
 
