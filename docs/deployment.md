@@ -1115,8 +1115,8 @@ proxy sets `X-Forwarded-For` and that Express trusts the proxy:
 TRUST_PROXY=1
 ```
 
-Or call `app.set('trust proxy', 1)` in `src/app.js` when the deployment
-topology requires it. Without this, `req.ip` will be the proxy's IP rather
+`TRUST_PROXY` is a hop count from 0 to 5. An IP address or CIDR is refused at
+boot, because Express would read its first digits as a hop count. Without this, `req.ip` will be the proxy's IP rather
 than the real client IP, and the allowlist will not work as expected.
 
 ---

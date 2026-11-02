@@ -2,6 +2,19 @@
 // VigaBSS 5.0 — Application Configuration
 // =============================================================================
 
+// TRUST_PROXY is a hop count. Express turns a number n into "trust the n
+// nearest hops", so parseInt read '10.0.0.1' as 10 and '172.16.0.0/12' as 172,
+// trusting arbitrarily many spoofable X-Forwarded-For entries (SEC-27). Only
+// a whole number 0-5 is accepted; anything else is null and fails boot.
+const MAX_TRUST_PROXY_HOPS = 5;
+const parseTrustProxy = (raw, fallback) => {
+  if (raw === undefined || raw === '') return fallback;
+  const trimmed = String(raw).trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  return n <= MAX_TRUST_PROXY_HOPS ? n : null;
+};
+
 const parseIntEnv = (key, fallback) => {
   const v = process.env[key];
   if (v === undefined || v === '') return fallback;
@@ -32,7 +45,7 @@ const config = {
   // exactly one Nginx in front of the app, hence the production default of 1.
   // Set TRUST_PROXY to the real hop count for other topologies (e.g. 2 behind
   // an LB + Nginx); 0 disables (direct exposure, no proxy).
-  trustProxy: parseIntEnv('TRUST_PROXY', (process.env.NODE_ENV || 'development') === 'production' ? 1 : 0),
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY, (process.env.NODE_ENV || 'development') === 'production' ? 1 : 0),
 
   jwt: {
     secret: process.env.JWT_SECRET || DEFAULT_JWT_SECRET,
@@ -262,6 +275,12 @@ function validateEnv(logger) {
     if (!allowInsecureSecret) errors.push(msg); else warnings.push(msg);
   }
 
+  if (config.trustProxy === null) {
+    errors.push(`TRUST_PROXY must be a hop count from 0 to ${MAX_TRUST_PROXY_HOPS} (got "${process.env.TRUST_PROXY}"); IP or CIDR values are not supported`);
+  } else if (typeof logger?.info === 'function') {
+    logger.info({ trustProxy: config.trustProxy }, `Trusting ${config.trustProxy} reverse-proxy hop(s) for client addresses`);
+  }
+
   // Encryption key: required in production for at-rest encryption of secrets
   if (!process.env.ENCRYPTION_KEY) {
     const msg = 'ENCRYPTION_KEY is not set — payment gateway secrets, PAC passwords, and webhook secrets will be stored in plaintext';
@@ -330,5 +349,6 @@ function validateEnv(logger) {
 }
 
 config.validateEnv = validateEnv;
+config.parseTrustProxy = parseTrustProxy;
 
 module.exports = config;
