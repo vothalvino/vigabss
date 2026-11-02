@@ -30,6 +30,19 @@ const crypto = require('crypto');
 const db = require('../config/database');
 const config = require('../config');
 const logger = require('../utils/logger');
+
+// The WhatsApp tables (links, verifications, inbound log, conversation state)
+// are install-wide and live on the primary database: an inbound message is
+// resolved by phone before any organization is known. Every query here is
+// pinned there, so a caller inside an isolated tenant's context (the bound
+// bot, the clients routes revoking links) reads and writes the real rows
+// rather than the tenant database's empty copies (SUP-12). Client rows are
+// read in their organization's database where needed.
+function primaryQuery(sql, params) {
+  return typeof db.withPrimaryContext === 'function'
+    ? db.withPrimaryContext(() => db.query(sql, params))
+    : db.query(sql, params);
+}
 const { requireOrgId } = require('../utils/requireOrgId');
 
 const PORTAL_CODE_LENGTH = 8; // phone-agnostic lookup — larger space
@@ -119,7 +132,7 @@ function hexEqual(a, b) {
  * Guards the email-OTP path against mail-bombing / enumeration timing.
  */
 async function emailCodeBudgetExceeded(phone) {
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT COUNT(*) AS n FROM whatsapp_verifications
       WHERE phone_e164 = ? AND purpose = 'link_email'
         AND created_at > (NOW() - INTERVAL 1 HOUR)`,
@@ -134,7 +147,7 @@ async function emailCodeBudgetExceeded(phone) {
  */
 async function createVerification({ organizationId = null, phone = null, purpose, clientId = null, channel, length, ttlMinutes = config.whatsapp.linkCodeTtlMinutes }) {
   const code = generateNumericCode(length);
-  await db.query(
+  await primaryQuery(
     `INSERT INTO whatsapp_verifications
        (organization_id, phone_e164, purpose, client_id, code_hash, channel, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, (NOW() + INTERVAL ? MINUTE))`,
@@ -166,7 +179,7 @@ const CLIENT_LINK_GUESSES_PER_DAY = 20;
 
 /** True once a client's email-linking codes absorbed the day's wrong guesses. */
 async function clientLinkGuessesExhausted(clientId) {
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT COALESCE(SUM(attempts), 0) - COALESCE(SUM(consumed_at IS NOT NULL), 0) AS failed
        FROM whatsapp_verifications
       WHERE client_id = ? AND purpose = 'link_email' AND created_at > (NOW() - INTERVAL 1 DAY)`,
@@ -186,7 +199,7 @@ async function clientLinkGuessesExhausted(clientId) {
  * @returns {Promise<{ok:boolean, reason?:string, clientId?:number, organizationId?:number}>}
  */
 async function verifyPhoneCode({ phone, purpose, code }) {
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT id, client_id, organization_id, code_hash, attempts
        FROM whatsapp_verifications
       WHERE phone_e164 = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > NOW()
@@ -200,7 +213,7 @@ async function verifyPhoneCode({ phone, purpose, code }) {
   // Claim an attempt BEFORE comparing (SUP-10). Reading attempts and
   // incrementing afterwards let concurrently processed guesses all pass the
   // ceiling; this conditional UPDATE lets exactly maxCodeAttempts through.
-  const [claim] = await db.query(
+  const [claim] = await primaryQuery(
     `UPDATE whatsapp_verifications SET attempts = attempts + 1
       WHERE id = ? AND attempts < ? AND consumed_at IS NULL`,
     [v.id, config.whatsapp.maxCodeAttempts],
@@ -208,7 +221,7 @@ async function verifyPhoneCode({ phone, purpose, code }) {
   if (!claim || claim.affectedRows !== 1) return { ok: false, reason: 'locked' };
 
   if (!hexEqual(hashCode(code), v.code_hash)) return { ok: false, reason: 'mismatch' };
-  const [consumed] = await db.query(
+  const [consumed] = await primaryQuery(
     'UPDATE whatsapp_verifications SET consumed_at = NOW() WHERE id = ? AND consumed_at IS NULL',
     [v.id],
   );
@@ -228,7 +241,7 @@ async function verifyPhoneCode({ phone, purpose, code }) {
  * @returns {Promise<{ok:boolean, reason?:string, clientId?:number, organizationId?:number}>}
  */
 async function verifyPortalCode({ code }) {
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT id, client_id, organization_id
        FROM whatsapp_verifications
       WHERE purpose = 'link_portal' AND code_hash = ? AND consumed_at IS NULL AND expires_at > NOW()
@@ -238,14 +251,14 @@ async function verifyPortalCode({ code }) {
   if (rows.length === 0) return { ok: false, reason: 'no_match' };
   if (rows.length > 1) return { ok: false, reason: 'ambiguous' };
   const v = rows[0];
-  await db.query('UPDATE whatsapp_verifications SET consumed_at = NOW() WHERE id = ?', [v.id]);
+  await primaryQuery('UPDATE whatsapp_verifications SET consumed_at = NOW() WHERE id = ?', [v.id]);
   return { ok: true, clientId: v.client_id, organizationId: v.organization_id };
 }
 
 /** Count a client's still-pending portal linking codes minted in the last hour. */
 async function pendingPortalCodeCount(clientId, organizationId) {
   requireOrgId(organizationId, 'whatsappService.pendingPortalCodeCount');
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT COUNT(*) AS n FROM whatsapp_verifications
       WHERE client_id = ? AND organization_id <=> ? AND purpose = 'link_portal' AND consumed_at IS NULL
         AND created_at > (NOW() - INTERVAL 1 HOUR)`,
@@ -257,7 +270,7 @@ async function pendingPortalCodeCount(clientId, organizationId) {
 /** Has this client been sent too many email linking codes recently (target-inbox budget)? */
 async function clientEmailCodeBudgetExceeded(clientId, organizationId) {
   requireOrgId(organizationId, 'whatsappService.clientEmailCodeBudgetExceeded');
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT COUNT(*) AS n FROM whatsapp_verifications
       WHERE client_id = ? AND organization_id <=> ? AND purpose = 'link_email'
         AND created_at > (NOW() - INTERVAL 1 HOUR)`,
@@ -277,7 +290,7 @@ async function clientEmailCodeBudgetExceeded(clientId, organizationId) {
  * @returns {Promise<{id:number}>}
  */
 async function bindNumber({ organizationId = null, clientId, phone, via }) {
-  const conn = await db.getConnection();
+  const conn = await (typeof db.withPrimaryContext === 'function' ? db.withPrimaryContext(() => db.getConnection()) : db.getConnection());
   try {
     await conn.beginTransaction();
     await conn.execute(
@@ -311,7 +324,10 @@ async function bindNumber({ organizationId = null, clientId, phone, via }) {
  */
 async function notifyOwnerOfBinding({ organizationId, clientId, phone }) {
   try {
-    const [[client]] = await db.query('SELECT name, email FROM clients WHERE id = ? AND deleted_at IS NULL', [clientId]);
+    const readClient = () => db.query('SELECT name, email FROM clients WHERE id = ? AND deleted_at IS NULL', [clientId]);
+    const [[client]] = await (organizationId && typeof db.withTenantContext === 'function'
+      ? db.withTenantContext(organizationId, readClient)
+      : readClient());
     if (!client?.email) return;
     const last4 = String(phone).slice(-4);
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
@@ -347,7 +363,7 @@ function linkIdleDays() {
  * @returns {Promise<{clientId:number, organizationId:number|null, linkId:number}|null>}
  */
 async function resolveBinding(phone) {
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT id, client_id, organization_id, bound_at, last_seen_at FROM whatsapp_links
       WHERE active_phone = ? LIMIT 1`,
     [phone],
@@ -368,7 +384,7 @@ async function resolveBinding(phone) {
   const live = client && !client.deleted_at && client.status !== 'inactive';
 
   if (idle || !live) {
-    await db.query(
+    await primaryQuery(
       "UPDATE whatsapp_links SET status = 'revoked', revoked_at = NOW() WHERE id = ? AND status = 'active'",
       [l.id],
     );
@@ -381,7 +397,7 @@ async function resolveBinding(phone) {
 /** Mark the bound number as seen (best-effort; failure is non-fatal). */
 async function touchBinding(linkId) {
   try {
-    await db.query('UPDATE whatsapp_links SET last_seen_at = NOW() WHERE id = ?', [linkId]);
+    await primaryQuery('UPDATE whatsapp_links SET last_seen_at = NOW() WHERE id = ?', [linkId]);
   } catch (err) {
     logger.warn({ err, linkId }, 'whatsapp: touchBinding failed');
   }
@@ -393,7 +409,7 @@ async function touchBinding(linkId) {
  */
 async function listClientLinks(clientId, organizationId) {
   requireOrgId(organizationId, 'whatsappService.listClientLinks');
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT id, phone_e164, bound_via, bound_at, last_seen_at
        FROM whatsapp_links
       WHERE client_id = ? AND organization_id <=> ? AND status = 'active'
@@ -409,7 +425,7 @@ async function listClientLinks(clientId, organizationId) {
  * @param {Function} [exec] query function (a caller's transaction)
  * @returns {Promise<number>} bindings revoked
  */
-async function revokeClientLinks({ clientId, organizationId, reason }, exec = (sql, params) => db.query(sql, params)) {
+async function revokeClientLinks({ clientId, organizationId, reason }, exec = primaryQuery) {
   requireOrgId(organizationId, 'whatsappService.revokeClientLinks');
   const [res] = await exec(
     `UPDATE whatsapp_links SET status = 'revoked', revoked_at = NOW()
@@ -427,7 +443,7 @@ async function revokeClientLinks({ clientId, organizationId, reason }, exec = (s
 /** Revoke a client's binding by id (client-initiated unlink). Scoped to the client and its org. */
 async function revokeLink({ clientId, organizationId, linkId }) {
   requireOrgId(organizationId, 'whatsappService.revokeLink');
-  const [res] = await db.query(
+  const [res] = await primaryQuery(
     `UPDATE whatsapp_links SET status = 'revoked', revoked_at = NOW()
       WHERE id = ? AND client_id = ? AND organization_id <=> ? AND status = 'active'`,
     [linkId, clientId, organizationId],
@@ -436,7 +452,7 @@ async function revokeLink({ clientId, organizationId, linkId }) {
     // Drop any in-flight bot flow for this client (portal/bot unlink path).
     // whatsapp_conversation_state has no organization_id, so it is scoped
     // through its parent client row.
-    await db.query(
+    await primaryQuery(
       `DELETE s FROM whatsapp_conversation_state s
          JOIN clients c ON c.id = s.client_id AND c.organization_id <=> ?
         WHERE s.client_id = ?`,
@@ -466,7 +482,7 @@ function redactSecrets(text) {
  * The stored body is redacted; the caller passes the original text to the bot.
  */
 async function recordInbound({ provider, providerMessageId, phone, toNumber = null, body = null, organizationId = null, clientId = null }) {
-  const [res] = await db.query(
+  const [res] = await primaryQuery(
     `INSERT IGNORE INTO whatsapp_inbound_messages
        (organization_id, client_id, provider, provider_message_id, phone_e164, to_number, body, received_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
@@ -478,7 +494,7 @@ async function recordInbound({ provider, providerMessageId, phone, toNumber = nu
 /** Backfill the resolved org/client onto an inbound row once the sender is bound. */
 async function setInboundOwner({ provider, providerMessageId, clientId, organizationId }) {
   try {
-    await db.query(
+    await primaryQuery(
       `UPDATE whatsapp_inbound_messages SET client_id = ?, organization_id = ?
         WHERE provider = ? AND provider_message_id = ?`,
       [clientId, organizationId, provider, providerMessageId],
@@ -490,7 +506,7 @@ async function setInboundOwner({ provider, providerMessageId, clientId, organiza
 
 /** Recent inbound-message count from a phone — a coarse per-phone abuse throttle. */
 async function recentInboundCount(phone, minutes = 60) {
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT COUNT(*) AS n FROM whatsapp_inbound_messages
       WHERE phone_e164 = ? AND received_at > (NOW() - INTERVAL ? MINUTE)`,
     [phone, minutes],
@@ -506,7 +522,7 @@ const CONVERSATION_STATE_TTL_MIN = 15;
 
 /** Current (non-stale) conversation state for a phone, or null. */
 async function getConversationState(phone) {
-  const [rows] = await db.query(
+  const [rows] = await primaryQuery(
     `SELECT client_id, state, context FROM whatsapp_conversation_state
       WHERE phone_e164 = ? AND updated_at > (NOW() - INTERVAL ? MINUTE) LIMIT 1`,
     [phone, CONVERSATION_STATE_TTL_MIN],
@@ -523,7 +539,7 @@ async function getConversationState(phone) {
 
 /** Upsert the conversation state for a phone (resets the TTL clock). */
 async function setConversationState(phone, clientId, state, context = null) {
-  await db.query(
+  await primaryQuery(
     `INSERT INTO whatsapp_conversation_state (phone_e164, client_id, state, context)
      VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE client_id = VALUES(client_id), state = VALUES(state),
@@ -534,7 +550,7 @@ async function setConversationState(phone, clientId, state, context = null) {
 
 /** Clear a phone's conversation state (flow finished or abandoned). */
 async function clearConversationState(phone) {
-  await db.query('DELETE FROM whatsapp_conversation_state WHERE phone_e164 = ?', [phone]);
+  await primaryQuery('DELETE FROM whatsapp_conversation_state WHERE phone_e164 = ?', [phone]);
 }
 
 module.exports = {

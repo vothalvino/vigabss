@@ -110,9 +110,19 @@ function isUnlinkCommand(body) {
   return /^\s*(unlink|desvincular|desconectar)\s*$/i.test(body || '');
 }
 
-async function clientFirstName(clientId) {
+// The bound client's organization may keep its own database (isolated mode):
+// everything about that client is read and written there, while the
+// install-wide WhatsApp tables stay on the primary (whatsappService pins
+// them). Inbound traffic arrives with no tenant context at all (SUP-12).
+function inClientDatabase(organizationId, fn) {
+  return organizationId && typeof db.withTenantContext === 'function'
+    ? db.withTenantContext(organizationId, fn)
+    : fn();
+}
+
+async function clientFirstName(clientId, organizationId = null) {
   try {
-    const [rows] = await db.query('SELECT name FROM clients WHERE id = ? LIMIT 1', [clientId]);
+    const [rows] = await inClientDatabase(organizationId, () => db.query('SELECT name FROM clients WHERE id = ? LIMIT 1', [clientId]));
     return firstName(rows[0]?.name);
   } catch (_e) {
     return '';
@@ -183,7 +193,7 @@ async function handleInbound({ phone, body }) {
   // 1. Already bound? Run the bound-client bot (menu + read-only capabilities).
   const binding = await wa.resolveBinding(phone);
   if (binding) {
-    return handleBound({ phone, body, binding });
+    return inClientDatabase(binding.organizationId, () => handleBound({ phone, body, binding }));
   }
 
   // 2. Unbound — throttle binding attempts per phone.
@@ -203,14 +213,14 @@ async function handleInbound({ phone, body }) {
       const portalAttempt = await wa.verifyPortalCode({ code });
       if (portalAttempt.ok) {
         await wa.bindNumber({ organizationId: portalAttempt.organizationId, clientId: portalAttempt.clientId, phone, via: 'portal' });
-        return { reply: MSG.bindOk(await clientFirstName(portalAttempt.clientId)), clientId: portalAttempt.clientId };
+        return { reply: MSG.bindOk(await clientFirstName(portalAttempt.clientId, portalAttempt.organizationId)), clientId: portalAttempt.clientId };
       }
       return { reply: MSG.codeBad };
     }
     const emailAttempt = await wa.verifyPhoneCode({ phone, purpose: 'link_email', code });
     if (emailAttempt.ok) {
       await wa.bindNumber({ organizationId: emailAttempt.organizationId, clientId: emailAttempt.clientId, phone, via: 'email_otp' });
-      return { reply: MSG.bindOk(await clientFirstName(emailAttempt.clientId)), clientId: emailAttempt.clientId };
+      return { reply: MSG.bindOk(await clientFirstName(emailAttempt.clientId, emailAttempt.organizationId)), clientId: emailAttempt.clientId };
     }
     if (emailAttempt.reason === 'locked') return { reply: MSG.locked };
     if (emailAttempt.reason === 'mismatch') return { reply: MSG.codeMismatch };
@@ -218,7 +228,7 @@ async function handleInbound({ phone, body }) {
     const portalAttempt = await wa.verifyPortalCode({ code });
     if (portalAttempt.ok) {
       await wa.bindNumber({ organizationId: portalAttempt.organizationId, clientId: portalAttempt.clientId, phone, via: 'portal' });
-      return { reply: MSG.bindOk(await clientFirstName(portalAttempt.clientId)), clientId: portalAttempt.clientId };
+      return { reply: MSG.bindOk(await clientFirstName(portalAttempt.clientId, portalAttempt.organizationId)), clientId: portalAttempt.clientId };
     }
     return { reply: MSG.codeBad };
   }
