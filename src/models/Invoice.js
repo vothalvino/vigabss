@@ -26,8 +26,12 @@ class Invoice extends BaseModel {
     requireOrgId(orgId, 'Invoice.getItems');
     const db = require('../config/database');
     const [rows] = await db.query(
-      `SELECT ii.* FROM invoice_items ii
+      // tax_rate is the line's effective rate as a fraction (0.1600 = 16%): its
+      // own tax_rate_id, else the invoice's rate (FE-19).
+      `SELECT ii.*, COALESCE(tr.rate, i.tax_rate) AS tax_rate
+         FROM invoice_items ii
          JOIN invoices i ON i.id = ii.invoice_id
+         LEFT JOIN tax_rates tr ON tr.id = ii.tax_rate_id
         WHERE ii.invoice_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL
           AND ii.deleted_at IS NULL
         ORDER BY ii.id`,

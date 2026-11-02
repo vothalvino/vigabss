@@ -40,7 +40,8 @@ describe('PaymentTransaction', () => {
 
   test('fillable includes gateway fields', () => {
     expect(PaymentTransaction.fillable).toContain('payment_gateway_id');
-    expect(PaymentTransaction.fillable).toContain('provider_reference');
+    expect(PaymentTransaction.fillable).toContain('gateway_reference_id');
+    expect(PaymentTransaction.fillable).toContain('client_id');
     expect(PaymentTransaction.fillable).toContain('gateway_status');
     expect(PaymentTransaction.fillable).toContain('amount');
     expect(PaymentTransaction.fillable).toContain('currency');
@@ -77,10 +78,22 @@ describe('PaymentTransaction', () => {
   });
 
   test('fillable excludes request/response payloads from mass assignment risk', () => {
-    // These fields ARE fillable by design (stored by the gateway service)
-    expect(PaymentTransaction.fillable).toContain('request_payload');
-    expect(PaymentTransaction.fillable).toContain('response_payload');
-    expect(PaymentTransaction.fillable).toContain('webhook_payload');
+    // The gateway service writes the raw payloads with its own SQL; nothing
+    // writes them through the model (FE-19).
+    expect(PaymentTransaction.fillable).not.toContain('raw_request');
+    expect(PaymentTransaction.fillable).not.toContain('raw_response');
+    expect(PaymentTransaction.fillable).not.toContain('webhook_payload');
+  });
+
+  test('every fillable column exists in payment_transactions', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const schema = fs.readFileSync(path.join(__dirname, '..', 'database', 'schema.sql'), 'utf8');
+    const table = schema.slice(schema.indexOf('CREATE TABLE IF NOT EXISTS payment_transactions'));
+    const body = table.slice(0, table.indexOf(') ENGINE'));
+    for (const column of PaymentTransaction.fillable) {
+      expect(body).toMatch(new RegExp(`\\n\\s+${column}\\s`));
+    }
   });
 });
 

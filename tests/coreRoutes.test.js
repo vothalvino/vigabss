@@ -893,7 +893,9 @@ describe('Invoice Routes — /api/invoices', () => {
   describe('GET /api/invoices/:id', () => {
     test('returns an invoice by id', async () => {
       mockAuthUser();
-      db.query.mockResolvedValueOnce([[mockInvoice]]);
+      db.query
+        .mockResolvedValueOnce([[mockInvoice]])
+        .mockResolvedValueOnce([[]]); // no billing period recorded (FE-19)
 
       const res = await request(app)
         .get('/api/invoices/1')
