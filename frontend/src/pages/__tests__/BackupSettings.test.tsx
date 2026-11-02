@@ -126,6 +126,31 @@ describe('BackupSettings page', () => {
     expect(body).toMatchObject({ bucket: 'fireisp-backups', provider: 'minio' });
   });
 
+  it('a Save clicked the moment the saved settings render sends those settings', async () => {
+    // The mutation used to read `form` from its closure, and TanStack Query
+    // swaps in a new mutationFn only in an effect after the render. A click
+    // between the commit and that effect (seen on the slower CI runner) sent
+    // the blank defaults. Click from a MutationObserver, which runs right
+    // after the commit and before passive effects.
+    mockApiPut.mockResolvedValue({ data: { data: SETTINGS }, error: undefined });
+    const { container } = renderPage();
+    let clicked = false;
+    const observer = new MutationObserver(() => {
+      const bucket = container.querySelector('input[placeholder="vigabss-backups"]') as HTMLInputElement | null;
+      if (clicked || bucket?.value !== 'fireisp-backups') return;
+      clicked = true;
+      (screen.getByText('Save') as HTMLButtonElement).click();
+    });
+    observer.observe(container, { subtree: true, childList: true, attributes: true, characterData: true });
+    try {
+      await waitFor(() => expect(mockApiPut).toHaveBeenCalledTimes(1));
+    } finally {
+      observer.disconnect();
+    }
+    const body = (mockApiPut.mock.calls[0][1] as { body: Record<string, unknown> }).body;
+    expect(body).toMatchObject({ bucket: 'fireisp-backups', provider: 'minio', remote_enabled: true });
+  });
+
   it('sends a typed secret on save', async () => {
     mockApiPut.mockResolvedValue({ data: { data: SETTINGS }, error: undefined });
     renderPage();

@@ -242,19 +242,23 @@ export function BackupSettings() {
     });
   };
 
+  // The form is passed to mutate() rather than read from this closure: the
+  // mutation picks up a new mutationFn only in an effect after the render, so
+  // a click in between sent the previous render's form (the blank defaults
+  // before the saved settings arrived).
   const saveMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: typeof form) => {
       const body: Record<string, unknown> = {
-        remote_enabled: form.remote_enabled,
-        provider: form.provider,
-        bucket: form.bucket,
-        region: form.region,
-        endpoint: form.endpoint,
-        prefix: form.prefix,
-        access_key: form.access_key,
+        remote_enabled: values.remote_enabled,
+        provider: values.provider,
+        bucket: values.bucket,
+        region: values.region,
+        endpoint: values.endpoint,
+        prefix: values.prefix,
+        access_key: values.access_key,
       };
       // Write-only three-state field: blank = keep the saved secret.
-      if (form.secret_key) body.secret_key = form.secret_key;
+      if (values.secret_key) body.secret_key = values.secret_key;
       const res = await api.PUT('/backup-settings', { body: body as never });
       const resErr = (res as { error?: { error?: { message?: string } } }).error;
       if (resErr) {
@@ -413,7 +417,7 @@ export function BackupSettings() {
         />
 
         <div style={{ display: 'flex', gap: 8, marginTop: '0.9rem', alignItems: 'center' }}>
-          <button style={styles.btnPrimary} onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+          <button style={styles.btnPrimary} onClick={() => saveMut.mutate(form)} disabled={saveMut.isPending}>
             {saveMut.isPending ? t('common.saving') : t('common.save')}
           </button>
           <button style={styles.btnSecondary} onClick={() => testMut.mutate()} disabled={testMut.isPending || saveMut.isPending || dirty}>
