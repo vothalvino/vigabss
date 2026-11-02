@@ -401,14 +401,15 @@ describe('cfdiService', () => {
   // =========================================================================
   describe('stamp()', () => {
     test('stamps a document with generated UUID', async () => {
-      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi>...</cfdi>' };
+      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi>...</cfdi>', sat_status: 'draft', uuid: null };
       const pac = { id: 1, provider_name: 'dev_placeholder', status: 'active', environment: 'sandbox' };
 
       db.query
         .mockResolvedValueOnce([[doc]])   // SELECT document
         .mockResolvedValueOnce([[{ pac_environment: 'sandbox' }]]) // SELECT pac_environment
         .mockResolvedValueOnce([[pac]])   // SELECT pac_providers
-        .mockResolvedValueOnce([{ affectedRows: 1 }]);  // UPDATE uuid
+        .mockResolvedValueOnce([{ affectedRows: 1 }])   // UPDATE stamp_ambiguous (claim the draft)
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);  // UPDATE uuid (still a draft)
 
       const result = await cfdiService.stamp(1);
       expect(result.status).toBe('vigente');
@@ -427,6 +428,32 @@ describe('cfdiService', () => {
       await expect(cfdiService.stamp(999)).rejects.toThrow('CFDI document not found');
     });
 
+    // CFD-11: a vigente or cancelado document is never resubmitted.
+    test.each([
+      [{ sat_status: 'vigente', uuid: 'U-1' }],
+      [{ sat_status: 'cancelado', uuid: 'U-2' }],
+      [{ sat_status: 'cancelado', uuid: null }],
+    ])('refuses to stamp a non-draft document %j', async (state) => {
+      db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 42, xml_content: '<cfdi/>', ...state }]]);
+      await expect(cfdiService.stamp(3)).rejects.toMatchObject({ statusCode: 409, code: 'CFDI_NOT_DRAFT' });
+      expect(db.query).toHaveBeenCalledTimes(1); // no PAC lookup, no write
+    });
+
+    test('a stamp that lands on a row no longer a draft overwrites nothing', async () => {
+      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi/>', sat_status: 'draft', uuid: null };
+      const pac = { id: 1, provider_name: 'dev_placeholder', status: 'active', environment: 'sandbox' };
+      db.query
+        .mockResolvedValueOnce([[doc]])
+        .mockResolvedValueOnce([[{ pac_environment: 'sandbox' }]])
+        .mockResolvedValueOnce([[pac]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])   // claim
+        .mockResolvedValueOnce([{ affectedRows: 0 }]);  // final save finds no draft
+
+      await expect(cfdiService.stamp(1)).rejects.toMatchObject({ statusCode: 409, code: 'CFDI_NOT_DRAFT' });
+      const save = db.query.mock.calls.find(c => /UPDATE cfdi_documents\s+SET uuid/.test(c[0]));
+      expect(save[0]).toMatch(/WHERE id = \? AND sat_status = 'draft' AND uuid IS NULL/);
+    });
+
     test('throws when XML not generated', async () => {
       const doc = { id: 1, organization_id: 42, xml_content: null };
       db.query.mockResolvedValueOnce([[doc]]);
@@ -434,7 +461,7 @@ describe('cfdiService', () => {
     });
 
     test('throws when no active PAC provider', async () => {
-      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi/>' };
+      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi/>', sat_status: 'draft', uuid: null };
       db.query
         .mockResolvedValueOnce([[doc]])
         .mockResolvedValueOnce([[{ pac_environment: 'sandbox' }]]) // SELECT pac_environment
@@ -447,7 +474,7 @@ describe('cfdiService', () => {
       // 'cancel_pending') — 'stamp_error' is NOT a value. The UPDATE that used to
       // run here therefore threw and MASKED the real PAC failure with a DB error.
       // A document that failed to stamp simply stays 'draft'.
-      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi/>' };
+      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi/>', sat_status: 'draft', uuid: null };
       const pac = { id: 1, provider_name: 'sw_sapien', seal_mode: 'pac', token_encrypted: 'tok', status: 'active', environment: 'sandbox', api_url: 'https://services.test.sw.com.mx' };
 
       db.query
@@ -472,7 +499,7 @@ describe('cfdiService', () => {
     }, 30000);
 
     test('rejects when the PAC row\'s circuit is open', async () => {
-      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi/>' };
+      const doc = { id: 1, organization_id: 42, xml_content: '<cfdi/>', sat_status: 'draft', uuid: null };
       const pac = { id: 1, provider_name: 'dev_placeholder', status: 'active', environment: 'sandbox' };
       db.query
         .mockResolvedValueOnce([[doc]])

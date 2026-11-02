@@ -3,11 +3,21 @@
 jest.mock('../src/config/database');
 jest.mock('../src/services/rolloverService');
 const db = require('../src/config/database');
+const { mockTxConnection } = require('./fixtures/mockTxConnection');
 const rolloverService = require('../src/services/rolloverService');
+const billingService = require('../src/services/billingService');
+const businessEvents = require('../src/services/businessEvents');
 const dataPackService = require('../src/services/dataPackService');
 
 describe('dataPackService', () => {
-  beforeEach(() => jest.clearAllMocks());
+  let conn;
+  beforeEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+    conn = mockTxConnection(db);
+    jest.spyOn(billingService, 'createOneOffInvoice').mockResolvedValue({ id: 700, total: '58.00' });
+    jest.spyOn(businessEvents, 'emitInvoiceCreated').mockResolvedValue(undefined);
+  });
 
   describe('listPacks', () => {
     it('returns active packs for org and global', async () => {
@@ -18,15 +28,46 @@ describe('dataPackService', () => {
   });
 
   describe('purchasePack', () => {
-    it('creates a purchase for an active pack', async () => {
+    it('creates a purchase for an active free pack without an invoice', async () => {
       db.query
-        .mockResolvedValueOnce([[{ id: 10 }]]) // contract ownership
-        .mockResolvedValueOnce([[{ id: 1, name: '10GB Pack', data_gb: '10.000', validity_days: 30 }]])
-        .mockResolvedValueOnce([{ insertId: 5 }])
+        .mockResolvedValueOnce([[{ id: 10, client_id: 4 }]]) // contract ownership
+        .mockResolvedValueOnce([[{ id: 1, name: '10GB Pack', data_gb: '10.000', validity_days: 30, price: '0.00' }]])
+        .mockResolvedValueOnce([{ insertId: 5 }]) // INSERT (tx)
         .mockResolvedValueOnce([[{ id: 5, gb_applied: '10.000', pack_name: '10GB Pack' }]]);
 
       const purchase = await dataPackService.purchasePack(1, 10, 1, { purchasedBy: 'admin' });
       expect(purchase.id).toBe(5);
+      expect(billingService.createOneOffInvoice).not.toHaveBeenCalled();
+      expect(conn.commit).toHaveBeenCalledTimes(1);
+    });
+
+    // TNA-21: a priced pack was granted with no charge at all.
+    it('bills a priced pack in the purchase transaction and stores the invoice', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 10, client_id: 4 }]])
+        .mockResolvedValueOnce([[{ id: 1, name: '10GB Pack', data_gb: '10.000', validity_days: 30, price: '50.00', currency: 'MXN' }]])
+        .mockResolvedValueOnce([{ insertId: 6 }])
+        .mockResolvedValueOnce([[{ id: 6, invoice_id: 700 }]]);
+
+      await dataPackService.purchasePack(1, 10, 1, { purchasedBy: 'client_portal' });
+
+      expect(billingService.createOneOffInvoice).toHaveBeenCalledWith(expect.objectContaining({
+        orgId: 1, clientId: 4, contractId: 10, amount: 50, currency: 'MXN', conn,
+      }));
+      const insert = conn.execute.mock.calls.find(([sql]) => /INSERT INTO data_pack_purchases/.test(sql));
+      expect(insert[1][7]).toBe(700); // invoice_id
+      expect(businessEvents.emitInvoiceCreated).toHaveBeenCalledWith(1, expect.objectContaining({ id: 700 }));
+    });
+
+    it('a failed invoice leaves no purchase', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 10, client_id: 4 }]])
+        .mockResolvedValueOnce([[{ id: 1, name: '10GB Pack', data_gb: '10.000', validity_days: 30, price: '50.00' }]]);
+      billingService.createOneOffInvoice.mockRejectedValue(new Error('numbering locked'));
+
+      await expect(dataPackService.purchasePack(1, 10, 1, {})).rejects.toThrow(/numbering/);
+      expect(conn.rollback).toHaveBeenCalled();
+      expect(conn.execute.mock.calls.some(([sql]) => /INSERT INTO data_pack_purchases/.test(sql))).toBe(false);
     });
 
     it('throws 404 when pack not found', async () => {
@@ -46,7 +87,9 @@ describe('dataPackService', () => {
         .mockResolvedValueOnce([[{ pack_gb: '20.000' }]]);
       rolloverService.getRolloverBalance.mockResolvedValueOnce({ total_available_gb: 5.5, history: [] });
 
-      const allowance = await dataPackService.getEffectiveAllowance(10);
+      const allowance = await dataPackService.getEffectiveAllowance(10, 1);
+      expect(db.query.mock.calls[0][0]).toMatch(/c\.organization_id <=> \?/);
+      expect(db.query.mock.calls[0][1]).toEqual([10, 1]);
       expect(allowance.total_gb).toBeCloseTo(125.5, 1);
       expect(allowance.base_cap_gb).toBe(100);
       expect(allowance.pack_gb).toBe(20);
@@ -55,7 +98,7 @@ describe('dataPackService', () => {
     it('returns null for non-existent contract', async () => {
       db.query.mockResolvedValueOnce([[]]); // no contract
 
-      const allowance = await dataPackService.getEffectiveAllowance(999);
+      const allowance = await dataPackService.getEffectiveAllowance(999, 1);
       expect(allowance).toBeNull();
     });
   });

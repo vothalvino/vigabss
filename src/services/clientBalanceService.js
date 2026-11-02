@@ -33,6 +33,9 @@
 // Positive = owed by the client, negative = the client is in credit — same
 // sign convention the ledger used (postpaid semantics: ClientDetail's own
 // comment, preserved here).
+//
+// The formula is applied PER CURRENCY: an MXN invoice and a USD payment are
+// not netted 1:1. Callers show `balances` when `mixedCurrency` is true.
 // =============================================================================
 
 const db = require('../config/database');
@@ -51,7 +54,9 @@ const CREDITABLE_PAYMENT_STATUS = 'completed';
  *
  * @param {number} orgId
  * @param {number|string} clientId
- * @returns {Promise<{ balance: number, currency: string }>}
+ * @returns {Promise<{ balance: number|null, currency: string|null,
+ *   balances: Array<{currency: string, balance: number}>, mixedCurrency: boolean }>}
+ *   balance/currency are null when more than one currency contributes.
  */
 async function computeClientBalance(orgId, clientId) {
   // Payable invoices (issued/sent/overdue) with a live, allocation-aware
@@ -59,7 +64,6 @@ async function computeClientBalance(orgId, clientId) {
   // and GET /clients/:id/open-invoices use, so this can never disagree with
   // what the payment waterfall would actually apply money to.
   const invoices = await getInvoicesWithBalance(db.query.bind(db), orgId, clientId, null, false);
-  const invoiceTotal = invoices.reduce((sum, inv) => sum + parseFloat(inv.balance_due), 0);
 
   // Completed payments that still have money left unapplied to any invoice
   // (a client can overpay, or pay before an invoice exists) — that remainder
@@ -78,7 +82,6 @@ async function computeClientBalance(orgId, clientId) {
     // Ignore fully-allocated payments and sub-cent rounding noise — only a
     // genuine leftover credit should reduce the balance.
     .filter((p) => p.remainder > 0.005);
-  const unallocatedTotal = unallocated.reduce((sum, p) => sum + p.remainder, 0);
 
   // Standing credit notes — see module doc. 'issued'/'applied' = live credit
   // on the account; 'draft' is still being prepared and 'cancelled' is voided.
@@ -96,25 +99,33 @@ async function computeClientBalance(orgId, clientId) {
   const standingCredits = creditNotes
     .map((cn) => ({ currency: cn.currency, total: parseFloat(cn.total) - parseFloat(cn.applied || 0) }))
     .filter((cn) => cn.total > 0.005);
-  const creditNoteTotal = standingCredits.reduce((sum, cn) => sum + cn.total, 0);
 
-  const balance = Math.round((invoiceTotal - unallocatedTotal - creditNoteTotal) * 100) / 100;
+  // Amounts in different currencies are never added together (GQL-10). Each
+  // currency gets its own figure; a single headline number exists only when
+  // one currency contributes. With several, `balance` and `currency` are
+  // null and `mixedCurrency` tells the caller to show `balances` instead.
+  const byCurrency = new Map();
+  const add = (cur, amount) => byCurrency.set(cur, (byCurrency.get(cur) || 0) + amount);
+  for (const inv of invoices) {
+    const due = parseFloat(inv.balance_due);
+    if (due > 0.005) add(inv.currency, due);
+  }
+  for (const p of unallocated) add(p.currency, -p.remainder);
+  for (const cn of standingCredits) add(cn.currency, -cn.total);
 
-  // Currency: honest, never a converted figure (see PR brief — "if mixed
-  // currencies exist just use org currency and don't fake conversion"). If
-  // every row that actually contributes a nonzero amount agrees on one
-  // currency, show it; otherwise (mixed currencies, or nothing contributes —
-  // e.g. balance is exactly 0) fall back to the organization's currency.
-  const contributingCurrencies = new Set([
-    ...invoices.filter((inv) => parseFloat(inv.balance_due) > 0.005).map((inv) => inv.currency),
-    ...unallocated.map((p) => p.currency),
-    ...standingCredits.map((cn) => cn.currency),
-  ]);
-  const currency = contributingCurrencies.size === 1
-    ? [...contributingCurrencies][0]
-    : await Organization.getCurrency(orgId);
+  const balances = [...byCurrency.entries()]
+    .map(([cur, amount]) => ({ currency: cur, balance: Math.round(amount * 100) / 100 }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
 
-  return { balance, currency };
+  if (balances.length > 1) {
+    return { balance: null, currency: null, balances, mixedCurrency: true };
+  }
+  if (balances.length === 1) {
+    return { balance: balances[0].balance, currency: balances[0].currency, balances, mixedCurrency: false };
+  }
+  // Nothing contributes: a zero balance in the organization's currency.
+  const currency = await Organization.getCurrency(orgId);
+  return { balance: 0, currency, balances: [], mixedCurrency: false };
 }
 
 module.exports = { computeClientBalance };

@@ -9994,6 +9994,45 @@
         }
       }
     },
+    "/facturas-publicas/{id}/stamp": {
+      "post": {
+        "tags": [
+          "Facturas Publicas"
+        ],
+        "summary": "Build and stamp the factura global (CFDI to PUBLICO EN GENERAL) from the linked paid invoices",
+        "description": "One concepto per invoice (01010101/ACT), InformacionGlobal from the record period, PUE with the predominant forma de pago. 201 when stamped, 202 when the CFDI was created but the PAC failed (retry from the CFDI page).",
+        "operationId": "stampFacturaPublica",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Stamped"
+          },
+          "202": {
+            "description": "Created, stamp pending"
+          },
+          "409": {
+            "description": "Not a draft"
+          },
+          "422": {
+            "description": "Unpaid invoices, invoices with their own CFDI, empty, mixed currency, or a period SAT cannot file"
+          }
+        }
+      }
+    },
     "/facturas-publicas/{id}/items": {
       "get": {
         "tags": [
@@ -43503,7 +43542,7 @@
         "tags": [
           "Data Packs"
         ],
-        "summary": "Purchase a data pack for a subscriber (admin)",
+        "summary": "Purchase a data pack for a subscriber (admin); a priced pack raises a one-off invoice unless invoice_id names one",
         "operationId": "purchaseDataPackAdmin",
         "security": [
           {
@@ -44760,7 +44799,7 @@
         "tags": [
           "Data Packs"
         ],
-        "summary": "Purchase a data pack via subscriber portal",
+        "summary": "Purchase a data pack via subscriber portal; a priced pack raises a one-off invoice in the same transaction",
         "operationId": "portalPurchaseDataPack",
         "security": [
           {
@@ -45613,6 +45652,32 @@
         "responses": {
           "201": {
             "description": "PortalServiceRequest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portal/service-requests/plan-options": {
+      "get": {
+        "tags": [
+          "Portal Service Requests"
+        ],
+        "summary": "Plans this subscriber may request a change to (active org or global plans, minus the current one)",
+        "operationId": "portalListPlanOptions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan[]",
             "content": {
               "application/json": {
                 "schema": {
@@ -60883,6 +60948,25 @@
             "type": "string",
             "maximum": 5
           },
+          "global_periodicidad": {
+            "type": "string",
+            "enum": [
+              "01",
+              "02",
+              "03",
+              "04",
+              "05"
+            ]
+          },
+          "global_meses": {
+            "type": "string",
+            "pattern": "^(0[1-9]|1[0-8])$"
+          },
+          "global_anio": {
+            "type": "number",
+            "minimum": 2022,
+            "maximum": 2099
+          },
           "subtotal": {
             "type": "number",
             "minimum": 0
@@ -61536,7 +61620,8 @@
           "razon_social": {
             "type": "string",
             "minimum": 1,
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]+$"
           },
           "regimen_fiscal": {
             "type": "string",
@@ -63804,6 +63889,41 @@
             "type": "number",
             "minimum": 1
           },
+          "snmp_v3_security_name": {
+            "type": "string",
+            "maximum": 255
+          },
+          "snmp_v3_auth_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "md5",
+              "sha",
+              "sha256",
+              "sha512"
+            ]
+          },
+          "snmp_v3_auth_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_priv_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "des",
+              "aes128",
+              "aes256"
+            ]
+          },
+          "snmp_v3_priv_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_context_name": {
+            "type": "string",
+            "maximum": 255
+          },
           "firmware": {
             "type": "string",
             "maximum": 100
@@ -63923,6 +64043,41 @@
             "type": "number",
             "minimum": 1
           },
+          "snmp_v3_security_name": {
+            "type": "string",
+            "maximum": 255
+          },
+          "snmp_v3_auth_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "md5",
+              "sha",
+              "sha256",
+              "sha512"
+            ]
+          },
+          "snmp_v3_auth_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_priv_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "des",
+              "aes128",
+              "aes256"
+            ]
+          },
+          "snmp_v3_priv_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_context_name": {
+            "type": "string",
+            "maximum": 255
+          },
           "firmware": {
             "type": "string",
             "maximum": 100
@@ -64037,6 +64192,41 @@
           "snmp_profile_id": {
             "type": "number",
             "minimum": 1
+          },
+          "snmp_v3_security_name": {
+            "type": "string",
+            "maximum": 255
+          },
+          "snmp_v3_auth_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "md5",
+              "sha",
+              "sha256",
+              "sha512"
+            ]
+          },
+          "snmp_v3_auth_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_priv_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "des",
+              "aes128",
+              "aes256"
+            ]
+          },
+          "snmp_v3_priv_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_context_name": {
+            "type": "string",
+            "maximum": 255
           },
           "firmware": {
             "type": "string",
@@ -64709,28 +64899,22 @@
           },
           "meses": {
             "type": "string",
-            "maximum": 2
+            "pattern": "^(0[1-9]|1[0-8])$"
           },
           "anio": {
             "type": "number",
-            "minimum": 2020,
+            "minimum": 2022,
             "maximum": 2099
           },
           "notes": {
             "type": "string",
             "maximum": 5000
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "stamped",
-              "cancelled"
-            ]
           }
         },
         "required": [
-          "periodicidad"
+          "periodicidad",
+          "meses",
+          "anio"
         ]
       },
       "facturasPublicas_updateFacturaPublica": {
@@ -64748,24 +64932,16 @@
           },
           "meses": {
             "type": "string",
-            "maximum": 2
+            "pattern": "^(0[1-9]|1[0-8])$"
           },
           "anio": {
             "type": "number",
-            "minimum": 2020,
+            "minimum": 2022,
             "maximum": 2099
           },
           "notes": {
             "type": "string",
             "maximum": 5000
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "stamped",
-              "cancelled"
-            ]
           }
         }
       },
@@ -66593,11 +66769,7 @@
             "type": "string",
             "enum": [
               "draft",
-              "issued",
-              "paid",
-              "overdue",
-              "cancelled",
-              "void"
+              "issued"
             ]
           }
         },
@@ -66648,8 +66820,6 @@
             "enum": [
               "draft",
               "issued",
-              "paid",
-              "overdue",
               "cancelled",
               "void"
             ]
@@ -66696,8 +66866,6 @@
             "enum": [
               "draft",
               "issued",
-              "paid",
-              "overdue",
               "cancelled",
               "void"
             ]
@@ -67187,7 +67355,8 @@
           },
           "razon_social": {
             "type": "string",
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]*$"
           },
           "regimen_fiscal": {
             "type": "string",
@@ -67302,7 +67471,8 @@
           },
           "razon_social": {
             "type": "string",
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]*$"
           },
           "regimen_fiscal": {
             "type": "string",
@@ -67414,7 +67584,8 @@
           },
           "razon_social": {
             "type": "string",
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]*$"
           },
           "regimen_fiscal": {
             "type": "string",
@@ -70519,7 +70690,8 @@
           "razon_social": {
             "type": "string",
             "minimum": 1,
-            "maximum": 300
+            "maximum": 254,
+            "pattern": "^[^|\\u0000-\\u001F\\u007F]+$"
           },
           "regimen_fiscal": {
             "type": "string",

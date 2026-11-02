@@ -11,7 +11,8 @@ const { requireMxLocale } = require('../middleware/orgLocale');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createCfdiDocument, updateCfdiDocument, cancelCfdiDocument } = require('../middleware/schemas/cfdiDocuments');
-const { AppError, NotFoundError } = require('../utils/errors');
+const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
+const { globalPeriodProblem } = require('../utils/satCatalogs');
 const cfdiService = require('../services/cfdiService');
 const invoiceCfdiService = require('../services/invoiceCfdiService');
 const db = require('../config/database');
@@ -84,9 +85,21 @@ function refuseInvoiceLink(req, _res, next) {
   return next();
 }
 
+// A manual factura global states its whole period or none of it, and only a
+// combination SAT accepts (bimestral 05 ⇒ Meses 13-18), BIL-24.
+function assertGlobalPeriod(req, _res, next) {
+  const { global_periodicidad: p, global_meses: m, global_anio: y } = req.body || {};
+  if (p === undefined && m === undefined && y === undefined) return next();
+  const problem = globalPeriodProblem(p, m, y);
+  if (problem) {
+    return next(new ValidationError(`InformacionGlobal: ${problem}`, [{ field: 'global_periodicidad', message: problem }]));
+  }
+  return next();
+}
+
 router.get('/', requirePermission('cfdi_documents.view'), ctrl.list);
 router.get('/:id', requirePermission('cfdi_documents.view'), ctrl.get);
-router.post('/', requirePermission('cfdi_documents.create'), refuseInvoiceLink, validate(createCfdiDocument), assertLinkedRecordsOwned, ctrl.create);
+router.post('/', requirePermission('cfdi_documents.create'), refuseInvoiceLink, validate(createCfdiDocument), assertGlobalPeriod, assertLinkedRecordsOwned, ctrl.create);
 router.put('/:id', requirePermission('cfdi_documents.update'), validate(updateCfdiDocument, { strip: true }), ctrl.update);
 
 // Discard an unstamped draft (CFD-02). Refused for stamped documents and for

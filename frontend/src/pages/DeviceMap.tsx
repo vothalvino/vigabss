@@ -13,6 +13,7 @@
 // =============================================================================
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, tokenStore } from '@/api/client';
@@ -62,6 +63,12 @@ export interface Device {
   /** Write-only: the API returns has_snmp_community instead of the value. */
   has_snmp_community?: boolean;
   snmp_version?: string | null;
+  snmp_v3_security_name?: string | null;
+  snmp_v3_auth_protocol?: string | null;
+  snmp_v3_priv_protocol?: string | null;
+  /** Write-only keys: the API returns these flags instead (NET-31). */
+  has_snmp_v3_auth_key?: boolean;
+  has_snmp_v3_priv_key?: boolean;
   snmp_port?: number | null;
   snmp_profile_id?: number | null;
   deleted_at?: string | null;
@@ -489,6 +496,7 @@ interface DeviceFormProps {
 }
 
 export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: DeviceFormProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     name: device?.name ?? '',
     type: device?.type ?? 'router',
@@ -502,6 +510,11 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
     snmp_enabled: Boolean(device?.snmp_enabled),
     snmp_community: '',
     snmp_version: device?.snmp_version ?? 'v2c',
+    snmp_v3_security_name: device?.snmp_v3_security_name ?? '',
+    snmp_v3_auth_protocol: device?.snmp_v3_auth_protocol ?? 'sha',
+    snmp_v3_auth_key: '',
+    snmp_v3_priv_protocol: device?.snmp_v3_priv_protocol ?? 'aes128',
+    snmp_v3_priv_key: '',
     snmp_port: device?.snmp_port != null ? String(device.snmp_port) : '161',
     snmp_profile_id: device?.snmp_profile_id != null ? String(device.snmp_profile_id) : '',
     latitude: device?.latitude != null ? String(device.latitude) : '',
@@ -554,6 +567,15 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
     if (form.snmp_enabled) {
       body.snmp_version = form.snmp_version;
       if (form.snmp_community.trim()) body.snmp_community = form.snmp_community.trim();
+      if (form.snmp_version === 'v3') {
+        // Keys are write-only: blank keeps the stored (encrypted) key.
+        const v3 = body as Record<string, unknown>;
+        v3.snmp_v3_security_name = form.snmp_v3_security_name.trim();
+        v3.snmp_v3_auth_protocol = form.snmp_v3_auth_protocol;
+        v3.snmp_v3_priv_protocol = form.snmp_v3_priv_protocol;
+        if (form.snmp_v3_auth_key) v3.snmp_v3_auth_key = form.snmp_v3_auth_key;
+        if (form.snmp_v3_priv_key) v3.snmp_v3_priv_key = form.snmp_v3_priv_key;
+      }
       if (form.snmp_port) body.snmp_port = Number(form.snmp_port);
       if (form.snmp_profile_id) body.snmp_profile_id = Number(form.snmp_profile_id);
     }
@@ -665,6 +687,36 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
                 </div>
                 <label style={labelStyle}>Community</label>
                 <input style={inputStyle} type="password" autoComplete="new-password" value={form.snmp_community} onChange={set('snmp_community')} maxLength={96} placeholder={device?.has_snmp_community ? 'Leave blank to keep the current community' : 'public'} />
+                {form.snmp_version === 'v3' && (
+                  <div>
+                    <label style={labelStyle} htmlFor="device-v3-user">{t('deviceForm.snmpV3.securityName')}</label>
+                    <input id="device-v3-user" style={inputStyle} value={form.snmp_v3_security_name} onChange={set('snmp_v3_security_name')} maxLength={255} />
+                    <div style={twoCol}>
+                      <div>
+                        <label style={labelStyle} htmlFor="device-v3-auth-proto">{t('deviceForm.snmpV3.authProtocol')}</label>
+                        <select id="device-v3-auth-proto" style={inputStyle} value={form.snmp_v3_auth_protocol} onChange={set('snmp_v3_auth_protocol')}>
+                          {['none', 'md5', 'sha', 'sha256', 'sha512'].map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle} htmlFor="device-v3-auth-key">{t('deviceForm.snmpV3.authKey')}</label>
+                        <input id="device-v3-auth-key" style={inputStyle} type="password" autoComplete="new-password" maxLength={128} value={form.snmp_v3_auth_key} onChange={set('snmp_v3_auth_key')} placeholder={device?.has_snmp_v3_auth_key ? t('deviceForm.snmpV3.keepKey') : ''} />
+                      </div>
+                    </div>
+                    <div style={twoCol}>
+                      <div>
+                        <label style={labelStyle} htmlFor="device-v3-priv-proto">{t('deviceForm.snmpV3.privProtocol')}</label>
+                        <select id="device-v3-priv-proto" style={inputStyle} value={form.snmp_v3_priv_protocol} onChange={set('snmp_v3_priv_protocol')}>
+                          {['none', 'des', 'aes128', 'aes256'].map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle} htmlFor="device-v3-priv-key">{t('deviceForm.snmpV3.privKey')}</label>
+                        <input id="device-v3-priv-key" style={inputStyle} type="password" autoComplete="new-password" maxLength={128} value={form.snmp_v3_priv_key} onChange={set('snmp_v3_priv_key')} placeholder={device?.has_snmp_v3_priv_key ? t('deviceForm.snmpV3.keepKey') : ''} />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <label style={labelStyle}>Profile (what to record)</label>
                 <select style={inputStyle} value={form.snmp_profile_id} onChange={set('snmp_profile_id')}>
                   <option value="">— No profile (not polled) —</option>

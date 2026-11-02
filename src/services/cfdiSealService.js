@@ -90,6 +90,9 @@ function extractCertificateInfo(credential) {
     valid_to: cert.validTo(),
     issuer: cert.issuerAsRfc4514(),
     is_test_certificate: isTestCertificate(cert),
+    // A CSD (sello digital), not the e.firma (FIEL): PACs refuse to stamp
+    // with a FIEL (306 "certificado no es de tipo CSD"), CFD-10.
+    is_csd: credential.isCsd(),
   };
 }
 

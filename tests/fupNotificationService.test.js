@@ -2,10 +2,28 @@
 
 jest.mock('../src/config/database');
 const db = require('../src/config/database');
+// Data-pack and rollover GB (TNA-21) have their own tests; here they add
+// nothing, so the positional db.query mocks below stay in step.
+const mockExtraAllowance = jest.fn(async () => ({ pack_gb: 0, rollover_gb: 0, total_gb: 0 }));
+jest.mock('../src/services/dataPackService', () => ({
+  extraAllowanceGb: (...a) => mockExtraAllowance(...a),
+}));
 const fupNotificationService = require('../src/services/fupNotificationService');
 
 describe('fupNotificationService', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  // TNA-21: 85 GB of a 100 GB plan plus a 20 GB pack is ~71%, no notice.
+  it('a data pack raises the allowance the thresholds are measured against', async () => {
+    mockExtraAllowance.mockResolvedValueOnce({ pack_gb: 20, rollover_gb: 0, total_gb: 20 });
+    db.query
+      .mockResolvedValueOnce([[{ id: 1, organization_id: 1, client_id: 5, data_cap_gb: '100.000', fup_threshold_gb: null }]])
+      .mockResolvedValueOnce([[{ used_gb: '85.000', observed_rows: 1, incomplete_rows: 0, unverifiable_session_rows: 0 }]]);
+
+    const result = await fupNotificationService.checkAndNotifyThresholds(1);
+    expect(result.notified).toBe(0);
+    expect(db.query).toHaveBeenCalledTimes(2);
+  });
 
   it('notifies at 80% threshold', async () => {
     db.query

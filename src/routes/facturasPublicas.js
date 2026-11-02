@@ -11,13 +11,22 @@ const { validate } = require('../middleware/validate');
 const { createFacturaPublica, updateFacturaPublica, addFacturaPublicaItem } = require('../middleware/schemas/facturasPublicas');
 const db = require('../config/database');
 const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
+const { globalPeriodProblem } = require('../utils/satCatalogs');
+const facturaPublicaService = require('../services/facturaPublicaService');
 
 const router = Router();
 
-const ALLOWED_COLUMNS = [
-  'cfdi_document_id', 'periodicidad', 'meses', 'anio',
-  'subtotal', 'total_impuestos', 'total', 'status',
-];
+// The caller states the period only. The CFDI link, the totals and the
+// status are written by POST /:id/stamp from the linked invoices (BIL-24);
+// accepting them from the body let a record claim a CFDI it never had.
+const ALLOWED_COLUMNS = ['periodicidad', 'meses', 'anio'];
+
+// A period SAT cannot file is refused when it is entered, not at stamp time.
+function assertPeriod(body, current = {}) {
+  const merged = { ...current, ...body };
+  const problem = globalPeriodProblem(merged.periodicidad, merged.meses, merged.anio);
+  if (problem) throw new ValidationError(`InformacionGlobal: ${problem}`, [{ field: 'meses', message: problem }]);
+}
 
 router.use(authenticate);
 router.use(orgScope);
@@ -72,6 +81,7 @@ router.post('/', requirePermission('facturas_publicas.create'), validate(createF
     const safe = Object.fromEntries(
       Object.entries(req.body).filter(([k]) => ALLOWED_COLUMNS.includes(k)),
     );
+    assertPeriod(safe);
     safe.organization_id = req.orgId;
     const columns = Object.keys(safe);
     const placeholders = columns.map(() => '?').join(', ');
@@ -92,6 +102,16 @@ router.put('/:id', requirePermission('facturas_publicas.update'), validate(updat
     const safe = Object.fromEntries(
       Object.entries(req.body).filter(([k]) => ALLOWED_COLUMNS.includes(k)),
     );
+    const current = await findFacturaOrFail(db.query.bind(db), req.params.id, req.orgId);
+    if (current.status !== 'draft' || current.cfdi_document_id) {
+      throw new AppError('A stamped factura pública is a filed SAT document and cannot be edited.', 422, 'FACTURA_PUBLICA_NOT_DRAFT');
+    }
+    if (Object.keys(safe).length === 0) throw new ValidationError('Send periodicidad, meses or anio');
+    const [[period]] = await db.query(
+      'SELECT periodicidad, meses, anio FROM factura_publica_invoices WHERE id = ? AND organization_id = ?',
+      [req.params.id, req.orgId],
+    );
+    assertPeriod(safe, period);
     const columns = Object.keys(safe).map((col) => `${col} = ?`).join(', ');
     await db.query(
       `UPDATE factura_publica_invoices SET ${columns} WHERE id = ? AND organization_id = ?`,
@@ -200,6 +220,16 @@ router.post('/:id/items', requirePermission('facturas_publicas.update'), validat
       conn.release();
     }
     res.status(201).json({ data: row });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Build and stamp the factura global from the linked paid invoices (BIL-24).
+router.post('/:id/stamp', requirePermission('cfdi_documents.create'), async (req, res, next) => {
+  try {
+    const result = await facturaPublicaService.stampGlobal(req.params.id, req.orgId, { userId: req.user?.id ?? null });
+    res.status(result.stamped ? 201 : 202).json({ data: result });
   } catch (err) {
     next(err);
   }

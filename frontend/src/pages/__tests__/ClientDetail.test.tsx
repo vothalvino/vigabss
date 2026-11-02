@@ -67,6 +67,19 @@ describe('ClientDetail page', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Acme Corp' })).toBeInTheDocument());
   });
 
+  // GQL-10: an MXN debt and a USD credit are shown apart, never summed.
+  it('shows one amount per currency when the balance is mixed', async () => {
+    mockGql.mockResolvedValue({ client: {
+      ...client, balance: null, balanceCurrency: null, mixedCurrency: true,
+      balances: [{ currency: 'MXN', balance: '500.00' }, { currency: 'USD', balance: '-20.00' }],
+    } });
+    renderDetail();
+    await waitFor(() => expect(screen.getByText(/⚠ Owed by client/)).toBeInTheDocument());
+    expect(screen.getByText(/500\.00/)).toBeInTheDocument();
+    expect(screen.getByText(/20\.00/)).toBeInTheDocument();
+    expect(screen.queryByText(/480/)).not.toBeInTheDocument();
+  });
+
   it('shows Edit/MX/Portal actions for admin', async () => {
     renderDetail();
     await waitFor(() => expect(screen.getByText('✏️ Edit')).toBeInTheDocument());

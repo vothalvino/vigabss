@@ -233,9 +233,11 @@ const resolvers = {
     // the ledger (client_balance_ledger drifts: not every money path writes
     // it — see clientBalanceService's module doc). Postpaid semantics:
     // positive = the client owes us, negative = the client is in credit.
+    // null when the client's documents are in several currencies — they are
+    // never added 1:1 (GQL-10); see `balances`.
     balance: async (client, _args, ctx) => {
       const { balance } = await getClientBalance(client, ctx);
-      return balance.toFixed(2);
+      return balance === null ? null : balance.toFixed(2);
     },
 
     // The currency the computed balance above is denominated in — see
@@ -244,6 +246,16 @@ const resolvers = {
     balanceCurrency: async (client, _args, ctx) => {
       const { currency } = await getClientBalance(client, ctx);
       return currency;
+    },
+
+    balances: async (client, _args, ctx) => {
+      const { balances } = await getClientBalance(client, ctx);
+      return balances.map(b => ({ currency: b.currency, balance: b.balance.toFixed(2) }));
+    },
+
+    mixedCurrency: async (client, _args, ctx) => {
+      const { mixedCurrency } = await getClientBalance(client, ctx);
+      return mixedCurrency;
     },
 
     ledger: async (client, _args, ctx) => {

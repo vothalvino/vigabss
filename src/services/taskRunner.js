@@ -295,7 +295,8 @@ async function dispatchTask(taskName, organizationId) {
     case 'database_backup':
       return runBackup();
     case 'config_backup_pull':
-      return configBackupService.runNightlyBackups(organizationId);
+      // Every database, isolated tenants included (NET-15).
+      return inEveryDatabase(taskName, organizationId, orgId => configBackupService.runNightlyBackups(orgId));
     case 'quarterly_dr_drill':
       return drDrillService.runDrill();
     case 'follow_up_reminders':

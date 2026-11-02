@@ -8,6 +8,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const dataPackService = require('./dataPackService');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
 
 /**
@@ -64,7 +65,10 @@ async function checkAndNotifyThresholds(organizationId) {
         || Number(usage.unverifiable_session_rows || 0) > 0) continue;
 
     const usedGb = parseFloat(usage.used_gb) || 0;
-    const usagePct = (usedGb / capGb) * 100;
+    // Packs bought this month and available rollover extend the allowance
+    // the 80/90/100% notices are measured against (TNA-21).
+    const extra = await dataPackService.extraAllowanceGb(contract.id, contract.organization_id, billingMonth, endStr);
+    const usagePct = (usedGb / (capGb + extra.total_gb)) * 100;
 
     for (const threshold of [80, 90, 100]) {
       if (usagePct < threshold) continue;

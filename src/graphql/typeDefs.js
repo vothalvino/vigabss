@@ -34,6 +34,12 @@ module.exports = /* GraphQL */ `
     tickets(limit: Int, offset: Int, clientId: ID): [Ticket!]!
   }
 
+  """An amount in one currency (no conversion is ever applied)."""
+  type CurrencyBalance {
+    currency: String!
+    balance: String!
+  }
+
   type Client {
     id: ID!
     name: String!
@@ -54,11 +60,19 @@ module.exports = /* GraphQL */ `
     """Current account balance — COMPUTED from payable invoices minus
     unallocated payment credit (NOT the balance ledger, which is history-only
     and can be missing entries). Postpaid semantics: positive = the client
-    owes; negative = the client has credit."""
-    balance: String!
+    owes; negative = the client has credit. Null when the client's documents
+    are in more than one currency: amounts are never converted or added 1:1,
+    so read balances instead."""
+    balance: String
 
-    """ISO 4217 currency the computed balance above is denominated in."""
-    balanceCurrency: String!
+    """ISO 4217 currency of balance; null together with it (mixed currencies)."""
+    balanceCurrency: String
+
+    """The balance per currency, one entry per currency that contributes."""
+    balances: [CurrencyBalance!]!
+
+    """True when more than one currency contributes; balance is then null."""
+    mixedCurrency: Boolean!
 
     """Active contracts for this client."""
     contracts: [Contract!]!

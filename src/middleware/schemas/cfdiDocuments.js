@@ -24,6 +24,10 @@ const createCfdiDocument = {
   receptor_nombre: { type: 'string', max: 300 },
   receptor_regimen: { type: 'string', max: 3 },
   receptor_cp: { type: 'string', max: 5 },
+  // A manual factura global states its own InformacionGlobal period (BIL-24).
+  global_periodicidad: { type: 'string', enum: ['01', '02', '03', '04', '05'] },
+  global_meses: { type: 'string', pattern: /^(0[1-9]|1[0-8])$/ },
+  global_anio: { type: 'number', min: 2022, max: 2099 },
   subtotal: { type: 'number', min: 0 },
   total_impuestos: { type: 'number', min: 0 },
   total: { type: 'number', min: 0 },

@@ -12,7 +12,10 @@
 
 const crypto = require('crypto');
 const db = require('../config/database');
-const { calculateProration } = require('./billingService');
+const billingService = require('./billingService');
+const creditNoteLedgerService = require('./creditNoteLedgerService');
+
+const { calculateProration } = billingService;
 const { NotFoundError, ValidationError } = require('../utils/errors');
 const { requireOrgId } = require('../utils/requireOrgId');
 const logger = require('../utils/logger').child({ service: 'portalServiceRequest' });
@@ -51,6 +54,29 @@ async function findUpgradePlan(planId, organizationId, executor = db) {
     [planId, organizationId],
   );
   return plans;
+}
+
+/**
+ * Plans a subscriber may ask to move to: the same active org/global plans
+ * findUpgradePlan accepts, minus the plan the active contract is already on.
+ * Backs the portal's plan picker, which replaced a free-text plan id (BIL-23).
+ */
+async function listUpgradePlans(clientId, organizationId) {
+  requireOrgId(organizationId, 'portalServiceRequestService.listUpgradePlans');
+  const [rows] = await db.query(
+    `SELECT p.id, p.name, p.price, p.currency, p.billing_cycle,
+            p.download_speed_mbps, p.upload_speed_mbps
+       FROM plans p
+      WHERE (p.organization_id <=> ? OR p.organization_id IS NULL)
+        AND p.status = 'active' AND p.deleted_at IS NULL
+        AND p.id NOT IN (
+          SELECT c.plan_id FROM contracts c
+           WHERE c.client_id = ? AND c.organization_id <=> ? AND c.status = 'active' AND c.deleted_at IS NULL
+        )
+      ORDER BY p.price, p.name`,
+    [organizationId, clientId, organizationId],
+  );
+  return rows;
 }
 
 // Printable ASCII without spaces. Wi-Fi follows the WPA2 passphrase rule
@@ -441,6 +467,12 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
     }
   }
 
+  if (req.request_type === 'plan_upgrade') {
+    await approvePlanUpgrade(req, payload, organizationId, approvedByUserId, notes);
+    const [done] = await db.query('SELECT * FROM portal_service_requests WHERE id = ?', [requestId]);
+    return withoutRequestedPassword(done[0]);
+  }
+
   // Set approved_by + approved_at, only from pending, so two approvals
   // cannot both run the action.
   const [approved] = await db.query(
@@ -456,21 +488,6 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
   if (req.request_type === 'pppoe_password_change') {
     // Apply RADIUS password change and mark completed
     await applyPppoePasswordChange(requestId);
-  } else if (req.request_type === 'plan_upgrade') {
-    // Update contract plan_id and mark completed
-    if (req.contract_id && payload.new_plan_id) {
-      await db.query(
-        'UPDATE contracts SET plan_id = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?',
-        [payload.new_plan_id, req.contract_id, organizationId],
-      );
-    }
-    await db.query(
-      `UPDATE portal_service_requests
-       SET status = 'completed', completed_at = NOW(), updated_at = NOW()
-       WHERE id = ?`,
-      [requestId],
-    );
-    logger.info({ requestId, contractId: req.contract_id, newPlanId: payload.new_plan_id }, 'Plan upgrade applied via portal request');
   } else if (req.request_type === 'wifi_password_change') {
     // Queue a CPE set-parameter task for the Wi-Fi password if we can resolve the
     // device; if no CPE device is found, leave as approved for manual fulfillment.
@@ -495,6 +512,91 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
     [requestId],
   );
   return withoutRequestedPassword(updated[0]);
+}
+
+/**
+ * Approve a plan change: switch the contract's plan and bill the proration
+ * stored when the subscriber asked, all in one transaction with the
+ * pending -> completed transition (BIL-23). A positive net raises a one-off
+ * invoice for the remaining days at the new price; a negative net issues a
+ * credit note for the unused days of the old one. A failure rolls everything
+ * back and leaves the request pending.
+ */
+async function approvePlanUpgrade(req, payload, organizationId, approvedByUserId, notes) {
+  const net = req.proration_net === null || req.proration_net === undefined
+    ? 0 : Math.round(parseFloat(req.proration_net) * 100) / 100;
+  const description = `Plan change proration: ${payload.current_plan_name || payload.current_plan_id || 'previous plan'}`
+    + ` -> ${payload.new_plan_name || payload.new_plan_id}`;
+
+  const conn = await db.getConnection();
+  let invoice = null;
+  let creditNoteId = null;
+  try {
+    await conn.beginTransaction();
+    const exec = conn.execute.bind(conn);
+
+    const [approved] = await exec(
+      `UPDATE portal_service_requests
+       SET status = 'completed', approved_by = ?, approved_at = NOW(), completed_at = NOW(),
+           notes = COALESCE(?, notes), updated_at = NOW()
+       WHERE id = ? AND organization_id = ? AND status = 'pending'`,
+      [approvedByUserId, notes || null, req.id, organizationId],
+    );
+    if (!approved.affectedRows) throw new ValidationError('Request is no longer pending');
+
+    if (req.contract_id && payload.new_plan_id) {
+      await exec(
+        'UPDATE contracts SET plan_id = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?',
+        [payload.new_plan_id, req.contract_id, organizationId],
+      );
+    }
+
+    if (net > 0) {
+      invoice = await billingService.createOneOffInvoice({
+        orgId: organizationId, clientId: req.client_id, contractId: req.contract_id,
+        description, amount: net, conn,
+      });
+    } else if (net < 0) {
+      creditNoteId = await issueProrationCreditNote(exec, req, organizationId, -net, description, approvedByUserId);
+    }
+
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
+  }
+
+  if (invoice) await require('./businessEvents').emitInvoiceCreated(organizationId, invoice);
+  logger.info({
+    requestId: req.id, contractId: req.contract_id, newPlanId: payload.new_plan_id,
+    prorationNet: net, invoiceId: invoice?.id ?? null, creditNoteId,
+  }, 'Plan upgrade applied via portal request');
+}
+
+/** An issued credit note for a downgrade's unused days, posted to the ledger. */
+async function issueProrationCreditNote(exec, req, organizationId, amount, description, createdBy) {
+  const tax = await billingService.resolveTaxContext(exec, { orgId: organizationId, clientId: req.client_id });
+  const subtotal = Math.round(amount * 100) / 100;
+  const taxAmount = Math.round(subtotal * tax.rate * 100) / 100;
+  const total = Math.round((subtotal + taxAmount) * 100) / 100;
+  const currency = await require('../models/Organization').getCurrency(organizationId);
+  const number = `PCN-${req.id}`;
+
+  const [result] = await exec(
+    `INSERT INTO credit_notes
+       (organization_id, client_id, contract_id, credit_note_number, issue_date, reason,
+        subtotal, tax_rate, tax_amount, total, currency, tax_rate_id, notes, status, created_by)
+     VALUES (?, ?, ?, ?, CURDATE(), 'other', ?, ?, ?, ?, ?, ?, ?, 'issued', ?)`,
+    [organizationId, req.client_id, req.contract_id || null, number, subtotal, tax.rate, taxAmount,
+      total, currency, tax.taxRateId || null, description, createdBy || null],
+  );
+  await creditNoteLedgerService.syncCreditNoteLedger(exec, {
+    id: result.insertId, client_id: req.client_id, credit_note_number: number,
+    total, currency, status: 'issued',
+  }, organizationId);
+  return result.insertId;
 }
 
 /**
@@ -700,6 +802,7 @@ async function rateKbArticle(organizationId, slugOrId, helpful) {
 }
 
 module.exports = {
+  listUpgradePlans,
   linkWifiRequestToTask,
   settleWifiRequestForTask,
   createRequest,

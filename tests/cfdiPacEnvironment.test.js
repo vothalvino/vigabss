@@ -40,7 +40,7 @@ function pac(over) {
 // which provider it then selects.
 function wire(orgEnv, pacs) {
   db.query.mockImplementation(async (sql, params) => {
-    if (/FROM cfdi_documents WHERE id/.test(sql)) return [[{ ...DOC }]];
+    if (/FROM cfdi_documents WHERE id/.test(sql)) return [[{ ...DOC, uuid: null }]]; // an unstamped draft (CFD-11)
     if (/FROM organization_mx_profiles/.test(sql)) return [[{ pac_environment: orgEnv }]];
     if (/FROM pac_providers/.test(sql)) {
       const env = params[1];
@@ -83,7 +83,7 @@ describe('PAC environment scoping — stamping', () => {
     const prod = pac({ environment: 'production', priority: 5, api_url: prodBase() });
     // No organization_mx_profiles row → orgPacEnvironment falls back to 'sandbox'.
     db.query.mockImplementation(async (sql, params) => {
-      if (/FROM cfdi_documents WHERE id/.test(sql)) return [[{ ...DOC }]];
+      if (/FROM cfdi_documents WHERE id/.test(sql)) return [[{ ...DOC, uuid: null }]];
       if (/FROM organization_mx_profiles/.test(sql)) return [[]];
       if (/FROM pac_providers/.test(sql)) return [[sand, prod].filter(p => p.environment === params[1]).map(p => ({ ...p }))];
       return [{ affectedRows: 1 }];

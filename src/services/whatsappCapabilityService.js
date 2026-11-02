@@ -60,15 +60,24 @@ async function getActiveContracts(orgId, clientId) {
 /** Balance + next due date. */
 async function balanceText(orgId, clientId) {
   requireOrgId(orgId, 'whatsappCapabilityService.balanceText');
-  const { balance, currency } = await computeClientBalance(orgId, clientId);
+  const { balance: single, currency: singleCurrency, balances, mixedCurrency } = await computeClientBalance(orgId, clientId);
   const [[{ next_due }]] = await db.query(
     `SELECT MIN(due_date) AS next_due FROM invoices
       WHERE client_id = ? AND organization_id <=> ? AND status IN ('issued', 'overdue') AND deleted_at IS NULL`,
     [clientId, orgId],
   );
-  if (Number(balance) > 0.005) {
+  // Amounts in different currencies are listed, never added (GQL-10).
+  const owing = mixedCurrency ? balances.some(b => b.balance > 0.005) : Number(single) > 0.005;
+  if (owing) {
     const due = next_due ? ` Your next payment is due ${ymd(next_due)}.` : '';
-    const base = `💳 Your account balance is *${money(balance)} ${currency}*.${due}`;
+    const list = (items) => items.map(b => `*${money(b.balance)} ${b.currency}*`).join(' and ');
+    let amount = `*${money(single)} ${singleCurrency}*`;
+    if (mixedCurrency) {
+      const credits = balances.filter(b => b.balance < -0.005);
+      amount = list(balances.filter(b => b.balance > 0.005))
+        + (credits.length ? `, with a credit of ${list(credits)}` : '');
+    }
+    const base = `💳 Your account balance is ${amount}.${due}`;
 
     // Owing money and being told only the number is a dead end. Offer the link
     // for the OLDEST unpaid invoice — the one that triggers suspension.
@@ -79,10 +88,13 @@ async function balanceText(orgId, clientId) {
       + `(${money(invoice.total)} ${invoice.currency}) securely here:\n${url}\n\n`
       + '_The link is personal to you — please do not forward it._';
   }
-  if (Number(balance) < -0.005) {
-    return `✅ You're all paid up — you have a credit of *${money(balance)} ${currency}*.`;
+  if (mixedCurrency) {
+    return `✅ You're all paid up — you have a credit of ${balances.map(b => `*${money(b.balance)} ${b.currency}*`).join(' and ')}.`;
   }
-  return `✅ You're all paid up. Balance: *0.00 ${currency}*.`;
+  if (Number(single) < -0.005) {
+    return `✅ You're all paid up — you have a credit of *${money(single)} ${singleCurrency}*.`;
+  }
+  return `✅ You're all paid up. Balance: *0.00 ${singleCurrency}*.`;
 }
 
 /**

@@ -536,6 +536,7 @@ function isContractInTrial(contract, plan) {
 async function calculateOverageCharges(contractId, periodStart, periodEnd) {
   const [rows] = await db.query(`
     SELECT
+      c.organization_id,
       p.data_cap_gb,
       p.overage_mode,
       p.overage_price_per_gb,
@@ -553,7 +554,7 @@ async function calculateOverageCharges(contractId, periodStart, periodEnd) {
       AND u.usage_date >= DATE(?)
       AND u.usage_date <= DATE(?)
     WHERE c.id = ?
-    GROUP BY p.data_cap_gb, p.overage_mode, p.overage_price_per_gb
+    GROUP BY c.organization_id, p.data_cap_gb, p.overage_mode, p.overage_price_per_gb
   `, [periodStart, periodEnd, periodStart, periodEnd, contractId]);
 
   if (rows.length === 0) return { overage_gb: 0, amount: 0 };
@@ -569,7 +570,10 @@ async function calculateOverageCharges(contractId, periodStart, periodEnd) {
 
   const BYTES_PER_GB = 1073741824;
   const usedGb = r.bytes_used / BYTES_PER_GB;
-  const overageGb = Math.max(0, usedGb - parseFloat(r.data_cap_gb));
+  // Data packs bought for the period, and available rollover, raise the cap
+  // before anything is billed as overage (TNA-21).
+  const extra = await require('./dataPackService').extraAllowanceGb(contractId, r.organization_id, periodStart, periodEnd);
+  const overageGb = Math.max(0, usedGb - parseFloat(r.data_cap_gb) - extra.total_gb);
 
   if (overageGb <= 0) return { overage_gb: 0, amount: 0 };
 
@@ -1126,8 +1130,8 @@ async function applyCreditNoteLineItemToTotals(exec, creditNoteId, taxRate, line
   return delta;
 }
 
-async function refreshInvoicePaidStatus(invoiceId) {
-  const [rows] = await db.query(
+async function refreshInvoicePaidStatus(invoiceId, exec = db.query.bind(db)) {
+  const [rows] = await exec(
     `SELECT i.total,
             COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
                        WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
@@ -1138,9 +1142,9 @@ async function refreshInvoicePaidStatus(invoiceId) {
   const inv = rows[0];
   if (!inv) return;
   if (parseFloat(inv.allocated) >= parseFloat(inv.total)) {
-    await db.query("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status <> 'paid'", [invoiceId]);
+    await exec("UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ? AND status <> 'paid'", [invoiceId]);
   } else {
-    await db.query("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
+    await exec("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ? AND status = 'paid'", [invoiceId]);
   }
 }
 
@@ -1167,15 +1171,15 @@ async function releaseInvoiceAllocations(invoiceId) {
  * payment_allocations rows and re-derive the paid status of every invoice it
  * touched, so an invoice is not left flagged 'paid' once its payment is gone.
  */
-async function reversePaymentAllocations(paymentId) {
-  const [allocs] = await db.query(
+async function reversePaymentAllocations(paymentId, exec = db.query.bind(db)) {
+  const [allocs] = await exec(
     'SELECT DISTINCT invoice_id FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
     [paymentId],
   );
   if (!allocs.length) return;
-  await db.query('UPDATE payment_allocations SET deleted_at = NOW() WHERE payment_id = ? AND deleted_at IS NULL', [paymentId]);
+  await exec('UPDATE payment_allocations SET deleted_at = NOW() WHERE payment_id = ? AND deleted_at IS NULL', [paymentId]);
   for (const { invoice_id: invoiceId } of allocs) {
-    if (invoiceId) await refreshInvoicePaidStatus(invoiceId);
+    if (invoiceId) await refreshInvoicePaidStatus(invoiceId, exec);
   }
 }
 
@@ -1184,15 +1188,15 @@ async function reversePaymentAllocations(paymentId) {
  * soft-deleted payment_allocations and re-derive the paid status of every
  * invoice it touched (inverse of reversePaymentAllocations).
  */
-async function restorePaymentAllocations(paymentId) {
-  const [allocs] = await db.query(
+async function restorePaymentAllocations(paymentId, exec = db.query.bind(db)) {
+  const [allocs] = await exec(
     'SELECT DISTINCT invoice_id FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NOT NULL',
     [paymentId],
   );
   if (!allocs.length) return;
-  await db.query('UPDATE payment_allocations SET deleted_at = NULL WHERE payment_id = ? AND deleted_at IS NOT NULL', [paymentId]);
+  await exec('UPDATE payment_allocations SET deleted_at = NULL WHERE payment_id = ? AND deleted_at IS NOT NULL', [paymentId]);
   for (const { invoice_id: invoiceId } of allocs) {
-    if (invoiceId) await refreshInvoicePaidStatus(invoiceId);
+    if (invoiceId) await refreshInvoicePaidStatus(invoiceId, exec);
   }
 }
 

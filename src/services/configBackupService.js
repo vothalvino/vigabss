@@ -13,6 +13,7 @@
 
 const crypto = require('crypto');
 const db = require('../config/database');
+const { orgScopeFilter } = require('./organizationFanOut');
 const { tunnelServer } = require('./firerelayTunnel');
 const logger = require('../utils/logger').child({ service: 'configBackupService' });
 const { NotFoundError } = require('../utils/errors');
@@ -175,8 +176,9 @@ async function pullBackupForDevice({
  *
  * Per-device errors are logged and counted but do not abort the entire run.
  *
- * @param {number|null} [organizationId] - optional scope (not used for device selection
- *                                         but reserved for future org-scoped runs)
+ * @param {number|null} [organizationId] - one organization's devices, or (null) every
+ *        device of the current database scope; taskRunner runs the null case
+ *        once per database, so isolated tenants are backed up too (NET-15)
  * @returns {Promise<{ total: number, backed_up: number, skipped: number, failed: number }>}
  */
 async function runNightlyBackups(organizationId = null) {
@@ -189,18 +191,16 @@ async function runNightlyBackups(organizationId = null) {
     return { total: 0, backed_up: 0, skipped: 0, failed: 0 };
   }
 
-  const orgFilter = organizationId ? 'AND c.organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
-
+  // The device's own organization decides, not a client's: POP and backbone
+  // devices have no client and were dropped by the old clients join (NET-15).
+  const scope = orgScopeFilter('d.organization_id', organizationId);
   const [devices] = await db.query(
     `SELECT d.id, d.name, d.ip_address, d.firerelay_node_id
        FROM devices d
-       ${organizationId ? 'JOIN clients c ON d.client_id = c.id' : ''}
       WHERE d.firerelay_node_id IS NOT NULL
         AND d.ip_address IS NOT NULL
-        AND d.deleted_at IS NULL
-        ${orgFilter}`,
-    params,
+        AND d.deleted_at IS NULL${scope.sql}`,
+    scope.params,
   );
 
   const stats = { total: devices.length, backed_up: 0, skipped: 0, failed: 0 };

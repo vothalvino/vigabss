@@ -14,6 +14,7 @@ const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
 const { timeZoneForPostalCode, DEFAULT_TIME_ZONE } = require('../utils/mxTimeZone');
+const { cfdiText, isPublicoEnGeneral } = require('../utils/satCatalogs');
 
 // ---------------------------------------------------------------------------
 // Simple circuit breaker for PAC stamping calls
@@ -359,8 +360,16 @@ async function generateXml(cfdiDocumentId) {
 // come from the CFDI date. The receptor rules (Nombre "PUBLICO EN GENERAL",
 // RegimenFiscalReceptor 616, DomicilioFiscalReceptor = LugarExpedicion,
 // UsoCFDI S01) are supplied by the client's MX profile / stamp options.
+//
+// The node is emitted only for the PUBLICO EN GENERAL receptor (an XAXX RFC
+// with a person's name is a nominative sale, not a global). A factura global
+// carries its own period (global_* columns, migration 496); a single invoice
+// stamped to público en general is a daily global for its date (BIL-24).
 function informacionGlobalXml(doc, fecha) {
-  if (doc.receptor_rfc !== 'XAXX010101000') return '';
+  if (!isPublicoEnGeneral(doc.receptor_rfc, doc.receptor_nombre)) return '';
+  if (doc.global_periodicidad) {
+    return `\n  <cfdi:InformacionGlobal Periodicidad="${escapeXml(doc.global_periodicidad)}" Meses="${escapeXml(doc.global_meses)}" Año="${escapeXml(String(doc.global_anio))}" />`;
+  }
   const anio = String(fecha || '').slice(0, 4) || String(new Date().getFullYear());
   const mes = String(fecha || '').slice(5, 7) || '01';
   return `\n  <cfdi:InformacionGlobal Periodicidad="01" Meses="${mes}" Año="${anio}" />`;
@@ -405,7 +414,7 @@ function buildCfdi40Xml(doc, emisor, conceptos, impuestos, relacionados = []) {
     // Amounts at the precision they were computed with, not the DECIMAL(x,4)
     // column scale: Anexo 20 derives each limit from the decimals written
     // ("824.1900" narrows it), CFD-03.
-    return `    <cfdi:Concepto ClaveProdServ="${c.clave_prod_serv || ''}"${noIdent} Cantidad="${formatQuantity(c.cantidad)}" ClaveUnidad="${c.clave_unidad || ''}" Descripcion="${escapeXml(c.descripcion || '')}" ValorUnitario="${formatUnitValue(c.valor_unitario)}" Importe="${formatMoney(c.importe)}" ObjetoImp="${c.objeto_imp || '02'}">${taxesXml}
+    return `    <cfdi:Concepto ClaveProdServ="${c.clave_prod_serv || ''}"${noIdent} Cantidad="${formatQuantity(c.cantidad)}" ClaveUnidad="${c.clave_unidad || ''}" Descripcion="${escapeXml(cfdiText(c.descripcion || ''))}" ValorUnitario="${formatUnitValue(c.valor_unitario)}" Importe="${formatMoney(c.importe)}" ObjetoImp="${c.objeto_imp || '02'}">${taxesXml}
     </cfdi:Concepto>`;
   }).join('\n');
 
@@ -588,6 +597,15 @@ async function stamp(cfdiDocumentId, { userId = null } = {}) {
   // Same reasoning as cancel(): these reject the request, so they are 4xx.
   if (!doc) throw new AppError('CFDI document not found', 404, 'CFDI_NOT_FOUND');
   if (!doc.xml_content) throw new AppError('XML not generated yet — call generateXml first', 422, 'CFDI_XML_NOT_GENERATED');
+  // Only an unstamped draft is ever submitted. A vigente document would get a
+  // second UUID; a cancelado one (tipo E has no invoice to backstop it) would
+  // come back as vigente (CFD-11).
+  if (doc.sat_status !== 'draft' || doc.uuid) {
+    throw new AppError(
+      `This CFDI is ${doc.uuid ? `already stamped (UUID ${doc.uuid})` : doc.sat_status} — only an unstamped draft can be stamped.`,
+      409, 'CFDI_NOT_DRAFT',
+    );
+  }
 
   // Backstop: never register a CFDI at SAT for an invoice that was voided or
   // cancelled after this draft was created (the void guard blocks the common
@@ -732,14 +750,24 @@ async function stamp(cfdiDocumentId, { userId = null } = {}) {
   // signed_xml, which is stored (database/schema.sql). pac_provider records WHICH
   // PAC actually stamped (the one that won failover) so "stamped by Finkok/SW" is
   // answerable without parsing RfcProvCertif out of the signed XML.
-  await db.query(
+  // Saved only onto the same unstamped draft that was claimed above. If the
+  // row changed meanwhile, nothing is overwritten and the folio fiscal stays
+  // in the log line above for manual recovery.
+  const [saved] = await db.query(
     `UPDATE cfdi_documents
      SET uuid = ?, sat_status = ?, stamp_date = NOW(),
          signed_xml = ?, sat_seal = ?, pac_provider = ?,
          stamp_error = NULL, stamp_ambiguous = 0
-     WHERE id = ?`,
+     WHERE id = ? AND sat_status = 'draft' AND uuid IS NULL`,
     [uuid, 'vigente', signedXml, selloSat, stampedProvider && stampedProvider.provider_name, cfdiDocumentId],
   );
+  if (saved && saved.affectedRows === 0) {
+    logger.error({ cfdiDocumentId, uuid }, 'Stamped CFDI not saved: the document is no longer an unstamped draft');
+    throw new AppError(
+      `The PAC returned UUID ${uuid}, but this CFDI is no longer an unstamped draft, so nothing was overwritten. Reconcile it manually.`,
+      409, 'CFDI_NOT_DRAFT',
+    );
+  }
 
   if (stampedProvider) {
     try { await db.query('UPDATE pac_providers SET last_stamp_at = NOW() WHERE id = ?', [stampedProvider.id]); } catch (_) { /* best-effort */ }

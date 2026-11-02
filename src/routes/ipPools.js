@@ -20,22 +20,36 @@ const ctrl = crudController(IpPool);
 router.use(authenticate);
 router.use(orgScope);
 
-// GET /utilization — list utilization for all pools in the org
+// GET /utilization — list utilization for all pools in the org. Every pool,
+// not BaseModel's default first 50, and one grouped count instead of a query
+// per pool (DAL-12). Assignments are counted through their pool, which is
+// what fixes the organization.
 router.get('/utilization', requirePermission('ip_pools.utilization'), async (req, res, next) => {
   try {
-    const pools = await IpPool.findAll({ orgId: req.orgId });
+    const [pools] = await db.query(
+      `SELECT * FROM ip_pools
+        WHERE organization_id <=> ? AND deleted_at IS NULL
+        ORDER BY id`,
+      [req.orgId],
+    );
+    const [counts] = await db.query(
+      `SELECT a.pool_id, a.type, COUNT(*) AS cnt
+         FROM ip_assignments a
+         JOIN ip_pools p ON p.id = a.pool_id AND p.organization_id <=> ? AND p.deleted_at IS NULL
+        WHERE a.deleted_at IS NULL AND a.status != 'expired'
+        GROUP BY a.pool_id, a.type`,
+      [req.orgId],
+    );
+    const countsByPool = new Map();
+    for (const row of counts) {
+      if (!countsByPool.has(row.pool_id)) countsByPool.set(row.pool_id, []);
+      countsByPool.get(row.pool_id).push(row);
+    }
 
-    const result = await Promise.all(pools.map(async (pool) => {
-      const [assignedRows] = await db.query(
-        `SELECT type, COUNT(*) AS cnt
-         FROM ip_assignments
-         WHERE pool_id = ? AND deleted_at IS NULL AND status != 'expired'
-         GROUP BY type`,
-        [pool.id],
-      );
+    const result = pools.map((pool) => {
       const byType = { static: 0, dynamic: 0, reserved: 0 };
       let assigned = 0;
-      for (const row of assignedRows) {
+      for (const row of countsByPool.get(pool.id) || []) {
         const t = row.type;
         byType[t] = (byType[t] || 0) + Number(row.cnt);
         assigned += Number(row.cnt);
@@ -57,7 +71,7 @@ router.get('/utilization', requirePermission('ip_pools.utilization'), async (req
         percent_used,
         by_type: byType,
       };
-    }));
+    });
 
     res.json({ data: result });
   } catch (err) {

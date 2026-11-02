@@ -680,7 +680,7 @@ function FiscalTab({ id }: { id: number }) {
           onChange={e => setForm(p => ({ ...p, rfc: e.target.value.toUpperCase() }))} />
       </label>
       <label style={label}>{t('orgDetail.fiscalRazonSocial')} <RequiredMark />
-        <input style={input} maxLength={300} value={form.razon_social ?? ''}
+        <input style={input} maxLength={254} value={form.razon_social ?? ''}
           onChange={e => setForm(p => ({ ...p, razon_social: e.target.value }))} />
       </label>
       <label style={label}>{t('orgDetail.fiscalRegimen')} <RequiredMark />

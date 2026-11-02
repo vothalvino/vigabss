@@ -551,10 +551,18 @@ async function cancelApCommandJob(id, orgId) {
     err.statusCode = 409;
     throw err;
   }
-  await db.query(
-    'UPDATE ap_command_jobs SET status = ?, updated_at = NOW() WHERE id = ?',
-    ['cancelled', id],
+  // Conditional on the same state the check read, so a job that started
+  // running meanwhile is not marked cancelled.
+  const [result] = await db.query(
+    `UPDATE ap_command_jobs SET status = 'cancelled', updated_at = NOW()
+      WHERE id = ? AND organization_id <=> ? AND status IN ('pending', 'queued')`,
+    [id, orgId],
   );
+  if (result && result.affectedRows === 0) {
+    const err = new Error('Only pending or queued jobs can be cancelled');
+    err.statusCode = 409;
+    throw err;
+  }
   return getApCommandJob(id, orgId);
 }
 

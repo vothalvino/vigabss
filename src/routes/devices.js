@@ -18,7 +18,7 @@ const { pubsub } = require('../services/pubsub');
 const topologyContextService = require('../services/topologyContextService');
 const { assertDeviceClientFk } = require('../services/deviceAuthz');
 const deviceActionsService = require('../services/deviceActionsService');
-const { redactDevice, sealSnmpCommunity } = require('../utils/deviceSanitize');
+const { redactDevice, sealSnmpCommunity, sealSnmpV3Keys } = require('../utils/deviceSanitize');
 const logger = require('../utils/logger').child({ service: 'routes/devices' });
 const { invalidateDeviceRoutingCache } = require('../services/tenantDeviceResolverService');
 
@@ -43,6 +43,7 @@ router.post(
   quotaCheck('devices'),
   validate(createDevice),
   sealSnmpCommunity,
+  sealSnmpV3Keys,
   async (req, res, next) => {
     try {
       await assertDeviceClientFk(req.body, req.orgId);
@@ -52,7 +53,7 @@ router.post(
     return ctrl.create(req, res, next);
   },
 );
-router.put('/:id', requirePermission('devices.update'), validate(updateDevice), sealSnmpCommunity, async (req, res, next) => {
+router.put('/:id', requirePermission('devices.update'), validate(updateDevice), sealSnmpCommunity, sealSnmpV3Keys, async (req, res, next) => {
   try {
     const old = await Device.findByIdOrFail(req.params.id, req.orgId);
     await assertDeviceClientFk(req.body, req.orgId);
@@ -76,7 +77,7 @@ router.put('/:id', requirePermission('devices.update'), validate(updateDevice), 
     res.json({ data: redactDevice(record) });
   } catch (err) { next(err); }
 });
-router.patch('/:id', requirePermission('devices.update'), validate(patchDevice), sealSnmpCommunity, ctrl.partialUpdate);
+router.patch('/:id', requirePermission('devices.update'), validate(patchDevice), sealSnmpCommunity, sealSnmpV3Keys, ctrl.partialUpdate);
 
 // POST /:id/reboot — reboot a device via its real driver/type mechanism.
 // Refuses honestly (422) when the device type has no supported reboot path.

@@ -96,6 +96,18 @@ router.post('/', requirePermission('csd_certificates.create'), validate(uploadCs
         422, 'CSD_RFC_MISMATCH',
       );
     }
+    if (!info.is_csd) {
+      throw new AppError(
+        'This is an e.firma (FIEL), not a CSD. Invoices are sealed with the CSD (Certificado de Sello Digital): request or download it from SAT (CertiSAT) and upload that pair instead.',
+        422, 'CSD_IS_FIEL',
+      );
+    }
+    if (info.valid_from.getTime() > Date.now()) {
+      throw new AppError(
+        `This certificate is not valid until ${info.valid_from.toISOString().slice(0, 10)} — upload it on or after that date.`,
+        422, 'CSD_NOT_YET_VALID',
+      );
+    }
     if (info.valid_to.getTime() <= Date.now()) {
       throw new AppError(
         `This certificate expired on ${info.valid_to.toISOString().slice(0, 10)} — request its replacement from SAT (CertiSAT).`,
@@ -176,11 +188,17 @@ router.post('/', requirePermission('csd_certificates.create'), validate(uploadCs
 router.post('/:id/activate', requirePermission('csd_certificates.update'), async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, status, valid_to FROM csd_certificates WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      'SELECT id, status, valid_from, valid_to FROM csd_certificates WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
     const cert = rows[0];
     if (!cert) throw new AppError('CSD certificate not found.', 404, 'NOT_FOUND');
+    if (cert.valid_from && new Date(cert.valid_from).getTime() > Date.now()) {
+      throw new AppError(
+        `This certificate is not valid until ${new Date(cert.valid_from).toISOString().slice(0, 10)} — activate it on or after that date.`,
+        422, 'CSD_NOT_YET_VALID',
+      );
+    }
     if (cert.status !== 'active' || new Date(cert.valid_to).getTime() <= Date.now()) {
       throw new AppError(
         `Only a valid, non-expired certificate can be activated (this one is '${cert.status}', valid to ${new Date(cert.valid_to).toISOString().slice(0, 10)}).`,

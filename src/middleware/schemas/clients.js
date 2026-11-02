@@ -60,7 +60,9 @@ const createContact = {
 
 const updateMxProfile = {
   rfc: { type: 'string', required: true, min: 12, max: 13 },
-  razon_social: { type: 'string', required: true, min: 1, max: 300 },
+  // CFDI 4.0 Nombre: at most 254 characters, no '|' or control characters (CFD-12).
+  // eslint-disable-next-line no-control-regex
+  razon_social: { type: 'string', required: true, min: 1, max: 254, pattern: /^[^|\u0000-\u001F\u007F]+$/ },
   regimen_fiscal: { type: 'string', required: true, min: 3, max: 3 },
   codigo_postal_fiscal: { type: 'string', required: true, min: 5, max: 5 },
   curp: { type: 'string', min: 18, max: 18 },

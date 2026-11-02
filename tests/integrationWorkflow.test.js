@@ -116,10 +116,11 @@ describe('Integration Workflow: Billing → CFDI → Suspension', () => {
 
       // Step 2: Stamp (will use fallback UUID since no real PAC)
       db.query
-        .mockResolvedValueOnce([[{ id: 1, organization_id: 42, xml_content: xmlResult.xml }]])
+        .mockResolvedValueOnce([[{ id: 1, organization_id: 42, xml_content: xmlResult.xml, sat_status: 'draft', uuid: null }]])
         .mockResolvedValueOnce([[{ pac_environment: 'sandbox' }]])  // org fiscal environment
         .mockResolvedValueOnce([[{ id: 1, provider_name: 'test', status: 'active' }]])  // PAC provider
-        .mockResolvedValueOnce([{ affectedRows: 1 }]);  // UPDATE uuid
+        .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE stamp_ambiguous (claim the draft)
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);  // UPDATE uuid (still a draft, CFD-11)
 
       const stampResult = await cfdiService.stamp(1);
       expect(stampResult.uuid).toBeDefined();

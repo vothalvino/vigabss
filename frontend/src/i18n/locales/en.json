@@ -1,4 +1,14 @@
 {
+  "deviceForm": {
+    "snmpV3": {
+      "securityName": "SNMPv3 user (security name)",
+      "authProtocol": "Auth protocol",
+      "authKey": "Auth passphrase",
+      "privProtocol": "Privacy protocol",
+      "privKey": "Privacy passphrase",
+      "keepKey": "Leave blank to keep the stored key"
+    }
+  },
   "settingsPage": {
     "loading": "Loading settings…",
     "loadError": "Failed to load settings.",
@@ -3568,6 +3578,9 @@
       "notes": "Notes"
     },
     "apCommands": {
+      "cancelJob": "Cancel job",
+      "confirmCancel": "Cancel this pending command?",
+      "cancelFailed": "Failed to cancel the command.",
       "new": "New Command",
       "loadError": "Failed to load AP command jobs.",
       "noItems": "No AP command jobs found.",
@@ -6477,8 +6490,8 @@
     },
     "submitTitle": "Submit a Request",
     "requestType": "Request Type",
-    "newPlanId": "New Plan ID",
-    "newPlanIdPlaceholder": "Enter plan ID to upgrade to",
+    "newPlanId": "New plan",
+    "newPlanIdPlaceholder": "Choose a plan",
     "newPassword": "New Password",
     "newPasswordPlaceholder": "Enter new password (min. 8 characters)",
     "notesReason": "Notes / Reason",

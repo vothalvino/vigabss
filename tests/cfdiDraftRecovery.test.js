@@ -97,7 +97,7 @@ describe('rebuildDraft', () => {
 });
 
 describe('stamp attempts are recorded', () => {
-  const doc = { id: 9, organization_id: 1, xml_content: '<cfdi/>', invoice_id: null };
+  const doc = { id: 9, organization_id: 1, xml_content: '<cfdi/>', invoice_id: null, sat_status: 'draft', uuid: null };
 
   test('the draft is marked possibly-stamped before the PAC call and stays so after a timeout', async () => {
     const pac = { id: 4, provider_name: 'sw_sapien', seal_mode: 'pac', token_encrypted: 'tok', status: 'active', environment: 'sandbox', api_url: 'http://127.0.0.1:9' };

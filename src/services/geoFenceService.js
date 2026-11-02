@@ -7,6 +7,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const eventBus = require('./eventBus');
 const logger = require('../utils/logger').child({ service: 'geoFenceService' });
 
 // ---------------------------------------------------------------------------
@@ -114,10 +115,14 @@ function isViolation(geofence, deviceLat, deviceLng) {
  * For each geofence that has a device_id, checks that device's position.
  * For geofences without a device_id, checks all CPE devices with lat/lng.
  *
- * Violations are logged to alert_events via the eventBus (fire-and-forget).
+ * A violation opens a geofence_violations row (one per geofence and device,
+ * migration 498); later runs refresh it, and the first run that finds the
+ * device back inside clears it. Only an OPENED row emits geofence.violation,
+ * which notificationHooks turns into a staff notification, a webhook and a
+ * live push (NPR-09) — a device left outside does not re-alert every run.
  *
  * @param {number} orgId
- * @returns {Promise<{ checked: number, violations: object[] }>}
+ * @returns {Promise<{ checked: number, violations: object[], opened: number, cleared: number }>}
  */
 async function evaluateAll(orgId) {
   const [geofences] = await db.query(
@@ -127,7 +132,7 @@ async function evaluateAll(orgId) {
     [orgId],
   );
 
-  if (!geofences.length) return { checked: 0, violations: [] };
+  if (!geofences.length) return { checked: 0, violations: [], opened: 0, cleared: 0 };
 
   // Fetch all CPE devices with lat/lng for org-wide checks
   const [allCpes] = await db.query(
@@ -144,45 +149,57 @@ async function evaluateAll(orgId) {
   const cpeMap = new Map(allCpes.map(c => [c.id, c]));
 
   let checked = 0;
+  let opened = 0;
+  let cleared = 0;
   const violations = [];
 
   for (const gf of geofences) {
     const devicesToCheck = gf.device_id
       ? (cpeMap.has(gf.device_id) ? [cpeMap.get(gf.device_id)] : [])
       : allCpes;
+    const outside = [];
 
     for (const device of devicesToCheck) {
       checked++;
-      const violated = isViolation(gf, Number(device.latitude), Number(device.longitude));
+      if (!isViolation(gf, Number(device.latitude), Number(device.longitude))) continue;
+      outside.push(device.id);
 
-      if (violated) {
-        const violation = {
-          geofence_id: gf.id,
-          geofence_name: gf.name,
-          device_id: device.id,
-          device_name: device.name,
-          device_lat: device.latitude,
-          device_lng: device.longitude,
-          detected_at: new Date().toISOString(),
-        };
-        violations.push(violation);
+      const violation = {
+        geofence_id: gf.id,
+        geofence_name: gf.name,
+        device_id: device.id,
+        device_name: device.name,
+        device_lat: device.latitude,
+        device_lng: device.longitude,
+        detected_at: new Date().toISOString(),
+      };
+      violations.push(violation);
 
-        // Emit alert event — best-effort
-        try {
-          const eventBus = require('./wsHub');
-          if (typeof eventBus.broadcast === 'function') {
-            eventBus.broadcast(`org:${orgId}`, 'geofence_violation', violation);
-          }
-        } catch (_err) {
-          // wsHub may not be running in test/task context — ignore
-        }
-
+      // affectedRows 1 = a new open violation; 2 = an open one refreshed.
+      const [result] = await db.query(
+        `INSERT INTO geofence_violations (organization_id, geofence_id, device_id, device_lat, device_lng)
+         VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE last_detected_at = NOW(), device_lat = VALUES(device_lat), device_lng = VALUES(device_lng)`,
+        [orgId, gf.id, device.id, device.latitude, device.longitude],
+      );
+      if (result && result.affectedRows === 1) {
+        opened++;
+        eventBus.emit('geofence.violation', { organizationId: orgId, violationId: result.insertId, ...violation });
         logger.info({ orgId, ...violation }, 'Geofence violation detected');
       }
     }
+
+    // Every device of this geofence that is back inside clears its open row.
+    const keepOpen = outside.length ? ` AND device_id NOT IN (${outside.map(() => '?').join(', ')})` : '';
+    const [clearResult] = await db.query(
+      `UPDATE geofence_violations SET cleared_at = NOW()
+        WHERE organization_id = ? AND geofence_id = ? AND cleared_at IS NULL${keepOpen}`,
+      [orgId, gf.id, ...outside],
+    );
+    cleared += (clearResult && clearResult.affectedRows) || 0;
   }
 
-  return { checked, violations };
+  return { checked, violations, opened, cleared };
 }
 
 module.exports = { evaluateAll, haversineMetres, pointInPolygon, isViolation };

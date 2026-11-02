@@ -2862,7 +2862,9 @@ proc: BEGIN
         AVG(rx_rate_mbps),       MIN(rx_rate_mbps),        MAX(rx_rate_mbps),
         COUNT(*)
     FROM snmp_metrics
-    WHERE polled_at >  v_from_ts
+    -- Half-open [from, to): a sample polled exactly at HH:00:00 belongs to the
+    -- hour it starts (DAL-09, migration 497).
+    WHERE polled_at >= v_from_ts
       AND polled_at <  v_to_ts
     GROUP BY
         device_id,
@@ -5254,8 +5256,8 @@ CREATE TABLE IF NOT EXISTS cfdi_documents (
     -- Issuer & receiver references
     organization_id         BIGINT UNSIGNED NOT NULL
                                 COMMENT 'Organization (ISP) that issued this CFDI',
-    client_id               BIGINT UNSIGNED NOT NULL
-                                COMMENT 'Client (receptor) for this CFDI',
+    client_id               BIGINT UNSIGNED NULL
+                                COMMENT 'Client (receptor) for this CFDI; NULL only for a factura global to PUBLICO EN GENERAL',
 
     -- SAT folio fiscal (UUID assigned by PAC after stamping)
     uuid                    CHAR(36)        NULL     UNIQUE
@@ -5296,6 +5298,12 @@ CREATE TABLE IF NOT EXISTS cfdi_documents (
                                 COMMENT 'Receiver regimen_fiscal captured at stamp time',
     receptor_cp             VARCHAR(5)      NULL
                                 COMMENT 'Receiver codigo_postal_fiscal captured at stamp time',
+    global_periodicidad     VARCHAR(2)      NULL
+                                COMMENT 'InformacionGlobal c_Periodicidad (01-05); NULL = not a global or derived from the date',
+    global_meses            VARCHAR(2)      NULL
+                                COMMENT 'InformacionGlobal c_Meses (01-12, or 13-18 for bimestral)',
+    global_anio             SMALLINT UNSIGNED NULL
+                                COMMENT 'InformacionGlobal Año',
 
     -- Amounts
     subtotal                DECIMAL(12, 2)  NOT NULL DEFAULT 0.00
@@ -9939,6 +9947,7 @@ CREATE TABLE IF NOT EXISTS chargebacks (
     id                        BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
     organization_id           BIGINT UNSIGNED  NULL,
     payment_id                BIGINT UNSIGNED  NULL,
+    payment_transaction_id    BIGINT UNSIGNED  NULL    COMMENT 'payment_transactions row the dispute was matched to (webhook-created chargebacks)',
     gateway                   VARCHAR(50)      NULL    COMMENT 'stripe/conekta/etc',
     gateway_dispute_id        VARCHAR(200)     NULL,
     amount                    DECIMAL(12,2)    NOT NULL,
@@ -9954,7 +9963,8 @@ CREATE TABLE IF NOT EXISTS chargebacks (
     PRIMARY KEY (id),
     KEY idx_chargebacks_organization_id (organization_id),
     KEY idx_chargebacks_payment_id (payment_id),
-    UNIQUE KEY uq_chargebacks_gateway_dispute_id (gateway_dispute_id),
+    KEY idx_chargebacks_payment_transaction_id (payment_transaction_id),
+    UNIQUE KEY uq_chargebacks_org_gateway_dispute (organization_id, gateway, gateway_dispute_id),
     KEY idx_chargebacks_status (status),
     KEY idx_chargebacks_deleted_at (deleted_at),
     CONSTRAINT fk_chargebacks_organization FOREIGN KEY (organization_id)
@@ -12811,6 +12821,36 @@ CREATE TABLE IF NOT EXISTS map_geofences (
   CONSTRAINT fk_map_geofences_organization FOREIGN KEY (organization_id)
     REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Table: geofence_violations (migration 498)
+-- Purpose: Devices found outside a geofence by the geofence_evaluation task,
+--          deduplicated until the device is back inside (NPR-09).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS geofence_violations (
+  id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  organization_id   BIGINT UNSIGNED NOT NULL,
+  geofence_id       BIGINT UNSIGNED NOT NULL,
+  device_id         BIGINT UNSIGNED NOT NULL,
+  device_lat        DECIMAL(10,7)   NULL COMMENT 'Position at the last evaluation that found the device outside',
+  device_lng        DECIMAL(10,7)   NULL,
+  first_detected_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_detected_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  cleared_at        DATETIME        NULL COMMENT 'First evaluation that found the device back inside; NULL while open',
+  open_flag         TINYINT(1) GENERATED ALWAYS AS (IF(cleared_at IS NULL, 1, NULL)) STORED
+                      COMMENT '1 while open, NULL once cleared: at most one open violation per geofence and device',
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_geofence_violations_open (geofence_id, device_id, open_flag),
+  KEY idx_geofence_violations_org (organization_id, cleared_at),
+  KEY idx_geofence_violations_device (device_id),
+  CONSTRAINT fk_geofence_violations_org FOREIGN KEY (organization_id)
+    REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_geofence_violations_geofence FOREIGN KEY (geofence_id)
+    REFERENCES map_geofences (id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_geofence_violations_device FOREIGN KEY (device_id)
+    REFERENCES devices (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Devices found outside a geofence, one open row per geofence and device until it clears (migration 498)';
 
 -- ---------------------------------------------------------------------------
 -- Table: map_infrastructure_points (migration 302 - S13.2)

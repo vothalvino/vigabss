@@ -22,6 +22,7 @@ jest.mock('web-push', () => ({
 }));
 
 const db = require('../src/config/database');
+const { mockTxConnection } = require('./fixtures/mockTxConnection');
 const portalServiceRequestService = require('../src/services/portalServiceRequestService');
 const portalPushService = require('../src/services/portalPushService');
 
@@ -212,21 +213,23 @@ describe('portalServiceRequestService.approveRequest() — plan_upgrade', () => 
       payload: JSON.stringify({ new_plan_id: 3, new_plan_name: 'Fiber Pro' }),
     };
 
+    // The plan change runs in one transaction (BIL-23); the connection's
+    // execute forwards to db.query, so the queue below stays in call order.
+    const conn = mockTxConnection(db);
     db.query
       .mockResolvedValueOnce([[req]])  // SELECT
       .mockResolvedValueOnce([[{ id: 3, name: 'Fiber Pro', price: '599.00' }]]) // plan still available (TNB-11)
-      .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE (set approved, from pending only)
-      .mockResolvedValueOnce([{}])     // UPDATE contracts SET plan_id
-      .mockResolvedValueOnce([{}])     // UPDATE status=completed
+      .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE pending -> completed (tx)
+      .mockResolvedValueOnce([{}])     // UPDATE contracts SET plan_id (tx)
       .mockResolvedValueOnce([[{ ...req, status: 'completed', approved_by: 2 }]]); // final SELECT
 
     const result = await portalServiceRequestService.approveRequest(20, 1, 2, 'Upgrade approved');
     expect(result.status).toBe('completed');
 
     // Verify contract plan_id was updated, in the approver's organization
-    const contractSql = db.query.mock.calls[3][0];
-    expect(contractSql).toMatch(/UPDATE contracts SET plan_id/);
-    expect(db.query.mock.calls[3][1]).toEqual([3, 8, 1]); // new_plan_id, contract, organization
+    const contractCall = conn.execute.mock.calls.find(([sql]) => /UPDATE contracts SET plan_id/.test(sql));
+    expect(contractCall[1]).toEqual([3, 8, 1]); // new_plan_id, contract, organization
+    expect(conn.commit).toHaveBeenCalledTimes(1);
   });
 });
 

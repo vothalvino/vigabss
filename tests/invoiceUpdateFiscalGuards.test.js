@@ -220,7 +220,7 @@ describe('the guard fires on a real CHANGE, not on field presence', () => {
     wireDb({ liveCfdi: true });
     // stored values are strings ('1000.00'); the client sends numbers
     const res = await request(app).patch('/api/v1/invoices/900')
-      .send({ subtotal: 1000.0, tax_amount: 160.0, total: 1160.0, status: 'paid' });
+      .send({ subtotal: 1000.0, tax_amount: 160.0, total: 1160.0 });
     expect(res.status).toBe(200);
   });
 

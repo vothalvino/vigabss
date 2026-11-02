@@ -1162,8 +1162,8 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
           || await require('../models/Organization').getCurrency(tx.organization_id);
         await db.query(
           `INSERT INTO chargebacks
-             (organization_id, payment_id, gateway, gateway_dispute_id, amount, currency, reason_code, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             (organization_id, payment_id, payment_transaction_id, gateway, gateway_dispute_id, amount, currency, reason_code, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON DUPLICATE KEY UPDATE
              status = IF(VALUES(status) = 'received', status, VALUES(status)),
              updated_at = NOW()`,
@@ -1172,13 +1172,16 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
             // chargebacks.payment_id is a payments.id. A disputed charge that was
             // never reconciled into a payment has none.
             tx.payment_id || null,
+            // The transaction the dispute was matched to is always known (WHK-14).
+            tx.id,
             provider,
             // The provider's dispute id, so created and closed land on one row;
             // the charge reference when the event carries none (Conekta).
             dispute?.id || gatewayRef,
             tx.amount,
             cbCurrency,
-            dispute?.reason || eventType,
+            // The provider's reason; never the event type, which is not one.
+            dispute?.reason || null,
             dispute?.outcome || 'received',
           ],
         );

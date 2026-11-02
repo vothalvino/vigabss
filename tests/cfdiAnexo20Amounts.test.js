@@ -8,6 +8,10 @@
 // =============================================================================
 
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
+// Data-pack GB (TNA-21) add nothing to the overage cases here.
+jest.mock('../src/services/dataPackService', () => ({
+  extraAllowanceGb: jest.fn(async () => ({ pack_gb: 0, rollover_gb: 0, total_gb: 0 })),
+}));
 
 const db = require('../src/config/database');
 const {

@@ -58,16 +58,21 @@ interface MemberBalance {
   client_id: number;
   name: string;
   is_primary: boolean;
-  balance: number;
-  currency: string;
+  /** null when the member holds several currencies (see balances). */
+  balance: number | null;
+  currency: string | null;
+  balances?: { currency: string; balance: number }[];
 }
 
 interface GroupBilling {
   group: { id: number; name: string; primary_client_id: number | null };
   members: MemberBalance[];
   open_invoices: { invoice_id: number; invoice_number: string; client_name: string; balance_due: number; currency: string }[];
-  group_balance: number;
-  group_currency: string;
+  /** null when members hold several currencies (see group_balances). */
+  group_balance: number | null;
+  group_currency: string | null;
+  group_balances?: { currency: string; balance: number }[];
+  group_mixed_currency?: boolean;
   payable_total: number;
 }
 
@@ -197,8 +202,8 @@ function PayGroupModal({ group, billing, onClose, onSaved }: {
         {result ? (
           <div>
             <div style={{ padding: 12, background: 'var(--bg-subtle, #f0fdf4)', borderRadius: 6, fontSize: '0.9rem' }}>
-              ✓ Applied {fmtMoney(result.allocated_total, billing.group_currency)} across {result.settled_invoices.length} invoice(s).
-              {result.unallocated_credit > 0 && <> Remaining {fmtMoney(result.unallocated_credit, billing.group_currency)} left as credit on the primary.</>}
+              ✓ Applied {fmtMoney(result.allocated_total, billing.group_currency ?? '')} across {result.settled_invoices.length} invoice(s).
+              {result.unallocated_credit > 0 && <> Remaining {fmtMoney(result.unallocated_credit, billing.group_currency ?? '')} left as credit on the primary.</>}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
               <button type="button" onClick={onClose} style={submitBtn}>Done</button>
@@ -207,7 +212,7 @@ function PayGroupModal({ group, billing, onClose, onSaved }: {
         ) : (
           <>
             <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
-              Group open balance: <strong>{fmtMoney(billing.payable_total, billing.group_currency)}</strong>
+              Group open balance: <strong>{fmtMoney(billing.payable_total, billing.group_currency ?? '')}</strong>
             </div>
             <label style={labelStyle}>Amount</label>
             <input style={inputStyle} type="number" min={0.01} step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
@@ -310,11 +315,18 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: '0.85rem' }}>
                 Group balance:{' '}
-                <strong style={{ color: billingQ.data.group_balance > 0.005 ? '#b91c1c' : '#15803d' }}>
-                  {fmtMoney(billingQ.data.group_balance, billingQ.data.group_currency)}
-                </strong>
+                {/* One figure per currency; never added across currencies (GQL-10). */}
+                {(billingQ.data.group_mixed_currency
+                  ? (billingQ.data.group_balances ?? [])
+                  : [{ currency: billingQ.data.group_currency ?? '', balance: billingQ.data.group_balance ?? 0 }]
+                ).map((b, i) => (
+                  <strong key={b.currency} style={{ color: b.balance > 0.005 ? '#b91c1c' : '#15803d', marginLeft: i ? 8 : 0 }}>
+                    {fmtMoney(b.balance, b.currency)}
+                  </strong>
+                ))}
               </span>
-              {canPay && billingQ.data.payable_total > 0.005 && (
+              {/* One payment settles one currency; the API refuses a mixed group. */}
+              {canPay && !billingQ.data.group_mixed_currency && billingQ.data.payable_total > 0.005 && (
                 <button type="button" style={{ ...submitBtn, padding: '5px 12px' }} onClick={() => { setActionError(''); setShowPay(true); }}>
                   Pay group balance
                 </button>
@@ -362,8 +374,10 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
                     <td style={{ padding: '6px 8px' }}>{m.email || '—'}</td>
                     <td style={{ padding: '6px 8px', textTransform: 'capitalize' }}>{m.status}</td>
                     {isShared && canViewBilling && (
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: bal && bal.balance > 0.005 ? '#b91c1c' : 'inherit' }}>
-                        {bal ? fmtMoney(bal.balance, bal.currency) : '—'}
+                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: bal && (bal.balances ?? []).some(b => b.balance > 0.005) ? '#b91c1c' : 'inherit' }}>
+                        {!bal ? '—' : bal.balance === null
+                          ? (bal.balances ?? []).map(b => fmtMoney(b.balance, b.currency)).join(' · ')
+                          : fmtMoney(bal.balance, bal.currency ?? '')}
                       </td>
                     )}
                     {canUpdate && (

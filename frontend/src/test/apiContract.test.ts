@@ -30,8 +30,8 @@ const SPEC_GAPS = new Set([
   'GET /dashboard/network-devices',
 ]);
 // Calls with no route at all (they 404 today), tracked for a fix.
-const KNOWN_MISSING_ROUTES = new Set([
-  'DELETE /wireless/ap-commands/{id}',
+const KNOWN_MISSING_ROUTES = new Set<string>([
+  // (none: the AP command Delete became a Cancel, NET-22)
 ]);
 
 function sourceFiles(dir: string): string[] {
