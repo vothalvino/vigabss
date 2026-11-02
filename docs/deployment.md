@@ -1164,6 +1164,11 @@ Available metrics:
 - `http_requests_total` — Total HTTP requests
 - `http_request_errors_total` — HTTP 4xx/5xx errors
 - `http_request_duration_seconds` — Request latency histogram
+- `graphql_errors_total` — GraphQL execution errors by `operation` and `code`.
+  GraphQL answers HTTP 200 even when a resolver fails, so these errors never
+  appear in `http_request_errors_total`. An `INTERNAL_SERVER_ERROR` is also
+  logged with its request id, user, organization and operation and sent to
+  Sentry; a `FORBIDDEN` is logged as a warning.
 
 ---
 

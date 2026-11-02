@@ -24,6 +24,7 @@ const { pubsub } = require('../services/pubsub');
 const { getNullableType, isListType, isNonNullType, NoSchemaIntrospectionCustomRule } = require('graphql');
 const { queryLimitsRule } = require('./limits');
 const { assertGraphqlPermission, graphqlHasPermission, gqlForbidden } = require('./authz');
+const { errorReportingPlugin, yogaLogger } = require('./observability');
 
 // ---------------------------------------------------------------------------
 // RBAC enforcement for GraphQL (parity with the REST requirePermission layer).
@@ -149,14 +150,16 @@ const yoga = createYoga({
   context: ({ req }) => ({
     user: req.user,
     orgId: req.orgId,
+    requestId: req.id,
     pubsub,
   }),
 
   // Express handles routing — this entry-point covers all sub-paths.
   graphqlEndpoint: '*',
 
-  // Disable the built-in logger; VigaBSS uses Pino.
-  logging: false,
+  // GQL-08: yoga logs through Pino. `false` made it silent, so the original
+  // of every masked 'Unexpected error.' was lost.
+  logging: yogaLogger,
 
   // SEC-25: no GraphiQL IDE (yoga enables it unless told otherwise), and no
   // yoga CORS handling — the app's own CORS policy applies to /graphql like
@@ -168,7 +171,7 @@ const yoga = createYoga({
   // purpose; yoga's default parsed them with busboy for any token holder.
   multipart: false,
 
-  plugins: [{
+  plugins: [errorReportingPlugin, {
     onValidate({ addValidationRule }) {
       addValidationRule(queryLimitsRule);
       // The schema is not published in production; the SPA never introspects.
