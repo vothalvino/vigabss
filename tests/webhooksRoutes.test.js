@@ -258,13 +258,14 @@ describe('Webhook routes — secret redaction', () => {
 
   test('restore revalidates a legacy saved-webhook destination before activation', async () => {
     const db = require('../src/config/database');
-    db.query.mockResolvedValueOnce([[
+    // The mount's admin IP allowlist lookup (SEC-26) finds no active entries.
+    db.query.mockImplementation(async (sql) => (/FROM admin_ip_allowlist/.test(sql) ? [[]] : [[
       {
         id: 7,
         organization_id: 1,
         url: 'http://169.254.169.254/latest/meta-data/',
       },
-    ]]);
+    ]]));
 
     const res = await request(app)
       .post('/api/v1/webhooks/7/restore')

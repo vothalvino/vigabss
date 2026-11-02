@@ -1053,11 +1053,22 @@ to match the configured list:
 | `/api/v1/scheduled-tasks` | Scheduled task management |
 | `/api/v1/import` | Bulk data import |
 | `/api/v1/billing` | Billing cycle management |
+| `/api/v1/api-tokens` | API token minting and revocation |
+| `/api/v1/payment-gateways` | Payment gateway credentials |
+| `/api/v1/webhooks`, `/api/v1/webhook-security` | Outbound webhooks and signing |
+| `/api/v1/integrations` | Third-party integration configuration |
+| `/api/v1/router-drivers` | Router driver credentials and command dispatch |
+| `/api/v1/network-security` | Firewall, DDoS, blackhole and DNS rules |
+| `/api/v1/firerelay` (except `/health`) | Relay nodes and tunnel commands |
+| `/api/v1/sso/:orgId/*/config`, `*/group-mappings` | SSO configuration (not the login flow) |
+
+`/2fa` and `/graphql` are not behind the allowlist. Entries may be IPv4 or IPv6
+addresses or CIDR blocks.
 
 ### Configuration
 
 The recommended flow is in the web GUI: open **Security & Access Control**, add
-trusted IPv4 addresses or CIDR blocks as inactive entries, then explicitly
+trusted IPv4 or IPv6 addresses or CIDR blocks as inactive entries, then explicitly
 activate an entry. VigaBSS refuses an activation or edit that would exclude the
 current browser IP. Deactivating the last active entry disables enforcement.
 
