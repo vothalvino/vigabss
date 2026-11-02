@@ -66,6 +66,56 @@ function noteAuditWriteFailure() {
   auditWriteFailures.inc();
 }
 
+// Billing, payment and PAC outcomes (BIL-32). Failures were only logged, or
+// not even that, so a broken gateway or PAC showed up as missing money days
+// later instead of as an alert.
+const billingInvoices = registry.counter({
+  name: 'billing_invoices_total',
+  help: 'Scheduled invoice generation per contract (result: generated, failed)',
+  labelNames: ['result'],
+});
+const billingEmails = registry.counter({
+  name: 'billing_emails_total',
+  help: 'Billing emails to clients (kind: invoice, suspension_warning, suspension_notice; result: sent, failed)',
+  labelNames: ['kind', 'result'],
+});
+const autopayCharges = registry.counter({
+  name: 'billing_autopay_charges_total',
+  help: 'Recurring charges of stored payment methods (result: charged, skipped, failed)',
+  labelNames: ['result'],
+});
+const paymentRetries = registry.counter({
+  name: 'billing_payment_retries_total',
+  help: 'Scheduled payment retries (result: succeeded, failed, exhausted, cancelled)',
+  labelNames: ['result'],
+});
+const paymentWebhooks = registry.counter({
+  name: 'payment_webhook_events_total',
+  help: 'Payment gateway webhook events (status: processed, ignored, duplicate, no_match, failed)',
+  labelNames: ['provider', 'status'],
+  maxSeries: 50,
+});
+const reconcileFailures = registry.counter({
+  name: 'payment_reconcile_failures_total',
+  help: 'Succeeded gateway transactions that could not be posted as a payment',
+});
+const pacErrors = registry.counter({
+  name: 'cfdi_pac_errors_total',
+  help: 'Failed PAC calls (operation: stamp, cancel, cancel_status)',
+  labelNames: ['provider', 'operation'],
+  maxSeries: 50,
+});
+
+const noteInvoiceRun = result => billingInvoices.inc({ result });
+const noteBillingEmail = (kind, result) => billingEmails.inc({ kind, result });
+const noteAutopayCharge = result => autopayCharges.inc({ result });
+const notePaymentRetry = result => paymentRetries.inc({ result });
+const notePaymentWebhook = (provider, status) => paymentWebhooks.inc({ provider, status });
+const noteReconcileFailure = () => reconcileFailures.inc();
+const notePacError = (provider, operation) => pacErrors.inc({ provider, operation });
+
 module.exports = {
   noteBackupSuccess, noteTaskRun, noteAuditWriteFailure, scheduledTaskRuns, auditWriteFailures,
+  noteInvoiceRun, noteBillingEmail, noteAutopayCharge, notePaymentRetry, notePaymentWebhook,
+  noteReconcileFailure, notePacError,
 };

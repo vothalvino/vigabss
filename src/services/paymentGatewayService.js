@@ -7,13 +7,14 @@
 // =============================================================================
 
 const crypto = require('crypto');
+const { notePaymentWebhook, noteReconcileFailure } = require('../utils/opsMetrics');
 const db = require('../config/database');
 const { creditAppliedSql } = require('../utils/invoiceBalance');
 const { URLSearchParams } = require('url');
 const { createCircuitBreaker } = require('../utils/circuitBreaker');
 const { decrypt, isConfigured: isEncryptionConfigured } = require('../utils/encryption');
 const logger = require('../utils/logger');
-const { PaymentGatewayError, ValidationError } = require('../utils/errors');
+const { PaymentGatewayError, ValidationError, AppError } = require('../utils/errors');
 
 // Default idempotency key TTL: 24 hours
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -975,7 +976,18 @@ function verifyConektaSignature(rawBody, digestHeader, publicKey) {
  *        one org's webhook can never reconcile another org's transaction.
  * @returns {object} { status, webhookEventId }
  */
-async function handleWebhookEvent({ provider, providerEventId, eventType, payload, organizationId }) {
+async function handleWebhookEvent(event) {
+  try {
+    const result = await processWebhookEvent(event);
+    notePaymentWebhook(event.provider, result?.status || 'processed');
+    return result;
+  } catch (err) {
+    notePaymentWebhook(event.provider, 'failed');
+    throw err;
+  }
+}
+
+async function processWebhookEvent({ provider, providerEventId, eventType, payload, organizationId }) {
   // Deduplication, scoped per-tenant (migration 417) via the org_dedup partition
   // (= organization_id, or 0 for the global env-var route). A gateway-scoped
   // event carries its owning org; two orgs sharing one provider account dedup
@@ -996,11 +1008,11 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
     // the provider's retry. Claim it atomically so two concurrent redeliveries
     // cannot both run. Anything else (processed/ignored/processing) is a true
     // duplicate.
-    if (existing[0].status !== 'failed') {
+    if (!['failed', 'no_match'].includes(existing[0].status)) {
       return { status: 'duplicate', webhookEventId: existing[0].id };
     }
     const [claim] = await db.query(
-      "UPDATE webhook_events SET status = 'processing', error_message = NULL WHERE id = ? AND status = 'failed'",
+      "UPDATE webhook_events SET status = 'processing', error_message = NULL WHERE id = ? AND status IN ('failed', 'no_match')",
       [existing[0].id],
     );
     if (!claim || claim.affectedRows !== 1) {
@@ -1084,7 +1096,9 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
 
     if (txRows.length === 0) {
       await db.query(
-        'UPDATE webhook_events SET status = \'failed\', error_message = \'No matching transaction found\', processed_at = NOW() WHERE id = ?',
+        // Not a processing error: the provider sent an event for a payment
+        // this install has no transaction for. A redelivery is retried.
+        'UPDATE webhook_events SET status = \'no_match\', error_message = \'No matching transaction found\', processed_at = NOW() WHERE id = ?',
         [webhookEventId],
       );
       return { status: 'no_match', webhookEventId };
@@ -1135,7 +1149,10 @@ async function handleWebhookEvent({ provider, providerEventId, eventType, payloa
     // any succeeded transaction still without a payment.
     let reconciliation = null;
     if (newStatus === 'succeeded') {
-      reconciliation = await reconcilePayment(tx.id);
+      reconciliation = await reconcilePayment(tx.id).catch((err) => {
+        noteReconcileFailure();
+        throw err;
+      });
 
       // Cancel any pending retries for this transaction
       try {
@@ -1618,6 +1635,69 @@ async function reverseRefund(transactionId) {
 }
 
 // ---------------------------------------------------------------------------
+// Admin views of gateway problems (BIL-32)
+// ---------------------------------------------------------------------------
+
+const WEBHOOK_EVENT_STATUSES = ['received', 'processing', 'processed', 'failed', 'ignored', 'no_match'];
+
+function pageOf({ page, limit }) {
+  const limitNum = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 25));
+  const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
+  return { limitNum, pageNum, offset: (pageNum - 1) * limitNum };
+}
+
+/**
+ * One organization's webhook events, newest first, without the raw payload.
+ * Events the install-wide route could not attribute (organization_id NULL)
+ * are not shown to any organization.
+ */
+async function listWebhookEvents(orgId, { status, provider, page, limit } = {}) {
+  const { limitNum, pageNum, offset } = pageOf({ page, limit });
+  const where = ['organization_id = ?'];
+  const params = [orgId];
+  if (status) {
+    if (!WEBHOOK_EVENT_STATUSES.includes(status)) throw new AppError(`status must be one of ${WEBHOOK_EVENT_STATUSES.join(', ')}`, 422, 'VALIDATION_ERROR');
+    where.push('status = ?');
+    params.push(status);
+  }
+  if (provider) {
+    where.push('provider = ?');
+    params.push(String(provider));
+  }
+  const [rows] = await db.query(
+    `SELECT id, provider, provider_event_id, event_type, status, error_message, transaction_id, processed_at, created_at
+       FROM webhook_events WHERE ${where.join(' AND ')}
+      ORDER BY id DESC LIMIT ${limitNum} OFFSET ${offset}`,
+    params,
+  );
+  const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM webhook_events WHERE ${where.join(' AND ')}`, params);
+  return { data: rows, meta: { total: Number(total), page: pageNum, limit: limitNum, totalPages: Math.ceil(Number(total) / limitNum) } };
+}
+
+/**
+ * Succeeded gateway transactions with no payment and no ledger credit: money
+ * the provider collected that no invoice shows (the reconcile sweep's
+ * candidates).
+ */
+async function listUnsettledTransactions(orgId, { page, limit } = {}) {
+  const { limitNum, pageNum, offset } = pageOf({ page, limit });
+  const unsettled = `pt.organization_id = ? AND pt.gateway_status = 'succeeded' AND pt.payment_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM client_balance_ledger l
+                         WHERE l.reference_type = 'payment_transaction' AND l.reference_id = pt.id
+                           AND l.entry_type = 'credit')`;
+  const [rows] = await db.query(
+    `SELECT pt.id, pt.payment_gateway_id, pt.client_id, pt.invoice_id, pt.gateway_reference_id,
+            pt.amount, pt.currency, pt.created_at, pt.updated_at
+       FROM payment_transactions pt
+      WHERE ${unsettled}
+      ORDER BY pt.id DESC LIMIT ${limitNum} OFFSET ${offset}`,
+    [orgId],
+  );
+  const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM payment_transactions pt WHERE ${unsettled}`, [orgId]);
+  return { data: rows, meta: { total: Number(total), page: pageNum, limit: limitNum, totalPages: Math.ceil(Number(total) / limitNum) } };
+}
+
+// ---------------------------------------------------------------------------
 // Reconciliation retry sweep (scheduled task reconcile_gateway_payments)
 // ---------------------------------------------------------------------------
 
@@ -1649,6 +1729,8 @@ async function reconcileOutstandingForOrganization(orgId, limit = RECONCILE_SWEE
     } catch (err) {
       summary.failed += 1;
       summary.failures.push({ transaction_id: id, error: err.message });
+      noteReconcileFailure();
+      logger.warn({ err, transactionId: id }, 'Gateway transaction could not be reconciled');
     }
   }
   return summary;
@@ -1733,6 +1815,8 @@ module.exports = {
   parseConektaPublicKey,
   verifyConektaSignature,
   handleWebhookEvent,
+  listWebhookEvents,
+  listUnsettledTransactions,
   isAllowedGatewayTransition,
   resolveGatewayPaymentMethod,
   reconcilePayment,

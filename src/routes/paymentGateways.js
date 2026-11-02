@@ -11,6 +11,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createPaymentGateway, updatePaymentGateway } = require('../middleware/schemas/paymentGateways');
 const { sealSecretFields } = require('../utils/sealSecrets');
+const paymentGatewayService = require('../services/paymentGatewayService');
 
 const router = Router();
 
@@ -59,6 +60,19 @@ router.use(authenticate);
 router.use(orgScope);
 
 router.get('/', requirePermission('payment_gateways.view'), ctrl.list);
+
+// Gateway problems an admin can act on (BIL-32). Before /:id.
+router.get('/webhook-events', requirePermission('payment_gateways.view'), async (req, res, next) => {
+  try {
+    res.json(await paymentGatewayService.listWebhookEvents(req.orgId, req.query));
+  } catch (err) { next(err); }
+});
+router.get('/unsettled-transactions', requirePermission('payment_gateways.view'), async (req, res, next) => {
+  try {
+    res.json(await paymentGatewayService.listUnsettledTransactions(req.orgId, req.query));
+  } catch (err) { next(err); }
+});
+
 router.get('/:id', requirePermission('payment_gateways.view'), ctrl.get);
 // secret_key_encrypted is NOT NULL; a gateway with no secret (manual) stores ''.
 const sealGatewaySecrets = sealSecretFields(

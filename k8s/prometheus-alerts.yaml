@@ -342,3 +342,67 @@ spec:
               DB_ACQUIRE_TIMEOUT_MS, or because DB_QUEUE_LIMIT requests were
               already waiting.
             runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/deployment.md"
+
+        - alert: VigaBSS_InvoiceGenerationFailures
+          expr: |
+            increase(billing_invoices_total{result="failed"}[1h]) > 0
+          labels:
+            severity: critical
+          annotations:
+            summary: "VigaBSS could not generate some scheduled invoices"
+            description: >
+              The billing task failed for at least one contract in the last
+              hour. The task result and the app log ('Scheduled invoice
+              generation failed for contract') list the contracts and errors.
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
+
+        - alert: VigaBSS_BillingEmailFailures
+          expr: |
+            sum by (kind) (increase(billing_emails_total{result="failed"}[1h])) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "VigaBSS billing emails are not being delivered"
+            description: >
+              Invoice or suspension emails failed in the last hour. Check the
+              organization's email settings and the email log.
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
+
+        - alert: VigaBSS_PaymentWebhookFailures
+          expr: |
+            sum by (provider) (increase(payment_webhook_events_total{status="failed"}[15m])) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "VigaBSS could not process payment gateway webhooks"
+            description: >
+              Webhook events failed (the provider redelivers them). A rise in
+              status="no_match" instead means events for payments this install
+              has no transaction for.
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
+
+        - alert: VigaBSS_PaymentReconcileFailures
+          expr: |
+            increase(payment_reconcile_failures_total[1h]) > 0
+          labels:
+            severity: critical
+          annotations:
+            summary: "VigaBSS collected payments it could not post"
+            description: >
+              A gateway transaction succeeded but no payment was recorded for
+              it. reconcile_gateway_payments retries them; the app log names
+              the transactions.
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
+
+        - alert: VigaBSS_PacErrors
+          expr: |
+            sum by (provider, operation) (increase(cfdi_pac_errors_total[15m])) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "VigaBSS PAC calls are failing"
+            description: >
+              Stamping or cancelling CFDI through the PAC failed in the last 15
+              minutes. Check the PAC's status and the organization's PAC
+              credentials.
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"

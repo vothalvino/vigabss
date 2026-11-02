@@ -1169,6 +1169,19 @@ Available metrics:
   appear in `http_request_errors_total`. An `INTERNAL_SERVER_ERROR` is also
   logged with its request id, user, organization and operation and sent to
   Sentry; a `FORBIDDEN` is logged as a warning.
+- Billing and payments: `billing_invoices_total{result}` (scheduled invoice
+  generation per contract), `billing_emails_total{kind,result}` (invoice and
+  suspension emails; a delivery the transport refused counts as `failed`),
+  `billing_autopay_charges_total{result}`, `billing_payment_retries_total{result}`,
+  `payment_webhook_events_total{provider,status}` (`no_match` is an event for a
+  payment this install has no transaction for, `failed` a processing error),
+  `payment_reconcile_failures_total` and `cfdi_pac_errors_total{provider,operation}`.
+  The `VigaBSS_InvoiceGenerationFailures`, `VigaBSS_BillingEmailFailures`,
+  `VigaBSS_PaymentWebhookFailures`, `VigaBSS_PaymentReconcileFailures` and
+  `VigaBSS_PacErrors` alerts fire on any failure. `GET
+  /payment-gateways/webhook-events` and `GET
+  /payment-gateways/unsettled-transactions` list the events and the collected
+  payments that no invoice shows yet.
 
 ---
 

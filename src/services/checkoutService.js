@@ -6,6 +6,7 @@
 // =============================================================================
 
 const crypto = require('crypto');
+const { noteAutopayCharge } = require('../utils/opsMetrics');
 const db = require('../config/database');
 const { creditAppliedSql } = require('../utils/invoiceBalance');
 
@@ -505,8 +506,10 @@ async function processRecurringCharges(organizationId) {
       if (result.charged) charged++;
       else if (result.skipped) skipped++;
       else failed++;
+      noteAutopayCharge(result.charged ? 'charged' : result.skipped ? 'skipped' : 'failed');
     } catch (err) {
       failed++;
+      noteAutopayCharge('failed');
       logger.error({ err, profileId: profile.id }, 'Recurring charge failed');
     }
   }

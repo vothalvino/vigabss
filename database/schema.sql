@@ -7220,7 +7220,7 @@ CREATE TABLE IF NOT EXISTS webhook_events (
     provider_event_id   VARCHAR(255)      NOT NULL                    COMMENT 'Unique event ID assigned by the provider',
     event_type          VARCHAR(100)      NOT NULL                    COMMENT 'Provider event type, e.g. payment_intent.succeeded',
     payload             JSON              NOT NULL                    COMMENT 'Full raw event payload from the provider',
-    status              ENUM('received', 'processing', 'processed', 'failed', 'ignored')
+    status              ENUM('received', 'processing', 'processed', 'failed', 'ignored', 'no_match')
                                           NOT NULL DEFAULT 'received' COMMENT 'Processing status',
     error_message       TEXT              NULL                        COMMENT 'Error details if processing failed',
     transaction_id      BIGINT UNSIGNED   NULL                        COMMENT 'Linked payment_transactions record after reconciliation',

@@ -10,6 +10,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { notePaymentRetry } = require('../utils/opsMetrics');
 const { creditAppliedSql } = require('../utils/invoiceBalance');
 const paymentGatewayService = require('./paymentGatewayService');
 const logger = require('../utils/logger');
@@ -139,8 +140,10 @@ async function processPendingRetries(organizationId = null) {
       else if (result.status === 'exhausted') exhausted++;
       else if (result.status === 'cancelled') cancelled++;
       else failed++;
+      notePaymentRetry(['succeeded', 'exhausted', 'cancelled'].includes(result.status) ? result.status : 'failed');
     } catch (err) {
       failed++;
+      notePaymentRetry('failed');
       logger.error({ err, retryId: retry.id }, 'Unexpected error processing payment retry');
     }
   }
