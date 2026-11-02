@@ -6,9 +6,31 @@
 // Mounted at /communication in app.js.
 // =============================================================================
 
+const crypto = require('crypto');
 const { Router } = require('express');
 const campaignService = require('../services/campaignService');
 const logger = require('../utils/logger');
+const { verifyTwilioSignature } = require('../services/whatsappWebhookService');
+
+// Who may report a delivery outcome (TNA-23). A Twilio StatusCallback proves
+// itself with X-Twilio-Signature (TWILIO_AUTH_TOKEN); any other caller sends
+// WEBHOOK_DELIVERY_SECRET, compared in constant time. With neither configured
+// the endpoint is closed outside development and test, instead of open to any
+// unauthenticated POST.
+function authenticateDeliveryCallback(req) {
+  if (req.headers['x-twilio-signature'] && process.env.TWILIO_AUTH_TOKEN) {
+    return verifyTwilioSignature(req, process.env.TWILIO_AUTH_TOKEN) ? 'ok' : 'denied';
+  }
+  const secret = process.env.WEBHOOK_DELIVERY_SECRET;
+  if (!secret) {
+    return ['development', 'test'].includes(process.env.NODE_ENV) ? 'ok' : 'unconfigured';
+  }
+  const provided = req.headers['x-webhook-secret'] || req.headers['x-delivery-secret'];
+  if (typeof provided !== 'string') return 'denied';
+  const a = Buffer.from(provided);
+  const b = Buffer.from(secret);
+  return a.length === b.length && crypto.timingSafeEqual(a, b) ? 'ok' : 'denied';
+}
 
 const router = Router();
 
@@ -59,14 +81,14 @@ const TWILIO_STATUS_MAP = {
  *         description: Invalid webhook secret
  */
 router.post('/delivery-webhook', async (req, res) => {
-  // Verify the webhook secret when configured
-  const webhookSecret = process.env.WEBHOOK_DELIVERY_SECRET;
-  if (webhookSecret) {
-    const provided = req.headers['x-webhook-secret'] || req.headers['x-delivery-secret'];
-    if (provided !== webhookSecret) {
-      logger.warn({ ip: req.ip }, 'Delivery webhook: invalid secret');
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+  const auth = authenticateDeliveryCallback(req);
+  if (auth === 'unconfigured') {
+    logger.warn('Delivery webhook refused: set WEBHOOK_DELIVERY_SECRET (or TWILIO_AUTH_TOKEN for Twilio callbacks)');
+    return res.status(503).json({ error: 'Delivery webhook is not configured' });
+  }
+  if (auth !== 'ok') {
+    logger.warn({ ip: req.ip }, 'Delivery webhook: invalid secret or signature');
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
@@ -93,8 +115,8 @@ router.post('/delivery-webhook', async (req, res) => {
     res.status(200).json(result);
   } catch (err) {
     logger.error({ err }, 'Delivery webhook processing error');
-    // Return 200 to avoid provider retry storms
-    res.status(200).json({ updated: false, error: err.message });
+    // Return 200 to avoid provider retry storms; never echo internals.
+    res.status(200).json({ updated: false, error: 'processing_failed' });
   }
 });
 
