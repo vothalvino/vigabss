@@ -179,22 +179,56 @@ async function getTenantConnectionConfig(orgId) {
 }
 
 /**
- * Close and remove a single tenant pool from the cache.
+ * Count a pool's checked-out connections (DB-11). pool.end() closes every
+ * connection, borrowed ones included, so the next command on a connection a
+ * transaction or job was still holding failed with "Can't add new command
+ * when connection is in closed state". A retired pool is ended only once its
+ * last borrowed connection comes back.
+ */
+function trackBorrows(entry) {
+  entry.borrowed = 0;
+  entry.retired = false;
+  entry.pool.on('acquire', () => {
+    entry.borrowed += 1;
+    entry.lastUsed = Date.now();
+  });
+  entry.pool.on('release', () => {
+    entry.borrowed = Math.max(0, entry.borrowed - 1);
+    entry.lastUsed = Date.now();
+    if (entry.retired && entry.borrowed === 0) endTenantPool(entry);
+  });
+  return entry;
+}
+
+function endTenantPool(entry) {
+  if (entry.ended) return entry.ending;
+  entry.ended = true;
+  entry.ending = Promise.resolve().then(() => entry.pool.end()).catch(() => {});
+  return entry.ending;
+}
+
+/**
+ * Close and remove a single tenant pool from the cache. A pool with
+ * connections still checked out is retired and ends when they return.
  * Pool shutdown errors are swallowed so eviction never rejects the caller.
  */
 function evictTenantPool(key, entry) {
-  tenantPoolCache.delete(key);
-  Promise.resolve()
-    .then(() => entry.pool.end())
-    .catch(() => {});
+  if (tenantPoolCache.get(key) === entry) tenantPoolCache.delete(key);
+  if (entry.borrowed > 0) {
+    entry.retired = true;
+    return Promise.resolve();
+  }
+  return endTenantPool(entry);
 }
 
 /**
  * Close any tenant pools that have been idle longer than TENANT_POOL_IDLE_MS.
+ * A pool with a borrowed connection is in use, however old its last query.
  */
 function evictIdleTenantPools(now = Date.now()) {
   if (TENANT_POOL_IDLE_MS <= 0) return;
   for (const [key, entry] of tenantPoolCache) {
+    if (entry.borrowed > 0) continue;
     if (now - entry.lastUsed > TENANT_POOL_IDLE_MS) evictTenantPool(key, entry);
   }
 }
@@ -222,7 +256,7 @@ async function getTenantPool(orgId) {
     tenantPoolCache.delete(key);
   } else {
     if (entry) evictTenantPool(key, entry);
-    entry = {
+    entry = trackBorrows({
       pool: mysql.createPool({
         ...config,
         charset: 'utf8mb4',
@@ -237,7 +271,7 @@ async function getTenantPool(orgId) {
       generation: snapshot.generation,
       fingerprint: snapshot.fingerprint,
       lastUsed: now,
-    };
+    });
   }
   entry.lastUsed = now;
   tenantPoolCache.set(key, entry);
@@ -265,8 +299,7 @@ async function invalidateTenantDbConfig(orgId) {
   const key = String(orgId);
   tenantConfigGenerations.set(key, tenantConfigGeneration(key) + 1);
   const entry = tenantPoolCache.get(key);
-  tenantPoolCache.delete(key);
-  if (entry) await entry.pool.end();
+  if (entry) await evictTenantPool(key, entry);
 }
 
 async function testTenantConnection(connectionConfig) {
