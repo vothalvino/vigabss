@@ -1,5 +1,5 @@
 # ── Stage 1: build the React frontend ─────────────────────────────────────────
-FROM node:24-bookworm-slim AS frontend-build
+FROM node:24.22.2-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS frontend-build
 
 WORKDIR /app
 
@@ -30,7 +30,7 @@ RUN NODE_OPTIONS="--max-old-space-size=${FRONTEND_BUILD_HEAP_MB}" \
 # ── Test stage (docker-compose.test.yml only) ─────────────────────────────────
 # Development dependencies plus a MySQL client for the SQL suites. Only the
 # test compose builds this target; the default build is the last stage below.
-FROM node:24-bookworm-slim AS test
+FROM node:24.22.2-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS test
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends default-mysql-client \
@@ -46,7 +46,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # ── Stage 2: production API server ────────────────────────────────────────────
-FROM node:24-bookworm-slim
+FROM node:24.22.2-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c
 
 # default-mysql-client provides mysqldump/mysql (MariaDB client — dumps and
 # restores MySQL 8.x fine, and unlike Oracle's mysqldump needs no GTID
@@ -72,12 +72,14 @@ RUN pnpm install --frozen-lockfile --prod \
   && corepack disable \
   && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
+# Code, node_modules and the SPA stay root-owned and read-only to the runtime
+# user: a `chown -R /app` duplicated them into another layer and let code
+# running as fireisp rewrite itself, which persists across restarts of the
+# same container (OPS-25). Only /app/storage below is writable.
 COPY . .
 
 # Copy the compiled React SPA into the location the Express server expects
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
-
-RUN chown -R fireisp:fireisp /app
 
 # Uploads land in /app/storage, which production mounts as a named Docker volume.
 # Docker initialises a named volume from the image's mountpoint, so the directory
@@ -117,6 +119,6 @@ EXPOSE 1812/udp 1813/udp
 EXPOSE 51820/udp 51821/udp
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
+  CMD node -e "require('http').get('http://localhost:3000/health/live',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
 
 CMD ["node", "src/server.js"]
