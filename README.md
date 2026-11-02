@@ -1060,7 +1060,7 @@ Settings and behaviour an operator needs to know, in one place:
 - **TR-069 ACS.** Every CWMP message authenticates with HTTP Basic. CPEs without their own credentials use the ACS-wide `ACS_USERNAME` / `ACS_PASSWORD`; auto-registration is capped per source IP (`ACS_AUTO_REGISTRATIONS_PER_HOUR`, default 30).
 - **RADIUS.** Suspending, terminating or cancelling a subscriber removes their `radcheck`/`radreply`/`radusergroup` rows for external FreeRADIUS. `Mikrotik-Rate-Limit` and queue limits are sent upload-first (rx/tx from the router's side); a hand-typed `rate_limit_override` is sent as written.
 - **CFDI amounts.** Amounts are written at the precision they were computed with, and a document whose amounts fall outside the Anexo 20 limits is refused before it reaches the PAC, naming the line and the allowed range.
-- **Deploys.** `redeploy` verifies the image signature with cosign and starts the image by digest (`VIGABSS_VERIFY_SIGNATURE`, docs/deployment.md), and pins every third-party image by version and digest. Uploads up to 25 MB pass nginx and the Kubernetes ingress.
+- **Deploys.** `install.sh` and `redeploy` follow the newest release unless `VIGABSS_CHANNEL=main` is set in `.env.prod` (CHANGELOG.md). `redeploy` verifies the image signature with cosign and starts the image by digest (`VIGABSS_VERIFY_SIGNATURE`, docs/deployment.md), and pins every third-party image by version and digest. Uploads up to 25 MB pass nginx and the Kubernetes ingress.
 - **Kubernetes.** TLS, the NetworkPolicy namespaces, Pod Security and the cosign policy are described in docs/deployment.md (Helm → secure defaults).
 
 ### Venta al Público en General (Factura Pública)

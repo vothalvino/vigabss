@@ -132,6 +132,17 @@ then redeploy any time, from any directory:
 sudo redeploy
 ```
 
+`redeploy` (and `install.sh`) follow a channel, set by `VIGABSS_CHANNEL` in
+`.env.prod`:
+
+- `release` (the default): the newest `v*` release tag and its published image
+  (`ghcr.io/vothalvino/vigabss:<version>`). Until a release is tagged, this
+  follows `main`.
+- `main`: the head of `main` and the image CI published for that commit.
+
+Set it in `.env.prod`, not as a `VIGABSS_CHANNEL=main sudo redeploy` prefix,
+which `sudo` drops. CI publishes an image only after every test job passed.
+
 > **Why a wrapper and not `install -m 0755 …`?** A copy goes stale the moment
 > you `git pull`: you keep running the old script and get the old behaviour with
 > nothing to indicate it. The wrapper always executes the version that shipped
