@@ -82085,6 +82085,9 @@
               },
               "timeline_current": {
                 "type": "boolean"
+              },
+              "stale_open_sessions": {
+                "type": "integer"
               }
             }
           },

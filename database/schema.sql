@@ -8006,6 +8006,24 @@ SELECT NULL,
  );
 
 -- ---------------------------------------------------------------------------
+-- Seed: close sessions whose Stop was lost (migration 503, REG-10)
+-- Requires the matching case in src/services/taskRunner.js.
+-- ---------------------------------------------------------------------------
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, description, cron_expression, is_enabled, priority)
+SELECT NULL,
+       'close_stale_sessions',
+       'Close RADIUS sessions with no accounting for longer than the liveness window at their last real accounting',
+       '*/10 * * * *',
+       TRUE,
+       'normal'
+  FROM DUAL
+ WHERE NOT EXISTS (
+   SELECT 1 FROM scheduled_tasks
+    WHERE task_name = 'close_stale_sessions' AND organization_id IS NULL
+ );
+
+-- ---------------------------------------------------------------------------
 -- Seed: payment retry scheduled task (migration 154)
 -- ---------------------------------------------------------------------------
 INSERT IGNORE INTO scheduled_tasks

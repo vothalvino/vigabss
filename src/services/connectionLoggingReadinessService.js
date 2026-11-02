@@ -158,6 +158,16 @@ async function getReadiness(organizationId, { includeCgnat = true } = {}) {
        AND event_name = 'evt_subscriber_logging_partition_maintenance' AND status = 'ENABLED') AS partition_event_enabled,
       @@event_scheduler AS event_scheduler_status FROM information_schema.PARTITIONS
       WHERE table_schema = DATABASE() AND table_name = 'radius_accounting_events'`),
+    // Open sessions silent beyond the liveness window. close_stale_sessions
+    // closes them every 10 minutes, so a count that stays up means the task
+    // is not running (REG-10).
+    db.query(`SELECT COUNT(*) AS total FROM connection_logs stale_session
+      WHERE stale_session.organization_id = ?
+        AND stale_session.event_type IN ('start','interim-update')
+        AND COALESCE(stale_session.last_accounting_received_at,
+          stale_session.last_accounting_at, stale_session.event_at)
+          < DATE_SUB(NOW(), INTERVAL ${positiveEnv('RADIUS_SESSION_LIVENESS_MINUTES', 60, 1440)} MINUTE)`,
+    [organizationId]),
   ]);
 
   let exporter = {}; let event = {}; let binding = {}; let holds = {};
@@ -245,13 +255,15 @@ async function getReadiness(organizationId, { includeCgnat = true } = {}) {
     exporter.active_cgnat_pools = Number(cgnatResults[6][0]?.[0]?.active_cgnat_pools || 0);
   }
 
-  const [nasResult, contractResult, sessionResult, projectionResult, legacyResult, partitionResult] = baseQueries;
+  const [nasResult, contractResult, sessionResult, projectionResult, legacyResult, partitionResult,
+    staleResult] = baseQueries;
   const nasRow = nasResult[0]?.[0] || {};
   const contractRow = contractResult[0]?.[0] || {};
   const sessionRow = sessionResult[0]?.[0] || {};
   const projectionRow = projectionResult[0]?.[0] || {};
   const legacyRow = legacyResult[0]?.[0] || {};
   const partitionRow = partitionResult[0]?.[0] || {};
+  const staleOpenSessions = Number(staleResult[0]?.[0]?.total || 0);
   const activeNas = Number(nasRow.total || 0);
   const activeContracts = Number(contractRow.total || 0);
   const lastSession = projectionRow.last_received_at || sessionRow.last_received_at;
@@ -327,6 +339,7 @@ async function getReadiness(organizationId, { includeCgnat = true } = {}) {
       direct_public_attribution_ready: sessionReady,
       last_projection_at: isoOrNull(projectionRow.last_projection_at),
       timeline_current: sessionTimelineCurrent,
+      stale_open_sessions: staleOpenSessions,
     },
     cgnat_attribution: includeCgnat ? {
       ready: cgnatReady, configured: cgnatConfigured,
@@ -381,6 +394,7 @@ async function getReadiness(organizationId, { includeCgnat = true } = {}) {
       'IP attribution stores no destination address, URL, content, packet payload, or browsing history.',
       'CGNAT v1 supports TCP/UDP endpoint-independent public tuples only; destination-dependent NAT is unsupported.',
       'CGNAT v1 has no standalone heartbeat: a quiet exporter or long-lived port block is unavailable after the last certain allocate/release evidence horizon.',
+      ...(staleOpenSessions ? ['Open sessions silent beyond the liveness window are waiting for the close_stale_sessions task; check that the scheduler is running.'] : []),
       ...(staleOpen ? ['Stale open CGNAT allocations require reconciliation and are never purged automatically.'] : []),
     ],
   };

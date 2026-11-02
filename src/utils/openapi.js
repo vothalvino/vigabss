@@ -3884,6 +3884,7 @@ function connectionLoggingReadinessSchema() {
           direct_public_attribution_ready: { type: 'boolean' },
           last_projection_at: nullableString('date-time'),
           timeline_current: { type: 'boolean' },
+          stale_open_sessions: { type: 'integer' },
         } },
       cgnat_attribution: { oneOf: [
         { type: 'object', additionalProperties: false, required: ['authorized', 'status'],

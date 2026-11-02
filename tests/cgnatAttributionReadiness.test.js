@@ -88,6 +88,7 @@ function readinessDatabase(overrides = {}) {
     requiredTokens: [{ id: 7, collector_api_token_id: 99 }],
     overlap: { overlapping_pairs: 0 },
     activePools: { active_cgnat_pools: 1 },
+    staleSessions: { total: 0 },
     ...overrides,
   };
 
@@ -104,6 +105,7 @@ function readinessDatabase(overrides = {}) {
       return [[state.legacy]];
     }
     if (/FROM information_schema\.PARTITIONS/.test(sql)) return [[state.partitions]];
+    if (/FROM connection_logs stale_session/.test(sql)) return [[state.staleSessions]];
     if (/COUNT\(CASE WHEN config\.is_required/.test(sql)) return [[state.exporter]];
     if (/FROM cgnat_binding_events WHERE organization_id/.test(sql)) return [[state.events]];
     if (/FROM cgnat_attribution_bindings WHERE organization_id/.test(sql)) {
@@ -139,6 +141,18 @@ beforeEach(() => {
 });
 
 describe('privacy-minimal attribution readiness', () => {
+  test('reports open sessions silent beyond the liveness window (REG-10)', async () => {
+    readinessDatabase({ staleSessions: { total: 4 } });
+
+    const result = await getReadiness(10, { includeCgnat: false });
+
+    expect(result.session_logger.stale_open_sessions).toBe(4);
+    expect(result.caveats.some(caveat => /close_stale_sessions/.test(caveat))).toBe(true);
+    const staleCall = db.query.mock.calls.find(([sql]) => /FROM connection_logs stale_session/.test(sql));
+    expect(staleCall[0]).toMatch(/INTERVAL 60 MINUTE/);
+    expect(staleCall[1]).toEqual([10]);
+  });
+
   test('treats a quiet tenant with recent lifecycle evidence and zero active sessions consistently', async () => {
     readinessDatabase();
 
