@@ -815,14 +815,17 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
   describe('PUT /api/facturas-publicas/:id', () => {
     test('success — updates a factura', async () => {
       mockAuthUser();
+      // Only the period is editable; totals and status come from stamping (BIL-24).
       db.query
+        .mockResolvedValueOnce([[{ id: 1, status: 'draft', cfdi_document_id: null }]]) // findFacturaOrFail
+        .mockResolvedValueOnce([[{ periodicidad: '04', meses: '09', anio: 2026 }]])     // current period
         .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([[{ id: 1, total: '300.00' }]]);
+        .mockResolvedValueOnce([[{ id: 1, periodicidad: '04', meses: '10', anio: 2026 }]]);
 
       const res = await request(app)
         .put('/api/facturas-publicas/1')
         .set('Authorization', `Bearer ${authToken}`)
-        .send({ total: 300 });
+        .send({ meses: '10' });
 
       expect(res.status).toBe(200);
     });

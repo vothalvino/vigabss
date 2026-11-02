@@ -23,6 +23,7 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const config = require('../src/config');
 const db = require('../src/config/database');
+const { mockTxConnection } = require('./fixtures/mockTxConnection');
 const User = require('../src/models/User');
 const service = require('../src/services/portalServiceRequestService');
 const app = require('../src/app');
@@ -99,14 +100,18 @@ describe('plan upgrades', () => {
   });
 
   test('a second, concurrent approval does not run the action again', async () => {
+    // A plan change claims the request (pending -> completed) inside its
+    // transaction; execute forwards to the db.query dispatcher (BIL-23).
+    const conn = mockTxConnection(db);
     strictDb((sql) => {
       if (/FROM portal_service_requests WHERE id/.test(sql)) return [[{ ...PENDING, request_type: 'plan_upgrade', payload: '{"new_plan_id":3}' }]];
       if (/FROM plans/.test(sql)) return [[{ id: 3 }]];
-      if (/SET status = 'approved'/.test(sql)) return [{ affectedRows: 0 }]; // the other approval won
+      if (/SET status = 'completed', approved_by/.test(sql)) return [{ affectedRows: 0 }]; // the other approval won
       return [{ affectedRows: 1 }];
     });
     await expect(service.approveRequest(7, 1, 2, null)).rejects.toMatchObject({ statusCode: 422 });
     expect(db.query.mock.calls.some(([sql]) => /UPDATE contracts/.test(sql))).toBe(false);
+    expect(conn.commit).not.toHaveBeenCalled();
   });
 });
 

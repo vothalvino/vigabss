@@ -287,6 +287,36 @@ describe('CSD upload (real fixture, parsed server-side)', () => {
     expect(res.status).toBe(409);
   });
 
+  // CFD-10: the pair-and-passphrase check alone accepted an e.firma, which
+  // then became the active certificate and failed every stamp.
+  test.each([
+    ['an e.firma (FIEL)', { is_csd: false }, 'CSD_IS_FIEL'],
+    ['a certificate not valid yet', { valid_from: new Date(Date.now() + 5 * 86400000) }, 'CSD_NOT_YET_VALID'],
+  ])('422 for %s, and nothing is stored', async (_label, override, code) => {
+    wireUploadDb();
+    const sealService = require('../src/services/cfdiSealService');
+    const real = sealService.csdStorageMaterial;
+    const spy = jest.spyOn(sealService, 'csdStorageMaterial').mockImplementation((...a) => {
+      const m = real(...a);
+      return { ...m, info: { ...m.info, ...override } };
+    });
+    const res = await request(app)
+      .post('/api/v1/csd-certificates')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Org-Id', '1')
+      .send({ cer_b64: CER_B64, key_b64: KEY_B64, passphrase: '12345678a' });
+    spy.mockRestore();
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe(code);
+    expect(db.query.mock.calls.some(c => /INSERT INTO csd_certificates/.test(c[0]))).toBe(false);
+  });
+
+  test('the real SAT test CSD is recognised as a CSD', () => {
+    const { csdStorageMaterial } = require('../src/services/cfdiSealService');
+    const m = csdStorageMaterial(Buffer.from(CER_B64, 'base64'), Buffer.from(KEY_B64, 'base64'), '12345678a');
+    expect(m.info.is_csd).toBe(true);
+  });
+
   test('a second certificate stays inactive until explicitly activated', async () => {
     wireUploadDb({ actives: [{ id: 5 }] });
     const res = await request(app)
@@ -348,6 +378,24 @@ describe('CSD activation (zero-downtime renewal)', () => {
     expect(conn.execute.mock.calls[0][0]).toContain('is_active = 0');
     expect(conn.execute.mock.calls[1][0]).toContain('is_active = 1');
     expect(conn.commit).toHaveBeenCalled();
+  });
+
+  test('422 CSD_NOT_YET_VALID when activating a certificate before its valid_from', async () => {
+    db.query.mockImplementation(async (sql) => {
+      const principalResult = principalQueryResult(sql);
+      if (principalResult) return principalResult;
+      if (/FROM organizations/.test(sql)) return [[{ locale: 'MX' }]];
+      if (/FROM csd_certificates WHERE id/.test(sql)) {
+        return [[{ id: 9, status: 'active', valid_from: futureDate(10), valid_to: futureDate(300) }]];
+      }
+      return [[]];
+    });
+    const res = await request(app)
+      .post('/api/v1/csd-certificates/9/activate')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Org-Id', '1');
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('CSD_NOT_YET_VALID');
   });
 
   test('422 CSD_NOT_ACTIVATABLE for an expired certificate', async () => {

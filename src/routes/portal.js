@@ -799,7 +799,7 @@ router.get('/usage/allowance', async (req, res, next) => {
     );
     if (!contracts[0]) return res.json({ data: null });
 
-    const allowance = await dataPackService.getEffectiveAllowance(contracts[0].id);
+    const allowance = await dataPackService.getEffectiveAllowance(contracts[0].id, req.client.organizationId);
     res.json({ data: allowance });
   } catch (err) {
     next(err);
@@ -861,7 +861,7 @@ router.get('/dashboard', async (req, res, next) => {
     // a plain SUM(total) of unpaid invoices, which overstated what the client
     // owed whenever an invoice had a partial payment allocated to it, and
     // never credited an unapplied overpayment.
-    const { balance, currency } = await computeClientBalance(req.client.organizationId, clientId);
+    const { balance, currency, balances, mixedCurrency } = await computeClientBalance(req.client.organizationId, clientId);
 
     // Next due date
     const [[{ next_due }]] = await db.query(
@@ -961,8 +961,12 @@ router.get('/dashboard', async (req, res, next) => {
             data_cap_gb: contract.data_cap_gb,
           },
         } : null,
+        // null when the account holds several currencies; balances lists
+        // each one (GQL-10).
         balance,
         balance_currency: currency,
+        balances,
+        mixed_currency: mixedCurrency,
         next_due_date: next_due || null,
         session,
         usage_this_month: usage,
@@ -1126,6 +1130,17 @@ router.get('/payments', async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // GET /portal/service-requests — list own requests
+// GET /portal/service-requests/plan-options — plans this subscriber may
+// request a change to (the plan picker on the account page).
+router.get('/service-requests/plan-options', async (req, res, next) => {
+  try {
+    const plans = await portalServiceRequestService.listUpgradePlans(req.client.id, req.client.organizationId);
+    res.json({ data: plans });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/service-requests', async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));

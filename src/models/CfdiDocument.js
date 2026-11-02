@@ -24,6 +24,7 @@ class CfdiDocument extends BaseModel {
       'tipo_comprobante', 'serie', 'folio', 'uso_cfdi',
       'metodo_pago', 'forma_pago', 'moneda', 'tipo_cambio', 'exportacion',
       'receptor_rfc', 'receptor_nombre', 'receptor_regimen', 'receptor_cp',
+      'global_periodicidad', 'global_meses', 'global_anio',
       'subtotal', 'total_impuestos', 'total',
       'xml_file_id', 'pdf_file_id',
     ];

@@ -304,4 +304,33 @@ describe('runNightlyBackups', () => {
     const result = await runNightlyBackups();
     expect(result).toEqual({ total: 0, backed_up: 0, skipped: 0, failed: 0 });
   });
+
+  // NET-15: the org-scoped run joined clients, so a POP or backbone device
+  // (no client) was never backed up.
+  test('an organization run selects by the device organization, client or not', async () => {
+    db.query.mockResolvedValueOnce([[]]);
+    await runNightlyBackups(7);
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).not.toMatch(/JOIN clients/);
+    expect(sql).toMatch(/AND d\.organization_id = \?/);
+    expect(params).toEqual([7]);
+  });
+
+  test('the install-wide primary pass leaves isolated tenants to their own database', async () => {
+    const { forEachDatabaseScope } = require('../src/services/organizationFanOut');
+    db.withPrimaryContext = jest.fn(cb => cb());
+    db.withTenantContext = jest.fn((_org, cb) => cb());
+    db.query
+      .mockResolvedValueOnce([[{ organization_id: 9 }]]) // isolated organizations
+      .mockResolvedValueOnce([[]])                       // primary pass
+      .mockResolvedValueOnce([[]]);                      // org 9 in its own database
+    await forEachDatabaseScope('config_backup_pull', orgId => runNightlyBackups(orgId));
+    const [primarySql, primaryParams] = db.query.mock.calls[1];
+    expect(primarySql).toMatch(/d\.organization_id IS NULL OR d\.organization_id NOT IN \(\?\)/);
+    expect(primaryParams).toEqual([9]);
+    expect(db.query.mock.calls[2][1]).toEqual([9]);
+    expect(db.withTenantContext).toHaveBeenCalledWith(9, expect.any(Function));
+    delete db.withPrimaryContext;
+    delete db.withTenantContext;
+  });
 });

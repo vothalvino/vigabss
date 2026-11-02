@@ -65,6 +65,8 @@ const CLIENT_DETAIL_QUERY = /* GraphQL */ `
       createdAt
       balance
       balanceCurrency
+      balances { currency balance }
+      mixedCurrency
       contracts {
         id
         connectionType
@@ -142,8 +144,11 @@ interface Client {
   locale: string | null;
   notes: string | null;
   createdAt: string;
-  balance: string;
-  balanceCurrency: string;
+  /** null when the client's documents are in several currencies (see balances). */
+  balance: string | null;
+  balanceCurrency: string | null;
+  balances?: { currency: string; balance: string }[];
+  mixedCurrency?: boolean;
   contracts: Contract[];
   invoices: Invoice[];
   payments: Payment[];
@@ -1034,7 +1039,7 @@ function MxProfileModal({
             <label style={labelStyle}>RFC *</label>
             <input style={inputStyle} value={form.rfc} onChange={set('rfc')} maxLength={13} />
             <label style={labelStyle}>Razón social *</label>
-            <input style={inputStyle} value={form.razon_social} onChange={set('razon_social')} />
+            <input style={inputStyle} maxLength={254} value={form.razon_social} onChange={set('razon_social')} />
             <div style={twoCol}>
               <div>
                 <label style={labelStyle}>Régimen fiscal *</label>
@@ -1251,10 +1256,12 @@ export function ClientDetail() {
   // COMPUTED server-side from payable invoices minus unallocated payment
   // credit — NOT the ledger (client.ledger below is history/audit trail
   // only and can be missing entries; see clientBalanceService's module doc).
-  const balanceAmount = parseFloat(client.balance || '0');
-  const balanceCurrency = client.balanceCurrency || 'MXN';
-  const owes = balanceAmount > 0.005;
-  const inCredit = balanceAmount < -0.005;
+  // Several currencies are shown one by one, never added (GQL-10).
+  const balanceParts = client.mixedCurrency
+    ? (client.balances ?? []).map(b => ({ amount: parseFloat(b.balance), currency: b.currency }))
+    : [{ amount: parseFloat(client.balance || '0'), currency: client.balanceCurrency || 'MXN' }];
+  const owes = balanceParts.some(p => p.amount > 0.005);
+  const inCredit = !owes && balanceParts.some(p => p.amount < -0.005);
 
   return (
     <div style={styles.page}>
@@ -1299,9 +1306,16 @@ export function ClientDetail() {
         <span style={{ fontSize: '0.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.85 }}>
           Account Balance
         </span>
-        <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>
-          {fmtMoney(String(Math.abs(balanceAmount)), balanceCurrency)}
-        </span>
+        {balanceParts.map(p => (
+          <span key={p.currency} style={{ fontSize: '1.5rem', fontWeight: 800 }}>
+            {fmtMoney(String(Math.abs(p.amount)), p.currency)}
+            {client.mixedCurrency && (
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, marginLeft: 4 }}>
+                {p.amount > 0.005 ? 'owed' : p.amount < -0.005 ? 'credit' : ''}
+              </span>
+            )}
+          </span>
+        ))}
         <span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.9 }}>
           {owes ? '⚠ Owed by client' : inCredit ? '✓ Client in credit' : '✓ Settled'}
         </span>

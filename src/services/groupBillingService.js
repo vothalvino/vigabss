@@ -92,13 +92,14 @@ async function getGroupBilling(orgId, groupId) {
   const memberBalances = [];
   const openInvoices = [];
   for (const member of members) {
-    const { balance, currency } = await computeClientBalance(orgId, member.id);
+    const { balance, currency, balances } = await computeClientBalance(orgId, member.id);
     memberBalances.push({
       client_id: Number(member.id),
       name: member.name,
       is_primary: Number(member.id) === primaryId,
       balance,
       currency,
+      balances,
     });
     const invs = await paymentAllocationService.getInvoicesWithBalance(db.query.bind(db), orgId, member.id, null, false);
     for (const inv of invs) {
@@ -123,9 +124,19 @@ async function getGroupBilling(orgId, groupId) {
     return da !== dbb ? da - dbb : a.invoice_id - b.invoice_id;
   });
 
-  const groupBalance = Math.round(memberBalances.reduce((s, m) => s + m.balance, 0) * 100) / 100;
-  const currencies = new Set(memberBalances.filter((m) => Math.abs(m.balance) > 0.005).map((m) => m.currency));
-  const groupCurrency = currencies.size === 1 ? [...currencies][0] : await Organization.getCurrency(orgId);
+  // Totalled per currency across members, never netted 1:1 (GQL-10). A
+  // single group_balance exists only when one currency contributes.
+  const groupByCurrency = new Map();
+  for (const m of memberBalances) {
+    for (const b of m.balances) groupByCurrency.set(b.currency, (groupByCurrency.get(b.currency) || 0) + b.balance);
+  }
+  const groupBalances = [...groupByCurrency.entries()]
+    .map(([cur, amount]) => ({ currency: cur, balance: Math.round(amount * 100) / 100 }))
+    .filter((b) => Math.abs(b.balance) > 0.005)
+    .sort((x, y) => x.currency.localeCompare(y.currency));
+  const groupMixed = groupBalances.length > 1;
+  const groupBalance = groupMixed ? null : (groupBalances[0]?.balance ?? 0);
+  const groupCurrency = groupMixed ? null : (groupBalances[0]?.currency ?? await Organization.getCurrency(orgId));
 
   return {
     group: { id: Number(group.id), name: group.name, billing_mode: group.billing_mode, primary_client_id: primaryId },
@@ -133,6 +144,8 @@ async function getGroupBilling(orgId, groupId) {
     open_invoices: openInvoices,
     group_balance: groupBalance,
     group_currency: groupCurrency,
+    group_balances: groupBalances,
+    group_mixed_currency: groupMixed,
     payable_total: Math.round(openInvoices.reduce((s, i) => s + i.balance_due, 0) * 100) / 100,
   };
 }

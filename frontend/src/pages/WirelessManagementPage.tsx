@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, fmtDate } from './crudStyles';
 import { listTotal } from '@/api/envelope';
+import { extractApiError } from '@/components/ClientFormModal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -282,11 +283,14 @@ async function createApCommand(body: ApCommandBody): Promise<void> {
   if ((res as { error?: unknown }).error) throw new Error('Failed to create AP command');
 }
 
-async function deleteApCommand(id: number): Promise<void> {
-  const res = await api.DELETE('/wireless/ap-commands/{id}' as never, {
+// Jobs are not deleted: a pending or queued job is cancelled (the API has
+// no DELETE for ap-commands; the old Delete 404'd silently, NET-22).
+async function cancelApCommand(id: number): Promise<void> {
+  const res = await api.POST('/wireless/ap-commands/{id}/cancel' as never, {
     params: { path: { id } },
   } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to delete AP command');
+  const error = (res as { error?: unknown }).error;
+  if (error) throw new Error(extractApiError(error, 'Failed to cancel AP command'));
 }
 
 // Interference
@@ -499,9 +503,11 @@ export function WirelessManagementPage() {
     onError: (e: unknown) => setCmdErr((e as { message?: string })?.message ?? 'Failed'),
   });
 
-  const deleteCmdMut = useMutation({
-    mutationFn: deleteApCommand,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['wireless', 'apCommands'] }),
+  const [cancelCmdErr, setCancelCmdErr] = useState('');
+  const cancelCmdMut = useMutation({
+    mutationFn: cancelApCommand,
+    onSuccess: () => { setCancelCmdErr(''); qc.invalidateQueries({ queryKey: ['wireless', 'apCommands'] }); },
+    onError: (e: unknown) => setCancelCmdErr((e as { message?: string })?.message ?? t('wirelessManagement.apCommands.cancelFailed')),
   });
 
   const cmdTotalPages = Math.ceil(listTotal(cmdQ.data) / PAGE_SIZE) || 1;
@@ -793,6 +799,7 @@ export function WirelessManagementPage() {
           </div>
           {cmdQ.isLoading && <p style={styles.msg}>{t('wirelessManagement.loading')}</p>}
           {cmdQ.isError && <p style={styles.msgError}>{t('wirelessManagement.apCommands.loadError')}</p>}
+          {cancelCmdErr && <p role="alert" style={styles.msgError}>{cancelCmdErr}</p>}
           {cmdQ.data && (
             <>
               <div style={styles.tableCard}>
@@ -827,16 +834,19 @@ export function WirelessManagementPage() {
                         <td style={styles.td}>{fmtDate(cmd.created_at)}</td>
                         <td style={styles.td}>{fmtDate(cmd.completed_at)}</td>
                         <td style={styles.td}>
-                          <button
-                            style={{ ...styles.actionBtn, color: 'var(--danger)' }}
-                            onClick={() => {
-                              if (window.confirm(t('wirelessManagement.confirmDelete'))) {
-                                deleteCmdMut.mutate(cmd.id);
-                              }
-                            }}
-                          >
-                            {t('wirelessManagement.delete')}
-                          </button>
+                          {['pending', 'queued'].includes(cmd.status) && (
+                            <button
+                              style={{ ...styles.actionBtn, color: 'var(--danger)' }}
+                              disabled={cancelCmdMut.isPending}
+                              onClick={() => {
+                                if (window.confirm(t('wirelessManagement.apCommands.confirmCancel'))) {
+                                  cancelCmdMut.mutate(cmd.id);
+                                }
+                              }}
+                            >
+                              {t('wirelessManagement.apCommands.cancelJob')}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

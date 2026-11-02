@@ -7,7 +7,7 @@
 // red, free-text lines unaffected).
 // =============================================================================
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { InvoiceDetail } from '../InvoiceDetail';
@@ -275,6 +275,24 @@ describe('InvoiceDetail page', () => {
         body: expect.objectContaining({ description: 'Ubiquiti NanoStation (UB-9)', inventory_item_id: 9 }),
       }),
     ));
+  });
+
+  // BIL-27: 'paid' is set only by payment allocation, so editing a paid
+  // invoice must not resubmit status, and the picker does not offer it.
+  it('editing a paid invoice does not send its status and does not offer paid/overdue', async () => {
+    setupMocks('paid');
+    wireItemsGet([item1]);
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: /Edit$/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Edit Invoice' }));
+    const optionValues = dialog.getAllByRole('option').map(o => (o as HTMLOptionElement).value);
+    expect(optionValues).not.toContain('overdue');
+    expect((dialog.getByRole('option', { name: 'paid' }) as HTMLOptionElement).disabled).toBe(true);
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Save Changes' }));
+    await waitFor(() => expect(mockApiPut).toHaveBeenCalledWith('/invoices/{id}', expect.anything()));
+    const body = mockApiPut.mock.calls.find(c => c[0] === '/invoices/{id}')![1].body;
+    expect(body).not.toHaveProperty('status');
   });
 
   it('hides the Add Item form once the invoice is void', async () => {

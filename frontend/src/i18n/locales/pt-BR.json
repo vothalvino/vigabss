@@ -1,4 +1,14 @@
 {
+  "deviceForm": {
+    "snmpV3": {
+      "securityName": "Usuário SNMPv3 (nome de segurança)",
+      "authProtocol": "Protocolo de autenticação",
+      "authKey": "Frase de autenticação",
+      "privProtocol": "Protocolo de privacidade",
+      "privKey": "Frase de privacidade",
+      "keepKey": "Deixe em branco para manter a chave salva"
+    }
+  },
   "settingsPage": {
     "loading": "Carregando configurações…",
     "loadError": "Falha ao carregar as configurações.",
@@ -3568,6 +3578,9 @@
       "notes": "Notas"
     },
     "apCommands": {
+      "cancelJob": "Cancelar tarefa",
+      "confirmCancel": "Cancelar este comando pendente?",
+      "cancelFailed": "Não foi possível cancelar o comando.",
       "new": "Novo Comando",
       "loadError": "Falha ao carregar trabalhos de comandos AP.",
       "noItems": "Nenhum trabalho de comando AP encontrado.",
@@ -6471,8 +6484,8 @@
     },
     "submitTitle": "Enviar uma Solicitação",
     "requestType": "Tipo de Solicitação",
-    "newPlanId": "ID do Novo Plano",
-    "newPlanIdPlaceholder": "Informe o ID do plano",
+    "newPlanId": "Novo plano",
+    "newPlanIdPlaceholder": "Escolha um plano",
     "newPassword": "Nova Senha",
     "newPasswordPlaceholder": "Informe a nova senha (mín. 8 caracteres)",
     "notesReason": "Observações / Motivo",

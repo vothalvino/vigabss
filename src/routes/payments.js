@@ -17,6 +17,7 @@ const { requireMxLocale } = require('../middleware/orgLocale');
 const paymentAllocationService = require('../services/paymentAllocationService');
 const db = require('../config/database');
 const { AppError } = require('../utils/errors');
+const { FORMA_PAGO_BY_METHOD } = require('../utils/satCatalogs');
 
 const router = Router();
 
@@ -99,19 +100,24 @@ const ctrl = crudController(Payment, {
     delete body.recorded_by;
     await assertPaymentEditKeepsMoneyConsistent(old, body, exec);
   },
+  // The ledger credit and the invoice allocations are reversed (and restored)
+  // in the SAME locked transaction as the soft delete (restore): a failure
+  // rolls the whole change back. As an after-hook they ran post-commit and a
+  // failure was only logged, leaving a deleted payment whose live allocations
+  // kept invoices 'paid' (DAL-08).
+  transactionalAfterHooks: true,
+  fatalAfterHooks: true,
   beforeDelete: async (old, req, exec) => {
     await repService.assertNoBindingRep(exec, { paymentId: old.id, orgId: req.orgId });
-  },
-  afterDelete: async (payment) => {
-    await billingService.reversePaymentCredit(payment.id);
+    await billingService.reversePaymentCredit(old.id, exec);
     // Also undo its invoice allocations so an invoice isn't left flagged 'paid'
     // while the balance now shows it owed again.
-    await billingService.reversePaymentAllocations(payment.id);
+    await billingService.reversePaymentAllocations(old.id, exec);
   },
-  afterRestore: async (payment, req) => {
-    await billingService.reversePaymentCredit(payment.id); // idempotent — avoid a double credit
-    await billingService.recordPaymentCredit(payment, req.orgId);
-    await billingService.restorePaymentAllocations(payment.id);
+  afterRestore: async (payment, req, exec) => {
+    await billingService.reversePaymentCredit(payment.id, exec); // idempotent — avoid a double credit
+    await billingService.recordPaymentCredit(payment, req.orgId, exec);
+    await billingService.restorePaymentAllocations(payment.id, exec);
   },
 });
 
@@ -135,6 +141,11 @@ router.post('/', requirePermission('payments.create'), validate(createPayment), 
     // currency in the request always wins.
     if (!req.body.currency) {
       req.body.currency = await Organization.getCurrency(req.orgId);
+    }
+    // The SAT forma de pago follows the method unless the caller set it, so a
+    // cash payment's invoice and REP say 01, not the 03 default (BIL-26).
+    if (!req.body.sat_forma_pago && FORMA_PAGO_BY_METHOD[req.body.payment_method]) {
+      req.body.sat_forma_pago = FORMA_PAGO_BY_METHOD[req.body.payment_method];
     }
     const payment = await Payment.create(req.body);
 

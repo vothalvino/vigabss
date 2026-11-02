@@ -652,6 +652,9 @@ function generateSpec() {
 
       // ---- Facturas Publicas ----
       ...crudPaths('facturas-publicas', 'Facturas Publicas', 'FacturaPublica'),
+      '/facturas-publicas/{id}/stamp': {
+        post: { tags: ['Facturas Publicas'], summary: 'Build and stamp the factura global (CFDI to PUBLICO EN GENERAL) from the linked paid invoices', description: 'One concepto per invoice (01010101/ACT), InformacionGlobal from the record period, PUE with the predominant forma de pago. 201 when stamped, 202 when the CFDI was created but the PAC failed (retry from the CFDI page).', operationId: 'stampFacturaPublica', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 201: { description: 'Stamped' }, 202: { description: 'Created, stamp pending' }, 409: { description: 'Not a draft' }, 422: { description: 'Unpaid invoices, invoices with their own CFDI, empty, mixed currency, or a period SAT cannot file' } } },
+      },
       '/facturas-publicas/{id}/items': {
         get: { tags: ['Facturas Publicas'], summary: 'List linked invoices', operationId: 'listFacturaPublicaItems', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Item[]') },
         post: { tags: ['Facturas Publicas'], summary: 'Link an invoice', operationId: 'addFacturaPublicaItem', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('invoice_id'), responses: r201('Item') },
@@ -2300,7 +2303,7 @@ function generateSpec() {
         get: { tags: ['Data Packs'], summary: 'Effective data allowance and purchases for a contract', operationId: 'getContractDataPacks', security: [{ bearerAuth: [] }], parameters: [{ name: 'contractId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r200('{ allowance, purchases }') },
       },
       '/contracts/{contractId}/data-packs/{packId}/purchase': {
-        post: { tags: ['Data Packs'], summary: 'Purchase a data pack for a subscriber (admin)', operationId: 'purchaseDataPackAdmin', security: [{ bearerAuth: [] }], parameters: [{ name: 'contractId', in: 'path', required: true, schema: { type: 'integer' } }, { name: 'packId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r201('DataPackPurchase') },
+        post: { tags: ['Data Packs'], summary: 'Purchase a data pack for a subscriber (admin); a priced pack raises a one-off invoice unless invoice_id names one', operationId: 'purchaseDataPackAdmin', security: [{ bearerAuth: [] }], parameters: [{ name: 'contractId', in: 'path', required: true, schema: { type: 'integer' } }, { name: 'packId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r201('DataPackPurchase') },
       },
       '/data-pack-purchases/{id}/cancel': {
         put: { tags: ['Data Packs'], summary: 'Cancel a data pack purchase', operationId: 'cancelDataPackPurchase', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DataPackPurchase') },
@@ -2364,7 +2367,7 @@ function generateSpec() {
         get: { tags: ['Data Packs'], summary: 'List available data packs (portal)', operationId: 'portalListDataPacks', security: [{ bearerAuth: [] }], responses: r200('DataPack[]') },
       },
       '/portal/data-packs/{packId}/purchase': {
-        post: { tags: ['Data Packs'], summary: 'Purchase a data pack via subscriber portal', operationId: 'portalPurchaseDataPack', security: [{ bearerAuth: [] }], parameters: [{ name: 'packId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r201('DataPackPurchase') },
+        post: { tags: ['Data Packs'], summary: 'Purchase a data pack via subscriber portal; a priced pack raises a one-off invoice in the same transaction', operationId: 'portalPurchaseDataPack', security: [{ bearerAuth: [] }], parameters: [{ name: 'packId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r201('DataPackPurchase') },
       },
       '/portal/data-packs/my-purchases': {
         get: { tags: ['Data Packs'], summary: 'List subscriber data pack purchases (portal)', operationId: 'portalListMyDataPackPurchases', security: [{ bearerAuth: [] }], responses: r200('DataPackPurchase[]') },
@@ -2462,6 +2465,9 @@ function generateSpec() {
       '/portal/service-requests': {
         get: { tags: ['Portal Service Requests'], summary: 'List own service requests', operationId: 'portalListServiceRequests', security: [{ bearerAuth: [] }], responses: r200('PortalServiceRequest[]') },
         post: { tags: ['Portal Service Requests'], summary: 'Submit a new self-service request', operationId: 'portalCreateServiceRequest', security: [{ bearerAuth: [] }], requestBody: jsonBody('request_type + payload'), responses: r201('PortalServiceRequest') },
+      },
+      '/portal/service-requests/plan-options': {
+        get: { tags: ['Portal Service Requests'], summary: 'Plans this subscriber may request a change to (active org or global plans, minus the current one)', operationId: 'portalListPlanOptions', security: [{ bearerAuth: [] }], responses: r200('Plan[]') },
       },
       '/portal/service-requests/{id}/cancel': {
         post: { tags: ['Portal Service Requests'], summary: 'Cancel a pending service request', operationId: 'portalCancelServiceRequest', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('PortalServiceRequest') },

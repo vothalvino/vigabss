@@ -11,10 +11,9 @@ const { crudController } = require('../controllers/crudController');
 const DiscoveryScan = require('../models/DiscoveryScan');
 const Device = require('../models/Device');
 const { createDiscoveryScan, updateDiscoveryScan } = require('../middleware/schemas/discoveryScans');
-const { encrypt } = require('../utils/encryption');
 const db = require('../config/database');
 const { assertDeviceClientFk } = require('../services/deviceAuthz');
-const { redactDevice, sealSnmpCommunity } = require('../utils/deviceSanitize');
+const { redactDevice, sealSnmpCommunity, sealSnmpV3Keys } = require('../utils/deviceSanitize');
 const { redactSecretColumns } = require('../utils/secretRedaction');
 
 const router = Router();
@@ -38,22 +37,9 @@ function redactDiscoveryScan(row) {
 
 const ctrl = crudController(DiscoveryScan, { serialize: redactDiscoveryScan });
 
-// Middleware to encrypt SNMPv3 keys before create/update
-function encryptV3Keys(req, _res, next) {
-  if (req.body.snmp_v3_auth_key !== undefined) {
-    req.body.snmp_v3_auth_key_encrypted = req.body.snmp_v3_auth_key ? encrypt(req.body.snmp_v3_auth_key) : null;
-    delete req.body.snmp_v3_auth_key;
-  }
-  if (req.body.snmp_v3_priv_key !== undefined) {
-    req.body.snmp_v3_priv_key_encrypted = req.body.snmp_v3_priv_key ? encrypt(req.body.snmp_v3_priv_key) : null;
-    delete req.body.snmp_v3_priv_key;
-  }
-  next();
-}
-
 router.get('/',    requirePermission('discovery_scans.view'),   ctrl.list);
 router.get('/:id', requirePermission('discovery_scans.view'),   ctrl.get);
-router.post('/',   requirePermission('discovery_scans.create'), validate(createDiscoveryScan), encryptV3Keys, sealSnmpCommunity, async (req, res, next) => {
+router.post('/',   requirePermission('discovery_scans.create'), validate(createDiscoveryScan), sealSnmpV3Keys, sealSnmpCommunity, async (req, res, next) => {
   try {
     req.body.organization_id = req.orgId;
     req.body.created_by = req.user.id;
@@ -66,7 +52,7 @@ router.post('/',   requirePermission('discovery_scans.create'), validate(createD
     res.status(201).json({ data: redactDiscoveryScan(created) });
   } catch (err) { next(err); }
 });
-router.put('/:id',  requirePermission('discovery_scans.update'), validate(updateDiscoveryScan), encryptV3Keys, sealSnmpCommunity, ctrl.update);
+router.put('/:id',  requirePermission('discovery_scans.update'), validate(updateDiscoveryScan), sealSnmpV3Keys, sealSnmpCommunity, ctrl.update);
 router.delete('/:id', requirePermission('discovery_scans.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('discovery_scans.update'), ctrl.restore);
 
@@ -79,7 +65,7 @@ router.get('/:id/results', requirePermission('discovery_scans.view'), async (req
 });
 
 // POST /:id/results/:resultId/onboard — create a Device from a discovery result
-router.post('/:id/results/:resultId/onboard', requirePermission('discovery_scans.update'), sealSnmpCommunity, async (req, res, next) => {
+router.post('/:id/results/:resultId/onboard', requirePermission('discovery_scans.update'), sealSnmpCommunity, sealSnmpV3Keys, async (req, res, next) => {
   try {
     const [resultRows] = await db.query(
       'SELECT * FROM discovery_results WHERE id = ? AND scan_id = ? AND organization_id = ?',
@@ -102,6 +88,21 @@ router.post('/:id/results/:resultId/onboard', requirePermission('discovery_scans
     // settable Device field (see src/models/Device.js), so it needs the
     // same cross-tenant FK guard /devices itself uses — otherwise this
     // onboard endpoint would bypass it entirely via Device.create.
+    // A v3 device needs the USM credentials the scan reached it with; the
+    // device used to be created as v3 with none, so polling failed (NET-31).
+    // They are copied still encrypted.
+    let v3 = {};
+    if (result.snmp_version === 3) {
+      const [[scan]] = await db.query(
+        `SELECT snmp_v3_security_name, snmp_v3_auth_protocol, snmp_v3_auth_key_encrypted,
+                snmp_v3_priv_protocol, snmp_v3_priv_key_encrypted
+           FROM discovery_scans WHERE id = ? AND organization_id = ?`,
+        [req.params.id, req.orgId],
+      );
+      if (scan) {
+        v3 = Object.fromEntries(Object.entries(scan).filter(([, value]) => value !== null && value !== undefined));
+      }
+    }
     const deviceData = {
       name: result.hostname || result.ip_address,
       ip_address: result.ip_address,
@@ -113,6 +114,7 @@ router.post('/:id/results/:resultId/onboard', requirePermission('discovery_scans
       snmp_version: result.snmp_version === 1 ? 'v1' : result.snmp_version === 3 ? 'v3' : 'v2c',
       snmp_profile_id: result.suggested_profile_id || null,
       status: 'offline',
+      ...v3,
       ...req.body, // allow caller to override suggested defaults
       organization_id: req.orgId, // server-authoritative — must win over any spread value
     };

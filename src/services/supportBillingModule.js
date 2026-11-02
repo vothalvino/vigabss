@@ -64,12 +64,22 @@ async function _balanceQuery(context, _messageContent, orgId) {
     // module doc) for the conversation; reuse it instead of a second query
     // when present so this can never disagree with what enrichContext quoted
     // elsewhere in the same conversation.
-    let balance = context?.billing?.balance;
-    let currency = context?.billing?.currency;
-    if (typeof balance !== 'number') {
-      ({ balance, currency } = await computeClientBalance(orgId, context?.customer?.id));
+    let computed = context?.billing;
+    if (!computed || (typeof computed.balance !== 'number' && !computed.mixedCurrency)) {
+      computed = await computeClientBalance(orgId, context?.customer?.id);
     }
-    const bal = balance.toFixed(2);
+    // Several currencies are quoted one by one, never summed (GQL-10).
+    if (computed.mixedCurrency) {
+      const parts = computed.balances.map(b => ({ balance: b.balance.toFixed(2), currency: b.currency }));
+      return {
+        response: `Tu saldo actual es ${parts.map(p => `$${p.balance} ${p.currency}`).join(' y ')}.`,
+        requiresConfirmation: false,
+        actionType: 'balance_query',
+        actionData: { balances: parts },
+      };
+    }
+    const bal = computed.balance.toFixed(2);
+    const { currency } = computed;
     return {
       response: `Tu saldo actual es $${bal} ${currency}.`,
       requiresConfirmation: false,

@@ -172,10 +172,10 @@ async function stampInvoiceAtSat(invoiceId: number, body: { uso_cfdi?: string; f
   return resBody.data as StampResult;
 }
 
-async function fetchClientMxProfile(clientId: number): Promise<{ rfc?: string; razon_social?: string; uso_cfdi_default?: string } | null> {
+async function fetchClientMxProfile(clientId: number): Promise<{ rfc?: string; razon_social?: string; uso_cfdi_default?: string; regimen_fiscal?: string } | null> {
   const res = await authedFetch(`${API_BASE}/clients/${clientId}/mx-profile`);
   if (!res.ok) return null;
-  const body = await res.json().catch(() => ({})) as { data?: { rfc?: string; razon_social?: string; uso_cfdi_default?: string } | null };
+  const body = await res.json().catch(() => ({})) as { data?: { rfc?: string; razon_social?: string; uso_cfdi_default?: string; regimen_fiscal?: string } | null };
   return body.data ?? null;
 }
 
@@ -413,7 +413,10 @@ function AddInvoiceItemForm({ onAdd, pending, error }: AddInvoiceItemFormProps) 
 // 'cancelled' is deliberately absent: it means "CFDI cancelled at SAT" and is
 // set only by the SAT cancellation flow (the backend 422s a manual set).
 // 'void' stays listed because selecting it routes through the void flow.
-const INVOICE_STATUSES = ['draft', 'issued', 'paid', 'overdue', 'void'];
+// 'paid' and 'overdue' are not settable either: paid follows payment
+// allocation and overdue is derived from the due date (BIL-27). The invoice's
+// current status is still shown so the form opens on it.
+const INVOICE_STATUSES = ['draft', 'issued', 'void'];
 
 interface EditInvoiceModalProps {
   invoice: Invoice;
@@ -439,7 +442,10 @@ function EditInvoiceModal({ invoice, onClose, onSaved }: EditInvoiceModalProps) 
 
   const mutation = useMutation({
     mutationFn: () => {
-      const body: UpdateInvoiceBody = { status: form.status };
+      // Send status only when it changed, so editing a paid invoice's number or
+      // due date does not resubmit a status the API no longer accepts.
+      const body: UpdateInvoiceBody = {};
+      if (form.status !== invoice.status) body.status = form.status;
       if (form.invoice_number.trim()) body.invoice_number = form.invoice_number.trim();
       if (form.currency.trim()) body.currency = form.currency.trim();
       if (form.due_date) body.due_date = form.due_date;
@@ -471,6 +477,7 @@ function EditInvoiceModal({ invoice, onClose, onSaved }: EditInvoiceModalProps) 
             <div>
               <label style={labelStyle}>Status</label>
               <select style={inputStyle} value={form.status} onChange={e => setField('status', e.target.value)}>
+                {!INVOICE_STATUSES.includes(invoice.status) && <option value={invoice.status} disabled>{invoice.status}</option>}
                 {INVOICE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -521,6 +528,10 @@ const USO_CFDI_OPTIONS = [
   { code: 'I04', label: 'I04 — Equipo de cómputo y accesorios' },
   { code: 'S01', label: 'S01 — Sin efectos fiscales' },
 ];
+// Regímenes SAT admits G03 for (mirrors src/utils/satCatalogs.js). Others,
+// e.g. 605 sueldos or 616 sin obligaciones, default to S01 (BIL-26).
+const G03_REGIMES = new Set(['601', '603', '606', '612', '620', '621', '622', '623', '624', '625', '626']);
+
 const FORMA_PAGO_OPTIONS = [
   { code: '01', label: '01 — Efectivo' },
   { code: '03', label: '03 — Transferencia (SPEI)' },
@@ -554,8 +565,10 @@ function StampCfdiModal({ invoice, onClose, onStamped }: StampCfdiModalProps) {
   // never silently overwrite a manual selection.
   const appliedDefault = useRef(false);
   useEffect(() => {
-    if (!appliedDefault.current && profileQ.data?.uso_cfdi_default) {
-      setUsoCfdi(profileQ.data.uso_cfdi_default);
+    if (!appliedDefault.current && profileQ.data) {
+      const regimen = profileQ.data.regimen_fiscal;
+      const fallback = !regimen || G03_REGIMES.has(regimen) ? 'G03' : 'S01';
+      setUsoCfdi(profileQ.data.uso_cfdi_default || fallback);
       appliedDefault.current = true;
     }
   }, [profileQ.data]);

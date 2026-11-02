@@ -958,16 +958,17 @@ describe('Invoice Routes — /api/invoices', () => {
       db.query
         .mockResolvedValueOnce([[mockInvoice]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([[{ ...mockInvoice, status: 'paid' }]])
+        .mockResolvedValueOnce([[{ ...mockInvoice, status: 'issued' }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
+      // 'paid' is set only by payment allocation (BIL-27); an edit may issue.
       const res = await request(app)
         .put('/api/invoices/1')
         .set('Authorization', `Bearer ${authToken}`)
-        .send({ status: 'paid' });
+        .send({ status: 'issued' });
 
       expect(res.status).toBe(200);
-      expect(res.body.data.status).toBe('paid');
+      expect(res.body.data.status).toBe('issued');
     });
   });
 
@@ -1248,10 +1249,14 @@ describe('Payment Routes — /api/payments', () => {
   describe('DELETE /api/payments/:id', () => {
     test('deletes a payment and returns 204', async () => {
       mockAuthUser();
+      // The ledger and allocation reversal runs in the delete transaction
+      // (DAL-08): REP check, ledger DELETE, live allocations (none), delete.
       db.query
-        .mockResolvedValueOnce([[mockPayment]])
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([{ affectedRows: 1 }]);
+        .mockResolvedValueOnce([[mockPayment]])        // locked payment
+        .mockResolvedValueOnce([[]])                   // binding REP — none
+        .mockResolvedValueOnce([{ affectedRows: 1 }])  // DELETE ledger credit
+        .mockResolvedValueOnce([[]])                   // live allocations — none
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // soft delete
 
       const res = await request(app)
         .delete('/api/payments/1')

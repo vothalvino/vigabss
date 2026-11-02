@@ -15,7 +15,10 @@ const createInvoice = {
   tax_rate: { type: 'number', min: 0, max: 100 },
   tax_rate_id: { type: 'number', min: 1 },
   due_date: { type: 'string', required: true },
-  status: { type: 'string', enum: ['draft', 'issued', 'paid', 'overdue', 'cancelled', 'void'] },
+  // An invoice starts as a draft or issued. 'paid' comes only from payment
+  // allocation, 'overdue' is derived from due_date, and 'cancelled'/'void'
+  // follow a SAT cancellation or a void of an existing invoice (BIL-27).
+  status: { type: 'string', enum: ['draft', 'issued'] },
 };
 
 const updateInvoice = {
@@ -27,7 +30,9 @@ const updateInvoice = {
   tax_rate: { type: 'number', min: 0, max: 100 },
   tax_rate_id: { type: 'number', min: 1 },
   due_date: { type: 'string' },
-  status: { type: 'string', enum: ['draft', 'issued', 'paid', 'overdue', 'cancelled', 'void'] },
+  // No 'paid' or 'overdue' by hand (see createInvoice). 'cancelled' stays in
+  // the enum only so rejectManualCancelled can explain where it comes from.
+  status: { type: 'string', enum: ['draft', 'issued', 'cancelled', 'void'] },
 };
 
 const addInvoiceItem = {
