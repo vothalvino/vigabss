@@ -125,8 +125,8 @@ working. New documentation uses the VigaBSS names.
 ```
 vigabss/
 ├── database/                # Database schema and migrations
-│   ├── schema.sql           # Combined schema (all 366 tables + column additions)
-│   └── migrations/          # Individual numbered migration files (001–497)
+│   ├── schema.sql           # Combined schema (all 367 tables + column additions)
+│   └── migrations/          # Individual numbered migration files (001–498)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -426,7 +426,7 @@ Production installs use `install.sh`, which runs the same migrations.
 | 247 | `technician_gps_breadcrumbs` | GPS position log for field technicians (§12) — append-only, no FKs (write-hot), user_id, lat/lng DECIMAL(10,7), accuracy_m FLOAT, recorded_at; composite index on (user_id, recorded_at DESC) |
 | 248 | `ticket_attachments` | File attachments for support tickets (§12) — filename, original_filename, mime_type, file_size, storage_path, uploaded_by; FK to tickets CASCADE, org-scoped |
 | 249 | `work_order_attachments` | File attachments for work orders (§12) — filename, original_filename, mime_type, file_size, storage_path, uploaded_by; FK to work_orders CASCADE, org-scoped |
-| 250 | `map_geofences` | Geofence zones (§13.2) — polygon boundary (GeoJSON) or radius-based circle; optional device_id pin; is_active flag; triggers geofence_evaluation task alerts |
+| 250 | `map_geofences` | Geofence zones (§13.2) — polygon boundary (GeoJSON) or radius-based circle; optional device_id pin; is_active flag; the geofence_evaluation task records violations in `geofence_violations` and notifies staff |
 | 251 | `map_infrastructure_points` | Infrastructure map pins (§13.2) — towers, cabinets, ODFs, splice closures, poles, POPs; lat/lng, site_id FK, properties JSON, is_active |
 | 252 | `fiber_route_segments` | Fiber route polyline sub-segments (§13.2) — ordered sequence within a parent fiber_route, GeoJSON LineString coordinates, cable type, burial type, fiber count |
 | 253 | `device_dependency_edges` | Device parent-child dependency graph edges (§13.3) — directed parent-child relationship for cascade visualization and impact analysis; dependency_type ENUM, is_redundant flag |
@@ -541,6 +541,7 @@ Production installs use `install.sh`, which runs the same migrations.
 | 362 | `reseller_user_bindings` | Migration 471 binds a staff user to one reseller subtree per organization (unique per org+user); bound users are confined to that subtree on `/resellers` and `/reseller-portal`, unbound `reseller_admin` users are refused |
 | 363 | `sso_saml_assertions_seen` | Migration 492 records each verified SAML assertion ID per organization until its NotOnOrAfter, so the ACS refuses a replayed SAMLResponse |
 | 364 | `password_history` | Migration 494 keeps the bcrypt hashes of each user's last 24 replaced passwords so `password_policies.history_count` can refuse reuse; `users.password_changed_at` (same migration) drives `rotation_days` |
+| 365 | `geofence_violations` | Migration 498 records each device found outside a geofence (one open row per geofence and device, cleared when it is back inside); opening a row emits `geofence.violation` |
 
 > **Migration 323–335 — Security & Access Control (§17):** webauthn_credentials, admin_ip_allowlist, password_policies, api_key_rate_limits, firewall_rules, ddos_protection_rules, blackhole_routes, dns_blocklists, cpe_security_scans, encryption_key_metadata, data_masking_rules, secure_deletion_log; plus 4 new roles (super_admin, noc_operator, reseller_admin, auditor) and 36 security module permissions.
 

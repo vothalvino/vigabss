@@ -1031,6 +1031,44 @@ function registerHooks() {
     }
   });
 
+  // --- Geofence violation (a device left a geofence) — NPR-09 ---
+  // Emitted by geoFenceService.evaluateAll once per OPENED violation.
+  eventBus.on('geofence.violation', async (violation) => {
+    const { organizationId } = violation;
+    try {
+      const payload = {
+        violation_id: violation.violationId,
+        geofence_id: violation.geofence_id,
+        geofence_name: violation.geofence_name,
+        device_id: violation.device_id,
+        device_name: violation.device_name,
+        device_lat: violation.device_lat,
+        device_lng: violation.device_lng,
+        detected_at: violation.detected_at,
+      };
+      // device.* events reach subscribers holding devices.view (realtimeAccess).
+      getBroadcast()(`org:${organizationId}:notifications`, 'device.geofence_violation', payload);
+
+      const Notification = require('../models/Notification');
+      const recipients = await resolveStaffRecipients(organizationId, ['admin', 'technician']);
+      for (const recipient of recipients) {
+        await Notification.create({
+          user_id: recipient.id,
+          type: 'alert',
+          title: `Geocerca: ${violation.device_name || `#${violation.device_id}`} fuera de ${violation.geofence_name}`,
+          body: `Posición: ${violation.device_lat}, ${violation.device_lng}`,
+          entity_type: 'devices',
+          entity_id: violation.device_id,
+        }).catch(err2 => logger.warn({ err: err2, event: 'geofence.violation', userId: recipient.id }, 'Geofence in-app notification error'));
+      }
+
+      await webhookService.dispatch(organizationId, 'geofence.violation', payload)
+        .catch(err2 => logger.warn({ err: err2, event: 'geofence.violation' }, 'Geofence webhook error'));
+    } catch (err) {
+      logger.error({ err, event: 'geofence.violation' }, 'Notification hook error');
+    }
+  });
+
   // --- Maintenance Scheduled — §1.4 ---
   eventBus.on('maintenance.scheduled', async ({ organizationId, maintenance, notifyClients = false }) => {
     try {
