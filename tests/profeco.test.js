@@ -239,7 +239,7 @@ describe('GET /api/v1/profeco-complaints/export', () => {
     await request(app).get('/api/v1/profeco-complaints/export?date_from=2026-01-01&date_to=2026-03-31');
     const [sql, params] = mockQueryReplica.mock.calls[0];
     expect(sql).toContain('reported_at >= ?');
-    expect(sql).toContain('reported_at <= ?');
+    expect(sql).toContain('reported_at < DATE_ADD(?, INTERVAL 1 DAY)'); // whole last day (REG-13)
     expect(params).toContain('2026-01-01');
     expect(params).toContain('2026-03-31');
   });

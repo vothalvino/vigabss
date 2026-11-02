@@ -19,6 +19,15 @@ const AiPolicy = require('../models/AiPolicy');
 const ClientBalanceLedger = require('../models/ClientBalanceLedger');
 const aiReplyService = require('../services/aiReplyService');
 const { computeClientBalance } = require('../services/clientBalanceService');
+const { validate } = require('../middleware/validate');
+const { replyDraft } = require('../middleware/schemas/ai');
+
+/** Run a REST validation schema on GraphQL arguments; throws its 422. */
+function assertValid(schema, body) {
+  let error;
+  validate(schema)({ body }, {}, (err) => { error = err; });
+  if (error) throw error;
+}
 const { pubsub } = require('../services/pubsub');
 const { assertGraphqlPermission, graphqlHasPermission, gqlForbidden } = require('./authz');
 
@@ -174,6 +183,11 @@ const resolvers = {
   // ---------------------------------------------------------------------------
   Mutation: {
     aiDraftReply: async (_parent, { ticketId, inboundText, channel = 'portal', contractId }, ctx) => {
+      // The same rules as REST POST /ai/reply/draft (GQL-04).
+      assertValid(replyDraft, {
+        ticket_id: Number(ticketId), channel, inbound_text: inboundText,
+        ...(contractId ? { contract_id: Number(contractId) } : {}),
+      });
       const result = await aiReplyService.generate({
         orgId:       ctx.orgId,
         ticketId:    Number(ticketId),

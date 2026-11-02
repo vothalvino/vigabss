@@ -237,6 +237,21 @@ router.get('/devices/:id/parameters', requirePermission('cpe_parameters.view'), 
 // CPE Tasks
 // ---------------------------------------------------------------------------
 
+// A Wi-Fi passphrase or password queued for the ACS stays in cpe_tasks until
+// delivered, but is never returned to staff (SUP-13).
+const SECRET_PARAMETER = /(PreSharedKey|KeyPassphrase|Password|Passphrase)$/i;
+function redactTaskSecrets(task) {
+  let params = task.parameters;
+  if (typeof params === 'string') {
+    try { params = JSON.parse(params); } catch { return task; }
+  }
+  if (!Array.isArray(params)) return task;
+  return {
+    ...task,
+    parameters: params.map(p => (p && SECRET_PARAMETER.test(String(p.name || '')) ? { ...p, value: '********' } : p)),
+  };
+}
+
 router.get('/devices/:id/tasks', requirePermission('cpe_tasks.view'), async (req, res, next) => {
   try {
     await CpeDevice.findByIdOrFail(req.params.id, req.orgId);
@@ -254,7 +269,7 @@ router.get('/devices/:id/tasks', requirePermission('cpe_tasks.view'), async (req
       [req.params.id],
     );
 
-    res.json({ data: rows, meta: { total, page, limit } });
+    res.json({ data: rows.map(redactTaskSecrets), meta: { total, page, limit } });
   } catch (err) { next(err); }
 });
 

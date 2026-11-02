@@ -187,6 +187,7 @@ describe('portalServiceRequestService.approveRequest() — pppoe_password_change
       .mockResolvedValueOnce([[req]])          // SELECT for applyPppoePasswordChange
       .mockResolvedValueOnce([{}])             // UPDATE radius password
       .mockResolvedValueOnce([{}])             // UPDATE status=completed in applyPppoePasswordChange
+      .mockResolvedValueOnce([{ affectedRows: 1 }]) // clear the stored password (SUP-13)
       .mockResolvedValueOnce([[{ ...req, status: 'completed', approved_by: 7 }]]); // final SELECT
 
     const result = await portalServiceRequestService.approveRequest(10, 1, 7, null);
@@ -196,6 +197,8 @@ describe('portalServiceRequestService.approveRequest() — pppoe_password_change
     // Verify the RADIUS update SQL was called
     const radiusSql = db.query.mock.calls[3][0];
     expect(radiusSql).toMatch(/UPDATE radius/);
+    // Once applied, the requested password is removed from the request.
+    expect(db.query.mock.calls[5][0]).toMatch(/JSON_REMOVE\(payload, '\$\.new_password_sealed', '\$\.new_password'\)/);
   });
 });
 

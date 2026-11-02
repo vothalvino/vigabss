@@ -1492,6 +1492,9 @@ router.post('/callback-request', async (req, res, next) => {
 router.post('/push/subscribe', validate(pushSubscribeSchema), async (req, res, next) => {
   try {
     const { endpoint, p256dh, auth, notify_outage, notify_billing, notify_ticket } = req.body;
+    if (!require('../services/portalPushService').isAllowedPushEndpoint(endpoint)) {
+      throw new ValidationError('endpoint must be an https URL of a browser push service', [{ field: 'endpoint', message: 'Unknown push service' }]);
+    }
     const result = await portalServiceRequestService.upsertPushSubscription({
       clientId: req.client.id,
       organizationId: req.client.organizationId,

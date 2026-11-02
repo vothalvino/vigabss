@@ -432,6 +432,20 @@ function KbTab() {
     }
   };
 
+  // Drafts are listed too, so they can be published from here (RTE-06).
+  const handleTogglePublished = async (a: KbArticle) => {
+    setError('');
+    try {
+      await apiFetch(`/support/kb/${a.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ is_published: !a.is_published }),
+      });
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
   const handleEmbed = async (id: number) => {
     setEmbedding(id);
     try {
@@ -557,6 +571,11 @@ function KbTab() {
                     label={t('aiSupport.kb.embed')}
                     variant="secondary"
                     disabled={embedding === a.id}
+                  />
+                  <ActionButton
+                    onClick={() => handleTogglePublished(a)}
+                    label={a.is_published ? t('aiSupport.kb.unpublish') : t('aiSupport.kb.publish')}
+                    variant="secondary"
                   />
                 </td>
               </tr>

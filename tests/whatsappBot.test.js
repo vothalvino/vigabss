@@ -456,8 +456,21 @@ describe('free-text support', () => {
     support.startConversation.mockResolvedValue(aiConversation({ conversation: { status: 'escalated' } }));
     const { reply } = await ask('esto es un fraude, me estan cobrando de mas otra vez');
     expect(reply).toMatch(/support team|follow up/i);
-    // The thread is cleared so the next message starts fresh with a human involved.
-    expect(wa.clearConversationState).toHaveBeenCalledWith(PHONE);
+    // SUP-09: the escalated thread is kept, so the next message appends to it
+    // instead of starting (and escalating) a new conversation.
+    expect(wa.setConversationState).toHaveBeenCalledWith(PHONE, expect.anything(), 'ai_support', { supportConversationId: 900 });
+    expect(wa.clearConversationState).not.toHaveBeenCalled();
+  });
+
+  it('a follow-up after an escalation goes to the same conversation, not a new one', async () => {
+    db.query.mockImplementation(async (sql) => (/FROM support_conversations/.test(sql)
+      ? [[{ id: 900 }]]
+      : [[{ name: 'Ana Lopez' }]]));
+    support.sendMessage.mockResolvedValue(aiConversation({ conversation: { status: 'escalated' } }));
+    const { reply } = await ask('sigo sin internet desde ayer en la tarde');
+    expect(support.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ conversationId: 900 }));
+    expect(support.startConversation).not.toHaveBeenCalled();
+    expect(reply).toMatch(/support team|follow up/i);
   });
 
   it('FALLS BACK TO THE MENU when the engine is unavailable', async () => {

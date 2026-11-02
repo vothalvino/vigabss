@@ -2912,7 +2912,7 @@ function generateSpec() {
         },
       },
       '/consumer-protection/service-modifications/{id}/send': {
-        put: { tags: ['Consumer Protection MX'], summary: 'Mark service modification notice as sent', operationId: 'sendServiceModificationNotice', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Updated') },
+        put: { tags: ['Consumer Protection MX'], summary: 'Deliver a service modification notice (email/SMS to its client), or record an outside delivery with delivery_evidence', description: 'Marked sent only when delivery succeeds (502 otherwise, the notice stays pending). Broadcast, postal, portal and all-channel notices require delivery_evidence. Refused when the effective date leaves less than notice_required_days.', operationId: 'sendServiceModificationNotice', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Updated') },
       },
       // ---- Data Residency ----
       '/data-residency': {
