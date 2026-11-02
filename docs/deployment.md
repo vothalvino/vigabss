@@ -1778,7 +1778,13 @@ Each VigaBSS instance maintains a connection pool to MySQL. Size it based on you
 DB_POOL_SIZE=10
 ```
 
-**Rule of thumb:** `DB_POOL_SIZE × number_of_instances` should not exceed 80% of MySQL's `max_connections`.
+**Rule of thumb:** `(DB_POOL_SIZE + DB_LOCK_POOL_SIZE) × number_of_instances` should not exceed 80% of MySQL's `max_connections`.
+
+`DB_LOCK_POOL_SIZE` (default 8) is a separate pool for the sessions that hold
+scheduled-task locks while a task runs without Redis. It is also the most
+scheduled tasks one instance runs at once; the rest wait their turn. These
+sessions used to come from the main pool, and the tasks' own queries need
+connections from it too, so 20 tasks due at the same minute deadlocked the API.
 
 ```sql
 -- Check current MySQL max connections

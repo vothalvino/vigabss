@@ -419,12 +419,37 @@ async function getConnection() {
   return targetPool.getConnection();
 }
 
+// Advisory locks (GET_LOCK) stay on one session for as long as the work they
+// guard runs, and that work queries through `pool`. Holding the lock sessions
+// in `pool` deadlocked the whole API: 20 scheduled tasks due at one 5-minute
+// mark took all 20 connections for their locks, then each waited forever for
+// a 21st. Lock sessions come from this separate pool instead. Its size caps
+// how many guarded runs go at once; a run waiting here holds nothing.
+let lockPool = null;
+
+function getLockConnection() {
+  if (!lockPool) {
+    lockPool = pinSessionToUtc(mysql.createPool({
+      ...baseConnectionConfig,
+      maxPreparedStatements: MAX_PREPARED_STATEMENTS,
+      waitForConnections: true,
+      connectionLimit: parseIntEnv('DB_LOCK_POOL_SIZE', 8),
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),
+    }));
+  }
+  return lockPool.getConnection();
+}
+
 /**
  * Close the pool (for graceful shutdown).
  */
 async function close() {
   const tasks = [pool.end()];
   if (replicaPool) tasks.push(replicaPool.end());
+  if (lockPool) tasks.push(lockPool.end());
+  lockPool = null;
   for (const entry of tenantPoolCache.values()) tasks.push(entry.pool.end());
   tenantPoolCache.clear();
   tenantConfigGenerations.clear();
@@ -439,6 +464,7 @@ module.exports = {
   query,
   queryReplica,
   getConnection,
+  getLockConnection,
   getReplicaConnection,
   close,
   baseConnectionConfig,

@@ -15,7 +15,7 @@ const mockConnection = {
 };
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
-  getConnection: jest.fn(async () => mockConnection),
+  getLockConnection: jest.fn(async () => mockConnection),
 }));
 
 jest.mock('node-cron', () => ({

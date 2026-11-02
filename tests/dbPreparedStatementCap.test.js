@@ -44,7 +44,8 @@ test('every pool database.js creates (tenant pools included) sets the cap', () =
   const pools = source.split('mysql.createPool(').slice(1).map(rest => rest.slice(0, rest.indexOf('})')));
   // testTenantConnection's one-connection pool runs a single SELECT 1 and ends.
   const longLived = pools.filter(body => !/connectionLimit: 1,/.test(body));
-  expect(longLived).toHaveLength(3);
+  // primary, replica, tenant, and the advisory-lock pool
+  expect(longLived).toHaveLength(4);
   for (const body of longLived) expect(body).toContain('maxPreparedStatements: MAX_PREPARED_STATEMENTS');
 });
 
