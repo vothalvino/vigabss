@@ -249,6 +249,57 @@ const config = {
  * Called from server.js before the server begins listening.
  * Throws on misconfiguration in production; logs warnings in development.
  */
+// Shared secrets that authenticate machine-to-machine ingest (WHK-15). A
+// short or sample value lets a collector endpoint be guessed online.
+const MACHINE_SECRETS = [
+  ['RADIUS_ACCOUNTING_SECRET', 'POST /api/v1/radius/accounting (shared-secret collector path)'],
+  ['PPPOE_EVENTS_SECRET', 'POST /api/v1/pppoe/events'],
+  ['FIRERELAY_TUNNEL_SECRET', 'FireRelay tunnel agents'],
+  ['STRIPE_WEBHOOK_SECRET', 'POST /api/v1/payment-webhooks/stripe (install-wide secret)'],
+];
+const MIN_MACHINE_SECRET_LENGTH = 32;
+const SAMPLE_SECRET_RE = /^(change[-_ ]?me|secret|password|test|example|replace[-_ ]?me|x+|0+|1234.*)$/i;
+
+function weakSecretReason(value) {
+  if (value.length < MIN_MACHINE_SECRET_LENGTH) return `is shorter than ${MIN_MACHINE_SECRET_LENGTH} characters`;
+  if (SAMPLE_SECRET_RE.test(value) || new Set(value).size < 10) return 'looks like a sample or low-entropy value';
+  return null;
+}
+
+function checkMachineSecrets(errors, warnings, isProduction, logger) {
+  const live = [];
+  for (const [key, endpoint] of MACHINE_SECRETS) {
+    const value = process.env[key];
+    if (!value) continue;
+    const reason = weakSecretReason(value);
+    if (reason) {
+      const msg = `${key} ${reason}; use at least ${MIN_MACHINE_SECRET_LENGTH} random characters (e.g. openssl rand -hex 32)`;
+      if (isProduction) errors.push(msg); else warnings.push(msg);
+    }
+    live.push(endpoint);
+  }
+  // PPPoE events fall back to the accounting secret when they have none.
+  if (!process.env.PPPOE_EVENTS_SECRET && process.env.RADIUS_ACCOUNTING_SECRET) {
+    live.push('POST /api/v1/pppoe/events (using RADIUS_ACCOUNTING_SECRET)');
+  }
+  // Conekta signs with a key pair; the variable holds the public key PEM.
+  if (process.env.CONEKTA_WEBHOOK_KEY) {
+    try {
+      // The same rule as paymentGatewayService.parseConektaPublicKey.
+      const key = require('crypto').createPublicKey(process.env.CONEKTA_WEBHOOK_KEY.replace(/\\n/g, '\n'));
+      if (key.asymmetricKeyType !== 'rsa') throw new Error('not an RSA key');
+      live.push('POST /api/v1/payment-webhooks/conekta (install-wide key)');
+    } catch (_err) {
+      const msg = 'CONEKTA_WEBHOOK_KEY is not a valid public key PEM; Conekta webhooks will fail verification';
+      if (isProduction) errors.push(msg); else warnings.push(msg);
+    }
+  }
+  if (typeof logger?.info === 'function') {
+    logger.info({ sharedSecretEndpoints: live },
+      live.length ? `Shared-secret ingest endpoints enabled: ${live.join('; ')}` : 'No shared-secret ingest endpoints are enabled');
+  }
+}
+
 function validateEnv(logger) {
   const errors = [];
   const warnings = [];
@@ -280,6 +331,8 @@ function validateEnv(logger) {
   } else if (typeof logger?.info === 'function') {
     logger.info({ trustProxy: config.trustProxy }, `Trusting ${config.trustProxy} reverse-proxy hop(s) for client addresses`);
   }
+
+  checkMachineSecrets(errors, warnings, isProduction, logger);
 
   // Encryption key: required in production for at-rest encryption of secrets
   if (!process.env.ENCRYPTION_KEY) {
@@ -350,5 +403,6 @@ function validateEnv(logger) {
 
 config.validateEnv = validateEnv;
 config.parseTrustProxy = parseTrustProxy;
+config.weakSecretReason = weakSecretReason;
 
 module.exports = config;
