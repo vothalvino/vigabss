@@ -72,7 +72,7 @@ router.post('/', requirePermission('reports.manage_definitions'), async (req, re
         parameters ? JSON.stringify(parameters) : null, req.user.id],
     );
 
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM report_definitions WHERE id = ?',
       [result.insertId],
     );
@@ -85,7 +85,7 @@ router.post('/', requirePermission('reports.manage_definitions'), async (req, re
 // ---------------------------------------------------------------------------
 router.put('/:id', requirePermission('reports.manage_definitions'), async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       `SELECT * FROM report_definitions
        WHERE id = ? AND organization_id = ? AND deleted_at IS NULL AND is_system = 0`,
       [req.params.id, req.orgId],
@@ -110,7 +110,7 @@ router.put('/:id', requirePermission('reports.manage_definitions'), async (req, 
         req.params.id],
     );
 
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM report_definitions WHERE id = ?',
       [req.params.id],
     );
@@ -123,7 +123,7 @@ router.put('/:id', requirePermission('reports.manage_definitions'), async (req, 
 // ---------------------------------------------------------------------------
 router.delete('/:id', requirePermission('reports.manage_definitions'), async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       `SELECT id FROM report_definitions
        WHERE id = ? AND organization_id = ? AND deleted_at IS NULL AND is_system = 0`,
       [req.params.id, req.orgId],

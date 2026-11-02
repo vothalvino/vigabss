@@ -43,9 +43,10 @@ beforeEach(() => {
   db.query.mockImplementation(async (sql) => {
     if (/FROM users WHERE id = \?/.test(sql)) return [creator ? [creator] : []];
     if (/INSERT INTO generated_reports/.test(sql)) return [{ insertId: 70 }];
+    // Mutation existence checks and read-backs hit the primary (DB-12).
+    if (/^SELECT .* FROM scheduled_reports WHERE id = \?/.test(sql)) return [[{ id: 5 }]];
     return [{ insertId: 1, affectedRows: 1 }];
   });
-  db.queryReplica.mockResolvedValue([[{ id: 5 }]]);
 });
 
 const SCHEDULE = {

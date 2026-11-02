@@ -41,10 +41,12 @@ beforeEach(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  db.query.mockImplementation(async (sql) => (/FROM users WHERE id = \?/.test(sql)
-    ? [[{ id: 8, status: 'active' }]]
-    : [{ insertId: 9, affectedRows: 1 }]));
-  db.queryReplica.mockResolvedValue([[{ id: 9 }]]);
+  db.query.mockImplementation(async (sql) => {
+    if (/FROM users WHERE id = \?/.test(sql)) return [[{ id: 8, status: 'active' }]];
+    // Mutation existence checks and read-backs hit the primary (DB-12).
+    if (/^SELECT .* FROM scheduled_reports WHERE id = \?/.test(sql)) return [[{ id: 9 }]];
+    return [{ insertId: 9, affectedRows: 1 }];
+  });
 });
 
 describe('nextRunAt', () => {

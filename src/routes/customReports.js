@@ -98,7 +98,7 @@ router.post('/', requirePermission('custom_reports.create'), requireInstallOpera
         visual_config ? JSON.stringify(visual_config) : null, is_public ? 1 : 0, req.user.id],
     );
 
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM custom_reports WHERE id = ?',
       [result.insertId],
     );
@@ -109,7 +109,7 @@ router.post('/', requirePermission('custom_reports.create'), requireInstallOpera
 // PUT /api/custom-reports/:id
 router.put('/:id', requirePermission('custom_reports.manage'), requireInstallOperator, async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       'SELECT * FROM custom_reports WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
@@ -137,7 +137,7 @@ router.put('/:id', requirePermission('custom_reports.manage'), requireInstallOpe
         req.params.id],
     );
 
-    const [rows] = await db.queryReplica('SELECT * FROM custom_reports WHERE id = ?', [req.params.id]);
+    const [rows] = await db.query('SELECT * FROM custom_reports WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -145,7 +145,7 @@ router.put('/:id', requirePermission('custom_reports.manage'), requireInstallOpe
 // DELETE /api/custom-reports/:id
 router.delete('/:id', requirePermission('custom_reports.manage'), async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       'SELECT id FROM custom_reports WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
