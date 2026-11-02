@@ -73,7 +73,10 @@ interface GroupBilling {
   group_currency: string | null;
   group_balances?: { currency: string; balance: number }[];
   group_mixed_currency?: boolean;
-  payable_total: number;
+  /** What one payment can settle, per currency (a payment settles one currency). */
+  payable_by_currency?: { currency: string; amount: number }[];
+  /** null when open invoices are in more than one currency. */
+  payable_total: number | null;
 }
 
 const BILLING_MODES = ['separate', 'shared'];
@@ -171,7 +174,17 @@ function AddMembersModal({ groupId, existingIds, onClose, onSaved }: {
 function PayGroupModal({ group, billing, onClose, onSaved }: {
   group: ClientGroup; billing: GroupBilling; onClose: () => void; onSaved: () => void;
 }) {
-  const [amount, setAmount] = useState(String(billing.payable_total.toFixed(2)));
+  const { t } = useTranslation();
+  const payable = billing.payable_by_currency?.length
+    ? billing.payable_by_currency
+    : [{ currency: billing.group_currency ?? '', amount: billing.payable_total ?? 0 }];
+  const [currency, setCurrency] = useState(payable[0].currency);
+  const openForCurrency = payable.find(p => p.currency === currency)?.amount ?? 0;
+  const [amount, setAmount] = useState(String(openForCurrency.toFixed(2)));
+  const chooseCurrency = (next: string) => {
+    setCurrency(next);
+    setAmount(String((payable.find(p => p.currency === next)?.amount ?? 0).toFixed(2)));
+  };
   const [method, setMethod] = useState('cash');
   const [reference, setReference] = useState('');
   const [error, setError] = useState('');
@@ -181,7 +194,11 @@ function PayGroupModal({ group, billing, onClose, onSaved }: {
     mutationFn: async () => {
       const { data, error: e } = await api.POST('/client-groups/{id}/pay', {
         params: { path: { id: group.id } },
-        body: { amount: Number(amount), payment_method: method, reference_number: reference || undefined } as never,
+        body: {
+          amount: Number(amount), payment_method: method, reference_number: reference || undefined,
+          // One payment settles one currency; sent whenever the group has several.
+          currency: payable.length > 1 ? currency : undefined,
+        } as never,
       });
       if (e) throw new Error(extractApiError(e, 'Payment failed'));
       return (data as unknown as { data: { allocated_total: number; unallocated_credit: number; settled_invoices: unknown[] } }).data;
@@ -202,8 +219,8 @@ function PayGroupModal({ group, billing, onClose, onSaved }: {
         {result ? (
           <div>
             <div style={{ padding: 12, background: 'var(--bg-subtle, #f0fdf4)', borderRadius: 6, fontSize: '0.9rem' }}>
-              ✓ Applied {fmtMoney(result.allocated_total, billing.group_currency ?? '')} across {result.settled_invoices.length} invoice(s).
-              {result.unallocated_credit > 0 && <> Remaining {fmtMoney(result.unallocated_credit, billing.group_currency ?? '')} left as credit on the primary.</>}
+              ✓ Applied {fmtMoney(result.allocated_total, currency)} across {result.settled_invoices.length} invoice(s).
+              {result.unallocated_credit > 0 && <> Remaining {fmtMoney(result.unallocated_credit, currency)} left as credit on the primary.</>}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
               <button type="button" onClick={onClose} style={submitBtn}>Done</button>
@@ -211,8 +228,16 @@ function PayGroupModal({ group, billing, onClose, onSaved }: {
           </div>
         ) : (
           <>
+            {payable.length > 1 && (
+              <>
+                <label style={labelStyle} htmlFor="group-pay-currency">{t('clientList.groupPay.currency')}</label>
+                <select id="group-pay-currency" style={inputStyle} value={currency} onChange={e => chooseCurrency(e.target.value)}>
+                  {payable.map(p => <option key={p.currency} value={p.currency}>{t('clientList.groupPay.currencyOption', { currency: p.currency, amount: fmtMoney(p.amount, p.currency) })}</option>)}
+                </select>
+              </>
+            )}
             <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
-              Group open balance: <strong>{fmtMoney(billing.payable_total, billing.group_currency ?? '')}</strong>
+              Group open balance: <strong>{fmtMoney(openForCurrency, currency)}</strong>
             </div>
             <label style={labelStyle}>Amount</label>
             <input style={inputStyle} type="number" min={0.01} step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
@@ -325,8 +350,7 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
                   </strong>
                 ))}
               </span>
-              {/* One payment settles one currency; the API refuses a mixed group. */}
-              {canPay && !billingQ.data.group_mixed_currency && billingQ.data.payable_total > 0.005 && (
+              {canPay && (billingQ.data.payable_by_currency ?? [{ amount: billingQ.data.payable_total ?? 0 }]).some(p => p.amount > 0.005) && (
                 <button type="button" style={{ ...submitBtn, padding: '5px 12px' }} onClick={() => { setActionError(''); setShowPay(true); }}>
                   Pay group balance
                 </button>

@@ -117,6 +117,21 @@ describe('getGroupBilling', () => {
   });
 
   // GQL-10: a member owing USD and one owing MXN are not one group total.
+  it('reports what can be paid per currency; payable_total only for a single currency', async () => {
+    mockGetInvoices.mockImplementation(async (_exec, _org, clientId) => {
+      if (clientId === 2) return [{ ...INVOICES[2][0], currency: 'USD' }];
+      return (INVOICES[clientId] || []).map((r) => ({ ...r }));
+    });
+    const res = await groupBillingService.getGroupBilling(10, 7);
+    expect(res.payable_by_currency).toEqual([{ currency: 'MXN', amount: 130 }, { currency: 'USD', amount: 50 }]);
+    expect(res.payable_total).toBeNull();
+
+    mockGetInvoices.mockImplementation(async (_exec, _org, clientId) => (INVOICES[clientId] || []).map((r) => ({ ...r })));
+    const single = await groupBillingService.getGroupBilling(10, 7);
+    expect(single.payable_by_currency).toEqual([{ currency: 'MXN', amount: 180 }]);
+    expect(single.payable_total).toBe(180);
+  });
+
   it('totals each currency separately when members hold different currencies', async () => {
     computeClientBalance.mockImplementation(async (_org, clientId) => {
       const b = { 1: { currency: 'MXN', balance: 100 }, 2: { currency: 'USD', balance: 50 }, 3: { currency: 'MXN', balance: 30 } }[clientId];
@@ -188,6 +203,35 @@ describe('payGroup', () => {
       return (INVOICES[clientId] || []).map((r) => ({ ...r }));
     });
     await expect(groupBillingService.payGroup(10, 7, {})).rejects.toMatchObject({ statusCode: 422 });
+  });
+
+  // A mixed-currency group is paid one currency at a time.
+  it('with currency set, settles only that currency and records the payment in it', async () => {
+    mockGetInvoices.mockImplementation(async (_exec, _org, clientId) => {
+      if (clientId === 2) return [{ ...INVOICES[2][0], currency: 'USD' }];
+      return (INVOICES[clientId] || []).map((r) => ({ ...r }));
+    });
+    const conn = makeConn();
+    db.getConnection.mockResolvedValue(conn);
+
+    const res = await groupBillingService.payGroup(10, 7, { currency: 'usd', payment_method: 'transfer' });
+
+    expect(res.payment).toMatchObject({ amount: 50, currency: 'USD' });
+    expect(conn.allocations.map((a) => a.invoice_id)).toEqual([201]);
+  });
+
+  it('the refusal names the currencies to choose from', async () => {
+    mockGetInvoices.mockImplementation(async (_exec, _org, clientId) => {
+      if (clientId === 2) return [{ ...INVOICES[2][0], currency: 'USD' }];
+      return (INVOICES[clientId] || []).map((r) => ({ ...r }));
+    });
+    db.getConnection.mockResolvedValue(makeConn());
+    await expect(groupBillingService.payGroup(10, 7, {})).rejects.toThrow(/MXN and USD/);
+  });
+
+  it('a currency with nothing open is refused', async () => {
+    db.getConnection.mockResolvedValue(makeConn());
+    await expect(groupBillingService.payGroup(10, 7, { currency: 'EUR' })).rejects.toThrow(/no open EUR balance/);
   });
 
   it('overpay credit is attributed to the primary in the ledger', async () => {
