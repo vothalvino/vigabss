@@ -708,7 +708,7 @@
           "Auth"
         ],
         "summary": "Complete a two-factor login",
-        "description": "Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.",
+        "description": "Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX-XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.",
         "operationId": "loginTwoFactor",
         "requestBody": {
           "description": "Two-factor challenge and code",
@@ -729,7 +729,7 @@
                   "code": {
                     "type": "string",
                     "minLength": 4,
-                    "maxLength": 10
+                    "maxLength": 24
                   }
                 }
               }
@@ -2323,7 +2323,7 @@
                   "code": {
                     "type": "string",
                     "minLength": 4,
-                    "maxLength": 10
+                    "maxLength": 24
                   },
                   "password": {
                     "type": "string",
@@ -60844,7 +60844,7 @@
           "code": {
             "type": "string",
             "minimum": 4,
-            "maximum": 10
+            "maximum": 24
           }
         },
         "required": [
@@ -78828,7 +78828,7 @@
           "code": {
             "type": "string",
             "minimum": 4,
-            "maximum": 10
+            "maximum": 24
           }
         },
         "required": [
@@ -78841,7 +78841,7 @@
           "code": {
             "type": "string",
             "minimum": 4,
-            "maximum": 10
+            "maximum": 24
           },
           "password": {
             "type": "string",

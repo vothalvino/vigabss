@@ -92,7 +92,7 @@ for 5 minutes:
 ```
 
 Complete the login with a 6-digit code from the authenticator app or one of the
-`XXXX-XXXX` backup codes. The response is the same as a one-step login:
+`XXXX-XXXX-XXXX-XXXX` backup codes. The response is the same as a one-step login:
 
 ```http
 POST /api/v1/auth/login/2fa

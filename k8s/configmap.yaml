@@ -9,6 +9,9 @@ metadata:
 data:
   NODE_ENV: "production"
   PORT: "3000"
+  # Public https URL of the ingress host (k8s/ingress.yaml); production
+  # refuses to start with an http APP_URL.
+  APP_URL: "https://vigabss.example.com"
   LOG_LEVEL: "info"
 
   # Rate limiting

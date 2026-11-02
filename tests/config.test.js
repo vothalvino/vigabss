@@ -140,6 +140,7 @@ describe('validateEnv', () => {
     process.env.DB_HOST = 'localhost';
     process.env.DB_NAME = 'fireisp';
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
+    process.env.APP_URL = 'https://isp.example.com';
     jest.resetModules();
     const config = require('../src/config');
     expect(() => config.validateEnv(null)).not.toThrow();
@@ -151,6 +152,7 @@ describe('validateEnv', () => {
     process.env.DB_HOST = 'localhost';
     process.env.DB_NAME = 'fireisp';
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
+    process.env.APP_URL = 'https://isp.example.com';
     delete process.env.ADMIN_IP_ALLOWLIST;
     jest.resetModules();
     const config = require('../src/config');
