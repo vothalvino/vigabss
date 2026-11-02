@@ -7,6 +7,7 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
 const { runInPrimaryContext } = require('../utils/primaryContext');
+const { noteAuditWriteFailure } = require('../utils/opsMetrics');
 
 /**
  * Log an audit event.
@@ -49,7 +50,8 @@ async function log({ userId, organizationId, action, tableName, entityType, reco
     ));
   } catch (err) {
     // Audit logging should never crash the request
-    logger.error({ err }, 'Audit log error');
+    noteAuditWriteFailure();
+    logger.error({ err, action, entityType: entityType || tableName || null }, 'Audit log error');
   }
 }
 

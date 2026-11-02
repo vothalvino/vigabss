@@ -6617,5 +6617,18 @@
     "send": "Send Reply",
     "closedNote": "This ticket is {{status}}.",
     "openNew": "Open a new ticket if you need further assistance."
+  },
+  "auditLogs": {
+    "verify": "Verify integrity",
+    "verifying": "Verifying…",
+    "verifyFailed": "Could not verify the audit log.",
+    "intact_one": "Audit log intact: {{count}} entry checked against its hash chain.",
+    "intact_other": "Audit log intact: {{count}} entries checked against their hash chain.",
+    "broken_one": "Audit log integrity problem: {{count}} finding. Entries were changed, removed or reordered after they were written.",
+    "broken_other": "Audit log integrity problems: {{count}} findings. Entries were changed, removed or reordered after they were written.",
+    "unchained_one": "{{count}} older entry predates the hash chain.",
+    "unchained_other": "{{count}} older entries predate the hash chain.",
+    "position": "position {{seq}}",
+    "installScope": "Show install-wide events (no organization)"
   }
 }

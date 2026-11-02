@@ -92,7 +92,7 @@ for 5 minutes:
 ```
 
 Complete the login with a 6-digit code from the authenticator app or one of the
-`XXXX-XXXX` backup codes. The response is the same as a one-step login:
+`XXXX-XXXX-XXXX-XXXX` backup codes. The response is the same as a one-step login:
 
 ```http
 POST /api/v1/auth/login/2fa
@@ -163,6 +163,14 @@ Content-Type: application/json
 ```
 
 The old refresh token is immediately invalidated (rotation). Each refresh issues a new token pair. If a previously rotated refresh token is reused, the request is rejected — this helps detect token theft.
+
+Browsers get the refresh token only as an httpOnly cookie (`fireisp_refresh`
+for staff, `fireisp_portal_refresh` for the client portal), never in the JSON
+body, so page scripts cannot read it. A request counts as a browser request
+when it carries the `Sec-Fetch-Site` header, which browsers add to every
+fetch, or when its refresh token came from the cookie. API clients that send
+neither keep receiving `refreshToken` in the body as shown above. SSO logins
+end with the same cookies and a redirect to the app, with no tokens in the URL.
 
 ---
 

@@ -17,6 +17,14 @@ const scheduledTaskRuns = registry.counter({
   maxSeries: 400,
 });
 
+// ASY-38: a failed audit write was only logged, so a broken audit trail went
+// unnoticed (it once stayed empty for months). Counted here so /metrics
+// always exports it and VigaBSS_AuditLogWriteFailures can alert.
+const auditWriteFailures = registry.counter({
+  name: 'audit_log_write_failures_total',
+  help: 'Audit log rows that could not be written',
+});
+
 let lastBackupSeconds = null;
 let lastBackupLoadedAt = 0;
 const BACKUP_RELOAD_MS = 5 * 60 * 1000;
@@ -54,4 +62,10 @@ function noteTaskRun(task, status) {
   scheduledTaskRuns.inc({ task, status });
 }
 
-module.exports = { noteBackupSuccess, noteTaskRun, scheduledTaskRuns };
+function noteAuditWriteFailure() {
+  auditWriteFailures.inc();
+}
+
+module.exports = {
+  noteBackupSuccess, noteTaskRun, noteAuditWriteFailure, scheduledTaskRuns, auditWriteFailures,
+};

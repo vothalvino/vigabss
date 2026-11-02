@@ -22,6 +22,7 @@ import {
   submitBtn,
   cancelBtn,
 } from '@/components/ClientFormModal';
+import { queryKeys } from '@/api/queryKeys';
 
 interface Lead {
   id: number;
@@ -718,7 +719,7 @@ export function LeadList() {
     qc.invalidateQueries({ queryKey: ['leads'] });
     qc.invalidateQueries({ queryKey: ['clients'] });
     qc.invalidateQueries({ queryKey: ['service-orders'] });
-    qc.invalidateQueries({ queryKey: ['contracts'] });
+    qc.invalidateQueries({ queryKey: queryKeys.contracts.all });
     navigate(`/contracts/${contractId}`);
   }
 

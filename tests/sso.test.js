@@ -954,14 +954,21 @@ describe('GET /sso/:orgId/oidc/callback — 2FA', () => {
     expect(verifyMfaChallengeToken(token)).toMatchObject({ sub: 5, method: 'sso', orgId: 1 });
   });
 
-  test('an account without 2FA still receives tokens', async () => {
+  // SEC-28: the tokens used to ride in the redirect's URL fragment, where page
+  // scripts and browser history could read them.
+  test('an account without 2FA gets session cookies, not tokens in the URL', async () => {
     routeCallbackDb({ id: 5, email: 'tech@example.com', role: 'technician', status: 'active',
       organization_id: 1, is_install_operator: 0, totp_enabled: 0, password_hash: 'h' });
 
     const res = await request(app).get('/api/v1/sso/1/oidc/callback?state=s1&code=c1');
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/\/sso\/callback#accessToken=/);
+    expect(res.headers.location).toBe('http://localhost:3000/');
+    expect(res.headers.location).not.toMatch(/accessToken|refreshToken/);
+    const cookies = res.headers['set-cookie'].join('\n');
+    expect(cookies).toMatch(/fireisp_refresh=[^;]+;[^\n]*HttpOnly/);
+    expect(cookies).toMatch(/fireisp_access=[^;]+;[^\n]*HttpOnly/);
+    expect(cookies).toMatch(/fireisp_active_org=1;/);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO user_sessions/.test(sql))).toBe(true);
   });
 });

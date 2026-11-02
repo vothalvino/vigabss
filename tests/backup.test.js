@@ -79,7 +79,7 @@ describe('cloudStorageService', () => {
 
   /** Build a mock https request/response pair for S3 upload tests. */
   function mockHttpsRequest(statusCode, responseBody = '') {
-    const mockReq = { write: jest.fn(), end: jest.fn(), on: jest.fn() };
+    const mockReq = { write: jest.fn(), end: jest.fn(), on: jest.fn(), setTimeout: jest.fn(), destroy: jest.fn() };
     const mockRes = {
       statusCode,
       on: jest.fn((event, cb) => {

@@ -21,7 +21,7 @@ function connectionWithLock(acquired = 1) {
     execute: jest.fn(async (sql) => {
       if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'fireisp_test' }]];
       if (/GET_LOCK/.test(sql)) return [[{ acquired }]];
-      if (/SELECT filename FROM schema_migrations/.test(sql)) return [everyMigration];
+      if (/SELECT filename(, checksum)? FROM schema_migrations/.test(sql)) return [everyMigration];
       if (/RELEASE_LOCK/.test(sql)) return [[{ released: 1 }]];
       return [{ affectedRows: 0 }];
     }),
@@ -40,7 +40,7 @@ describe('migration advisory lock', () => {
 
     const statements = conn.execute.mock.calls.map(([sql]) => sql);
     const acquireAt = statements.findIndex(sql => /GET_LOCK/.test(sql));
-    const discoverAt = statements.findIndex(sql => /SELECT filename FROM schema_migrations/.test(sql));
+    const discoverAt = statements.findIndex(sql => /SELECT filename(, checksum)? FROM schema_migrations/.test(sql));
     const releaseAt = statements.findIndex(sql => /RELEASE_LOCK/.test(sql));
     expect(statements[0]).toMatch(/SELECT DATABASE\(\)/);
     expect(acquireAt).toBe(1);

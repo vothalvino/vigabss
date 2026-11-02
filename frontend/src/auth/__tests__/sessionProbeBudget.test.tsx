@@ -35,12 +35,12 @@ describe('session probes', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2); // /me, /refresh — no race re-check without a CSRF cookie
   });
 
-  it('a rate-limited portal boot keeps the refresh token for the next load', async () => {
-    portalTokenStore.setRefresh('still-valid');
+  it('a rate-limited portal boot keeps the session for the next load', async () => {
+    portalTokenStore.markSession();
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(status(429));
     const { result } = renderHook(() => usePortalAuth(), { wrapper: wrap(PortalAuthProvider as typeof AuthProvider) });
     await waitFor(() => expect(result.current.initialized).toBe(true), { timeout: 5000 });
     expect(result.current.client).toBeNull();
-    expect(portalTokenStore.getRefresh()).toBe('still-valid');
+    expect(portalTokenStore.hasSession()).toBe(true);
   });
 });

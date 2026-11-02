@@ -15,6 +15,7 @@ const mysql = require('mysql2/promise');
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ script: 'migrate' });
 const { acquireMigrationLock, releaseMigrationLock } = require('../utils/migrationLock');
+const { listMigrationFiles, migrationChecksum } = require('../utils/migrationFiles');
 const product = require('../product');
 const { listIsolatedMigrationTargets } = require('../services/tenantDatabaseService');
 
@@ -106,6 +107,18 @@ function createMigrationPool(connectionConfig) {
   });
 }
 
+// schema_migrations belongs to the runner, so the runner adds the checksum
+// column (DB-21) to a table created before it existed.
+async function ensureChecksumColumn(conn) {
+  const [rows] = await conn.execute(
+    `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schema_migrations' AND COLUMN_NAME = 'checksum'`,
+  );
+  if (!rows.length) {
+    await conn.query('ALTER TABLE schema_migrations ADD COLUMN checksum CHAR(64) NULL AFTER applied_at');
+  }
+}
+
 async function applyMigrations(migrationPool, label = 'primary') {
 
   let conn;
@@ -131,24 +144,35 @@ async function applyMigrations(migrationPool, label = 'primary') {
         filename   VARCHAR(255)     NOT NULL,
         applied_at TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
+        checksum   CHAR(64)         NULL,
         UNIQUE KEY uq_schema_migrations_filename (filename)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    // Fetch already-applied filenames
-    const [applied] = await conn.execute('SELECT filename FROM schema_migrations');
-    const appliedSet = new Set(applied.map(r => r.filename));
+    await ensureChecksumColumn(conn);
 
-    // Read migration files sorted by filename (numeric prefix ensures order)
-    const files = fs.readdirSync(MIGRATIONS_DIR)
-      .filter(f => f.endsWith('.sql'))
-      .sort();
+    // Fetch already-applied filenames and the checksums they were applied with
+    const [applied] = await conn.execute('SELECT filename, checksum FROM schema_migrations');
+    const appliedChecksums = new Map(applied.map(r => [r.filename, r.checksum]));
+
+    // DB-21: numeric order, so '1000_x.sql' runs after '999_x.sql'.
+    const files = listMigrationFiles(MIGRATIONS_DIR);
 
     let count = 0;
+    const changed = [];
     for (const file of files) {
-      if (appliedSet.has(file)) continue;
-
       const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+      const checksum = migrationChecksum(sql);
+      if (appliedChecksums.has(file)) {
+        const recorded = appliedChecksums.get(file);
+        if (!recorded) {
+          await conn.execute('UPDATE schema_migrations SET checksum = ? WHERE filename = ?', [checksum, file]);
+        } else if (recorded !== checksum) {
+          changed.push(file);
+        }
+        continue;
+      }
+
       logger.info({ file, target: label }, 'Applying migration');
 
       try {
@@ -156,14 +180,22 @@ async function applyMigrations(migrationPool, label = 'primary') {
           await conn.query(stmt);
         }
         await conn.execute(
-          'INSERT INTO schema_migrations (filename) VALUES (?)',
-          [file],
+          'INSERT INTO schema_migrations (filename, checksum) VALUES (?, ?)',
+          [file, checksum],
         );
         count++;
       } catch (err) {
         logger.error({ err, file }, 'Migration failed');
         throw err;
       }
+    }
+
+    // An applied migration whose statements changed afterwards is not
+    // re-run: the database keeps what the old text did. Warn rather than
+    // fail, so a corrected guard in a shipped file cannot block an upgrade.
+    if (changed.length) {
+      logger.warn({ target: label, files: changed },
+        'Applied migrations have changed since they ran; their changes are not applied to this database');
     }
 
     if (count === 0) {

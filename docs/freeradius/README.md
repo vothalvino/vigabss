@@ -666,7 +666,7 @@ an offset (`2026-10-20T18:00:00Z`) to have it used as sent.
 | Status-Type | Required attributes |
 |-------------|---------------------|
 | Start / Stop / Interim-Update | `User-Name`, `NAS-IP-Address`, `Acct-Session-Id` |
-| Accounting-On / Accounting-Off | Status only; acknowledged as a no-op |
+| Accounting-On / Accounting-Off | Status only; closes that NAS's open sessions (see below) |
 
 Gigawords wraparound is handled automatically:
 `total_bytes = Acct-Input-Octets + Acct-Input-Gigawords × 4294967296`.
@@ -683,6 +683,23 @@ The UTC usage rollup flags non-zero baselines, counter resets/late fields, and
 cross-midnight estimates. Inspect its completeness/anomaly fields before using
 it for billing or FUP. Direct SQL writes to `connection_logs` do not populate
 the rollup and are not a supported usage source.
+
+### Sessions whose Stop is lost
+
+A session whose `Stop` never arrives does not stay open. When a NAS sends
+`Accounting-On` or `Accounting-Off`, VigaBSS closes every session still open on
+that NAS with `terminate_cause = 'NAS-Reboot'`. The `close_stale_sessions`
+task (every 10 minutes) closes sessions that have sent no accounting for longer
+than `RADIUS_SESSION_LIVENESS_MINUTES` (default 60) with
+`terminate_cause = 'Stale-Session'`. Set the NAS Interim-Update interval well
+below that window, or live sessions will be closed between updates.
+
+Both closures end the session at its last real accounting, not at the time of
+the closure, and record `attribution_anomaly_reason` (`nas_reboot` or
+`stale_session`). IP lookups attribute the session from its Start through its
+last Interim-Update and never the silent gap after it. A real `Stop` that
+arrives later still corrects the final counters. The readiness report shows
+`stale_open_sessions`, which stays above zero if the task is not running.
 
 ### MAC move detection
 

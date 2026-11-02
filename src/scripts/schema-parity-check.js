@@ -10,9 +10,10 @@
 const fs = require('fs');
 const path = require('path');
 const { extractSchemaColumns } = require(path.resolve('src/scripts/migration-smoke-test.js'));
+const { listMigrationFiles } = require(path.resolve('src/utils/migrationFiles.js'));
 
 const dbCols = new Map(); // table -> Set(cols) per migrations
-const files = fs.readdirSync('database/migrations').filter(f => f.endsWith('.sql')).sort();
+const files = listMigrationFiles('database/migrations');
 for (const f of files) {
   const sql = fs.readFileSync(path.join('database/migrations', f), 'utf8');
   // CREATE TABLE bodies via the real smoke-test parser

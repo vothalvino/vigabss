@@ -708,7 +708,7 @@
           "Auth"
         ],
         "summary": "Complete a two-factor login",
-        "description": "Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.",
+        "description": "Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX-XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.",
         "operationId": "loginTwoFactor",
         "requestBody": {
           "description": "Two-factor challenge and code",
@@ -729,7 +729,7 @@
                   "code": {
                     "type": "string",
                     "minLength": 4,
-                    "maxLength": 10
+                    "maxLength": 24
                   }
                 }
               }
@@ -2323,7 +2323,7 @@
                   "code": {
                     "type": "string",
                     "minLength": 4,
-                    "maxLength": 10
+                    "maxLength": 24
                   },
                   "password": {
                     "type": "string",
@@ -24632,10 +24632,27 @@
           "Audit Logs"
         ],
         "summary": "List audit log entries",
+        "description": "scope=install lists install-wide events (no organization) and requires the install operator.",
         "operationId": "listAuditLogs",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "organization",
+                "install"
+              ],
+              "default": "organization"
+            },
+            "description": "install: events with no organization (install operator only)"
           }
         ],
         "responses": {
@@ -45356,13 +45373,20 @@
           "Portal Auth"
         ],
         "summary": "Refresh portal access token",
+        "description": "Reads the refresh token from the fireisp_portal_refresh httpOnly cookie, or from the body for API clients. Browser requests do not get refreshToken back in the body.",
         "operationId": "portalRefreshToken",
         "requestBody": {
-          "description": "refreshToken",
+          "description": "refreshToken (API clients only)",
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
@@ -45374,6 +45398,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No or invalid refresh token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -52104,6 +52155,109 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/audit-logs/verify": {
+      "get": {
+        "tags": [
+          "Audit Logs"
+        ],
+        "summary": "Verify the audit log hash chain",
+        "description": "Recomputes the hash chain of the organization (or, with scope=install, the install-wide events) and lists rows changed, removed or reordered since they were written.",
+        "operationId": "verifyAuditLogChain",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "organization",
+                "install"
+              ],
+              "default": "organization"
+            },
+            "description": "install: events with no organization (install operator only)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chain verification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "intact",
+                        "checked",
+                        "last_seq",
+                        "unchained",
+                        "problems"
+                      ],
+                      "properties": {
+                        "intact": {
+                          "type": "boolean"
+                        },
+                        "checked": {
+                          "type": "integer"
+                        },
+                        "last_seq": {
+                          "type": "integer"
+                        },
+                        "unchained": {
+                          "type": "integer",
+                          "description": "Rows written before the chain existed"
+                        },
+                        "problems": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "id",
+                              "chain_seq",
+                              "problem"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "chain_seq": {
+                                "type": "integer"
+                              },
+                              "problem": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "scope=install without the install operator"
           }
         }
       }
@@ -60724,7 +60878,7 @@
           "code": {
             "type": "string",
             "minimum": 4,
-            "maximum": 10
+            "maximum": 24
           }
         },
         "required": [
@@ -78708,7 +78862,7 @@
           "code": {
             "type": "string",
             "minimum": 4,
-            "maximum": 10
+            "maximum": 24
           }
         },
         "required": [
@@ -78721,7 +78875,7 @@
           "code": {
             "type": "string",
             "minimum": 4,
-            "maximum": 10
+            "maximum": 24
           },
           "password": {
             "type": "string",
@@ -82085,6 +82239,9 @@
               },
               "timeline_current": {
                 "type": "boolean"
+              },
+              "stale_open_sessions": {
+                "type": "integer"
               }
             }
           },

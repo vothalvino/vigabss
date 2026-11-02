@@ -579,10 +579,7 @@ async function ingestAccounting(attrs) {
       const duplicateLastAt = duplicate
         ? new Date(duplicate.last_accounting_at || duplicate.event_at).getTime()
         : 0;
-      const livenessMinutes = Math.min(
-        Math.max(Number.parseInt(process.env.RADIUS_SESSION_LIVENESS_MINUTES || '60', 10) || 60, 1),
-        1440,
-      );
+      const livenessMinutes = sessionLivenessMinutes();
       const staleOpenSession = duplicate && duplicate.event_type !== 'stop'
         && observedEventAt.getTime() > duplicateLastAt + livenessMinutes * 60 * 1000;
       const ipv4Changed = duplicate && duplicate.event_type !== 'stop'
@@ -1299,7 +1296,82 @@ async function recordInfrastructureAccounting({
       bounded(provenance.requestId, 64), bounded(provenance.sourceIp, 45),
       bounded(provenance.userAgent, 255), payloadHash],
   );
-  return { action: 'noop', id: null, macMove: false };
+  // The NAS rebooted (On) or is shutting down (Off): every session it had open
+  // is gone, and its Stop will never arrive. Close them at their last real
+  // accounting, as the synthetic closures above do, so lookups certify each
+  // session up to its last Interim and never the gap after it (REG-10).
+  // NOW(3) is fixed for the statement, so a Start received after this signal
+  // stays open.
+  const closed = await closeOpenSessions({
+    organizationId: Number(organizationId), nasId: Number(nasId),
+    terminateCause: 'NAS-Reboot', anomalyReason: 'nas_reboot',
+  });
+  if (closed > 0) {
+    logger.info({ organizationId, nasId, acctStatusType, closed }, 'NAS restart closed its open sessions');
+  }
+  return { action: closed > 0 ? 'closed' : 'noop', id: null, macMove: false, closed };
+}
+
+const STALE_SESSION_BATCH = 500;
+
+/**
+ * Close open sessions in place, ending each at its last real accounting.
+ * The evidence trigger appends the synthetic Stop. With olderThanMinutes the
+ * close is limited to sessions silent that long and runs in batches;
+ * otherwise one statement closes everything received before it ran.
+ */
+async function closeOpenSessions({
+  organizationId, nasId = null, olderThanMinutes = null, terminateCause, anomalyReason,
+}) {
+  const filters = ['organization_id = ?', "event_type IN ('start', 'interim-update')"];
+  const params = [terminateCause, anomalyReason, organizationId];
+  if (nasId !== null) {
+    filters.push('nas_id = ?');
+    params.push(nasId);
+  }
+  const lastHeard = 'COALESCE(last_accounting_received_at, last_accounting_at, event_at)';
+  filters.push(olderThanMinutes === null
+    ? `${lastHeard} <= NOW(3)`
+    : `${lastHeard} < NOW(3) - INTERVAL ${Number(olderThanMinutes)} MINUTE`);
+  const limit = olderThanMinutes === null ? '' : ` LIMIT ${STALE_SESSION_BATCH}`;
+  let closed = 0;
+  for (;;) {
+    const [result] = await db.query(
+      `UPDATE connection_logs
+          SET event_type = 'stop', terminate_cause = ?,
+              attribution_anomaly_reason = COALESCE(attribution_anomaly_reason, ?),
+              last_accounting_at = COALESCE(last_accounting_at, event_at),
+              last_accounting_received_at = NOW(3)
+        WHERE ${filters.join(' AND ')}${limit}`,
+      params,
+    );
+    const affected = Number(result?.affectedRows || 0);
+    closed += affected;
+    if (!limit || affected < STALE_SESSION_BATCH) return closed;
+  }
+}
+
+function sessionLivenessMinutes() {
+  return Math.min(
+    Math.max(Number.parseInt(process.env.RADIUS_SESSION_LIVENESS_MINUTES || '60', 10) || 60, 1),
+    1440,
+  );
+}
+
+/**
+ * Close sessions that have sent no accounting for longer than the liveness
+ * window: their Stop was lost (packet loss, an accounting outage, a NAS that
+ * reboots without Accounting-On). Left open, a session is only attributable
+ * while it looks live, so its whole history became unattributable (REG-10).
+ */
+async function closeStaleSessions(organizationId) {
+  const closed = await closeOpenSessions({
+    organizationId: Number(organizationId),
+    olderThanMinutes: sessionLivenessMinutes(),
+    terminateCause: 'Stale-Session', anomalyReason: 'stale_session',
+  });
+  if (closed > 0) logger.info({ organizationId, closed }, 'Closed stale open sessions');
+  return { closed };
 }
 
 // ---------------------------------------------------------------------------
@@ -1506,4 +1578,5 @@ module.exports = {
   normalizeTerminateCause,
   calculateUsageDelta,
   recordInfrastructureAccounting,
+  closeStaleSessions,
 };

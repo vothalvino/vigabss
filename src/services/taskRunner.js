@@ -59,6 +59,7 @@ const ORGANIZATION_SCOPED_TASK_NAMES = new Set([
   'anomaly_detection', 'churn_score_computation', 'remediation_evaluation',
   'ai_support_metrics_rollup', 'rollover_balance_accrue', 'apply_speed_windows',
   'poll_pppoe_events', 'reconcile_gateway_payments', 'poll_cfdi_cancellations',
+  'close_stale_sessions',
 ]);
 
 const PPPoE_EVENT_POLL_TASK = 'poll_pppoe_events';
@@ -317,6 +318,11 @@ async function dispatchTask(taskName, organizationId) {
     case 'purge_radius_accounting': {
       const radiusAccountingService = require('./radiusAccountingService');
       return radiusAccountingService.purgeRadiusAccounting();
+    }
+    case 'close_stale_sessions': {
+      const radiusAccountingService = require('./radiusAccountingService');
+      return perOrganization(taskName, organizationId,
+        orgId => radiusAccountingService.closeStaleSessions(orgId));
     }
     case 'nas_health_check': {
       const nasHealthService = require('./nasHealthService');
