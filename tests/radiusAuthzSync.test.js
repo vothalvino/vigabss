@@ -175,10 +175,14 @@ describe('item 10 — Session-Timeout / Idle-Timeout', () => {
 // ---------------------------------------------------------------------------
 // Item 11: Simultaneous-Use
 // ---------------------------------------------------------------------------
-describe('item 11 — Simultaneous-Use', () => {
-  test('emits Simultaneous-Use := plan default when no account override', async () => {
-    const sub = { ...baseSubscriber, account_sim_use: null, plan_sim_use: 2 };
-    const calls = setupMockDb({ subscribers: [sub] });
+describe('item 11 — Simultaneous-Use: one connection per subscription', () => {
+  // A plan or account simultaneous_use above 1 no longer raises the limit.
+  test.each([
+    [{ account_sim_use: null, plan_sim_use: 2 }],
+    [{ account_sim_use: 5, plan_sim_use: 1 }],
+    [{ account_sim_use: null, plan_sim_use: null }],
+  ])('emits Simultaneous-Use := 1 for %o', async (limits) => {
+    const calls = setupMockDb({ subscribers: [{ ...baseSubscriber, ...limits }] });
 
     await syncFreeradiusTables(10);
 
@@ -187,32 +191,6 @@ describe('item 11 — Simultaneous-Use', () => {
     );
     expect(row).toBeDefined();
     expect(row.params[2]).toBe(':=');
-    expect(row.params[3]).toBe('2');
-  });
-
-  test('account override wins over plan default', async () => {
-    const sub = { ...baseSubscriber, account_sim_use: 5, plan_sim_use: 1 };
-    const calls = setupMockDb({ subscribers: [sub] });
-
-    await syncFreeradiusTables(10);
-
-    const row = calls.find(
-      c => c.sql.includes('INSERT INTO radcheck') && c.params && c.params[1] === 'Simultaneous-Use',
-    );
-    expect(row).toBeDefined();
-    expect(row.params[3]).toBe('5');
-  });
-
-  test('falls back to 1 when both account and plan sim_use are null', async () => {
-    const sub = { ...baseSubscriber, account_sim_use: null, plan_sim_use: null };
-    const calls = setupMockDb({ subscribers: [sub] });
-
-    await syncFreeradiusTables(10);
-
-    const row = calls.find(
-      c => c.sql.includes('INSERT INTO radcheck') && c.params && c.params[1] === 'Simultaneous-Use',
-    );
-    expect(row).toBeDefined();
     expect(row.params[3]).toBe('1');
   });
 });

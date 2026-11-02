@@ -487,3 +487,69 @@ describe('kickDuplicateSessions() — current session projection and per-session
     expect(mockSentPackets).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// One connection per subscription
+// ---------------------------------------------------------------------------
+// A contract has at most one live session across all its RADIUS accounts and
+// every NAS of the organization; the OLDER session is disconnected, so a
+// client who moved (or whose old router lost the Acct-Stop) keeps the new one.
+describe('one connection per subscription', () => {
+  const { kickDuplicateSessions, enforceSingleSession } = require('../src/services/radiusService');
+
+  test('two accounts of one contract count together; the older session is disconnected', async () => {
+    db.query
+      .mockResolvedValueOnce([[
+        { radius_id: 1, username: 'home', contract_id: 10, organization_id: 1 },
+        { radius_id: 2, username: 'cabin', contract_id: 10, organization_id: 1 },
+      ]])
+      .mockResolvedValueOnce([[
+        { session_id: 's-home', event_at: '2026-01-01 08:00:00', nas_ip_address: '10.0.0.2', username: 'home' },
+        { session_id: 's-cabin', event_at: '2026-01-01 09:00:00', nas_ip_address: '10.0.0.3', username: 'cabin' },
+      ]])
+      .mockResolvedValueOnce([[{ username: 'home', nas_id: null, organization_id: 1 }]])
+      .mockResolvedValueOnce([[nasRow(2, '10.0.0.2')]]);
+    const result = await kickDuplicateSessions(1);
+    expect(result).toEqual({ kicked: 1, errors: 0 });
+    // One session lookup for the whole contract, with both usernames.
+    expect(db.query.mock.calls[1][1]).toEqual([1, 'home', 'cabin']);
+    expect(mockSentPackets).toHaveLength(1);
+    expect(mockSentPackets[0].address).toBe('10.0.0.2');
+    expect(parseAttrs(mockSentPackets[0].buf).find((a) => a.type === 44).value.toString()).toBe('s-home');
+  });
+
+  test('a configured simultaneous_use above 1 no longer allows a second session', async () => {
+    db.query
+      .mockResolvedValueOnce([[{ radius_id: 1, username: 'u', allowed_sim_use: 5, contract_id: 10, organization_id: 1 }]])
+      .mockResolvedValueOnce([[
+        { session_id: 's-old', event_at: '2026-01-01 08:00:00', nas_ip_address: '10.0.0.2', username: 'u' },
+        { session_id: 's-new', event_at: '2026-01-01 09:00:00', nas_ip_address: '10.0.0.3', username: 'u' },
+      ]])
+      .mockResolvedValueOnce([[{ username: 'u', nas_id: null, organization_id: 1 }]])
+      .mockResolvedValueOnce([[nasRow(2, '10.0.0.2')]]);
+    await expect(kickDuplicateSessions(1)).resolves.toEqual({ kicked: 1, errors: 0 });
+  });
+
+  test('accounts without a contract count one by one', async () => {
+    db.query
+      .mockResolvedValueOnce([[
+        { radius_id: 1, username: 'mab-a', contract_id: null, organization_id: 1 },
+        { radius_id: 2, username: 'mab-b', contract_id: null, organization_id: 1 },
+      ]])
+      .mockResolvedValueOnce([[{ session_id: 'a', event_at: '2026-01-01 08:00:00', nas_ip_address: '10.0.0.2', username: 'mab-a' }]])
+      .mockResolvedValueOnce([[{ session_id: 'b', event_at: '2026-01-01 08:00:00', nas_ip_address: '10.0.0.2', username: 'mab-b' }]]);
+    await expect(kickDuplicateSessions(1)).resolves.toEqual({ kicked: 0, errors: 0 });
+    expect(db.query.mock.calls[1][1]).toEqual([1, 'mab-a']);
+    expect(db.query.mock.calls[2][1]).toEqual([1, 'mab-b']);
+  });
+
+  test('enforceSingleSession checks one contract right away', async () => {
+    db.query
+      .mockResolvedValueOnce([[{ radius_id: 1, username: 'u', contract_id: 10, organization_id: 1 }]])
+      .mockResolvedValueOnce([[{ session_id: 's1', event_at: '2026-01-01 08:00:00', nas_ip_address: '10.0.0.2', username: 'u' }]]);
+    await expect(enforceSingleSession(1, 10)).resolves.toEqual({ kicked: 0, errors: 0 });
+    expect(db.query.mock.calls[0][0]).toMatch(/WHERE r\.contract_id = \? AND r\.deleted_at IS NULL AND r\.status = 'active'/);
+    expect(db.query.mock.calls[0][1]).toEqual([1, 10]);
+    await expect(enforceSingleSession(1, 0)).resolves.toEqual({ kicked: 0, errors: 0 });
+  });
+});
