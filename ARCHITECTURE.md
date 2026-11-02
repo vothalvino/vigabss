@@ -636,11 +636,21 @@ For every database change:
 
 1. Add the next numbered forward migration in `database/migrations/`. Do not
    amend an already-shipped migration.
-2. Add a rollback with the identical filename in `database/rollbacks/`. A
-   rollback must be honest about data that cannot or must not be restored.
+2. Add a rollback with the identical filename in `database/rollbacks/`.
+   `rollback.js` matches a rollback to its migration by the same numeric
+   prefix, and only migrations from 130 on have rollbacks: `rollback.js --to`
+   can go no lower than 129. A rollback must be honest about data that cannot
+   or must not be restored.
 3. Make DDL safe for the supported MySQL/MariaDB versions and re-execution.
    Follow current guarded stored-procedure patterns where direct
-   `ALTER ... IF [NOT] EXISTS` is not portable.
+   `ALTER ... IF [NOT] EXISTS` is not portable, and drop a routine before
+   creating it. From migration 504 on, a migration must also be safe to run a
+   second time after a partial failure (guarded DDL, seeds that do not
+   duplicate rows); `tests/migrationRunnerOrder.test.js` checks this and CI
+   re-executes them. `migrate.js` orders files by numeric prefix and records a
+   checksum of each file's SQL without comments. It warns when an applied
+   migration has changed since it ran, because the change never reaches that
+   database: never edit a shipped migration's statements.
 4. Mirror the final structure in `database/schema.sql`.
 5. Seed every new permission slug and grant it to the intended built-in roles.
    A route permission without seed/grant data locks out all ordinary users.

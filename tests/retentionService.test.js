@@ -62,7 +62,6 @@ describe('retentionService', () => {
     test('returns default retention days, including PPPoE telemetry', () => {
       const policies = retentionService.loadPolicies();
       expect(policies).toEqual({
-        audit_logs: 365,
         alert_events: 90,
         analytics_anomalies: 180,
         webhook_deliveries: 90,
@@ -126,11 +125,20 @@ describe('retentionService', () => {
         .mockResolvedValueOnce([{ affectedRows: 1000 }])
         .mockResolvedValueOnce([{ affectedRows: 500 }]);
 
-      const result = await retentionService.purgeTable('audit_logs', 365);
+      const result = await retentionService.purgeTable('email_logs', 180);
 
-      expect(result).toEqual({ table: 'audit_logs', deleted: 1500 });
+      expect(result).toEqual({ table: 'email_logs', deleted: 1500 });
       expect(db.query).toHaveBeenCalledTimes(2);
       expect(db.query.mock.calls[0][0]).toContain('LIMIT 1000');
+    });
+
+    // ASY-38: the immutability triggers reject every DELETE on audit_logs, and
+    // a purge would break the hash chain, so audit rows are never purged.
+    test('never purges the immutable audit log', async () => {
+      expect(retentionService.loadPolicies()).not.toHaveProperty('audit_logs');
+      await expect(retentionService.purgeTable('audit_logs', 365))
+        .rejects.toThrow('not in the retention policy whitelist');
+      expect(db.query).not.toHaveBeenCalled();
     });
 
     test('handles zero rows to delete', async () => {

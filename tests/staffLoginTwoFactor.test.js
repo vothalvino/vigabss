@@ -28,7 +28,6 @@ jest.mock('../src/services/emailTransport', () => ({
 }));
 
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const db = require('../src/config/database');
 const bcrypt = require('bcryptjs');
 const config = require('../src/config');
@@ -145,11 +144,11 @@ describe('SEC-03 — staff login with TOTP enabled', () => {
   });
 
   test('a backup code also completes the challenge', async () => {
-    const hashed = crypto.createHash('sha256').update('ABCD-EF12').digest('hex');
+    const hashed = require('../src/services/twoFactorService').hashBackupCode('ABCD-EF12-3456-7890');
     const calls = mockDb(totpUser({ totp_backup_codes: [hashed] }));
     const mfaToken = signMfaChallengeToken({ userId: 7, passwordHash: PASSWORD_HASH });
 
-    const result = await authService.completeMfaLogin({ mfaToken, code: 'ABCD-EF12' });
+    const result = await authService.completeMfaLogin({ mfaToken, code: 'ABCD-EF12-3456-7890' });
     expect(result.accessToken).toBeDefined();
     expect(calls.some(c => /JSON_REMOVE/.test(c.sql))).toBe(true);
   });

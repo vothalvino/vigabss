@@ -7,6 +7,11 @@ metadata:
     {{- include "fireisp.labels" . | nindent 4 }}
     app.kubernetes.io/component: config
 data:
+  {{- /* Production requires an https APP_URL (SEC-28); default it to the
+         ingress hostname unless config sets one. */}}
+  {{- if not (hasKey .Values.config "APP_URL") }}
+  APP_URL: {{ printf "https://%s" .Values.ingress.hostname | quote }}
+  {{- end }}
   {{- range $key, $val := .Values.config }}
   {{ $key }}: {{ $val | quote }}
   {{- end }}

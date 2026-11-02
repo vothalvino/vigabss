@@ -428,4 +428,6 @@ async function redeemResetToken(client, tokenHash, newPassword) {
   return { message: 'Password reset successfully' };
 }
 
-module.exports = { login, refreshToken, logout, setPassword, requestPasswordReset, mintPortalInvite, resetPassword };
+module.exports = {
+  login, refreshToken, logout, setPassword, requestPasswordReset, mintPortalInvite, resetPassword, REFRESH_SECONDS,
+};

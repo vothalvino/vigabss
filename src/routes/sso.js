@@ -38,6 +38,7 @@ const { validate } = require('../middleware/validate');
 const ssoSchemas = require('../middleware/schemas/sso');
 const { ForbiddenError } = require('../utils/errors');
 const config = require('../config');
+const { setAuthCookies, setActiveOrgCookie } = require('./auth');
 
 const router = Router();
 
@@ -72,12 +73,13 @@ async function finishSsoLogin(res, user, orgId, spaBase) {
     return res.redirect(`${config.appUrl}/login#mfa_token=${encodeURIComponent(challenge.mfaToken)}`);
   }
   const tokens = await ssoService.mintTokens(user, orgId);
-  // The SPA should read accessToken from the fragment (not sent to the server).
-  const spaUrl = `${spaBase}#` +
-    `accessToken=${encodeURIComponent(tokens.accessToken)}&` +
-    `refreshToken=${encodeURIComponent(tokens.refreshToken)}&` +
-    `expiresIn=${tokens.expiresIn}`;
-  return res.redirect(spaUrl);
+  // SEC-28: the tokens travelled in the redirect's URL fragment, readable by
+  // page scripts and kept in browser history (and the SPA never read them).
+  // The session is now the same httpOnly cookies a password login sets; the
+  // SPA picks it up with its usual /auth/refresh when the page loads.
+  setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+  setActiveOrgCookie(res, orgId);
+  return res.redirect(spaBase);
 }
 
 // ---------------------------------------------------------------------------
@@ -136,7 +138,7 @@ router.post('/:orgId/saml/acs', async (req, res, next) => {
     const mappings = await ssoService.getGroupMappings(cfg.id);
 
     const { user } = await ssoService.findOrCreateSsoUser(orgId, profile, cfg, mappings);
-    await finishSsoLogin(res, user, orgId, `${config.appUrl}/sso/callback`);
+    await finishSsoLogin(res, user, orgId, `${config.appUrl}/`);
   } catch (err) {
     next(err);
   }
@@ -172,7 +174,7 @@ router.get('/:orgId/oidc/callback', async (req, res, next) => {
     const mappings = await ssoService.getGroupMappings(cfg.id);
 
     const { user } = await ssoService.findOrCreateSsoUser(orgId, profile, cfg, mappings);
-    await finishSsoLogin(res, user, orgId, redirectTo || `${config.appUrl}/sso/callback`);
+    await finishSsoLogin(res, user, orgId, redirectTo || `${config.appUrl}/`);
   } catch (err) {
     next(err);
   }

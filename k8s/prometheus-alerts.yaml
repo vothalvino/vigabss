@@ -21,6 +21,7 @@
 #   http_request_duration_seconds{method, path}   — latency histogram
 #   radius_auth_request_total / _accept_total      — embedded RADIUS server
 #   fireisp_last_backup_timestamp_seconds          — last successful backup
+#   audit_log_write_failures_total                 — audit rows that failed to write
 #
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -300,3 +301,16 @@ spec:
               The last successful database backup was more than 25 hours ago.
               Check the backup cron job and storage destination.
             runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/backup-restore.md"
+
+        - alert: VigaBSS_AuditLogWriteFailures
+          expr: |
+            increase(audit_log_write_failures_total[15m]) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "VigaBSS could not write audit log rows"
+            description: >
+              Changes are being made without an audit trail. The app log has
+              'Audit log error' entries with the cause (often a database or
+              trigger problem).
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"

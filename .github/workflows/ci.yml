@@ -111,7 +111,7 @@ jobs:
         run: |
           # Verify migrations are sequentially numbered with no gaps
           EXPECTED=1
-          for f in $(ls database/migrations/*.sql | sort); do
+          for f in $(ls database/migrations/*.sql | sort -V); do
             NUM=$(basename "$f" | sed 's/^0*//' | sed 's/_.*//')
             if [ "$NUM" != "$EXPECTED" ]; then
               echo "ERROR: Expected migration $EXPECTED but found $NUM ($f)"
@@ -244,7 +244,7 @@ jobs:
         run: |
           # Create a fresh database and apply all migrations sequentially
           mysql -h 127.0.0.1 -u root -pfireisp_test -e "CREATE DATABASE IF NOT EXISTS fireisp_migrate_test;"
-          for f in $(ls database/migrations/*.sql | sort); do
+          for f in $(ls database/migrations/*.sql | sort -V); do
             mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_migrate_test < "$f"
           done
           # Count tables and compare to schema.sql
@@ -422,6 +422,33 @@ jobs:
             exit 1
           fi
           echo "✓ Second migrate run applied nothing"
+          MISSING=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
+            "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations WHERE checksum IS NULL;")
+          if [ "$MISSING" != "0" ]; then
+            echo "ERROR: $MISSING applied migrations have no checksum (DB-21)"
+            exit 1
+          fi
+          echo "✓ Every applied migration has a checksum"
+
+      - name: Re-execute migrations from 504 on (DB-21)
+        # From 504 on, a migration must be safe to run again after a partial
+        # failure (tests/migrationRunnerOrder.test.js checks the rule
+        # statically). Forget them and apply them a second time.
+        run: |
+          set -euo pipefail
+          BEFORE=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
+            "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
+          mysql -h 127.0.0.1 -u root -pfireisp_test -e \
+            "DELETE FROM fireisp_runner_test.schema_migrations
+              WHERE CAST(SUBSTRING_INDEX(filename, '_', 1) AS UNSIGNED) >= 504;"
+          pnpm run migrate
+          AFTER=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
+            "SELECT COUNT(*) FROM fireisp_runner_test.schema_migrations;")
+          if [ "$BEFORE" != "$AFTER" ]; then
+            echo "ERROR: re-executing migrations >= 504 left $AFTER rows, expected $BEFORE"
+            exit 1
+          fi
+          echo "✓ Migrations from 504 on ran a second time"
 
       - name: Migration smoke test (schema.sql parity)
         run: node src/scripts/migration-smoke-test.js

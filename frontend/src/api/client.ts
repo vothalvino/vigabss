@@ -87,7 +87,7 @@ async function doRefresh(): Promise<boolean> {
 
   try {
     const json = (await res.json()) as {
-      data: { accessToken: string; refreshToken: string };
+      data: { accessToken: string; refreshToken?: string };
     };
     // Keep the new access token in memory for the Authorization header path
     // (used by API clients and programmatic test code).  The server has already

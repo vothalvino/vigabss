@@ -1438,9 +1438,13 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     ip_address  VARCHAR(45)     NULL     COMMENT 'IP address of the request origin',
     user_agent  VARCHAR(500)    NULL     COMMENT 'Browser / API client identifier',
     created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    chain_seq   BIGINT UNSIGNED NULL     COMMENT 'Position in the organization''s audit hash chain (migration 505)',
+    prev_hash   CHAR(64)        NULL     COMMENT 'row_hash of the previous row in the chain',
+    row_hash    CHAR(64)        NULL     COMMENT 'audit_log_row_hash() over this row and prev_hash',
 
     PRIMARY KEY (id),
     KEY idx_audit_logs_user_id (user_id),
+    KEY idx_audit_logs_chain (organization_id, chain_seq),
     KEY idx_audit_logs_org (organization_id, created_at DESC),
     KEY idx_audit_logs_entity (entity_type, entity_id),
     KEY idx_audit_logs_entity_type_id (entity_type, entity_id, created_at DESC),
@@ -1451,6 +1455,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     CONSTRAINT fk_audit_logs_org FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Head of each audit_logs hash chain: one row per organization, chain_key 0
+-- for install-wide events (migration 505, ASY-38).
+CREATE TABLE IF NOT EXISTS audit_log_chain (
+    chain_key  BIGINT UNSIGNED NOT NULL COMMENT 'organization_id, or 0 for install-wide events',
+    last_seq   BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'chain_seq of the newest row',
+    last_hash  CHAR(64)        NOT NULL COMMENT 'row_hash of the newest row',
+    updated_at TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (chain_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Head of each audit_logs hash chain (migration 505)';
 
 -- ---------------------------------------------------------------------------
 -- Table: notifications
@@ -4621,6 +4636,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     id         BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
     filename   VARCHAR(255)     NOT NULL COMMENT 'Migration filename, e.g. 001_create_users_table.sql',
     applied_at TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    checksum   CHAR(64)         NULL COMMENT 'sha256 of the SQL without comments when applied (migration 504)',
 
     PRIMARY KEY (id),
     UNIQUE KEY uq_schema_migrations_filename (filename)
@@ -8006,6 +8022,24 @@ SELECT NULL,
  );
 
 -- ---------------------------------------------------------------------------
+-- Seed: close sessions whose Stop was lost (migration 503, REG-10)
+-- Requires the matching case in src/services/taskRunner.js.
+-- ---------------------------------------------------------------------------
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, description, cron_expression, is_enabled, priority)
+SELECT NULL,
+       'close_stale_sessions',
+       'Close RADIUS sessions with no accounting for longer than the liveness window at their last real accounting',
+       '*/10 * * * *',
+       TRUE,
+       'normal'
+  FROM DUAL
+ WHERE NOT EXISTS (
+   SELECT 1 FROM scheduled_tasks
+    WHERE task_name = 'close_stale_sessions' AND organization_id IS NULL
+ );
+
+-- ---------------------------------------------------------------------------
 -- Seed: payment retry scheduled task (migration 154)
 -- ---------------------------------------------------------------------------
 INSERT IGNORE INTO scheduled_tasks
@@ -8416,6 +8450,63 @@ FOR EACH ROW
 BEGIN
     SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Audit logs are immutable and cannot be deleted';
+END$$
+
+-- Hash chain over audit_logs (migration 505, ASY-38). Each row hashes its
+-- content with the previous row's hash; the trigger locks the chain head so
+-- concurrent inserts into one chain are serialized. GET /audit-logs/verify
+-- recomputes the chain with the same function.
+DROP FUNCTION IF EXISTS audit_log_row_hash$$
+CREATE FUNCTION audit_log_row_hash(
+    p_prev_hash   CHAR(64),
+    p_chain_seq   BIGINT UNSIGNED,
+    p_org_id      BIGINT UNSIGNED,
+    p_user_id     BIGINT UNSIGNED,
+    p_action      VARCHAR(40),
+    p_entity_type VARCHAR(50),
+    p_entity_id   BIGINT UNSIGNED,
+    p_summary     VARCHAR(500),
+    p_old_values  JSON,
+    p_new_values  JSON,
+    p_ip_address  VARCHAR(45),
+    p_user_agent  VARCHAR(500),
+    p_created_at  TIMESTAMP
+)
+RETURNS CHAR(64)
+DETERMINISTIC
+NO SQL
+RETURN SHA2(CAST(JSON_ARRAY(
+    p_prev_hash, p_chain_seq, p_org_id, p_user_id, p_action, p_entity_type,
+    p_entity_id, p_summary, p_old_values, p_new_values, p_ip_address,
+    p_user_agent, UNIX_TIMESTAMP(p_created_at)
+) AS CHAR), 256)$$
+
+DROP TRIGGER IF EXISTS trg_audit_logs_chain_bi$$
+CREATE TRIGGER trg_audit_logs_chain_bi
+BEFORE INSERT ON audit_logs
+FOR EACH ROW
+BEGIN
+    DECLARE v_key BIGINT UNSIGNED DEFAULT COALESCE(NEW.organization_id, 0);
+    DECLARE v_seq BIGINT UNSIGNED;
+    DECLARE v_prev CHAR(64);
+
+    INSERT INTO audit_log_chain (chain_key, last_seq, last_hash)
+    VALUES (v_key, 0, REPEAT('0', 64))
+    ON DUPLICATE KEY UPDATE chain_key = chain_key;
+
+    SELECT last_seq, last_hash INTO v_seq, v_prev
+      FROM audit_log_chain WHERE chain_key = v_key FOR UPDATE;
+
+    SET NEW.created_at = COALESCE(NEW.created_at, CURRENT_TIMESTAMP);
+    SET NEW.chain_seq = v_seq + 1;
+    SET NEW.prev_hash = v_prev;
+    SET NEW.row_hash = audit_log_row_hash(
+        NEW.prev_hash, NEW.chain_seq, NEW.organization_id, NEW.user_id, NEW.action,
+        NEW.entity_type, NEW.entity_id, NEW.summary, NEW.old_values, NEW.new_values,
+        NEW.ip_address, NEW.user_agent, NEW.created_at);
+
+    UPDATE audit_log_chain SET last_seq = NEW.chain_seq, last_hash = NEW.row_hash
+     WHERE chain_key = v_key;
 END$$
 
 -- A rule is eligible to forward only after the current configuration has

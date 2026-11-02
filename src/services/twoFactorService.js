@@ -8,6 +8,7 @@
 
 const crypto = require('crypto');
 const db = require('../config/database');
+const encryption = require('../utils/encryption');
 const { UnauthorizedError, ValidationError, ForbiddenError } = require('../utils/errors');
 
 // TOTP parameters
@@ -16,6 +17,25 @@ const TOTP_PERIOD = 30;
 const TOTP_ALGORITHM = 'sha1';
 const BACKUP_CODE_COUNT = 10;
 const TOTP_WINDOW = 1; // Allow ±1 time step for clock drift
+// 64-bit backup codes (SEC-28): 32-bit codes stored as unsalted SHA-256 were
+// reversible from a database copy by trying all 2^32 values.
+const BACKUP_CODE_BYTES = 8;
+const PLAINTEXT_SECRET_RE = /^[0-9a-f]{40}$/;
+
+// SEC-28: the TOTP secret was stored as plaintext hex, so a database copy let
+// anyone generate every user's codes. It is encrypted with ENCRYPTION_KEY,
+// which production requires (config/index.js). Without a key (development or
+// test only) it stays plaintext.
+function sealTotpSecret(secret) {
+  return encryption.isConfigured() ? encryption.encryptStrict(secret) : secret;
+}
+
+function openTotpSecret(stored) {
+  if (!stored) return null;
+  // A secret written before a development install configured its key.
+  if (PLAINTEXT_SECRET_RE.test(stored)) return stored;
+  return encryption.decryptStrict(stored);
+}
 
 /**
  * Generate a TOTP secret for a user. Does NOT enable 2FA yet.
@@ -60,7 +80,7 @@ async function generateSecret(userId, reauth = {}) {
   // replay window.
   await db.query(
     'UPDATE users SET totp_secret = ?, totp_enabled = FALSE, totp_last_used_step = NULL WHERE id = ?',
-    [secret, userId],
+    [sealTotpSecret(secret), userId],
   );
 
   const issuer = 'VigaBSS';
@@ -87,16 +107,14 @@ async function verifyAndEnable(userId, code) {
     throw new ValidationError('No 2FA secret configured. Call setup first.');
   }
 
-  const step = typeof code === 'string' ? matchTOTPStep(users[0].totp_secret, code.trim()) : null;
+  const step = typeof code === 'string' ? matchTOTPStep(openTotpSecret(users[0].totp_secret), code.trim()) : null;
   if (step === null) {
     throw new UnauthorizedError('Invalid verification code');
   }
 
   // Generate backup codes
   const backupCodes = generateBackupCodes();
-  const hashedCodes = backupCodes.map(c =>
-    crypto.createHash('sha256').update(c).digest('hex'),
-  );
+  const hashedCodes = backupCodes.map(hashBackupCode);
 
   await db.query(
     // Record the enrolment step so the same code cannot be replayed at login.
@@ -131,15 +149,24 @@ function parseBackupCodes(raw) {
   return [];
 }
 
-/** Canonical form of a typed backup code: trimmed, upper-case, XXXX-XXXX. */
+/** Canonical form of a typed backup code: trimmed, upper-case, XXXX-XXXX-XXXX-XXXX. */
 function normalizeBackupCode(code) {
   const compact = String(code).trim().toUpperCase().replace(/[\s-]/g, '');
-  if (!/^[0-9A-F]{8}$/.test(compact)) return null;
-  return `${compact.slice(0, 4)}-${compact.slice(4)}`;
+  if (!new RegExp(`^[0-9A-F]{${BACKUP_CODE_BYTES * 2}}$`).test(compact)) return null;
+  return compact.match(/.{4}/g).join('-');
+}
+
+// Keyed with a pepper derived from ENCRYPTION_KEY, so the stored hashes cannot
+// be tested offline without the key (SEC-28). Development and test installs
+// without a key use a fixed pepper.
+function backupCodePepper() {
+  const key = encryption.getKey();
+  if (!key) return Buffer.from('vigabss-development-backup-code-pepper');
+  return Buffer.from(crypto.hkdfSync('sha256', key, Buffer.alloc(0), 'vigabss:totp-backup-codes', 32));
 }
 
 function hashBackupCode(code) {
-  return crypto.createHash('sha256').update(code).digest('hex');
+  return crypto.createHmac('sha256', backupCodePepper()).update(code).digest('hex');
 }
 
 /**
@@ -167,7 +194,7 @@ async function verifyCode(userId, code) {
   const trimmed = code.trim();
 
   // Try TOTP first
-  const step = user.totp_secret ? matchTOTPStep(user.totp_secret, trimmed) : null;
+  const step = user.totp_secret ? matchTOTPStep(openTotpSecret(user.totp_secret), trimmed) : null;
   if (step !== null) {
     const lastStep = user.totp_last_used_step === null || user.totp_last_used_step === undefined
       ? null
@@ -244,9 +271,7 @@ async function regenerateBackupCodes(userId, code) {
   await verifyCode(userId, code);
 
   const backupCodes = generateBackupCodes();
-  const hashedCodes = backupCodes.map(c =>
-    crypto.createHash('sha256').update(c).digest('hex'),
-  );
+  const hashedCodes = backupCodes.map(hashBackupCode);
 
   await db.query(
     'UPDATE users SET totp_backup_codes = ? WHERE id = ?',
@@ -314,8 +339,7 @@ function verifyTOTP(hexSecret, code) {
 function generateBackupCodes() {
   const codes = [];
   for (let i = 0; i < BACKUP_CODE_COUNT; i++) {
-    const code = crypto.randomBytes(4).toString('hex').toUpperCase();
-    codes.push(`${code.slice(0, 4)}-${code.slice(4)}`);
+    codes.push(crypto.randomBytes(BACKUP_CODE_BYTES).toString('hex').toUpperCase().match(/.{4}/g).join('-'));
   }
   return codes;
 }
@@ -363,5 +387,6 @@ module.exports = {
   matchTOTPStep,
   parseBackupCodes,
   normalizeBackupCode,
+  hashBackupCode,
   hexToBase32,
 };

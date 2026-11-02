@@ -479,4 +479,70 @@ describe('P3.4 — httpOnly cookie auth', () => {
       expect(res.body.data.organization_currency).toBe('MXN');
     });
   });
+
+  // =========================================================================
+  // SEC-28 — a browser never gets the refresh token in JSON
+  // =========================================================================
+  describe('refresh token exposure (SEC-28)', () => {
+    const session = () => ({
+      accessToken: 'access-jwt', refreshToken: 'opaque-refresh-token', expiresIn: 900,
+      user: { id: 1, email: 'admin@example.com', role: 'admin', organization_id: 1 },
+      activeOrganizationId: 1,
+    });
+
+    beforeEach(() => {
+      User.getOrganizations.mockResolvedValue([]);
+    });
+
+    test('a browser login gets the refresh token only as an httpOnly cookie', async () => {
+      authService.login.mockResolvedValueOnce(session());
+
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .set('Sec-Fetch-Site', 'same-origin')
+        .send({ email: 'admin@example.com', password: 'secret1234' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.accessToken).toBe('access-jwt');
+      expect(res.body.data).not.toHaveProperty('refreshToken');
+      expect(res.headers['set-cookie'].find(c => c.startsWith('fireisp_refresh=opaque-refresh-token') && /HttpOnly/.test(c)))
+        .toBeDefined();
+    });
+
+    test('an API client login still gets the refresh token in JSON', async () => {
+      authService.login.mockResolvedValueOnce(session());
+
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'admin@example.com', password: 'secret1234' });
+
+      expect(res.body.data.refreshToken).toBe('opaque-refresh-token');
+    });
+
+    test('a cookie refresh never echoes the new refresh token, even without Sec-Fetch headers', async () => {
+      authService.refreshToken.mockResolvedValueOnce({ accessToken: 'a2', refreshToken: 'r2', activeOrgId: 1 });
+
+      const res = await request(app)
+        .post('/api/v1/auth/refresh')
+        .set('Cookie', 'fireisp_refresh=r1')
+        .send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual({ accessToken: 'a2', activeOrgId: 1 });
+    });
+
+    test('switching organization from the browser does not return the refresh token', async () => {
+      authService.switchOrganization.mockResolvedValueOnce({
+        accessToken: 'a3', refreshToken: 'r3', organization: { id: 2 },
+      });
+
+      const res = await request(app)
+        .post('/api/v1/auth/switch-organization')
+        .set('Cookie', 'fireisp_refresh=r1')
+        .send({ organizationId: 2 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).not.toHaveProperty('refreshToken');
+    });
+  });
 });

@@ -2,8 +2,9 @@
 // VigaBSS 5.0 — Portal Auth Context
 // =============================================================================
 // Manages authentication state for the client self-service portal.
-// Completely separate from the staff AuthContext — uses /portal/* endpoints
-// and stores the portal refresh token in localStorage under a distinct key.
+// Completely separate from the staff AuthContext — uses /portal/* endpoints.
+// The refresh token is an httpOnly cookie the browser sends only to
+// /api/v1/portal/auth; page scripts never see it (SEC-28).
 // =============================================================================
 
 import {
@@ -19,29 +20,37 @@ import {
 import { QueryClientContext } from '@tanstack/react-query';
 
 // ---------------------------------------------------------------------------
-// Token storage (portal-specific localStorage key)
+// Token storage
 // ---------------------------------------------------------------------------
+// The access token lives in memory. The refresh token used to live in
+// localStorage, where any script on the page could read it; it is now an
+// httpOnly cookie. localStorage keeps only a flag saying a session may exist,
+// so an anonymous visit does not call /refresh. The flag is not a credential.
 
-const PORTAL_REFRESH_KEY = 'fireisp_portal_refresh_token';
+const PORTAL_SESSION_HINT_KEY = 'fireisp_portal_session';
 
 let _portalAccessToken: string | null = null;
 
 export const portalTokenStore = {
   getAccess: () => _portalAccessToken,
   setAccess: (token: string | null) => { _portalAccessToken = token; },
-  getRefresh: () => localStorage.getItem(PORTAL_REFRESH_KEY),
-  setRefresh: (token: string | null) => {
-    if (token) {
-      localStorage.setItem(PORTAL_REFRESH_KEY, token);
-    } else {
-      localStorage.removeItem(PORTAL_REFRESH_KEY);
-    }
-  },
+  hasSession: () => localStorage.getItem(PORTAL_SESSION_HINT_KEY) === '1',
+  markSession: () => { localStorage.setItem(PORTAL_SESSION_HINT_KEY, '1'); },
   clear: () => {
     _portalAccessToken = null;
-    localStorage.removeItem(PORTAL_REFRESH_KEY);
+    localStorage.removeItem(PORTAL_SESSION_HINT_KEY);
   },
 };
+
+// POST to a portal auth endpoint; the browser attaches the refresh cookie.
+function postPortalAuth(path: string): Promise<Response> {
+  return fetch(`/api/v1/portal/auth/${path}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+}
 
 // ---------------------------------------------------------------------------
 // portalAuthedFetch — every authenticated portal call goes through it (FE-05)
@@ -62,18 +71,12 @@ function expireSession() {
 }
 
 async function refreshPortalSession(): Promise<boolean> {
-  const refreshToken = portalTokenStore.getRefresh();
-  if (!refreshToken) { expireSession(); return false; }
+  if (!portalTokenStore.hasSession()) { expireSession(); return false; }
   try {
-    const res = await fetch('/api/v1/portal/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
+    const res = await postPortalAuth('refresh');
     if (res.ok) {
-      const json = (await res.json()) as { data: { accessToken: string; refreshToken: string } };
+      const json = (await res.json()) as { data: { accessToken: string } };
       portalTokenStore.setAccess(json.data.accessToken);
-      portalTokenStore.setRefresh(json.data.refreshToken);
       return true;
     }
     // 429/5xx are transient: keep the session and let the caller show its error.
@@ -165,18 +168,17 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     if (booted.current) return;
     booted.current = true;
 
-    const refreshToken = portalTokenStore.getRefresh();
-    if (!refreshToken) {
+    if (!portalTokenStore.hasSession()) {
       setState({ client: null, loading: false, initialized: true });
       return;
     }
 
     // Restore the portal session on mount. The access token lives in memory and is
-    // wiped on reload, so we re-exchange the (localStorage) refresh token, then load
+    // wiped on reload, so we re-exchange the (cookie) refresh token, then load
     // the client profile. A 429 (rate-limited) or 5xx/network blip is transient — we
     // retry briefly rather than clearing the session, so a flaky or frequently-reloaded
     // portal session is not bounced to the login screen. Only a definitive 401/403 (or
-    // a missing refresh token, handled above) settles as logged-out.
+    // no remembered session, handled above) settles as logged-out.
     const isTransient = (status: number) => status === 429 || status >= 500;
     const backoff = (n: number) => new Promise((resolve) => setTimeout(resolve, 400 * (n + 1)));
     const settleLoggedOut = () => {
@@ -190,15 +192,10 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
       let accessToken: string | null = null;
       for (let attempt = 0; attempt < 3 && !accessToken; attempt++) {
         try {
-          const res = await fetch('/api/v1/portal/auth/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken: portalTokenStore.getRefresh() }),
-          });
+          const res = await postPortalAuth('refresh');
           if (res.ok) {
-            const json = (await res.json()) as { data: { accessToken: string; refreshToken: string } };
+            const json = (await res.json()) as { data: { accessToken: string } };
             portalTokenStore.setAccess(json.data.accessToken);
-            portalTokenStore.setRefresh(json.data.refreshToken);
             accessToken = json.data.accessToken;
             break;
           }
@@ -208,7 +205,7 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
         }
         await backoff(attempt);
       }
-      // Exhausted transient retries (429/5xx): the refresh token may well be
+      // Exhausted transient retries (429/5xx): the refresh cookie may well be
       // valid, so keep it for the next load instead of signing the subscriber
       // out for a rate limit (FE-17).
       if (!accessToken) {
@@ -242,6 +239,7 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const res = await fetch('/api/v1/portal/auth/login', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
@@ -250,24 +248,18 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
       throw new Error(err.error?.message ?? 'Login failed');
     }
     const json = (await res.json()) as {
-      data: { accessToken: string; refreshToken: string; client: PortalClient };
+      data: { accessToken: string; client: PortalClient };
     };
     portalTokenStore.setAccess(json.data.accessToken);
-    portalTokenStore.setRefresh(json.data.refreshToken);
+    portalTokenStore.markSession();
     clearPortalQueries();
     setState({ client: json.data.client, loading: false, initialized: true });
   }, [clearPortalQueries]);
 
   const logout = useCallback(async () => {
     try {
-      const refreshToken = portalTokenStore.getRefresh();
-      if (refreshToken) {
-        await fetch('/api/v1/portal/auth/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        });
-      }
+      // Revokes the refresh token and clears its cookie.
+      await postPortalAuth('logout');
     } finally {
       portalTokenStore.clear();
       clearPortalQueries();

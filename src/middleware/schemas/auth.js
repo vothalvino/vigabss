@@ -15,10 +15,10 @@ const login = {
 };
 
 // Second step of a 2FA login: the challenge from POST /auth/login (or an SSO
-// callback) plus a 6-digit TOTP or a XXXX-XXXX backup code.
+// callback) plus a 6-digit TOTP or a XXXX-XXXX-XXXX-XXXX backup code.
 const loginMfa = {
   mfa_token: { type: 'string', required: true, max: 2048 },
-  code: { type: 'string', required: true, min: 4, max: 10 },
+  code: { type: 'string', required: true, min: 4, max: 24 },
 };
 
 const requestPasswordReset = {

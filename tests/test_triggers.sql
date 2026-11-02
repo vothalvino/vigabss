@@ -417,6 +417,27 @@ CALL assert_sql_error('45000', 'UPDATE audit_logs SET summary = ''Tampered'' WHE
 -- I3. DELETE audit log — should fail
 CALL assert_sql_error('45000', 'DELETE FROM audit_logs WHERE id = 9000', 'I3: Audit log DELETE rejected (immutable)');
 
+-- I4-I8. Hash chain (migration 505, ASY-38): each organization's rows are
+-- numbered in order, each stores the previous row's hash, and each hash covers
+-- the row's content.
+INSERT INTO audit_logs (id, organization_id, action, entity_type, entity_id, summary, new_values)
+VALUES (9001, 9000, 'create', 'clients', 1, 'First chained entry', JSON_OBJECT('name', 'A'));
+INSERT INTO audit_logs (id, organization_id, action, entity_type, entity_id, summary, new_values)
+VALUES (9002, 9000, 'update', 'clients', 1, 'Second chained entry', JSON_OBJECT('name', 'B'));
+
+SELECT chain_seq, row_hash INTO @chain_seq_1, @chain_hash_1 FROM audit_logs WHERE id = 9001;
+SELECT chain_seq, prev_hash, row_hash INTO @chain_seq_2, @chain_prev_2, @chain_hash_2 FROM audit_logs WHERE id = 9002;
+CALL assert_true(@chain_seq_1 >= 1 AND @chain_seq_2 = @chain_seq_1 + 1, 'I4: Audit rows get consecutive chain positions');
+CALL assert_true(@chain_prev_2 = @chain_hash_1, 'I5: An audit row stores the previous row''s hash');
+CALL assert_true((SELECT row_hash = audit_log_row_hash(prev_hash, chain_seq, organization_id, user_id, action,
+    entity_type, entity_id, summary, old_values, new_values, ip_address, user_agent, created_at)
+  FROM audit_logs WHERE id = 9002) = 1, 'I6: An audit row''s hash recomputes from its stored content');
+CALL assert_true((SELECT last_seq = @chain_seq_2 AND last_hash = @chain_hash_2
+  FROM audit_log_chain WHERE chain_key = 9000) = 1, 'I7: The chain head points at the newest row');
+CALL assert_true((SELECT audit_log_row_hash(prev_hash, chain_seq, organization_id, user_id, action,
+    entity_type, entity_id, 'Tampered summary', old_values, new_values, ip_address, user_agent, created_at) <> row_hash
+  FROM audit_logs WHERE id = 9002) = 1, 'I8: Changing a row''s content changes its hash');
+
 -- =========================================================================
 -- J. CFDI DOCUMENT IMMUTABILITY (migration 148)
 -- =========================================================================
@@ -517,7 +538,8 @@ DROP TRIGGER IF EXISTS trg_audit_logs_immutable_bd;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DELETE FROM outages WHERE id IN (9000, 9001);
-DELETE FROM audit_logs WHERE id = 9000;
+DELETE FROM audit_logs WHERE id IN (9000, 9001, 9002);
+DELETE FROM audit_log_chain WHERE chain_key = 9000;
 DELETE FROM credit_notes WHERE id IN (9000, 9001, 9002, 9003);
 DELETE FROM radius WHERE id IN (9000, 9001);
 DELETE FROM nas WHERE id = 9000;

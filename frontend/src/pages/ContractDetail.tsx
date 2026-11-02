@@ -34,6 +34,7 @@ import {
   type MxContractEnvironment,
 } from '@/components/MxContractEnvironment';
 import { formatDate } from '@/lib/dates';
+import { invalidateContractViews, queryKeys } from '@/api/queryKeys';
 
 // ---------------------------------------------------------------------------
 // GraphQL query — fetches the contract + all sub-resources in one request
@@ -2208,13 +2209,13 @@ export function ContractDetail() {
   const canCreateDevices = can(user, 'devices.create');
 
   const { data: contract, isLoading, error } = useQuery({
-    queryKey: ['contract-detail-gql', id],
+    queryKey: queryKeys.contracts.detail(id),
     queryFn: () => fetchContractDetail(id!),
     enabled: Boolean(id),
   });
 
   const refetchContract = () =>
-    queryClient.invalidateQueries({ queryKey: ['contract-detail-gql', id] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.contracts.detail(id) });
 
   const isPppoe =
     contract?.connectionType === 'pppoe' || contract?.connectionType === 'pppoe_dual';
@@ -2228,12 +2229,9 @@ export function ContractDetail() {
     if (action !== 'renew') setRenewRequiresActivation(false);
     try {
       const result = await postContractAction(id, action);
-      await refetchContract();
       // The status shows in the contract list and on the client page too;
-      // without this they stayed stale for up to staleTime (FE2-14). The
-      // client key is a route param string, so invalidate by prefix.
-      void queryClient.invalidateQueries({ queryKey: ['contracts'] });
-      void queryClient.invalidateQueries({ queryKey: ['client-detail-gql'] });
+      // without this they stayed stale for up to staleTime (FE2-14).
+      await invalidateContractViews(queryClient, id);
       // A renew may (re)provision the PPPoE account — surface the credentials.
       if (action === 'renew' && result.activation_required) {
         setRenewRequiresActivation(true);
@@ -2396,7 +2394,8 @@ export function ContractDetail() {
             setActionWarning(null);
             setActionSuccess(t(isPppoe ? 'contractActivation.activated' : 'contractActivation.activatedManual'));
             setActivationNetworkWarning(networkWarning ?? null);
-            void queryClient.invalidateQueries({ queryKey: ['contract-detail-gql', id] });
+            // Activation makes the contract active: refresh the list and client too.
+            void invalidateContractViews(queryClient, id);
             void queryClient.invalidateQueries({ queryKey: ['contract-activation', id] });
             void queryClient.invalidateQueries({ queryKey: ['contract-radius', id] });
           }}
@@ -2404,9 +2403,8 @@ export function ContractDetail() {
             setRenewRequiresActivation(false);
             setActionSuccess(t('contractActivation.activationCancelled'));
             setActionWarning(cleanupPending ? t('contractActivation.activationCancelCleanupPending') : null);
-            void queryClient.invalidateQueries({ queryKey: ['contract-detail-gql', id] });
+            void invalidateContractViews(queryClient, id);
             void queryClient.invalidateQueries({ queryKey: ['contract-activation', id] });
-            void queryClient.invalidateQueries({ queryKey: ['contracts'] });
           }}
         />
       )}

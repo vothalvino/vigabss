@@ -208,7 +208,7 @@ function generateSpec() {
     paths: {
       // ---- Auth ----
       '/auth/login': { post: { tags: ['Auth'], summary: 'Login', description: 'For an account with TOTP two-factor enabled no session is created and no cookies are set: the response is `{ data: { mfa_required: true, mfa_token, expires_in } }`. Complete it with POST /auth/login/2fa. Otherwise returns the token pair and user and sets the session cookies.', operationId: 'login', requestBody: jsonBody('auth_login'), responses: r200('Token + User, or a two-factor challenge') } },
-      '/auth/login/2fa': { post: { tags: ['Auth'], summary: 'Complete a two-factor login', description: 'Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.', operationId: 'loginTwoFactor', requestBody: typedJsonBody({ type: 'object', required: ['mfa_token', 'code'], properties: { mfa_token: { type: 'string', maxLength: 2048 }, code: { type: 'string', minLength: 4, maxLength: 10 } } }, 'Two-factor challenge and code'), responses: { ...r200('Token + User'), 401: errorResponse('Invalid or expired challenge, wrong or reused code, or locked account') } } },
+      '/auth/login/2fa': { post: { tags: ['Auth'], summary: 'Complete a two-factor login', description: 'Exchanges the short-lived `mfa_token` from POST /auth/login (or an SSO callback) plus a 6-digit TOTP code or an XXXX-XXXX-XXXX-XXXX backup code for the session. Each TOTP step and backup code is accepted once; failures count towards the account lockout. Returns the same body and cookies as a one-step login.', operationId: 'loginTwoFactor', requestBody: typedJsonBody({ type: 'object', required: ['mfa_token', 'code'], properties: { mfa_token: { type: 'string', maxLength: 2048 }, code: { type: 'string', minLength: 4, maxLength: 24 } } }, 'Two-factor challenge and code'), responses: { ...r200('Token + User'), 401: errorResponse('Invalid or expired challenge, wrong or reused code, or locked account') } } },
       '/auth/logout': { post: { tags: ['Auth'], summary: 'Logout — revokes the presented refresh token (cookie or body) and clears auth cookies; no bearer required, so it still works after the access token expires', operationId: 'logout', requestBody: jsonBody('auth_refreshToken'), responses: r200('Message') } },
       '/auth/me': { get: { tags: ['Auth'], summary: 'Get current user profile', operationId: 'me', security: [{ bearerAuth: [] }], responses: r200('User') } },
       '/auth/password-reset/request': { post: { tags: ['Auth'], summary: 'Request password reset email', operationId: 'requestPasswordReset', requestBody: jsonBody('email'), responses: r200('Message') } },
@@ -281,7 +281,7 @@ function generateSpec() {
 
       // ---- Two-Factor Auth ----
       '/2fa/status': { get: { tags: ['Two-Factor'], summary: 'Check 2FA status', operationId: 'twoFactorStatus', security: [{ bearerAuth: [] }], responses: r200('Status') } },
-      '/2fa/setup': { post: { tags: ['Two-Factor'], summary: 'Generate TOTP secret', description: 'When 2FA is already enabled, replacing the secret disables it until re-verified, so a current `code` (TOTP or backup) or the account `password` is required (403 otherwise). API tokens are refused on every /2fa route.', operationId: 'twoFactorSetup', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', properties: { code: { type: 'string', minLength: 4, maxLength: 10 }, password: { type: 'string', maxLength: 1024 } } }, 'Re-verification, required only when 2FA is already enabled', false), responses: { ...r200('Secret + QR URI'), 403: errorResponse('2FA already enabled and no valid code/password, or API token') } } },
+      '/2fa/setup': { post: { tags: ['Two-Factor'], summary: 'Generate TOTP secret', description: 'When 2FA is already enabled, replacing the secret disables it until re-verified, so a current `code` (TOTP or backup) or the account `password` is required (403 otherwise). API tokens are refused on every /2fa route.', operationId: 'twoFactorSetup', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', properties: { code: { type: 'string', minLength: 4, maxLength: 24 }, password: { type: 'string', maxLength: 1024 } } }, 'Re-verification, required only when 2FA is already enabled', false), responses: { ...r200('Secret + QR URI'), 403: errorResponse('2FA already enabled and no valid code/password, or API token') } } },
       '/2fa/verify': { post: { tags: ['Two-Factor'], summary: 'Verify and enable 2FA', operationId: 'twoFactorVerify', security: [{ bearerAuth: [] }], requestBody: jsonBody('code'), responses: r200('Status + backup codes') } },
       '/2fa/validate': { post: { tags: ['Two-Factor'], summary: 'Validate a 2FA code', operationId: 'twoFactorValidate', security: [{ bearerAuth: [] }], requestBody: jsonBody('code'), responses: r200('Valid') } },
       '/2fa/disable': { post: { tags: ['Two-Factor'], summary: 'Disable 2FA', operationId: 'twoFactorDisable', security: [{ bearerAuth: [] }], requestBody: jsonBody('code'), responses: r200('Status') } },
@@ -1188,7 +1188,7 @@ function generateSpec() {
       '/signed-documents/generate': { post: { tags: ['Settings'], summary: 'Generate missing MX reviewed-template instances or the global neutral acknowledgment for a service order', operationId: 'generateSignedDocuments', security: [{ bearerAuth: [] }], requestBody: jsonBody('legalDocuments_generateDocuments'), responses: r201('Generation result') } },
 
       // ---- Audit Logs ----
-      '/audit-logs': { get: { tags: ['Audit Logs'], summary: 'List audit log entries', operationId: 'listAuditLogs', security: [{ bearerAuth: [] }], responses: r200('AuditLog[]') } },
+      '/audit-logs': { get: { tags: ['Audit Logs'], summary: 'List audit log entries', description: 'scope=install lists install-wide events (no organization) and requires the install operator.', operationId: 'listAuditLogs', security: [{ bearerAuth: [] }], parameters: [auditScopeParam()], responses: r200('AuditLog[]') } },
 
       // ---- DSAR ----
       '/dsar/clients/{id}': { get: { tags: ['DSAR'], summary: 'Export all personal data held for a client', operationId: 'exportClientDsar', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DSAR export document') } },
@@ -2410,7 +2410,7 @@ function generateSpec() {
         post: { tags: ['Portal Auth'], summary: 'Client portal login', operationId: 'portalLogin', requestBody: jsonBody('email + password'), responses: r200('AccessToken + RefreshToken') },
       },
       '/portal/auth/refresh': {
-        post: { tags: ['Portal Auth'], summary: 'Refresh portal access token', operationId: 'portalRefreshToken', requestBody: jsonBody('refreshToken'), responses: r200('Token pair') },
+        post: { tags: ['Portal Auth'], summary: 'Refresh portal access token', description: 'Reads the refresh token from the fireisp_portal_refresh httpOnly cookie, or from the body for API clients. Browser requests do not get refreshToken back in the body.', operationId: 'portalRefreshToken', requestBody: typedJsonBody({ type: 'object', properties: { refreshToken: { type: 'string' } } }, 'refreshToken (API clients only)', false), responses: { ...r200('Token pair'), 401: errorResponse('No or invalid refresh token') } },
       },
       '/portal/auth/logout': {
         post: { tags: ['Portal Auth'], summary: 'Portal logout', operationId: 'portalLogout', responses: r200('Message') },
@@ -2876,6 +2876,32 @@ function generateSpec() {
         put: { tags: ['Regulatory Compliance MX'], summary: 'Release preserved attribution evidence after terminal-case review', description: 'Interactive manage permission. Does not happen automatically on fulfillment/rejection; released evidence resumes its original retention clock.', operationId: 'releaseGovDataRequestEvidenceHold', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', additionalProperties: false, required: ['reason'], properties: { reason: { type: 'string', minLength: 1, maxLength: 500 } } }, 'Reviewed hold-release reason'), responses: r200('Updated') },
       },
       // Audit export + report access logs
+      '/audit-logs/verify': {
+        get: {
+          tags: ['Audit Logs'],
+          summary: 'Verify the audit log hash chain',
+          description: 'Recomputes the hash chain of the organization (or, with scope=install, the install-wide events) and lists rows changed, removed or reordered since they were written.',
+          operationId: 'verifyAuditLogChain',
+          security: [{ bearerAuth: [] }],
+          parameters: [auditScopeParam()],
+          responses: {
+            200: { description: 'Chain verification', content: { 'application/json': { schema: { type: 'object', required: ['data'], properties: { data: {
+              type: 'object', additionalProperties: false,
+              required: ['intact', 'checked', 'last_seq', 'unchained', 'problems'],
+              properties: {
+                intact: { type: 'boolean' },
+                checked: { type: 'integer' },
+                last_seq: { type: 'integer' },
+                unchained: { type: 'integer', description: 'Rows written before the chain existed' },
+                problems: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'chain_seq', 'problem'], properties: {
+                  id: { type: ['integer', 'null'] }, chain_seq: { type: 'integer' }, problem: { type: 'string' },
+                } } },
+              },
+            } } } } } },
+            403: { description: 'scope=install without the install operator' },
+          },
+        },
+      },
       '/audit-logs/export': {
         get: { tags: ['Audit Logs'], summary: 'Export audit logs for regulatory inspection', operationId: 'exportAuditLogs', security: [{ bearerAuth: [] }], responses: r200('Audit export') },
       },
@@ -3884,6 +3910,7 @@ function connectionLoggingReadinessSchema() {
           direct_public_attribution_ready: { type: 'boolean' },
           last_projection_at: nullableString('date-time'),
           timeline_current: { type: 'boolean' },
+          stale_open_sessions: { type: 'integer' },
         } },
       cgnat_attribution: { oneOf: [
         { type: 'object', additionalProperties: false, required: ['authorized', 'status'],
@@ -4917,6 +4944,9 @@ function webhookErrorResponses() {
 }
 function idParam() {
   return { name: 'id', in: 'path', required: true, schema: { type: 'integer' } };
+}
+function auditScopeParam() {
+  return { name: 'scope', in: 'query', required: false, schema: { type: 'string', enum: ['organization', 'install'], default: 'organization' }, description: 'install: events with no organization (install operator only)' };
 }
 function searchParam() {
   return { name: 'search', in: 'query', required: false, schema: { type: 'string' }, description: 'Search filter' };

@@ -40,6 +40,7 @@ const product = require('../product');
 const { splitStatements } = require('./migrate');
 const { acquireMigrationLock, releaseMigrationLock } = require('../utils/migrationLock');
 const { listIsolatedMigrationTargets } = require('../services/tenantDatabaseService');
+const { migrationNumber } = require('../utils/migrationFiles');
 
 const ROLLBACKS_DIR  = path.resolve(__dirname, '../../database/rollbacks');
 
@@ -66,15 +67,6 @@ function parseArgs(argv) {
     }
   }
   return args;
-}
-
-// ---------------------------------------------------------------------------
-// Extract the numeric prefix from a migration filename (e.g. "130" from
-// "130_create_firerelay_nodes_table.sql").
-// ---------------------------------------------------------------------------
-function migrationNumber(filename) {
-  const match = filename.match(/^(\d+)/);
-  return match ? parseInt(match[1], 10) : NaN;
 }
 
 function createRollbackPool(connectionConfig) {

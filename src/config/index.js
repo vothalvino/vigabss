@@ -339,13 +339,21 @@ function validateEnv(logger) {
 
   checkMachineSecrets(errors, warnings, isProduction, logger);
 
-  // Encryption key: required in production for at-rest encryption of secrets
+  // Encryption key: required outside a development/test sandbox (SEC-28). It
+  // was fatal only in production, so a staging or custom NODE_ENV install
+  // stored gateway secrets, PAC passwords and TOTP secrets in plaintext.
   if (!process.env.ENCRYPTION_KEY) {
-    const msg = 'ENCRYPTION_KEY is not set — payment gateway secrets, PAC passwords, and webhook secrets will be stored in plaintext';
-    if (isProduction) errors.push(msg); else warnings.push(msg);
+    const msg = 'ENCRYPTION_KEY is not set — payment gateway secrets, PAC passwords, webhook secrets and TOTP secrets will be stored in plaintext';
+    if (!allowInsecureSecret) errors.push(msg); else warnings.push(msg);
   } else if (!HEX_64_RE.test(process.env.ENCRYPTION_KEY)) {
     const msg = 'ENCRYPTION_KEY must be a 64-character hex string (256 bits)';
-    if (isProduction) errors.push(msg); else warnings.push(msg);
+    if (!allowInsecureSecret) errors.push(msg); else warnings.push(msg);
+  }
+
+  // Links in emails, OAuth redirects and the Secure cookie flag assume HTTPS;
+  // an http APP_URL in production sends portal and reset links in clear text.
+  if (isProduction && !/^https:\/\//i.test(config.appUrl)) {
+    errors.push(`APP_URL must be an https:// URL in production (got "${config.appUrl}")`);
   }
 
   if (isProduction && !config.adminIpAllowlist.trim()) {

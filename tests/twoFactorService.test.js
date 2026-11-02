@@ -155,7 +155,8 @@ describe('twoFactorService', () => {
       const result = await twoFactorService.verifyAndEnable(1, code);
       expect(result.enabled).toBe(true);
       expect(result.backup_codes).toHaveLength(10);
-      expect(result.backup_codes[0]).toMatch(/^[A-F0-9]{4}-[A-F0-9]{4}$/);
+      // SEC-28: 64-bit codes (16 hex digits), not 32-bit ones.
+      expect(result.backup_codes[0]).toMatch(/^[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$/);
     });
 
     test('throws with invalid code', async () => {
@@ -230,8 +231,7 @@ describe('twoFactorService', () => {
     // SEC-03 regression: mysql2 decodes the JSON column to an array, and
     // JSON.parse(array) threw — every backup-code login returned 500.
     test('accepts a backup code when the JSON column arrives already decoded', async () => {
-      const crypto = require('crypto');
-      const hashed = crypto.createHash('sha256').update('ABCD-EF12').digest('hex');
+      const hashed = twoFactorService.hashBackupCode('ABCD-EF12-3456-7890');
 
       db.query
         .mockResolvedValueOnce([[{
@@ -242,7 +242,7 @@ describe('twoFactorService', () => {
         }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
-      const result = await twoFactorService.verifyCode(1, 'abcd ef12');
+      const result = await twoFactorService.verifyCode(1, 'abcd ef12 3456 7890');
       expect(result).toMatchObject({ valid: true, method: 'backup_code', remaining_codes: 1 });
       // Consumed with one atomic JSON_REMOVE guarded by the code still existing.
       const [sql, params] = db.query.mock.calls[1];
@@ -259,25 +259,23 @@ describe('twoFactorService', () => {
         totp_last_used_step: null,
       }]]);
 
-      await expect(twoFactorService.verifyCode(1, 'ABCD-EF12')).rejects.toMatchObject({ statusCode: 401 });
+      await expect(twoFactorService.verifyCode(1, 'ABCD-EF12-3456-7890')).rejects.toMatchObject({ statusCode: 401 });
     });
 
     test('a backup code redeemed concurrently is accepted only once', async () => {
-      const crypto = require('crypto');
-      const hashed = crypto.createHash('sha256').update('ABCD-EF12').digest('hex');
+      const hashed = twoFactorService.hashBackupCode('ABCD-EF12-3456-7890');
       db.query
         .mockResolvedValueOnce([[{
           totp_secret: 'a'.repeat(40), totp_enabled: true, totp_backup_codes: [hashed], totp_last_used_step: null,
         }]])
         .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
-      await expect(twoFactorService.verifyCode(1, 'ABCD-EF12')).rejects.toMatchObject({ statusCode: 401 });
+      await expect(twoFactorService.verifyCode(1, 'ABCD-EF12-3456-7890')).rejects.toMatchObject({ statusCode: 401 });
     });
 
     test('verifies backup code and removes it', async () => {
-      const crypto = require('crypto');
-      const backupCode = 'ABCD-EF12';
-      const hashed = crypto.createHash('sha256').update(backupCode).digest('hex');
+      const backupCode = 'ABCD-EF12-3456-7890';
+      const hashed = twoFactorService.hashBackupCode(backupCode);
 
       db.query
         .mockResolvedValueOnce([[{

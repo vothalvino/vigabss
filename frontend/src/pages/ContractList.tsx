@@ -26,6 +26,7 @@ import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { Pagination } from '@/components/Pagination';
 import { ClientPicker } from '@/components/ClientPicker';
 import { useClientNames } from '@/api/clientNames';
+import { queryKeys } from '@/api/queryKeys';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -769,7 +770,7 @@ function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }: EditC
       return updateContract(contract.id, body);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
       onSaved();
       onClose();
     },
@@ -1190,13 +1191,13 @@ export function ContractList() {
     mutationFn: ({ id }: { id: number }) =>
       postContractAction(id, 'terminate'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
     },
   });
 
   // Contracts query
   const contractsQ = useQuery({
-    queryKey: ['contracts', page, pageSize, statusFilter, sort.sortBy, sort.sortDir],
+    queryKey: queryKeys.contracts.list(page, pageSize, statusFilter, sort.sortBy, sort.sortDir),
     queryFn: () => fetchContracts(page, pageSize, statusFilter, sort.order_by, sort.order),
   });
 
@@ -1213,7 +1214,7 @@ export function ContractList() {
     mutationFn: ({ id }: { id: number }) =>
       postContractAction(id, 'suspend'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
     },
   });
 
@@ -1223,7 +1224,7 @@ export function ContractList() {
     mutationFn: ({ id, pending }: { id: number; pending: boolean }) =>
       pending ? cancelPendingActivation(id) : patchContractStatus(id, 'cancelled'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
     },
   });
 
@@ -1231,7 +1232,7 @@ export function ContractList() {
   const deleteMutation = useMutation({
     mutationFn: ({ id }: { id: number }) => deleteContract(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
     },
   });
 
@@ -1379,7 +1380,7 @@ export function ContractList() {
           isMxOrg={isMxOrg}
           onClose={() => setShowNew(false)}
           onCreated={(contractId) => {
-            void queryClient.invalidateQueries({ queryKey: ['contracts'] });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
             navigate(`/contracts/${contractId}`);
           }}
         />
@@ -1391,7 +1392,7 @@ export function ContractList() {
           contractEnvironment={renewContract.mx_contract_environment}
           onClose={() => setRenewContract(null)}
           onRenewed={(result) => {
-            void queryClient.invalidateQueries({ queryKey: ['contracts'] });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
             if (result.activation_required) navigate(`/contracts/${renewContract.id}`);
             else if (result.network_activation?.nas_push_error) {
               setRenewNetworkWarning({
@@ -1409,7 +1410,7 @@ export function ContractList() {
           plans={plansQ.data}
           isMxOrg={isMxOrg}
           onClose={() => setEditContract(null)}
-          onSaved={() => queryClient.invalidateQueries({ queryKey: ['contracts'] })}
+          onSaved={() => queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all })}
         />
       )}
 

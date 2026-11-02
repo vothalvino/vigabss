@@ -7,8 +7,29 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const db = require('../config/database');
+const { isInstallOperator, OPERATOR_ONLY_MESSAGE } = require('../services/installOperator');
+const { verifyAuditChain } = require('../services/auditChainService');
 
 const router = Router();
+
+// ASY-38: install-wide events (organization_id NULL, such as install-operator
+// backup downloads) matched no organization's filter, so nobody could read
+// them. ?scope=install shows them to the install operator.
+async function auditScope(req, res) {
+  const scope = req.query.scope ?? 'organization';
+  if (scope === 'organization') {
+    return { clause: 'organization_id = ?', params: [req.orgId], organizationId: req.orgId };
+  }
+  if (scope !== 'install') {
+    res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: "scope must be 'organization' or 'install'" } });
+    return null;
+  }
+  if (!(await isInstallOperator(req))) {
+    res.status(403).json({ error: { code: 'INSTALL_OPERATOR_ONLY', message: OPERATOR_ONLY_MESSAGE } });
+    return null;
+  }
+  return { clause: 'organization_id IS NULL', params: [], organizationId: null };
+}
 
 router.use(authenticate);
 router.use(orgScope);
@@ -29,8 +50,10 @@ router.get('/', requirePermission('audit_logs.view'), async (req, res, next) => 
     // entity_type/entity_id (there is no table_name column — see migration 374).
     // Accept the legacy `table_name` query alias so existing callers keep working.
     const entityFilter = entity_type || table_name;
-    const conditions = ['organization_id = ?'];
-    const params = [req.orgId];
+    const scope = await auditScope(req, res);
+    if (!scope) return;
+    const conditions = [scope.clause];
+    const params = [...scope.params];
 
     if (user_id) { conditions.push('user_id = ?'); params.push(user_id); }
     if (action) { conditions.push('action = ?'); params.push(action); }
@@ -52,6 +75,18 @@ router.get('/', requirePermission('audit_logs.view'), async (req, res, next) => 
     );
 
     res.json({ data: rows, meta: { total: countResult[0].total, page: parseInt(page, 10), limit: parseInt(limit, 10) } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Recompute the scope's audit hash chain (migration 505) and report any row
+// that was changed, removed or reordered since it was written.
+router.get('/verify', requirePermission('audit_logs.view'), async (req, res, next) => {
+  try {
+    const scope = await auditScope(req, res);
+    if (!scope) return;
+    res.json({ data: await verifyAuditChain(scope.organizationId) });
   } catch (err) {
     next(err);
   }
