@@ -59325,9 +59325,8 @@
             "type": "string",
             "enum": [
               "formal",
-              "friendly",
-              "technical",
-              "empathetic"
+              "neutral",
+              "friendly"
             ]
           },
           "redact_pii_before_llm": {

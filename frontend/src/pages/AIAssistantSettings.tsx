@@ -101,7 +101,8 @@ interface AiReplyLog {
 const API_BASE = '/api/v1/ai';
 
 const AI_MODES = ['draft_only', 'suggest', 'auto_send'];
-const TONES = ['formal', 'friendly', 'technical', 'empathetic'];
+// The ai_policies.tone ENUM; any other value fails the policy save (FE2-08).
+const TONES = ['formal', 'neutral', 'friendly'];
 const LOCALES = ['en', 'es', 'pt-BR'];
 const LOG_ACTIONS = ['proposed', 'edited', 'sent', 'auto_sent', 'discarded', 'failed'];
 
