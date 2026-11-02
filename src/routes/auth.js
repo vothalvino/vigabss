@@ -13,6 +13,7 @@ const { sanitizeUser } = require('../utils/userSanitize');
 const { isInstallOperatorUser } = require('../services/installOperator');
 const { isSuperAdminUser } = require('../services/globalOrganizationAccess');
 const config = require('../config');
+const { tokenResponseBody } = require('../utils/browserTokens');
 const logger = require('../utils/logger');
 const { setCsrfCookie, clearCsrfCookie } = require('../middleware/csrf');
 const { BROWSER_WS_PATH, BROWSER_WS_COOKIE } = require('../services/browserWebSocketAuth');
@@ -170,7 +171,7 @@ async function enrichAuthUser(user, activeOrgId) {
  * enrich the user for the org the JWT was minted for, set the browser cookies
  * and return the token pair.
  */
-async function sendLoginSession(res, result) {
+async function sendLoginSession(req, res, result) {
   if (result.user) {
     // Enrich for the org the JWT was minted for (primary membership org,
     // falling back to the home org) — NOT blindly the home org, which can
@@ -179,9 +180,10 @@ async function sendLoginSession(res, result) {
     const activeOrgId = result.activeOrganizationId ?? result.user.organization_id;
     result.user = await enrichAuthUser(result.user, activeOrgId);
   }
-  // Set httpOnly cookies for the browser SPA; JSON tokens remain for API clients
+  // Set httpOnly cookies for the browser SPA. API clients also get the refresh
+  // token in JSON; a browser does not (SEC-28).
   setAuthCookies(res, result.accessToken, result.refreshToken);
-  res.json({ data: result });
+  res.json({ data: tokenResponseBody(req, result) });
 }
 
 router.post('/login',
@@ -196,7 +198,7 @@ router.post('/login',
           data: { mfa_required: true, mfa_token: result.mfaToken, expires_in: result.expiresIn },
         });
       }
-      await sendLoginSession(res, result);
+      await sendLoginSession(req, res, result);
     } catch (err) {
       next(err);
     }
@@ -213,7 +215,7 @@ router.post('/login/2fa',
         mfaToken: req.body.mfa_token,
         code: req.body.code,
       });
-      await sendLoginSession(res, result);
+      await sendLoginSession(req, res, result);
     } catch (err) {
       next(err);
     }
@@ -404,6 +406,7 @@ router.post('/refresh',
   async (req, res, next) => {
     try {
       // Prefer the httpOnly cookie; fall back to explicit body field
+      const fromCookie = Boolean(req.cookies?.fireisp_refresh);
       const tokenValue = req.cookies?.fireisp_refresh || req.body?.refreshToken;
       if (!tokenValue) {
         return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Refresh token required' } });
@@ -415,7 +418,7 @@ router.post('/refresh',
       setAuthCookies(res, result.accessToken, result.refreshToken);
       // Re-persist the (re-validated) active org so it keeps surviving reloads.
       setActiveOrgCookie(res, result.activeOrgId);
-      res.json({ data: result });
+      res.json({ data: tokenResponseBody(req, result, { tokenFromCookie: fromCookie }) });
     } catch (err) {
       next(err);
     }
@@ -431,6 +434,7 @@ router.post('/switch-organization', authenticate,
   async (req, res, next) => {
     try {
       // Accept refresh token from cookie (browser SPA) or body (API clients)
+      const fromCookie = Boolean(req.cookies?.fireisp_refresh);
       const refreshToken = req.cookies?.fireisp_refresh || req.body?.refreshToken;
       const result = await authService.switchOrganization(
         req.user.id,
@@ -441,7 +445,7 @@ router.post('/switch-organization', authenticate,
       setAuthCookies(res, result.accessToken, result.refreshToken);
       // Persist the new active org so a later /refresh (page reload) keeps it.
       setActiveOrgCookie(res, result.organization.id);
-      res.json({ data: result });
+      res.json({ data: tokenResponseBody(req, result, { tokenFromCookie: fromCookie }) });
     } catch (err) {
       next(err);
     }
@@ -449,3 +453,6 @@ router.post('/switch-organization', authenticate,
 );
 
 module.exports = router;
+// Shared with the SSO routes, which finish a login with the same cookies.
+module.exports.setAuthCookies = setAuthCookies;
+module.exports.setActiveOrgCookie = setActiveOrgCookie;

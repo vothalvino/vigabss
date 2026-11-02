@@ -18,7 +18,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   localStorage.clear();
   portalTokenStore.setAccess('expired-access');
-  portalTokenStore.setRefresh('refresh-1');
+  portalTokenStore.markSession();
 });
 
 const authOf = (init?: RequestInit) => new Headers(init?.headers).get('Authorization');
@@ -34,7 +34,7 @@ describe('portalAuthedFetch', () => {
 
     expect(res.status).toBe(200);
     expect(portalTokenStore.getAccess()).toBe('fresh-access');
-    expect(portalTokenStore.getRefresh()).toBe('refresh-2');
+    expect(portalTokenStore.hasSession()).toBe(true);
     const retry = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
     expect(retry[1].method).toBe('POST');
     expect(new Headers(retry[1].headers).get('Content-Type')).toBe('application/json');
@@ -59,7 +59,7 @@ describe('portalAuthedFetch', () => {
     fetchMock.mockImplementation(async (url: string) => (url === '/api/v1/portal/auth/refresh' ? json(503, {}) : json(401, {})));
     const res = await portalAuthedFetch('/api/v1/portal/dashboard');
     expect(res.status).toBe(401);
-    expect(portalTokenStore.getRefresh()).toBe('refresh-1');
+    expect(portalTokenStore.hasSession()).toBe(true);
   });
 });
 
@@ -89,7 +89,7 @@ describe('a refused refresh signs the subscriber out', () => {
     await act(async () => { await portalAuthedFetch('/api/v1/portal/invoices'); });
 
     await waitFor(() => expect(screen.getByText('out')).toBeInTheDocument());
-    expect(portalTokenStore.getRefresh()).toBeNull();
+    expect(portalTokenStore.hasSession()).toBe(false);
     expect(portalTokenStore.getAccess()).toBeNull();
   });
 });

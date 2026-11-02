@@ -82,6 +82,7 @@ const { computeClientBalance } = require('../services/clientBalanceService');
 const whatsappService = require('../services/whatsappService');
 const config = require('../config');
 const logger = require('../utils/logger');
+const { tokenResponseBody } = require('../utils/browserTokens');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
 const { creditAppliedSql } = require('../utils/invoiceBalance');
 const radiusService = require('../services/radiusService');
@@ -106,9 +107,29 @@ const portalResetPasswordSchema = {
   password: { type: 'string', required: true, min: 8, max: 200 },
 };
 
+// The browser portal sends the refresh token as a cookie; API clients may
+// still send it in the body.
 const portalRefreshSchema = {
-  refreshToken: { type: 'string', required: true },
+  refreshToken: { type: 'string', required: false },
 };
+
+// SEC-28: the portal SPA kept its 7-day refresh token in localStorage, where
+// any script on the page could read it. It is now an httpOnly SameSite=Strict
+// cookie sent only to the portal auth endpoints.
+const PORTAL_REFRESH_COOKIE = 'fireisp_portal_refresh';
+const PORTAL_REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'strict',
+  secure: config.env === 'production',
+  path: '/api/v1/portal/auth',
+};
+
+function setPortalRefreshCookie(res, refreshToken) {
+  res.cookie(PORTAL_REFRESH_COOKIE, refreshToken, {
+    ...PORTAL_REFRESH_COOKIE_OPTIONS,
+    maxAge: portalAuthService.REFRESH_SECONDS * 1000,
+  });
+}
 
 const portalPasswordSchema = {
   currentPassword: { type: 'string', required: true, min: 1 },
@@ -163,7 +184,8 @@ const kbRateSchema = {
 router.post('/auth/login', authLimiter, validate(portalLoginSchema), async (req, res, next) => {
   try {
     const result = await portalAuthService.login(req.body);
-    res.json({ data: result });
+    setPortalRefreshCookie(res, result.refreshToken);
+    res.json({ data: tokenResponseBody(req, result) });
   } catch (err) {
     next(err);
   }
@@ -171,13 +193,19 @@ router.post('/auth/login', authLimiter, validate(portalLoginSchema), async (req,
 
 // POST /portal/auth/refresh
 // Uses the general NOT the strict authLimiter: the portal SPA keeps its
-// access token in memory and re-exchanges the (localStorage) refresh token on every
+// access token in memory and re-exchanges the (cookie) refresh token on every
 // page load, so the strict 20/window limiter would 429 a frequently-reloaded session
 // and bounce the customer to the login screen. /auth/login stays on authLimiter.
 router.post('/auth/refresh', validate(portalRefreshSchema), async (req, res, next) => {
   try {
-    const result = await portalAuthService.refreshToken(req.body.refreshToken);
-    res.json({ data: result });
+    const cookieToken = req.cookies?.[PORTAL_REFRESH_COOKIE];
+    const tokenValue = cookieToken || req.body?.refreshToken;
+    if (!tokenValue) {
+      return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Refresh token required' } });
+    }
+    const result = await portalAuthService.refreshToken(tokenValue);
+    setPortalRefreshCookie(res, result.refreshToken);
+    res.json({ data: tokenResponseBody(req, result, { tokenFromCookie: Boolean(cookieToken) }) });
   } catch (err) {
     next(err);
   }
@@ -186,8 +214,9 @@ router.post('/auth/refresh', validate(portalRefreshSchema), async (req, res, nex
 // POST /portal/auth/logout
 router.post('/auth/logout', async (req, res, next) => {
   try {
-    const { refreshToken } = req.body || {};
+    const refreshToken = req.cookies?.[PORTAL_REFRESH_COOKIE] || req.body?.refreshToken;
     await portalAuthService.logout(refreshToken);
+    res.clearCookie(PORTAL_REFRESH_COOKIE, PORTAL_REFRESH_COOKIE_OPTIONS);
     res.json({ message: 'Logged out' });
   } catch (err) {
     next(err);

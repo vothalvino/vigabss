@@ -112,7 +112,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 interface LoginResponse {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
   expiresIn: number;
   user: AuthUser;
 }
@@ -435,7 +435,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const json = (await res.json()) as {
-        data: { accessToken: string; refreshToken: string; organization?: { id: number } };
+        data: { accessToken: string; refreshToken?: string; organization?: { id: number } };
       };
       // Server rotates the httpOnly refresh cookie in the response headers.
       tokenStore.setAccess(json.data.accessToken);

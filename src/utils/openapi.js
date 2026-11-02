@@ -2410,7 +2410,7 @@ function generateSpec() {
         post: { tags: ['Portal Auth'], summary: 'Client portal login', operationId: 'portalLogin', requestBody: jsonBody('email + password'), responses: r200('AccessToken + RefreshToken') },
       },
       '/portal/auth/refresh': {
-        post: { tags: ['Portal Auth'], summary: 'Refresh portal access token', operationId: 'portalRefreshToken', requestBody: jsonBody('refreshToken'), responses: r200('Token pair') },
+        post: { tags: ['Portal Auth'], summary: 'Refresh portal access token', description: 'Reads the refresh token from the fireisp_portal_refresh httpOnly cookie, or from the body for API clients. Browser requests do not get refreshToken back in the body.', operationId: 'portalRefreshToken', requestBody: typedJsonBody({ type: 'object', properties: { refreshToken: { type: 'string' } } }, 'refreshToken (API clients only)', false), responses: { ...r200('Token pair'), 401: errorResponse('No or invalid refresh token') } },
       },
       '/portal/auth/logout': {
         post: { tags: ['Portal Auth'], summary: 'Portal logout', operationId: 'portalLogout', responses: r200('Message') },
