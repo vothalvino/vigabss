@@ -361,6 +361,12 @@ approved purpose/legal-hold schedule, block where required, then suppress.
 
 ### Full erasure (LFPDPPP right to cancellation / GDPR right to erasure)
 
+Erasure anonymizes; it never deletes the client or organization row. Signed
+documents, consents, DSAR requests, the audit log and IFT reports hold a
+foreign key that restricts the delete (migration 502), and a database cascade
+would bypass the audit log's immutability triggers, because MySQL fires no
+triggers for cascaded rows.
+
 > **Important:** Some data cannot be erased due to legal obligations:
 > - Fiscal records follow the operator's CFF Article 30 schedule. The general
 >   rule is commonly five years from the related filing/due date, with special

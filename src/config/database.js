@@ -48,7 +48,27 @@ const baseConnectionConfig = {
 // connections x this cap below the server's max_prepared_stmt_count.
 const MAX_PREPARED_STATEMENTS = Math.max(1, parseIntEnv('DB_MAX_PREPARED_STATEMENTS', 128));
 
-const pool = mysql.createPool({
+// mysql2's `timezone` only converts JS Dates on the client; NOW(),
+// CURRENT_TIMESTAMP and TIMESTAMP columns use the server session's time_zone.
+// The bundled MySQL defaults to UTC, but an external server may not, so every
+// pooled connection pins its session to UTC (DB-27).
+function pinSessionToUtc(targetPool) {
+  if (!targetPool || typeof targetPool.on !== 'function') return targetPool;
+  // The promise pool re-emits the core pool's event with the core
+  // (callback-style) connection. Commands queue in order, so the SET runs
+  // before any statement from the caller that receives this connection.
+  targetPool.on('connection', (conn) => {
+    conn.query("SET time_zone = '+00:00'", (err) => {
+      if (!err) return;
+      // A connection that cannot be pinned would mix time zones: drop it.
+      require('../utils/logger').error({ err }, 'Could not set the MySQL session time_zone to UTC; closing the connection');
+      if (typeof conn.destroy === 'function') conn.destroy();
+    });
+  });
+  return targetPool;
+}
+
+const pool = pinSessionToUtc(mysql.createPool({
   ...baseConnectionConfig,
   maxPreparedStatements: MAX_PREPARED_STATEMENTS,
   waitForConnections: true,
@@ -56,7 +76,7 @@ const pool = mysql.createPool({
   queueLimit: parseIntEnv('DB_QUEUE_LIMIT', 0),
   enableKeepAlive: true,
   keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),
-});
+}));
 
 const tenantContext = new AsyncLocalStorage();
 // An invalidation may race an already-running primary lookup. A generation is
@@ -79,7 +99,7 @@ const TENANT_POOL_MAX = Math.max(1, parseIntEnv('TENANT_DB_POOL_MAX', 100));
  * `queryReplica` works transparently in single-server deployments.
  */
 const replicaPool = process.env.DB_REPLICA_HOST
-  ? mysql.createPool({
+  ? pinSessionToUtc(mysql.createPool({
     host: process.env.DB_REPLICA_HOST,
     port: parseInt(process.env.DB_REPLICA_PORT || '3306', 10),
     user: process.env.DB_REPLICA_USER || process.env.DB_USER || 'root',
@@ -95,7 +115,8 @@ const replicaPool = process.env.DB_REPLICA_HOST
     queueLimit: parseIntEnv('DB_QUEUE_LIMIT', 0),
     enableKeepAlive: true,
     keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),
-  })
+  }))
+
   : null;
 
 function withTenantContext(orgId, callback) {
@@ -283,7 +304,7 @@ async function getTenantPool(orgId) {
   } else {
     if (entry) evictTenantPool(key, entry);
     entry = trackBorrows({
-      pool: mysql.createPool({
+      pool: pinSessionToUtc(mysql.createPool({
         ...config,
         charset: 'utf8mb4',
         timezone: '+00:00',
@@ -293,7 +314,8 @@ async function getTenantPool(orgId) {
         queueLimit: parseIntEnv('DB_QUEUE_LIMIT', 0),
         enableKeepAlive: true,
         keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),
-      }),
+      })),
+
       generation: snapshot.generation,
       fingerprint: snapshot.fingerprint,
       lastUsed: now,

@@ -220,4 +220,17 @@ WHERE  ROUTINE_SCHEMA = DATABASE()
   AND  ROUTINE_TYPE   = 'FUNCTION';
 CALL assert_true(@fn_count = 1, 'Function: fn_predominant_forma_pago exists');
 
+
+-- =========================================================================
+-- 6. Evidence foreign keys restrict deletes (migration 502, DB-26)
+-- =========================================================================
+SET @cascades = -1;
+SELECT COUNT(*) INTO @cascades
+FROM   INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+WHERE  CONSTRAINT_SCHEMA = DATABASE()
+  AND  CONSTRAINT_NAME IN ('fk_signed_documents_client', 'fk_sub_consents_client', 'fk_dsar_requests_client',
+                           'fk_audit_logs_org', 'fk_ift_statistical_reports_organization')
+  AND  DELETE_RULE <> 'RESTRICT';
+CALL assert_true(@cascades = 0, 'FK: evidence tables ON DELETE RESTRICT');
+
 CALL test_summary();

@@ -294,3 +294,26 @@ describe('syncFreeradiusTables — PPPoE profile attribute injection', () => {
     expect(filterRow.params[3]).toBe('POLICY_PREMIUM');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Roaming — synced credentials are not tied to the subscriber's home NAS
+// ---------------------------------------------------------------------------
+// A client who moves, or lives in two places, authenticates through any NAS
+// of the organization. FreeRADIUS reads radcheck/radreply by username only, so
+// the sync must never add a check item that pins the user to one NAS.
+describe('syncFreeradiusTables — no home-NAS restriction', () => {
+  test('radcheck and radreply rows carry no NAS-bound attribute', async () => {
+    const calls = setupMockDb({ subscribers: [makeSubscriber({ nas_id: 3 })] });
+    await syncFreeradiusTables(10);
+    const inserts = calls.filter(({ sql }) => /INSERT INTO (radcheck|radreply)/.test(sql));
+    expect(inserts.length).toBeGreaterThan(0);
+    const attributes = inserts.map(({ params }) => params[1]);
+    expect(attributes).toContain('Cleartext-Password');
+    for (const attr of attributes) {
+      expect(attr).not.toMatch(/^(NAS-IP-Address|NAS-IPv6-Address|NAS-Identifier|NAS-Port|Huntgroup-Name|Called-Station-Id)$/);
+    }
+    // Every row is keyed by the username alone.
+    for (const { params } of inserts) expect(params[0]).toBe('user1@isp.net');
+  });
+});
+

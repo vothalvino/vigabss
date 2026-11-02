@@ -1,27 +1,17 @@
-const fs = require('fs');
-const path = require('path');
+// DB-28 — one FreeRADIUS guide: database/freeradius only points at docs/freeradius.
+'use strict';
 
-describe('bundled FreeRADIUS SQL module', () => {
-  const sqlConfig = fs.readFileSync(
-    path.join(__dirname, '..', 'docs', 'freeradius', 'sql.conf'),
-    'utf8',
-  );
+const fs = require('node:fs');
+const path = require('node:path');
 
-  test('loads stock dialect queries and configures the post-auth table', () => {
-    expect(sqlConfig).toMatch(/^\s*postauth_table\s*=\s*"radpostauth"/m);
-    expect(sqlConfig).toMatch(/^\s*auto_escape\s*=\s*yes/m);
-    expect(sqlConfig).toMatch(
-      /^\s*\$INCLUDE\s+\$\{modconfdir\}\/\$\{\.:name\}\/main\/\$\{dialect\}\/queries\.conf/m,
-    );
-  });
+const root = path.join(__dirname, '..');
 
-  test('documents SQL logging for both accept and reject post-auth paths', () => {
-    const readme = fs.readFileSync(
-      path.join(__dirname, '..', 'docs', 'freeradius', 'README.md'),
-      'utf8',
-    );
-    expect(readme).toMatch(/post-auth\s*\{[\s\S]*?Post-Auth-Type REJECT\s*\{[\s\S]*?\n\s*sql\s+/);
-    expect(readme).toContain('stock fail-soft `-sql` entry must also be enabled as `sql`');
-    expect(readme).toMatch(/SELECT COUNT\(\*\)[\s\\]*FROM nas n2[\s\S]*?= 1/);
-  });
+test('database/freeradius/README.md is a pointer with no SQL of its own', () => {
+  const stale = fs.readFileSync(path.join(root, 'database/freeradius/README.md'), 'utf8');
+  expect(stale).toMatch(/docs\/freeradius/);
+  expect(stale).not.toMatch(/SELECT|INSERT|read_clients/i);
+});
+
+test('docs/freeradius keeps the CoA behaviour that only the old guide described', () => {
+  expect(fs.readFileSync(path.join(root, 'docs/freeradius/README.md'), 'utf8')).toMatch(/## CoA and Disconnect/);
 });

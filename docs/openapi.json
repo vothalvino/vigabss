@@ -12479,7 +12479,8 @@
         "tags": [
           "RADIUS"
         ],
-        "summary": "Push a RADIUS subscriber (PPPoE secret) directly to its NAS RouterOS device over the API",
+        "summary": "Push a RADIUS subscriber (PPPoE secret) directly to its NAS RouterOS device over the API, and to every other active NAS of the organization with API credentials",
+        "description": "data is the home NAS result; other_nas lists each other NAS as { nas_id, ok, ... } so a client who moves or lives in two places can connect through any of them. A failure on another NAS does not fail the request.",
         "operationId": "pushRadiusToRouter",
         "security": [
           {

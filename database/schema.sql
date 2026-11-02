@@ -1449,7 +1449,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     CONSTRAINT fk_audit_logs_user FOREIGN KEY (user_id)
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_audit_logs_org FOREIGN KEY (organization_id)
-        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
@@ -3392,8 +3392,10 @@ BEGIN
 
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = 1;
 
-    -- Ensure partitions exist for the next 3 full months
-    SET v_month = DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01');
+    -- Ensure partitions exist for the current month through the next 3 full
+    -- months (migration 248: starting at next month left the current month
+    -- uncovered once the hardcoded partitions of migration 025 ran out)
+    SET v_month = DATE_FORMAT(CURDATE(), '%Y-%m-01');
 
     WHILE v_month <= DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 3 MONTH), '%Y-%m-01') DO
         SET v_pname   = CONCAT('p', DATE_FORMAT(v_month, '%Y_%m'));
@@ -3435,7 +3437,36 @@ BEGIN
     CLOSE c_old;
 END$$
 
+-- ---------------------------------------------------------------------------
+-- Procedure: preflight_check_event_scheduler (migration 053)
+-- Purpose:   Raise SQLSTATE '45000' if the MySQL Event Scheduler is not
+--            enabled. Call during deployment or startup:
+--              CALL preflight_check_event_scheduler();
+-- ---------------------------------------------------------------------------
+CREATE PROCEDURE IF NOT EXISTS preflight_check_event_scheduler()
+BEGIN
+    DECLARE v_scheduler VARCHAR(16);
+
+    SELECT variable_value INTO v_scheduler
+    FROM performance_schema.global_variables
+    WHERE variable_name = 'event_scheduler';
+
+    IF UPPER(v_scheduler) != 'ON' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT =
+                'MySQL Event Scheduler is not enabled (event_scheduler = ON is required). '
+                'Scheduled events for SNMP rollup/retention and connection_logs partition '
+                'maintenance will not run, risking insert failures and compliance retention '
+                'violations. Enable it with: SET GLOBAL event_scheduler = ON; or add '
+                'event_scheduler = ON under [mysqld] in my.cnf and restart MySQL.';
+    END IF;
+END$$
+
 DELIMITER ;
+
+-- Materialize the current month through +3 now, as migration 248 does, so a
+-- schema.sql load does not depend on the 03:00 event having run.
+CALL snmp_maintain_partitions();
 
 -- ---------------------------------------------------------------------------
 -- Scheduled events (require event_scheduler = ON)
@@ -5924,7 +5955,7 @@ CREATE TABLE IF NOT EXISTS ift_statistical_reports (
     KEY idx_ift_statistical_reports_deleted_at (deleted_at),
     KEY idx_ift_statistical_reports_concession_title_id (concession_title_id),
     CONSTRAINT fk_ift_statistical_reports_organization FOREIGN KEY (organization_id)
-        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_ift_statistical_reports_filing FOREIGN KEY (filing_id)
         REFERENCES regulatory_filings (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_ift_statistical_reports_concession_title FOREIGN KEY (concession_title_id)
@@ -13369,7 +13400,7 @@ CREATE TABLE IF NOT EXISTS subscriber_consents (
     CONSTRAINT fk_sub_consents_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_sub_consents_client FOREIGN KEY (client_id)
-        REFERENCES clients (id) ON DELETE CASCADE ON UPDATE CASCADE,
+        REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_sub_consents_service_order FOREIGN KEY (service_order_id)
         REFERENCES service_orders (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_sub_consents_work_order FOREIGN KEY (work_order_id)
@@ -13408,7 +13439,7 @@ CREATE TABLE IF NOT EXISTS dsar_requests (
     CONSTRAINT fk_dsar_requests_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_dsar_requests_client FOREIGN KEY (client_id)
-        REFERENCES clients (id) ON DELETE CASCADE ON UPDATE CASCADE,
+        REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_dsar_requests_fulfilled_by FOREIGN KEY (fulfilled_by)
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -15426,7 +15457,7 @@ CREATE TABLE IF NOT EXISTS signed_documents (
       CONSTRAINT fk_signed_documents_org FOREIGN KEY (organization_id)
           REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
       CONSTRAINT fk_signed_documents_client FOREIGN KEY (client_id)
-          REFERENCES clients (id) ON DELETE CASCADE ON UPDATE CASCADE,
+          REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
       CONSTRAINT fk_signed_documents_contract FOREIGN KEY (contract_id)
           REFERENCES contracts (id) ON DELETE SET NULL ON UPDATE CASCADE,
       CONSTRAINT fk_signed_documents_so FOREIGN KEY (service_order_id)
