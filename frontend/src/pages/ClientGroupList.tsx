@@ -6,7 +6,8 @@
 
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { Pagination } from '@/components/Pagination';
 import { api } from '@/api/client';

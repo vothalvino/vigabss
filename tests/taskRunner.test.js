@@ -6,6 +6,7 @@ jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   execute: jest.fn(),
   getConnection: jest.fn(),
+  getLockConnection: jest.fn(),
   withPrimaryContext: jest.fn(callback => callback()),
   withTenantContext: jest.fn((_organizationId, callback) => callback()),
   close: jest.fn(),
@@ -229,7 +230,7 @@ describe('taskRunner', () => {
 
     test('dispatches organization-scoped poll_pppoe_events task', async () => {
       const connection = mockAdvisoryConnection();
-      db.getConnection.mockResolvedValueOnce(connection);
+      db.getLockConnection.mockResolvedValueOnce(connection);
       pppoeEventCollector.collectPppoeEvents.mockResolvedValueOnce({ inserted: 2 });
       const result = await taskRunner.runTask('poll_pppoe_events', 42);
       expect(result).toEqual({ inserted: 2 });
@@ -244,12 +245,15 @@ describe('taskRunner', () => {
         [expect.stringContaining('poll_pppoe_events')],
       );
       expect(connection.release).toHaveBeenCalledTimes(1);
+      // The mutex is held for the whole sweep, so it must not occupy a
+      // request connection the collector's own queries need.
+      expect(db.getConnection).not.toHaveBeenCalled();
     });
 
     test('skips a concurrent fleet sweep and keeps the mutex until the first collector settles', async () => {
       const ownerConnection = mockAdvisoryConnection({ acquired: 1 });
       const busyConnection = mockAdvisoryConnection({ acquired: 0 });
-      db.getConnection
+      db.getLockConnection
         .mockResolvedValueOnce(ownerConnection)
         .mockResolvedValueOnce(busyConnection);
 
@@ -286,7 +290,7 @@ describe('taskRunner', () => {
 
     test('releases the advisory mutex when the collector fails', async () => {
       const connection = mockAdvisoryConnection();
-      db.getConnection.mockResolvedValueOnce(connection);
+      db.getLockConnection.mockResolvedValueOnce(connection);
       pppoeEventCollector.collectPppoeEvents.mockRejectedValueOnce(new Error('router failure'));
 
       await expect(taskRunner.runTask('poll_pppoe_events')).rejects.toThrow('router failure');
@@ -300,7 +304,7 @@ describe('taskRunner', () => {
 
     test('fails closed when MySQL cannot evaluate the advisory lock', async () => {
       const connection = mockAdvisoryConnection({ acquired: null });
-      db.getConnection.mockResolvedValueOnce(connection);
+      db.getLockConnection.mockResolvedValueOnce(connection);
 
       await expect(taskRunner.runTask('poll_pppoe_events')).rejects.toThrow(
         'could not acquire the PPPoE event collector mutex',
@@ -312,7 +316,7 @@ describe('taskRunner', () => {
 
     test('destroys rather than pools a connection when mutex release is uncertain', async () => {
       const connection = mockAdvisoryConnection({ releaseError: new Error('connection lost') });
-      db.getConnection.mockResolvedValueOnce(connection);
+      db.getLockConnection.mockResolvedValueOnce(connection);
       pppoeEventCollector.collectPppoeEvents.mockResolvedValueOnce({ inserted: 0 });
 
       await expect(taskRunner.runTask('poll_pppoe_events')).resolves.toEqual({ inserted: 0 });

@@ -11,7 +11,8 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';

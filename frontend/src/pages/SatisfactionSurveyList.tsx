@@ -8,7 +8,8 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { Pagination } from '@/components/Pagination';
 import { useAuth } from '@/auth/AuthContext';

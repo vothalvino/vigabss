@@ -12,7 +12,8 @@
 
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { gql } from '@/api/graphql';
 import { useAuth } from '@/auth/AuthContext';
 import { authedFetch } from '@/api/client';

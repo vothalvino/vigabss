@@ -22,7 +22,7 @@
 // =============================================================================
 
 import { useRef, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { readCsrfCookie } from '@/api/csrf';
 import { useAuth } from '@/auth/AuthContext';

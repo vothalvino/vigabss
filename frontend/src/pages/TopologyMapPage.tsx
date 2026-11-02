@@ -12,7 +12,8 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { MapContainer, CircleMarker, Polyline, Popup, Tooltip, useMapEvents } from 'react-leaflet';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
