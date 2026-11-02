@@ -520,6 +520,7 @@ describe('runBillingCycle — full billing engine orchestration', () => {
     expect(result).toEqual({
       invoices_generated: 0,
       emails_sent: 0,
+      emails_failed: 0,
       contracts_checked: 0,
       contracts_failed: 0,
       errors: [],

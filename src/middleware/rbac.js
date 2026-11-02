@@ -7,6 +7,7 @@
 // =============================================================================
 
 const User = require('../models/User');
+const { tagGuard } = require('./routeGuard');
 const db = require('../config/database');
 const { ForbiddenError } = require('../utils/errors');
 const { scopeAllowsPermission } = require('../utils/scopes');
@@ -70,7 +71,7 @@ function enforceTokenScopes(user, requiredPermissions) {
  * @param  {...string} requiredPermissions  Permission slugs (any one match = OK)
  */
 function requirePermission(...requiredPermissions) {
-  return async (req, _res, next) => {
+  return tagGuard(async (req, _res, next) => {
     try {
       if (!req.user || !req.user.organizationId) {
         throw new ForbiddenError('No organization context');
@@ -102,7 +103,7 @@ function requirePermission(...requiredPermissions) {
     } catch (err) {
       next(err);
     }
-  };
+  }, { permissions: requiredPermissions });
 }
 
 /**
@@ -110,7 +111,7 @@ function requirePermission(...requiredPermissions) {
  * Usage: router.post('/org/settings', requireRole('owner', 'admin'), controller)
  */
 function requireRole(...roles) {
-  return async (req, _res, next) => {
+  return tagGuard(async (req, _res, next) => {
     try {
       if (!req.user || !req.user.organizationId) {
         throw new ForbiddenError('No organization context');
@@ -139,7 +140,7 @@ function requireRole(...roles) {
     } catch (err) {
       next(err);
     }
-  };
+  }, { roles });
 }
 
 /**

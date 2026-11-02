@@ -13,7 +13,9 @@ const path = require('path');
 jest.mock('mysql2/promise', () => ({
   createPool: jest.fn(() => ({ execute: jest.fn(), end: jest.fn(), getConnection: jest.fn(), on: jest.fn() })),
 }));
-jest.mock('../src/utils/dbMetrics', () => ({ recordDbQuery: jest.fn() }));
+jest.mock('../src/utils/dbMetrics', () => ({
+    recordDbQuery: jest.fn(), registerPoolStats: jest.fn(), recordPoolAcquire: jest.fn(), notePoolAcquireFailure: jest.fn(),
+  }));
 
 afterEach(() => {
   delete process.env.DB_REPLICA_HOST;

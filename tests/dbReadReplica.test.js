@@ -22,7 +22,9 @@ jest.mock('mysql2/promise', () => {
   return { createPool: jest.fn(() => makeMockPool()) };
 });
 
-jest.mock('../src/utils/dbMetrics', () => ({ recordDbQuery: jest.fn() }));
+jest.mock('../src/utils/dbMetrics', () => ({
+    recordDbQuery: jest.fn(), registerPoolStats: jest.fn(), recordPoolAcquire: jest.fn(), notePoolAcquireFailure: jest.fn(),
+  }));
 
 // Top-level requires used by routing tests (Parts C and D).
 const db = require('../src/config/database');

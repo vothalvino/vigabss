@@ -6624,5 +6624,9 @@
     "unchained_other": "{{count}} registros antiguos son anteriores a la cadena de hashes.",
     "position": "posición {{seq}}",
     "installScope": "Mostrar eventos de toda la instalación (sin organización)"
+  },
+  "notAllowed": {
+    "title": "403 — Sin acceso",
+    "body": "No tienes permiso para ver esta página."
   }
 }

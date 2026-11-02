@@ -17,7 +17,9 @@ describe('session time zone', () => {
     const { EventEmitter } = require('events');
     const pool = Object.assign(new EventEmitter(), { execute: jest.fn(), getConnection: jest.fn(), end: jest.fn() });
     jest.doMock('mysql2/promise', () => ({ createPool: jest.fn(() => pool) }));
-    jest.doMock('../src/utils/dbMetrics', () => ({ recordDbQuery: jest.fn() }));
+    jest.doMock('../src/utils/dbMetrics', () => ({
+    recordDbQuery: jest.fn(), registerPoolStats: jest.fn(), recordPoolAcquire: jest.fn(), notePoolAcquireFailure: jest.fn(),
+  }));
     require('../src/config/database');
     const conn = { query: jest.fn((sql, cb) => cb(null)), destroy: jest.fn() };
     pool.emit('connection', conn);
@@ -29,7 +31,9 @@ describe('session time zone', () => {
     const { EventEmitter } = require('events');
     const pool = Object.assign(new EventEmitter(), { execute: jest.fn(), getConnection: jest.fn(), end: jest.fn() });
     jest.doMock('mysql2/promise', () => ({ createPool: jest.fn(() => pool) }));
-    jest.doMock('../src/utils/dbMetrics', () => ({ recordDbQuery: jest.fn() }));
+    jest.doMock('../src/utils/dbMetrics', () => ({
+    recordDbQuery: jest.fn(), registerPoolStats: jest.fn(), recordPoolAcquire: jest.fn(), notePoolAcquireFailure: jest.fn(),
+  }));
     require('../src/config/database');
     const conn = { query: jest.fn((sql, cb) => cb(new Error('denied'))), destroy: jest.fn() };
     pool.emit('connection', conn);

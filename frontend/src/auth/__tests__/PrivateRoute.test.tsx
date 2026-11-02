@@ -150,3 +150,37 @@ describe('PrivateRoute', () => {
     }
   });
 });
+
+// FE-25: a page in the nav registry opens by the session's resolved permissions;
+// the role tier is only the fallback.
+describe('PrivateRoute with resolved permissions', () => {
+  function renderAt(pathname: string, element: React.ReactNode) {
+    return render(
+      <MemoryRouter initialEntries={[pathname]}>
+        <Routes>
+          <Route element={element}>
+            <Route path={pathname} element={<div>Protected content</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it('opens a billing page for a support-kind group granted its permission', () => {
+    mockAuth({ user: { ...billingUser, role: 'support', permissions: ['invoices.view'] }, loading: false, initialized: true });
+    renderAt('/invoices', <PrivateRoute requiredRole="billing" />);
+    expect(screen.getByText('Protected content')).toBeInTheDocument();
+  });
+
+  it('refuses a page whose permission the group lacks, whatever its rank', () => {
+    mockAuth({ user: { ...billingUser, permissions: ['clients.view'] }, loading: false, initialized: true });
+    renderAt('/invoices', <PrivateRoute requiredRole="billing" />);
+    expect(screen.getByText('403 — Not Allowed')).toBeInTheDocument();
+  });
+
+  it('a detail page uses its list page\'s permissions', () => {
+    mockAuth({ user: { ...billingUser, role: 'support', permissions: ['invoices.view'] }, loading: false, initialized: true });
+    renderAt('/invoices/42', <PrivateRoute requiredRole="billing" />);
+    expect(screen.getByText('Protected content')).toBeInTheDocument();
+  });
+});

@@ -15,7 +15,9 @@ describe('database tenant routing', () => {
     const createPool = jest.fn();
     for (const p of pools) createPool.mockReturnValueOnce(p);
     jest.doMock('mysql2/promise', () => ({ createPool }));
-    jest.doMock('../src/utils/dbMetrics', () => ({ recordDbQuery: jest.fn() }));
+    jest.doMock('../src/utils/dbMetrics', () => ({
+    recordDbQuery: jest.fn(), registerPoolStats: jest.fn(), recordPoolAcquire: jest.fn(), notePoolAcquireFailure: jest.fn(),
+  }));
     return { db: require('../src/config/database'), createPool };
   }
 

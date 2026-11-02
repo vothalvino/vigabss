@@ -165,3 +165,22 @@ describe('nav registry i18n coverage', () => {
     }
   });
 });
+
+describe('FE-25 — every page names the permissions that open it', () => {
+  // Every permission slug the migrations seed.
+  const migrations = path.join(__dirname, '..', '..', '..', 'database', 'migrations');
+  const seeded = new Set<string>();
+  for (const file of fs.readdirSync(migrations)) {
+    for (const m of fs.readFileSync(path.join(migrations, file), 'utf8').matchAll(/'([a-z0-9_]+(?:\.[a-z0-9_]+)+)'/g)) seeded.add(m[1]);
+  }
+
+  it('every registry entry has view permissions', () => {
+    const missing = ROUTES.filter(r => !(r.viewPermissions ?? r.requiredAnyPermissions)?.length).map(r => r.path);
+    expect(missing).toEqual([]);
+  });
+
+  it('every view permission is a slug the migrations seed', () => {
+    const unknown = ROUTES.flatMap(r => (r.viewPermissions ?? []).filter(p => !seeded.has(p)).map(p => `${r.path}: ${p}`));
+    expect(unknown).toEqual([]);
+  });
+});

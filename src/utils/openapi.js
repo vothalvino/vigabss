@@ -1133,6 +1133,20 @@ function generateSpec() {
 
       // ---- Payment Gateways ----
       ...crudPaths('payment-gateways', 'Payment Gateways', 'PaymentGateway'),
+      '/payment-gateways/webhook-events': {
+        get: {
+          tags: ['Payment Gateways'], summary: 'List the organization\'s payment webhook events (no payloads), newest first', operationId: 'listPaymentWebhookEvents', security: [{ bearerAuth: [] }],
+          parameters: [
+            pageParam(), limitParam(),
+            { name: 'status', in: 'query', schema: { type: 'string', enum: ['received', 'processing', 'processed', 'failed', 'ignored', 'no_match'] } },
+            { name: 'provider', in: 'query', schema: { type: 'string' } },
+          ],
+          responses: { ...r200('WebhookEvent[] with pagination meta'), 422: errorResponse('Unknown status') },
+        },
+      },
+      '/payment-gateways/unsettled-transactions': {
+        get: { tags: ['Payment Gateways'], summary: 'List succeeded gateway transactions with no payment or ledger credit', operationId: 'listUnsettledPaymentTransactions', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: r200('PaymentTransaction[] with pagination meta') },
+      },
 
       // ---- Payment Transactions ----
       '/payment-transactions': { get: { tags: ['Payment Transactions'], summary: 'List payment transactions', operationId: 'listPaymentTransactions', security: [{ bearerAuth: [] }], responses: r200('PaymentTransaction[]') } },

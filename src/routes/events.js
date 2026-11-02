@@ -16,6 +16,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const db = require('../config/database');
 const { userHasPermission } = require('../middleware/rbac');
+const { tagGuard } = require('../middleware/routeGuard');
 const realtimeAccess = require('../services/realtimeAccess');
 const { streamGuard } = require('../middleware/streamGuard');
 const logger = require('../utils/logger');
@@ -122,12 +123,12 @@ function registerSseClient(req, res, channel, clients) {
 
 /** 403 unless the caller holds what the channel kind needs. */
 function requireChannel(kind) {
-  return async (req, res, next) => {
+  return tagGuard(async (req, res, next) => {
     try {
       if (await realtimeAccess.mayJoinChannel(req, kind)) return next();
       return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions for this stream' } });
     } catch (err) { return next(err); }
-  };
+  }, { channel: kind });
 }
 
 // ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission, userHasPermission } = require('../middleware/rbac');
+const { tagGuard } = require('../middleware/routeGuard');
 const { validate } = require('../middleware/validate');
 const {
   createWorkOrder, updateWorkOrder, patchWorkOrder, completeTestWindow,
@@ -439,11 +440,11 @@ router.get('/stats', requirePermission('work_orders.view'), async (req, res, nex
 // returned commissioning assignee must independently hold work_orders.view,
 // work_orders.update, and speed_tests.create so they can see and finish the
 // visit they receive. The ordinary picker remains work_orders.view-only.
-const requireAssignableUsersPermission = (req, res, next) => (
+const requireAssignableUsersPermission = tagGuard((req, res, next) => (
   req.query.commissioning === 'true'
     ? requirePermission('work_orders.view', 'contracts.update')(req, res, next)
     : requirePermission('work_orders.view')(req, res, next)
-);
+), { permissions: ['work_orders.view', 'contracts.update'] });
 
 router.get('/assignable-users', requireAssignableUsersPermission, async (req, res, next) => {
   try {
