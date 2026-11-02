@@ -12,7 +12,8 @@
 
 import { useState } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { authedFetch, tokenStore } from '@/api/client';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';

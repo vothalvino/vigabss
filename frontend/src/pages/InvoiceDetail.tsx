@@ -10,7 +10,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api, tokenStore, authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';

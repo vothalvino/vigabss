@@ -11,7 +11,8 @@
 
 import { useState } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { authedFetch, tokenStore } from '@/api/client';
 
 // ---------------------------------------------------------------------------

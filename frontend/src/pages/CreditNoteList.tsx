@@ -10,7 +10,8 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { api, authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';
