@@ -637,6 +637,7 @@ function generateSpec() {
 
       // ---- CFDI Documents ----
       ...crudPaths('cfdi-documents', 'CFDI Documents', 'CfdiDocument'),
+      '/cfdi-documents/environment': { get: { tags: ['CFDI Documents'], summary: "The organization's PAC environment and whether this install runs in production (sandbox CFDIs are not fiscally valid)", operationId: 'getCfdiEnvironment', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Fiscal environment', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: 'object', properties: { pac_environment: { type: 'string', enum: ['sandbox', 'production'] }, production_install: { type: 'boolean' } } } } } } } } } } },
       '/cfdi-documents/{id}/rebuild': { post: { tags: ['CFDI Documents'], summary: 'Rebuild an invoice draft CFDI from the invoice (new Fecha, current receptor and conceptos) and submit it; refused while the last stamp attempt may have been stamped', operationId: 'rebuildCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Stamp result for the rebuilt CFDI') } },
 
       // ---- SAT Catalogs ----

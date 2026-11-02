@@ -9558,6 +9558,49 @@
         }
       }
     },
+    "/cfdi-documents/environment": {
+      "get": {
+        "tags": [
+          "CFDI Documents"
+        ],
+        "summary": "The organization's PAC environment and whether this install runs in production (sandbox CFDIs are not fiscally valid)",
+        "operationId": "getCfdiEnvironment",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fiscal environment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pac_environment": {
+                          "type": "string",
+                          "enum": [
+                            "sandbox",
+                            "production"
+                          ]
+                        },
+                        "production_install": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cfdi-documents/{id}/rebuild": {
       "post": {
         "tags": [

@@ -5322,6 +5322,8 @@ CREATE TABLE IF NOT EXISTS cfdi_documents (
     -- PAC stamping metadata
     pac_provider            VARCHAR(50)     NULL
                                 COMMENT 'PAC that stamped this CFDI (e.g. Finkok, TimbraSoft)',
+    pac_environment         ENUM('sandbox', 'production') NULL
+                                COMMENT 'Environment of the PAC row that stamped this CFDI; sandbox = not fiscally valid (migration 500)',
     stamp_date              DATETIME        NULL
                                 COMMENT 'FechaTimbrado from the PAC timbrado complement',
     stamp_error             TEXT            NULL

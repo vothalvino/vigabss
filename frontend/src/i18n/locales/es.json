@@ -4482,6 +4482,13 @@
       "userId": "ID de Usuario"
     }
   },
+  "sandboxFiscal": {
+    "badge": "Pruebas",
+    "badgeTitle": "Timbrado por un PAC de pruebas: este CFDI no tiene validez fiscal",
+    "bannerTitle": "Los CFDI se están timbrando en el ambiente de pruebas.",
+    "bannerDetail": "Esta organización usa su PAC de pruebas, así que los CFDI nuevos no tienen validez fiscal. Cambie el ambiente fiscal a producción antes de facturar a clientes reales.",
+    "bannerAction": "Proveedores PAC"
+  },
   "adminIpAllowlistBanner": {
     "title": "La protección de IP para administración no ha sido activada.",
     "detail": "Las páginas administrativas sensibles están disponibles para administradores autenticados desde cualquier IP.",
