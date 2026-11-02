@@ -4,7 +4,13 @@
 
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/services/clientBalanceService', () => ({ computeClientBalance: jest.fn() }));
-jest.mock('../src/services/portalServiceRequestService', () => ({ queueWifiPasswordCpeTask: jest.fn(), linkWifiRequestToTask: jest.fn() }));
+jest.mock('../src/services/portalServiceRequestService', () => ({
+  queueWifiPasswordCpeTask: jest.fn(),
+  linkWifiRequestToTask: jest.fn(),
+  // The stored payload carries the password sealed, never in plaintext (SUP-13).
+  sealRequestedPassword: jest.fn(({ new_password: _pw, ...rest }) => ({ ...rest, new_password_sealed: 'sealed' })),
+  clearRequestedPassword: jest.fn(),
+}));
 jest.mock('../src/services/emailTransport', () => ({ sendEmail: jest.fn().mockResolvedValue({ success: true }) }));
 // Mocked because the pay-now branch requires it lazily — the real module pulls
 // in the payment SDKs, which the bot path should not carry per inbound message.

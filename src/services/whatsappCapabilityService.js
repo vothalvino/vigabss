@@ -308,7 +308,8 @@ async function resetWifiPassword({ orgId, clientId, contract }) {
     `INSERT INTO portal_service_requests
        (organization_id, client_id, contract_id, request_type, status, payload)
      VALUES (?, ?, ?, 'wifi_password_change', 'pending', ?)`,
-    [orgId, clientId, contractId, JSON.stringify({ new_password: newPassword, source: 'whatsapp' })],
+    // Stored encrypted and cleared once the CPE task carries it (SUP-13).
+    [orgId, clientId, contractId, JSON.stringify(portalServiceRequests.sealRequestedPassword({ new_password: newPassword, source: 'whatsapp' }))],
   );
   const requestId = ins.insertId;
 
@@ -320,7 +321,10 @@ async function resetWifiPassword({ orgId, clientId, contract }) {
     organizationId: orgId, contractId, newPassword, createdBy: null,
   });
   // Completed when the router confirms the change (NET-12), not when queued.
-  if (queued) await portalServiceRequests.linkWifiRequestToTask(requestId, taskId);
+  if (queued) {
+    await portalServiceRequests.linkWifiRequestToTask(requestId, taskId);
+    await portalServiceRequests.clearRequestedPassword(requestId);
+  }
   return { ok: true, applied: queued, requestId, emailMasked: maskEmail(client.email) };
 }
 
