@@ -203,12 +203,17 @@ async function createProblemTicket({ orgId, clientId, description, contract }) {
   return r.insertId;
 }
 
-/** Count WhatsApp-originated tickets a client opened recently (anti ticket-flood). */
+/**
+ * Count tickets a client's WhatsApp traffic opened recently (anti ticket-flood):
+ * the bot's own 'WhatsApp:' tickets and AI-support escalations, which opened
+ * outside this cap (SUP-09).
+ */
 async function recentWhatsappTicketCount(orgId, clientId, minutes = 60) {
   requireOrgId(orgId, 'whatsappCapabilityService.recentWhatsappTicketCount');
   const [rows] = await db.query(
     `SELECT COUNT(*) AS n FROM tickets
-      WHERE client_id = ? AND organization_id <=> ? AND subject LIKE 'WhatsApp:%'
+      WHERE client_id = ? AND organization_id <=> ?
+        AND (subject LIKE 'WhatsApp:%' OR subject LIKE 'AI Support Escalation:%')
         AND created_at > (NOW() - INTERVAL ? MINUTE)`,
     [clientId, orgId, minutes],
   );

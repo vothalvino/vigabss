@@ -262,7 +262,19 @@ async function handleInbound({ phone, body }) {
 async function tryAiSupport({ phone, orgId, clientId, text, state }) {
   try {
     const support = require('./supportConversationService');
-    const priorId = state?.context?.supportConversationId || null;
+    // Continue the client's escalated WhatsApp conversation, if one is open,
+    // rather than starting a new one that can escalate again into another
+    // ticket (SUP-09).
+    let priorId = state?.context?.supportConversationId || null;
+    if (!priorId) {
+      const [[open]] = await db.query(
+        `SELECT id FROM support_conversations
+          WHERE client_id = ? AND organization_id <=> ? AND channel = 'whatsapp' AND status = 'escalated'
+          ORDER BY id DESC LIMIT 1`,
+        [clientId, orgId],
+      );
+      priorId = open ? open.id : null;
+    }
 
     let result;
     if (priorId) {
@@ -278,7 +290,9 @@ async function tryAiSupport({ phone, orgId, clientId, text, state }) {
     // An escalated conversation gets no AI reply by design, so say a human is
     // coming rather than returning the greeting and looking like a non-answer.
     if (conv.status === 'escalated') {
-      await wa.clearConversationState(phone);
+      // Keep the thread: the next message appends to it, and a repeated
+      // escalation of an already escalated conversation is a no-op.
+      await wa.setConversationState(phone, clientId, 'ai_support', { supportConversationId: conv.id });
       return MSG.aiEscalated;
     }
 

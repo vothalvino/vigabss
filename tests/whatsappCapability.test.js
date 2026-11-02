@@ -269,6 +269,8 @@ describe('ticket creation', () => {
     db.query.mockResolvedValueOnce([[{ n: 3 }]]);
     expect(await cap.recentWhatsappTicketCount(3, 7)).toBe(3);
     expect(db.query.mock.calls[0][0]).toMatch(/subject LIKE 'WhatsApp:%'/);
+    // AI-support escalations count toward the same cap (SUP-09).
+    expect(db.query.mock.calls[0][0]).toMatch(/subject LIKE 'AI Support Escalation:%'/);
   });
   it('createHumanHandoffTicket inserts a general ticket', async () => {
     db.query.mockResolvedValueOnce([{ insertId: 77 }]);
