@@ -161,18 +161,24 @@ router.get('/fleet', requirePermission('devices.view'), async (req, res, next) =
     // compute a rate at all when the two buckets' signatures don't match
     // exactly — same "honest gap" treatment as a negative delta.
     const [trafficRows] = await db.query(
-      `SELECT device_id,
-              FLOOR(UNIX_TIMESTAMP(polled_at) / 60) AS minute_bucket,
-              MAX(polled_at) AS ts,
-              SUM(if_in_octets) AS in_octets,
-              SUM(if_out_octets) AS out_octets,
-              COUNT(DISTINCT interface_id) AS iface_count,
-              GROUP_CONCAT(DISTINCT interface_id ORDER BY interface_id) AS iface_signature
-       FROM snmp_metrics
-       WHERE device_id IN (${idsIn}) AND interface_id IS NOT NULL
-         AND polled_at >= NOW() - INTERVAL 3 HOUR
-       GROUP BY device_id, minute_bucket
-       ORDER BY device_id ASC, minute_bucket DESC`,
+      `SELECT m.device_id,
+              FLOOR(UNIX_TIMESTAMP(m.polled_at) / 60) AS minute_bucket,
+              MAX(m.polled_at) AS ts,
+              SUM(m.if_in_octets) AS in_octets,
+              SUM(m.if_out_octets) AS out_octets,
+              COUNT(DISTINCT m.interface_id) AS iface_count,
+              GROUP_CONCAT(DISTINCT m.interface_id ORDER BY m.interface_id) AS iface_signature
+       FROM snmp_metrics m
+       JOIN devices d ON d.id = m.device_id
+       LEFT JOIN snmp_profiles sp ON sp.id = d.snmp_profile_id
+       WHERE m.device_id IN (${idsIn}) AND m.interface_id IS NOT NULL
+         AND m.polled_at >= NOW() - INTERVAL 3 HOUR
+         -- Only the last two polls are used, so read about three poll
+         -- intervals back from each device's last poll instead of three hours
+         -- of interface rows for the whole fleet (DAL-16).
+         AND m.polled_at >= d.last_polled_at - INTERVAL (3 * COALESCE(sp.poll_interval_sec, 300)) SECOND
+       GROUP BY m.device_id, minute_bucket
+       ORDER BY m.device_id ASC, minute_bucket DESC`,
       [...deviceIds],
     );
     const trafficByDevice = new Map();
