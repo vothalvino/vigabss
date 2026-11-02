@@ -51,7 +51,7 @@ router.post('/', requirePermission('dashboard_widgets.manage'), async (req, res,
         config ? JSON.stringify(config) : null, is_visible ? 1 : 0],
     );
 
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM dashboard_widgets WHERE id = ?',
       [result.insertId],
     );
@@ -78,7 +78,7 @@ router.put('/batch', requirePermission('dashboard_widgets.manage'), async (req, 
       );
     }
 
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM dashboard_widgets WHERE user_id = ? AND organization_id = ? ORDER BY position_y, position_x',
       [req.user.id, req.orgId],
     );
@@ -89,7 +89,7 @@ router.put('/batch', requirePermission('dashboard_widgets.manage'), async (req, 
 // PUT /api/dashboard-widgets/:id
 router.put('/:id', requirePermission('dashboard_widgets.manage'), async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       'SELECT id FROM dashboard_widgets WHERE id = ? AND user_id = ? AND organization_id = ?',
       [req.params.id, req.user.id, req.orgId],
     );
@@ -114,7 +114,7 @@ router.put('/:id', requirePermission('dashboard_widgets.manage'), async (req, re
         req.params.id],
     );
 
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM dashboard_widgets WHERE id = ?',
       [req.params.id],
     );
@@ -125,7 +125,7 @@ router.put('/:id', requirePermission('dashboard_widgets.manage'), async (req, re
 // DELETE /api/dashboard-widgets/:id
 router.delete('/:id', requirePermission('dashboard_widgets.manage'), async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       'SELECT id FROM dashboard_widgets WHERE id = ? AND user_id = ? AND organization_id = ?',
       [req.params.id, req.user.id, req.orgId],
     );

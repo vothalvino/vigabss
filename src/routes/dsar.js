@@ -549,8 +549,8 @@ router.get(
 router.get('/requests', requirePermission('dsar_requests.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM dsar_requests WHERE organization_id = ? ORDER BY requested_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,

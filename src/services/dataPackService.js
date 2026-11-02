@@ -19,8 +19,23 @@ const rolloverService = require('./rolloverService');
 // Catalog helpers
 // ---------------------------------------------------------------------------
 
-async function listPacks(organizationId, { includeGlobal = true } = {}) {
-  let where = 'deleted_at IS NULL AND is_active = 1';
+// data_packs stores is_active; the admin page and validator speak status
+// ('active' | 'inactive'). Each pack carries both (FE2-11).
+function withStatus(row) {
+  return row ? { ...row, status: Number(row.is_active) ? 'active' : 'inactive' } : row;
+}
+
+// status in a request body wins over is_active when both are sent.
+function isActiveFrom(body, fallback) {
+  if (body.status !== undefined) return body.status === 'active' ? 1 : 0;
+  if (body.is_active !== undefined) return body.is_active ? 1 : 0;
+  return fallback;
+}
+
+// Subscribers see active packs only; the admin catalog also lists inactive
+// ones so they can be switched back on.
+async function listPacks(organizationId, { includeGlobal = true, includeInactive = false } = {}) {
+  let where = includeInactive ? 'deleted_at IS NULL' : 'deleted_at IS NULL AND is_active = 1';
   const params = [];
   if (includeGlobal) {
     where += ' AND (organization_id = ? OR organization_id IS NULL)';
@@ -33,7 +48,7 @@ async function listPacks(organizationId, { includeGlobal = true } = {}) {
     `SELECT * FROM data_packs WHERE ${where} ORDER BY price ASC`,
     params,
   );
-  return rows;
+  return rows.map(withStatus);
 }
 
 async function getPack(id, organizationId) {
@@ -44,16 +59,17 @@ async function getPack(id, organizationId) {
        AND deleted_at IS NULL`,
     [id, organizationId],
   );
-  return row || null;
+  return withStatus(row) || null;
 }
 
 async function createPack(organizationId, body) {
-  const { name, description, data_gb, price, currency = 'MXN', validity_days = 30, is_active = true } = body;
+  const { name, description, data_gb, price, currency = 'MXN', validity_days = 30 } = body;
+  const is_active = isActiveFrom(body, 1);
   const [result] = await db.query(
     `INSERT INTO data_packs
        (organization_id, name, description, data_gb, price, currency, validity_days, is_active)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [organizationId, name, description || null, data_gb, price, currency, validity_days, is_active ? 1 : 0],
+    [organizationId, name, description || null, data_gb, price, currency, validity_days, is_active],
   );
   return getPack(result.insertId, organizationId);
 }
@@ -62,7 +78,10 @@ async function updatePack(id, organizationId, body) {
   const allowed = ['name', 'description', 'data_gb', 'price', 'currency', 'validity_days', 'is_active'];
   const fields = [];
   const params = [];
-  for (const [key, val] of Object.entries(body)) {
+  const changes = { ...body };
+  delete changes.status;
+  if (body.status !== undefined || body.is_active !== undefined) changes.is_active = isActiveFrom(body);
+  for (const [key, val] of Object.entries(changes)) {
     if (allowed.includes(key)) {
       fields.push(`${key} = ?`);
       params.push(val);

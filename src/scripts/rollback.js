@@ -38,6 +38,7 @@ const db   = require('../config/database');
 const logger = require('../utils/logger').child({ script: 'rollback' });
 const product = require('../product');
 const { splitStatements } = require('./migrate');
+const { acquireMigrationLock, releaseMigrationLock } = require('../utils/migrationLock');
 const { listIsolatedMigrationTargets } = require('../services/tenantDatabaseService');
 
 const ROLLBACKS_DIR  = path.resolve(__dirname, '../../database/rollbacks');
@@ -160,6 +161,32 @@ async function withRollbackPool(connectionConfig, operation) {
   return result;
 }
 
+/**
+ * Take the schema-change lock on every target and hold it until `operation`
+ * settles: the same lock migrate.js takes, so a pod restarting during a
+ * rollback waits instead of interleaving DDL or re-applying the files being
+ * rolled back (DB-19). One dedicated connection per target holds it.
+ */
+async function withMigrationLocks(targets, operation) {
+  const held = [];
+  try {
+    for (const target of targets) {
+      const pool = createRollbackPool(target.connectionConfig);
+      held.push({ pool, target });
+      const conn = await pool.getConnection();
+      held[held.length - 1].conn = conn;
+      held[held.length - 1].name = await acquireMigrationLock(conn, target.label);
+    }
+    return await operation();
+  } finally {
+    for (const { pool, conn, name, target } of held.reverse()) {
+      if (conn && name) await releaseMigrationLock(conn, name, logger, target.label);
+      if (conn) conn.release();
+      await pool.end().catch(err => logger.error({ err, target: target.label }, 'Failed to close rollback lock pool'));
+    }
+  }
+}
+
 async function inspectRollbackTarget(target, args, rollbackFilesByPrefix) {
   return withRollbackPool(target.connectionConfig, async pool => {
     let conn;
@@ -260,6 +287,10 @@ async function performRollback(args, includeIsolatedTenants) {
     );
   }
 
+  return withMigrationLocks(targets, () => planAndExecute(targets, args, includeIsolatedTenants));
+}
+
+async function planAndExecute(targets, args, includeIsolatedTenants) {
   // Preflight every database before making any destructive change. This both
   // calculates targets independently and prevents a missing rollback file or
   // unreachable tenant database from being discovered after primary DDL ran.

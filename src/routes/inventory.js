@@ -36,7 +36,7 @@ router.get('/items', requirePermission('inventory.view'), async (req, res, next)
     // makes page math lie to paginating clients (the product picker pages
     // through this endpoint trusting meta.totalPages).
     const effectiveLimit = Math.min(Math.max(1, parseInt(limit) || 50), 100);
-    const offset = (Math.max(1, parseInt(page)) - 1) * effectiveLimit;
+    const offset = (Math.max(1, parseInt(page, 10) || 1) - 1) * effectiveLimit;
     const withDeleted = include_deleted === 'true';
     const onlyDeleted = only_deleted === 'true';
 

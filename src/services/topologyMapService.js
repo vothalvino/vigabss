@@ -9,6 +9,7 @@
 
 const db = require('../config/database');
 const { inPlaceholders } = require('../utils/sqlBuild');
+const { ValidationError } = require('../utils/errors');
 const _logger = require('../utils/logger').child({ service: 'topologyMapService' });
 
 // ---------------------------------------------------------------------------
@@ -556,6 +557,9 @@ async function getDependencyEdges(orgId, deviceId) {
  */
 async function createDependencyEdge(orgId, data) {
   const { parent_device_id, child_device_id, dependency_type = 'network', is_redundant = false, notes } = data;
+  if (Number(parent_device_id) === Number(child_device_id)) {
+    throw new ValidationError('A device cannot depend on itself');
+  }
   const [result] = await db.query(
     `INSERT INTO device_dependency_edges
        (organization_id, parent_device_id, child_device_id, dependency_type, is_redundant, notes)

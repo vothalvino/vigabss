@@ -137,7 +137,7 @@ class BaseModel {
     // the mysqld_stmt_execute regression with LIMIT ?/OFFSET ? on the prepared-
     // statement protocol.  Both values are validated as safe non-negative integers
     // before interpolation so there is no SQL-injection risk.
-    const safeLimit  = Math.max(1, parseInt(limit,  10) || 50);
+    const safeLimit  = Math.min(Math.max(1, parseInt(limit,  10) || 50), 1000);
     const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';

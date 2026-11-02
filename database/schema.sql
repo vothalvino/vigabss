@@ -8268,8 +8268,8 @@ END$$
 
 -- ---------------------------------------------------------------------------
 -- Trigger: PPPoE contract RADIUS consistency (migration 128)
--- Purpose: Require at least one RADIUS account before activating a PPPoE
---          or PPPoE-dual contract.
+-- Purpose: Require at least one live RADIUS account before activating a
+--          PPPoE or PPPoE-dual contract (soft-delete-aware since migration 499).
 -- ---------------------------------------------------------------------------
 DROP TRIGGER IF EXISTS trg_contracts_radius_consistency_bu$$
 CREATE TRIGGER trg_contracts_radius_consistency_bu
@@ -8281,7 +8281,10 @@ BEGIN
        AND OLD.status != 'active'
        AND NEW.connection_type IN ('pppoe', 'pppoe_dual')
     THEN
-        SELECT COUNT(*) INTO v_radius_count FROM radius WHERE contract_id = NEW.id;
+        SELECT COUNT(*) INTO v_radius_count
+        FROM   radius
+        WHERE  contract_id = NEW.id
+          AND  deleted_at IS NULL;
         IF v_radius_count = 0 THEN
             SIGNAL SQLSTATE '45000'
                 SET MESSAGE_TEXT = 'PPPoE/PPPoE-dual contracts require at least one RADIUS account before activation';
@@ -8294,6 +8297,7 @@ DELIMITER ;
 -- ---------------------------------------------------------------------------
 -- Triggers: credit note invoice total guard (migration 146)
 -- Purpose: Prevents credit note total from exceeding the linked invoice total.
+--          Soft-deleted notes do not count (migration 499).
 -- ---------------------------------------------------------------------------
 
 DELIMITER $$
@@ -8306,7 +8310,7 @@ BEGIN
     DECLARE v_invoice_total   DECIMAL(10, 2);
     DECLARE v_already_credited DECIMAL(10, 2);
 
-    IF NEW.invoice_id IS NOT NULL AND NEW.status != 'cancelled' THEN
+    IF NEW.invoice_id IS NOT NULL AND NEW.status != 'cancelled' AND NEW.deleted_at IS NULL THEN
         SELECT total INTO v_invoice_total
         FROM   invoices
         WHERE  id = NEW.invoice_id;
@@ -8314,7 +8318,8 @@ BEGIN
         SELECT COALESCE(SUM(total), 0) INTO v_already_credited
         FROM   credit_notes
         WHERE  invoice_id = NEW.invoice_id
-          AND  status     != 'cancelled';
+          AND  status     != 'cancelled'
+          AND  deleted_at IS NULL;
 
         IF v_already_credited + NEW.total > v_invoice_total THEN
             SIGNAL SQLSTATE '45000'
@@ -8331,7 +8336,7 @@ BEGIN
     DECLARE v_invoice_total   DECIMAL(10, 2);
     DECLARE v_already_credited DECIMAL(10, 2);
 
-    IF NEW.invoice_id IS NOT NULL AND NEW.status != 'cancelled' THEN
+    IF NEW.invoice_id IS NOT NULL AND NEW.status != 'cancelled' AND NEW.deleted_at IS NULL THEN
         SELECT total INTO v_invoice_total
         FROM   invoices
         WHERE  id = NEW.invoice_id;
@@ -8340,6 +8345,7 @@ BEGIN
         FROM   credit_notes
         WHERE  invoice_id = NEW.invoice_id
           AND  status     != 'cancelled'
+          AND  deleted_at IS NULL
           AND  id         != OLD.id;
 
         IF v_already_credited + NEW.total > v_invoice_total THEN

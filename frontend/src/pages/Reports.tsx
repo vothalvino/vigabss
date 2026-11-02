@@ -27,6 +27,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api, authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -135,7 +136,7 @@ async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { message?: string }).message ?? `${res.status} ${res.statusText}`);
+    throw new Error(parseApiError(body, `${res.status} ${res.statusText}`));
   }
   return res.json() as Promise<T>;
 }

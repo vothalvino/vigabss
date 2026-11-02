@@ -1009,11 +1009,23 @@ describe('analyticsService', () => {
       db.query
         .mockResolvedValueOnce([[{ device_id: 1 }], []])
         .mockResolvedValueOnce([samples, []])
+        .mockResolvedValueOnce([[], []])            // no open anomaly for this device and metric
         .mockResolvedValueOnce([{ insertId: 1 }]);  // INSERT anomaly
       const result = await svc.detectAnomalies(1);
       expect(result.anomalies_detected).toBe(1);
-      const insertCall = db.query.mock.calls[2][0];
+      const insertCall = db.query.mock.calls[3][0];
       expect(insertCall).toContain('INSERT INTO analytics_anomalies');
+    });
+
+    it('adds no repeat row while an unacknowledged anomaly is open (ASY-39)', async () => {
+      const samples = [{ cpu_usage: '200' }, ...Array(47).fill({ cpu_usage: '50' })];
+      db.query
+        .mockResolvedValueOnce([[{ device_id: 1 }], []])
+        .mockResolvedValueOnce([samples, []])
+        .mockResolvedValueOnce([[{ id: 7 }], []]);  // open anomaly already recorded
+      const result = await svc.detectAnomalies(1);
+      expect(result.anomalies_detected).toBe(0);
+      expect(db.query.mock.calls.some(([sql]) => /INSERT INTO analytics_anomalies/.test(sql))).toBe(false);
     });
 
     it('detects high severity anomaly (|z| between 3 and 4)', async () => {
@@ -1023,6 +1035,7 @@ describe('analyticsService', () => {
       db.query
         .mockResolvedValueOnce([[{ device_id: 2 }], []])
         .mockResolvedValueOnce([samples, []])
+        .mockResolvedValueOnce([[], []])
         .mockResolvedValueOnce([{ insertId: 2 }]);
       const result = await svc.detectAnomalies(1);
       expect(result.anomalies_detected).toBe(1);
@@ -1081,6 +1094,23 @@ describe('analyticsService', () => {
   });
 
   describe('computeChurnScores', () => {
+    it('counts each signal per client, not over the contracts x invoices product (ASY-39)', async () => {
+      db.query.mockResolvedValueOnce([[], []]);
+      await svc.computeChurnScores(1);
+      const [sql] = db.query.mock.calls[0];
+      expect(sql).not.toMatch(/LEFT JOIN (contracts|invoices)/);
+      expect(sql).toMatch(/FROM invoices i\s+WHERE i.client_id = cl.id[\s\S]*i.deleted_at IS NULL/);
+      expect(sql).toMatch(/FROM contracts co\s+WHERE co.client_id = cl.id AND co.deleted_at IS NULL/);
+    });
+
+    it('prunes rescored clients\' history beyond the retention window (ASY-39)', async () => {
+      db.query.mockResolvedValueOnce([[], []]);
+      await svc.computeChurnScores(1);
+      const prune = db.query.mock.calls.find(([q]) => /DELETE cs FROM churn_scores/.test(q));
+      expect(prune[0]).toMatch(/scored_at < DATE_SUB\(NOW\(\), INTERVAL 90 DAY\)/);
+      expect(prune[1]).toEqual([1]);
+    });
+
     it('returns 0 when no clients', async () => {
       db.query.mockResolvedValueOnce([[], []]);
       const result = await svc.computeChurnScores(1);

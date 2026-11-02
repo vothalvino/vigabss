@@ -176,6 +176,13 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// snmp_enabled is a MySQL BOOLEAN and arrives as 0/1, so comparing with
+// `false` hid the row for every device with SNMP off (FE-19).
+export function snmpEnabledText(value: boolean | number | null | undefined, t: (key: string) => string): string | null {
+  if (value === null || value === undefined) return null;
+  return Number(value) ? t('common.yes') : t('common.no');
+}
+
 function InfoRow({ label, value, mono, capitalize }: { label: string; value: string | null | undefined; mono?: boolean; capitalize?: boolean }) {
   if (!value) return null;
   return (
@@ -776,7 +783,7 @@ export function DeviceDetail() {
               </span>
             </div>
           )}
-          <InfoRow label={t('deviceDetail.fields.snmpEnabled')}     value={device.snmp_enabled ? 'Yes' : device.snmp_enabled === false ? 'No' : null} />
+          <InfoRow label={t('deviceDetail.fields.snmpEnabled')}     value={snmpEnabledText(device.snmp_enabled, t)} />
           <InfoRow label={t('deviceDetail.fields.lastPolledAt')}    value={fmt(device.last_polled_at)} />
           {device.last_poll_error && <InfoRow label={t('deviceDetail.fields.lastPollError')} value={device.last_poll_error} />}
         </div>

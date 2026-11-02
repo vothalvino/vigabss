@@ -638,7 +638,7 @@ async function listConversations(orgId, filters = {}) {
 
   const where = conditions.join(' AND ');
 
-  const safeLimit  = Math.max(1, parseInt(limit, 10) || 50);
+  const safeLimit  = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
   const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
 
   const [countRows] = await db.query(

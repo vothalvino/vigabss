@@ -45,7 +45,8 @@ const STATUS_ICONS: Record<string, string> = {
   overdue: '🔴',
   cancelled: '❌',
 };
-const FILTER_STATUSES = ['draft', 'issued', 'paid', 'overdue', 'cancelled'];
+// Drafts are never shown to subscribers (TNB-30).
+const FILTER_STATUSES = ['issued', 'paid', 'overdue', 'cancelled'];
 
 export function PortalInvoices() {
   const { t } = useTranslation();

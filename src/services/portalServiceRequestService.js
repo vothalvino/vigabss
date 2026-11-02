@@ -242,7 +242,7 @@ async function createRequest({ clientId, organizationId, requestType, payload = 
 
 async function listRequests(clientId, organizationId, { page = 1, limit = 20, requestType } = {}) {
   requireOrgId(organizationId, 'portalServiceRequestService.listRequests');
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 500);
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const safeOffset = (safePage - 1) * safeLimit;
   let where = 'WHERE client_id = ? AND organization_id <=> ? AND deleted_at IS NULL';
@@ -410,7 +410,7 @@ async function settleWifiRequestForTask(taskId, applied, error = null) {
  * @param {{ page?, limit?, status?, requestType?, clientId? }} opts
  */
 async function adminListRequests(organizationId, { page = 1, limit = 25, status, requestType, clientId } = {}) {
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 25);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 25), 500);
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const safeOffset = (safePage - 1) * safeLimit;
   let where = 'WHERE psr.organization_id = ? AND psr.deleted_at IS NULL';
@@ -766,7 +766,7 @@ function generateChatToken() {
 // ---------------------------------------------------------------------------
 
 async function listKbArticles(organizationId, { category, search, page = 1, limit = 20 } = {}) {
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 500);
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const safeOffset = (safePage - 1) * safeLimit;
   let where = 'WHERE (organization_id = ? OR organization_id IS NULL) AND is_published = 1 AND deleted_at IS NULL';

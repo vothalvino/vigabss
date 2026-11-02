@@ -663,6 +663,10 @@ else
 fi
 
 prompt DOMAIN "Public domain name (e.g. isp.example.com)"
+# DOMAIN is rendered into nginx server_name and the certificate request, so it
+# must be a plain hostname (SUP-11).
+[[ "$DOMAIN" =~ ^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$ ]] \
+  || die "DOMAIN must be a hostname such as isp.example.com (got: ${DOMAIN})."
 prompt EMAIL  "Administrator email (your login, and the Let's Encrypt contact)"
 
 SKIP_TLS="${SKIP_TLS:-0}"
@@ -715,10 +719,13 @@ if (( ! HOST_NGINX_TOPOLOGY_PERSISTED )) && [[ "$USE_HOST_NGINX" != "1" ]]; then
     elif command -v netstat >/dev/null 2>&1; then
       _port80_owner=$(netstat -tlnp 2>/dev/null | awk '$4 ~ /:80$/ || $4 ~ /:80 /' | grep -v docker-proxy | head -1 || true)
     fi
+    # Host-nginx mode adds a site to the host's web server, so it is never
+    # chosen silently (SUP-11): the operator opts in with USE_HOST_NGINX=1.
     if [[ -n "$_port80_owner" ]]; then
-      warn "Port 80 is already in use (not by Docker): $_port80_owner"
-      warn "Enabling host-nginx mode to avoid port conflict."
-      USE_HOST_NGINX=1
+      die "Port 80 is already in use (not by Docker): $_port80_owner
+  To put VigaBSS behind the host's nginx instead, re-run with USE_HOST_NGINX=1.
+  That writes /etc/nginx/conf.d/vigabss.conf (server_name ${DOMAIN}), adds
+  /etc/cron.d/vigabss-nginx-reload and reloads nginx; no other host file changes."
     fi
   fi
 fi
@@ -1008,6 +1015,7 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
     || die "Cannot create a temporary nginx configuration."
   HOST_NGINX_CONF_CONTENT="$(<"$HOST_NGINX_CONF_SRC")"
   HOST_NGINX_CONF_CONTENT="${HOST_NGINX_CONF_CONTENT//__INSTALL_DIR__/$INSTALL_DIR}"
+  HOST_NGINX_CONF_CONTENT="${HOST_NGINX_CONF_CONTENT//__DOMAIN__/$DOMAIN}"
   if ! printf '%s\n' "$HOST_NGINX_CONF_CONTENT" > "$HOST_NGINX_CONF_TEMP"; then
     rm -f -- "$HOST_NGINX_CONF_TEMP"
     die "Could not render $HOST_NGINX_CONF_SRC. The existing nginx configuration was not changed."
@@ -1046,11 +1054,9 @@ if [[ "$USE_HOST_NGINX" == "1" ]]; then
   Check $HOST_NGINX_CONF_SRC and fix any errors."
   fi
 
-  # Disable the nginx default site only after the replacement config validates,
-  # so a failed migration truly leaves the previous nginx setup untouched.
-  rm -f /etc/nginx/sites-enabled/default
-
-  log "Host nginx configured ($HOST_NGINX_CONF_DST)."
+  # The VigaBSS server blocks match only server_name ${DOMAIN}, so the host's
+  # default site and its other virtual hosts are left as they are (SUP-11).
+  log "Host nginx configured ($HOST_NGINX_CONF_DST, server_name ${DOMAIN})."
   if [[ -n "$HOST_NGINX_CONF_BACKUP" ]]; then
     info "Previous VigaBSS nginx config archived at $HOST_NGINX_CONF_BACKUP."
   fi

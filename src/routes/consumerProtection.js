@@ -400,8 +400,8 @@ router.get('/service-modifications', requirePermission('service_modification_not
     if (client_id) { conditions.push('client_id = ?'); params.push(client_id); }
 
     const where = conditions.join(' AND ');
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM service_modification_notices WHERE ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,

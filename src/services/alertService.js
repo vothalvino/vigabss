@@ -453,7 +453,7 @@ async function autoCreateTicket(organizationId, rule, breach) {
  * Get alert history for an organization.
  */
 async function getAlertHistory(organizationId, { page = 1, limit = 50 } = {}) {
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const offset = (safePage - 1) * safeLimit;
   const [rows] = await db.query(

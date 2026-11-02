@@ -53,6 +53,11 @@ const POLICY_CONFIG = Object.freeze({
     tenantWhere: '1 = 0',
     globalOnly: true,
   },
+  analytics_anomalies: {
+    defaultDays: 180,
+    dateColumn: 'detected_at',
+    tenantWhere: '`organization_id` = ?',
+  },
   email_logs: {
     defaultDays: 180,
     dateColumn: 'created_at',

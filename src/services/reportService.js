@@ -701,7 +701,7 @@ async function bandwidthUtilization(organizationId, { days = 30 } = {}) {
  * Top Consumers — devices with highest total data transfer over a period.
  */
 async function topConsumers(organizationId, { days = 30, limit = 10 } = {}) {
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 10);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 10), 500);
   const [rows] = await db.queryReplica(`
     SELECT
       m.device_id,

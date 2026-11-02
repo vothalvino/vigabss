@@ -35,6 +35,7 @@ import {
   submitBtn,
   cancelBtn,
 } from '@/components/ClientFormModal';
+import { parseApiError } from '@/api/errors';
 
 const API_BASE = '/api/v1';
 
@@ -498,8 +499,8 @@ function WorkOrdersModal({ order, onClose, onCreated, canCreate }: { order: Serv
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(err.error || 'Failed to create work order');
+        const err = await res.json().catch(() => ({}));
+        throw new Error(parseApiError(err, 'Failed to create work order'));
       }
     },
     onSuccess: () => {
@@ -792,8 +793,8 @@ function CreateContractModal({ order, onClose, onLinked }: { order: ServiceOrder
         body: JSON.stringify(body),
       });
       if (!createRes.ok) {
-        const err = await createRes.json().catch(() => ({})) as { error?: string };
-        throw new Error(err.error || t('serviceOrders.contractCreateFailed', 'Failed to create contract'));
+        const err = await createRes.json().catch(() => ({}));
+        throw new Error(parseApiError(err, t('serviceOrders.contractCreateFailed', 'Failed to create contract')));
       }
       const { data: newContract } = await createRes.json() as { data: { id: number } };
 
@@ -804,8 +805,8 @@ function CreateContractModal({ order, onClose, onLinked }: { order: ServiceOrder
         body: JSON.stringify({ contract_id: newContract.id }),
       });
       if (!linkRes.ok) {
-        const err = await linkRes.json().catch(() => ({})) as { error?: string };
-        throw new Error(err.error || t('serviceOrders.contractLinkFailed', 'Contract created but failed to link'));
+        const err = await linkRes.json().catch(() => ({}));
+        throw new Error(parseApiError(err, t('serviceOrders.contractLinkFailed', 'Contract created but failed to link')));
       }
     },
     onSuccess: () => { onLinked(); onClose(); },

@@ -27,9 +27,8 @@ router.get('/', requirePermission('revenue_summary.view'), async (req, res, next
     if (currency) { conditions.push('currency = ?'); params.push(currency); }
 
     const where = conditions.join(' AND ');
-    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, offset || 0);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit;
 
     const [rows] = await db.query(
       `SELECT * FROM revenue_summary WHERE ${where} ORDER BY period_date DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,

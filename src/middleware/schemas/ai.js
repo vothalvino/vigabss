@@ -5,7 +5,8 @@
 // Order matches the ai_providers.kind ENUM (migration 442 appended 'openrouter').
 const PROVIDER_KINDS = ['openai', 'azure_openai', 'anthropic', 'gemini', 'ollama', 'custom', 'openrouter'];
 const MODES          = ['draft_only', 'suggest', 'auto_send'];
-const TONES          = ['formal', 'friendly', 'technical', 'empathetic'];
+// Must match the ai_policies.tone ENUM (FE2-08).
+const TONES          = ['formal', 'neutral', 'friendly'];
 const CHANNELS       = ['portal', 'email', 'whatsapp', 'sms'];
 
 // ---------------------------------------------------------------------------

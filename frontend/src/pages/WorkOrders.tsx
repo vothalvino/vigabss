@@ -25,6 +25,7 @@ import {
   MxSandboxDocumentBanner,
   type MxContractEnvironment,
 } from '@/components/MxContractEnvironment';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -158,8 +159,7 @@ async function fetchAssignableUsers(): Promise<UserOption[]> {
 // of a generic string, so form validation failures are actionable.
 async function errorMessage(resp: Response, fallback: string): Promise<string> {
   try {
-    const j = await resp.json() as { error?: string };
-    if (j && typeof j.error === 'string') return j.error;
+    return parseApiError(await resp.json(), fallback);
   } catch { /* non-JSON / empty body */ }
   return fallback;
 }

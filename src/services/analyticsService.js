@@ -46,6 +46,8 @@ const CHURN_WEIGHTS = {
 // Samples per device; with up to 500 devices an unbounded window read the
 // whole metric history of the organization in one request.
 const MAX_ANOMALY_WINDOW = 2000;
+// Days of churn-score history kept for each still-active client.
+const CHURN_SCORE_RETENTION_DAYS = 90;
 
 async function detectAnomalies(organizationId, { window: windowSize = 48 } = {}) {
   const safeWindow = Math.min(MAX_ANOMALY_WINDOW, Math.max(1, parseInt(windowSize, 10) || 48));
@@ -93,6 +95,15 @@ async function detectAnomalies(organizationId, { window: windowSize = 48 } = {})
       const zScore = (latest - mean) / stddev;
 
       if (Math.abs(zScore) > Z_SCORE_THRESHOLD) {
+        // One open anomaly per device and metric: a run while an unacknowledged
+        // one is open adds no repeat row.
+        const [open] = await db.query(
+          `SELECT id FROM analytics_anomalies
+            WHERE organization_id = ? AND device_id = ? AND metric = ? AND is_acknowledged = 0
+            LIMIT 1`,
+          [organizationId, device_id, metric],
+        );
+        if (open.length) continue;
         const severity = Math.abs(zScore) > 4 ? 'critical' : Math.abs(zScore) > 3 ? 'high' : 'medium';
 
         await db.query(
@@ -220,11 +231,17 @@ async function bandwidthForecast(organizationId, { months = 6 } = {}) {
  */
 async function computeChurnScores(organizationId) {
   // Get all active clients with signals
+  // Each signal is its own correlated subquery: joining contracts and invoices
+  // together multiplied a client's overdue invoices by their contract count
+  // (ASY-39). Soft-deleted contracts and invoices do not count.
   const [clients] = await db.query(
     `SELECT
        cl.id AS client_id,
-       TIMESTAMPDIFF(MONTH, MIN(co.created_at), NOW()) AS tenure_months,
-       COALESCE(SUM(CASE WHEN i.status = 'issued' AND i.due_date < NOW() THEN 1 ELSE 0 END), 0) AS overdue_invoices,
+       (SELECT TIMESTAMPDIFF(MONTH, MIN(co.created_at), NOW()) FROM contracts co
+         WHERE co.client_id = cl.id AND co.deleted_at IS NULL) AS tenure_months,
+       (SELECT COUNT(*) FROM invoices i
+         WHERE i.client_id = cl.id AND i.organization_id = ? AND i.deleted_at IS NULL
+           AND i.status = 'issued' AND i.due_date < NOW()) AS overdue_invoices,
        COALESCE(
          (SELECT COUNT(*) FROM suspension_logs sl WHERE sl.contract_id IN
            (SELECT id FROM contracts WHERE client_id = cl.id)
@@ -240,10 +257,7 @@ async function computeChurnScores(organizationId) {
            AND ip.due_date >= DATE_SUB(NOW(), INTERVAL 90 DAY)), 0
        ) AS payments_late_90d
      FROM clients cl
-     LEFT JOIN contracts co ON co.client_id = cl.id
-     LEFT JOIN invoices i ON i.client_id = cl.id AND i.organization_id = ?
-     WHERE cl.organization_id = ? AND cl.status = 'active'
-     GROUP BY cl.id
+     WHERE cl.organization_id = ? AND cl.status = 'active' AND cl.deleted_at IS NULL
      LIMIT 5000`,
     [organizationId, organizationId],
   );
@@ -265,6 +279,16 @@ async function computeChurnScores(organizationId) {
     );
     scored++;
   }
+
+  // Readers use only the latest score per client. Active clients were just
+  // rescored, so their history beyond the retention window can go.
+  await db.query(
+    `DELETE cs FROM churn_scores cs
+       JOIN clients cl ON cl.id = cs.client_id
+      WHERE cs.organization_id = ? AND cl.status = 'active' AND cl.deleted_at IS NULL
+        AND cs.scored_at < DATE_SUB(NOW(), INTERVAL ${CHURN_SCORE_RETENTION_DAYS} DAY)`,
+    [organizationId],
+  );
 
   logger.info({ organizationId, scored }, 'Churn scores computed (heuristic rule-based)');
   return { clients_scored: scored };

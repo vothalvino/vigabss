@@ -56,7 +56,7 @@ async function listArticles(orgId, filters = {}) {
     params.push(`%${search}%`, `%${search}%`);
   }
 
-  const safeLimit  = Math.max(1, parseInt(limit, 10) || 50);
+  const safeLimit  = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
   const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
 
   const [rows] = await db.query(
@@ -265,7 +265,7 @@ async function _keywordSearch(orgId, query, locale, limit) {
     params.push(locale);
   }
 
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 10);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 10), 500);
 
   const [rows] = await db.query(
     `SELECT id, title, body, category, locale, tags, updated_at

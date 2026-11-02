@@ -69,7 +69,7 @@ router.post('/', requirePermission('reports.schedule'), async (req, res, next) =
         cron_expression, is_enabled ? 1 : 0, req.user.id, nextRunAt(cron_expression)],
     );
 
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM scheduled_reports WHERE id = ?',
       [result.insertId],
     );
@@ -80,7 +80,7 @@ router.post('/', requirePermission('reports.schedule'), async (req, res, next) =
 // PUT /api/scheduled-reports/:id
 router.put('/:id', requirePermission('reports.schedule'), async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       'SELECT id FROM scheduled_reports WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
@@ -111,7 +111,7 @@ router.put('/:id', requirePermission('reports.schedule'), async (req, res, next)
         req.params.id],
     );
 
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM scheduled_reports WHERE id = ?',
       [req.params.id],
     );
@@ -122,7 +122,7 @@ router.put('/:id', requirePermission('reports.schedule'), async (req, res, next)
 // POST /api/scheduled-reports/:id/run — manually trigger a schedule now (on-demand)
 router.post('/:id/run', requirePermission('reports.generate'), async (req, res, next) => {
   try {
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM scheduled_reports WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
@@ -139,7 +139,7 @@ router.post('/:id/run', requirePermission('reports.generate'), async (req, res, 
       generatedBy: req.user.id,
     });
 
-    const [genRows] = await db.queryReplica(
+    const [genRows] = await db.query(
       'SELECT id, organization_id, scheduled_report_id, report_def_name, format, status, generated_at FROM generated_reports WHERE id = ?',
       [result.reportId],
     );
@@ -150,7 +150,7 @@ router.post('/:id/run', requirePermission('reports.generate'), async (req, res, 
 // DELETE /api/scheduled-reports/:id
 router.delete('/:id', requirePermission('reports.schedule'), async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       'SELECT id FROM scheduled_reports WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );

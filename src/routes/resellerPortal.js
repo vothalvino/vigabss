@@ -89,8 +89,8 @@ router.get('/:id/clients', requirePermission('reseller_portal.manage_customers')
   try {
     await getResellerOrThrow(req);
     const { page = 1, limit = 50, status } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
 
     const subtree = await resellerService.getResellerSubtree(
@@ -177,8 +177,8 @@ router.get('/:id/invoices', requirePermission('reseller_portal.invoices'), async
   try {
     await getResellerOrThrow(req);
     const { page = 1, limit = 50, status } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
 
     const subtree = await resellerService.getResellerSubtree(
@@ -223,8 +223,8 @@ router.get('/:id/inventory', requirePermission('reseller_portal.inventory'), asy
     );
     const clientIds = await resellerService.getResellerClientIds(subtree, req.orgId);
     const { page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
 
     if (clientIds.length === 0) {

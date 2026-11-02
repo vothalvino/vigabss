@@ -112,7 +112,7 @@ async function getDailyUsage(contractId, { organizationId, from, to } = {}) {
  * Get top users by bandwidth in an organization.
  */
 async function getTopUsers(organizationId, { from, to, limit = 20 } = {}) {
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 500);
   const overlapStartSql = from ? 'DATE(?)' : "TIMESTAMP('1970-01-01 00:00:00')";
   const overlapEndSql = to ? 'DATE_ADD(DATE(?), INTERVAL 1 DAY)' : 'UTC_TIMESTAMP(3)';
   const overlapParams = [];

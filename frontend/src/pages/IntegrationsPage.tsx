@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { readCsrfCookie } from '@/api/csrf';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,7 +84,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? res.statusText);
+    throw new Error(parseApiError(body, res.statusText));
   }
   return res.json() as Promise<T>;
 }

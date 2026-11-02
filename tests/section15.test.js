@@ -9,6 +9,11 @@ jest.mock('../src/config/database', () => ({
   queryReplica: jest.fn(),
   execute: jest.fn(),
   getConnection: jest.fn(),
+  // Custom-report execute sets its time cap and runs on one replica connection.
+  getReplicaConnection: jest.fn(async () => {
+    const { queryReplica } = require('../src/config/database');
+    return { query: (...args) => queryReplica(...args), release: jest.fn(), destroy: jest.fn() };
+  }),
   close: jest.fn(),
   pool: { end: jest.fn() },
 }));
@@ -214,6 +219,10 @@ function mockScheduledReportsDb() {
     if (typeof sql === 'string' && sql.includes('UPDATE scheduled_reports')) {
       return Promise.resolve([{ affectedRows: 1 }]);
     }
+    // Mutation existence checks and read-backs hit the primary (DB-12).
+    if (typeof sql === 'string' && /^\s*SELECT/.test(sql) && sql.includes('scheduled_reports')) {
+      return Promise.resolve([[sampleSchedule]]);
+    }
     return Promise.resolve([[]]);
   });
 
@@ -363,6 +372,10 @@ function mockWidgetsDb() {
     if (typeof sql === 'string' && sql.includes('UPDATE dashboard_widgets')) {
       return Promise.resolve([{ affectedRows: 1 }]);
     }
+    // Mutation existence checks and read-backs hit the primary (DB-12).
+    if (typeof sql === 'string' && /^\s*SELECT/.test(sql) && sql.includes('dashboard_widgets')) {
+      return Promise.resolve([[sampleWidget]]);
+    }
     return Promise.resolve([[]]);
   });
 
@@ -501,6 +514,10 @@ function mockCustomReportsDb({ installOperator = true } = {}) {
     }
     if (typeof sql === 'string' && sql.includes('UPDATE custom_reports')) {
       return Promise.resolve([{ affectedRows: 1 }]);
+    }
+    // Mutation existence checks and read-backs hit the primary (DB-12).
+    if (typeof sql === 'string' && /^\s*SELECT/.test(sql) && sql.includes('custom_reports')) {
+      return Promise.resolve([[sampleCustomReport]]);
     }
     return Promise.resolve([[]]);
   });

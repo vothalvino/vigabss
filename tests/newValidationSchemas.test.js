@@ -1,7 +1,7 @@
 // =============================================================================
 // VigaBSS 5.0 — New Validation Schemas Unit Tests
 // =============================================================================
-// Tests all 38 new validation schema files for correctness.
+// Tests all 37 new validation schema files for correctness.
 // =============================================================================
 
 const { validate } = require('../src/middleware/validate');
@@ -27,7 +27,7 @@ function errorFields(next) {
 }
 
 // =============================================================================
-// Section 1: Verify all 38 schema files load without errors & export expected keys
+// Section 1: Verify all 37 schema files load without errors & export expected keys
 // =============================================================================
 
 const schemaModules = {
@@ -52,7 +52,6 @@ const schemaModules = {
   speedTests: { path: '../src/middleware/schemas/speedTests', expected: ['createSpeedTest', 'updateSpeedTest'] },
   snmpProfiles: { path: '../src/middleware/schemas/snmpProfiles', expected: ['createSnmpProfile', 'updateSnmpProfile', 'createSnmpProfileOid'] },
   settings: { path: '../src/middleware/schemas/settings', expected: ['updateSetting'] },
-  files: { path: '../src/middleware/schemas/files', expected: ['createFile', 'updateFile'] },
   serviceAreas: { path: '../src/middleware/schemas/serviceAreas', expected: ['createServiceArea', 'updateServiceArea'] },
   coverageZones: { path: '../src/middleware/schemas/coverageZones', expected: ['createCoverageZone', 'updateCoverageZone'] },
   webhooks: { path: '../src/middleware/schemas/webhooks', expected: ['createWebhook', 'updateWebhook'] },
@@ -844,36 +843,6 @@ describe('Settings validation schemas', () => {
   test('updateSetting rejects value > 5000 chars', () => {
     const next = run(updateSetting, { value: 'x'.repeat(5001) });
     expectReject(next);
-  });
-});
-
-// --- Files ---
-describe('File validation schemas', () => {
-  const { createFile, updateFile } = require('../src/middleware/schemas/files');
-
-  test('createFile requires entity_type, entity_id, filename', () => {
-    const next = run(createFile, {});
-    const fields = errorFields(next);
-    expect(fields).toContain('entity_type');
-    expect(fields).toContain('entity_id');
-    expect(fields).toContain('filename');
-  });
-
-  test('createFile rejects invalid entity_type', () => {
-    const next = run(createFile, { entity_type: 'invoice', entity_id: 1, filename: 'doc.pdf' });
-    expectReject(next);
-  });
-
-  test('createFile accepts valid data', () => {
-    const next = run(createFile, {
-      entity_type: 'device', entity_id: 5, filename: 'config.rsc', category: 'config_backup',
-    });
-    expectPass(next);
-  });
-
-  test('updateFile allows partial updates', () => {
-    const next = run(updateFile, { notes: 'Updated file' });
-    expectPass(next);
   });
 });
 

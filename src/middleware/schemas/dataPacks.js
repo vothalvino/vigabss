@@ -11,7 +11,9 @@ const createDataPack = {
   price:         { type: 'number', required: true, min: 0 },
   currency:      { type: 'string', max: 3 },
   validity_days: { type: 'number', min: 1, max: 3650 },
-  status:        { type: 'string', enum: ['active', 'inactive', 'deprecated'] },
+  // Stored as data_packs.is_active (FE2-11); there is no 'deprecated' state.
+  status:        { type: 'string', enum: ['active', 'inactive'] },
+  is_active:     { type: 'boolean' },
 };
 
 const updateDataPack = {
@@ -21,7 +23,9 @@ const updateDataPack = {
   price:         { type: 'number', min: 0 },
   currency:      { type: 'string', max: 3 },
   validity_days: { type: 'number', min: 1, max: 3650 },
-  status:        { type: 'string', enum: ['active', 'inactive', 'deprecated'] },
+  // Stored as data_packs.is_active (FE2-11); there is no 'deprecated' state.
+  status:        { type: 'string', enum: ['active', 'inactive'] },
+  is_active:     { type: 'boolean' },
 };
 
 module.exports = { createDataPack, updateDataPack };

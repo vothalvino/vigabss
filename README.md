@@ -126,7 +126,7 @@ working. New documentation uses the VigaBSS names.
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 367 tables + column additions)
-│   └── migrations/          # Individual numbered migration files (001–498)
+│   └── migrations/          # Individual numbered migration files (001–499)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point
@@ -1468,13 +1468,17 @@ pnpm --filter vigabss-frontend dev
 - Interactive API docs: `http://localhost:3000/api/docs`
 - Health endpoints: `http://localhost:3000/health/live` and `http://localhost:3000/health/ready`
 
-### Docker Quick Start
+### Docker Quick Start (local development only)
 
 ```bash
 cp .env.example .env
-# Edit .env as above
+# Edit .env as above; DB_PASSWORD is required and becomes the MySQL root password
 docker compose up -d
 ```
+
+`docker-compose.yml` is a development topology: MySQL, Redis (without a
+password) and ChromaDB are published on `127.0.0.1` only. Install a server
+with `install.sh`, which uses `docker-compose.prod.yml`.
 
 ### Useful Commands
 

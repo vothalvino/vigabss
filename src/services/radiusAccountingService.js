@@ -1452,7 +1452,7 @@ async function purgeRadiusAccounting() {
  * @returns {Promise<{rows: object[], total: number, page: number, limit: number}>}
  */
 async function listMacMoveEvents(organizationId, { page = 1, limit = 25 } = {}) {
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 25);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 25), 500);
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const offset = (safePage - 1) * safeLimit;
 

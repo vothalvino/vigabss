@@ -306,7 +306,7 @@ router.get('/:id/messages', requirePermission('campaigns.view'), async (req, res
     if (status) where.status = status;
 
     const safeLimit = Math.min(parseInt(limit, 10) || 50, 100);
-    const offset = (Math.max(1, parseInt(page, 10)) - 1) * safeLimit;
+    const offset = (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit;
 
     const [rows, total] = await Promise.all([
       CampaignMessage.findAll({

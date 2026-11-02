@@ -138,7 +138,8 @@ function contentDispositionAttachment(originalname) {
 }
 
 /**
- * Map entity_type to storage subdirectory.
+ * Map entity_type to storage subdirectory. Uploads never land in the backup
+ * directory, whatever entity_type the request names (ASY-22).
  */
 function entityDir(entityType) {
   const map = {
@@ -146,7 +147,6 @@ function entityDir(entityType) {
     client: 'clients',
     ticket: 'tickets',
     organization: 'organizations',
-    backup: 'backups',
   };
   return map[entityType] || 'uploads';
 }

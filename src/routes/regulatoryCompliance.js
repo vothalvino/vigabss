@@ -92,8 +92,8 @@ router.get('/consent', requirePermission('subscriber_consents.view'), async (req
     if (purpose) { conditions.push('purpose = ?'); params.push(purpose); }
 
     const where = conditions.join(' AND ');
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM subscriber_consents WHERE ${where} ORDER BY given_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
@@ -308,8 +308,8 @@ router.get('/dsar-requests', requirePermission('dsar_requests.view'), async (req
     if (request_type) { conditions.push('request_type = ?'); params.push(request_type); }
 
     const where = conditions.join(' AND ');
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM dsar_requests WHERE ${where} ORDER BY requested_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
@@ -429,8 +429,8 @@ router.get('/identity-verification', requirePermission('identity_verification.vi
     if (id_type) { conditions.push('id_type = ?'); params.push(id_type); }
 
     const where = conditions.join(' AND ');
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM identity_verification_records WHERE ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,

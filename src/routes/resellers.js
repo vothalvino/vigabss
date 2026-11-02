@@ -172,8 +172,8 @@ function requireOrgLevelResellerAccess(req, _res, next) {
 router.get('/', requirePermission('resellers.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50, status, parent_id } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
 
     const conditions = ['r.organization_id = ? AND r.deleted_at IS NULL'];
@@ -376,8 +376,8 @@ router.get('/:id/commissions', requirePermission('reseller_commissions.view'), a
   try {
     await getResellerOrThrow(req);
     const { status, page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
 
     const conditions = ['rc.reseller_id = ?'];

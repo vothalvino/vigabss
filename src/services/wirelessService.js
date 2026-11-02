@@ -323,7 +323,7 @@ async function listWirelessClientSessions(orgId, { deviceId, since, limit = 100,
     sql += ' AND wcs.last_seen_at >= ?';
     params.push(since);
   }
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 100);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 100), 500);
   const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
   sql += ` ORDER BY wcs.last_seen_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
@@ -403,7 +403,7 @@ async function listChannelInterference(orgId, { siteId, level, since, limit = 10
     sql += ' AND wci.detected_at >= ?';
     params.push(since);
   }
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 100);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 100), 500);
   const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
   sql += ` ORDER BY wci.detected_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
@@ -485,7 +485,7 @@ async function listApCommandJobs(orgId, { deviceId, status, limit = 100, offset 
     sql += ' AND acj.status = ?';
     params.push(status);
   }
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 100);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 100), 500);
   const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
   sql += ` ORDER BY acj.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
@@ -732,7 +732,7 @@ async function saveCalc(body, orgId) {
  * List saved link planning calcs for an org (paginated).
  */
 async function listCalcs(orgId, page = 1, limit = 20) {
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 500);
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const offset = (safePage - 1) * safeLimit;
   const [rows] = await db.query(
@@ -949,7 +949,7 @@ async function getSignalDistribution(deviceId, orgId, hours = 24) {
  * List spectrum scan results for an org.
  */
 async function listSpectrumScans(orgId, { deviceId, status, page = 1, limit = 20 } = {}) {
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 500);
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const offset = (safePage - 1) * safeLimit;
   let sql = `

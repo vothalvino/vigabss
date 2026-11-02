@@ -14,6 +14,8 @@ function makeConnection(appliedRows = []) {
   return {
     execute: jest.fn(async sql => {
       if (/SELECT id, filename FROM schema_migrations/.test(sql)) return [appliedRows];
+      if (/SELECT DATABASE\(\)/.test(sql)) return [[{ database_name: 'db' }]];
+      if (/GET_LOCK/.test(sql)) return [[{ acquired: 1 }]];
       return [{ affectedRows: 1 }];
     }),
     query: jest.fn().mockResolvedValue([[]]),
@@ -45,6 +47,9 @@ function setupRunner({
   }]);
 
   const connections = {
+    // DB-19: the first pool per database holds the migration lock.
+    primaryLock: makeConnection(),
+    isolatedLock: makeConnection(),
     primaryPlan: makeConnection(primaryRows),
     isolatedPlan: isolatedPlanError
       ? null
@@ -65,10 +70,10 @@ function setupRunner({
     let connection;
     let connectionError = null;
     if (config.database === PRIMARY_DATABASE) {
-      connection = call === 0 ? connections.primaryPlan : connections.primaryExecute;
+      connection = [connections.primaryLock, connections.primaryPlan][call] || connections.primaryExecute;
     } else {
-      connection = call === 0 ? connections.isolatedPlan : connections.isolatedExecute;
-      if (call === 0) connectionError = isolatedPlanError;
+      connection = [connections.isolatedLock, connections.isolatedPlan][call] || connections.isolatedExecute;
+      if (call === 1) connectionError = isolatedPlanError;
     }
 
     const pool = {
@@ -138,8 +143,18 @@ describe('rollback runner — isolated tenant databases', () => {
       '456_nas_maintenance_mode.sql',
       '455_pppoe_diagnostics_telemetry.sql',
     ]);
-    expect(context.createPool).toHaveBeenCalledTimes(4);
+    expect(context.createPool).toHaveBeenCalledTimes(6);
     expect(context.pools.every(pool => pool.end.mock.calls.length === 1)).toBe(true);
+    // DB-19: the migration lock is held on every database from before the
+    // preflight until the run ends.
+    for (const lock of [context.connections.primaryLock, context.connections.isolatedLock]) {
+      const sqls = lock.execute.mock.calls.map(([sql]) => sql);
+      expect(sqls.some(sql => /GET_LOCK/.test(sql))).toBe(true);
+      expect(sqls.some(sql => /RELEASE_LOCK/.test(sql))).toBe(true);
+    }
+    const lockedAt = context.connections.isolatedLock.execute.mock.invocationCallOrder[1];
+    const plannedAt = context.connections.primaryPlan.execute.mock.invocationCallOrder[0];
+    expect(lockedAt).toBeLessThan(plannedAt);
     expect(context.db.close).toHaveBeenCalledTimes(1);
     expect(context.logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ databaseCount: 2, migrationCount: 4 }),
@@ -159,7 +174,7 @@ describe('rollback runner — isolated tenant databases', () => {
       context.rollback.runRollback({ step: 1, to: null, dryRun: true }),
     ).rejects.toThrow(/targets differ across databases/i);
 
-    expect(context.createPool).toHaveBeenCalledTimes(2);
+    expect(context.createPool).toHaveBeenCalledTimes(4);
     expect(context.connections.primaryPlan.query).not.toHaveBeenCalled();
     expect(context.connections.isolatedPlan.query).not.toHaveBeenCalled();
     expect(context.connections.primaryExecute.execute).not.toHaveBeenCalled();
@@ -172,7 +187,7 @@ describe('rollback runner — isolated tenant databases', () => {
 
     await context.rollback.runRollback({ step: 1, to: null, dryRun: true });
 
-    expect(context.createPool).toHaveBeenCalledTimes(2);
+    expect(context.createPool).toHaveBeenCalledTimes(4);
     expect(context.connections.primaryPlan.query).not.toHaveBeenCalled();
     expect(context.connections.isolatedPlan.query).not.toHaveBeenCalled();
     expect(deletedMigrations(context.connections.primaryPlan)).toEqual([]);
@@ -193,7 +208,7 @@ describe('rollback runner — isolated tenant databases', () => {
       context.rollback.runRollback({ step: 1, to: null, dryRun: false }),
     ).rejects.toBe(preflightError);
 
-    expect(context.createPool).toHaveBeenCalledTimes(2);
+    expect(context.createPool).toHaveBeenCalledTimes(4);
     expect(context.connections.primaryPlan.query).not.toHaveBeenCalled();
     expect(deletedMigrations(context.connections.primaryPlan)).toEqual([]);
     expect(context.connections.primaryExecute.execute).not.toHaveBeenCalled();
@@ -215,7 +230,7 @@ describe('rollback runner — isolated tenant databases', () => {
 
     // Two preflight pools plus the failed primary execution pool. No isolated
     // execution pool is opened after the primary failure.
-    expect(context.createPool).toHaveBeenCalledTimes(3);
+    expect(context.createPool).toHaveBeenCalledTimes(5);
     expect(context.connections.isolatedExecute.query).not.toHaveBeenCalled();
     expect(context.connections.isolatedExecute.execute).not.toHaveBeenCalled();
     expect(context.pools.every(pool => pool.end.mock.calls.length === 1)).toBe(true);

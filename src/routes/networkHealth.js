@@ -30,7 +30,7 @@ router.get('/', requirePermission('network_health.view'), async (req, res, next)
     if (date_to) { conditions.push('snapshot_date <= ?'); params.push(date_to); }
 
     const where = conditions.length ? conditions.join(' AND ') : '1=1';
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
     const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(

@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -151,9 +152,10 @@ function DiagnosticsTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (diagId: number) => {
-      await api.DELETE('/cpe-management/devices/{id}/diagnostics/{diagId}' as never, {
+      const { error } = await api.DELETE('/cpe-management/devices/{id}/diagnostics/{diagId}' as never, {
         params: { path: { id: selectedDeviceId, diagId } } as never,
-      } as never);
+      } as never) as { error?: unknown };
+      if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-diagnostics', selectedDeviceId] }),
   });
@@ -167,6 +169,7 @@ function DiagnosticsTab() {
 
   return (
     <div>
+      {deleteMut.error && <p role="alert" style={{ color: '#dc2626' }}>{deleteMut.error.message}</p>}
       {/* Device selector + run form */}
       <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -322,9 +325,10 @@ function SessionLogsTab() {
   const clearMut = useMutation({
     mutationFn: async () => {
       if (!selectedDeviceId) return;
-      await api.DELETE('/cpe-management/devices/{id}/session-logs' as never, {
+      const { error } = await api.DELETE('/cpe-management/devices/{id}/session-logs' as never, {
         params: { path: { id: selectedDeviceId } } as never,
-      } as never);
+      } as never) as { error?: unknown };
+      if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-session-logs', selectedDeviceId] }),
   });
@@ -338,6 +342,7 @@ function SessionLogsTab() {
 
   return (
     <div>
+      {clearMut.error && <p role="alert" style={{ color: '#dc2626' }}>{clearMut.error.message}</p>}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
         <div>
           <label style={styles.label}>{t('common.device') || 'Device'}</label>

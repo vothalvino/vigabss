@@ -29,7 +29,7 @@ interface ConnectionLogRow {
   id: number;
   username: string | null;
   ip_address: string | null;
-  mac_address: string | null;
+  mac: string | null; // calling_station_id AS mac (FE2-11)
   nas_port_id: string | null;
 }
 
@@ -469,7 +469,7 @@ export function NasDetail() {
                     <tr key={s.id} style={styles.tr}>
                       <td style={styles.td}>{s.username ?? '—'}</td>
                       <td style={{ ...styles.td, fontFamily: 'monospace' }}>{s.ip_address ?? '—'}</td>
-                      <td style={{ ...styles.td, fontFamily: 'monospace' }}>{s.mac_address ?? '—'}</td>
+                      <td style={{ ...styles.td, fontFamily: 'monospace' }}>{s.mac ?? '—'}</td>
                       <td style={styles.td}>{s.nas_port_id ?? '—'}</td>
                     </tr>
                   ))}

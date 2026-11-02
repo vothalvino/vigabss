@@ -22,6 +22,10 @@ const { ValidationError, NotFoundError } = require('../utils/errors');
 
 const router = Router();
 
+// [isSet, value] for an `IF(?, ?, column)` assignment: an omitted field keeps
+// the stored value, an explicit null clears it.
+const given = (value) => [value !== undefined ? 1 : 0, value === undefined ? null : value];
+
 router.use(authenticate);
 router.use(orgScope);
 
@@ -80,10 +84,10 @@ router.put('/firewall-rules/:id', requirePermission('firewall_rules.update'), as
          description = COALESCE(?, description),
          action = COALESCE(?, action),
          protocol = COALESCE(?, protocol),
-         src_ip = ?,
-         src_port = ?,
-         dst_ip = ?,
-         dst_port = ?,
+         src_ip = IF(?, ?, src_ip),
+         src_port = IF(?, ?, src_port),
+         dst_ip = IF(?, ?, dst_ip),
+         dst_port = IF(?, ?, dst_port),
          priority = COALESCE(?, priority),
          is_active = COALESCE(?, is_active),
          direction = COALESCE(?, direction),
@@ -91,10 +95,8 @@ router.put('/firewall-rules/:id', requirePermission('firewall_rules.update'), as
        WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`,
       [
         name || null, description || null, action || null, protocol || null,
-        src_ip !== undefined ? src_ip : null,
-        src_port !== undefined ? src_port : null,
-        dst_ip !== undefined ? dst_ip : null,
-        dst_port !== undefined ? dst_port : null,
+        // An omitted address or port is left alone; null clears it (TNB-31).
+        ...given(src_ip), ...given(src_port), ...given(dst_ip), ...given(dst_port),
         priority !== undefined ? priority : null,
         is_active !== undefined ? (is_active ? 1 : 0) : null,
         direction || null,
@@ -358,14 +360,14 @@ router.put('/dns-blocklists/:id', requirePermission('dns_blocklists.update'), as
          entry_type = COALESCE(?, entry_type),
          threat_feed_source = COALESCE(?, threat_feed_source),
          is_active = COALESCE(?, is_active),
-         expires_at = ?,
+         expires_at = IF(?, ?, expires_at),
          updated_at = NOW()
        WHERE id = ? AND organization_id = ?`,
       [
         domain || null, category || null, entry_type || null,
         feedSourceValue !== undefined ? (feedSourceValue || null) : null,
         is_active !== undefined ? (is_active ? 1 : 0) : null,
-        expires_at || null,
+        ...given(expires_at === '' ? null : expires_at),
         req.params.id, req.orgId,
       ],
     );

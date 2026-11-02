@@ -366,12 +366,42 @@ async function runOnDemand({ organizationId, reportDefName, format = 'csv', para
   const reportId = pendingResult.insertId;
 
   try {
+    // Nothing stores generated files, so the requester receives the report by
+    // email, as schedule recipients do (ASY-24). Without an address to send
+    // to, the run fails instead of reporting a file nobody can get.
+    const [requesters] = generatedBy
+      ? await db.query("SELECT email FROM users WHERE id = ? AND status = 'active'", [generatedBy])
+      : [[]];
+    const email = requesters[0]?.email;
+    if (!email) throw new ValidationError('The requesting user has no active email address to receive the report');
+
     const data = await generateReportData(organizationId, reportDefName, parameters);
     // formatReport is async (xlsx/pdf use streams)
-    await formatReport(data, reportDefName, format); // result not stored — buffer returned to caller
+    const { buffer, contentType, extension } = await formatReport(data, reportDefName, format);
+    const sent = await emailTransport.sendEmail({
+      organizationId,
+      operationalRecipient: true,
+      to: email,
+      subject: `[VigaBSS] Report: ${reportDefName}`,
+      html: `<p>The report <strong>${esc(reportDefName)}</strong> you requested is attached.</p>
+             <p>Generated: ${new Date().toLocaleString()}</p>`,
+      attachments: [{
+        filename: `${reportDefName}-${new Date().toISOString().slice(0, 10)}.${extension}`,
+        content: buffer,
+        contentType,
+      }],
+    });
+    if (!sent?.success) throw new Error(`Report email was not sent: ${sent?.error || 'delivery failed'}`);
     await db.query(
-      'UPDATE generated_reports SET status = \'completed\' WHERE id = ?',
-      [reportId],
+      `INSERT INTO report_access_logs
+         (organization_id, user_id, report_type, entity_type, entity_id, parameters)
+       VALUES (?, ?, ?, 'generated_reports', ?, ?)`,
+      [organizationId, generatedBy, reportDefName, reportId,
+        JSON.stringify({ delivery: 'email', recipient: email, scheduled_report_id: scheduledReportId })],
+    );
+    await db.query(
+      'UPDATE generated_reports SET status = \'completed\', file_size = ? WHERE id = ?',
+      [buffer.length, reportId],
     );
     return { reportId, status: 'completed' };
   } catch (err) {

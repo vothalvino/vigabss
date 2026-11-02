@@ -28,7 +28,7 @@ router.use(['/data-packs', '/data-pack-purchases', '/contracts', '/rollover', '/
 // GET /data-packs
 router.get('/data-packs', requirePermission('data_packs.view'), async (req, res, next) => {
   try {
-    const rows = await dataPackService.listPacks(req.orgId);
+    const rows = await dataPackService.listPacks(req.orgId, { includeInactive: true });
     res.json({ data: rows });
   } catch (err) {
     next(err);

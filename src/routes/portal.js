@@ -438,8 +438,8 @@ const PORTAL_STATUS_SQL = `CASE WHEN ${PORTAL_PAST_DUE_SQL} THEN 'overdue' ELSE 
 
 router.get('/invoices', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
     const status = req.query.status;
 
@@ -451,7 +451,8 @@ router.get('/invoices', async (req, res, next) => {
     // invoice another tenant issued against this client_id (TNB-05) must never
     // surface here. Null-safe <=> because invoices.organization_id (and the
     // client's) may be NULL on a single-tenant install.
-    let whereClause = 'WHERE i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL';
+    // A draft is not yet an invoice the subscriber was sent (TNB-30).
+    let whereClause = "WHERE i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL AND i.status <> 'draft'";
     const params = [req.client.id, req.client.organizationId];
 
     // 'overdue' is derived, never stored (see routes/invoices.js): filtering
@@ -530,7 +531,7 @@ router.get('/invoices/:id', async (req, res, next) => {
          FROM billing_periods
          WHERE invoice_id IS NOT NULL
        ) bp ON bp.invoice_id = i.id AND bp.rn = 1
-       WHERE i.id = ? AND i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL`,
+       WHERE i.id = ? AND i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL AND i.status <> 'draft'`,
       [req.params.id, req.client.id, req.client.organizationId],
     );
 
@@ -575,7 +576,7 @@ router.post('/invoices/:id/pay', async (req, res, next) => {
     const [rows] = await db.query(
       // Org-bound (see GET /invoices) so a foreign-tenant invoice carrying this
       // client_id can never open a checkout on that tenant's gateway.
-      'SELECT id, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      'SELECT id, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL AND status <> \'draft\'',
       [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!rows[0]) throw new NotFoundError('Invoice');
@@ -600,8 +601,8 @@ router.post('/invoices/:id/pay', async (req, res, next) => {
 // GET /portal/tickets — list own tickets (paginated)
 router.get('/tickets', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
     const status = req.query.status;
 
@@ -1037,7 +1038,7 @@ router.get('/usage/current-month', async (req, res, next) => {
 router.get('/invoices/:id/pdf', async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, invoice_number, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      'SELECT id, invoice_number, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL AND status <> \'draft\'',
       [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!rows[0]) throw new NotFoundError('Invoice');
@@ -1055,7 +1056,7 @@ router.get('/invoices/:id/pdf', async (req, res, next) => {
 router.get('/invoices/:id/cfdi', async (req, res, next) => {
   try {
     const [invoiceRows] = await db.query(
-      'SELECT id, client_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      'SELECT id, client_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL AND status <> \'draft\'',
       [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!invoiceRows[0]) throw new NotFoundError('Invoice');
@@ -1094,8 +1095,8 @@ router.get('/invoices/:id/cfdi', async (req, res, next) => {
 // GET /portal/payments — payment history
 router.get('/payments', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
 
     // Bound to the subscriber's organization as well as client_id (list and
@@ -1143,8 +1144,8 @@ router.get('/service-requests/plan-options', async (req, res, next) => {
 
 router.get('/service-requests', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const requestType = req.query.request_type || null;
 
     const { rows, total } = await portalServiceRequestService.listRequests(
@@ -1198,8 +1199,8 @@ router.post('/service-requests/:id/cancel', async (req, res, next) => {
 // GET /portal/kb — list KB articles (public within portal)
 router.get('/kb', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const { category, search } = req.query;
 
     const { rows, total } = await portalServiceRequestService.listKbArticles(
@@ -1288,8 +1289,8 @@ router.post('/speed-test', async (req, res, next) => {
 // GET /portal/speed-test/results — list speed test results for this client
 router.get('/speed-test/results', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
 
     const [contracts] = await db.query(

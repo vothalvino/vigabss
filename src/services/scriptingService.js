@@ -45,7 +45,7 @@ async function listScripts(organizationId, { page = 1, limit = 50, language, is_
   if (is_shared !== undefined) { conditions.push('is_shared = ?'); params.push(is_shared ? 1 : 0); }
 
   const safeLimit = Math.max(1, Math.min(parseInt(limit, 10) || 50, 100));
-  const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10)) - 1) * safeLimit);
+  const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
   const [rows] = await db.query(
     `SELECT * FROM automation_scripts WHERE ${conditions.join(' AND ')}
      ORDER BY is_shared DESC, name ASC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
@@ -194,7 +194,7 @@ async function listExecutions(organizationId, { script_id, status, page = 1, lim
   if (status)    { conditions.push('se.status = ?');    params.push(status); }
 
   const safeLimit = Math.max(1, Math.min(parseInt(limit, 10) || 50, 100));
-  const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10)) - 1) * safeLimit);
+  const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
   const [rows] = await db.query(
     `SELECT se.*, s.name AS script_name, s.language
      FROM script_executions se

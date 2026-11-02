@@ -63,8 +63,8 @@ async function loadWritableArticle(req) {
 router.get('/', requirePermission('portal_kb.view'), async (req, res, next) => {
   try {
     const orgId = req.orgId;
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '25', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
     const offset = (page - 1) * limit;
 
     const [rows] = await db.query(

@@ -1273,6 +1273,7 @@ async function churnReport(organizationId, { months = 12 } = {}) {
       SUM(c.status = 'cancelled') AS churned
     FROM contracts c
     WHERE (? IS NULL OR c.organization_id = ?)
+      AND c.deleted_at IS NULL
       AND c.created_at >= DATE_SUB(NOW(), INTERVAL ? MONTH)
     GROUP BY month
     ORDER BY month DESC
@@ -1315,8 +1316,12 @@ async function atRiskClients(organizationId, { limit = 50 } = {}) {
       -- otherwise old PAID invoices made every long-tenured client look 400+ days overdue.
       COALESCE(MAX(CASE WHEN i.status = 'issued' AND i.due_date < NOW() THEN DATEDIFF(NOW(), i.due_date) END), 0) AS max_days_overdue
     FROM clients cl
+    -- Live rows of the client's own organization only (RTE-11): a soft-
+    -- deleted overdue invoice no longer makes a client look at risk.
     LEFT JOIN contracts co ON co.client_id = cl.id
+      AND co.deleted_at IS NULL AND co.organization_id <=> cl.organization_id
     LEFT JOIN invoices i ON i.client_id = cl.id
+      AND i.deleted_at IS NULL AND i.organization_id <=> cl.organization_id
     WHERE (? IS NULL OR cl.organization_id = ?)
       AND cl.deleted_at IS NULL
     GROUP BY cl.id, cl.name, cl.email
@@ -1361,7 +1366,7 @@ async function atRiskClients(organizationId, { limit = 50 } = {}) {
 async function winbackTargets(segment, organizationId, { limit = 500 } = {}) {
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 500, 1), 2000);
 
-  const conditions = ["co.status = 'cancelled'", 'cl.deleted_at IS NULL'];
+  const conditions = ["co.status = 'cancelled'", 'co.deleted_at IS NULL', 'cl.deleted_at IS NULL'];
   const params = [organizationId, organizationId];
 
   if (segment === 'cancelled_30d') {

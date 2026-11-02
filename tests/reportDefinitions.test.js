@@ -143,7 +143,7 @@ describe('POST /api/report-definitions', () => {
   it('creates a user-defined definition and returns 201', async () => {
     const newDef = { ...sampleDef, id: 2, organization_id: 1, is_system: 0, name: 'custom-monthly' };
     db.query.mockResolvedValueOnce([{ insertId: 2 }]);
-    db.queryReplica.mockResolvedValueOnce([[newDef]]);
+    db.query.mockResolvedValueOnce([[newDef]]);
 
     const res = await request(app)
       .post('/api/report-definitions')
@@ -183,11 +183,11 @@ describe('POST /api/report-definitions', () => {
 describe('PUT /api/report-definitions/:id', () => {
   it('updates a user-created definition and returns 200', async () => {
     const userDef = { ...sampleDef, id: 2, organization_id: 1, is_system: 0, name: 'custom-monthly' };
-    // First queryReplica: find existing (non-system, org-scoped)
-    db.queryReplica
+    // Mutations read from the primary (DB-12): existence, update, re-read.
+    db.query
       .mockResolvedValueOnce([[userDef]])   // existence check
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockResolvedValueOnce([[{ ...userDef, description: 'Updated' }]]); // re-read after update
-    db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
 
     const res = await request(app)
       .put('/api/report-definitions/2')
@@ -199,7 +199,7 @@ describe('PUT /api/report-definitions/:id', () => {
   });
 
   it('returns 404 when definition is not found or is a system definition', async () => {
-    db.queryReplica.mockResolvedValueOnce([[]]); // not found
+    db.query.mockResolvedValueOnce([[]]); // not found
 
     const res = await request(app)
       .put('/api/report-definitions/1')
@@ -218,7 +218,7 @@ describe('PUT /api/report-definitions/:id', () => {
 describe('DELETE /api/report-definitions/:id', () => {
   it('soft-deletes a user-created definition and returns 204', async () => {
     const userDef = { ...sampleDef, id: 2, organization_id: 1, is_system: 0 };
-    db.queryReplica.mockResolvedValueOnce([[userDef]]);
+    db.query.mockResolvedValueOnce([[userDef]]);
     db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
 
     const res = await request(app)
@@ -230,7 +230,7 @@ describe('DELETE /api/report-definitions/:id', () => {
   });
 
   it('returns 404 when not found', async () => {
-    db.queryReplica.mockResolvedValueOnce([[]]); // not found
+    db.query.mockResolvedValueOnce([[]]); // not found
 
     const res = await request(app)
       .delete('/api/report-definitions/999')
@@ -247,7 +247,7 @@ describe('DELETE /api/report-definitions/:id', () => {
 
 describe('POST /api/reports/generate', () => {
   it('returns 202 with generated_reports row on success', async () => {
-    db.queryReplica.mockResolvedValueOnce([[sampleGenerated]]);
+    db.query.mockResolvedValueOnce([[sampleGenerated]]);
 
     const res = await request(app)
       .post('/api/reports/generate')
@@ -299,7 +299,7 @@ describe('POST /api/scheduled-reports/:id/run', () => {
   };
 
   it('returns 202 with generated_reports row when schedule exists', async () => {
-    db.queryReplica
+    db.query
       .mockResolvedValueOnce([[sampleSchedule]])     // find schedule
       .mockResolvedValueOnce([[{ ...sampleGenerated, scheduled_report_id: 5 }]]); // re-read generated
 
@@ -313,7 +313,7 @@ describe('POST /api/scheduled-reports/:id/run', () => {
   });
 
   it('returns 404 when scheduled report does not exist', async () => {
-    db.queryReplica.mockResolvedValueOnce([[]]); // not found
+    db.query.mockResolvedValueOnce([[]]); // not found
 
     const res = await request(app)
       .post('/api/scheduled-reports/999/run')
