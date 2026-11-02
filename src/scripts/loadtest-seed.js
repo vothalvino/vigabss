@@ -85,43 +85,58 @@ async function seedLoadTestFixture() {
     if (existing.length > 0) {
       const oldOrgId = existing[0].id;
       logger.info({ oldOrgId }, 'Removing previous load-test data');
-      // Order matters because of FKs.
-      await conn.execute(
-        'DELETE i FROM invoices i JOIN clients c ON i.client_id = c.id WHERE c.organization_id = ?',
-        [oldOrgId],
-      );
-      await conn.execute(
-        'DELETE d FROM devices d LEFT JOIN sites s ON d.site_id = s.id WHERE s.organization_id = ? OR d.client_id IN (SELECT id FROM clients WHERE organization_id = ?)',
-        [oldOrgId, oldOrgId],
-      );
-      await conn.execute(
-        'DELETE FROM contracts WHERE client_id IN (SELECT id FROM clients WHERE organization_id = ?)',
-        [oldOrgId],
-      );
-      await conn.execute(
-        'DELETE FROM clients WHERE organization_id = ?',
-        [oldOrgId],
-      );
-      await conn.execute(
-        'DELETE FROM plans WHERE organization_id = ?',
-        [oldOrgId],
-      );
-      await conn.execute(
-        'DELETE FROM sites WHERE organization_id = ?',
-        [oldOrgId],
-      );
-      await conn.execute(
-        'DELETE FROM organization_users WHERE organization_id = ?',
-        [oldOrgId],
-      );
-      await conn.execute(
-        'DELETE FROM users WHERE organization_id = ?',
-        [oldOrgId],
-      );
-      await conn.execute(
-        'DELETE FROM organizations WHERE id = ?',
-        [oldOrgId],
-      );
+      // Audit logs, consents, DSAR requests and signed documents RESTRICT
+      // deletes of their client or organization (DB-26). If the old run left
+      // any, retire the organization under a new name instead of deleting it.
+      await conn.beginTransaction();
+      try {
+        // Order matters because of FKs.
+        await conn.execute(
+          'DELETE i FROM invoices i JOIN clients c ON i.client_id = c.id WHERE c.organization_id = ?',
+          [oldOrgId],
+        );
+        await conn.execute(
+          'DELETE d FROM devices d LEFT JOIN sites s ON d.site_id = s.id WHERE s.organization_id = ? OR d.client_id IN (SELECT id FROM clients WHERE organization_id = ?)',
+          [oldOrgId, oldOrgId],
+        );
+        await conn.execute(
+          'DELETE FROM contracts WHERE client_id IN (SELECT id FROM clients WHERE organization_id = ?)',
+          [oldOrgId],
+        );
+        await conn.execute(
+          'DELETE FROM clients WHERE organization_id = ?',
+          [oldOrgId],
+        );
+        await conn.execute(
+          'DELETE FROM plans WHERE organization_id = ?',
+          [oldOrgId],
+        );
+        await conn.execute(
+          'DELETE FROM sites WHERE organization_id = ?',
+          [oldOrgId],
+        );
+        await conn.execute(
+          'DELETE FROM organization_users WHERE organization_id = ?',
+          [oldOrgId],
+        );
+        await conn.execute(
+          'DELETE FROM users WHERE organization_id = ?',
+          [oldOrgId],
+        );
+        await conn.execute(
+          'DELETE FROM organizations WHERE id = ?',
+          [oldOrgId],
+        );
+        await conn.commit();
+      } catch (err) {
+        await conn.rollback();
+        if (err.code !== 'ER_ROW_IS_REFERENCED_2' && err.errno !== 1451) throw err;
+        await conn.execute(
+          "UPDATE organizations SET name = CONCAT(name, ' (retired ', id, ')'), status = 'inactive' WHERE id = ?",
+          [oldOrgId],
+        );
+        logger.info({ oldOrgId }, 'Previous load-test organization has evidence rows; retired it instead of deleting');
+      }
     }
 
     // ------------------------------------------------------------------

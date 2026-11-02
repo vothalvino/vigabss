@@ -1449,7 +1449,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     CONSTRAINT fk_audit_logs_user FOREIGN KEY (user_id)
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_audit_logs_org FOREIGN KEY (organization_id)
-        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
@@ -5924,7 +5924,7 @@ CREATE TABLE IF NOT EXISTS ift_statistical_reports (
     KEY idx_ift_statistical_reports_deleted_at (deleted_at),
     KEY idx_ift_statistical_reports_concession_title_id (concession_title_id),
     CONSTRAINT fk_ift_statistical_reports_organization FOREIGN KEY (organization_id)
-        REFERENCES organizations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+        REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_ift_statistical_reports_filing FOREIGN KEY (filing_id)
         REFERENCES regulatory_filings (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_ift_statistical_reports_concession_title FOREIGN KEY (concession_title_id)
@@ -13369,7 +13369,7 @@ CREATE TABLE IF NOT EXISTS subscriber_consents (
     CONSTRAINT fk_sub_consents_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_sub_consents_client FOREIGN KEY (client_id)
-        REFERENCES clients (id) ON DELETE CASCADE ON UPDATE CASCADE,
+        REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_sub_consents_service_order FOREIGN KEY (service_order_id)
         REFERENCES service_orders (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_sub_consents_work_order FOREIGN KEY (work_order_id)
@@ -13408,7 +13408,7 @@ CREATE TABLE IF NOT EXISTS dsar_requests (
     CONSTRAINT fk_dsar_requests_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_dsar_requests_client FOREIGN KEY (client_id)
-        REFERENCES clients (id) ON DELETE CASCADE ON UPDATE CASCADE,
+        REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_dsar_requests_fulfilled_by FOREIGN KEY (fulfilled_by)
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -15426,7 +15426,7 @@ CREATE TABLE IF NOT EXISTS signed_documents (
       CONSTRAINT fk_signed_documents_org FOREIGN KEY (organization_id)
           REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
       CONSTRAINT fk_signed_documents_client FOREIGN KEY (client_id)
-          REFERENCES clients (id) ON DELETE CASCADE ON UPDATE CASCADE,
+          REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
       CONSTRAINT fk_signed_documents_contract FOREIGN KEY (contract_id)
           REFERENCES contracts (id) ON DELETE SET NULL ON UPDATE CASCADE,
       CONSTRAINT fk_signed_documents_so FOREIGN KEY (service_order_id)
