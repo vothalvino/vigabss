@@ -176,9 +176,25 @@ router.post('/:id/execute', requirePermission('custom_reports.execute'), require
 
     const safeQuery = enforceLimit(report.sql_query);
 
-    // Execute with 30-second timeout via SET SESSION
-    await db.queryReplica('SET SESSION max_execution_time = 30000', []).catch(() => {});
-    const [rows] = await db.queryReplica(safeQuery, []);
+    // 30-second cap, set, used and reset on ONE connection (DAL-11). Two pool
+    // calls could put the query on a connection without the cap, and the
+    // setting stayed on whichever pooled connection got it, aborting later
+    // unrelated queries there.
+    const conn = await db.getReplicaConnection();
+    let rows;
+    let discard = false;
+    try {
+      await conn.query('SET SESSION max_execution_time = 30000').catch(() => {});
+      [rows] = await conn.query(safeQuery);
+    } finally {
+      try {
+        await conn.query('SET SESSION max_execution_time = DEFAULT');
+      } catch (_err) {
+        discard = true; // never return a connection with the cap still set
+      }
+      if (discard && typeof conn.destroy === 'function') conn.destroy();
+      else conn.release();
+    }
 
     // Update last_run_at
     await db.query('UPDATE custom_reports SET last_run_at = NOW() WHERE id = ?', [report.id]);

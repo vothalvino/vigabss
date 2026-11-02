@@ -9,6 +9,11 @@ jest.mock('../src/config/database', () => ({
   queryReplica: jest.fn(),
   execute: jest.fn(),
   getConnection: jest.fn(),
+  // Custom-report execute sets its time cap and runs on one replica connection.
+  getReplicaConnection: jest.fn(async () => {
+    const { queryReplica } = require('../src/config/database');
+    return { query: (...args) => queryReplica(...args), release: jest.fn(), destroy: jest.fn() };
+  }),
   close: jest.fn(),
   pool: { end: jest.fn() },
 }));

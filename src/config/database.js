@@ -321,6 +321,16 @@ async function queryReplica(sql, params) {
 }
 
 /**
+ * Get a single connection from the replica-preferred pool (falls back like
+ * queryReplica). For report work that must set session state and run its
+ * query on the SAME connection, then reset it before release (DAL-11).
+ */
+async function getReplicaConnection() {
+  const targetPool = await getCurrentPool({ preferReplica: true });
+  return targetPool.getConnection();
+}
+
+/**
  * Get a single connection from the pool (for transactions).
  */
 async function getConnection() {
@@ -348,6 +358,7 @@ module.exports = {
   query,
   queryReplica,
   getConnection,
+  getReplicaConnection,
   close,
   baseConnectionConfig,
   withTenantContext,
