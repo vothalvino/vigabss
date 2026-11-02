@@ -15,7 +15,7 @@
 // =============================================================================
 
 const { redactSecretColumns } = require('./secretRedaction');
-const { sealSecret } = require('./sealSecrets');
+const { sealSecret, sealSecretFields } = require('./sealSecrets');
 
 /**
  * Encrypt a plaintext `snmp_community` in a create/update body; a blank one is
@@ -51,4 +51,15 @@ function redactDevice(row) {
   return { ...rest, has_snmp_v3_auth_key: hasAuthKey, has_snmp_v3_priv_key: hasPrivKey };
 }
 
-module.exports = { redactDevice, sealSnmpCommunity };
+/**
+ * SNMPv3 auth/priv passphrases arrive as plaintext snmp_v3_auth_key /
+ * snmp_v3_priv_key and are stored only encrypted; a client-sent *_encrypted
+ * value is refused (it used to be stored verbatim, NET-31). A blank key keeps
+ * the stored one. snmpPoller decrypts them.
+ */
+const sealSnmpV3Keys = sealSecretFields({
+  snmp_v3_auth_key: 'snmp_v3_auth_key_encrypted',
+  snmp_v3_priv_key: 'snmp_v3_priv_key_encrypted',
+});
+
+module.exports = { redactDevice, sealSnmpCommunity, sealSnmpV3Keys };

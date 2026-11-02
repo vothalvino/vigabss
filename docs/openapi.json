@@ -63889,6 +63889,41 @@
             "type": "number",
             "minimum": 1
           },
+          "snmp_v3_security_name": {
+            "type": "string",
+            "maximum": 255
+          },
+          "snmp_v3_auth_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "md5",
+              "sha",
+              "sha256",
+              "sha512"
+            ]
+          },
+          "snmp_v3_auth_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_priv_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "des",
+              "aes128",
+              "aes256"
+            ]
+          },
+          "snmp_v3_priv_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_context_name": {
+            "type": "string",
+            "maximum": 255
+          },
           "firmware": {
             "type": "string",
             "maximum": 100
@@ -64008,6 +64043,41 @@
             "type": "number",
             "minimum": 1
           },
+          "snmp_v3_security_name": {
+            "type": "string",
+            "maximum": 255
+          },
+          "snmp_v3_auth_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "md5",
+              "sha",
+              "sha256",
+              "sha512"
+            ]
+          },
+          "snmp_v3_auth_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_priv_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "des",
+              "aes128",
+              "aes256"
+            ]
+          },
+          "snmp_v3_priv_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_context_name": {
+            "type": "string",
+            "maximum": 255
+          },
           "firmware": {
             "type": "string",
             "maximum": 100
@@ -64122,6 +64192,41 @@
           "snmp_profile_id": {
             "type": "number",
             "minimum": 1
+          },
+          "snmp_v3_security_name": {
+            "type": "string",
+            "maximum": 255
+          },
+          "snmp_v3_auth_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "md5",
+              "sha",
+              "sha256",
+              "sha512"
+            ]
+          },
+          "snmp_v3_auth_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_priv_protocol": {
+            "type": "string",
+            "enum": [
+              "none",
+              "des",
+              "aes128",
+              "aes256"
+            ]
+          },
+          "snmp_v3_priv_key": {
+            "type": "string",
+            "maximum": 128
+          },
+          "snmp_v3_context_name": {
+            "type": "string",
+            "maximum": 255
           },
           "firmware": {
             "type": "string",

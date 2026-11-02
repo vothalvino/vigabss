@@ -1,4 +1,14 @@
 {
+  "deviceForm": {
+    "snmpV3": {
+      "securityName": "SNMPv3 user (security name)",
+      "authProtocol": "Auth protocol",
+      "authKey": "Auth passphrase",
+      "privProtocol": "Privacy protocol",
+      "privKey": "Privacy passphrase",
+      "keepKey": "Leave blank to keep the stored key"
+    }
+  },
   "settingsPage": {
     "loading": "Loading settings…",
     "loadError": "Failed to load settings.",

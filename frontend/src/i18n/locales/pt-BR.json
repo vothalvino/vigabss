@@ -1,4 +1,14 @@
 {
+  "deviceForm": {
+    "snmpV3": {
+      "securityName": "Usuário SNMPv3 (nome de segurança)",
+      "authProtocol": "Protocolo de autenticação",
+      "authKey": "Frase de autenticação",
+      "privProtocol": "Protocolo de privacidade",
+      "privKey": "Frase de privacidade",
+      "keepKey": "Deixe em branco para manter a chave salva"
+    }
+  },
   "settingsPage": {
     "loading": "Carregando configurações…",
     "loadError": "Falha ao carregar as configurações.",
