@@ -18,7 +18,8 @@ const createRadius = {
   profile: { type: 'string', max: 100 },
   status: { type: 'string', enum: ['active', 'inactive', 'suspended'] },
   auth_method: { type: 'string', enum: ['pppoe', 'mac', 'dot1x', 'eap_tls'] },
-  simultaneous_use: { type: 'number', min: 1, max: 255 },
+  // One connection per subscription; values above 1 are refused.
+  simultaneous_use: { type: 'number', min: 1, max: 1 },
   vlan_id: { type: 'number', min: 1, max: 4094 },
   inner_vlan_id: { type: 'number', min: 1, max: 4094 },
 };
@@ -39,7 +40,8 @@ const updateRadius = {
   profile: { type: 'string', max: 100 },
   status: { type: 'string', enum: ['active', 'inactive', 'suspended'] },
   auth_method: { type: 'string', enum: ['pppoe', 'mac', 'dot1x', 'eap_tls'] },
-  simultaneous_use: { type: 'number', min: 1, max: 255 },
+  // One connection per subscription; values above 1 are refused.
+  simultaneous_use: { type: 'number', min: 1, max: 1 },
   vlan_id: { type: 'number', min: 1, max: 4094 },
   inner_vlan_id: { type: 'number', min: 1, max: 4094 },
 };

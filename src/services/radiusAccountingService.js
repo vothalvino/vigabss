@@ -13,6 +13,9 @@ const db = require('../config/database');
 const { ValidationError } = require('../utils/errors');
 const { canonicalIpv6, canonicalIpv6Prefix } = require('../utils/ipAddress');
 const logger = require('../utils/logger').child({ service: 'radiusAccounting' });
+// Loaded at startup, not lazily from the deferred single-session check: a lazy
+// require can run after shutdown has begun.
+const radiusService = require('./radiusService');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -809,6 +812,16 @@ async function ingestAccounting(attrs) {
       await connection.commit();
       transactionStarted = false;
       logger.debug({ id: insertResult.insertId, organizationId }, 'Start row inserted into connection_logs');
+      // One connection per subscription: a new session disconnects an older
+      // one of the same contract now, not at the next sweep. Off the request
+      // path, so the NAS gets its Accounting-Response without waiting.
+      if (contractId) {
+        setTimeout(() => {
+          Promise.resolve()
+            .then(() => radiusService.enforceSingleSession(organizationId, contractId))
+            .catch((err) => logger.warn({ err, organizationId, contractId }, 'Single-session check after Accounting-Start failed'));
+        }, 0).unref?.();
+      }
       return { action: 'insert', id: insertResult.insertId, macMove, sessionInstanceId };
     } catch (err) {
       if (transactionStarted) await connection.rollback();

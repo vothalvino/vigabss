@@ -341,19 +341,23 @@ FreeRADIUS enforces these via its `expiration` and `logintime` modules already e
 
 ## Simultaneous session limits
 
-Set `plans.simultaneous_use` (default 1) for a plan-wide limit.
-Override per account with `radius.simultaneous_use`.
+A subscription (contract) has **one** live connection, across all of its RADIUS
+accounts and every NAS of the organization. `plans.simultaneous_use` and
+`radius.simultaneous_use` cannot raise it (values above 1 are refused).
 
-The sync writes a `radcheck` row:
+When a second session starts, VigaBSS disconnects the **older** one: right after
+the new session's Accounting-Start, and again in the `kick_duplicate_sessions`
+sweep every 5 minutes. Each Disconnect-Request goes to the NAS the old session
+lives on, narrowed by its Acct-Session-Id. Newest-wins means a client who moves,
+or whose old router never sent Acct-Stop, is not locked out by a stale session.
+
+The sync still writes a `radcheck` row:
 ```
-username  Simultaneous-Use := 2
+username  Simultaneous-Use := 1
 ```
-
-FreeRADIUS enforces this via the `radutmp` or `sql-session-log` module. Enable `radutmp` in the
-`authorize {}` and `session {}` sections of your `sites-available/default`.
-
-The `kick_duplicate_sessions` scheduled task (every 5 minutes) also enforces limits at the
-VigaBSS layer by sending Disconnect-Request for the oldest excess sessions.
+Leave FreeRADIUS's `radutmp` / `sql-session` check **disabled** in `session {}`:
+it refuses the *new* login while any session is recorded, which would block a
+client who just moved until the stale session clears.
 
 ---
 
