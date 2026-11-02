@@ -579,3 +579,48 @@ describe('radiusServerService — embedded RADIUS server', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Roaming — any NAS of the organization authenticates any of its subscribers
+// ---------------------------------------------------------------------------
+// A client who moves, or lives in two places, connects through a NAS other
+// than the one on their RADIUS account (radius.nas_id). Authentication keys on
+// the NAS's organization and the username, never on the home NAS.
+describe('radiusServerService — roaming across the organization\'s NAS', () => {
+  const OTHER_NAS_IP = '10.9.9.9';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    for (const k of Object.keys(svc._counters)) svc._counters[k] = 0;
+  });
+
+  function mockNas(nasRow) {
+    db.query.mockImplementation((sql) => {
+      if (/FROM nas/.test(sql)) return Promise.resolve([[nasRow]]);
+      // The subscriber's own account names NAS 3 as home.
+      if (/FROM radius/.test(sql)) return Promise.resolve([[{ ...SUBSCRIBER_ROW, nas_id: 3 }]]);
+      if (/FROM plans/.test(sql)) return Promise.resolve([[PLAN_ROW]]);
+      return Promise.resolve([[]]);
+    });
+  }
+
+  test('a different NAS of the same organization accepts the subscriber', async () => {
+    mockNas({ id: 8, organization_id: 1, secret: SECRET });
+    const { pkt } = buildPapRequest();
+    let captured = null;
+    await svc.handleAuth(pkt, { address: OTHER_NAS_IP, port: 1812 }, (buf) => { captured = buf; });
+
+    expect(codec.decodePacket(captured).code).toBe(codec.CODE.ACCESS_ACCEPT);
+    const [sql, params] = db.query.mock.calls.find(([q]) => /FROM radius/.test(q));
+    expect(sql).not.toMatch(/nas_id/);
+    expect(params).toEqual(['bob', 1]);
+  });
+
+  test("another organization's NAS looks the username up in its own organization only", async () => {
+    mockNas({ id: 20, organization_id: 2, secret: SECRET });
+    const { pkt } = buildPapRequest();
+    await svc.handleAuth(pkt, { address: OTHER_NAS_IP, port: 1812 }, () => {});
+    const [, params] = db.query.mock.calls.find(([q]) => /FROM radius/.test(q));
+    expect(params).toEqual(['bob', 2]);
+  });
+});
