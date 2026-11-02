@@ -26,6 +26,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate }       = require('../middleware/validate');
 const { createProfecoComplaint, updateProfecoComplaint, patchProfecoComplaint } = require('../middleware/schemas/profeco');
 const { buildReport }    = require('../services/profecoService');
+const { ValidationError } = require('../utils/errors');
 
 const router = Router();
 const ctrl   = crudController(ProfecoComplaint, { ownedRefs: { client_id: 'clients', ticket_id: 'tickets' } });
@@ -38,6 +39,12 @@ router.use(requireMxLocale);
 // Export endpoint — must be declared before /:id to avoid routing conflicts
 // ---------------------------------------------------------------------------
 
+function isCalendarDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
 /**
  * GET /export
  * Query params:
@@ -49,6 +56,11 @@ router.use(requireMxLocale);
 router.get('/export', requirePermission('tickets.view'), async (req, res, next) => {
   try {
     const { date_from, date_to, status, format } = req.query;
+    for (const [field, value] of [['date_from', date_from], ['date_to', date_to]]) {
+      if (value !== undefined && value !== '' && !isCalendarDate(value)) {
+        throw new ValidationError(`${field} must be a date (YYYY-MM-DD)`, [{ field, message: 'YYYY-MM-DD' }]);
+      }
+    }
     const report = await buildReport(req.orgId, {
       dateFrom: date_from || undefined,
       dateTo:   date_to   || undefined,

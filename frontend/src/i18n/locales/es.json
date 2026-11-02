@@ -5058,6 +5058,8 @@
       "search": "Buscar artículos",
       "create": "Nuevo Artículo",
       "embed": "Generar Embedding",
+      "publish": "Publicar",
+      "unpublish": "Despublicar",
       "noArticles": "No se encontraron artículos",
       "title": "Título",
       "body": "Contenido",

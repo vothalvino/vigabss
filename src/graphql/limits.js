@@ -53,6 +53,10 @@ function queryLimitsRule(context) {
       if (acc.depth > MAX_DEPTH) fail(`Query is nested ${acc.depth} levels deep; the limit is ${MAX_DEPTH}`);
       if (acc.fields > MAX_FIELDS) fail(`Query selects ${acc.fields} fields; the limit is ${MAX_FIELDS}`);
       if (acc.aliases > MAX_ALIASES) fail(`Query uses ${acc.aliases} aliases; the limit is ${MAX_ALIASES}`);
+      // Each aiDraftReply runs a paid LLM pipeline: one per operation (GQL-04).
+      const drafts = node.selectionSet.selections
+        .filter(sel => sel.kind === Kind.FIELD && sel.name.value === 'aiDraftReply').length;
+      if (drafts > 1) fail(`An operation may request aiDraftReply once; this one requests it ${drafts} times`);
     },
   };
 }

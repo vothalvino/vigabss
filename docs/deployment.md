@@ -249,11 +249,14 @@ number, date, status, and exact registered text are operator-supplied evidence
 of an external authority process. VigaBSS validates and freezes that evidence;
 it does not register or legally approve the contract.
 
-Treat rollback 451 as evidence-destructive after this flow has gone live. It
-removes registration snapshots, signature-envelope hashes, communication
-choices, and consent provenance columns. Take a database backup and export any
-required evidence before running that rollback; rolling the application image
-back does not require rolling this additive database migration back.
+Rollbacks 447 and 451 are evidence-destructive. Rollback 447 drops
+`signed_documents` and `document_templates`; rollback 451 removes registration
+snapshots, signature-envelope hashes, communication choices, and consent
+provenance columns. Both fail closed: 447 refuses while any signed document
+exists, and 451 refuses while any of that evidence is populated (as rollback
+452 does for v3 evidence). To roll back anyway, take a database backup, export
+the evidence, and remove it deliberately first. Rolling the application image
+back does not require rolling these additive migrations back.
 
 #### MX contract sandbox/production upgrade (migration 452)
 

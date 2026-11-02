@@ -73,7 +73,8 @@ router.post('/webhook', async (req, res) => {
 
 async function processMessage(provider, m) {
   if (!m || !m.providerMessageId || !m.from) return;
-  const phone = wa.normalizeE164(m.from);
+  // Provider ids are international; never read one as a bare MX number.
+  const phone = wa.normalizeSenderId(m.from);
   if (!phone) return;
 
   // Dedup on provider_message_id — skip work on a provider redelivery.

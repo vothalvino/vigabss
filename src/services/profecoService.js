@@ -80,8 +80,10 @@ async function buildReport(organizationId, {
     sql += ' AND pc.reported_at >= ?';
     params.push(dateFrom);
   }
+  // date_to is a calendar day and reported_at a DATETIME: the whole last day
+  // counts, so the bound is the start of the next day (REG-13).
   if (dateTo) {
-    sql += ' AND pc.reported_at <= ?';
+    sql += ' AND pc.reported_at < DATE_ADD(?, INTERVAL 1 DAY)';
     params.push(dateTo);
   }
   if (status) {

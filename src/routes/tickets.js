@@ -15,6 +15,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission, userHasPermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { CHANNELS: AI_CHANNELS } = require('../middleware/schemas/ai');
 const { createTicket, updateTicket, patchTicket, createComment, updateComment } = require('../middleware/schemas/tickets');
 const db = require('../config/database');
 const { NotFoundError, ValidationError } = require('../utils/errors');
@@ -250,7 +251,8 @@ router.post('/', requirePermission('tickets.create'), validate(createTicket), as
       jobQueue.add('ai-triage', {
         orgId:       req.orgId,
         ticketId:    record.id,
-        channel:     req.body.channel || 'portal',
+        // A known channel only; anything else is the portal (GQL-04).
+        channel:     AI_CHANNELS.includes(req.body.channel) ? req.body.channel : 'portal',
         inboundText: record.description,
         contractId:  record.contract_id || null,
       }).catch(err => logger.warn({ err: err.message, ticketId: record.id }, 'aiTriage enqueue failed on ticket create — AI reply will not be generated'));

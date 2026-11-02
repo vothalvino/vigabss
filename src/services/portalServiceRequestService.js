@@ -18,6 +18,8 @@ const creditNoteLedgerService = require('./creditNoteLedgerService');
 const { calculateProration } = billingService;
 const { NotFoundError, ValidationError } = require('../utils/errors');
 const { requireOrgId } = require('../utils/requireOrgId');
+const { sealSecret } = require('../utils/sealSecrets');
+const { decrypt } = require('../utils/encryption');
 const logger = require('../utils/logger').child({ service: 'portalServiceRequest' });
 
 // Tenant binding: a client_id match alone is not a tenant boundary
@@ -40,9 +42,35 @@ function withoutRequestedPassword(row) {
   if (typeof payload === 'string') {
     try { payload = JSON.parse(payload); } catch { return row; }
   }
-  if (!payload || typeof payload !== 'object' || !('new_password' in payload)) return row;
-  const { new_password: secret, ...rest } = payload;
-  return { ...row, payload: { ...rest, has_new_password: Boolean(secret) } };
+  if (!payload || typeof payload !== 'object'
+      || (!('new_password' in payload) && !('new_password_sealed' in payload))) return row;
+  const { new_password: plain, new_password_sealed: sealed, ...rest } = payload;
+  return { ...row, payload: { ...rest, has_new_password: Boolean(plain || sealed) } };
+}
+
+// A requested Wi-Fi or PPPoE password is kept only until it is applied, and
+// only encrypted (SUP-13): the payload carries new_password_sealed, never the
+// plaintext, and clearRequestedPassword removes it once the RADIUS change or
+// the CPE task has taken it.
+function sealRequestedPassword(payload) {
+  if (!payload || typeof payload.new_password !== 'string') return payload;
+  const { new_password: plain, ...rest } = payload;
+  return { ...rest, new_password_sealed: sealSecret(plain) };
+}
+
+function requestedPassword(payload) {
+  if (!payload) return null;
+  if (payload.new_password_sealed) return decrypt(payload.new_password_sealed);
+  return payload.new_password || null;
+}
+
+async function clearRequestedPassword(requestId) {
+  await db.query(
+    `UPDATE portal_service_requests
+        SET payload = JSON_REMOVE(payload, '$.new_password_sealed', '$.new_password')
+      WHERE id = ? AND JSON_VALID(payload)`,
+    [requestId],
+  );
 }
 
 /** Active plans of the organization, or global ones (TNB-11). */
@@ -192,7 +220,7 @@ async function createRequest({ clientId, organizationId, requestType, payload = 
       clientId,
       contractId,
       requestType,
-      JSON.stringify(payload),
+      JSON.stringify(sealRequestedPassword(payload)),
       prorationCredit,
       prorationCharge,
       prorationNet,
@@ -280,7 +308,7 @@ async function applyPppoePasswordChange(requestId) {
   if (!req) throw new NotFoundError('Service request');
 
   const payload = typeof req.payload === 'string' ? JSON.parse(req.payload) : req.payload;
-  const newPassword = payload.new_password;
+  const newPassword = requestedPassword(payload);
   if (!newPassword) throw new ValidationError('No new_password in request payload');
 
   // Update radius account password
@@ -296,6 +324,7 @@ async function applyPppoePasswordChange(requestId) {
     [requestId],
   );
 
+  await clearRequestedPassword(requestId);
   logger.info({ requestId, contractId: req.contract_id }, 'PPPoE password updated via portal request');
 }
 
@@ -494,10 +523,11 @@ async function approveRequest(requestId, organizationId, approvedByUserId, notes
     const { queued, taskId } = await queueWifiPasswordCpeTask({
       organizationId,
       contractId: req.contract_id,
-      newPassword: payload.new_password || null,
+      newPassword: requestedPassword(payload),
       createdBy: approvedByUserId,
     });
     if (queued) {
+      await clearRequestedPassword(requestId);
       // Completed once the router confirms the change, not when queued.
       await linkWifiRequestToTask(requestId, taskId);
       logger.info({ requestId, taskId }, 'Wi-Fi password change queued via CPE task');
@@ -803,6 +833,8 @@ async function rateKbArticle(organizationId, slugOrId, helpful) {
 
 module.exports = {
   listUpgradePlans,
+  sealRequestedPassword,
+  clearRequestedPassword,
   linkWifiRequestToTask,
   settleWifiRequestForTask,
   createRequest,

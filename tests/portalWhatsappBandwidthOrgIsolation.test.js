@@ -74,8 +74,8 @@ function freshTables() {
       { id: 802, organization_id: ORG_B, client_id: 10, request_type: 'cancellation', status: 'pending', deleted_at: null },
     ],
     portal_push_subscriptions: [
-      { id: 851, organization_id: ORG_B, client_id: 10, endpoint: 'https://push.example/foreign', p256dh: 'b', auth: 'b', deleted_at: null },
-      { id: 852, organization_id: ORG_A, client_id: 10, endpoint: 'https://push.example/own', p256dh: 'a', auth: 'a', deleted_at: null },
+      { id: 851, organization_id: ORG_B, client_id: 10, endpoint: 'https://fcm.googleapis.com/fcm/send/foreign', p256dh: 'b', auth: 'b', deleted_at: null },
+      { id: 852, organization_id: ORG_A, client_id: 10, endpoint: 'https://fcm.googleapis.com/fcm/send/own', p256dh: 'a', auth: 'a', deleted_at: null },
     ],
     whatsapp_links: [
       { id: 701, organization_id: ORG_A, client_id: 10, phone_e164: OWN_PHONE, active_phone: OWN_PHONE, bound_via: 'portal', status: 'active' },
@@ -298,7 +298,7 @@ describe('portal service requests are bound to the subscriber\'s organization', 
 describe('portal Web Push subscriptions are bound to the subscriber\'s organization', () => {
   test('subscribing does not update another org\'s row for the same endpoint; it inserts in the client\'s org', async () => {
     const res = await portal('post', '/api/v1/portal/push/subscribe')
-      .send({ endpoint: 'https://push.example/foreign', p256dh: 'new-key', auth: 'new-auth' });
+      .send({ endpoint: 'https://fcm.googleapis.com/fcm/send/foreign', p256dh: 'new-key', auth: 'new-auth' });
     expect(res.status).toBe(201);
     expect(res.body.data.updated).toBe(false);
     expect(row('portal_push_subscriptions', 851).p256dh).toBe('b');
@@ -310,14 +310,14 @@ describe('portal Web Push subscriptions are bound to the subscriber\'s organizat
 
   test('unsubscribing never soft-deletes another org\'s row', async () => {
     const res = await portal('delete', '/api/v1/portal/push/subscribe')
-      .send({ endpoint: 'https://push.example/foreign' });
+      .send({ endpoint: 'https://fcm.googleapis.com/fcm/send/foreign' });
     expect(res.status).toBe(200);
     expect(row('portal_push_subscriptions', 851).deleted_at).toBeNull();
   });
 
   test('unsubscribing an own endpoint soft-deletes it', async () => {
     const res = await portal('delete', '/api/v1/portal/push/subscribe')
-      .send({ endpoint: 'https://push.example/own' });
+      .send({ endpoint: 'https://fcm.googleapis.com/fcm/send/own' });
     expect(res.status).toBe(200);
     expect(row('portal_push_subscriptions', 852).deleted_at).toBe('now');
   });

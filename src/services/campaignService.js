@@ -668,6 +668,17 @@ async function processQueue(organizationId = null) {
   return total;
 }
 
+// Forward-only delivery outcomes. delivered may become opened (or bounce
+// back); bounced and failed are final.
+const DELIVERY_TRANSITIONS = {
+  queued: ['delivered', 'opened', 'bounced', 'failed'],
+  sent: ['delivered', 'opened', 'bounced', 'failed'],
+  delivered: ['opened', 'bounced'],
+  opened: [],
+  bounced: [],
+  failed: [],
+};
+
 /**
  * Handle a delivery status callback from a provider (webhook).
  *
@@ -709,10 +720,19 @@ async function handleDeliveryCallback(providerMessageId, newStatus, _meta = {}) 
 
   const timestampClause = timestampCol ? `, ${timestampCol} = NOW()` : '';
 
-  await db.query(
-    `UPDATE campaign_messages SET status = ?${timestampClause} WHERE id = ?`,
-    [newStatus, msg.id],
+  // Outcomes only move forward (TNA-23): a replay of the same status, or an
+  // older callback arriving late, changes nothing and counts nothing.
+  if (!DELIVERY_TRANSITIONS[msg.status]?.includes(newStatus)) {
+    logger.debug({ providerMessageId, from: msg.status, to: newStatus }, 'handleDeliveryCallback: not a forward transition');
+    return { updated: false };
+  }
+  // Conditional on the status just read, so two concurrent callbacks for one
+  // message cannot both count.
+  const [result] = await db.query(
+    `UPDATE campaign_messages SET status = ?${timestampClause} WHERE id = ? AND status = ?`,
+    [newStatus, msg.id, msg.status],
   );
+  if (!result || result.affectedRows !== 1) return { updated: false };
 
   // Increment the campaign's aggregate counter
   const counterCol = `${newStatus}_count`;

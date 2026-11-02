@@ -70,29 +70,47 @@ describe('verifyPhoneCode', () => {
     expect(r).toEqual({ ok: false, reason: 'no_pending' });
   });
 
-  it('locks after the attempt ceiling', async () => {
-    db.query.mockResolvedValueOnce([[{ id: 1, client_id: 7, organization_id: 3, code_hash: wa.hashCode('123456'), attempts: config.whatsapp.maxCodeAttempts }]]);
+  // SUP-10: an attempt is claimed with a conditional UPDATE before the
+  // comparison, and a client's day of wrong guesses is capped.
+  it('locks when the attempt ceiling is reached (the claim updates nothing)', async () => {
+    db.query
+      .mockResolvedValueOnce([[{ id: 1, client_id: 7, organization_id: 3, code_hash: wa.hashCode('123456'), attempts: config.whatsapp.maxCodeAttempts }]])
+      .mockResolvedValueOnce([[{ failed: 0 }]])           // client's day of wrong guesses
+      .mockResolvedValueOnce([{ affectedRows: 0 }]);      // claim: attempts < ceiling failed
     const r = await wa.verifyPhoneCode({ phone: '+525512345678', purpose: 'link_email', code: '123456' });
     expect(r).toEqual({ ok: false, reason: 'locked' });
+    expect(db.query.mock.calls[2][0]).toMatch(/SET attempts = attempts \+ 1\s+WHERE id = \? AND attempts < \? AND consumed_at IS NULL/);
+    expect(db.query.mock.calls[2][1]).toEqual([1, config.whatsapp.maxCodeAttempts]);
   });
 
-  it('increments attempts and reports mismatch on a wrong code', async () => {
+  it('claims an attempt before comparing and reports mismatch on a wrong code', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, client_id: 7, organization_id: 3, code_hash: wa.hashCode('999999'), attempts: 0 }]])
+      .mockResolvedValueOnce([[{ failed: 0 }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }]);
     const r = await wa.verifyPhoneCode({ phone: '+525512345678', purpose: 'link_email', code: '111111' });
     expect(r).toEqual({ ok: false, reason: 'mismatch' });
-    expect(db.query).toHaveBeenCalledTimes(2); // select + attempts++
-    expect(db.query.mock.calls[1][0]).toMatch(/attempts = attempts \+ 1/);
+    expect(db.query).toHaveBeenCalledTimes(3); // select + day cap + claim
   });
 
   it('consumes the row and returns the client on a correct code', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, client_id: 7, organization_id: 3, code_hash: wa.hashCode('123456'), attempts: 0 }]])
+      .mockResolvedValueOnce([[{ failed: 0 }]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockResolvedValueOnce([{ affectedRows: 1 }]);
     const r = await wa.verifyPhoneCode({ phone: '+525512345678', purpose: 'link_email', code: '123456' });
     expect(r).toEqual({ ok: true, clientId: 7, organizationId: 3 });
-    expect(db.query.mock.calls[1][0]).toMatch(/consumed_at = NOW\(\)/);
+    expect(db.query.mock.calls[3][0]).toMatch(/consumed_at = NOW\(\) WHERE id = \? AND consumed_at IS NULL/);
+  });
+
+  it('a client whose codes absorbed the day of wrong guesses is locked, even with the right code', async () => {
+    db.query
+      .mockResolvedValueOnce([[{ id: 1, client_id: 7, organization_id: 3, code_hash: wa.hashCode('123456'), attempts: 0 }]])
+      .mockResolvedValueOnce([[{ failed: wa.CLIENT_LINK_GUESSES_PER_DAY }]]);
+    const r = await wa.verifyPhoneCode({ phone: '+525512345678', purpose: 'link_email', code: '123456' });
+    expect(r).toEqual({ ok: false, reason: 'locked' });
+    expect(db.query).toHaveBeenCalledTimes(2);
   });
 });
 

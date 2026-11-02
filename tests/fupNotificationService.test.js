@@ -8,6 +8,13 @@ const mockExtraAllowance = jest.fn(async () => ({ pack_gb: 0, rollover_gb: 0, to
 jest.mock('../src/services/dataPackService', () => ({
   extraAllowanceGb: (...a) => mockExtraAllowance(...a),
 }));
+// Delivery (SUP-07): email by default; tests switch it to fail or fall back.
+const mockSendEmail = jest.fn(async () => ({ success: true }));
+const mockSendSms = jest.fn(async () => ({ success: true }));
+const mockPush = jest.fn(async () => ({ sent: 0, failed: 0 }));
+jest.mock('../src/services/emailTransport', () => ({ sendEmail: (...a) => mockSendEmail(...a) }));
+jest.mock('../src/services/smsTransport', () => ({ sendSms: (...a) => mockSendSms(...a) }));
+jest.mock('../src/services/portalPushService', () => ({ dispatch: (...a) => mockPush(...a) }));
 const fupNotificationService = require('../src/services/fupNotificationService');
 
 describe('fupNotificationService', () => {
@@ -28,7 +35,7 @@ describe('fupNotificationService', () => {
   it('notifies at 80% threshold', async () => {
     db.query
       .mockResolvedValueOnce([[{
-        id: 1, organization_id: 1, client_id: 5,
+        id: 1, organization_id: 1, client_id: 5, client_email: 'ana@x.mx',
         data_cap_gb: '100.000', fup_threshold_gb: null,
       }]])
       // usage: 85% — triggers 80% threshold only
@@ -45,6 +52,33 @@ describe('fupNotificationService', () => {
     const result = await fupNotificationService.checkAndNotifyThresholds(1);
     expect(result.notified).toBe(1);
     expect(result.checked).toBe(1);
+    expect(mockSendEmail).toHaveBeenCalledWith(expect.objectContaining({ clientId: 5, messageClass: 'transactional', to: 'ana@x.mx' }));
+    const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO fup_usage_notifications/.test(sql));
+    expect(insert[1][4]).toBe('email');
+  });
+
+  // SUP-07: a notice nothing delivered is not recorded or counted, so the
+  // month is not marked as notified.
+  it('records nothing when no channel delivers the notice', async () => {
+    mockSendEmail.mockResolvedValueOnce({ success: false, error: 'smtp down' });
+    db.query
+      .mockResolvedValueOnce([[{ id: 1, organization_id: 1, client_id: 5, client_email: 'ana@x.mx', data_cap_gb: '100.000', fup_threshold_gb: null }]])
+      .mockResolvedValueOnce([[{ used_gb: '85.000', observed_rows: 1, incomplete_rows: 0, unverifiable_session_rows: 0 }]])
+      .mockResolvedValueOnce([[null]]);
+    const result = await fupNotificationService.checkAndNotifyThresholds(1);
+    expect(result.notified).toBe(0);
+    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO fup_usage_notifications/.test(sql))).toBe(false);
+  });
+
+  it('falls back to SMS and records the channel used', async () => {
+    db.query
+      .mockResolvedValueOnce([[{ id: 1, organization_id: 1, client_id: 5, client_email: null, client_phone: '+525512345678', data_cap_gb: '100.000', fup_threshold_gb: null }]])
+      .mockResolvedValueOnce([[{ used_gb: '85.000', observed_rows: 1, incomplete_rows: 0, unverifiable_session_rows: 0 }]])
+      .mockResolvedValueOnce([[null]])
+      .mockResolvedValueOnce([{ insertId: 1 }]);
+    await fupNotificationService.checkAndNotifyThresholds(1);
+    const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO fup_usage_notifications/.test(sql));
+    expect(insert[1][4]).toBe('sms');
   });
 
   it('deduplicates notifications already sent this month', async () => {

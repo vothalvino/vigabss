@@ -5058,6 +5058,8 @@
       "search": "Search articles",
       "create": "New Article",
       "embed": "Generate Embedding",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
       "noArticles": "No articles found",
       "title": "Title",
       "body": "Content",

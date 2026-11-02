@@ -53229,7 +53229,8 @@
         "tags": [
           "Consumer Protection MX"
         ],
-        "summary": "Mark service modification notice as sent",
+        "summary": "Deliver a service modification notice (email/SMS to its client), or record an outside delivery with delivery_evidence",
+        "description": "Marked sent only when delivery succeeds (502 otherwise, the notice stays pending). Broadcast, postal, portal and all-channel notices require delivery_evidence. Refused when the effective date leaves less than notice_required_days.",
         "operationId": "sendServiceModificationNotice",
         "security": [
           {
@@ -75031,6 +75032,117 @@
           }
         }
       },
+      "serviceModificationNotices_createServiceModificationNotice": {
+        "type": "object",
+        "properties": {
+          "notice_type": {
+            "type": "string",
+            "enum": [
+              "price_change",
+              "plan_change",
+              "tos_change",
+              "service_termination",
+              "interruption",
+              "upgrade",
+              "downgrade"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "effective_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "notice_required_days": {
+            "type": "string",
+            "minimum": 0,
+            "maximum": 365
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "postal",
+              "portal",
+              "all"
+            ]
+          },
+          "client_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "contract_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        },
+        "required": [
+          "notice_type",
+          "description",
+          "effective_date"
+        ]
+      },
+      "serviceModificationNotices_updateServiceModificationNotice": {
+        "type": "object",
+        "properties": {
+          "notice_type": {
+            "type": "string",
+            "enum": [
+              "price_change",
+              "plan_change",
+              "tos_change",
+              "service_termination",
+              "interruption",
+              "upgrade",
+              "downgrade"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "effective_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "notice_required_days": {
+            "type": "string",
+            "minimum": 0,
+            "maximum": 365
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "postal",
+              "portal",
+              "all"
+            ]
+          },
+          "client_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "contract_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        }
+      },
       "serviceOrders_createServiceOrder": {
         "type": "object",
         "properties": {
@@ -77075,10 +77187,9 @@
             "maximum": 10
           },
           "tags": {
-            "type": "string",
-            "maximum": 500
+            "type": "string"
           },
-          "isPublished": {
+          "is_published": {
             "type": "boolean"
           }
         }

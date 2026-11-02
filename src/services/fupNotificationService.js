@@ -18,6 +18,37 @@ const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCom
  * @param {number} organizationId
  * @returns {Promise<{checked: number, notified: number}>}
  */
+/**
+ * Tell the subscriber they crossed a usage threshold: email, else SMS, else
+ * portal push. Transactional class, so the client's communication
+ * preferences apply in the transports.
+ *
+ * @returns {Promise<'email'|'sms'|'push'|null>} the channel that delivered it
+ */
+async function deliverThresholdNotice(contract, threshold, usedGb, allowanceGb) {
+  const subject = threshold >= 100
+    ? 'Alcanzaste el 100% de tus datos del mes'
+    : `Llevas el ${threshold}% de tus datos del mes`;
+  const text = `${subject}: ${usedGb.toFixed(1)} GB de ${allowanceGb.toFixed(1)} GB.`;
+  const base = { organizationId: contract.organization_id, clientId: contract.client_id, messageClass: 'transactional' };
+
+  if (contract.client_email) {
+    const result = await require('./emailTransport').sendEmail({
+      ...base, to: contract.client_email, subject, text, html: `<p>${text}</p>`,
+    }).catch(() => null);
+    if (result && result.success) return 'email';
+  }
+  if (contract.client_phone) {
+    const result = await require('./smsTransport').sendSms({ ...base, to: contract.client_phone, body: text }).catch(() => null);
+    if (result && result.success) return 'sms';
+  }
+  const pushed = await require('./portalPushService').dispatch({
+    clientId: contract.client_id, eventType: 'billing', payload: { title: subject, body: text, url: '/portal/dashboard' },
+  }).catch(() => null);
+  if (pushed && pushed.sent > 0) return 'push';
+  return null;
+}
+
 async function checkAndNotifyThresholds(organizationId) {
   const now = new Date();
   const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -26,9 +57,11 @@ async function checkAndNotifyThresholds(organizationId) {
 
   const [contracts] = await db.query(
     `SELECT c.id, c.organization_id, c.client_id,
-            p.data_cap_gb, p.fup_threshold_gb
+            p.data_cap_gb, p.fup_threshold_gb,
+            cl.email AS client_email, cl.phone AS client_phone
      FROM contracts c
      JOIN plans p ON c.plan_id = p.id
+     LEFT JOIN clients cl ON cl.id = c.client_id AND cl.deleted_at IS NULL
      WHERE c.status = 'active'
        AND (p.data_cap_gb IS NOT NULL OR p.fup_threshold_gb IS NOT NULL)
        AND c.organization_id = ?
@@ -81,13 +114,19 @@ async function checkAndNotifyThresholds(organizationId) {
       );
       if (existing) continue;
 
+      // Deliver first; the dedup row records the channel that actually
+      // carried the notice. Nothing delivered = no row, so the next check
+      // retries instead of the month being marked as notified (SUP-07).
+      const channel = await deliverThresholdNotice(contract, threshold, usedGb, capGb + extra.total_gb);
+      if (!channel) continue;
+
       // Insert dedup record (ignore race duplicates via ER_DUP_ENTRY)
       try {
         await db.query(
           `INSERT INTO fup_usage_notifications
              (organization_id, contract_id, billing_month, threshold_pct, channel)
-           VALUES (?, ?, ?, ?, 'email')`,
-          [contract.organization_id, contract.id, billingMonth, threshold],
+           VALUES (?, ?, ?, ?, ?)`,
+          [contract.organization_id, contract.id, billingMonth, threshold, channel],
         );
         notified++;
         // Emit event for email/push/webhook hooks (best-effort)

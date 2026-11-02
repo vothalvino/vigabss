@@ -110,9 +110,19 @@ function isUnlinkCommand(body) {
   return /^\s*(unlink|desvincular|desconectar)\s*$/i.test(body || '');
 }
 
-async function clientFirstName(clientId) {
+// The bound client's organization may keep its own database (isolated mode):
+// everything about that client is read and written there, while the
+// install-wide WhatsApp tables stay on the primary (whatsappService pins
+// them). Inbound traffic arrives with no tenant context at all (SUP-12).
+function inClientDatabase(organizationId, fn) {
+  return organizationId && typeof db.withTenantContext === 'function'
+    ? db.withTenantContext(organizationId, fn)
+    : fn();
+}
+
+async function clientFirstName(clientId, organizationId = null) {
   try {
-    const [rows] = await db.query('SELECT name FROM clients WHERE id = ? LIMIT 1', [clientId]);
+    const [rows] = await inClientDatabase(organizationId, () => db.query('SELECT name FROM clients WHERE id = ? LIMIT 1', [clientId]));
     return firstName(rows[0]?.name);
   } catch (_e) {
     return '';
@@ -136,6 +146,8 @@ async function maybeSendEmailOtp({ phone, email }) {
     // Per-target-inbox budget (the per-phone budget above protects the sender,
     // not the victim's inbox against a number-cycling attacker).
     if (await wa.clientEmailCodeBudgetExceeded(client.id, client.organization_id ?? null)) return;
+    // No new codes for an account whose linking is locked for the day (SUP-10).
+    if (await wa.clientLinkGuessesExhausted(client.id)) return;
 
     const code = await wa.createVerification({
       organizationId: client.organization_id,
@@ -181,7 +193,7 @@ async function handleInbound({ phone, body }) {
   // 1. Already bound? Run the bound-client bot (menu + read-only capabilities).
   const binding = await wa.resolveBinding(phone);
   if (binding) {
-    return handleBound({ phone, body, binding });
+    return inClientDatabase(binding.organizationId, () => handleBound({ phone, body, binding }));
   }
 
   // 2. Unbound — throttle binding attempts per phone.
@@ -201,14 +213,14 @@ async function handleInbound({ phone, body }) {
       const portalAttempt = await wa.verifyPortalCode({ code });
       if (portalAttempt.ok) {
         await wa.bindNumber({ organizationId: portalAttempt.organizationId, clientId: portalAttempt.clientId, phone, via: 'portal' });
-        return { reply: MSG.bindOk(await clientFirstName(portalAttempt.clientId)), clientId: portalAttempt.clientId };
+        return { reply: MSG.bindOk(await clientFirstName(portalAttempt.clientId, portalAttempt.organizationId)), clientId: portalAttempt.clientId };
       }
       return { reply: MSG.codeBad };
     }
     const emailAttempt = await wa.verifyPhoneCode({ phone, purpose: 'link_email', code });
     if (emailAttempt.ok) {
       await wa.bindNumber({ organizationId: emailAttempt.organizationId, clientId: emailAttempt.clientId, phone, via: 'email_otp' });
-      return { reply: MSG.bindOk(await clientFirstName(emailAttempt.clientId)), clientId: emailAttempt.clientId };
+      return { reply: MSG.bindOk(await clientFirstName(emailAttempt.clientId, emailAttempt.organizationId)), clientId: emailAttempt.clientId };
     }
     if (emailAttempt.reason === 'locked') return { reply: MSG.locked };
     if (emailAttempt.reason === 'mismatch') return { reply: MSG.codeMismatch };
@@ -216,7 +228,7 @@ async function handleInbound({ phone, body }) {
     const portalAttempt = await wa.verifyPortalCode({ code });
     if (portalAttempt.ok) {
       await wa.bindNumber({ organizationId: portalAttempt.organizationId, clientId: portalAttempt.clientId, phone, via: 'portal' });
-      return { reply: MSG.bindOk(await clientFirstName(portalAttempt.clientId)), clientId: portalAttempt.clientId };
+      return { reply: MSG.bindOk(await clientFirstName(portalAttempt.clientId, portalAttempt.organizationId)), clientId: portalAttempt.clientId };
     }
     return { reply: MSG.codeBad };
   }
@@ -260,7 +272,19 @@ async function handleInbound({ phone, body }) {
 async function tryAiSupport({ phone, orgId, clientId, text, state }) {
   try {
     const support = require('./supportConversationService');
-    const priorId = state?.context?.supportConversationId || null;
+    // Continue the client's escalated WhatsApp conversation, if one is open,
+    // rather than starting a new one that can escalate again into another
+    // ticket (SUP-09).
+    let priorId = state?.context?.supportConversationId || null;
+    if (!priorId) {
+      const [[open]] = await db.query(
+        `SELECT id FROM support_conversations
+          WHERE client_id = ? AND organization_id <=> ? AND channel = 'whatsapp' AND status = 'escalated'
+          ORDER BY id DESC LIMIT 1`,
+        [clientId, orgId],
+      );
+      priorId = open ? open.id : null;
+    }
 
     let result;
     if (priorId) {
@@ -276,7 +300,9 @@ async function tryAiSupport({ phone, orgId, clientId, text, state }) {
     // An escalated conversation gets no AI reply by design, so say a human is
     // coming rather than returning the greeting and looking like a non-answer.
     if (conv.status === 'escalated') {
-      await wa.clearConversationState(phone);
+      // Keep the thread: the next message appends to it, and a repeated
+      // escalation of an already escalated conversation is a no-op.
+      await wa.setConversationState(phone, clientId, 'ai_support', { supportConversationId: conv.id });
       return MSG.aiEscalated;
     }
 
