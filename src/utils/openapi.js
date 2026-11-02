@@ -633,11 +633,19 @@ function generateSpec() {
       '/cfdi/stamp': { post: { tags: ['CFDI'], summary: 'Stamp CFDI via PAC', operationId: 'cfdiStamp', security: [{ bearerAuth: [] }], requestBody: jsonBody('cfdi_document_id'), responses: r200('UUID + status') } },
       '/cfdi/cancel': { post: { tags: ['CFDI'], summary: 'Cancel stamped CFDI', operationId: 'cfdiCancel', security: [{ bearerAuth: [] }], requestBody: jsonBody('cfdi_document_id + reason'), responses: r200('Cancellation') } },
       '/cfdi/{id}/xml': { get: { tags: ['CFDI'], summary: 'Download CFDI XML', operationId: 'cfdiDownloadXml', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200File('application/xml') } },
+      '/cfdi/{id}/cancellation-status': { get: { tags: ['CFDI'], summary: 'Ask the PAC for the SAT cancellation status of a stamped CFDI', operationId: 'cfdiCancellationStatus', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Cancellation status') } },
+      '/cfdi/{id}/cancellations': { get: { tags: ['CFDI'], summary: 'List the cancellation requests recorded for a CFDI', operationId: 'cfdiListCancellations', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Cancellation[]') } },
+      '/cfdi/payment-complement': { post: { tags: ['CFDI'], summary: 'Generate a payment complement (REP) for a payment applied to a PPD invoice', operationId: 'cfdiCreatePaymentComplement', security: [{ bearerAuth: [] }], requestBody: jsonBody('payment_id + invoice_id'), responses: r201('Payment complement CFDI') } },
+      '/cfdi/payment-complement/{id}': { get: { tags: ['CFDI'], summary: 'Get a payment complement', operationId: 'cfdiGetPaymentComplement', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Payment complement CFDI') } },
+      '/cfdi/reconciliation': { get: { tags: ['CFDI'], summary: 'Monthly CFDI vs invoice reconciliation report', operationId: 'cfdiReconciliationReport', security: [{ bearerAuth: [] }], parameters: [{ name: 'year', in: 'query', required: true, schema: { type: 'integer' } }, { name: 'month', in: 'query', required: true, schema: { type: 'integer', minimum: 1, maximum: 12 } }], responses: r200('Reconciliation report') } },
       '/cfdi/{id}/pdf': { get: { tags: ['CFDI'], summary: 'Download CFDI PDF', operationId: 'cfdiDownloadPdf', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200File('application/pdf') } },
 
       // ---- CFDI Documents ----
       ...crudPaths('cfdi-documents', 'CFDI Documents', 'CfdiDocument'),
       '/cfdi-documents/environment': { get: { tags: ['CFDI Documents'], summary: "The organization's PAC environment and whether this install runs in production (sandbox CFDIs are not fiscally valid)", operationId: 'getCfdiEnvironment', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Fiscal environment', content: { 'application/json': { schema: { type: 'object', properties: { data: { type: 'object', properties: { pac_environment: { type: 'string', enum: ['sandbox', 'production'] }, production_install: { type: 'boolean' } } } } } } } } } } },
+      '/cfdi-documents/{id}/conceptos': { get: { tags: ['CFDI Documents'], summary: 'List the conceptos (line items) of a CFDI', operationId: 'listCfdiDocumentConceptos', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Concepto[]') } },
+      '/cfdi-documents/{id}/related': { get: { tags: ['CFDI Documents'], summary: 'List the CFDIs related to this one (substitutions, credit notes, payment complements)', operationId: 'listCfdiDocumentRelated', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CfdiDocument[]') } },
+      '/cfdi-documents/{id}/cancel': { post: { tags: ['CFDI Documents'], summary: 'Cancel a stamped CFDI at SAT', operationId: 'cancelCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('cancellation_reason (01-04) + replacement_uuid for 01'), responses: r200('Cancellation result') } },
       '/cfdi-documents/{id}/rebuild': { post: { tags: ['CFDI Documents'], summary: 'Rebuild an invoice draft CFDI from the invoice (new Fecha, current receptor and conceptos) and submit it; refused while the last stamp attempt may have been stamped', operationId: 'rebuildCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Stamp result for the rebuilt CFDI') } },
 
       // ---- SAT Catalogs ----
@@ -651,7 +659,15 @@ function generateSpec() {
       '/sat-catalogs/clave-unidad': { get: { tags: ['SAT Catalogs'], summary: 'Search unit codes', operationId: 'listClaveUnidad', security: [{ bearerAuth: [] }], parameters: [searchParam()], responses: r200('Catalog[]') } },
 
       // ---- Facturas Publicas ----
-      ...crudPaths('facturas-publicas', 'Facturas Publicas', 'FacturaPublica'),
+      // Explicit rather than crudPaths: there is no DELETE route (CFD-14).
+      '/facturas-publicas': {
+        get: { tags: ['Facturas Publicas'], summary: 'List facturas-publicas', operationId: 'listFacturaPublicas', security: [{ bearerAuth: [] }], responses: r200('FacturaPublica[]') },
+        post: { tags: ['Facturas Publicas'], summary: 'Create a FacturaPublica', operationId: 'createFacturaPublica', security: [{ bearerAuth: [] }], requestBody: jsonBody('FacturaPublica'), responses: r201('FacturaPublica') },
+      },
+      '/facturas-publicas/{id}': {
+        get: { tags: ['Facturas Publicas'], summary: 'Get a FacturaPublica', operationId: 'getFacturaPublica', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('FacturaPublica') },
+        put: { tags: ['Facturas Publicas'], summary: 'Update a FacturaPublica', operationId: 'updateFacturaPublica', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('FacturaPublica'), responses: r200('FacturaPublica') },
+      },
       '/facturas-publicas/{id}/stamp': {
         post: { tags: ['Facturas Publicas'], summary: 'Build and stamp the factura global (CFDI to PUBLICO EN GENERAL) from the linked paid invoices', description: 'One concepto per invoice (01010101/ACT), InformacionGlobal from the record period, PUE with the predominant forma de pago. 201 when stamped, 202 when the CFDI was created but the PAC failed (retry from the CFDI page).', operationId: 'stampFacturaPublica', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 201: { description: 'Stamped' }, 202: { description: 'Created, stamp pending' }, 409: { description: 'Not a draft' }, 422: { description: 'Unpaid invoices, invoices with their own CFDI, empty, mixed currency, or a period SAT cannot file' } } },
       },
@@ -664,6 +680,8 @@ function generateSpec() {
       ...crudPaths('csd-certificates', 'CSD Certificates', 'CsdCertificate'),
       // Upload replaces the generic create: raw .cer/.key files (base64) +
       // passphrase, parsed and validated server-side.
+      '/csd-certificates/{id}/restore': { post: { tags: ['CSD Certificates'], summary: 'Restore a deleted CSD certificate', operationId: 'restoreCsdCertificate', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CsdCertificate') } },
+      '/pac-providers/{id}/restore': { post: { tags: ['PAC Providers'], summary: 'Restore a deleted PAC provider', operationId: 'restorePacProvider', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('PacProvider') } },
       '/csd-certificates/{id}/activate': {
         post: { tags: ['CSD Certificates'], summary: 'Activate this certificate for signing (deactivates siblings — zero-downtime renewal)', operationId: 'activateCsdCertificate', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CsdCertificate') },
       },
