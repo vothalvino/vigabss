@@ -14,12 +14,12 @@ const DELETE_BATCH_SIZE = 1000;
  * Retention metadata is kept in one whitelist so table/column identifiers and
  * tenant predicates can never be supplied by a caller.
  */
+//
+// audit_logs is deliberately absent (ASY-38): its immutability triggers reject
+// every DELETE, so the purge failed on it each night, and a purge would also
+// break the audit hash chain (migration 505). Audit rows are kept; archiving
+// them is an operator procedure (docs/privacy.md).
 const POLICY_CONFIG = Object.freeze({
-  audit_logs: {
-    defaultDays: 365,
-    dateColumn: 'created_at',
-    tenantWhere: '`organization_id` = ?',
-  },
   alert_events: {
     defaultDays: 90,
     dateColumn: 'created_at',
@@ -224,7 +224,7 @@ function normalizeOrganizationId(value) {
 
 /**
  * Load retention policies from environment or use defaults.
- * Environment variable format: RETENTION_<TABLE>_DAYS (e.g. RETENTION_AUDIT_LOGS_DAYS=180)
+ * Environment variable format: RETENTION_<TABLE>_DAYS (e.g. RETENTION_EMAIL_LOGS_DAYS=90)
  */
 function loadPolicies() {
   const policies = {};

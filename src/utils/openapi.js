@@ -1188,7 +1188,7 @@ function generateSpec() {
       '/signed-documents/generate': { post: { tags: ['Settings'], summary: 'Generate missing MX reviewed-template instances or the global neutral acknowledgment for a service order', operationId: 'generateSignedDocuments', security: [{ bearerAuth: [] }], requestBody: jsonBody('legalDocuments_generateDocuments'), responses: r201('Generation result') } },
 
       // ---- Audit Logs ----
-      '/audit-logs': { get: { tags: ['Audit Logs'], summary: 'List audit log entries', operationId: 'listAuditLogs', security: [{ bearerAuth: [] }], responses: r200('AuditLog[]') } },
+      '/audit-logs': { get: { tags: ['Audit Logs'], summary: 'List audit log entries', description: 'scope=install lists install-wide events (no organization) and requires the install operator.', operationId: 'listAuditLogs', security: [{ bearerAuth: [] }], parameters: [auditScopeParam()], responses: r200('AuditLog[]') } },
 
       // ---- DSAR ----
       '/dsar/clients/{id}': { get: { tags: ['DSAR'], summary: 'Export all personal data held for a client', operationId: 'exportClientDsar', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DSAR export document') } },
@@ -2876,6 +2876,32 @@ function generateSpec() {
         put: { tags: ['Regulatory Compliance MX'], summary: 'Release preserved attribution evidence after terminal-case review', description: 'Interactive manage permission. Does not happen automatically on fulfillment/rejection; released evidence resumes its original retention clock.', operationId: 'releaseGovDataRequestEvidenceHold', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', additionalProperties: false, required: ['reason'], properties: { reason: { type: 'string', minLength: 1, maxLength: 500 } } }, 'Reviewed hold-release reason'), responses: r200('Updated') },
       },
       // Audit export + report access logs
+      '/audit-logs/verify': {
+        get: {
+          tags: ['Audit Logs'],
+          summary: 'Verify the audit log hash chain',
+          description: 'Recomputes the hash chain of the organization (or, with scope=install, the install-wide events) and lists rows changed, removed or reordered since they were written.',
+          operationId: 'verifyAuditLogChain',
+          security: [{ bearerAuth: [] }],
+          parameters: [auditScopeParam()],
+          responses: {
+            200: { description: 'Chain verification', content: { 'application/json': { schema: { type: 'object', required: ['data'], properties: { data: {
+              type: 'object', additionalProperties: false,
+              required: ['intact', 'checked', 'last_seq', 'unchained', 'problems'],
+              properties: {
+                intact: { type: 'boolean' },
+                checked: { type: 'integer' },
+                last_seq: { type: 'integer' },
+                unchained: { type: 'integer', description: 'Rows written before the chain existed' },
+                problems: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'chain_seq', 'problem'], properties: {
+                  id: { type: ['integer', 'null'] }, chain_seq: { type: 'integer' }, problem: { type: 'string' },
+                } } },
+              },
+            } } } } } },
+            403: { description: 'scope=install without the install operator' },
+          },
+        },
+      },
       '/audit-logs/export': {
         get: { tags: ['Audit Logs'], summary: 'Export audit logs for regulatory inspection', operationId: 'exportAuditLogs', security: [{ bearerAuth: [] }], responses: r200('Audit export') },
       },
@@ -4918,6 +4944,9 @@ function webhookErrorResponses() {
 }
 function idParam() {
   return { name: 'id', in: 'path', required: true, schema: { type: 'integer' } };
+}
+function auditScopeParam() {
+  return { name: 'scope', in: 'query', required: false, schema: { type: 'string', enum: ['organization', 'install'], default: 'organization' }, description: 'install: events with no organization (install operator only)' };
 }
 function searchParam() {
   return { name: 'search', in: 'query', required: false, schema: { type: 'string' }, description: 'Search filter' };

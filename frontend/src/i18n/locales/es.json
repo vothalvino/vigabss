@@ -6611,5 +6611,18 @@
     "send": "Enviar Respuesta",
     "closedNote": "Este ticket está {{status}}.",
     "openNew": "Abre un ticket nuevo si necesitas más ayuda."
+  },
+  "auditLogs": {
+    "verify": "Verificar integridad",
+    "verifying": "Verificando…",
+    "verifyFailed": "No se pudo verificar la bitácora de auditoría.",
+    "intact_one": "Bitácora íntegra: se verificó {{count}} registro con su cadena de hashes.",
+    "intact_other": "Bitácora íntegra: se verificaron {{count}} registros con su cadena de hashes.",
+    "broken_one": "Problema de integridad en la bitácora: {{count}} hallazgo. Se modificaron, eliminaron o reordenaron registros después de escribirse.",
+    "broken_other": "Problemas de integridad en la bitácora: {{count}} hallazgos. Se modificaron, eliminaron o reordenaron registros después de escribirse.",
+    "unchained_one": "{{count}} registro antiguo es anterior a la cadena de hashes.",
+    "unchained_other": "{{count}} registros antiguos son anteriores a la cadena de hashes.",
+    "position": "posición {{seq}}",
+    "installScope": "Mostrar eventos de toda la instalación (sin organización)"
   }
 }

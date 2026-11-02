@@ -6611,5 +6611,18 @@
     "send": "Enviar Resposta",
     "closedNote": "Este chamado está {{status}}.",
     "openNew": "Abra um novo chamado se precisar de mais ajuda."
+  },
+  "auditLogs": {
+    "verify": "Verificar integridade",
+    "verifying": "Verificando…",
+    "verifyFailed": "Não foi possível verificar o log de auditoria.",
+    "intact_one": "Log de auditoria íntegro: {{count}} registro verificado na cadeia de hashes.",
+    "intact_other": "Log de auditoria íntegro: {{count}} registros verificados na cadeia de hashes.",
+    "broken_one": "Problema de integridade no log de auditoria: {{count}} ocorrência. Registros foram alterados, removidos ou reordenados depois de gravados.",
+    "broken_other": "Problemas de integridade no log de auditoria: {{count}} ocorrências. Registros foram alterados, removidos ou reordenados depois de gravados.",
+    "unchained_one": "{{count}} registro antigo é anterior à cadeia de hashes.",
+    "unchained_other": "{{count}} registros antigos são anteriores à cadeia de hashes.",
+    "position": "posição {{seq}}",
+    "installScope": "Mostrar eventos de toda a instalação (sem organização)"
   }
 }

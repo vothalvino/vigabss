@@ -115,7 +115,9 @@ describe('auditLog', () => {
     );
   });
 
-  test('does not throw on database error (silent failure)', async () => {
+  test('does not throw on database error, but logs and counts it (ASY-38)', async () => {
+    const { auditWriteFailures } = require('../src/utils/opsMetrics');
+    const before = auditWriteFailures.get();
     db.query.mockRejectedValueOnce(new Error('Connection lost'));
 
     await expect(
@@ -127,6 +129,10 @@ describe('auditLog', () => {
       }),
     ).resolves.not.toThrow();
 
-    expect(logger.error).toHaveBeenCalledWith({ err: expect.any(Error) }, 'Audit log error');
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: expect.any(Error), action: 'create', entityType: 'clients' },
+      'Audit log error',
+    );
+    expect(auditWriteFailures.get()).toBe(before + 1);
   });
 });

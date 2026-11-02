@@ -240,7 +240,23 @@ not made healthy by reusing or changing a boot identifier.
 
 | Column | Description | Lawful basis | Retention |
 |---|---|---|---|
-| `user_id`, `ip_address`, `action`, `entity_type`, `entity_id` | Security audit trail | Specific legal duty, consent, or documented Article 9 exception | Operator accountability/prescription policy |
+| `user_id`, `ip_address`, `action`, `entity_type`, `entity_id` | Security audit trail | Specific legal duty, consent, or documented Article 9 exception | Kept; never purged automatically |
+
+Audit rows cannot be updated or deleted: triggers reject both, and the
+nightly retention purge skips the table. Each organization's rows, and the
+install-wide rows with no organization, also form a hash chain (migration
+505). `GET /api/v1/audit-logs/verify` recomputes the chain and lists any row
+changed, removed or reordered since it was written; the install operator can
+check the install-wide chain and read those events with `?scope=install`.
+
+When the accountability or prescription period ends, archiving old rows is an
+operator procedure: export them (`GET /api/v1/audit-logs/export`), store the
+export with its verification result, then, during a maintenance window, drop
+the two immutability triggers, delete the exported rows, and recreate the
+triggers from `database/schema.sql`. Verification then reports the deleted
+range as missing, which the archived export accounts for. Hard-deleting a user
+clears `user_id` on their rows through the foreign key and breaks those rows'
+hashes, so deactivate users instead.
 
 ---
 

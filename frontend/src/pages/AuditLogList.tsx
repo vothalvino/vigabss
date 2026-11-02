@@ -8,8 +8,10 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
+import { useAuth } from '@/auth/AuthContext';
 import { styles, capitalize, fmtDate } from './crudStyles';
 
 // ---------------------------------------------------------------------------
@@ -50,8 +52,19 @@ const ACTIONS = ['create', 'update', 'delete', 'login', 'logout', 'export', 'oth
 // Fetch helper
 // ---------------------------------------------------------------------------
 
-async function fetchAuditLogs(page: number, filters: Filters): Promise<AuditLogsResponse> {
+type Scope = 'organization' | 'install';
+
+interface ChainVerification {
+  intact: boolean;
+  checked: number;
+  last_seq: number;
+  unchained: number;
+  problems: { id: number | null; chain_seq: number; problem: string }[];
+}
+
+async function fetchAuditLogs(page: number, filters: Filters, scope: Scope): Promise<AuditLogsResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
+  if (scope === 'install') query.scope = 'install';
   if (filters.action) query.action = filters.action;
   if (filters.user_id) query.user_id = filters.user_id;
   if (filters.date_from) query.date_from = filters.date_from;
@@ -59,6 +72,13 @@ async function fetchAuditLogs(page: number, filters: Filters): Promise<AuditLogs
   const res = await api.GET('/audit-logs', { params: { query: query as never } });
   if (res.error) throw new Error('Failed to load audit logs');
   return res.data as unknown as AuditLogsResponse;
+}
+
+// ASY-38: recompute the hash chain the database keeps over the audit rows.
+async function verifyChain(scope: Scope): Promise<ChainVerification> {
+  const res = await api.GET('/audit-logs/verify', { params: { query: { scope } } });
+  if (res.error || !res.data) throw new Error('Failed to verify the audit log');
+  return res.data.data;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,13 +119,26 @@ function ActionBadge({ action }: { action: string }) {
 const EMPTY_FILTERS: Filters = { action: '', user_id: '', date_from: '', date_to: '' };
 
 export function AuditLogList() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  // Events with no organization are visible to the install operator only
+  // (the backend 403s everyone else).
+  const isOperator = user?.is_install_operator === true;
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [scope, setScope] = useState<Scope>('organization');
 
   const logsQ = useQuery({
-    queryKey: ['audit-logs', page, filters],
-    queryFn: () => fetchAuditLogs(page, filters),
+    queryKey: ['audit-logs', page, filters, scope],
+    queryFn: () => fetchAuditLogs(page, filters, scope),
   });
+  const verify = useMutation({ mutationFn: () => verifyChain(scope) });
+
+  function changeScope(next: Scope) {
+    setScope(next);
+    setPage(1);
+    verify.reset();
+  }
 
   function setFilter(name: keyof Filters, value: string) {
     setFilters(prev => ({ ...prev, [name]: value }));
@@ -127,7 +160,40 @@ export function AuditLogList() {
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>📜 Audit Logs</h1>
         {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <button type="button" style={styles.btnSecondary} disabled={verify.isPending} onClick={() => verify.mutate()}>
+          {verify.isPending ? t('auditLogs.verifying') : t('auditLogs.verify')}
+        </button>
       </div>
+
+      {isOperator && (
+        <label style={{ ...styles.filterLabel, display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+          <input
+            type="checkbox"
+            checked={scope === 'install'}
+            onChange={e => changeScope(e.target.checked ? 'install' : 'organization')}
+          />
+          {t('auditLogs.installScope')}
+        </label>
+      )}
+
+      {verify.isError && <p role="alert" style={styles.msgError}>{t('auditLogs.verifyFailed')}</p>}
+      {verify.data && (
+        <div role="status" style={verify.data.intact ? styles.msg : styles.msgError}>
+          {verify.data.intact
+            ? t('auditLogs.intact', { count: verify.data.checked })
+            : t('auditLogs.broken', { count: verify.data.problems.length })}
+          {verify.data.unchained > 0 && ` ${t('auditLogs.unchained', { count: verify.data.unchained })}`}
+          {!verify.data.intact && (
+            <ul>
+              {verify.data.problems.map(p => (
+                <li key={`${p.chain_seq}-${p.problem}`}>
+                  {p.id != null ? `#${p.id} ` : ''}({t('auditLogs.position', { seq: p.chain_seq })}): {p.problem}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div style={{ ...styles.filterRow, flexWrap: 'wrap' }}>
         <label style={styles.filterLabel}>Action:</label>
