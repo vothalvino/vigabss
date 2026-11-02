@@ -38,6 +38,9 @@ beforeEach(() => {
   wa.clientEmailCodeBudgetExceeded.mockResolvedValue(false);
   wa.createVerification.mockResolvedValue('654321');
   wa.EMAIL_CODE_LENGTH = 6;
+  // These tests read the English copy; the locale tests below switch it (ASY-40).
+  wa.defaultBotLocale.mockReturnValue('en');
+  wa.botLocale.mockResolvedValue('en');
   // Conversation-state defaults: no in-flight flow.
   wa.getConversationState.mockResolvedValue(null);
   wa.setConversationState.mockResolvedValue();
@@ -487,3 +490,45 @@ describe('free-text support', () => {
     expect(reply).toMatch(/Account balance/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// ASY-40 — the bot speaks the client's language
+// ---------------------------------------------------------------------------
+describe('bot language', () => {
+  it('greets an unbound number in the install default (Spanish)', async () => {
+    wa.defaultBotLocale.mockReturnValue('es');
+    wa.resolveBinding.mockResolvedValue(null);
+    wa.recentInboundCount.mockResolvedValue(0);
+    const { reply } = await bot.handleInbound({ phone: '+5215550000001', body: 'hola' });
+    expect(reply).toMatch(/correo de tu cuenta/);
+  });
+
+  it("shows the menu in the bound client's organization language", async () => {
+    wa.botLocale.mockResolvedValue('es');
+    wa.resolveBinding.mockResolvedValue({ clientId: 5, organizationId: 2, linkId: 1 });
+    wa.recentInboundCount.mockResolvedValue(0);
+    const { reply } = await bot.handleInbound({ phone: '+5215550000002', body: 'menu' });
+    expect(wa.botLocale).toHaveBeenCalledWith(2);
+    expect(reply).toMatch(/¿En qué te puedo ayudar\?/);
+    expect(reply).toMatch(/Saldo de mi cuenta/);
+  });
+
+  it('fills the localized templates, including the visit slot name', async () => {
+    wa.botLocale.mockResolvedValue('pt-BR');
+    wa.resolveBinding.mockResolvedValue({ clientId: 5, organizationId: 2, linkId: 1 });
+    wa.recentInboundCount.mockResolvedValue(0);
+    wa.getConversationState.mockResolvedValue({ state: 'await_visit_slot', clientId: 5, context: { date: '2026-12-01' } });
+    const { reply } = await bot.handleInbound({ phone: '+5215550000003', body: '2' });
+    expect(reply).toMatch(/Visita solicitada para 2026-12-01 \(tarde\), referência #91/);
+  });
+
+  it('every locale defines every key of the English copy', () => {
+    const en = require('../src/locales/en.json').whatsappBot;
+    for (const loc of ['es', 'pt-BR']) {
+      const other = require(`../src/locales/${loc}.json`).whatsappBot;
+      expect(Object.keys(other).sort()).toEqual(Object.keys(en).sort());
+      expect(Object.keys(other.slots).sort()).toEqual(Object.keys(en.slots).sort());
+    }
+  });
+});
+

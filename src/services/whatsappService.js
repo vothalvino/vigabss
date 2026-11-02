@@ -553,7 +553,50 @@ async function clearConversationState(phone) {
   await primaryQuery('DELETE FROM whatsapp_conversation_state WHERE phone_e164 = ?', [phone]);
 }
 
+// ---------------------------------------------------------------------------
+// Bot language (ASY-40)
+// ---------------------------------------------------------------------------
+
+const BOT_LOCALES = ['en', 'es', 'pt-BR'];
+
+/** Map a locale tag (es-MX, pt-BR, en-US…) onto a bot locale file. */
+function botLocaleFor(tag) {
+  const value = String(tag || '').toLowerCase();
+  if (value.startsWith('es')) return 'es';
+  if (value.startsWith('pt')) return 'pt-BR';
+  if (value.startsWith('en')) return 'en';
+  return null;
+}
+
+/** The bot's language before a number is linked to a client. */
+function defaultBotLocale() {
+  return botLocaleFor(config.whatsapp.botDefaultLocale) || 'es';
+}
+
+/**
+ * The bot's language for a linked client's organization: its AI policy's
+ * default_locale, else Spanish for an MX organization and English otherwise.
+ */
+async function botLocale(organizationId) {
+  if (!organizationId) return defaultBotLocale();
+  try {
+    const [[policy]] = await db.query(
+      'SELECT default_locale FROM ai_policies WHERE organization_id = ? LIMIT 1', [organizationId]);
+    const fromPolicy = botLocaleFor(policy?.default_locale);
+    if (fromPolicy) return fromPolicy;
+    const [[org]] = await db.query('SELECT locale FROM organizations WHERE id = ?', [organizationId]);
+    return org?.locale === 'MX' ? 'es' : 'en';
+  } catch (err) {
+    logger.warn({ err, organizationId }, 'Could not resolve the WhatsApp bot locale; using the default');
+    return defaultBotLocale();
+  }
+}
+
 module.exports = {
+  BOT_LOCALES,
+  botLocaleFor,
+  defaultBotLocale,
+  botLocale,
   normalizeSenderId,
   clientLinkGuessesExhausted,
   CLIENT_LINK_GUESSES_PER_DAY,

@@ -103,5 +103,42 @@
     "cdr_export_complete": "Exportação de CDR concluída",
     "nas_health_up": "O NAS {{name}} está ativo",
     "nas_health_down": "O NAS {{name}} está inativo"
+  },
+  "whatsappBot": {
+    "welcome": "👋 Olá! Posso conectar você à sua conta de internet aqui no WhatsApp.\n\nPara confirmar que é você, responda com o *e-mail da sua conta* e eu envio um código, ou abra o portal do cliente (Perfil → Conectar WhatsApp) para obter um código de vinculação.",
+    "emailSent": "Se esse e-mail estiver cadastrado, enviei um código de 6 dígitos para ele. Responda aqui com o código para concluir a conexão.",
+    "bindOk": "✅ Pronto, você está conectado{{name}}! Os recursos da sua conta estarão disponíveis aqui em breve.",
+    "menu": "Olá{{name}}! Como posso ajudar? Responda com um número:\n1️⃣ Saldo da conta\n2️⃣ Meu plano e serviço\n3️⃣ Minhas faturas\n4️⃣ Relatar um problema\n5️⃣ Trocar a senha do Wi-Fi\n6️⃣ Agendar visita técnica\n7️⃣ Falar com uma pessoa",
+    "askProblem": "Descreva o problema em uma única mensagem e eu abro um chamado para você. (Responda MENU para voltar.)",
+    "pickService": "Sobre qual serviço é? Responda com o número:\n{{list}}",
+    "pickInvalid": "Responda com o número do serviço (por exemplo 1), ou MENU para voltar.",
+    "problemLogged": "✅ Obrigado, abri o chamado #{{id}} e nossa equipe vai dar retorno. Responda MENU quando quiser.",
+    "humanLogged": "👍 Alguém da nossa equipe vai entrar em contato. Sua referência é o chamado #{{id}}.",
+    "ticketCapped": "Você já tem solicitações abertas conosco e nossa equipe está cuidando delas. Responda MENU para outras opções.",
+    "aiEscalated": "Obrigado, encaminhei sua mensagem para o suporte e alguém responderá aqui em breve. Responda MENU quando quiser.",
+    "aiMenuHint": "Responda MENU para ver as opções, ou 7 para falar com uma pessoa.",
+    "wifiConfirm": "🔐 Vou definir uma *nova* senha de Wi-Fi e enviá-la para {{email}}; nunca a mostro aqui no chat. Seus dispositivos precisarão se reconectar com a nova senha.\n\nResponda *CONFIRMAR* para continuar, ou MENU para cancelar.",
+    "wifiNoEmail": "Para trocar a senha do Wi-Fi com segurança preciso de um e-mail cadastrado para enviá-la. Cadastre um no portal do cliente, ou responda 7 para falar com uma pessoa.",
+    "wifiApplied": "✅ Sua nova senha de Wi-Fi foi enviada para {{email}} e para o seu roteador. Ela vale quando o roteador a aplicar, geralmente em poucos minutos; depois reconecte seus dispositivos com ela.",
+    "wifiFiled": "✅ Solicitação enviada (#{{id}}). Nossa equipe vai definir uma nova senha de Wi-Fi e entrar em contato em breve.",
+    "wifiEmailFailed": "Não consegui enviar a nova senha de Wi-Fi por e-mail agora, então NÃO a troquei (para você não perder a conexão). Tente novamente em instantes, ou responda 7 para falar com uma pessoa.",
+    "confirmInvalid": "Responda *CONFIRMAR* para continuar, ou MENU para cancelar.",
+    "askVisitDate": "Em que dia você quer a visita de um técnico? Responda com uma data (por exemplo 2026-08-05). Responda MENU para cancelar.",
+    "visitDateInvalid": "Responda com uma data como 2026-08-05, ou MENU para cancelar.",
+    "askVisitSlot": "Qual horário é melhor? Responda:\n1) Manhã (8h–12h)\n2) Tarde (12h–17h)\n3) Noite (17h–20h)",
+    "visitLogged": "✅ Visita solicitada para {{date}} ({{slot}}), referência #{{id}}. Vamos confirmar o agendamento. Responda MENU quando quiser.",
+    "noService": "Você não tem um serviço ativo cadastrado, então não há nada para alterar. Responda 7 para falar com uma pessoa.",
+    "actionCapped": "Você fez várias solicitações recentemente; aguarde um pouco antes de tentar de novo, ou responda 7 para falar com uma pessoa.",
+    "unlinked": "Seu número de WhatsApp foi desconectado da sua conta. Responda com seu e-mail quando quiser para reconectar.",
+    "codeBad": "Esse código não é válido ou expirou. Responda com seu e-mail para receber um novo, ou gere outro no portal.",
+    "codeMismatch": "Esse código não confere. Verifique e tente de novo, ou responda com seu e-mail para receber um novo.",
+    "locked": "Tentativas incorretas demais. Aguarde um pouco e depois peça um novo código.",
+    "cooldown": "Você enviou muitas mensagens recentemente; aguarde alguns minutos e tente novamente.",
+    "emailOnFile": "seu e-mail cadastrado",
+    "slots": {
+      "morning": "manhã",
+      "afternoon": "tarde",
+      "evening": "noite"
+    }
   }
 }

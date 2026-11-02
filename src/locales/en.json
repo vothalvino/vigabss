@@ -103,5 +103,42 @@
     "cdr_export_complete": "CDR export complete",
     "nas_health_up": "NAS {{name}} is up",
     "nas_health_down": "NAS {{name}} is down"
+  },
+  "whatsappBot": {
+    "welcome": "👋 Hi! I can connect you to your ISP account here on WhatsApp.\n\nTo verify it's you, reply with your *account email* and I'll send you a code — or open your customer portal (Profile → Connect WhatsApp) to get a linking code.",
+    "emailSent": "If that email is on file, I've sent a 6-digit code to it. Reply here with the code to finish connecting.",
+    "bindOk": "✅ You're connected{{name}}! Your account features will be available here soon.",
+    "menu": "Hi{{name}}! What can I help you with? Reply with a number:\n1️⃣ Account balance\n2️⃣ My plan & service\n3️⃣ My invoices\n4️⃣ Report a problem\n5️⃣ Reset Wi-Fi password\n6️⃣ Schedule a technician visit\n7️⃣ Talk to a human",
+    "askProblem": "Please describe the problem in one message and I'll open a ticket for you. (Reply MENU to go back.)",
+    "pickService": "Which service is this about? Reply with the number:\n{{list}}",
+    "pickInvalid": "Please reply with the number of the service (e.g. 1), or MENU to go back.",
+    "problemLogged": "✅ Thanks — I've opened ticket #{{id}} and our team will follow up. Reply MENU anytime.",
+    "humanLogged": "👍 A team member will reach out. Your reference is ticket #{{id}}.",
+    "ticketCapped": "You already have open requests with us — our team is on it. Reply MENU for other options.",
+    "aiEscalated": "Thanks — I've passed this to our support team and someone will follow up here shortly. Reply MENU anytime.",
+    "aiMenuHint": "Reply MENU for the options list, or 7 to talk to a person.",
+    "wifiConfirm": "🔐 I'll set a *new* Wi-Fi password and email it to {{email}} — I never show it here in chat. Your devices will need to reconnect with the new password.\n\nReply *CONFIRM* to proceed, or MENU to cancel.",
+    "wifiNoEmail": "To reset your Wi-Fi password securely I need an email on file to send the new one to. Please add one in your customer portal, or reply 7 to talk to a human.",
+    "wifiApplied": "✅ Your new Wi-Fi password has been emailed to {{email}} and sent to your router. It takes effect when the router applies it, usually within a few minutes; then reconnect your devices with it.",
+    "wifiFiled": "✅ Request submitted (#{{id}}). Our team will set a new Wi-Fi password and contact you shortly.",
+    "wifiEmailFailed": "I couldn't email your new Wi-Fi password just now, so I did NOT change it (to avoid locking you out). Please try again in a bit, or reply 7 to talk to a human.",
+    "confirmInvalid": "Reply *CONFIRM* to proceed, or MENU to cancel.",
+    "askVisitDate": "What day would you like a technician to visit? Reply with a date (e.g. 2026-08-05). Reply MENU to cancel.",
+    "visitDateInvalid": "Please reply with a date like 2026-08-05, or MENU to cancel.",
+    "askVisitSlot": "What time works best? Reply:\n1) Morning (8am–12pm)\n2) Afternoon (12pm–5pm)\n3) Evening (5pm–8pm)",
+    "visitLogged": "✅ Visit requested for {{date}} ({{slot}}) — reference #{{id}}. We'll confirm the appointment. Reply MENU anytime.",
+    "noService": "You don't have an active service on file, so there's nothing to change. Reply 7 to talk to a human.",
+    "actionCapped": "You've made several requests recently — please wait a bit before trying again, or reply 7 to talk to a human.",
+    "unlinked": "Your WhatsApp number has been disconnected from your account. Reply with your email anytime to reconnect.",
+    "codeBad": "That code isn't valid or has expired. Reply with your email for a new one, or get a fresh code from your portal.",
+    "codeMismatch": "That code doesn't match. Check it and try again, or reply with your email for a new one.",
+    "locked": "Too many incorrect attempts. Please wait a bit, then request a new code.",
+    "cooldown": "You've sent a lot of messages recently — please wait a few minutes and try again.",
+    "emailOnFile": "your email on file",
+    "slots": {
+      "morning": "morning",
+      "afternoon": "afternoon",
+      "evening": "evening"
+    }
   }
 }

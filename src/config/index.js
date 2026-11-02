@@ -224,6 +224,8 @@ const config = {
   // Outbound replies go through smsTransport (channel:'whatsapp').
   whatsapp: {
     provider: process.env.WHATSAPP_PROVIDER || 'auto', // auto | meta | twilio
+    // Bot language before a number is linked to a client (ASY-40): en | es | pt-BR.
+    botDefaultLocale: process.env.WHATSAPP_BOT_DEFAULT_LOCALE || 'es',
     appSecret: process.env.WHATSAPP_APP_SECRET || '',      // Meta Cloud API app secret
     verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || '',  // Meta GET webhook-verification token
     // Meta Cloud API outbound (replies within the 24h customer-service window).
