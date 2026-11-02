@@ -451,7 +451,8 @@ router.get('/invoices', async (req, res, next) => {
     // invoice another tenant issued against this client_id (TNB-05) must never
     // surface here. Null-safe <=> because invoices.organization_id (and the
     // client's) may be NULL on a single-tenant install.
-    let whereClause = 'WHERE i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL';
+    // A draft is not yet an invoice the subscriber was sent (TNB-30).
+    let whereClause = "WHERE i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL AND i.status <> 'draft'";
     const params = [req.client.id, req.client.organizationId];
 
     // 'overdue' is derived, never stored (see routes/invoices.js): filtering
@@ -530,7 +531,7 @@ router.get('/invoices/:id', async (req, res, next) => {
          FROM billing_periods
          WHERE invoice_id IS NOT NULL
        ) bp ON bp.invoice_id = i.id AND bp.rn = 1
-       WHERE i.id = ? AND i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL`,
+       WHERE i.id = ? AND i.client_id = ? AND i.organization_id <=> ? AND i.deleted_at IS NULL AND i.status <> 'draft'`,
       [req.params.id, req.client.id, req.client.organizationId],
     );
 
@@ -575,7 +576,7 @@ router.post('/invoices/:id/pay', async (req, res, next) => {
     const [rows] = await db.query(
       // Org-bound (see GET /invoices) so a foreign-tenant invoice carrying this
       // client_id can never open a checkout on that tenant's gateway.
-      'SELECT id, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      'SELECT id, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL AND status <> \'draft\'',
       [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!rows[0]) throw new NotFoundError('Invoice');
@@ -1037,7 +1038,7 @@ router.get('/usage/current-month', async (req, res, next) => {
 router.get('/invoices/:id/pdf', async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, invoice_number, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      'SELECT id, invoice_number, organization_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL AND status <> \'draft\'',
       [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!rows[0]) throw new NotFoundError('Invoice');
@@ -1055,7 +1056,7 @@ router.get('/invoices/:id/pdf', async (req, res, next) => {
 router.get('/invoices/:id/cfdi', async (req, res, next) => {
   try {
     const [invoiceRows] = await db.query(
-      'SELECT id, client_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
+      'SELECT id, client_id FROM invoices WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL AND status <> \'draft\'',
       [req.params.id, req.client.id, req.client.organizationId],
     );
     if (!invoiceRows[0]) throw new NotFoundError('Invoice');
