@@ -337,6 +337,16 @@ that inevitably fail, but they never replace server-side authorization.
 
 - Routes compose middleware and handlers. Use a permission slug that is seeded
   and granted to every intended role.
+- Every `/api/v1` route authenticates by default: `applyDefaultDeny`
+  (`src/middleware/v1DefaultDeny.js`) puts `authenticate` in front of each
+  route's handlers, except the reviewed `PUBLIC_V1_ROUTES` (sign-in, portal,
+  provider webhooks, collectors). Route files still add `authenticate`,
+  `orgScope` and `requirePermission` themselves.
+  `tests/routeSecurityInventory.test.js` walks the route tree and fails on a
+  route that lacks the organization scope or a permission guard without a
+  reviewed reason, or a write that only a `*.view` permission guards. Custom
+  guards are marked with `tagGuard` from `src/middleware/routeGuard.js` so the test
+  can see them.
 - Validation schemas live in `src/middleware/schemas/`. The custom `validate()`
   middleware validates declared fields but, by default, leaves undeclared fields
   in the body. Sensitive mutation routes can opt into `{ strip: true }`.
@@ -470,7 +480,11 @@ process re-syncs its cron handles from the table each minute, and the
 disabled or deleted row needs no restart; the BullMQ worker skips a queued job
 whose row was disabled or deleted. A seed row without a
 cron expression, dispatcher case, scope classification, and dispatch test is a
-dead feature. Keep global versus organization-scoped execution explicit.
+dead feature. `tests/scheduledTaskSeedContract.test.js` replays the seeds from
+the migrations and from `schema.sql`: both must seed the same rows, every row
+needs a dispatcher case, and a task whose case is a `{ deferred: true }` stub
+must be seeded disabled (migration 506); enable it in the migration that
+implements it. Keep global versus organization-scoped execution explicit.
 A seeded install-wide row runs with `organizationId = null`; a handler that
 binds `organization_id = ?` must then be fanned out with
 `forEachActiveOrganization` (`src/services/organizationFanOut.js`) — it reads

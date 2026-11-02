@@ -18,6 +18,7 @@ const snmpPoller = require('./snmpPoller');
 const pollerEngine = require('./pollerEngine');
 const snmpTrapReceiver = require('./snmpTrapReceiver');
 const emailTransport = require('./emailTransport');
+const { noteInvoiceRun, noteBillingEmail } = require('../utils/opsMetrics');
 const smsTransport = require('./smsTransport');
 const webhookService = require('./webhookService');
 const checkoutService = require('./checkoutService');
@@ -486,6 +487,7 @@ async function runAutoInvoice(organizationId) {
 
   let generated = 0;
   let emailed = 0;
+  let emailFailed = 0;
   let failed = 0;
   const errors = [];
   for (const contract of contracts) {
@@ -500,6 +502,7 @@ async function runAutoInvoice(organizationId) {
         const plan = { name: contract.plan_name, price: contract.plan_price, currency: contract.plan_currency };
         const invoice = await billingService.generateInvoice(period, contract, plan, contract.organization_id);
         generated++;
+        noteInvoiceRun('generated');
 
         // Send invoice notification email to client
         try {
@@ -525,7 +528,7 @@ async function runAutoInvoice(organizationId) {
               dueDate: invoice.due_date ? new Date(invoice.due_date).toISOString().slice(0, 10) : '',
               items: itemRows,
             });
-            await emailTransport.sendEmail({
+            const sent = await emailTransport.sendEmail({
               organizationId: contract.organization_id,
               clientId: contract.client_id,
               messageClass: 'transactional',
@@ -533,10 +536,17 @@ async function runAutoInvoice(organizationId) {
               subject,
               html,
             });
+            // sendEmail reports a failed delivery as { success: false }; it
+            // used to count as sent.
+            if (sent && sent.success === false) throw new Error(sent.error || 'Invoice email failed');
             emailed++;
+            noteBillingEmail('invoice', 'sent');
           }
-        } catch (_emailErr) {
-          // Email failure must not block the billing cycle
+        } catch (emailErr) {
+          // Email failure must not block the billing cycle, but it is counted.
+          emailFailed++;
+          noteBillingEmail('invoice', 'failed');
+          logger.warn({ err: emailErr, contractId: contract.id, invoiceId: invoice.id }, 'Invoice email not sent');
         }
       }
     } catch (err) {
@@ -545,6 +555,7 @@ async function runAutoInvoice(organizationId) {
       // failed (failIfInvoicingFailed). An already-invoiced period is not an
       // error — generateInvoice returns the existing invoice for it.
       failed++;
+      noteInvoiceRun('failed');
       if (errors.length < 50) errors.push({ contract_id: contract.id, error: err.message });
       logger.error({ err, contractId: contract.id, organizationId: contract.organization_id }, 'Scheduled invoice generation failed for contract');
     }
@@ -553,6 +564,7 @@ async function runAutoInvoice(organizationId) {
   return {
     invoices_generated: generated,
     emails_sent: emailed,
+    emails_failed: emailFailed,
     contracts_checked: contracts.length,
     contracts_failed: failed,
     errors,
@@ -648,6 +660,7 @@ async function runSuspensionWarnings(organizationId) {
           });
           if (sent && sent.success === false) throw new Error(sent.error || 'Suspension warning email failed');
           warnings_sent++;
+          noteBillingEmail('suspension_warning', 'sent');
           // The email is sent; the suspension.warning hook adds the SMS (ASY-08).
           await require('./businessEvents').emitSuspensionWarning(contract.organization_id, {
             contract,
@@ -662,6 +675,7 @@ async function runSuspensionWarnings(organizationId) {
       } catch (err) {
         // Email failure must not block the suspension cycle. Release the claim
         // so the next run retries this warning.
+        noteBillingEmail('suspension_warning', 'failed');
         logger.warn({ err, contractId: contract.contract_id, ruleId: rule.id }, 'Suspension warning not sent');
         if (claimed) {
           warnedThisRun.delete(contract.contract_id);
@@ -733,7 +747,7 @@ async function runAutoSuspend(organizationId) {
               total: contract.total,
               currency: contract.currency,
             });
-            await emailTransport.sendEmail({
+            const sent = await emailTransport.sendEmail({
               organizationId: org.id,
               clientId: contract.client_id,
               messageClass: 'transactional',
@@ -741,9 +755,13 @@ async function runAutoSuspend(organizationId) {
               subject,
               html,
             });
+            if (sent && sent.success === false) throw new Error(sent.error || 'Suspension notice email failed');
+            noteBillingEmail('suspension_notice', 'sent');
           }
-        } catch (_emailErr) {
-          // Email failure must not block the suspension cycle
+        } catch (emailErr) {
+          // Email failure must not block the suspension cycle, but it is counted.
+          noteBillingEmail('suspension_notice', 'failed');
+          logger.warn({ err: emailErr, contractId: contract.id }, 'Suspension notice email not sent');
         }
       }
     }
@@ -857,6 +875,7 @@ async function runBillingCycle(organizationId) {
   return failIfInvoicingFailed({
     invoices_generated: invoiceResult.invoices_generated,
     emails_sent: invoiceResult.emails_sent,
+    emails_failed: invoiceResult.emails_failed,
     contracts_checked: invoiceResult.contracts_checked,
     contracts_failed: invoiceResult.contracts_failed,
     errors: invoiceResult.errors,

@@ -6,6 +6,7 @@
 // =============================================================================
 
 const crypto = require('crypto');
+const { notePacError } = require('../utils/opsMetrics');
 const cfdiSealService = require('./cfdiSealService');
 const encryption = require('../utils/encryption');
 const db = require('../config/database');
@@ -696,6 +697,7 @@ async function stamp(cfdiDocumentId, { userId = null } = {}) {
         break;
       } catch (pacErr) {
         providerErr = pacErr;
+        notePacError(pac.provider_name, 'stamp');
         logger.warn({ cfdiDocumentId, pacId: pac.id, attempt, err: pacErr.message }, 'PAC stamping attempt failed');
         // A PAC RESPONSE-derived error or a TIMEOUT is ambiguous (the doc may
         // be registered) — stop retrying this provider immediately.
@@ -1240,6 +1242,7 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null, { userId =
         throw pacErr;
       }
       lastErr = pacErr;
+      notePacError(pac.provider_name, 'cancel');
       logger.warn({ cfdiDocumentId, pacId: pac.id, err: pacErr.message }, 'PAC cancellation attempt failed — trying next provider');
     }
   }
@@ -1587,6 +1590,7 @@ async function getCancellationStatus(cancellationId) {
   try {
     pacResult = await callPacCancelStatus(pac, cancellation.uuid, cancellation);
   } catch (err) {
+    notePacError(pac.provider_name, 'cancel_status');
     logger.warn({ cancellationId, err: err.message }, 'Failed to poll PAC for cancellation status');
     return {
       cancellation_id: cancellationId,

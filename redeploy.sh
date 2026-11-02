@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# VigaBSS 0.1.0-alpha.1 production redeploy: pull main, pull the matching image, migrate,
-# verify — as one command, from any directory.
+# VigaBSS 0.1.0-alpha.1 production redeploy: update to the newest release (or
+# main), pull the matching image, migrate, verify — as one command, from any
+# directory.
 #
 # Install once as a global command:
 #     sudo install -m 0755 /opt/vigabss/redeploy.sh /usr/local/bin/redeploy
@@ -616,6 +617,47 @@ verify_image_signature() {
   echo "    deploying ${digest_ref}"
 }
 
+# Release channel (OPS-24). By default redeploy deploys the newest v* release
+# tag and its published image (CI tags a release image :<version>), so an
+# install no longer tracks every commit to main. VIGABSS_CHANNEL=main (in
+# .env.prod) follows main and deploys the image of its head commit. Until a release is tagged the
+# release channel follows main too. Sets SOURCE_RELEASE to the tag deployed.
+latest_release_tag() {
+  # versionsort.suffix=- sorts v1.0.0-rc.1 before v1.0.0.
+  git -C "$1" -c versionsort.suffix=- tag --list 'v[0-9]*' --sort=-version:refname | head -n 1
+}
+
+# The environment, or VIGABSS_CHANNEL in .env.prod: `sudo` drops a
+# `VIGABSS_CHANNEL=main sudo redeploy` prefix.
+resolve_channel() {
+  local line channel="${VIGABSS_CHANNEL:-}"
+  if [[ -z "$channel" && -f "$ENV_FILE" ]]; then
+    line="$( { grep -E '^[[:space:]]*(export[[:space:]]+)?VIGABSS_CHANNEL[[:space:]]*=' "$ENV_FILE" || true; } 2>/dev/null | tail -n1 )"
+    channel="$(printf '%s\n' "$line" | cut -d= -f2- | sed -E 's/[[:space:]]*#.*$//' | tr -d '\r"'"'"' \t' | tr '[:upper:]' '[:lower:]')"
+  fi
+  printf '%s\n' "${channel:-release}"
+}
+
+update_source() {
+  local channel
+  channel="$(resolve_channel)"
+  SOURCE_RELEASE=""
+  case "$channel" in
+    release|main) ;;
+    *) echo "error: VIGABSS_CHANNEL must be 'release' or 'main', not '${channel}'" >&2; return 1 ;;
+  esac
+  git -C "$APP_DIR" fetch --tags origin || return 1
+  [[ "$channel" == "release" ]] && SOURCE_RELEASE="$(latest_release_tag "$APP_DIR")"
+  if [[ -n "$SOURCE_RELEASE" ]]; then
+    echo "==> Release channel: ${SOURCE_RELEASE}"
+    git -C "$APP_DIR" checkout --detach "refs/tags/${SOURCE_RELEASE}" || return 1
+  else
+    [[ "$channel" == "release" ]] && echo "==> Release channel: no release is tagged yet; following main"
+    git -C "$APP_DIR" checkout main || return 1
+    git -C "$APP_DIR" pull --ff-only origin main || return 1
+  fi
+}
+
 # Sourced by tests to get the functions above without running a deploy.
 if [[ "${VIGABSS_LIB_ONLY:-${FIREISP_LIB_ONLY:-0}}" == "1" ]]; then
   return 0 2>/dev/null || exit 0
@@ -628,9 +670,7 @@ fi
 
 echo "==> Updating source in $APP_DIR"
 REDEPLOY_SCRIPT_BEFORE="$(git -C "$APP_DIR" rev-parse HEAD:redeploy.sh 2>/dev/null || true)"
-git -C "$APP_DIR" fetch origin
-git -C "$APP_DIR" checkout main
-git -C "$APP_DIR" pull --ff-only origin main
+update_source || exit 1
 
 # Bash parsed this file before the git pull. If redeploy.sh itself changed, the
 # first invocation would otherwise continue running the old implementation and
@@ -653,10 +693,12 @@ resolve_host_nginx_mode
 dc() { docker compose "${COMPOSE_ARGS[@]}" --env-file "$ENV_FILE" "$@"; }
 
 # Precedence: positional argument, then VIGABSS_IMAGE_TAG, then its legacy
-# FIREISP_IMAGE_TAG alias, then the commit just checked out. The argument comes
-# first because it is the only form that survives `sudo`.
+# FIREISP_IMAGE_TAG alias, then the release just checked out (its image is
+# :<version>), then the commit just checked out. The argument comes first
+# because it is the only form that survives `sudo`.
 PINNED_ENV_TAG="${VIGABSS_IMAGE_TAG:-${FIREISP_IMAGE_TAG:-}}"
-TAG="${1:-${PINNED_ENV_TAG:-$(git -C "$APP_DIR" rev-parse HEAD)}}"
+SOURCE_TAG="${SOURCE_RELEASE:+${SOURCE_RELEASE#v}}"
+TAG="${1:-${PINNED_ENV_TAG:-${SOURCE_TAG:-$(git -C "$APP_DIR" rev-parse HEAD)}}}"
 export VIGABSS_IMAGE="${REGISTRY_IMAGE}:${TAG}"
 # Keep old Compose overrides and locally customised overlays working during the
 # rename. New Compose files consume VIGABSS_IMAGE first.

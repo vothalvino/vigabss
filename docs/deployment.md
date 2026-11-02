@@ -132,6 +132,17 @@ then redeploy any time, from any directory:
 sudo redeploy
 ```
 
+`redeploy` (and `install.sh`) follow a channel, set by `VIGABSS_CHANNEL` in
+`.env.prod`:
+
+- `release` (the default): the newest `v*` release tag and its published image
+  (`ghcr.io/vothalvino/vigabss:<version>`). Until a release is tagged, this
+  follows `main`.
+- `main`: the head of `main` and the image CI published for that commit.
+
+Set it in `.env.prod`, not as a `VIGABSS_CHANNEL=main sudo redeploy` prefix,
+which `sudo` drops. CI publishes an image only after every test job passed.
+
 > **Why a wrapper and not `install -m 0755 …`?** A copy goes stale the moment
 > you `git pull`: you keep running the old script and get the old behaviour with
 > nothing to indicate it. The wrapper always executes the version that shipped
@@ -1169,6 +1180,19 @@ Available metrics:
   appear in `http_request_errors_total`. An `INTERNAL_SERVER_ERROR` is also
   logged with its request id, user, organization and operation and sent to
   Sentry; a `FORBIDDEN` is logged as a warning.
+- Billing and payments: `billing_invoices_total{result}` (scheduled invoice
+  generation per contract), `billing_emails_total{kind,result}` (invoice and
+  suspension emails; a delivery the transport refused counts as `failed`),
+  `billing_autopay_charges_total{result}`, `billing_payment_retries_total{result}`,
+  `payment_webhook_events_total{provider,status}` (`no_match` is an event for a
+  payment this install has no transaction for, `failed` a processing error),
+  `payment_reconcile_failures_total` and `cfdi_pac_errors_total{provider,operation}`.
+  The `VigaBSS_InvoiceGenerationFailures`, `VigaBSS_BillingEmailFailures`,
+  `VigaBSS_PaymentWebhookFailures`, `VigaBSS_PaymentReconcileFailures` and
+  `VigaBSS_PacErrors` alerts fire on any failure. `GET
+  /payment-gateways/webhook-events` and `GET
+  /payment-gateways/unsettled-transactions` list the events and the collected
+  payments that no invoice shows yet.
 
 ---
 
@@ -1785,6 +1809,22 @@ scheduled-task locks while a task runs without Redis. It is also the most
 scheduled tasks one instance runs at once; the rest wait their turn. These
 sessions used to come from the main pool, and the tasks' own queries need
 connections from it too, so 20 tasks due at the same minute deadlocked the API.
+
+When every connection of a pool is busy, a request waits at most
+`DB_ACQUIRE_TIMEOUT_MS` (default 10000) for one, and at most `DB_QUEUE_LIMIT`
+(default 200) requests wait at a time. Beyond either limit the request fails
+with `503 DB_POOL_EXHAUSTED` instead of hanging until the 30-second request
+timeout. `/metrics` reports each pool (`primary`, `replica`, `lock`, and
+`tenant` summed over isolated tenants):
+
+- `db_pool_connections{pool,state}` — connections `in_use` and `idle`.
+- `db_pool_connection_limit{pool}` and `db_pool_waiting_requests{pool}`.
+- `db_pool_acquire_wait_seconds{pool}` — time to get a connection, for
+  transactions and for statements run while the pool was full.
+- `db_pool_acquire_failures_total{pool,reason}` — `timeout` or `queue_full`.
+
+`VigaBSS_DbPoolSaturated` fires after requests have waited for 5 minutes, and
+`VigaBSS_DbPoolRefusals` on any refusal.
 
 ```sql
 -- Check current MySQL max connections

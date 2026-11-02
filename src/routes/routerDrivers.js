@@ -128,7 +128,9 @@ router.delete('/:id', requirePermission('router_driver_configs.delete'), async (
 });
 
 // POST /router-drivers/:id/test
-router.post('/:id/test', requirePermission('router_driver_configs.view'), async (req, res, next) => {
+// Logs in to the router with its stored credentials and records the result,
+// so it needs the same authority as editing the config (SEC-22).
+router.post('/:id/test', requirePermission('router_driver_configs.update'), async (req, res, next) => {
   try {
     const result = await routerDriverService.testDriverConnection(req.params.id, req.orgId);
     if (!result) return res.status(404).json({ error: { message: 'Router driver config not found' } });

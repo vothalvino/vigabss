@@ -263,3 +263,31 @@ describe('shared behaviour', () => {
     expect(ids).toEqual(['clients', 'fieldops', 'billing', 'support', null]);
   });
 });
+
+// FE-25: with resolved permissions (what /auth/me returns), a custom group or a
+// grant to a built-in group decides what the nav shows, not the persona rank.
+describe('resolved permissions', () => {
+  it('a support-kind custom group granted invoices sees Invoices', () => {
+    const nav = resolve('support', 'MX', ['invoices.view', 'tickets.view']);
+    expect(nav.billing?.items ?? []).toContain('/invoices');
+  });
+
+  it('a technician-kind custom group without devices.view does not see Devices', () => {
+    const nav = resolve('technician', 'MX', ['work_orders.view']);
+    const all = Object.values(nav).flatMap(s => s.items);
+    expect(all).not.toContain('/devices');
+    expect(all).toContain('/work-orders');
+  });
+
+  it('the hub link shows only when the section has something to open', () => {
+    const nav = resolve('billing', 'MX', ['tickets.view']);
+    expect(nav.billing).toBeUndefined();
+  });
+
+  it('readonly sees only what its grants open', () => {
+    const nav = resolve('readonly', 'MX', ['clients.view']);
+    const all = Object.values(nav).flatMap(s => s.items);
+    expect(all).toContain('/clients');
+    expect(all).not.toContain('/invoices');
+  });
+});
