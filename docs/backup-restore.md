@@ -245,7 +245,37 @@ Supported providers (everything speaks the S3 API; only the endpoint differs):
 
 Remote retention is the bucket's job — set a lifecycle/expiration rule on the
 bucket (e.g. delete objects under `db-backups/` after 90 days). The app only
-rotates the **local** copies.
+rotates the **local** copies. Add a rule that aborts incomplete multipart
+uploads after a day as well: dumps larger than 16 MiB are uploaded in parts,
+and a part left by a crashed upload is billed until it is aborted.
+
+Every request to the destination times out: after `BACKUP_S3_IDLE_TIMEOUT_MS`
+(default 60 s) without network activity, or `BACKUP_S3_REQUEST_TIMEOUT_MS`
+(default 15 min) in total. A stalled destination fails that night's remote
+copy (`remote_status = failed`) instead of blocking every later backup.
+
+#### Encrypting the remote copy
+
+Set `BACKUP_ENCRYPTION_KEY` to encrypt every remote backup before it leaves
+the server, so the bucket's provider and anyone who can read the bucket
+cannot read the database:
+
+```bash
+openssl rand -base64 32   # store the output in BACKUP_ENCRYPTION_KEY
+```
+
+Encrypted backups are uploaded as `<name>.sql.gz.enc` (AES-256-GCM). The
+local copies in `storage/backups/` stay plain gzip. To restore one, decrypt it
+first, then restore the `.sql.gz` as usual:
+
+```bash
+BACKUP_ENCRYPTION_KEY='<key>' node src/scripts/decryptBackup.js \
+  fireisp_2026-11-02T02-00-00.sql.gz.enc fireisp_2026-11-02T02-00-00.sql.gz
+```
+
+Keep the key outside the server, for example in a password manager. Without
+it, the encrypted backups cannot be restored. A malformed key fails the
+remote copy and keeps the local backup.
 
 #### Self-hosted backup server with MinIO
 

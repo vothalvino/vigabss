@@ -57,6 +57,7 @@ function getSigningKey(secretKey, dateStamp, region, service) {
  * @param {object} opts
  * @param {string} opts.method       — HTTP method (PUT / DELETE / HEAD)
  * @param {string} opts.path         — URL path (e.g. "/bucket/backups/file.sql.gz")
+ * @param {string} [opts.query]      — Canonical query string (sorted, encoded)
  * @param {string} opts.region       — AWS region
  * @param {string} opts.accessKey    — Access key ID
  * @param {string} opts.secretKey    — Secret access key
@@ -68,7 +69,7 @@ function getSigningKey(secretKey, dateStamp, region, service) {
  * @returns {string} the Authorization header value
  */
 function buildAuthorizationHeader(opts) {
-  const { method, path: urlPath, region, accessKey, secretKey, payloadHash, dateISO, dateStamp, headers } = opts;
+  const { method, path: urlPath, query = '', region, accessKey, secretKey, payloadHash, dateISO, dateStamp, headers } = opts;
 
   const service = 's3';
   const names = Object.keys(headers).map(h => h.toLowerCase()).sort();
@@ -78,7 +79,7 @@ function buildAuthorizationHeader(opts) {
   const canonicalRequest = [
     method,
     urlPath,
-    '', // query string
+    query,
     canonicalHeaders,
     signedHeaders,
     payloadHash,
@@ -186,15 +187,36 @@ function normalizedPrefix(config) {
 // Signed requests
 // ---------------------------------------------------------------------------
 
+// ASY-30: a stalled endpoint used to leave the request pending forever. The
+// backup run never finished, its in-process guard stayed set, and every later
+// backup failed with 'already in progress' until a restart. Every request now
+// fails after REQUEST_IDLE_MS without socket activity or REQUEST_DEADLINE_MS
+// in total.
+function timeoutMs(name, fallback) {
+  const parsed = Number.parseInt(process.env[name] || '', 10);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+const REQUEST_IDLE_MS = () => timeoutMs('BACKUP_S3_IDLE_TIMEOUT_MS', 60 * 1000);
+const REQUEST_DEADLINE_MS = () => timeoutMs('BACKUP_S3_REQUEST_TIMEOUT_MS', 15 * 60 * 1000);
+
+/** Canonical SigV4 query string: keys sorted, keys and values URI-encoded. */
+function canonicalQuery(query) {
+  return Object.keys(query).sort()
+    .map(key => `${uriEncodeSegment(key)}=${uriEncodeSegment(String(query[key] ?? ''))}`)
+    .join('&');
+}
+
 /**
  * Perform a signed S3 request with an optional buffer body.
- * Resolves {statusCode, body}; rejects only on transport errors.
+ * Resolves {statusCode, headers, body}; rejects on transport errors and on
+ * the idle or total timeout.
  */
-function signedRequest(config, method, objectKey, body, contentType) {
+function signedRequest(config, method, objectKey, body, contentType, query = {}) {
   const { host, origin, basePath } = resolveTarget(config);
   // The signed path includes any endpoint base path, and the request URL is
   // origin + this exact path — signed and sent always match.
   const urlPath = `${basePath}${objectPath(config, objectKey)}`;
+  const queryString = canonicalQuery(query);
   const payloadHash = hash(body || '', 'hex');
 
   const now = new Date();
@@ -214,6 +236,7 @@ function signedRequest(config, method, objectKey, body, contentType) {
   const authorization = buildAuthorizationHeader({
     method,
     path: urlPath,
+    query: queryString,
     region: config.region,
     accessKey: config.accessKey,
     secretKey: config.secretKey,
@@ -228,18 +251,37 @@ function signedRequest(config, method, objectKey, body, contentType) {
     method,
     hostname: parsedUrl.hostname,
     port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-    path: parsedUrl.pathname + (parsedUrl.search || ''),
+    path: parsedUrl.pathname + (queryString ? `?${queryString}` : ''),
     headers: { ...headers, Authorization: authorization },
   };
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    let deadline = null;
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      fn(value);
+    };
     const transport = parsedUrl.protocol === 'https:' ? https : http;
     const req = transport.request(requestOptions, (res) => {
       let responseBody = '';
       res.on('data', chunk => { responseBody += chunk; });
-      res.on('end', () => resolve({ statusCode: res.statusCode, body: responseBody }));
+      res.on('end', () => settle(resolve, { statusCode: res.statusCode, headers: res.headers || {}, body: responseBody }));
+      res.on('error', err => settle(reject, err));
     });
-    req.on('error', reject);
+    const abort = (message) => {
+      const err = Object.assign(new Error(message), { code: 'ETIMEDOUT' });
+      settle(reject, err);
+      req.destroy(err);
+    };
+    const idleMs = REQUEST_IDLE_MS();
+    const deadlineMs = REQUEST_DEADLINE_MS();
+    req.setTimeout(idleMs, () => abort(`Cloud request stalled: no response activity for ${Math.round(idleMs / 1000)}s`));
+    deadline = setTimeout(() => abort(`Cloud request timed out after ${Math.round(deadlineMs / 1000)}s`), deadlineMs);
+    deadline.unref?.();
+    req.on('error', err => settle(reject, err));
     if (body) req.write(body);
     req.end();
   });
@@ -283,6 +325,56 @@ async function deleteObject(config, objectKey) {
   }
 }
 
+// S3 parts are 5 MiB to 5 GiB, at most 10,000 per upload: 16 MiB parts cover
+// dumps up to about 160 GB while holding one part in memory at a time.
+const PART_SIZE = 16 * 1024 * 1024;
+
+function escapeXml(value) {
+  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Upload a file larger than one part with S3 multipart upload, reading one
+ * part at a time instead of loading the whole dump into the API process
+ * (a single PUT is also capped at 5 GiB). A failed upload is aborted so the
+ * bucket keeps no orphaned parts.
+ */
+async function uploadFileMultipart(config, objectKey, localPath, size, partSize) {
+  const created = await signedRequest(config, 'POST', objectKey, null, null, { uploads: '' });
+  if (created.statusCode < 200 || created.statusCode >= 300) throw remoteError('upload', created);
+  const uploadId = /<UploadId>([^<]+)<\/UploadId>/.exec(String(created.body))?.[1];
+  if (!uploadId) throw new Error('Cloud upload failed: the endpoint returned no UploadId');
+
+  const handle = await fs.promises.open(localPath, 'r');
+  try {
+    const buffer = Buffer.alloc(Math.min(partSize, size));
+    const parts = [];
+    for (let offset = 0, partNumber = 1; offset < size; offset += partSize, partNumber += 1) {
+      const { bytesRead } = await handle.read(buffer, 0, Math.min(partSize, size - offset), offset);
+      const res = await signedRequest(config, 'PUT', objectKey, buffer.subarray(0, bytesRead),
+        'application/octet-stream', { partNumber, uploadId });
+      if (res.statusCode < 200 || res.statusCode >= 300) throw remoteError('upload', res);
+      if (!res.headers.etag) throw new Error(`Cloud upload failed: part ${partNumber} returned no ETag`);
+      parts.push(`<Part><PartNumber>${partNumber}</PartNumber><ETag>${escapeXml(res.headers.etag)}</ETag></Part>`);
+    }
+    const manifest = Buffer.from(`<CompleteMultipartUpload>${parts.join('')}</CompleteMultipartUpload>`, 'utf8');
+    const completed = await signedRequest(config, 'POST', objectKey, manifest, 'application/xml', { uploadId });
+    // S3 can answer 200 and still report the failure in an <Error> body.
+    if (completed.statusCode < 200 || completed.statusCode >= 300 || /<Error>/.test(String(completed.body))) {
+      throw remoteError('upload', completed);
+    }
+  } catch (err) {
+    try {
+      await signedRequest(config, 'DELETE', objectKey, null, null, { uploadId });
+    } catch (abortErr) {
+      logger.warn({ err: abortErr, objectKey }, 'Could not abort the failed multipart upload; a bucket lifecycle rule removes leftover parts');
+    }
+    throw err;
+  } finally {
+    await handle.close();
+  }
+}
+
 /**
  * Upload a local backup file to the configured bucket.
  *
@@ -292,9 +384,11 @@ async function deleteObject(config, objectKey) {
  * @param {object} [config]   — Remote config (from
  *                             backupSettingsService.getEffectiveRemoteConfig()).
  *                             Defaults to the BACKUP_S3_* env vars.
+ * @param {object} [options]
+ * @param {number} [options.partSize] — Multipart part size (tests use a small one).
  * @returns {Promise<string>} — The URL of the uploaded object.
  */
-async function uploadBackup(localPath, filename, config) {
+async function uploadBackup(localPath, filename, config, { partSize = PART_SIZE } = {}) {
   const effective = config || resolveEnvConfig();
   if (!effective) {
     throw new Error(
@@ -305,15 +399,23 @@ async function uploadBackup(localPath, filename, config) {
 
   const destFilename = filename || path.basename(localPath);
   const objectKey = `${normalizedPrefix(effective)}${destFilename}`;
-  const fileBuffer = fs.readFileSync(localPath);
+  const { size } = await fs.promises.stat(localPath);
 
   logger.info(
-    { bucket: effective.bucket, objectKey, source: effective.source, sizeKB: (fileBuffer.length / 1024).toFixed(1) },
+    { bucket: effective.bucket, objectKey, source: effective.source, sizeKB: (size / 1024).toFixed(1) },
     'Uploading backup to cloud',
   );
-  const url = await uploadObject(effective, objectKey, fileBuffer, 'application/gzip');
+  let url;
+  if (size > partSize) {
+    await uploadFileMultipart(effective, objectKey, localPath, size, partSize);
+    url = `${resolveTarget(effective).endpointBase}/${effective.bucket}/${objectKey}`;
+  } else {
+    url = await uploadObject(effective, objectKey, await fs.promises.readFile(localPath), 'application/gzip');
+  }
   logger.info({ bucket: effective.bucket, objectKey }, 'Backup uploaded to cloud');
   return url;
 }
 
-module.exports = { uploadBackup, uploadObject, deleteObject, isConfigured, resolveEnvConfig, normalizedPrefix };
+module.exports = {
+  uploadBackup, uploadObject, deleteObject, isConfigured, resolveEnvConfig, normalizedPrefix, PART_SIZE,
+};

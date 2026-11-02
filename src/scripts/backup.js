@@ -39,6 +39,7 @@ const { pipeline } = require('stream/promises');
 const logger = require('../utils/logger').child({ script: 'backup' });
 const product = require('../product');
 const cloudStorage = require('../services/cloudStorageService');
+const backupEncryption = require('../utils/backupEncryption');
 
 const BACKUP_DIR = process.env.BACKUP_DIR
   ? path.resolve(process.env.BACKUP_DIR)
@@ -227,10 +228,19 @@ async function doBackup(trigger) {
   let remoteStatus = 'disabled';
   let remoteError = null;
   if (remoteConfig) {
+    let uploadPath = filepath;
     try {
-      cloudUrl = await cloudStorage.uploadBackup(filepath, filename, remoteConfig);
+      // ASY-30: with BACKUP_ENCRYPTION_KEY the remote copy is encrypted
+      // before it leaves the host; the local copy stays plain gzip.
+      const encryptionKey = backupEncryption.backupEncryptionKey();
+      if (encryptionKey) {
+        uploadPath = `${filepath}.enc`;
+        await backupEncryption.encryptFile(filepath, uploadPath, encryptionKey);
+      }
+      cloudUrl = await cloudStorage.uploadBackup(uploadPath, path.basename(uploadPath), remoteConfig);
       remoteStatus = 'uploaded';
-      logger.info({ filename, cloudUrl, source: remoteConfig.source }, 'Backup uploaded to remote storage');
+      logger.info({ filename, cloudUrl, source: remoteConfig.source, encrypted: uploadPath !== filepath },
+        'Backup uploaded to remote storage');
     } catch (uploadErr) {
       // Remote upload failure is logged but does not fail the backup — the
       // local copy is already safe. It IS surfaced: remote_status='failed'
@@ -238,6 +248,8 @@ async function doBackup(trigger) {
       remoteStatus = 'failed';
       remoteError = uploadErr.message;
       logger.error({ err: uploadErr, filename }, 'Remote upload failed — local backup retained');
+    } finally {
+      if (uploadPath !== filepath) fs.rmSync(uploadPath, { force: true });
     }
   } else {
     logger.warn('Remote backup not configured — backup saved locally only');
