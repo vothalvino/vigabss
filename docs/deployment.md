@@ -1703,6 +1703,13 @@ kubectl patch service fireisp -n fireisp --type merge -p \
 3. Investigate the issue in the Green environment.
 4. If a database migration was applied, deploy a compensating migration — never roll back migrations manually.
 
+If a schema rollback (`pnpm rollback`) is truly needed, first scale every
+deployment that runs migrations to zero, or pin it to the image that matches
+the target schema: every pod's init container runs `migrate.js`, which would
+re-apply the files being rolled back. `rollback.js` holds the same advisory
+lock as `migrate.js` on each database for the whole run, so a pod that starts
+meanwhile waits (up to 300 s) instead of running DDL alongside it.
+
 ### Smoke Test Checklist
 
 Run these checks against the Green environment before switching traffic:

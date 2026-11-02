@@ -11,10 +11,10 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const db = require('../config/database');
 const logger = require('../utils/logger').child({ script: 'migrate' });
+const { acquireMigrationLock, releaseMigrationLock } = require('../utils/migrationLock');
 const product = require('../product');
 const { listIsolatedMigrationTargets } = require('../services/tenantDatabaseService');
 
@@ -119,16 +119,8 @@ async function applyMigrations(migrationPool, label = 'primary') {
     // so serialize writers per target database with a server advisory lock.
     // The hash keeps the lock below MySQL/MariaDB's 64-character limit while
     // making the name stable across processes that target the same label.
-    const [databaseRows] = await conn.execute('SELECT DATABASE() AS database_name');
-    const lockTarget = databaseRows?.[0]?.database_name || label;
-    migrationLockName = `fireisp:migrate:${crypto.createHash('sha256').update(String(lockTarget)).digest('hex').slice(0, 40)}`;
-    const [lockRows] = await conn.execute(
-      'SELECT GET_LOCK(?, 300) AS acquired',
-      [migrationLockName],
-    );
-    if (Number(lockRows?.[0]?.acquired) !== 1) {
-      throw new Error(`Could not acquire the migration lock for ${label}`);
-    }
+    // Shared with rollback.js (src/utils/migrationLock.js).
+    migrationLockName = await acquireMigrationLock(conn, label);
     migrationLockHeld = true;
 
     // Ensure schema_migrations table exists (migration 052 creates it, but
@@ -181,11 +173,7 @@ async function applyMigrations(migrationPool, label = 'primary') {
     }
   } finally {
     if (conn && migrationLockHeld) {
-      try {
-        await conn.execute('SELECT RELEASE_LOCK(?) AS released', [migrationLockName]);
-      } catch (err) {
-        logger.warn({ err, target: label }, 'Could not explicitly release migration lock; connection close will release it');
-      }
+      await releaseMigrationLock(conn, migrationLockName, logger, label);
     }
     if (conn) conn.release();
   }
