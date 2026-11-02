@@ -695,7 +695,7 @@ Common development commands:
 pnpm dev
 pnpm lint
 pnpm test
-pnpm run test:db            # real database; Docker is the documented setup
+pnpm run test:db            # SQL-level tests (tests/test_*.sql) against a real database
 pnpm run migrate
 pnpm run migrate:smoke-test # real database; validates migration/schema parity
 pnpm run seed
@@ -752,6 +752,8 @@ deployment artifacts. Do not weaken a check or test to make a change pass.
   `docker-compose.host-nginx.yml` supports a host-managed proxy.
 - `docker-compose.test.yml` and `docker-compose.e2e.yml` provide database and
   full-flow test environments; `docker-compose.build.yml` supports image builds.
+  The test compose builds the Dockerfile `test` stage (devDependencies and a
+  MySQL client), applies migrations, runs `tests/run_tests.sh`, then Jest.
 - `install.sh` is the fresh production installer. Current installs use
   `/opt/vigabss`; `/opt/fireisp` remains a compatibility path.
 - `k8s/` and `charts/` provide Kubernetes and Helm deployment assets.

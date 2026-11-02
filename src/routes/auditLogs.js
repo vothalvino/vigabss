@@ -39,7 +39,7 @@ router.get('/', requirePermission('audit_logs.view'), async (req, res, next) => 
     if (date_to) { conditions.push('created_at <= ?'); params.push(date_to); }
 
     const where = conditions.join(' AND ');
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
     const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
@@ -102,7 +102,7 @@ router.get('/export', requirePermission('audit_export.view'), async (req, res, n
 router.get('/report-access-logs', requirePermission('report_access_logs.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
     const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(

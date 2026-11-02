@@ -1578,7 +1578,7 @@ describe('POST /api/v1/numbering-management/portability', () => {
       .post('/api/v1/numbering-management/portability')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10')
-      .send({ phone_number: '5551234567', port_type: 'in', donor_carrier: 'Telcel' });
+      .send({ phone_number: '5551234567', port_type: 'port_in', donor_carrier: 'Telcel' });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
   });
@@ -1653,7 +1653,7 @@ describe('PUT /api/v1/numbering-management/portability/:id', () => {
       .put('/api/v1/numbering-management/portability/1')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '10')
-      .send({ status: 'in_progress', notes: 'Processing' });
+      .send({ status: 'approved', notes: 'Processing' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
   });

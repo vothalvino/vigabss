@@ -162,8 +162,12 @@ The `docker-compose.host-nginx.yml` overlay:
 
 ### Automatic setup (installer)
 
-If the installer (`install.sh`) detects port 80 is occupied by a non-Docker
-process it enables host-nginx mode automatically.  You can also force it:
+Host-nginx mode is opt-in. If the installer (`install.sh`) finds port 80
+held by a non-Docker process, it stops and names the files host-nginx mode
+would write (`/etc/nginx/conf.d/vigabss.conf`, rendered with
+`server_name <DOMAIN>`, and `/etc/cron.d/vigabss-nginx-reload`). It does not
+touch the host's default site or other virtual hosts. Re-run with
+`USE_HOST_NGINX=1`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vothalvino/vigabss/main/install.sh \
@@ -205,12 +209,12 @@ fi
 
 ```bash
 # Replace __INSTALL_DIR__ with your actual install path (e.g. /opt/vigabss)
+# and __DOMAIN__ with your public hostname
 # The file is placed in conf.d/ (not sites-available/) because it contains
 # http-level directives (upstream, server{}) that nginx includes inside http{}.
-sed 's|__INSTALL_DIR__|/opt/vigabss|g' /opt/vigabss/nginx/host-nginx.conf \
-  > /etc/nginx/conf.d/vigabss.conf
-# Disable the default nginx site to prevent port conflicts
-rm -f /etc/nginx/sites-enabled/default
+sed -e 's|__INSTALL_DIR__|/opt/vigabss|g' -e 's|__DOMAIN__|isp.example.com|g' \
+  /opt/vigabss/nginx/host-nginx.conf > /etc/nginx/conf.d/vigabss.conf
+# The server blocks match only that hostname, so the default site can stay.
 nginx -t
 systemctl enable nginx
 if systemctl is-active --quiet nginx; then

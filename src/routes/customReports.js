@@ -98,7 +98,7 @@ router.post('/', requirePermission('custom_reports.create'), requireInstallOpera
         visual_config ? JSON.stringify(visual_config) : null, is_public ? 1 : 0, req.user.id],
     );
 
-    const [rows] = await db.queryReplica(
+    const [rows] = await db.query(
       'SELECT * FROM custom_reports WHERE id = ?',
       [result.insertId],
     );
@@ -109,7 +109,7 @@ router.post('/', requirePermission('custom_reports.create'), requireInstallOpera
 // PUT /api/custom-reports/:id
 router.put('/:id', requirePermission('custom_reports.manage'), requireInstallOperator, async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       'SELECT * FROM custom_reports WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
@@ -137,7 +137,7 @@ router.put('/:id', requirePermission('custom_reports.manage'), requireInstallOpe
         req.params.id],
     );
 
-    const [rows] = await db.queryReplica('SELECT * FROM custom_reports WHERE id = ?', [req.params.id]);
+    const [rows] = await db.query('SELECT * FROM custom_reports WHERE id = ?', [req.params.id]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -145,7 +145,7 @@ router.put('/:id', requirePermission('custom_reports.manage'), requireInstallOpe
 // DELETE /api/custom-reports/:id
 router.delete('/:id', requirePermission('custom_reports.manage'), async (req, res, next) => {
   try {
-    const [existing] = await db.queryReplica(
+    const [existing] = await db.query(
       'SELECT id FROM custom_reports WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
@@ -176,9 +176,25 @@ router.post('/:id/execute', requirePermission('custom_reports.execute'), require
 
     const safeQuery = enforceLimit(report.sql_query);
 
-    // Execute with 30-second timeout via SET SESSION
-    await db.queryReplica('SET SESSION max_execution_time = 30000', []).catch(() => {});
-    const [rows] = await db.queryReplica(safeQuery, []);
+    // 30-second cap, set, used and reset on ONE connection (DAL-11). Two pool
+    // calls could put the query on a connection without the cap, and the
+    // setting stayed on whichever pooled connection got it, aborting later
+    // unrelated queries there.
+    const conn = await db.getReplicaConnection();
+    let rows;
+    let discard = false;
+    try {
+      await conn.query('SET SESSION max_execution_time = 30000').catch(() => {});
+      [rows] = await conn.query(safeQuery);
+    } finally {
+      try {
+        await conn.query('SET SESSION max_execution_time = DEFAULT');
+      } catch (_err) {
+        discard = true; // never return a connection with the cap still set
+      }
+      if (discard && typeof conn.destroy === 'function') conn.destroy();
+      else conn.release();
+    }
 
     // Update last_run_at
     await db.query('UPDATE custom_reports SET last_run_at = NOW() WHERE id = ?', [report.id]);

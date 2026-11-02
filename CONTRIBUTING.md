@@ -88,7 +88,8 @@ pnpm test
 # Watch mode
 pnpm run test:watch
 
-# Database integration tests (requires Docker)
+# SQL-level database tests: triggers, constraints, seed data (needs MySQL;
+# docker-compose.test.yml provides one)
 pnpm run test:db
 
 # Run a specific test file

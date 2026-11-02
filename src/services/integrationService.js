@@ -231,7 +231,7 @@ async function listSyncLogs(connectionId, organizationId, { limit = 50, offset =
     throw err;
   }
 
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
   const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
   const [rows] = await db.query(
     `SELECT * FROM integration_sync_logs

@@ -647,18 +647,21 @@ GET /api/v1/sat-catalogs/clave-unidad?search=servicio
 
 ## File Uploads
 
-Files are uploaded via multipart/form-data and scoped to entities (clients, devices, tickets, organizations):
+There is no generic file endpoint. Each record type that keeps files has its
+own multipart/form-data upload, with the file in the `file` field. For
+example, client documents:
 
 ```http
-POST /api/v1/files
+POST /api/v1/clients/:id/documents
 Content-Type: multipart/form-data
 
-entity_type=clients
-entity_id=5
+category=client_file
+notes=Signed service contract
 file=@document.pdf
 ```
 
-File uploads are rate-limited to 30 requests per 15 minutes (upload tier).
+Billing-dispute evidence and ticket and work-order attachments use their own
+endpoints in the same way.
 
 ---
 

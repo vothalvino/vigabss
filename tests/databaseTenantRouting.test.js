@@ -20,12 +20,15 @@ describe('database tenant routing', () => {
     return { db: require('../src/config/database'), createPool };
   }
 
+  // mysql2/promise pools forward 'acquire'/'release'; database.js counts
+  // borrowed connections from them (DB-11).
   function makePool() {
-    return {
+    const { EventEmitter } = require('events');
+    return Object.assign(new EventEmitter(), {
       execute: jest.fn(),
       getConnection: jest.fn(),
       end: jest.fn().mockResolvedValue(undefined),
-    };
+    });
   }
 
   test('routes org-scoped queries to the isolated tenant pool when configured', async () => {
@@ -238,6 +241,36 @@ describe('database tenant routing', () => {
     );
     expect(staleTenantPool.execute).not.toHaveBeenCalled();
     expect(createPool).toHaveBeenCalledTimes(1);
+  });
+
+  // DB-11: eviction must not end a pool whose connection is still borrowed.
+  test('an evicted pool with a borrowed connection ends only after it is released', async () => {
+    process.env.TENANT_DB_POOL_MAX = '1';
+    const primaryPool = makePool();
+    const tenantPoolA = makePool();
+    const tenantPoolB = makePool();
+    const configFor = (id) => [[{
+      organization_id: id, isolation_mode: 'isolated', db_host: 'tenant-db', db_port: 3306,
+      db_name: `fireisp_org_${id}`, db_user: 'tenant_user', db_password_encrypted: 'secret', ssl_enabled: 0,
+    }], []];
+    primaryPool.execute
+      .mockResolvedValueOnce(configFor(8))
+      .mockResolvedValueOnce(configFor(9));
+    const heldConnection = { release: jest.fn() };
+    tenantPoolA.getConnection.mockImplementation(async () => {
+      tenantPoolA.emit('acquire', heldConnection);
+      return heldConnection;
+    });
+    tenantPoolB.execute.mockResolvedValue([[{ id: 2 }], []]);
+
+    const { db } = loadDatabaseWithPools([primaryPool, tenantPoolA, tenantPoolB]);
+    await db.withTenantContext(8, () => db.getConnection());  // a transaction holds org 8's connection
+    await db.withTenantContext(9, () => db.query('SELECT 2', [])); // pushes org 8 out of the LRU
+
+    expect(tenantPoolA.end).not.toHaveBeenCalled();
+    tenantPoolA.emit('release', heldConnection);
+    await new Promise(r => setImmediate(r));
+    expect(tenantPoolA.end).toHaveBeenCalledTimes(1);
   });
 
   test('LRU-evicts the oldest tenant pool when the cache cap is exceeded', async () => {

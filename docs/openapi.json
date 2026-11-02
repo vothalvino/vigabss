@@ -309,10 +309,6 @@
       "description": "Bulk CSV import"
     },
     {
-      "name": "Files",
-      "description": "File upload and management"
-    },
-    {
       "name": "PDF",
       "description": "PDF document generation"
     },
@@ -20510,6 +20506,7 @@
           "Reports"
         ],
         "summary": "Generate a report on-demand",
+        "description": "Generates the report and emails the file to the requesting user. The generated_reports row is completed only once the email was sent.",
         "operationId": "generateReport",
         "security": [
           {
@@ -20528,7 +20525,7 @@
         },
         "responses": {
           "202": {
-            "description": "Accepted — generated_reports record created",
+            "description": "Accepted — generated_reports record created; the file was emailed to the requester",
             "content": {
               "application/json": {
                 "schema": {
@@ -20880,6 +20877,7 @@
           "Reports"
         ],
         "summary": "Manually trigger a scheduled report now",
+        "description": "Generates the schedule's report and emails the file to the requesting user.",
         "operationId": "runScheduledReport",
         "security": [
           {
@@ -20898,7 +20896,7 @@
         ],
         "responses": {
           "202": {
-            "description": "Accepted — generated_reports record created",
+            "description": "Accepted — generated_reports record created; the file was emailed to the requester",
             "content": {
               "application/json": {
                 "schema": {
@@ -24594,53 +24592,6 @@
         "responses": {
           "200": {
             "description": "ImportResult",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/files/upload": {
-      "post": {
-        "tags": [
-          "Files"
-        ],
-        "summary": "Upload a file (multipart/form-data)",
-        "operationId": "uploadFile",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary"
-                  },
-                  "entity_type": {
-                    "type": "string"
-                  },
-                  "entity_id": {
-                    "type": "integer"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "File",
             "content": {
               "application/json": {
                 "schema": {
@@ -59374,9 +59325,8 @@
             "type": "string",
             "enum": [
               "formal",
-              "friendly",
-              "technical",
-              "empathetic"
+              "neutral",
+              "friendly"
             ]
           },
           "redact_pii_before_llm": {
@@ -63503,9 +63453,11 @@
             "type": "string",
             "enum": [
               "active",
-              "inactive",
-              "deprecated"
+              "inactive"
             ]
+          },
+          "is_active": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -63547,9 +63499,11 @@
             "type": "string",
             "enum": [
               "active",
-              "inactive",
-              "deprecated"
+              "inactive"
             ]
+          },
+          "is_active": {
+            "type": "boolean"
           }
         }
       },
@@ -65194,85 +65148,6 @@
           "notes": {
             "type": "string",
             "maximum": 2000
-          }
-        }
-      },
-      "files_createFile": {
-        "type": "object",
-        "properties": {
-          "entity_type": {
-            "type": "string",
-            "enum": [
-              "device",
-              "client",
-              "ticket",
-              "organization",
-              "backup"
-            ]
-          },
-          "entity_id": {
-            "type": "number",
-            "minimum": 1
-          },
-          "category": {
-            "type": "string",
-            "enum": [
-              "document",
-              "photo",
-              "config_backup",
-              "invoice_pdf",
-              "contract_pdf",
-              "report",
-              "other"
-            ]
-          },
-          "filename": {
-            "type": "string",
-            "minimum": 1,
-            "maximum": 255
-          },
-          "mime_type": {
-            "type": "string",
-            "maximum": 100
-          },
-          "size_bytes": {
-            "type": "number",
-            "minimum": 0
-          },
-          "notes": {
-            "type": "string",
-            "maximum": 5000
-          }
-        },
-        "required": [
-          "entity_type",
-          "entity_id",
-          "filename"
-        ]
-      },
-      "files_updateFile": {
-        "type": "object",
-        "properties": {
-          "category": {
-            "type": "string",
-            "enum": [
-              "document",
-              "photo",
-              "config_backup",
-              "invoice_pdf",
-              "contract_pdf",
-              "report",
-              "other"
-            ]
-          },
-          "filename": {
-            "type": "string",
-            "minimum": 1,
-            "maximum": 255
-          },
-          "notes": {
-            "type": "string",
-            "maximum": 5000
           }
         }
       },
@@ -68667,6 +68542,242 @@
         "required": [
           "alertType"
         ]
+      },
+      "numberingManagement_createPhoneNumber": {
+        "type": "object",
+        "properties": {
+          "phone_number": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "number_type": {
+            "type": "string",
+            "enum": [
+              "geographic",
+              "non_geographic",
+              "mobile",
+              "toll_free",
+              "premium"
+            ]
+          },
+          "lada": {
+            "type": "string",
+            "maximum": 10
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "assigned",
+              "ported_in",
+              "ported_out",
+              "reserved",
+              "blocked"
+            ]
+          },
+          "client_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "contract_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "block_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        },
+        "required": [
+          "phone_number"
+        ]
+      },
+      "numberingManagement_updatePhoneNumber": {
+        "type": "object",
+        "properties": {
+          "phone_number": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "number_type": {
+            "type": "string",
+            "enum": [
+              "geographic",
+              "non_geographic",
+              "mobile",
+              "toll_free",
+              "premium"
+            ]
+          },
+          "lada": {
+            "type": "string",
+            "maximum": 10
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "assigned",
+              "ported_in",
+              "ported_out",
+              "reserved",
+              "blocked"
+            ]
+          },
+          "client_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "contract_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "block_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        }
+      },
+      "numberingManagement_createPortability": {
+        "type": "object",
+        "properties": {
+          "phone_number": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "port_type": {
+            "type": "string",
+            "enum": [
+              "port_in",
+              "port_out"
+            ]
+          },
+          "donor_carrier": {
+            "type": "string",
+            "maximum": 100
+          },
+          "recipient_carrier": {
+            "type": "string",
+            "maximum": 100
+          },
+          "ifetel_reference": {
+            "type": "string",
+            "maximum": 100
+          },
+          "client_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        },
+        "required": [
+          "phone_number",
+          "port_type"
+        ]
+      },
+      "numberingManagement_updatePortability": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "approved",
+              "rejected",
+              "cancelled",
+              "completed"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        }
+      },
+      "numberingManagement_createNumberingBlock": {
+        "type": "object",
+        "properties": {
+          "lada": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "block_start": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "block_end": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "exhausted",
+              "returned",
+              "expired"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        },
+        "required": [
+          "lada",
+          "block_start",
+          "block_end"
+        ]
+      },
+      "numberingManagement_updateNumberingBlock": {
+        "type": "object",
+        "properties": {
+          "lada": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "block_start": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "block_end": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "exhausted",
+              "returned",
+              "expired"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          }
+        }
       },
       "odfFrames_createOdfFrame": {
         "type": "object",

@@ -784,7 +784,7 @@ async function processRetries(organizationId = null) {
  * List dead-letter deliveries for an organization.
  */
 async function listDeadLetters(organizationId, limit = 50) {
-  const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
   // webhooks has no `name` column — `description` is its closest equivalent
   // (a nullable free-text label; database/schema.sql).
   const [rows] = await db.query(

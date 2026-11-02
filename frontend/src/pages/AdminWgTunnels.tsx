@@ -22,8 +22,10 @@ import { authedFetch, tokenStore } from '@/api/client';
 interface AdminPeer {
   id: number;
   user_id: number;
-  user_name?: string;
-  user_email?: string;
+  // /wg-peers/admin/all joins the owner as first_name, last_name, email (FE2-11).
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
   name: string;
   tunnel_address: string;
   endpoint_host: string | null;
@@ -335,7 +337,7 @@ function ConfirmAction({ peer, kind, onClose, onConfirm, isPending }: ConfirmAct
         </h3>
         <p style={{ fontSize: '0.88rem', color: '#555', lineHeight: 1.5 }}>
           {isRevoke
-            ? t('adminWgTunnels.peers.confirm.revokeBody', { name: peer.name, user: peer.user_email ?? String(peer.user_id) })
+            ? t('adminWgTunnels.peers.confirm.revokeBody', { name: peer.name, user: peer.email ?? String(peer.user_id) })
             : t('adminWgTunnels.peers.confirm.rotateBody', { name: peer.name })
           }
         </p>
@@ -448,9 +450,8 @@ export function AdminWgTunnels() {
   const isPending = revokeMutation.isPending || rotateMutation.isPending;
 
   function userLabel(peer: AdminPeer): string {
-    if (peer.user_name) return peer.user_name;
-    if (peer.user_email) return peer.user_email;
-    return `#${peer.user_id}`;
+    const fullName = [peer.first_name, peer.last_name].filter(Boolean).join(' ');
+    return fullName || peer.email || `#${peer.user_id}`;
   }
 
   return (
@@ -501,8 +502,8 @@ export function AdminWgTunnels() {
                   <tr key={peer.id} style={{ opacity: peer.revoked_at ? 0.55 : 1 }}>
                     <td style={td}>
                       <div style={{ fontWeight: 600, fontSize: '0.83rem' }}>{userLabel(peer)}</div>
-                      {peer.user_email && peer.user_name && (
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{peer.user_email}</div>
+                      {peer.email && (peer.first_name || peer.last_name) && (
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{peer.email}</div>
                       )}
                     </td>
                     <td style={{ ...td, fontWeight: 500 }}>{peer.name}</td>

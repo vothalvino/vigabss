@@ -51,7 +51,6 @@ interface AiProvider {
   extra_config: { deployment?: string | null } | null;
   priority: number;
   enabled: boolean;
-  status: string;
   created_at: string;
 }
 
@@ -87,10 +86,11 @@ interface AiReplyLog {
   id: number;
   ticket_id: number;
   action: string;
-  confidence: number | null;
+  // DECIMAL columns arrive as strings; confidence is a 0–1 fraction. There is
+  // no channel column and providers have no status column (FE2-11).
+  confidence: number | string | null;
   provider_id: number | null;
-  cost_usd: number | null;
-  channel: string | null;
+  cost_usd: number | string | null;
   created_at: string;
 }
 
@@ -101,7 +101,8 @@ interface AiReplyLog {
 const API_BASE = '/api/v1/ai';
 
 const AI_MODES = ['draft_only', 'suggest', 'auto_send'];
-const TONES = ['formal', 'friendly', 'technical', 'empathetic'];
+// The ai_policies.tone ENUM; any other value fails the policy save (FE2-08).
+const TONES = ['formal', 'neutral', 'friendly'];
 const LOCALES = ['en', 'es', 'pt-BR'];
 const LOG_ACTIONS = ['proposed', 'edited', 'sent', 'auto_sent', 'discarded', 'failed'];
 
@@ -763,7 +764,6 @@ function ProvidersTab() {
                 t('aiAssistantSettings.providers.cols.kind'),
                 t('aiAssistantSettings.providers.cols.model'),
                 t('aiAssistantSettings.providers.cols.enabled'),
-                t('aiAssistantSettings.providers.cols.status'),
                 '',
               ].map(h => (
                 <th key={h} style={sty.th}>{h}</th>
@@ -805,11 +805,6 @@ function ProvidersTab() {
                 <td style={sty.td}>
                   <span style={{ ...sty.pill, background: p.enabled ? '#16a34a' : '#888' }}>
                     {p.enabled ? 'on' : 'off'}
-                  </span>
-                </td>
-                <td style={sty.td}>
-                  <span style={{ ...sty.pill, background: p.status === 'verified' ? '#16a34a' : p.status === 'error' ? '#dc2626' : '#888' }}>
-                    {p.status}
                   </span>
                 </td>
                 <td style={sty.td}>
@@ -1339,7 +1334,6 @@ function AuditTab() {
               t('aiAssistantSettings.audit.cols.action'),
               t('aiAssistantSettings.audit.cols.confidence'),
               t('aiAssistantSettings.audit.cols.cost'),
-              t('aiAssistantSettings.audit.cols.channel'),
               t('aiAssistantSettings.audit.cols.date'),
             ].map(h => (
               <th key={h} style={sty.th}>{h}</th>
@@ -1350,9 +1344,8 @@ function AuditTab() {
               <tr key={l.id}>
                 <td style={sty.td}>#{l.ticket_id}</td>
                 <td style={sty.td}><span style={actionBadge(l.action)}>{l.action}</span></td>
-                <td style={sty.td}>{l.confidence !== null ? `${Math.round(l.confidence)}%` : '—'}</td>
-                <td style={sty.td}>{l.cost_usd !== null ? `$${l.cost_usd.toFixed(4)}` : '—'}</td>
-                <td style={sty.td}>{l.channel ?? '—'}</td>
+                <td style={sty.td}>{l.confidence !== null ? `${Math.round(Number(l.confidence) * 100)}%` : '—'}</td>
+                <td style={sty.td}>{l.cost_usd !== null ? `$${Number(l.cost_usd).toFixed(4)}` : '—'}</td>
                 <td style={sty.td}>{l.created_at.slice(0, 16).replace('T', ' ')}</td>
               </tr>
             ))}

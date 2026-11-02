@@ -27,6 +27,24 @@ ARG FRONTEND_BUILD_HEAP_MB=2048
 RUN NODE_OPTIONS="--max-old-space-size=${FRONTEND_BUILD_HEAP_MB}" \
     pnpm --filter vigabss-frontend run build
 
+# ── Test stage (docker-compose.test.yml only) ─────────────────────────────────
+# Development dependencies plus a MySQL client for the SQL suites. Only the
+# test compose builds this target; the default build is the last stage below.
+FROM node:24-bookworm-slim AS test
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends default-mysql-client \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY frontend/package.json ./frontend/
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
 # ── Stage 2: production API server ────────────────────────────────────────────
 FROM node:24-bookworm-slim
 

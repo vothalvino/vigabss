@@ -347,7 +347,19 @@ router.get('/', requirePermission('invoices.view'), async (req, res, next) => {
     });
   } catch (err) { next(err); }
 });
-router.get('/:id', requirePermission('invoices.view'), ctrl.get);
+// The invoice plus the billing period it was generated for (FE-19): invoices
+// have no period columns, billing_periods records the window.
+router.get('/:id', requirePermission('invoices.view'), async (req, res, next) => {
+  try {
+    const invoice = await Invoice.findByIdOrFail(req.params.id, req.orgId);
+    const [periods] = await db.query(
+      `SELECT period_start, period_end FROM billing_periods
+        WHERE invoice_id = ? ORDER BY period_start DESC LIMIT 1`,
+      [invoice.id],
+    );
+    res.json({ data: { ...invoice, period_start: periods[0]?.period_start ?? null, period_end: periods[0]?.period_end ?? null } });
+  } catch (err) { next(err); }
+});
 // Composite create: an invoice and its line items land in ONE transaction.
 // The generic ctrl.create had two real bugs here (both hit live via the raw
 // API): invoice_number is NOT NULL in the DB but optional in the schema and

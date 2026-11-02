@@ -133,8 +133,8 @@ router.get('/nodes', requireRole('admin', 'owner'), async (req, res, next) => {
       throw new ValidationError('Node management is only available on the master node');
     }
     const { page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const result = await firerelayService.listNodes({ page: pageNum, limit: limitNum });
     res.json(result);
   } catch (err) {

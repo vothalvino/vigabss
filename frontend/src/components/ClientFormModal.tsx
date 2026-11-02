@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import i18n from '@/i18n';
 import { api } from '@/api/client';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,8 +99,9 @@ export interface ClientFormInitial {
  * where t() would return the raw key and show an operator "common.error".
  */
 export function extractApiError(err: unknown, fallback?: string): string {
-  const e = err as { error?: { message?: string }; message?: string };
-  const serverMessage = e?.error?.message || e?.message;
+  // Both the `{ error: { message } }` envelope and route-local `{ error: 'text' }`
+  // bodies, and thrown Errors (FE-18).
+  const serverMessage = parseApiError(err, '');
   if (serverMessage) return serverMessage;
 
   const generic = i18n.isInitialized ? i18n.t('common.error') : null;

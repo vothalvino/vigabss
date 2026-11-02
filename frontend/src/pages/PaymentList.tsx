@@ -44,12 +44,14 @@ interface PaymentAllocation {
   amount: string;
 }
 
+// The payment_transactions columns plus the joined gateway name (FE-19).
 interface GatewayTransaction {
   id: number;
   payment_id: number | null;
-  gateway: string;
-  status: string;
-  gateway_transaction_id: string | null;
+  gateway_name: string | null;
+  gateway_provider: string | null;
+  gateway_status: string;
+  gateway_reference_id: string | null;
   amount: string;
   currency: string;
   created_at: string;
@@ -69,9 +71,11 @@ async function fetchPayments(page: number, pageSize: number, statusFilter: strin
   return res.data as unknown as PaymentsResponse;
 }
 
-async function fetchGatewayTransactions(clientId: number): Promise<GatewayTransaction[]> {
+async function fetchGatewayTransactions(paymentId: number): Promise<GatewayTransaction[]> {
   const token = tokenStore.getAccess();
-  const params = new URLSearchParams({ client_id: String(clientId), limit: '50' });
+  // Filter by the payment itself: the first 50 of the client's transactions
+  // could leave out the ones this payment produced.
+  const params = new URLSearchParams({ payment_id: String(paymentId), limit: '50' });
   const res = await fetch(`${API_BASE}/payment-transactions?${params}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -112,6 +116,9 @@ function StatusBadge({ status }: { status: string }) {
 function GatewayBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
     pending:    { bg: '#fef9c3', color: '#854d0e' },
+    succeeded:  { bg: '#d1fae5', color: '#065f46' },
+    disputed:   { bg: '#fee2e2', color: '#991b1b' },
+    cancelled:  { bg: '#f3f4f6', color: '#374151' },
     authorized: { bg: '#d1fae5', color: '#065f46' },
     captured:   { bg: '#d1fae5', color: '#065f46' },
     settled:    { bg: '#d1fae5', color: '#065f46' },
@@ -201,14 +208,13 @@ function AllocationsRow({ paymentId, currency }: AllocationsRowProps) {
 // ---------------------------------------------------------------------------
 
 interface GatewayRowProps {
-  clientId: number;
   paymentId: number;
 }
 
-function GatewayRow({ clientId, paymentId }: GatewayRowProps) {
+function GatewayRow({ paymentId }: GatewayRowProps) {
   const { data: txns = [], isLoading } = useQuery({
-    queryKey: ['gateway-txns', clientId],
-    queryFn: () => fetchGatewayTransactions(clientId),
+    queryKey: ['gateway-txns', paymentId],
+    queryFn: () => fetchGatewayTransactions(paymentId),
   });
 
   const linked = txns.filter((t: GatewayTransaction) => t.payment_id === paymentId);
@@ -242,14 +248,14 @@ function GatewayRow({ clientId, paymentId }: GatewayRowProps) {
             <tbody>
               {linked.map((t: GatewayTransaction) => (
                 <tr key={t.id}>
-                  <td style={{ padding: '4px 8px', textTransform: 'capitalize' }}>{t.gateway}</td>
+                  <td style={{ padding: '4px 8px', textTransform: 'capitalize' }}>{t.gateway_name || t.gateway_provider || '—'}</td>
                   <td style={{ padding: '4px 8px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#6b7280' }}>
-                    {t.gateway_transaction_id || '—'}
+                    {t.gateway_reference_id || '—'}
                   </td>
                   <td style={{ padding: '4px 8px', fontVariantNumeric: 'tabular-nums' }}>
                     {fmtAmount(t.amount, t.currency)}
                   </td>
-                  <td style={{ padding: '4px 8px' }}><GatewayBadge status={t.status} /></td>
+                  <td style={{ padding: '4px 8px' }}><GatewayBadge status={t.gateway_status} /></td>
                   <td style={{ padding: '4px 8px', color: '#9ca3af' }}>{fmt(t.created_at)}</td>
                 </tr>
               ))}
@@ -340,7 +346,7 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
         <AllocationsRow paymentId={payment.id} currency={payment.currency} />
       )}
       {expanded === 'gateway' && (
-        <GatewayRow clientId={payment.client_id} paymentId={payment.id} />
+        <GatewayRow paymentId={payment.id} />
       )}
     </>
   );

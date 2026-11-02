@@ -114,7 +114,6 @@ function generateSpec() {
       { name: 'Audit Logs', description: 'Audit trail' },
       { name: 'Export', description: 'CSV export of data' },
       { name: 'Import', description: 'Bulk CSV import' },
-      { name: 'Files', description: 'File upload and management' },
       { name: 'PDF', description: 'PDF document generation' },
       { name: 'Metrics', description: 'Prometheus metrics' },
       { name: 'FireRelay', description: 'Multi-node cluster management' },
@@ -978,7 +977,7 @@ function generateSpec() {
       '/reports/interception-readiness': { get: { tags: ['Reports'], summary: 'Operational connection-logging readiness', description: 'Compatibility endpoint for connection-logging pipeline health. The result is operational information, not a legal-compliance certification.', operationId: 'interceptionReadiness', security: [{ bearerAuth: [] }], responses: r200('Report') } },
       '/reports/regulatory-export': { get: { tags: ['Reports'], summary: 'Regulatory filing data export', operationId: 'regulatoryExport', security: [{ bearerAuth: [] }], responses: r200('Report') } },
       '/reports/{report}/export': { get: { tags: ['Reports'], summary: 'Export any report as CSV/XLSX/PDF', operationId: 'exportReport', security: [{ bearerAuth: [] }], parameters: [{ name: 'report', in: 'path', required: true, schema: { type: 'string' } }, { name: 'format', in: 'query', schema: { type: 'string', enum: ['csv', 'xlsx', 'pdf'] } }], responses: r200File('application/octet-stream') } },
-      '/reports/generate': { post: { tags: ['Reports'], summary: 'Generate a report on-demand', operationId: 'generateReport', security: [{ bearerAuth: [] }], requestBody: jsonBody('report_def_name + format + parameters'), responses: { '202': { description: 'Accepted — generated_reports record created', content: { 'application/json': { schema: { type: 'object' } } } } } } },
+      '/reports/generate': { post: { tags: ['Reports'], summary: 'Generate a report on-demand', description: 'Generates the report and emails the file to the requesting user. The generated_reports row is completed only once the email was sent.', operationId: 'generateReport', security: [{ bearerAuth: [] }], requestBody: jsonBody('report_def_name + format + parameters'), responses: { '202': { description: 'Accepted — generated_reports record created; the file was emailed to the requester', content: { 'application/json': { schema: { type: 'object' } } } } } } },
       '/report-definitions': {
         get: { tags: ['Reports'], summary: 'List report definitions (built-in + org)', operationId: 'listReportDefinitions', security: [{ bearerAuth: [] }], responses: r200('ReportDefinition[]') },
         post: { tags: ['Reports'], summary: 'Create a report definition', operationId: 'createReportDefinition', security: [{ bearerAuth: [] }], requestBody: jsonBody('ReportDefinition'), responses: r201('ReportDefinition') },
@@ -997,7 +996,7 @@ function generateSpec() {
         put: { tags: ['Reports'], summary: 'Update a scheduled report', operationId: 'updateScheduledReport', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('ScheduledReport'), responses: r200('ScheduledReport') },
         delete: { tags: ['Reports'], summary: 'Delete a scheduled report', operationId: 'deleteScheduledReport', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
-      '/scheduled-reports/{id}/run': { post: { tags: ['Reports'], summary: 'Manually trigger a scheduled report now', operationId: 'runScheduledReport', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { '202': { description: 'Accepted — generated_reports record created', content: { 'application/json': { schema: { type: 'object' } } } } } } },
+      '/scheduled-reports/{id}/run': { post: { tags: ['Reports'], summary: 'Manually trigger a scheduled report now', description: 'Generates the schedule\'s report and emails the file to the requesting user.', operationId: 'runScheduledReport', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { '202': { description: 'Accepted — generated_reports record created; the file was emailed to the requester', content: { 'application/json': { schema: { type: 'object' } } } } } } },
       '/dashboard-widgets': {
         get: { tags: ['Reports'], summary: 'List dashboard widgets', operationId: 'listDashboardWidgets', security: [{ bearerAuth: [] }], responses: r200('DashboardWidget[]') },
         post: { tags: ['Reports'], summary: 'Create a dashboard widget', operationId: 'createDashboardWidget', security: [{ bearerAuth: [] }], requestBody: jsonBody('DashboardWidget'), responses: r201('DashboardWidget') },
@@ -1191,7 +1190,6 @@ function generateSpec() {
       '/import/contracts': { post: { tags: ['Import'], summary: 'Bulk import contracts from CSV (optional pppoe_username/pppoe_password columns carry over pre-existing PPPoE credentials instead of auto-generating them)', operationId: 'importContracts', security: [{ bearerAuth: [] }], requestBody: jsonBody('csv'), responses: r200('ImportResult') } },
 
       // ---- Files ----
-      '/files/upload': { post: { tags: ['Files'], summary: 'Upload a file (multipart/form-data)', operationId: 'uploadFile', security: [{ bearerAuth: [] }], requestBody: { content: { 'multipart/form-data': { schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, entity_type: { type: 'string' }, entity_id: { type: 'integer' } } } } } }, responses: r201('File') } },
 
       // ---- PDF ----
       '/pdf/invoices/{id}': { get: { tags: ['PDF'], summary: 'Download invoice PDF', operationId: 'pdfInvoice', security: [{ bearerAuth: [] }], parameters: [idParam(), localeParam()], responses: r200File('application/pdf') } },

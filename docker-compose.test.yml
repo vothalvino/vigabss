@@ -9,8 +9,6 @@
 #   docker compose -f docker-compose.test.yml down -v
 # =============================================================================
 
-version: '3.8'
-
 services:
   test-db:
     image: mysql:8.4.13@sha256:a0225d1ea6631c8bc2385dc4c2faba17bbf1834ecf369e1659a9a382bd8d5dd7
@@ -33,7 +31,11 @@ services:
       - /var/lib/mysql  # RAM disk for faster tests
 
   test-runner:
-    build: .
+    # The production image has no devDependencies and no npx, so the runner
+    # builds the Dockerfile's test stage (OPS-18).
+    build:
+      context: .
+      target: test
     depends_on:
       test-db:
         condition: service_healthy
@@ -55,11 +57,9 @@ services:
         echo '=== Applying migrations ===' &&
         node src/scripts/migrate.js &&
         echo '=== Running SQL test suite ===' &&
-        mysql -h test-db -u root -ptestpassword fireisp_test < tests/test_schema_integrity.sql &&
-        mysql -h test-db -u root -ptestpassword fireisp_test < tests/test_referential_integrity.sql &&
-        mysql -h test-db -u root -ptestpassword fireisp_test < tests/test_unique_constraints.sql &&
+        MYSQL_HOST=test-db MYSQL_USER=root MYSQL_PASSWORD=testpassword MYSQL_DATABASE=fireisp_test ./tests/run_tests.sh &&
         echo '=== Running Jest tests ===' &&
-        npx jest --detectOpenHandles --forceExit --ci &&
+        pnpm exec jest --detectOpenHandles --forceExit --ci &&
         echo '=== All tests passed ==='
       "
 

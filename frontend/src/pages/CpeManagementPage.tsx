@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -298,7 +299,8 @@ function FirmwareTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      await api.DELETE('/cpe-management/firmware-versions/{id}' as never, { params: { path: { id } } } as never);
+      const { error } = await api.DELETE('/cpe-management/firmware-versions/{id}' as never, { params: { path: { id } } } as never) as { error?: unknown };
+      if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-firmware-versions'] }),
   });
@@ -316,6 +318,7 @@ function FirmwareTab() {
         </button>
       </div>
 
+      {deleteMut.error && <p role="alert" style={{ color: '#dc2626' }}>{deleteMut.error.message}</p>}
       {isLoading && <p>{t('common.loading')}</p>}
       {error && <p style={{ color: '#dc2626' }}>{t('cpeManagement.firmware.error')}</p>}
 

@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,7 +115,8 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      await api.DELETE('/cpe-profiles/{id}' as never, { params: { path: { id } } } as never);
+      const { error } = await api.DELETE('/cpe-profiles/{id}' as never, { params: { path: { id } } } as never) as { error?: unknown };
+      if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-profiles'] }),
   });
@@ -131,6 +133,8 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
           + {t('cpeProfiles.profiles.newProfile')}
         </button>
       </div>
+
+      {deleteMut.error && <p role="alert" style={{ color: '#dc2626' }}>{deleteMut.error.message}</p>}
 
       {isLoading && <p>{t('common.loading')}</p>}
       {error && <p style={{ color: '#dc2626' }}>{t('cpeProfiles.profiles.error')}</p>}
@@ -282,9 +286,10 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
 
   const deleteMut = useMutation({
     mutationFn: async (mappingId: number) => {
-      await api.DELETE('/cpe-profiles/{id}/mappings/{mappingId}' as never, {
+      const { error } = await api.DELETE('/cpe-profiles/{id}/mappings/{mappingId}' as never, {
         params: { path: { id: profile!.id, mappingId } },
-      } as never);
+      } as never) as { error?: unknown };
+      if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-profile-mappings', profile?.id] }),
   });
@@ -303,6 +308,8 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
           + {t('cpeProfiles.mappings.newMapping')}
         </button>
       </div>
+
+      {deleteMut.error && <p role="alert" style={{ color: '#dc2626' }}>{deleteMut.error.message}</p>}
 
       {isLoading && <p>{t('common.loading')}</p>}
       {error && <p style={{ color: '#dc2626' }}>{t('cpeProfiles.mappings.error')}</p>}

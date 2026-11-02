@@ -425,7 +425,8 @@ router.post('/generate', requirePermission('reports.generate'), async (req, res,
       generatedBy: req.user.id,
     });
 
-    const [rows] = await require('../config/database').queryReplica(
+    // Read back the row just written from the primary (DB-12).
+    const [rows] = await require('../config/database').query(
       'SELECT id, organization_id, report_def_name, format, status, generated_at FROM generated_reports WHERE id = ?',
       [result.reportId],
     );

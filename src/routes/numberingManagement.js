@@ -8,8 +8,26 @@ const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
-const { ValidationError } = require('../utils/errors');
+const { validate } = require('../middleware/validate');
+const { ValidationError, NotFoundError } = require('../utils/errors');
 const { assertOwnedReferences } = require('../utils/ownedReferences');
+const { buildUpdate } = require('../utils/sqlBuild');
+const {
+  createPhoneNumber, updatePhoneNumber, createPortability, updatePortability,
+  createNumberingBlock, updateNumberingBlock,
+} = require('../middleware/schemas/numberingManagement');
+
+// Columns a partial update may set. An omitted field is left alone; null clears
+// a nullable column but is ignored for a NOT NULL one (TNB-31).
+function partialUpdate(body, columns, notNull = []) {
+  const changes = {};
+  for (const [field, column] of Object.entries(columns)) {
+    if (body[field] === undefined) continue;
+    if (body[field] === null && notNull.includes(column)) continue;
+    changes[column] = body[field];
+  }
+  return buildUpdate(changes, Object.values(columns));
+}
 
 // A number may only be assigned to this tenant's client, contract and block
 // (TNB-28). numbering_blocks has no deleted_at, so it is checked here.
@@ -41,8 +59,8 @@ router.get('/phone-numbers', requirePermission('phone_number_inventory.view'), a
     if (client_id) { conditions.push('client_id = ?'); params.push(client_id); }
 
     const where = conditions.join(' AND ');
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM phone_number_inventory WHERE ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
@@ -59,7 +77,7 @@ router.get('/phone-numbers', requirePermission('phone_number_inventory.view'), a
   }
 });
 
-router.post('/phone-numbers', requirePermission('phone_number_inventory.manage'), async (req, res, next) => {
+router.post('/phone-numbers', requirePermission('phone_number_inventory.manage'), validate(createPhoneNumber, { strip: true }), async (req, res, next) => {
   try {
     const { phone_number, number_type, lada, status, client_id, contract_id, block_id, notes } = req.body;
     await assertPhoneNumberRefs(req.body, req.orgId);
@@ -92,17 +110,21 @@ router.get('/phone-numbers/:id', requirePermission('phone_number_inventory.view'
   }
 });
 
-router.put('/phone-numbers/:id', requirePermission('phone_number_inventory.manage'), async (req, res, next) => {
+router.put('/phone-numbers/:id', requirePermission('phone_number_inventory.manage'), validate(updatePhoneNumber, { strip: true }), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { phone_number, number_type, lada, status, client_id, contract_id, block_id, notes } = req.body;
     await assertPhoneNumberRefs(req.body, req.orgId);
+    const { assignments, values } = partialUpdate(req.body, {
+      phone_number: 'phone_number', number_type: 'number_type', lada: 'lada', status: 'status',
+      client_id: 'client_id', contract_id: 'contract_id', block_id: 'block_id', notes: 'notes',
+    }, ['phone_number', 'number_type', 'status']);
+    const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
 
-    await db.query(
-      `UPDATE phone_number_inventory SET phone_number = ?, number_type = ?, lada = ?, status = ?, client_id = ?, contract_id = ?, block_id = ?, notes = ?, updated_at = NOW()
-       WHERE id = ? AND organization_id = ?`,
-      [phone_number, number_type || null, lada || null, status || 'available', client_id || null, contract_id || null, block_id || null, notes || null, id, req.orgId],
+    const [result] = await db.query(
+      `UPDATE phone_number_inventory SET ${setClause} WHERE id = ? AND organization_id = ?`,
+      [...values, id, req.orgId],
     );
+    if (result.affectedRows === 0) throw new NotFoundError('Phone number');
 
     res.json({ success: true });
   } catch (err) {
@@ -114,10 +136,11 @@ router.delete('/phone-numbers/:id', requirePermission('phone_number_inventory.ma
   try {
     const { id } = req.params;
 
-    await db.query(
+    const [result] = await db.query(
       'UPDATE phone_number_inventory SET status = \'blocked\', updated_at = NOW() WHERE id = ? AND organization_id = ?',
       [id, req.orgId],
     );
+    if (result.affectedRows === 0) throw new NotFoundError('Phone number');
 
     res.json({ success: true });
   } catch (err) {
@@ -139,8 +162,8 @@ router.get('/portability', requirePermission('number_portability.view'), async (
     if (status) { conditions.push('status = ?'); params.push(status); }
 
     const where = conditions.join(' AND ');
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM number_portability_records WHERE ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
@@ -157,9 +180,10 @@ router.get('/portability', requirePermission('number_portability.view'), async (
   }
 });
 
-router.post('/portability', requirePermission('number_portability.manage'), async (req, res, next) => {
+router.post('/portability', requirePermission('number_portability.manage'), validate(createPortability, { strip: true }), async (req, res, next) => {
   try {
     const { phone_number, port_type, donor_carrier, recipient_carrier, ifetel_reference, client_id, notes } = req.body;
+    await assertOwnedReferences(req.body, req.orgId, { client_id: 'clients' });
 
     const [result] = await db.query(
       `INSERT INTO number_portability_records (organization_id, phone_number, port_type, donor_carrier, recipient_carrier, ifetel_reference, client_id, notes)
@@ -189,15 +213,17 @@ router.get('/portability/:id', requirePermission('number_portability.view'), asy
   }
 });
 
-router.put('/portability/:id', requirePermission('number_portability.manage'), async (req, res, next) => {
+router.put('/portability/:id', requirePermission('number_portability.manage'), validate(updatePortability, { strip: true }), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { assignments, values } = partialUpdate(req.body, { status: 'status', notes: 'notes' }, ['status']);
+    const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
 
-    await db.query(
-      'UPDATE number_portability_records SET status = ?, notes = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?',
-      [status, notes || null, id, req.orgId],
+    const [result] = await db.query(
+      `UPDATE number_portability_records SET ${setClause} WHERE id = ? AND organization_id = ?`,
+      [...values, id, req.orgId],
     );
+    if (result.affectedRows === 0) throw new NotFoundError('Portability record');
 
     res.json({ success: true });
   } catch (err) {
@@ -209,10 +235,11 @@ router.put('/portability/:id/complete', requirePermission('number_portability.ma
   try {
     const { id } = req.params;
 
-    await db.query(
+    const [result] = await db.query(
       'UPDATE number_portability_records SET status = \'completed\', ported_at = NOW(), updated_at = NOW() WHERE id = ? AND organization_id = ?',
       [id, req.orgId],
     );
+    if (result.affectedRows === 0) throw new NotFoundError('Portability record');
 
     res.json({ success: true });
   } catch (err) {
@@ -227,8 +254,8 @@ router.put('/portability/:id/complete', requirePermission('number_portability.ma
 router.get('/numbering-blocks', requirePermission('numbering_blocks.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM numbering_blocks WHERE organization_id = ? ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
@@ -245,7 +272,7 @@ router.get('/numbering-blocks', requirePermission('numbering_blocks.view'), asyn
   }
 });
 
-router.post('/numbering-blocks', requirePermission('numbering_blocks.manage'), async (req, res, next) => {
+router.post('/numbering-blocks', requirePermission('numbering_blocks.manage'), validate(createNumberingBlock, { strip: true }), async (req, res, next) => {
   try {
     const { block_start, block_end, lada, status, notes } = req.body;
 
@@ -284,24 +311,21 @@ router.get('/numbering-blocks/:id', requirePermission('numbering_blocks.view'), 
   }
 });
 
-router.put('/numbering-blocks/:id', requirePermission('numbering_blocks.manage'), async (req, res, next) => {
+router.put('/numbering-blocks/:id', requirePermission('numbering_blocks.manage'), validate(updateNumberingBlock, { strip: true }), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { block_start, block_end, lada, status, notes } = req.body;
-
     // See the POST handler: block_prefix / range_start / range_end are the real
     // columns and they are NOT NULL, so a partial update must not null them out.
-    await db.query(
-      `UPDATE numbering_blocks
-         SET block_prefix = COALESCE(?, block_prefix),
-             range_start = COALESCE(?, range_start),
-             range_end = COALESCE(?, range_end),
-             status = COALESCE(?, status),
-             notes = ?,
-             updated_at = NOW()
-       WHERE id = ? AND organization_id = ?`,
-      [lada || null, block_start || null, block_end || null, status || null, notes || null, id, req.orgId],
+    const { assignments, values } = partialUpdate(req.body, {
+      lada: 'block_prefix', block_start: 'range_start', block_end: 'range_end', status: 'status', notes: 'notes',
+    }, ['block_prefix', 'range_start', 'range_end', 'status']);
+    const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
+
+    const [result] = await db.query(
+      `UPDATE numbering_blocks SET ${setClause} WHERE id = ? AND organization_id = ?`,
+      [...values, id, req.orgId],
     );
+    if (result.affectedRows === 0) throw new NotFoundError('Numbering block');
 
     res.json({ success: true });
   } catch (err) {

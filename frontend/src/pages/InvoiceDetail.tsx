@@ -19,6 +19,7 @@ import { extractApiError } from '@/components/ClientFormModal';
 import { fetchAddonCatalog, fetchSellableInventoryItems, buildProductPickerEntries } from '@/api/addonCatalog';
 import { RecordPaymentModal } from '@/components/RecordPaymentModal';
 import { formatDate } from '@/lib/dates';
+import { parseApiError } from '@/api/errors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,7 +33,6 @@ interface Invoice {
   subtotal: string;
   tax_amount: string;
   tax_rate: string | null;
-  discount_amount: string | null;
   total: string;
   currency: string;
   period_start: string | null;
@@ -52,6 +52,14 @@ interface InvoiceItem {
   amount: string;
   tax_rate: string | null;
   inventory_item_id?: number | null;
+}
+
+// A line's tax_rate is a fraction (0.1600 = 16%) joined from tax_rates or the
+// invoice; it was printed raw, and before FE-19 it was never sent at all.
+export function taxPercent(rate: string | number | null | undefined): string {
+  if (rate === null || rate === undefined || rate === '') return '—';
+  const n = Number(rate);
+  return Number.isFinite(n) ? `${parseFloat((n * 100).toFixed(2))}%` : '—';
 }
 
 interface Payment {
@@ -184,7 +192,7 @@ async function sendInvoiceEmail(invoiceId: number): Promise<{ to: string }> {
     method: 'POST',
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as { error?: string }).error || 'Failed to send email');
+  if (!res.ok) throw new Error(parseApiError(body, 'Failed to send email'));
   return body as { to: string };
 }
 
@@ -1147,9 +1155,6 @@ export function InvoiceDetail() {
               <MetaRow label="Total" value={<strong style={{ fontSize: '1.05rem' }}>{fmtAmount(invoice.total, invoice.currency)}</strong>} />
               <MetaRow label="Subtotal" value={fmtAmount(invoice.subtotal, invoice.currency)} />
               <MetaRow label="Tax" value={fmtAmount(invoice.tax_amount, invoice.currency)} />
-              {invoice.discount_amount && parseFloat(invoice.discount_amount) !== 0 && (
-                <MetaRow label="Discount" value={fmtAmount(invoice.discount_amount, invoice.currency)} />
-              )}
               <MetaRow label="Currency" value={invoice.currency} />
               <MetaRow label="Due Date" value={fmt(invoice.due_date)} />
               <MetaRow label="Paid At" value={fmt(invoice.paid_at)} />
@@ -1186,7 +1191,7 @@ export function InvoiceDetail() {
                       <td style={{ padding: '8px 10px' }}>{item.description}</td>
                       <td style={{ padding: '8px 10px' }}>{item.quantity}</td>
                       <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.unit_price, invoice.currency)}</td>
-                      <td style={{ padding: '8px 10px', color: '#9ca3af' }}>{item.tax_rate ? `${item.tax_rate}%` : '—'}</td>
+                      <td style={{ padding: '8px 10px', color: '#9ca3af' }}>{taxPercent(item.tax_rate)}</td>
                       <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.amount, invoice.currency)}</td>
                     </tr>
                   ))}
