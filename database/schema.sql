@@ -12200,7 +12200,7 @@ SELECT
     'snmp_poll',
     '*/5 * * * *',
     'normal',
-    TRUE,
+    FALSE,  -- redundant with snmp_discovery_poll; disabled by migration 402
     'Poll AP sector metrics: noise floor, air utilization, connected clients, GPS sync'
 WHERE NOT EXISTS (
     SELECT 1 FROM scheduled_tasks WHERE task_name = 'wireless_ap_sector_poll'
@@ -17002,3 +17002,83 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r JOIN permissions p
   ON p.name = 'snmp_traps.payload.view'
 WHERE r.name IN ('admin', 'super_admin') AND r.deleted_at IS NULL;
+
+-- ---------------------------------------------------------------------------
+-- Seed: scheduled tasks added by later migrations (ASY-35)
+-- ---------------------------------------------------------------------------
+-- The rows a migrated install ends up with, including migration 506, which
+-- disables tasks whose handler is still a deferred stub.
+-- tests/scheduledTaskSeedContract.test.js keeps this file in step with the
+-- migrations.
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, description, cron_expression, priority, is_enabled)
+VALUES
+    (NULL, 'campaign_send', 'Process queued campaign messages and dispatch them via email/SMS/WhatsApp', '*/5 * * * *', 'normal', 1),
+    (NULL, 'check_fup_thresholds', 'Apply FUP throttling to contracts that have exceeded their fair-use policy threshold', '*/15 * * * *', 'normal', 0),
+    (NULL, 'convert_expired_trials', 'Convert expired free-trial contracts to paid billing and notify the client', '0 * * * *', 'normal', 0),
+    (NULL, 'apply_speed_windows', 'Apply active time-based speed windows via RADIUS CoA at window boundaries', '*/5 * * * *', 'normal', 1),
+    (NULL, 'apply_late_fees', 'Apply configured late fees to overdue invoices', '0 2 * * *', 'normal', 1),
+    (NULL, 'send_payment_reminders', 'Send payment due and overdue reminder notifications', '0 * * * *', 'normal', 1),
+    (NULL, 'check_installments_due', 'Mark overdue payment plan installments and emit notification events', '0 8 * * *', 'normal', 1),
+    (NULL, 'check_certificate_expiry', 'Check subscriber EAP-TLS certificates expiring within 30 days and log warnings', '0 6 * * *', 'normal', 1),
+    (NULL, 'kick_duplicate_sessions', 'Find subscribers with more active sessions than their simultaneous_use limit allows and disconnect the oldest excess sessions via RADIUS Disconnect-Request', '*/5 * * * *', 'normal', 1),
+    (NULL, 'nas_health_check', 'Probe each NAS via RADIUS Status-Server (code 12) and update health_status; emit nas.down/nas.up events', '*/5 * * * *', 'normal', 1),
+    (NULL, 'check_pool_utilization', 'Check IP pool utilization and emit threshold alerts at 75% and 90%', '0 * * * *', 'high', 1),
+    (NULL, 'scan_auth_failures', 'Classify recent PPPoE auth failures from radpostauth and emit alerts for repeated failures', '*/15 * * * *', 'high', 1),
+    (NULL, 'poll_cfdi_cancellations', 'Ask SAT for the status of CFDI cancellations still waiting for the receptor (cancel_pending)', '17 * * * *', 'normal', 1),
+    (NULL, 'reap_stuck_cpe_tasks', 'Fail TR-069 CPE tasks dispatched and not answered within 30 minutes', '*/10 * * * *', 'normal', 1);
+
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, task_type, handler, description, cron_expression, priority, is_enabled)
+VALUES
+    (NULL, 'snmp_discovery_poll', 'snmp_poll', 'pollerEngine.pollWithConfig', 'SNMP metrics polling for all enabled devices', '*/1 * * * *', 'normal', 1),
+    (NULL, 'snmp_trap_receiver', 'snmp_poll', 'snmpTrapReceiver.start', 'SNMP trap receiver UDP listener', NULL, 'high', 1),
+    (NULL, 'snmp_adaptive_poll_check', 'snmp_poll', 'pollerEngine.adaptivePollCheck', 'Check for active incidents and switch affected devices to adaptive polling frequency', '*/1 * * * *', 'high', 1),
+    (NULL, 'poller_performance_snapshot', 'snmp_poll', 'pollerEngine.recordPerformanceSnapshot', 'Record poller node performance metrics snapshot', '*/5 * * * *', 'low', 1);
+
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, task_type, handler, description, cron_expression, priority, max_retries, timeout_seconds, is_enabled)
+VALUES
+    (NULL, 'ftth_olt_chassis_poll', 'snmp_poll', 'services/ftth/oltChassisPollHandler', 'Poll OLT chassis metrics (CPU, memory, temperature, PSU, fan) via SNMP for all active OLT devices', '*/5 * * * *', 'normal', 3, 120, 0),
+    (NULL, 'ftth_olt_port_metrics_poll', 'snmp_poll', 'services/ftth/oltPortMetricsPollHandler', 'Poll OLT PON port metrics (optical power, ONU count, bandwidth) via SNMP and update olt_ports records', '*/5 * * * *', 'normal', 3, 180, 0),
+    (NULL, 'ftth_onu_discovery', 'snmp_poll', 'services/ftth/onuDiscoveryHandler', 'Scan OLT devices for newly connected ONUs, create onu_details records with state=unconfigured, and check against onu_whitelist', '*/15 * * * *', 'normal', 2, 300, 0),
+    (NULL, 'ftth_onu_optical_poll', 'snmp_poll', 'services/ftth/onuOpticalPollHandler', 'Poll per-ONU optical diagnostics (Tx power, Rx power, temperature, voltage, bias current) and insert rows into onu_optical_metrics', '*/10 * * * *', 'normal', 3, 240, 0),
+    (NULL, 'ftth_onu_firmware_job_processor', 'other', 'services/ftth/onuFirmwareJobProcessor', 'Pick up pending onu_firmware_jobs whose scheduled_at <= NOW() and execute via OLT CLI stub; update job status on completion', '* * * * *', 'high', 1, 600, 0),
+    (NULL, 'ftth_onu_optical_metrics_cleanup', 'cleanup', 'services/ftth/onuOpticalMetricsCleanup', 'Delete onu_optical_metrics rows older than 90 days in batches of 10000 to keep the table bounded', '0 3 * * *', 'low', 2, 600, 1),
+    (NULL, 'cpe_cwmp_task_processor', 'other', 'services/acs/cwmpTaskProcessor', 'Process queued CWMP tasks for CPE devices — dequeues pending cpe_tasks and dispatches via ACS session', '* * * * *', 'high', 1, 60, 0),
+    (NULL, 'cpe_firmware_campaign_processor', 'other', 'services/acs/firmwareCampaignProcessor', 'Process scheduled CPE firmware upgrade campaigns — enqueues download tasks for target devices', '*/5 * * * *', 'normal', 2, 300, 0),
+    (NULL, 'cpe_session_log_cleanup', 'cleanup', 'services/acs/sessionLogCleanup', 'Delete cpe_session_logs rows older than 90 days to bound table growth', '0 3 * * *', 'low', 1, 60, 1);
+
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, task_type, description, cron_expression, priority, is_enabled, created_at, updated_at)
+VALUES
+    (NULL, 'fup_threshold_notify', 'notification', 'Check FUP usage thresholds and send 80/90/100% notifications', '*/15 * * * *', 'normal', 0, NOW(), NOW()),
+    (NULL, 'rollover_balance_accrue', 'usage_rollup', 'Monthly: accrue unused data allowance as rollover balance to next month', '0 0 1 * *', 'normal', 1, NOW(), NOW()),
+    (NULL, 'subscriber_speed_test_run', 'other', 'Dispatch queued subscriber speed test jobs and record results', '*/5 * * * *', 'low', 0, NOW(), NOW());
+
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, task_type, description, cron_expression, is_enabled)
+VALUES
+    (NULL, 'sla_breach_check', 'notification', 'Check for SLA breaches on open tickets and fire escalation events', '*/5 * * * *', 1),
+    (NULL, 'geofence_evaluation', 'other', 'Evaluate all geofences — check device/CPE positions and emit alerts for violations', '*/10 * * * *', 1),
+    (NULL, 'data_retention_compliance_check', 'other', 'Daily check for overdue DSAR requests and stale government data requests past retention (§16.9)', '0 3 * * *', 1);
+
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, task_type, description, cron_expression, priority, is_enabled)
+VALUES
+    (NULL, 'inventory_low_stock_check', 'notification', 'Check inventory items below reorder level and send low-stock alerts', '0 * * * *', 'normal', 1),
+    (NULL, 'generate_scheduled_reports', 'other', 'Generate and email scheduled reports to configured recipients', '0 * * * *', 'normal', 1),
+    (NULL, 'ai_support_metrics_rollup', 'other', 'Nightly rollup of AI support conversation metrics', '0 1 * * *', 'normal', 1);
+
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, task_type, cron_expression, priority, is_enabled)
+VALUES
+    (NULL, 'anomaly_detection', 'other', '*/15 * * * *', 'normal', 1),
+    (NULL, 'churn_score_computation', 'other', '0 2 * * *', 'low', 1),
+    (NULL, 'remediation_evaluation', 'other', '*/5 * * * *', 'high', 1);
+
+INSERT INTO scheduled_tasks
+    (organization_id, task_name, task_type, handler, description, cron_expression, priority, max_retries, timeout_seconds, is_enabled, payload)
+VALUES
+    (NULL, 'refresh_voip_ranges', 'other', 'voipRangesService.refreshAllNas', 'Refreshes the fireisp-voip RTC/VoIP address-list on managed MikroTik NAS from provider IP-range sources. Disabled by default; enable once real-time priority is seeded and VOIP_RANGES_ENABLED=true.', '0 4 * * 1', 'low', 2, 600, 0, NULL);
+

@@ -480,7 +480,11 @@ process re-syncs its cron handles from the table each minute, and the
 disabled or deleted row needs no restart; the BullMQ worker skips a queued job
 whose row was disabled or deleted. A seed row without a
 cron expression, dispatcher case, scope classification, and dispatch test is a
-dead feature. Keep global versus organization-scoped execution explicit.
+dead feature. `tests/scheduledTaskSeedContract.test.js` replays the seeds from
+the migrations and from `schema.sql`: both must seed the same rows, every row
+needs a dispatcher case, and a task whose case is a `{ deferred: true }` stub
+must be seeded disabled (migration 506); enable it in the migration that
+implements it. Keep global versus organization-scoped execution explicit.
 A seeded install-wide row runs with `organizationId = null`; a handler that
 binds `organization_id = ?` must then be fanned out with
 `forEachActiveOrganization` (`src/services/organizationFanOut.js`) — it reads
