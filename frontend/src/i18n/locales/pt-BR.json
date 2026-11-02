@@ -636,6 +636,10 @@
     "pageInfo": "Página {{page}} de {{total}}"
   },
   "clientList": {
+    "groupPay": {
+      "currency": "Moeda a pagar",
+      "currencyOption": "{{currency}} — {{amount}} em aberto"
+    },
     "title": "Clientes",
     "newClient": "+ Novo cliente",
     "searchPlaceholder": "Buscar por nome, e-mail, telefone ou ID do cliente…",

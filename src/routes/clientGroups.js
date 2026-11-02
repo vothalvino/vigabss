@@ -109,6 +109,7 @@ router.post('/:id/pay', requirePermission('payments.create'), validate(payClient
       payment_method: req.body.payment_method,
       reference_number: req.body.reference_number,
       invoice_ids: req.body.invoice_ids,
+      currency: req.body.currency,
       actorUserId: req.user?.id,
     });
     logger.info({ groupId: req.params.id, paymentId: result.payment.id, actorUserId: req.user?.id }, 'Group balance paid');

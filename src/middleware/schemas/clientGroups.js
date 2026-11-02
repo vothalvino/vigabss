@@ -32,6 +32,8 @@ const payClientGroup = {
   payment_method: { type: 'string', enum: PAYMENT_METHODS },
   reference_number: { type: 'string', max: 100 },
   invoice_ids: { type: 'array' },
+  // The currency to settle; required when the group holds several.
+  currency: { type: 'string', pattern: /^[A-Za-z]{3}$/ },
 };
 
 module.exports = { createClientGroup, updateClientGroup, payClientGroup };
