@@ -26,6 +26,10 @@ const {
 } = require('./suspensionLogConstants');
 const logger = require('../utils/logger').child({ service: 'radius' });
 
+// One connection per subscription (contract), whatever the plan or account
+// simultaneous_use says; see kickDuplicateSessions.
+const MAX_SESSIONS_PER_SUBSCRIPTION = 1;
+
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 
 // Circuit breaker for RADIUS CoA/Disconnect calls
@@ -487,7 +491,7 @@ async function syncFreeradiusContract(contractId, {
   );
   await runner.query(
     'INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)',
-    [account.username, 'Simultaneous-Use', ':=', String(account.simultaneous_use ?? 1)],
+    [account.username, 'Simultaneous-Use', ':=', String(MAX_SESSIONS_PER_SUBSCRIPTION)],
   );
   if (account.contract_status === 'pending') {
     if (!account.radius_expiration || !(Number(account.window_seconds_remaining) > 0)) {
@@ -830,11 +834,11 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
         }
       }
 
-      // Item 11: Simultaneous-Use check — account override wins over plan default
-      const simUse = sub.account_sim_use !== null && sub.account_sim_use !== undefined ? sub.account_sim_use : (sub.plan_sim_use ?? 1);
+      // Item 11: one connection per subscription. A configured plan or account
+      // value above 1 no longer raises it.
       await db.query(
         'INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)',
-        [username, 'Simultaneous-Use', ':=', String(simUse)],
+        [username, 'Simultaneous-Use', ':=', String(MAX_SESSIONS_PER_SUBSCRIPTION)],
       );
 
       // Soft suspension (NPR-01): the throttle is a per-user reply row. The
@@ -1177,166 +1181,173 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
 }
 
 // =============================================================================
-// Duplicate Session Enforcement (item 11)
+// Duplicate Session Enforcement (item 11) — one connection per subscription
 // =============================================================================
+// A subscription (contract) has at most ONE live session, however many RADIUS
+// accounts it has and whichever NAS of the organization it connects through.
+// When a second session appears, the OLDER one is disconnected, so a client
+// who moves, or whose old router never sent Acct-Stop, is never locked out by
+// the stale session. A RADIUS account without a contract counts on its own.
+
 
 /**
- * Find subscribers with more active sessions in connection_logs than their
- * allowed simultaneous_use limit, then disconnect the oldest excess sessions.
+ * Active sessions for a set of usernames in one organization, oldest first.
  *
- * "Active session" = a connection_logs row with event_type='start' that has no
- * matching 'stop' row for the same session_id, AND whose latest accounting
- * evidence is within the liveness window (config.radiusSessionLivenessMinutes,
- * default 60) — a stop can be lost, so an open row alone is not proof of life.
- *
- * The oldest sessions (lowest id / earliest event_at) are kicked first.
+ * "Active" = start/interim with no stop, AND accounting evidence inside the
+ * liveness window (config.radiusSessionLivenessMinutes, default 60): a stop
+ * can be lost, so an open row alone is not proof of life (the j65 ghost
+ * guard: counting a ghost would disconnect the real session every cycle).
+ * One session = one session id: FreeRADIUS-SQL inserts a row per event, and
+ * a NULL session id can never pair with its stop. The latest-row predicate
+ * keeps a legacy per-event row from counting twice.
+ */
+async function activeSessionsFor(organizationId, usernames, livenessMinutes) {
+  if (!usernames.length) return [];
+  const [rows] = await db.query(
+    `SELECT COALESCE(cl.acct_session_id, cl.session_id) AS session_id,
+            cl.event_at,
+            cl.nas_ip_address,
+            cl.username
+     FROM connection_logs cl
+     WHERE cl.organization_id = ?
+       AND cl.username IN (${usernames.map(() => '?').join(', ')})
+       AND COALESCE(cl.acct_session_id, cl.session_id) IS NOT NULL
+       AND cl.event_type IN ('start', 'interim-update')
+       AND COALESCE(cl.last_accounting_received_at, cl.last_accounting_at, cl.event_at) >=
+           DATE_SUB(NOW(), INTERVAL ${livenessMinutes} MINUTE)
+       AND (cl.session_instance_id IS NOT NULL OR cl.id = (
+         SELECT legacy_latest.id FROM connection_logs legacy_latest
+          WHERE legacy_latest.organization_id = cl.organization_id
+            AND legacy_latest.session_instance_id IS NULL
+            AND legacy_latest.nas_id <=> cl.nas_id
+            AND legacy_latest.username = cl.username
+            AND legacy_latest.contract_id = cl.contract_id
+            AND COALESCE(legacy_latest.acct_session_id, legacy_latest.session_id)
+                <=> COALESCE(cl.acct_session_id, cl.session_id)
+          ORDER BY COALESCE(legacy_latest.last_accounting_at, legacy_latest.event_at) DESC,
+                   legacy_latest.id DESC LIMIT 1))
+     ORDER BY cl.event_at ASC, COALESCE(cl.acct_session_id, cl.session_id) ASC`,
+    [organizationId, ...usernames],
+  );
+  return rows;
+}
+
+function sessionLivenessMinutes() {
+  // Coerced to a safe positive integer because it is interpolated, not bound.
+  return Number.isInteger(config.radiusSessionLivenessMinutes) && config.radiusSessionLivenessMinutes > 0
+    ? config.radiusSessionLivenessMinutes
+    : 60;
+}
+
+/**
+ * Disconnect all but the newest session of one subscription. Each kick is
+ * targeted at the NAS the session lives on and narrowed by Acct-Session-Id,
+ * so only that session dies.
+ */
+async function enforceSubscriptionSessions(group, livenessMinutes) {
+  let kicked = 0;
+  let errors = 0;
+  const sessions = await activeSessionsFor(group.organizationId, group.usernames, livenessMinutes);
+  const excess = sessions.length - MAX_SESSIONS_PER_SUBSCRIPTION;
+  if (excess <= 0) return { kicked, errors };
+  for (const session of sessions.slice(0, excess)) {
+    try {
+      const result = await radiusCircuitBreaker.call(
+        () => sendRadiusDisconnect(group.contractId, {
+          acctSessionId: session.session_id,
+          nasIpAddress: session.nas_ip_address,
+        }),
+      );
+      // Only a Disconnect that actually went out counts as a kick.
+      if (result && result.sent) {
+        logger.info({ contractId: group.contractId, username: session.username, session_id: session.session_id },
+          'Disconnected an older session: one connection per subscription');
+        kicked++;
+      } else {
+        logger.warn({ contractId: group.contractId, username: session.username, session_id: session.session_id, result },
+          'Older-session disconnect could not be delivered');
+        errors++;
+      }
+    } catch (kickErr) {
+      logger.error({ err: kickErr, contractId: group.contractId }, 'Failed to disconnect an older session');
+      errors++;
+    }
+  }
+  return { kicked, errors };
+}
+
+/** Group active RADIUS accounts by subscription (contract), or by account. */
+function groupBySubscription(accounts) {
+  const groups = new Map();
+  for (const a of accounts) {
+    const key = a.contract_id ? `contract:${a.contract_id}` : `radius:${a.radius_id}`;
+    if (!groups.has(key)) {
+      groups.set(key, { contractId: a.contract_id || null, organizationId: a.organization_id, usernames: [] });
+    }
+    const group = groups.get(key);
+    if (!group.usernames.includes(a.username)) group.usernames.push(a.username);
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Sweep: enforce one live session per subscription across an organization
+ * (or all organizations). Runs on the scheduler and from POST
+ * /radius/kick-sessions; enforceSingleSession runs it for one contract as
+ * soon as a session starts.
  *
  * @param {number|null} organizationId - scope to org; null = all orgs
  * @returns {{ kicked: number, errors: number }}
  */
 async function kickDuplicateSessions(organizationId) {
-  logger.info({ organizationId }, 'Checking for duplicate sessions to kick');
-
-  // Scope by the account's own org, falling back to its contract's. A plain
-  // `c.organization_id = ?` silently dropped every contract-less account from a
-  // per-org sync (radius.contract_id is nullable), so a MAC allowlisted before
-  // provisioning never got radcheck rows at all — it simply failed to
-  // authenticate, with nothing in the logs to say why.
+  logger.info({ organizationId }, 'Checking for subscriptions with more than one session');
+  // Scope by the account's own org, falling back to its contract's
+  // (radius.contract_id is nullable).
   const orgFilter = organizationId ? 'AND COALESCE(r.organization_id, c.organization_id) = ?' : '';
-  const orgParams = organizationId ? [organizationId] : [];
-
-  // Liveness window for the ghost guard below. Coerced to a safe positive
-  // integer because it is interpolated into SQL, not bound.
-  const livenessMinutes =
-    Number.isInteger(config.radiusSessionLivenessMinutes) && config.radiusSessionLivenessMinutes > 0
-      ? config.radiusSessionLivenessMinutes
-      : 60;
-
-  // Load all active subscribers with their effective simultaneous_use limit.
-  // (No home-NAS join here — sendRadiusDisconnect targets the NAS each excess
-  // session actually lives on, per connection_logs.)
-  const [subscribers] = await db.query(
-    `SELECT r.id AS radius_id, r.username,
-            COALESCE(r.simultaneous_use, p.simultaneous_use, 1) AS allowed_sim_use,
-            r.contract_id, COALESCE(r.organization_id, c.organization_id) AS organization_id
+  const [accounts] = await db.query(
+    `SELECT r.id AS radius_id, r.username, r.contract_id,
+            COALESCE(r.organization_id, c.organization_id) AS organization_id
      FROM radius r
      LEFT JOIN contracts c ON c.id = r.contract_id
-     LEFT JOIN plans p ON p.id = c.plan_id
      WHERE r.status = 'active'
        AND r.deleted_at IS NULL
        ${orgFilter}`,
-    orgParams,
+    organizationId ? [organizationId] : [],
   );
 
+  const livenessMinutes = sessionLivenessMinutes();
   let kicked = 0;
   let errors = 0;
-
-  for (const sub of subscribers) {
+  for (const group of groupBySubscription(accounts)) {
     try {
-      // Find all active sessions for this username — start OR interim-update
-      // with no stop. The embedded accounting path updates the session row in
-      // place, so a live session's row reads 'interim-update' after its first
-      // update; matching only 'start' undercounted those sessions.
-      //
-      // GROUP BY session_id is load-bearing: FreeRADIUS-SQL accounting
-      // INSERTS one row per event, so a single live session is start + N
-      // interim rows — counting raw rows would "detect" N+1 sessions and
-      // kick a fully compliant subscriber. One session = one session_id.
-      // (nas_ip_address is constant within a session in both accounting
-      // shapes, so MAX() just picks the value.)
-      //
-      // session_id IS NOT NULL: a NULL session_id can never pair with its
-      // stop row (NULL never matches the NOT EXISTS), so such phantom rows
-      // would look open forever — and "kicking" one would send a Disconnect
-      // with no Acct-Session-Id, killing ALL of the user's sessions.
-      //
-      // The 90-day event_at bound enables partition pruning (connection_logs
-      // is RANGE-partitioned by event_at). An embedded-writer session older
-      // than that drops out of the count — fails safe: fewer kicks, never
-      // false kicks.
-      //
-      // HAVING MAX(event_at) is the ghost guard (j65): a NAS reboot or a
-      // dropped Acct-Stop leaves an open row that would otherwise count as
-      // live FOREVER. With a 1-session plan, one real session + one ghost
-      // reads as 2, and this kicker — which runs unattended every 5 minutes —
-      // would disconnect the subscriber's REAL session every cycle with
-      // nothing in the logs. So a session counts only while it shows
-      // accounting evidence inside the liveness window; the ghost row stays
-      // in the DB for history, it just stops counting. This too fails safe:
-      // a live session on a NAS with interim updates disabled ages out of
-      // the COUNT (fewer kicks) — it is never falsely kicked.
-      // (livenessMinutes is validated to a positive integer above — it is
-      // interpolated, not bound, matching the inline 90 DAY literal.)
-      const [activeSessions] = await db.query(
-        `SELECT COALESCE(cl.acct_session_id, cl.session_id) AS session_id,
-                cl.event_at,
-                cl.nas_ip_address
-         FROM connection_logs cl
-         WHERE cl.organization_id = ?
-           AND cl.username = ?
-           AND COALESCE(cl.acct_session_id, cl.session_id) IS NOT NULL
-           AND cl.event_type IN ('start', 'interim-update')
-           AND COALESCE(cl.last_accounting_received_at, cl.last_accounting_at, cl.event_at) >=
-               DATE_SUB(NOW(), INTERVAL ${livenessMinutes} MINUTE)
-           AND (cl.session_instance_id IS NOT NULL OR cl.id = (
-             SELECT legacy_latest.id FROM connection_logs legacy_latest
-              WHERE legacy_latest.organization_id = cl.organization_id
-                AND legacy_latest.session_instance_id IS NULL
-                AND legacy_latest.nas_id <=> cl.nas_id
-                AND legacy_latest.username = cl.username
-                AND legacy_latest.contract_id = cl.contract_id
-                AND COALESCE(legacy_latest.acct_session_id, legacy_latest.session_id)
-                    <=> COALESCE(cl.acct_session_id, cl.session_id)
-              ORDER BY COALESCE(legacy_latest.last_accounting_at, legacy_latest.event_at) DESC,
-                       legacy_latest.id DESC LIMIT 1))
-         ORDER BY cl.event_at ASC, COALESCE(cl.acct_session_id, cl.session_id) ASC`,
-        [sub.organization_id, sub.username],
-      );
-
-      const excess = activeSessions.length - sub.allowed_sim_use;
-      if (excess <= 0) continue;
-
-      // Disconnect the oldest `excess` sessions — targeted at the NAS each
-      // session lives on, narrowed by Acct-Session-Id so only that one
-      // session dies (a bare User-Name disconnect would kill ALL of the
-      // subscriber's sessions, including the ones within the limit).
-      const toKick = activeSessions.slice(0, excess);
-      for (const session of toKick) {
-        try {
-          const result = await radiusCircuitBreaker.call(
-            () => sendRadiusDisconnect(sub.contract_id, {
-              acctSessionId: session.session_id,
-              nasIpAddress: session.nas_ip_address,
-            }),
-          );
-          // Only count a kick when the Disconnect actually went out — a
-          // resolved-but-unsent result ({sent:false}) is a failure, not a kick.
-          if (result && result.sent) {
-            logger.info(
-              { username: sub.username, session_id: session.session_id, result },
-              'Kicked duplicate session',
-            );
-            kicked++;
-          } else {
-            logger.warn(
-              { username: sub.username, session_id: session.session_id, result },
-              'Duplicate-session kick could not be delivered',
-            );
-            errors++;
-          }
-        } catch (kickErr) {
-          logger.error({ err: kickErr, username: sub.username }, 'Failed to kick duplicate session');
-          errors++;
-        }
-      }
+      const r = await enforceSubscriptionSessions(group, livenessMinutes);
+      kicked += r.kicked;
+      errors += r.errors;
     } catch (err) {
-      logger.error({ err, username: sub.username }, 'Error processing duplicate session check');
+      logger.error({ err, contractId: group.contractId }, 'Error processing duplicate session check');
       errors++;
     }
   }
 
   logger.info({ kicked, errors, organizationId }, 'Duplicate session kick complete');
   return { kicked, errors };
+}
+
+/**
+ * Enforce one session for a single subscription right away (called after an
+ * Accounting-Start), instead of waiting for the next sweep.
+ */
+async function enforceSingleSession(organizationId, contractId) {
+  if (!organizationId || !contractId) return { kicked: 0, errors: 0 };
+  const [accounts] = await db.query(
+    `SELECT r.id AS radius_id, r.username, r.contract_id, ? AS organization_id
+       FROM radius r
+      WHERE r.contract_id = ? AND r.deleted_at IS NULL AND r.status = 'active'`,
+    [organizationId, contractId],
+  );
+  const [group] = groupBySubscription(accounts);
+  if (!group) return { kicked: 0, errors: 0 };
+  return enforceSubscriptionSessions(group, sessionLivenessMinutes());
 }
 
 // =============================================================================
@@ -1495,6 +1506,8 @@ module.exports = {
   getSessionHistory,
   getUsageSummary,
   kickDuplicateSessions,
+  enforceSingleSession,
+  MAX_SESSIONS_PER_SUBSCRIPTION,
   walledGardenSuspendContract,
   walledGardenReconnect,
   radiusCircuitBreaker,

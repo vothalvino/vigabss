@@ -74196,7 +74196,7 @@
           "simultaneous_use": {
             "type": "number",
             "minimum": 1,
-            "maximum": 255
+            "maximum": 1
           },
           "vlan_id": {
             "type": "number",
@@ -74293,7 +74293,7 @@
           "simultaneous_use": {
             "type": "number",
             "minimum": 1,
-            "maximum": 255
+            "maximum": 1
           },
           "vlan_id": {
             "type": "number",
