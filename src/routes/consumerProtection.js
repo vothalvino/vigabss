@@ -510,20 +510,100 @@ router.put('/service-modifications/:id', requirePermission('service_modification
   }
 });
 
+// PUT /service-modifications/:id/send — deliver a notice (ASY-25). It used to
+// flip status to 'sent' and stamp noticed_at without sending anything.
+//   * A notice to one client on the email or sms channel is delivered through
+//     the transports (transactional class; each attempt is logged there) and
+//     is 'sent' only when delivery succeeded.
+//   * A notice to every subscriber, or on the postal / portal / all channels,
+//     is not something this endpoint can deliver: it records that the
+//     operator delivered it, and requires delivery_evidence saying how.
+// Either way the effective date must leave the required notice period.
 router.put('/service-modifications/:id/send', requirePermission('service_modification_notices.manage'), async (req, res, next) => {
   try {
     const { id } = req.params;
-
-    await db.query(
-      'UPDATE service_modification_notices SET noticed_at = NOW(), status = \'sent\', updated_at = NOW() WHERE id = ? AND organization_id = ?',
+    const [[notice]] = await db.query(
+      'SELECT * FROM service_modification_notices WHERE id = ? AND organization_id = ?',
       [id, req.orgId],
     );
+    if (!notice) return res.status(404).json({ error: 'Not found' });
+    if (notice.status !== 'pending') {
+      throw new AppError(`This notice is already ${notice.status}.`, 409, 'NOTICE_NOT_PENDING');
+    }
 
-    res.json({ success: true });
+    const effective = new Date(`${String(notice.effective_date instanceof Date ? notice.effective_date.toISOString() : notice.effective_date).slice(0, 10)}T00:00:00Z`);
+    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const daysAhead = Math.floor((effective - today) / 86400000);
+    if (daysAhead < Number(notice.notice_required_days || 0)) {
+      throw new AppError(
+        `The change takes effect in ${daysAhead} day(s), but this notice requires ${notice.notice_required_days}. Move the effective date or issue the notice earlier.`,
+        422, 'NOTICE_PERIOD_TOO_SHORT',
+      );
+    }
+
+    const deliverable = notice.client_id && ['email', 'sms'].includes(notice.channel);
+    let outcome;
+    if (deliverable) {
+      const [[client]] = await db.query(
+        'SELECT id, name, email, phone FROM clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+        [notice.client_id, req.orgId],
+      );
+      if (!client) throw new ValidationError('The notice\'s client no longer exists in this organization');
+      const text = `Aviso de modificación del servicio (${notice.notice_type}), efectivo el ${effective.toISOString().slice(0, 10)}:\n\n${notice.description}`;
+      let result;
+      if (notice.channel === 'email') {
+        if (!client.email) throw new ValidationError('The client has no email address for this notice');
+        result = await require('../services/emailTransport').sendEmail({
+          organizationId: req.orgId, clientId: client.id, messageClass: 'transactional',
+          to: client.email, subject: 'Aviso de modificación del servicio', text,
+          html: `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`,
+        });
+      } else {
+        if (!client.phone) throw new ValidationError('The client has no phone number for this notice');
+        result = await require('../services/smsTransport').sendSms({
+          organizationId: req.orgId, clientId: client.id, messageClass: 'transactional',
+          to: client.phone, body: text.slice(0, 1500),
+        });
+      }
+      if (!result || !result.success) {
+        throw new AppError(
+          `The notice was not delivered (${result?.error || result?.code || 'unknown error'}); it stays pending.`,
+          502, 'NOTICE_DELIVERY_FAILED',
+        );
+      }
+      outcome = { delivered: true, channel: notice.channel, message_id: result.messageId || null };
+    } else {
+      const evidence = typeof req.body?.delivery_evidence === 'string' ? req.body.delivery_evidence.trim() : '';
+      if (!evidence) {
+        throw new ValidationError(
+          `A ${notice.client_id ? notice.channel : 'broadcast'} notice is delivered outside the system; send delivery_evidence describing how and when it was delivered.`,
+          [{ field: 'delivery_evidence', message: 'Required' }],
+        );
+      }
+      outcome = { delivered: false, recorded: true, evidence: evidence.slice(0, 2000) };
+    }
+
+    const note = outcome.delivered
+      ? `Sent by ${outcome.channel}${outcome.message_id ? ` (${outcome.message_id})` : ''}`
+      : `Delivered outside the system: ${outcome.evidence}`;
+    const [result] = await db.query(
+      `UPDATE service_modification_notices
+          SET noticed_at = NOW(), status = 'sent', updated_at = NOW(),
+              notes = CONCAT_WS('\n', NULLIF(notes, ''), ?)
+        WHERE id = ? AND organization_id = ? AND status = 'pending'`,
+      [note, id, req.orgId],
+    );
+    if (!result.affectedRows) throw new AppError('The notice is no longer pending.', 409, 'NOTICE_NOT_PENDING');
+
+    res.json({ success: true, data: outcome });
   } catch (err) {
     next(err);
   }
 });
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 // =============================================================================
 // Contract Templates MX — /contract-templates-mx

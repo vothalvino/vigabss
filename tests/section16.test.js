@@ -1123,16 +1123,23 @@ describe('PUT /api/v1/consumer-protection/service-modifications/:id/send', () =>
       if (typeof sql === 'string' && sql.includes('INSERT INTO audit_logs')) {
         return Promise.resolve([{ insertId: 99 }]);
       }
+      // A pending broadcast notice far enough ahead of its effective date.
+      if (typeof sql === 'string' && sql.includes('SELECT * FROM service_modification_notices')) {
+        const effective = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+        return Promise.resolve([[{ id: 1, status: 'pending', client_id: null, channel: 'all', notice_type: 'price_change', description: 'x', effective_date: effective, notice_required_days: 30 }]]);
+      }
       return Promise.resolve([{ affectedRows: 1 }]);
     });
   });
   afterEach(() => { jest.clearAllMocks(); });
 
   it('returns 200 on send', async () => {
+    // A broadcast notice is delivered outside the system: evidence required (ASY-25).
     const res = await request(app)
       .put('/api/v1/consumer-protection/service-modifications/1/send')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .set('X-Org-Id', '10');
+      .set('X-Org-Id', '10')
+      .send({ delivery_evidence: 'Mailed to every subscriber on 2026-11-02' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
   });
