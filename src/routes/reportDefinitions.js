@@ -13,6 +13,8 @@ const { requirePermission } = require('../middleware/rbac');
 const db = require('../config/database');
 
 const router = Router();
+
+const VALID_CATEGORIES = ['financial', 'operational', 'network', 'compliance', 'custom'];
 router.use(authenticate);
 router.use(orgScope);
 
@@ -59,9 +61,8 @@ router.post('/', requirePermission('reports.manage_definitions'), async (req, re
       return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'name is required' } });
     }
 
-    const validCategories = ['financial', 'operational', 'network', 'compliance', 'custom'];
-    if (!validCategories.includes(category)) {
-      return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: `category must be one of: ${validCategories.join(', ')}` } });
+    if (!VALID_CATEGORIES.includes(category)) {
+      return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: `category must be one of: ${VALID_CATEGORIES.join(', ')}` } });
     }
 
     const [result] = await db.query(
@@ -93,6 +94,13 @@ router.put('/:id', requirePermission('reports.manage_definitions'), async (req, 
     if (!existing.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Report definition not found or is a system definition' } });
 
     const { name, category, description, sql_template, parameters } = req.body;
+    // The same rules as POST; an omitted field keeps its value (TNB-31).
+    if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
+      return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'name must be a non-empty string' } });
+    }
+    if (category !== undefined && !VALID_CATEGORIES.includes(category)) {
+      return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: `category must be one of: ${VALID_CATEGORIES.join(', ')}` } });
+    }
 
     await db.query(
       `UPDATE report_definitions
@@ -103,7 +111,7 @@ router.put('/:id', requirePermission('reports.manage_definitions'), async (req, 
            parameters  = COALESCE(?, parameters),
            updated_at  = NOW()
        WHERE id = ?`,
-      [name, category,
+      [name ?? null, category ?? null,
         description !== undefined ? description : null,
         sql_template !== undefined ? sql_template : null,
         parameters !== undefined ? JSON.stringify(parameters) : null,
