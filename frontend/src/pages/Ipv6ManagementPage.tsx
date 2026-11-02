@@ -457,10 +457,14 @@ function SubnetPlannerTab() {
 // Pool Conflicts Tab
 // ---------------------------------------------------------------------------
 
+// subnetPlannerService.detectConflicts rows (FE2-11).
 interface ConflictEntry {
-  pool_a: string;
-  pool_b: string;
-  overlapping_networks: string;
+  pool_a_id: number;
+  pool_a_name: string;
+  pool_a_network: string;
+  pool_b_id: number;
+  pool_b_name: string;
+  pool_b_network: string;
 }
 
 function ConflictsTab({ active }: { active: boolean }) {
@@ -499,9 +503,9 @@ function ConflictsTab({ active }: { active: boolean }) {
             <tbody>
               {conflicts.map((c, i) => (
                 <tr key={i} style={styles.tr}>
-                  <td style={styles.td}>{c.pool_a}</td>
-                  <td style={styles.td}>{c.pool_b}</td>
-                  <td style={styles.tdMono}>{c.overlapping_networks}</td>
+                  <td style={styles.td}>{c.pool_a_name}</td>
+                  <td style={styles.td}>{c.pool_b_name}</td>
+                  <td style={styles.tdMono}>{c.pool_a_network} ∩ {c.pool_b_network}</td>
                 </tr>
               ))}
             </tbody>

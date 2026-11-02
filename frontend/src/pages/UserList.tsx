@@ -231,7 +231,7 @@ async function updateArchivedUserGroup(id: number, groupId: number): Promise<Use
 }
 
 interface TwoFASetupData {
-  otpauth_url: string;
+  uri: string; // twoFactorService.generateSecret returns { secret, uri, qr_data } (FE2-11)
   secret: string;
   backup_codes?: string[];
 }
@@ -1132,11 +1132,11 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
                 OTPAuth URL (for QR scanning):
               </div>
               <div style={{ fontSize: '0.75rem', wordBreak: 'break-all', color: '#374151' }}>
-                {setupData.otpauth_url}
+                {setupData.uri}
               </div>
               <button
                 style={{ ...btnSecondary, marginTop: 6, fontSize: '0.75rem', padding: '4px 10px' }}
-                onClick={() => navigator.clipboard.writeText(setupData.otpauth_url).catch(() => undefined)}
+                onClick={() => navigator.clipboard.writeText(setupData.uri).catch(() => undefined)}
               >
                 Copy URL
               </button>

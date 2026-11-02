@@ -63453,9 +63453,11 @@
             "type": "string",
             "enum": [
               "active",
-              "inactive",
-              "deprecated"
+              "inactive"
             ]
+          },
+          "is_active": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -63497,9 +63499,11 @@
             "type": "string",
             "enum": [
               "active",
-              "inactive",
-              "deprecated"
+              "inactive"
             ]
+          },
+          "is_active": {
+            "type": "boolean"
           }
         }
       },

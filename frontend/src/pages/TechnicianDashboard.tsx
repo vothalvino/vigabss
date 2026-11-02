@@ -49,7 +49,7 @@ interface AlertRow {
   id: number;
   rule_name?: string | null;
   metric?: string | null;
-  value?: number | string | null;
+  current_value?: number | string | null; // alert_events.current_value (FE2-11)
   status?: string | null;
   created_at?: string | null;
 }
@@ -312,7 +312,7 @@ export function TechnicianDashboard() {
                   <tr key={a.id} style={styles.tr}>
                     <td style={styles.td}>{a.rule_name ?? `#${a.id}`}</td>
                     <td style={styles.td}>
-                      {a.metric ? `${a.metric}${a.value != null ? ` = ${a.value}` : ''}` : '—'}
+                      {a.metric ? `${a.metric}${a.current_value != null ? ` = ${a.current_value}` : ''}` : '—'}
                     </td>
                     <td style={styles.td}>{a.status ? <StatusBadge status={a.status} /> : '—'}</td>
                     <td style={styles.td}>{relativeTime(a.created_at)}</td>
