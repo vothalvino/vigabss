@@ -67,16 +67,14 @@ const lockDatabaseName = db.baseConnectionConfig?.database || process.env.DB_NAM
 const PPPoE_EVENT_POLL_LOCK = `fireisp:${crypto.createHash('sha256').update(lockDatabaseName).digest('hex').slice(0, 16)}:${PPPoE_EVENT_POLL_TASK}`;
 
 /**
- * Acquire an install-wide MySQL advisory mutex on one dedicated primary-pool
- * connection and retain that same connection until the collector settles.
- * This serializes inline cron, BullMQ workers, and manual runs without an
- * expiring lease that could overlap a still-running RouterOS operation.
+ * Acquire an install-wide MySQL advisory mutex on a session from the lock pool
+ * (db.getLockConnection, never a request connection) and retain that session
+ * until the collector settles. This serializes inline cron, BullMQ workers,
+ * and manual runs without an expiring lease that could overlap a
+ * still-running RouterOS operation.
  */
 async function runPppoeEventPoll(organizationId) {
-  const getConnection = () => db.getConnection();
-  const connection = typeof db.withPrimaryContext === 'function'
-    ? await db.withPrimaryContext(getConnection)
-    : await getConnection();
+  const connection = await db.getLockConnection();
   let acquired = false;
   let discardConnection = false;
 
