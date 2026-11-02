@@ -114,7 +114,6 @@ function generateSpec() {
       { name: 'Audit Logs', description: 'Audit trail' },
       { name: 'Export', description: 'CSV export of data' },
       { name: 'Import', description: 'Bulk CSV import' },
-      { name: 'Files', description: 'File upload and management' },
       { name: 'PDF', description: 'PDF document generation' },
       { name: 'Metrics', description: 'Prometheus metrics' },
       { name: 'FireRelay', description: 'Multi-node cluster management' },
@@ -1191,7 +1190,6 @@ function generateSpec() {
       '/import/contracts': { post: { tags: ['Import'], summary: 'Bulk import contracts from CSV (optional pppoe_username/pppoe_password columns carry over pre-existing PPPoE credentials instead of auto-generating them)', operationId: 'importContracts', security: [{ bearerAuth: [] }], requestBody: jsonBody('csv'), responses: r200('ImportResult') } },
 
       // ---- Files ----
-      '/files/upload': { post: { tags: ['Files'], summary: 'Upload a file (multipart/form-data)', operationId: 'uploadFile', security: [{ bearerAuth: [] }], requestBody: { content: { 'multipart/form-data': { schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, entity_type: { type: 'string' }, entity_id: { type: 'integer' } } } } } }, responses: r201('File') } },
 
       // ---- PDF ----
       '/pdf/invoices/{id}': { get: { tags: ['PDF'], summary: 'Download invoice PDF', operationId: 'pdfInvoice', security: [{ bearerAuth: [] }], parameters: [idParam(), localeParam()], responses: r200File('application/pdf') } },
