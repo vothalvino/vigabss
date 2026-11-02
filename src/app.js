@@ -703,7 +703,9 @@ v1.use('/purchase-orders', purchaseOrderRoutes);
 v1.use('/assets', assetRoutes);
 v1.use('/rma-requests', rmaRoutes);
 v1.use('/roles', ...adminIpAllowlist, roleRoutes);
-v1.use('/api-tokens', apiTokenRoutes);
+// Credential-minting and integration-config mounts sit behind the admin IP
+// allowlist too (SEC-26).
+v1.use('/api-tokens', ...adminIpAllowlist, apiTokenRoutes);
 v1.use('/sla-definitions', slaDefinitionRoutes);
 v1.use('/ip-pools', ipPoolRoutes);
 v1.use('/ip-assignments', ipAssignmentRoutes);
@@ -731,12 +733,12 @@ v1.use('/audit-logs', ...adminIpAllowlist, auditLogRoutes);
 v1.use('/service-areas', serviceAreaRoutes);
 v1.use('/coverage-zones', coverageZoneRoutes);
 v1.use('/revenue-summary', revenueSummaryRoutes);
-v1.use('/webhooks', requireFeature('webhooks'), webhookRoutes);
+v1.use('/webhooks', requireFeature('webhooks'), ...adminIpAllowlist, webhookRoutes);
 v1.use('/device-config-backups', deviceConfigBackupRoutes);
 v1.use('/config-templates', configTemplateRoutes);
 v1.use('/config-backup-schedules', configBackupScheduleRoutes);
 v1.use('/config-compliance-rules', configComplianceRoutes);
-v1.use('/payment-gateways', paymentGatewayRoutes);
+v1.use('/payment-gateways', ...adminIpAllowlist, paymentGatewayRoutes);
 v1.use('/payment-transactions', paymentTransactionRoutes);
 v1.use('/payment-webhooks', paymentWebhookRoutes);
 v1.use('/whatsapp', whatsappWebhookRoutes);
@@ -827,9 +829,9 @@ v1.use('/universal-service', universalServiceRoutes);
 v1.use('/consumer-protection', consumerProtectionRoutes);
 v1.use('/data-residency', dataResidencyRoutes);
 v1.use('/security-admin', ...adminIpAllowlist, securityAdminRoutes);
-v1.use('/network-security', networkSecurityRoutes);
+v1.use('/network-security', ...adminIpAllowlist, networkSecurityRoutes);
 v1.use('/data-security', ...adminIpAllowlist, dataSecurityRoutes);
-v1.use('/webhook-security', requireFeature('webhooks'), webhookSecurityRoutes);
+v1.use('/webhook-security', requireFeature('webhooks'), ...adminIpAllowlist, webhookSecurityRoutes);
 
 // §18 Automation & Scripting
 v1.use('/automation-rules', automationRulesRoutes);
@@ -837,7 +839,7 @@ v1.use('/batch-jobs', batchJobsRoutes);
 v1.use('/provisioning-pipelines', provisioningPipelinesRoutes);
 v1.use('/remediation-rules', remediationRulesRoutes);
 v1.use('/automation-scripts', ...adminIpAllowlist, automationScriptsRoutes);
-v1.use('/router-drivers', routerDriversRoutes);
+v1.use('/router-drivers', ...adminIpAllowlist, routerDriversRoutes);
 v1.use('/analytics', analyticsAIRoutes);
 
 // §19 Multi-Tenancy / Reseller Support
@@ -845,7 +847,7 @@ v1.use('/resellers', resellerRoutes);
 v1.use('/reseller-portal', resellerPortalRoutes);
 
 // §20 APIs & Integrations
-v1.use('/integrations', integrationRoutes);
+v1.use('/integrations', ...adminIpAllowlist, integrationRoutes);
 
 // §21 AI Customer Support
 v1.use('/support', supportConversationRoutes);

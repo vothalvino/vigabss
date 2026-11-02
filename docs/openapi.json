@@ -9354,6 +9354,196 @@
         }
       }
     },
+    "/cfdi/{id}/cancellation-status": {
+      "get": {
+        "tags": [
+          "CFDI"
+        ],
+        "summary": "Ask the PAC for the SAT cancellation status of a stamped CFDI",
+        "operationId": "cfdiCancellationStatus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancellation status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cfdi/{id}/cancellations": {
+      "get": {
+        "tags": [
+          "CFDI"
+        ],
+        "summary": "List the cancellation requests recorded for a CFDI",
+        "operationId": "cfdiListCancellations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancellation[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cfdi/payment-complement": {
+      "post": {
+        "tags": [
+          "CFDI"
+        ],
+        "summary": "Generate a payment complement (REP) for a payment applied to a PPD invoice",
+        "operationId": "cfdiCreatePaymentComplement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "payment_id + invoice_id",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment complement CFDI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cfdi/payment-complement/{id}": {
+      "get": {
+        "tags": [
+          "CFDI"
+        ],
+        "summary": "Get a payment complement",
+        "operationId": "cfdiGetPaymentComplement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment complement CFDI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cfdi/reconciliation": {
+      "get": {
+        "tags": [
+          "CFDI"
+        ],
+        "summary": "Monthly CFDI vs invoice reconciliation report",
+        "operationId": "cfdiReconciliationReport",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reconciliation report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cfdi/{id}/pdf": {
       "get": {
         "tags": [
@@ -9554,6 +9744,167 @@
         "responses": {
           "204": {
             "description": "No content"
+          }
+        }
+      }
+    },
+    "/cfdi-documents/environment": {
+      "get": {
+        "tags": [
+          "CFDI Documents"
+        ],
+        "summary": "The organization's PAC environment and whether this install runs in production (sandbox CFDIs are not fiscally valid)",
+        "operationId": "getCfdiEnvironment",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fiscal environment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pac_environment": {
+                          "type": "string",
+                          "enum": [
+                            "sandbox",
+                            "production"
+                          ]
+                        },
+                        "production_install": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cfdi-documents/{id}/conceptos": {
+      "get": {
+        "tags": [
+          "CFDI Documents"
+        ],
+        "summary": "List the conceptos (line items) of a CFDI",
+        "operationId": "listCfdiDocumentConceptos",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Concepto[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cfdi-documents/{id}/related": {
+      "get": {
+        "tags": [
+          "CFDI Documents"
+        ],
+        "summary": "List the CFDIs related to this one (substitutions, credit notes, payment complements)",
+        "operationId": "listCfdiDocumentRelated",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CfdiDocument[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cfdi-documents/{id}/cancel": {
+      "post": {
+        "tags": [
+          "CFDI Documents"
+        ],
+        "summary": "Cancel a stamped CFDI at SAT",
+        "operationId": "cancelCfdiDocument",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "cancellation_reason (01-04) + replacement_uuid for 01",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancellation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         }
       }
@@ -9962,33 +10313,6 @@
             }
           }
         }
-      },
-      "delete": {
-        "tags": [
-          "Facturas Publicas"
-        ],
-        "summary": "Delete a FacturaPublica",
-        "operationId": "deleteFacturaPublica",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No content"
-          }
-        }
       }
     },
     "/facturas-publicas/{id}/stamp": {
@@ -10273,6 +10597,78 @@
         "responses": {
           "204": {
             "description": "No content"
+          }
+        }
+      }
+    },
+    "/csd-certificates/{id}/restore": {
+      "post": {
+        "tags": [
+          "CSD Certificates"
+        ],
+        "summary": "Restore a deleted CSD certificate",
+        "operationId": "restoreCsdCertificate",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CsdCertificate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pac-providers/{id}/restore": {
+      "post": {
+        "tags": [
+          "PAC Providers"
+        ],
+        "summary": "Restore a deleted PAC provider",
+        "operationId": "restorePacProvider",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PacProvider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         }
       }

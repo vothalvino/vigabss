@@ -12,6 +12,12 @@ import { InvoiceList } from '../InvoiceList';
 // ---------------------------------------------------------------------------
 
 const mockApiGet = vi.fn();
+// The page shows the sandbox fiscal banner, which reads the signed-in user
+// (BIL-35); a user without cfdi_documents.view never sees it.
+vi.mock('@/auth/AuthContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/auth/AuthContext')>()),
+  useAuth: () => ({ user: { id: 1, organization_id: 1, role: 'billing', permissions: [] } }),
+}));
 vi.mock('@/api/client', () => ({
   api: { GET: (...args: unknown[]) => mockApiGet(...args) },
   tokenStore: { getAccess: () => 'tok', setAccess: vi.fn(), getRefresh: () => null, setRefresh: vi.fn(), clear: vi.fn() },

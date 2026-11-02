@@ -756,10 +756,13 @@ async function stamp(cfdiDocumentId, { userId = null } = {}) {
   const [saved] = await db.query(
     `UPDATE cfdi_documents
      SET uuid = ?, sat_status = ?, stamp_date = NOW(),
-         signed_xml = ?, sat_seal = ?, pac_provider = ?,
+         signed_xml = ?, sat_seal = ?, pac_provider = ?, pac_environment = ?,
          stamp_error = NULL, stamp_ambiguous = 0
      WHERE id = ? AND sat_status = 'draft' AND uuid IS NULL`,
-    [uuid, 'vigente', signedXml, selloSat, stampedProvider && stampedProvider.provider_name, cfdiDocumentId],
+    [uuid, 'vigente', signedXml, selloSat, stampedProvider && stampedProvider.provider_name,
+      // The environment that stamped it, so a sandbox CFDI stays marked after
+      // the organization switches to production (BIL-35).
+      stampedProvider?.environment === 'production' ? 'production' : 'sandbox', cfdiDocumentId],
   );
   if (saved && saved.affectedRows === 0) {
     logger.error({ cfdiDocumentId, uuid }, 'Stamped CFDI not saved: the document is no longer an unstamped draft');
@@ -2492,7 +2495,7 @@ module.exports = {
   callPacStamp, callPacCancel, callPacCancelStatus,
   parseCancellationStatus, classifyCancellation, getCancellationStatus, listCancellations,
   pollPendingCancellations,
-  discardDraft,
+  discardDraft, orgPacEnvironment,
   generatePaymentComplement, buildPaymentComplementXml, enrichRelatedDocumentsWithTaxes, getPaymentComplement,
   getReconciliationReport,
   httpRequest, providerBreaker, receptorDataHint,

@@ -30,6 +30,7 @@
 const { Router } = require('express');
 const ssoService = require('../services/ssoService');
 const authService = require('../services/authService');
+const { enforceAdminIpAllowlist } = require('../middleware/adminIpAllowlist');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requireRole } = require('../middleware/rbac');
@@ -204,7 +205,9 @@ function bindOrgParam(req, _res, next) {
   }
 }
 
-const adminGuard = [authenticate, orgScope, bindOrgParam, requireRole('owner', 'admin')];
+// SSO configuration is admin-only and behind the admin IP allowlist (SEC-26);
+// the browser login flow above is not.
+const adminGuard = [authenticate, orgScope, bindOrgParam, requireRole('owner', 'admin'), enforceAdminIpAllowlist];
 
 // GET /sso/:orgId/saml/config
 router.get('/:orgId/saml/config', ...adminGuard, async (req, res, next) => {

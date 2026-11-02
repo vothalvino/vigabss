@@ -126,7 +126,9 @@ beforeEach(() => {
   mockUser.id = 1;
   mockUser.email = 'staff@test.com';
   mockUser.role = 'admin';
-  delete mockUser.hasGlobalOrganizationAccess;
+  // Role mutations need a global principal (TNB-38); tests of a tenant caller
+  // clear this.
+  mockUser.hasGlobalOrganizationAccess = true;
   require('../src/services/auditLog').log.mockClear();
 });
 
@@ -334,36 +336,30 @@ describe('PUT /api/roles/:id/permissions', () => {
 
   test('a tenant admin editing the system admin group is rejected with 403', async () => {
     mockUser.role = 'admin'; // a tenant admin is not a global principal
-    mockQuery.mockResolvedValueOnce([[SYSTEM_ADMIN_ROLE]]); // SELECT role — kind 'admin'
+    delete mockUser.hasGlobalOrganizationAccess;
 
     const res = await request(app)
       .put('/api/roles/1/permissions')
       .send({ permission_ids: [1] });
 
     expect(res.status).toBe(403);
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  test('non-legacy-admin caller adding a slug they do not hold is rejected with 403', async () => {
-    mockUser.role = 'billing'; // ordinary roles.manage holder, not the legacy bypass
-
-    mockQuery
-      .mockResolvedValueOnce([[CUSTOM_BILLING_ROLE]])                                     // SELECT role
-      .mockResolvedValueOnce([[{ id: 1, slug: 'clients.view' }, { id: 2, slug: 'clients.create' }]]) // SELECT requested perms
-      .mockResolvedValueOnce([[]])                                                          // SELECT current perms — none yet
-      // User.getPermissions(1, 1) internals:
-      .mockResolvedValueOnce([[]])                                                          // group lookup — no live group
-      .mockResolvedValueOnce([[{ slug: 'clients.view' }]]);                                 // membership perms — caller only holds clients.view
+  test('a tenant roles.manage holder cannot edit a custom group either (TNB-38)', async () => {
+    mockUser.role = 'billing';
+    delete mockUser.hasGlobalOrganizationAccess;
 
     const res = await request(app)
       .put('/api/roles/5/permissions')
       .send({ permission_ids: [1, 2] });
 
     expect(res.status).toBe(403);
-    expect(res.body.error.message).toContain('clients.create');
+    expect(res.body.error.message).toMatch(/every organization/);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  test('non-legacy-admin caller removing slugs is always allowed', async () => {
+  test('a global principal removing slugs needs no permission lookup', async () => {
     mockUser.role = 'billing';
 
     mockQuery
@@ -417,12 +413,12 @@ describe('permission-list edits share one policy (SEC-18)', () => {
     ['DELETE', r => r.delete('/api/roles/1/permissions/2')],
   ])('%s on a system group by a tenant admin is 403 and changes nothing', async (_m, send) => {
     mockUser.role = 'admin';
-    mockQuery.mockResolvedValueOnce([[SYSTEM_ADMIN_ROLE]]);
+    delete mockUser.hasGlobalOrganizationAccess;
 
     const res = await send(request(app));
 
     expect(res.status).toBe(403);
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).not.toHaveBeenCalled();
     expect(auditLog.log).not.toHaveBeenCalled();
   });
 
@@ -442,19 +438,31 @@ describe('permission-list edits share one policy (SEC-18)', () => {
     expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'update_permissions', recordId: 1 }));
   });
 
-  test('a tenant admin adding to a custom group must hold the permission', async () => {
-    mockUser.role = 'admin'; // no longer an amplification bypass
-    mockQuery
-      .mockResolvedValueOnce([[CUSTOM_BILLING_ROLE]])                  // SELECT role
-      .mockResolvedValueOnce([[{ id: 9, slug: 'api_tokens.create' }]]) // SELECT permission
-      .mockResolvedValueOnce([[]])                                      // User.getPermissions: group lookup
-      .mockResolvedValueOnce([[{ slug: 'clients.view' }]]);             // User.getPermissions: memberships
+  test('a tenant admin cannot add to a custom group (TNB-38)', async () => {
+    mockUser.role = 'admin';
+    delete mockUser.hasGlobalOrganizationAccess;
 
     const res = await request(app).post('/api/roles/5/permissions').send({ permission_id: 9 });
 
     expect(res.status).toBe(403);
-    expect(res.body.error.message).toContain('api_tokens.create');
-    expect(mockQuery.mock.calls.some(([sql]) => /INSERT IGNORE INTO role_permissions/.test(sql))).toBe(false);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['POST /', r => r.post('/api/roles').send({ name: 'x', kind: 'billing' })],
+    ['PUT /:id', r => r.put('/api/roles/5').send({ description: 'x' })],
+    ['DELETE /:id', r => r.delete('/api/roles/5')],
+  ])('%s by a tenant admin or an API token is 403 (TNB-38)', async (_m, send) => {
+    delete mockUser.hasGlobalOrganizationAccess;
+    expect((await send(request(app))).status).toBe(403);
+    mockUser.hasGlobalOrganizationAccess = true;
+    mockUser.apiTokenId = 3;
+    try {
+      expect((await send(request(app))).status).toBe(403);
+    } finally {
+      delete mockUser.apiTokenId;
+    }
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   test('removing a permission from a custom group is audited', async () => {

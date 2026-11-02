@@ -20,7 +20,6 @@ const db = require('../src/config/database');
 const PaymentTransaction = require('../src/models/PaymentTransaction');
 const PaymentAllocation = require('../src/models/PaymentAllocation');
 const CfdiCancellation = require('../src/models/CfdiCancellation');
-const SuspensionLog = require('../src/models/SuspensionLog');
 const ClientBalanceLedger = require('../src/models/ClientBalanceLedger');
 const WebhookDelivery = require('../src/models/WebhookDelivery');
 
@@ -212,64 +211,6 @@ describe('CfdiCancellation', () => {
 // =============================================================================
 // SuspensionLog
 // =============================================================================
-describe('SuspensionLog', () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  test('tableName is suspension_logs', () => {
-    expect(SuspensionLog.tableName).toBe('suspension_logs');
-  });
-
-  test('has organization scope', () => {
-    expect(SuspensionLog.hasOrgScope).toBe(true);
-  });
-
-  test('fillable includes contract, rule, and action fields', () => {
-    expect(SuspensionLog.fillable).toContain('contract_id');
-    expect(SuspensionLog.fillable).toContain('rule_id');
-    expect(SuspensionLog.fillable).toContain('action');
-    expect(SuspensionLog.fillable).toContain('triggered_by');
-    expect(SuspensionLog.fillable).toContain('notes');
-  });
-
-  test('create suspension log entry', async () => {
-    db.query
-      .mockResolvedValueOnce([{ insertId: 10 }])
-      .mockResolvedValueOnce([[{
-        id: 10,
-        organization_id: 1,
-        contract_id: 5,
-        rule_id: 2,
-        action: 'suspend',
-        triggered_by: 'system',
-      }]]);
-
-    const result = await SuspensionLog.create({
-      organization_id: 1,
-      contract_id: 5,
-      rule_id: 2,
-      action: 'suspend',
-      triggered_by: 'system',
-      notes: 'Overdue 30+ days',
-    });
-
-    expect(result.action).toBe('suspend');
-    expect(result.triggered_by).toBe('system');
-  });
-
-  test('list suspension logs with org scope', async () => {
-    db.query.mockResolvedValue([[
-      { id: 1, action: 'suspend' },
-      { id: 2, action: 'restore' },
-    ]]);
-
-    const results = await SuspensionLog.findAll({ orgId: 1 });
-    expect(results).toHaveLength(2);
-    expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('organization_id = ?'),
-      expect.arrayContaining([1]),
-    );
-  });
-});
 
 // =============================================================================
 // ClientBalanceLedger

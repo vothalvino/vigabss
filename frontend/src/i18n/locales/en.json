@@ -1921,7 +1921,8 @@
   "errorBoundary": {
     "title": "Something went wrong on this page",
     "body": "The rest of the app still works. Try again, or open another page.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "reload": "Reload the page"
   },
   "forcePasswordChange": {
     "title": "Set a new password",
@@ -4481,6 +4482,13 @@
       "accessedAt": "Accessed At",
       "userId": "User ID"
     }
+  },
+  "sandboxFiscal": {
+    "badge": "Sandbox",
+    "badgeTitle": "Stamped by a sandbox PAC: this CFDI is not fiscally valid",
+    "bannerTitle": "CFDIs are being stamped in the sandbox.",
+    "bannerDetail": "This organization uses its sandbox PAC, so new CFDIs are not fiscally valid. Switch the fiscal environment to production before invoicing real clients.",
+    "bannerAction": "PAC providers"
   },
   "adminIpAllowlistBanner": {
     "title": "Admin IP protection has not been activated.",

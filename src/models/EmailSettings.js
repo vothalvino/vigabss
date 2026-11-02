@@ -34,6 +34,9 @@ class EmailSettings extends BaseModel {
   }
 
   static get hasOrgScope() { return false; }
+  // One row per organization, read and written by organization_id through
+  // the model's own helpers rather than BaseModel's scoped finders (TNA-39).
+  static get orgScopeExempt() { return 'one row per organization, keyed by organization_id'; }
 
   static defaultForOrg(orgId, emailFunction = DEFAULT_FUNCTION) {
     return {

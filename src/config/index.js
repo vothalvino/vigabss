@@ -2,6 +2,19 @@
 // VigaBSS 5.0 — Application Configuration
 // =============================================================================
 
+// TRUST_PROXY is a hop count. Express turns a number n into "trust the n
+// nearest hops", so parseInt read '10.0.0.1' as 10 and '172.16.0.0/12' as 172,
+// trusting arbitrarily many spoofable X-Forwarded-For entries (SEC-27). Only
+// a whole number 0-5 is accepted; anything else is null and fails boot.
+const MAX_TRUST_PROXY_HOPS = 5;
+const parseTrustProxy = (raw, fallback) => {
+  if (raw === undefined || raw === '') return fallback;
+  const trimmed = String(raw).trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  return n <= MAX_TRUST_PROXY_HOPS ? n : null;
+};
+
 const parseIntEnv = (key, fallback) => {
   const v = process.env[key];
   if (v === undefined || v === '') return fallback;
@@ -32,7 +45,7 @@ const config = {
   // exactly one Nginx in front of the app, hence the production default of 1.
   // Set TRUST_PROXY to the real hop count for other topologies (e.g. 2 behind
   // an LB + Nginx); 0 disables (direct exposure, no proxy).
-  trustProxy: parseIntEnv('TRUST_PROXY', (process.env.NODE_ENV || 'development') === 'production' ? 1 : 0),
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY, (process.env.NODE_ENV || 'development') === 'production' ? 1 : 0),
 
   jwt: {
     secret: process.env.JWT_SECRET || DEFAULT_JWT_SECRET,
@@ -163,6 +176,9 @@ const config = {
     keepalive:        parseIntEnv('WG_KEEPALIVE',           25),
     clientInterface:  process.env.WG_CLIENT_INTERFACE   || 'wg-clients',
     clientSubnet:     process.env.WG_CLIENT_SUBNET      || '10.99.0.0/16',  // user peer pool
+    // Active self-service peers per user and per organization (RTE-12).
+    maxPeersPerUser:  parseIntEnv('WG_MAX_PEERS_PER_USER', 5),
+    maxPeersPerOrg:   parseIntEnv('WG_MAX_PEERS_PER_ORG', 250),
     clientListenPort: parseIntEnv('WG_CLIENT_LISTEN_PORT', 51821),
     clientPublicKey:  process.env.WG_CLIENT_SERVER_PUBLIC_KEY || '', // wg-clients public key handed to users in .conf
     keyDir:           process.env.WG_KEY_DIR || '/etc/wireguard', // persistent dir for auto-generated server keypairs (mount a volume here)
@@ -236,6 +252,57 @@ const config = {
  * Called from server.js before the server begins listening.
  * Throws on misconfiguration in production; logs warnings in development.
  */
+// Shared secrets that authenticate machine-to-machine ingest (WHK-15). A
+// short or sample value lets a collector endpoint be guessed online.
+const MACHINE_SECRETS = [
+  ['RADIUS_ACCOUNTING_SECRET', 'POST /api/v1/radius/accounting (shared-secret collector path)'],
+  ['PPPOE_EVENTS_SECRET', 'POST /api/v1/pppoe/events'],
+  ['FIRERELAY_TUNNEL_SECRET', 'FireRelay tunnel agents'],
+  ['STRIPE_WEBHOOK_SECRET', 'POST /api/v1/payment-webhooks/stripe (install-wide secret)'],
+];
+const MIN_MACHINE_SECRET_LENGTH = 32;
+const SAMPLE_SECRET_RE = /^(change[-_ ]?me|secret|password|test|example|replace[-_ ]?me|x+|0+|1234.*)$/i;
+
+function weakSecretReason(value) {
+  if (value.length < MIN_MACHINE_SECRET_LENGTH) return `is shorter than ${MIN_MACHINE_SECRET_LENGTH} characters`;
+  if (SAMPLE_SECRET_RE.test(value) || new Set(value).size < 10) return 'looks like a sample or low-entropy value';
+  return null;
+}
+
+function checkMachineSecrets(errors, warnings, isProduction, logger) {
+  const live = [];
+  for (const [key, endpoint] of MACHINE_SECRETS) {
+    const value = process.env[key];
+    if (!value) continue;
+    const reason = weakSecretReason(value);
+    if (reason) {
+      const msg = `${key} ${reason}; use at least ${MIN_MACHINE_SECRET_LENGTH} random characters (e.g. openssl rand -hex 32)`;
+      if (isProduction) errors.push(msg); else warnings.push(msg);
+    }
+    live.push(endpoint);
+  }
+  // PPPoE events fall back to the accounting secret when they have none.
+  if (!process.env.PPPOE_EVENTS_SECRET && process.env.RADIUS_ACCOUNTING_SECRET) {
+    live.push('POST /api/v1/pppoe/events (using RADIUS_ACCOUNTING_SECRET)');
+  }
+  // Conekta signs with a key pair; the variable holds the public key PEM.
+  if (process.env.CONEKTA_WEBHOOK_KEY) {
+    try {
+      // The same rule as paymentGatewayService.parseConektaPublicKey.
+      const key = require('crypto').createPublicKey(process.env.CONEKTA_WEBHOOK_KEY.replace(/\\n/g, '\n'));
+      if (key.asymmetricKeyType !== 'rsa') throw new Error('not an RSA key');
+      live.push('POST /api/v1/payment-webhooks/conekta (install-wide key)');
+    } catch (_err) {
+      const msg = 'CONEKTA_WEBHOOK_KEY is not a valid public key PEM; Conekta webhooks will fail verification';
+      if (isProduction) errors.push(msg); else warnings.push(msg);
+    }
+  }
+  if (typeof logger?.info === 'function') {
+    logger.info({ sharedSecretEndpoints: live },
+      live.length ? `Shared-secret ingest endpoints enabled: ${live.join('; ')}` : 'No shared-secret ingest endpoints are enabled');
+  }
+}
+
 function validateEnv(logger) {
   const errors = [];
   const warnings = [];
@@ -261,6 +328,14 @@ function validateEnv(logger) {
     const msg = 'JWT_SECRET must be exactly 64 characters for HS256';
     if (!allowInsecureSecret) errors.push(msg); else warnings.push(msg);
   }
+
+  if (config.trustProxy === null) {
+    errors.push(`TRUST_PROXY must be a hop count from 0 to ${MAX_TRUST_PROXY_HOPS} (got "${process.env.TRUST_PROXY}"); IP or CIDR values are not supported`);
+  } else if (typeof logger?.info === 'function') {
+    logger.info({ trustProxy: config.trustProxy }, `Trusting ${config.trustProxy} reverse-proxy hop(s) for client addresses`);
+  }
+
+  checkMachineSecrets(errors, warnings, isProduction, logger);
 
   // Encryption key: required in production for at-rest encryption of secrets
   if (!process.env.ENCRYPTION_KEY) {
@@ -330,5 +405,7 @@ function validateEnv(logger) {
 }
 
 config.validateEnv = validateEnv;
+config.parseTrustProxy = parseTrustProxy;
+config.weakSecretReason = weakSecretReason;
 
 module.exports = config;
