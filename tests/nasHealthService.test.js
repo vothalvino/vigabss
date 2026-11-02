@@ -15,6 +15,7 @@ jest.mock('../src/services/eventBus', () => ({
   emit: jest.fn(),
 }), { virtual: true });
 
+const crypto = require('crypto');
 const dgram = require('dgram');
 const db = require('../src/config/database');
 const { probeNas, runHealthChecks } = require('../src/services/nasHealthService');
@@ -27,20 +28,39 @@ const { probeNas, runHealthChecks } = require('../src/services/nasHealthService'
  * Build a mock dgram socket that immediately delivers a RADIUS response buffer
  * to any registered 'message' handler (via process.nextTick).
  */
-function makeMockSocket(responseBuffer) {
+function makeMockSocket(respond) {
   const handlers = {};
   const socket = {
-    on: jest.fn((event, cb) => {
-      handlers[event] = cb;
-      if (event === 'message' && responseBuffer) {
-        process.nextTick(() => cb(responseBuffer));
-      }
+    on: jest.fn((event, cb) => { handlers[event] = cb; }),
+    // The reply is built from the request actually sent, so it can echo the
+    // identifier and carry a correct Response Authenticator (NET-32).
+    send: jest.fn((packet, port, address) => {
+      if (!respond) return;
+      const replies = [].concat(respond(packet, port, address));
+      for (const { msg, rinfo } of replies) process.nextTick(() => handlers.message?.(msg, rinfo));
     }),
-    send: jest.fn(),
     close: jest.fn(),
   };
   return socket;
 }
+
+// An authenticated reply: MD5(code|id|length|request auth (zeros)|attrs|secret).
+function signedReply(code, request, secret, { identifier = request[1], tamper = false } = {}) {
+  const msg = Buffer.alloc(20);
+  msg[0] = code;
+  msg[1] = identifier;
+  msg.writeUInt16BE(20, 2);
+  const auth = crypto.createHash('md5')
+    .update(msg.subarray(0, 4)).update(Buffer.alloc(16, 0)).update(Buffer.from(secret)).digest();
+  auth.copy(msg, 4);
+  if (tamper) msg[4] ^= 0xff;
+  return msg;
+}
+
+const replyFrom = (code, { secret = 'testing', rinfo, ...opts } = {}) => (packet, port, address) => ({
+  msg: signedReply(code, packet, secret, opts),
+  rinfo: rinfo || { address, port },
+});
 
 describe('nasHealthService', () => {
   beforeEach(() => {
@@ -54,8 +74,7 @@ describe('nasHealthService', () => {
   describe('probeNas()', () => {
     test('returns up=true when NAS responds with Access-Accept (code 2)', async () => {
       // buf[0] = 2 (Access-Accept), followed by 3 padding bytes
-      const responseBuffer = Buffer.from([2, 0, 0, 12]);
-      dgram.createSocket.mockReturnValue(makeMockSocket(responseBuffer));
+      dgram.createSocket.mockImplementation(() => makeMockSocket(replyFrom(2)));
 
       const result = await probeNas({
         id: 1,
@@ -71,8 +90,7 @@ describe('nasHealthService', () => {
 
     test('returns up=true when NAS responds with Access-Reject (code 3)', async () => {
       // code 3 = Access-Reject — also means the NAS is reachable
-      const responseBuffer = Buffer.from([3, 0, 0, 12]);
-      dgram.createSocket.mockReturnValue(makeMockSocket(responseBuffer));
+      dgram.createSocket.mockImplementation(() => makeMockSocket(replyFrom(3)));
 
       const result = await probeNas({
         id: 2,
@@ -159,9 +177,29 @@ describe('nasHealthService', () => {
       expect(result.responseCode).toBeNull();
     });
 
+    test.each([
+      ['a reply from another address', { rinfo: { address: '203.0.113.9', port: 3799 } }],
+      ['a reply from another port', { rinfo: { address: '10.0.0.8', port: 1812 } }],
+      ['a reply with the wrong identifier', { identifier: 999 & 0xff }],
+      ['a reply with a forged authenticator', { tamper: true }],
+      ['a reply signed with another secret', { secret: 'not-the-secret' }],
+    ])('ignores %s and times out down (NET-32)', async (_label, opts) => {
+      jest.useFakeTimers();
+      const respond = (packet, port, address) => {
+        const o = { ...opts };
+        if (o.identifier !== undefined) o.identifier = (packet[1] + 1) % 256;
+        return replyFrom(2, o)(packet, port, address);
+      };
+      dgram.createSocket.mockImplementation(() => makeMockSocket(respond));
+      const probe = probeNas({ id: 8, ip_address: '10.0.0.8', coa_port: 3799, secret: 'testing' });
+      await Promise.resolve();
+      jest.advanceTimersByTime(5001);
+      const result = await probe;
+      expect(result.up).toBe(false);
+    });
+
     test('uses port 3799 as default when coa_port is null', async () => {
-      const responseBuffer = Buffer.from([2, 0, 0, 12]);
-      const socket = makeMockSocket(responseBuffer);
+      const socket = makeMockSocket(replyFrom(2));
       dgram.createSocket.mockReturnValue(socket);
 
       await probeNas({
@@ -198,8 +236,7 @@ describe('nasHealthService', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       // Simulate Access-Accept response
-      const responseBuffer = Buffer.from([2, 0, 0, 12]);
-      dgram.createSocket.mockReturnValue(makeMockSocket(responseBuffer));
+      dgram.createSocket.mockImplementation(() => makeMockSocket(replyFrom(2, { secret: 'test' })));
 
       const result = await runHealthChecks();
 
@@ -268,8 +305,7 @@ describe('nasHealthService', () => {
         }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
-      const responseBuffer = Buffer.from([2, 0, 0, 12]);
-      dgram.createSocket.mockReturnValue(makeMockSocket(responseBuffer));
+      dgram.createSocket.mockImplementation(() => makeMockSocket(replyFrom(2, { secret: 'test' })));
 
       const result = await runHealthChecks();
 
@@ -289,8 +325,7 @@ describe('nasHealthService', () => {
         }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
-      const responseBuffer = Buffer.from([2, 0, 0, 12]);
-      dgram.createSocket.mockReturnValue(makeMockSocket(responseBuffer));
+      dgram.createSocket.mockImplementation(() => makeMockSocket(replyFrom(2, { secret: 'test' })));
 
       const result = await runHealthChecks();
 
@@ -319,8 +354,7 @@ describe('nasHealthService', () => {
         }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
-      const responseBuffer = Buffer.from([2, 0, 0, 12]);
-      dgram.createSocket.mockReturnValue(makeMockSocket(responseBuffer));
+      dgram.createSocket.mockImplementation(() => makeMockSocket(replyFrom(2, { secret: 'test' })));
 
       await runHealthChecks();
 
@@ -343,8 +377,7 @@ describe('nasHealthService', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       // Only the first NAS gets a real socket (NAS 11 has no secret)
-      const responseBuffer = Buffer.from([2, 0, 0, 12]);
-      dgram.createSocket.mockReturnValue(makeMockSocket(responseBuffer));
+      dgram.createSocket.mockImplementation(() => makeMockSocket(replyFrom(2, { secret: 'test' })));
 
       const result = await runHealthChecks();
 
