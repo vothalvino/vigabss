@@ -89,8 +89,8 @@ router.use(orgScope);
  */
 router.get('/', requirePermission('portal_service_requests.view'), async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '25', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
     const { status, request_type: requestType, client_id: clientId } = req.query;
 
     const { rows, total } = await portalServiceRequestService.adminListRequests(
@@ -141,8 +141,8 @@ router.get('/', requirePermission('portal_service_requests.view'), async (req, r
  */
 router.get('/push-subscriptions', requirePermission('portal_push.view'), async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '25', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
     const offset = (page - 1) * limit;
     const clientId = req.query.client_id ? parseInt(req.query.client_id, 10) : null;
 

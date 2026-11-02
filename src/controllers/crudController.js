@@ -312,7 +312,11 @@ function crudController(Model, _options = {}) {
     async list(req, res, next) {
       try {
         const { page = 1, limit = 50, order_by, order, include_deleted, only_deleted, ...filters } = req.query;
-        const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
+        // Parse once: a non-numeric page or limit falls back to the default,
+        // and offset and meta use the same capped limit as the query (TNA-33).
+        const pageNum = Math.max(1, parseInt(page, 10) || 1);
+        const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
+        const offset = (pageNum - 1) * limitNum;
         const withDeleted = include_deleted === 'true';
         // Archived-records view (e.g. the Users page's Archived tab): list
         // ONLY soft-deleted rows. Wins over include_deleted.
@@ -323,7 +327,7 @@ function crudController(Model, _options = {}) {
             where: filters,
             orderBy: order_by || 'id',
             order: order || 'ASC',
-            limit: Math.min(parseInt(limit), 100),
+            limit: limitNum,
             offset,
             orgId: req.orgId,
             withDeleted,
@@ -336,9 +340,9 @@ function crudController(Model, _options = {}) {
           data: Array.isArray(rows) ? rows.map(serialize) : rows,
           meta: {
             total,
-            page: parseInt(page),
-            limit: parseInt(limit),
-            totalPages: Math.ceil(total / parseInt(limit)),
+            page: pageNum,
+            limit: limitNum,
+            totalPages: Math.ceil(total / limitNum),
           },
         });
       } catch (err) {

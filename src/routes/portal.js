@@ -438,8 +438,8 @@ const PORTAL_STATUS_SQL = `CASE WHEN ${PORTAL_PAST_DUE_SQL} THEN 'overdue' ELSE 
 
 router.get('/invoices', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
     const status = req.query.status;
 
@@ -601,8 +601,8 @@ router.post('/invoices/:id/pay', async (req, res, next) => {
 // GET /portal/tickets — list own tickets (paginated)
 router.get('/tickets', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
     const status = req.query.status;
 
@@ -1095,8 +1095,8 @@ router.get('/invoices/:id/cfdi', async (req, res, next) => {
 // GET /portal/payments — payment history
 router.get('/payments', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
 
     // Bound to the subscriber's organization as well as client_id (list and
@@ -1144,8 +1144,8 @@ router.get('/service-requests/plan-options', async (req, res, next) => {
 
 router.get('/service-requests', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const requestType = req.query.request_type || null;
 
     const { rows, total } = await portalServiceRequestService.listRequests(
@@ -1199,8 +1199,8 @@ router.post('/service-requests/:id/cancel', async (req, res, next) => {
 // GET /portal/kb — list KB articles (public within portal)
 router.get('/kb', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const { category, search } = req.query;
 
     const { rows, total } = await portalServiceRequestService.listKbArticles(
@@ -1289,8 +1289,8 @@ router.post('/speed-test', async (req, res, next) => {
 // GET /portal/speed-test/results — list speed test results for this client
 router.get('/speed-test/results', async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
 
     const [contracts] = await db.query(

@@ -24,8 +24,8 @@ router.use(orgScope);
 router.get('/rules', requirePermission('devices.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
 
     const [rows] = await db.query(
@@ -124,8 +124,8 @@ router.delete('/rules/:id', requirePermission('devices.delete'), async (req, res
 router.get('/events', requirePermission('devices.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const result = await alertService.getAlertHistory(req.orgId, { page: pageNum, limit: limitNum });
     res.json(result);
   } catch (err) { next(err); }
@@ -155,8 +155,8 @@ router.post('/evaluate', requirePermission('devices.update'), async (req, res, n
 router.get('/escalation-chains', requirePermission('alert_escalations.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
     const [rows] = await db.query(
       `SELECT * FROM alert_escalation_chains WHERE organization_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${limitNum} OFFSET ${offset}`,
@@ -269,8 +269,8 @@ router.get('/maintenance-windows/active', requirePermission('maintenance_windows
 router.get('/maintenance-windows', requirePermission('maintenance_windows.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
     const [rows] = await db.query(
       `SELECT * FROM maintenance_windows WHERE organization_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${limitNum} OFFSET ${offset}`,
@@ -333,8 +333,8 @@ router.delete('/maintenance-windows/:id', requirePermission('maintenance_windows
 router.get('/notification-channels', requirePermission('alert_channels.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
     const [rows] = await db.query(
       `SELECT id, organization_id, name, channel_type, is_enabled, deleted_at, created_at, updated_at FROM alert_notification_channels WHERE organization_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${limitNum} OFFSET ${offset}`,
@@ -400,8 +400,8 @@ router.delete('/notification-channels/:id', requirePermission('alert_channels.de
 router.get('/suppression-rules', requirePermission('alert_suppression.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
     const [rows] = await db.query(
       `SELECT * FROM alert_suppression_rules WHERE organization_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${limitNum} OFFSET ${offset}`,

@@ -128,7 +128,7 @@ router.get('/:id/snmp-metrics', requirePermission('devices.view'), async (req, r
     // history — this was a raw device_id lookup with no org check, so any
     // devices.view holder in any org could pull ANY org's SNMP history.
     await Device.findByIdOrFail(req.params.id, req.orgId);
-    const limit = Math.max(1, parseInt(req.query.limit, 10) || 100);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 100), 500);
     const conditions = ['device_id = ?'];
     if (req.query.device_level === '1') conditions.push('interface_id IS NULL');
     const [rows] = await db.query(

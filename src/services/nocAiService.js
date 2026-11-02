@@ -525,7 +525,7 @@ async function runbookSuggestion(orgId, alertType, providerId) {
  * @returns {Promise<object[]>}
  */
 async function listInsights(orgId, filters = {}) {
-  const safeLimit = Math.max(1, parseInt(filters.limit, 10) || 50);
+  const safeLimit = Math.min(Math.max(1, parseInt(filters.limit, 10) || 50), 500);
   const [rows] = await db.query(
     `SELECT * FROM noc_ai_insights
       WHERE organization_id = ?

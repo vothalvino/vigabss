@@ -20,8 +20,8 @@ router.use(orgScope);
 router.get('/anomalies', requirePermission('analytics_anomalies.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50, severity, metric, device_id, is_acknowledged } = req.query;
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 100);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
     const offset = (pageNum - 1) * limitNum;
 
     const conditions = ['organization_id = ?'];

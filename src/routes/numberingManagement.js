@@ -41,8 +41,8 @@ router.get('/phone-numbers', requirePermission('phone_number_inventory.view'), a
     if (client_id) { conditions.push('client_id = ?'); params.push(client_id); }
 
     const where = conditions.join(' AND ');
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM phone_number_inventory WHERE ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
@@ -139,8 +139,8 @@ router.get('/portability', requirePermission('number_portability.view'), async (
     if (status) { conditions.push('status = ?'); params.push(status); }
 
     const where = conditions.join(' AND ');
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM number_portability_records WHERE ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
@@ -227,8 +227,8 @@ router.put('/portability/:id/complete', requirePermission('number_portability.ma
 router.get('/numbering-blocks', requirePermission('numbering_blocks.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
-    const safeOffset = Math.max(0, (parseInt(page, 10) - 1) * safeLimit);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 500);
+    const safeOffset = Math.max(0, (Math.max(1, parseInt(page, 10) || 1) - 1) * safeLimit);
 
     const [rows] = await db.query(
       `SELECT * FROM numbering_blocks WHERE organization_id = ? ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,

@@ -40,8 +40,8 @@ router.use((_req, res, next) => {
 router.get('/', requirePermission('devices.view'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50, device_id, trap_type, from, to } = req.query;
-    const pageNum  = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10)), 200);
+    const pageNum  = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 200);
     const offset   = (pageNum - 1) * limitNum;
 
     const filters = ['t.organization_id = ?'];

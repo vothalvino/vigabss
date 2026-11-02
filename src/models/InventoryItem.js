@@ -82,7 +82,7 @@ class InventoryItem extends BaseModel {
     }
 
     const safeOrderBy = this.sortable.includes(orderBy) ? orderBy : 'id';
-    const safeLimit = Math.max(1, parseInt(limit, 10) || 50);
+    const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 1000);
     const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
