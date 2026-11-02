@@ -6,7 +6,8 @@
 // =============================================================================
 
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';

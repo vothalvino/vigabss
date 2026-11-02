@@ -9,7 +9,7 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { uninstallCpeDevice } from '@/api/cpeInventory';
 import {

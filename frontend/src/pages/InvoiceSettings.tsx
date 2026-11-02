@@ -8,7 +8,8 @@
 
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';

@@ -10,7 +10,8 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@/api/useMutation';
 import { api, authedFetch } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
 
