@@ -36,8 +36,9 @@ const updateKbArticle = {
   body: { type: 'string', required: false, min: 1 },
   category: { type: 'string', required: false, max: 100 },
   locale: { type: 'string', required: false, max: 10 },
-  tags: { type: 'string', required: false, max: 500 },
-  isPublished: { type: 'boolean', required: false },
+  // Same keys as create: kbService reads is_published, and tags is a list.
+  tags: { type: 'array', required: false },
+  is_published: { type: 'boolean', required: false },
 };
 
 const kbFeedback = {

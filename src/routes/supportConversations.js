@@ -194,8 +194,13 @@ router.get(
   requirePermission('support.kb.view'),
   async (req, res, next) => {
     try {
-      const { category, locale, limit = 50, offset = 0 } = req.query;
-      const articles = await kbService.listArticles(req.orgId, { category, locale, limit: Number(limit), offset: Number(offset) });
+      const { category, locale, limit = 50, offset = 0, published } = req.query;
+      // Staff see drafts too: every article unless ?published=true|false
+      // narrows it. A draft used to vanish from the only list (RTE-06).
+      const isPublished = published === 'true' ? 1 : published === 'false' ? 0 : null;
+      const articles = await kbService.listArticles(req.orgId, {
+        category, locale, isPublished, limit: Number(limit), offset: Number(offset),
+      });
       res.json({ data: articles, total: articles.length });
     } catch (err) {
       next(err);
@@ -266,15 +271,13 @@ router.post(
   validate(kbFeedbackSchema),
   async (req, res, next) => {
     try {
+      // kb_feedback has no organization column: the article lookup is the
+      // tenant boundary. (recordFeedback did not exist; every call was 500.)
+      const article = await kbService.getArticle(req.params.id, req.orgId);
+      if (!article) return res.status(404).json({ error: 'KB article not found' });
       const { feedback, notes } = req.body;
-      const result = await kbService.recordFeedback({
-        articleId: req.params.id,
-        orgId: req.orgId,
-        feedback,
-        notes: notes || null,
-        userId: req.user?.id || null,
-      });
-      res.json({ data: result });
+      const result = await kbService.addFeedback({ articleId: article.id, feedback, notes: notes || null });
+      res.status(201).json({ data: result });
     } catch (err) {
       if (err instanceof NotFoundError) return res.status(404).json({ error: err.message });
       next(err);
@@ -304,9 +307,12 @@ router.put(
   validate(updateKbSchema),
   async (req, res, next) => {
     try {
-      const article = await kbService.updateArticle(req.params.id, req.orgId, req.body);
-      if (!article) return res.status(404).json({ error: 'KB article not found' });
-      res.json({ data: article });
+      // updateArticle returns { affected }, which is always truthy, so a
+      // missing or foreign id used to answer 200.
+      const existing = await kbService.getArticle(req.params.id, req.orgId);
+      if (!existing) return res.status(404).json({ error: 'KB article not found' });
+      await kbService.updateArticle(existing.id, req.orgId, req.body);
+      res.json({ data: await kbService.getArticle(existing.id, req.orgId) });
     } catch (err) {
       next(err);
     }
@@ -319,7 +325,8 @@ router.delete(
   requirePermission('support.kb.manage'),
   async (req, res, next) => {
     try {
-      await kbService.deleteArticle(req.params.id, req.orgId);
+      const { affected } = await kbService.deleteArticle(req.params.id, req.orgId);
+      if (!affected) return res.status(404).json({ error: 'KB article not found' });
       res.status(204).send();
     } catch (err) {
       if (err instanceof NotFoundError) return res.status(404).json({ error: err.message });
