@@ -6,7 +6,8 @@ const listConnectionLogs = {
   contract_id: { type: 'number', min: 1 },
   client_id: { type: 'number', min: 1 },
   ip_address: { type: 'string', max: 45 },
-  event_type: { type: 'string', enum: ['start', 'stop', 'interim-update', 'coa', 'disconnect'] },
+  // The column's values (FE2-13); coa and disconnect never appear in it.
+  event_type: { type: 'string', enum: ['start', 'stop', 'interim-update'] },
   date_from: { type: 'string' },
   date_to: { type: 'string' },
   page: { type: 'number', min: 1 },

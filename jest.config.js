@@ -30,5 +30,16 @@ module.exports = {
       lines: 70,
       branches: 50,
     },
+    // Routes and the GraphQL layer had no floor of their own, so coverage
+    // there could fall while the services held the total up (OPS-20). Set a
+    // few points under where they stood (routes 79/70, graphql 87/70).
+    'src/routes/': {
+      lines: 75,
+      branches: 65,
+    },
+    'src/graphql/': {
+      lines: 80,
+      branches: 62,
+    },
   },
 };

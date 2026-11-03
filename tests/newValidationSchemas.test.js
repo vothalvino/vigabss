@@ -1241,9 +1241,11 @@ describe('ScheduledTask validation schemas', () => {
     expect(fields).toContain('cron_expression');
   });
 
+  // 'backup' is a scheduled_tasks.task_type value and is now accepted
+  // (FE2-13); csd_expiry_monitor was accepted here but refused by the column.
   test('createScheduledTask rejects invalid task_type', () => {
     const next = run(createScheduledTask, {
-      task_name: 'Nightly', task_type: 'backup', cron_expression: '0 0 * * *',
+      task_name: 'Nightly', task_type: 'csd_expiry_monitor', cron_expression: '0 0 * * *',
     });
     expectReject(next);
   });

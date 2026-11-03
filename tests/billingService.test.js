@@ -91,25 +91,22 @@ describe('billingService', () => {
   // nextInvoiceNumber (migration 381 — atomic per-org sequence)
   // =========================================================================
   describe('nextInvoiceNumber', () => {
-    test('first-ever call for an org: INSERT IGNORE seeds the row, UPDATE advances it, returns INV-000001', async () => {
-      mockConnection.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT IGNORE actually inserted (no prior row)
-        .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE next_number
+    test('first-ever call for an org: one upsert seeds and advances the row, returns INV-000001', async () => {
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 }]); // the upsert inserted the row
       mockConnection.query.mockResolvedValueOnce([[{ id: 1 }]]);
 
       const result = await billingService.nextInvoiceNumber(mockConnection, 42);
 
       expect(result).toBe('INV-000001');
-      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
-
-      const insertIgnoreCall = mockConnection.execute.mock.calls[0];
-      expect(insertIgnoreCall[0]).toContain('INSERT IGNORE INTO organization_invoice_sequences');
-      expect(insertIgnoreCall[1]).toEqual([42]);
-
-      const updateCall = mockConnection.execute.mock.calls[1];
-      expect(updateCall[0]).toContain('UPDATE organization_invoice_sequences');
-      expect(updateCall[0]).toContain('LAST_INSERT_ID(next_number)');
-      expect(updateCall[1]).toEqual([42]);
+      // One upsert that takes the exclusive lock at once. INSERT IGNORE then
+      // UPDATE took a shared lock first and deadlocked under concurrency
+      // (OPS-20, seen on a real database).
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
+      const [sql, params] = mockConnection.execute.mock.calls[0];
+      expect(sql).toMatch(/INSERT INTO organization_invoice_sequences \(organization_id, next_number\) VALUES \(\?, LAST_INSERT_ID\(1\) \+ 1\)/);
+      expect(sql).toMatch(/ON DUPLICATE KEY UPDATE next_number = LAST_INSERT_ID\(next_number\) \+ 1/);
+      expect(sql).not.toMatch(/INSERT IGNORE/);
+      expect(params).toEqual([42]);
 
       expect(mockConnection.query).toHaveBeenCalledWith('SELECT LAST_INSERT_ID() AS id');
     });
@@ -138,7 +135,6 @@ describe('billingService', () => {
       // Both statements must target the sentinel bucket 0, never NULL — a
       // NULL primary key wouldn't de-duplicate against itself in MySQL.
       expect(mockConnection.execute.mock.calls[0][1]).toEqual([0]);
-      expect(mockConnection.execute.mock.calls[1][1]).toEqual([0]);
     });
 
     test('numbers beyond 999999 grow longer instead of truncating', async () => {
@@ -189,25 +185,19 @@ describe('billingService', () => {
   // all before this)
   // =========================================================================
   describe('nextQuoteNumber', () => {
-    test('first-ever call for an org: INSERT IGNORE seeds the row, UPDATE advances it, returns QUO-000001', async () => {
-      mockConnection.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT IGNORE actually inserted (no prior row)
-        .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE next_number
+    test('first-ever call for an org: one upsert seeds and advances the row, returns QUO-000001', async () => {
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 }]); // the upsert inserted the row
       mockConnection.query.mockResolvedValueOnce([[{ id: 1 }]]);
 
       const result = await billingService.nextQuoteNumber(mockConnection, 42);
 
       expect(result).toBe('QUO-000001');
-      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
-
-      const insertIgnoreCall = mockConnection.execute.mock.calls[0];
-      expect(insertIgnoreCall[0]).toContain('INSERT IGNORE INTO organization_quote_sequences');
-      expect(insertIgnoreCall[1]).toEqual([42]);
-
-      const updateCall = mockConnection.execute.mock.calls[1];
-      expect(updateCall[0]).toContain('UPDATE organization_quote_sequences');
-      expect(updateCall[0]).toContain('LAST_INSERT_ID(next_number)');
-      expect(updateCall[1]).toEqual([42]);
+      // One upsert, as for invoices (OPS-20).
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
+      const [sql, params] = mockConnection.execute.mock.calls[0];
+      expect(sql).toMatch(/INSERT INTO organization_quote_sequences \(organization_id, next_number\) VALUES \(\?, LAST_INSERT_ID\(1\) \+ 1\)/);
+      expect(sql).toMatch(/ON DUPLICATE KEY UPDATE next_number = LAST_INSERT_ID\(next_number\) \+ 1/);
+      expect(params).toEqual([42]);
 
       expect(mockConnection.query).toHaveBeenCalledWith('SELECT LAST_INSERT_ID() AS id');
     });
@@ -234,7 +224,6 @@ describe('billingService', () => {
 
       expect(result).toBe('QUO-000007');
       expect(mockConnection.execute.mock.calls[0][1]).toEqual([0]);
-      expect(mockConnection.execute.mock.calls[1][1]).toEqual([0]);
     });
 
     test('numbers beyond 999999 grow longer instead of truncating', async () => {
@@ -357,8 +346,7 @@ describe('billingService', () => {
         .mockResolvedValueOnce([[{ id: 10, status: 'pending' }]])  // FOR UPDATE lock
         .mockResolvedValueOnce([[{ tax_exempt: 0 }]])  // resolveTaxContext: client exemption
         .mockResolvedValueOnce([[{ id: 1, rate: '0.1600', is_default: true }]])  // tax rate
-        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: INSERT IGNORE (row already exists)
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // nextInvoiceNumber: UPDATE next_number
+        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ insertId: 50 }])  // INSERT invoice
         .mockResolvedValueOnce([])  // INSERT line item
         .mockResolvedValueOnce([[]])  // contract addons (none)
@@ -397,8 +385,7 @@ describe('billingService', () => {
         .mockResolvedValueOnce([[{ id: 10, status: 'pending' }]])
         .mockResolvedValueOnce([[{ tax_exempt: 0 }]])  // resolveTaxContext: client exemption
         .mockResolvedValueOnce([[]])  // no tax rate
-        .mockResolvedValueOnce([{ affectedRows: 0 }])
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ insertId: 52 }])
         .mockResolvedValueOnce([])  // INSERT line item
         .mockResolvedValueOnce([[]])
@@ -435,8 +422,7 @@ describe('billingService', () => {
         .mockResolvedValueOnce([[{ id: 10, status: 'pending' }]])  // FOR UPDATE lock
         .mockResolvedValueOnce([[{ tax_exempt: 0 }]])  // resolveTaxContext: client exemption
         .mockResolvedValueOnce([[]])  // no tax rate
-        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: INSERT IGNORE
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // nextInvoiceNumber: UPDATE next_number
+        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ insertId: 51 }])  // INSERT invoice
         .mockResolvedValueOnce([])  // INSERT line item
         .mockResolvedValueOnce([[]])  // contract addons
@@ -460,8 +446,7 @@ describe('billingService', () => {
         .mockResolvedValueOnce([[{ id: 10, status: 'pending' }]])  // FOR UPDATE lock
         .mockResolvedValueOnce([[{ tax_exempt: 0 }]])  // resolveTaxContext: client exemption
         .mockResolvedValueOnce([[]])  // no tax rate
-        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: INSERT IGNORE
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // nextInvoiceNumber: UPDATE next_number
+        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ insertId: 52 }])  // INSERT invoice
         .mockResolvedValueOnce([])  // INSERT plan line item
         .mockResolvedValueOnce([[addon]])  // contract addons
@@ -475,8 +460,9 @@ describe('billingService', () => {
 
       await billingService.generateInvoice(billingPeriod, contract, plan, orgId);
 
-      // 12 = the 11 original conn.execute calls + the new client-exemption lookup.
-      expect(mockConnection.execute).toHaveBeenCalledTimes(12);
+      // 11 = the 11 original conn.execute calls + the client-exemption lookup,
+      // less one now that the invoice number is a single upsert (OPS-20).
+      expect(mockConnection.execute).toHaveBeenCalledTimes(11);
       // Regression (DR-drill finding): addon lines used to be inserted WITHOUT
       // ever reaching the stored totals or the ledger — every contract with an
       // active addon under-billed. Plan 500 + addon 2×100 = 700, no tax rate.
@@ -575,8 +561,7 @@ describe('billingService', () => {
         // the pre-fix `subtotal * taxPct` formula coincidentally produced the
         // same 80.00 this test expects, masking a 100x tax-amount bug.
         .mockResolvedValueOnce([[{ id: 1, rate: '0.1600', is_default: true }]])  // tax rate
-        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: INSERT IGNORE
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // nextInvoiceNumber: UPDATE next_number
+        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ insertId: 60 }])  // INSERT invoice
         .mockResolvedValueOnce([])  // INSERT invoice_items
         .mockResolvedValueOnce([]);  // INSERT ledger debit
@@ -612,8 +597,7 @@ describe('billingService', () => {
       mockConnection.execute
         .mockResolvedValueOnce([[{ tax_exempt: 0 }]])  // resolveTaxContext: client exemption
         .mockResolvedValueOnce([[]])  // no default tax rate
-        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: INSERT IGNORE
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // nextInvoiceNumber: UPDATE next_number
+        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ insertId: 61 }])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -634,8 +618,7 @@ describe('billingService', () => {
       mockConnection.execute
         .mockResolvedValueOnce([[{ tax_exempt: 0 }]])  // resolveTaxContext: client exemption
         .mockResolvedValueOnce([[{ id: 1, rate: '0.1600' }]])
-        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: INSERT IGNORE
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // nextInvoiceNumber: UPDATE next_number
+        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ insertId: 62 }])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -659,8 +642,7 @@ describe('billingService', () => {
         execute: jest.fn()
           .mockResolvedValueOnce([[{ tax_exempt: 0 }]])  // resolveTaxContext: client exemption
           .mockResolvedValueOnce([[{ id: 1, rate: '0.1600' }]])
-          .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: INSERT IGNORE
-          .mockResolvedValueOnce([{ affectedRows: 1 }])  // nextInvoiceNumber: UPDATE next_number
+          .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: the sequence upsert
           .mockResolvedValueOnce([{ insertId: 70 }])
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce([]),
@@ -695,8 +677,7 @@ describe('billingService', () => {
         execute: jest.fn()
           .mockResolvedValueOnce([[{ tax_exempt: 0 }]])            // resolveTaxContext: client exemption
           .mockResolvedValueOnce([[{ id: 1, rate: '0.1600' }]])   // tax rate
-          .mockResolvedValueOnce([{ affectedRows: 0 }])            // nextInvoiceNumber: INSERT IGNORE
-          .mockResolvedValueOnce([{ affectedRows: 1 }])            // nextInvoiceNumber: UPDATE next_number
+          .mockResolvedValueOnce([{ affectedRows: 0 }])            // nextInvoiceNumber: the sequence upsert
           .mockResolvedValueOnce([{ insertId: 80 }])               // INSERT invoice
           .mockResolvedValueOnce([])                               // INSERT invoice_items
           .mockResolvedValueOnce([[{ id: 500 }]])                  // drawdownForSale: resolveOrCreateStockRow (existing row found)

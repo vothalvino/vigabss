@@ -63674,9 +63674,7 @@
             "enum": [
               "start",
               "stop",
-              "interim-update",
-              "coa",
-              "disconnect"
+              "interim-update"
             ]
           },
           "date_from": {
@@ -66394,10 +66392,6 @@
             "type": "number",
             "minimum": 2022,
             "maximum": 2099
-          },
-          "notes": {
-            "type": "string",
-            "maximum": 5000
           }
         },
         "required": [
@@ -66427,10 +66421,6 @@
             "type": "number",
             "minimum": 2022,
             "maximum": 2099
-          },
-          "notes": {
-            "type": "string",
-            "maximum": 5000
           }
         }
       },
@@ -76236,6 +76226,44 @@
           }
         }
       },
+      "scheduledTasks_TASK_TYPES": {
+        "type": "object",
+        "properties": {
+          "0": {
+            "type": "string"
+          },
+          "1": {
+            "type": "string"
+          },
+          "2": {
+            "type": "string"
+          },
+          "3": {
+            "type": "string"
+          },
+          "4": {
+            "type": "string"
+          },
+          "5": {
+            "type": "string"
+          },
+          "6": {
+            "type": "string"
+          },
+          "7": {
+            "type": "string"
+          },
+          "8": {
+            "type": "string"
+          },
+          "9": {
+            "type": "string"
+          },
+          "10": {
+            "type": "string"
+          }
+        }
+      },
       "scheduledTasks_createScheduledTask": {
         "type": "object",
         "properties": {
@@ -76250,12 +76278,14 @@
               "auto_suspend",
               "generate_invoice",
               "radius_sync",
-              "populate_revenue_summary",
-              "populate_network_health_snapshots",
-              "csd_expiry_monitor",
               "snmp_poll",
-              "webhook_delivery",
-              "email_send"
+              "usage_rollup",
+              "cleanup",
+              "notification",
+              "backup",
+              "maintenance",
+              "webhook_retry",
+              "other"
             ]
           },
           "cron_expression": {
@@ -78328,10 +78358,6 @@
               "timeticks"
             ]
           },
-          "description": {
-            "type": "string",
-            "maximum": 500
-          },
           "status": {
             "type": "string",
             "enum": [
@@ -78671,7 +78697,7 @@
           "status": {
             "type": "string",
             "enum": [
-              "pending",
+              "queued",
               "running",
               "completed",
               "failed",
