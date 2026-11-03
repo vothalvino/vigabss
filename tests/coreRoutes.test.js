@@ -1289,7 +1289,7 @@ describe('Payment Routes — /api/payments', () => {
     test('allocates payment to invoice and returns 201', async () => {
       mockAuthUser();
       const allocation = { id: 1, payment_id: 1, invoice_id: 5, amount: 578.84 };
-      const invoice = { id: 5, total: 578.84, contract_id: 3, organization_id: 1, status: 'issued' };
+      const invoice = { id: 5, client_id: 9, total: 578.84, contract_id: 3, organization_id: 1, status: 'issued' };
 
       // On one transaction: the payment is locked and org-verified FIRST, then
       // the invoice is locked and looked up (void guard), the remaining amounts
@@ -1320,7 +1320,7 @@ describe('Payment Routes — /api/payments', () => {
     test('allocates payment partially (invoice not fully paid)', async () => {
       mockAuthUser();
       const allocation = { id: 2, payment_id: 1, invoice_id: 5, amount: 200 };
-      const invoice = { id: 5, total: 578.84, contract_id: 3, organization_id: 1, status: 'issued' };
+      const invoice = { id: 5, client_id: 9, total: 578.84, contract_id: 3, organization_id: 1, status: 'issued' };
 
       db.query
         .mockResolvedValueOnce([[PAYMENT_ROW]])                        // SELECT payment (org-verify)

@@ -287,17 +287,19 @@ async function payGroup(orgId, groupId, opts = {}) {
       const applyAmount = Math.round(Math.min(remainder, balanceDue) * 100) / 100;
       if (applyAmount <= 0) continue;
 
+      // The primary's payment settles its members' invoices (anyClient).
+      let applied;
       try {
-        await conn.execute(
-          'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
-          [paymentId, invoice.id, applyAmount],
-        );
+        applied = await paymentAllocationService.applyAllocation(conn.execute.bind(conn), {
+          payment: { id: paymentId, organization_id: orgId, client_id: primaryId, currency },
+          invoice, amount: applyAmount, anyClient: true,
+        });
       } catch (allocErr) {
-        if (allocErr.sqlState === '45000' || allocErr.errno === 1644) {
-          await conn.rollback();
+        if (allocErr.code === 'ALLOCATION_EXISTS') continue;
+        await conn.rollback();
+        if (allocErr.code === 'OVER_ALLOCATION') {
           throw new ValidationError('Allocation would exceed an invoice or the payment total.');
         }
-        if (allocErr.code === 'ER_DUP_ENTRY' || allocErr.errno === 1062) continue;
         throw allocErr;
       }
 
@@ -308,8 +310,7 @@ async function payGroup(orgId, groupId, opts = {}) {
         client_id: Number(invoice.client_id),
         amount: applyAmount,
       });
-      const becamePaid = await paymentAllocationService.finalizeIfFullyPaid(conn.execute.bind(conn), invoice);
-      if (becamePaid) justPaidInvoices.push(invoice);
+      if (applied.becamePaid) justPaidInvoices.push(invoice);
     }
 
     await conn.commit();

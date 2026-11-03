@@ -211,9 +211,10 @@ router.post('/:id/allocate', requirePermission('payments.create'), validate(allo
     );
     const invoice = invoiceRows[0];
     if (!invoice) return fail(404, { code: 'NOT_FOUND', message: 'Invoice not found.' });
-    if (invoice.status === 'void' || invoice.status === 'cancelled') {
-      return fail(422, { code: 'INVOICE_NOT_PAYABLE', message: `Cannot apply a payment to a ${invoice.status} invoice.` });
-    }
+    // Same organization is not enough: the invoice must be the payment's
+    // client's, in its currency, and payable (BIL-28).
+    const refusal = paymentAllocationService.allocationRefusal(payment, invoice);
+    if (refusal) return fail(422, refusal);
 
     // Read under the locks: neither can move until this commits.
     const [paidRows] = await exec(
@@ -229,24 +230,15 @@ router.post('/:id/allocate', requirePermission('payments.create'), validate(allo
 
     let allocation;
     try {
-      const [result] = await exec(
-        'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
-        [payment.id, invoice_id, amount],
-      );
-      const [rows] = await exec('SELECT * FROM payment_allocations WHERE id = ?', [result.insertId]);
+      const applied = await paymentAllocationService.applyAllocation(exec, { payment, invoice, amount, finalize: false });
+      const [rows] = await exec('SELECT * FROM payment_allocations WHERE id = ?', [applied.id]);
       allocation = rows[0];
     } catch (allocErr) {
-      // Over-allocation guard trigger (SQLSTATE 45000) fires when the amount
-      // would exceed the invoice or payment total. Mirror the reallocate handler.
-      if (allocErr.sqlState === '45000' || allocErr.errno === 1644) {
-        return fail(422, { code: 'OVER_ALLOCATION', message: 'Allocation would exceed the invoice or payment total.' });
+      if (allocErr instanceof AppError) {
+        return fail(allocErr.statusCode, { code: allocErr.code, message: allocErr.message });
       }
       throw allocErr;
     }
-
-    // Mark the invoice paid once fully covered — shared with POST
-    // /:id/allocate-auto so the two endpoints cannot drift (see
-    // src/services/paymentAllocationService.js).
     const becamePaid = await paymentAllocationService.finalizeIfFullyPaid(exec, invoice);
     await conn.commit();
     committed = true;
@@ -344,9 +336,14 @@ router.post('/:id/allocate-auto', requirePermission('payments.create'), validate
     // Target invoices — org + client verified, payable, oldest→newest, locked
     // FOR UPDATE. Shared with GET /clients/:id/open-invoices so the checklist
     // the user saw and the order money is actually applied in always match.
-    const invoiceRows = await paymentAllocationService.getInvoicesWithBalance(
+    let invoiceRows = await paymentAllocationService.getInvoicesWithBalance(
       conn.execute.bind(conn), req.orgId, payment.client_id, requestedIds, true,
     );
+    // Without a selection, only invoices in the payment's currency; a
+    // selected invoice in another currency is refused by applyAllocation.
+    if (!requestedIds) {
+      invoiceRows = invoiceRows.filter((inv) => !paymentAllocationService.allocationRefusal(payment, inv));
+    }
     if (requestedIds) {
       const foundIds = new Set(invoiceRows.map((r) => r.id));
       const missing = requestedIds.filter((id) => !foundIds.has(id));
@@ -366,15 +363,12 @@ router.post('/:id/allocate-auto', requirePermission('payments.create'), validate
     let applied;
     try {
       applied = await paymentAllocationService.allocateAcrossInvoices(
-        conn.execute.bind(conn), { paymentId, amount: remainder, invoices: invoiceRows },
+        conn.execute.bind(conn), { payment, amount: remainder, invoices: invoiceRows },
       );
     } catch (allocErr) {
-      // Over-allocation guard trigger (migration 126) → SQLSTATE 45000.
-      if (paymentAllocationService.isOverAllocationError(allocErr)) {
+      if (allocErr instanceof AppError) {
         await conn.rollback();
-        return res.status(422).json({
-          error: { code: 'OVER_ALLOCATION', message: 'Allocation would exceed the invoice or payment total.' },
-        });
+        return res.status(allocErr.statusCode).json({ error: { code: allocErr.code, message: allocErr.message } });
       }
       throw allocErr;
     }
@@ -523,8 +517,8 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
 
     // Validate both invoices belong to the payment's client
     const [invRows] = await conn.execute(
-      'SELECT id, client_id, status FROM invoices WHERE id IN (?, ?) AND deleted_at IS NULL',
-      [from_invoice_id, to_invoice_id],
+      'SELECT id, organization_id, client_id, status, total, currency FROM invoices WHERE id IN (?, ?) AND organization_id = ? AND deleted_at IS NULL',
+      [from_invoice_id, to_invoice_id, req.orgId],
     );
     const fromInv = invRows.find(r => r.id === from_invoice_id || r.id === Number(from_invoice_id));
     const toInv   = invRows.find(r => r.id === to_invoice_id   || r.id === Number(to_invoice_id));
@@ -570,29 +564,17 @@ router.post('/:id/reallocate', requirePermission('payments.update'), async (req,
       [existingAlloc.id],
     );
 
-    // Insert the new allocation — DB trigger enforces over-allocation caps
+    // Insert the new allocation through the shared writer: it refuses a
+    // currency mismatch and maps the over-allocation and duplicate guards.
     let newAllocId;
     try {
-      const [insertResult] = await conn.execute(
-        'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
-        [paymentId, to_invoice_id, moveAmount],
-      );
-      newAllocId = insertResult.insertId;
+      ({ id: newAllocId } = await paymentAllocationService.applyAllocation(
+        conn.execute.bind(conn), { payment, invoice: toInv, amount: moveAmount, finalize: false },
+      ));
     } catch (allocErr) {
-      // Over-allocation guard trigger (migration 126/370) raises SQLSTATE 45000.
-      if (allocErr.sqlState === '45000' || allocErr.errno === 1644) {
+      if (allocErr instanceof AppError) {
         await conn.rollback();
-        return res.status(422).json({
-          error: { code: 'OVER_ALLOCATION', message: 'Allocation would exceed the invoice or payment total.' },
-        });
-      }
-      // The soft-delete-aware UNIQUE (migration 361) rejects a SECOND live
-      // allocation of this payment to the same invoice.
-      if (allocErr.code === 'ER_DUP_ENTRY' || allocErr.errno === 1062) {
-        await conn.rollback();
-        return res.status(422).json({
-          error: { code: 'ALLOCATION_EXISTS', message: 'This payment is already applied to that invoice.' },
-        });
+        return res.status(allocErr.statusCode).json({ error: { code: allocErr.code, message: allocErr.message } });
       }
       throw allocErr; // unexpected/infra error — outer catch rolls back + 500s
     }

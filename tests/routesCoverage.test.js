@@ -1704,7 +1704,7 @@ describe('Payment Routes — /api/payments', () => {
 
     test('success — allocates payment to invoice', async () => {
       mockAuthUser();
-      allocationReads({ id: 5, client_id: 9, total: '200.00', contract_id: 10 }, '200.00');
+      allocationReads({ id: 5, client_id: 9, status: 'issued', total: '200.00', contract_id: 10 }, '200.00');
       db.query
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ id: 10, status: 'suspended' }]]);
@@ -1721,7 +1721,7 @@ describe('Payment Routes — /api/payments', () => {
 
     test('allocates without reconnect when contract is not suspended', async () => {
       mockAuthUser();
-      allocationReads({ id: 5, client_id: 9, total: '200.00', contract_id: 10 }, '200.00');
+      allocationReads({ id: 5, client_id: 9, status: 'issued', total: '200.00', contract_id: 10 }, '200.00');
       db.query
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[]]);
@@ -1737,7 +1737,7 @@ describe('Payment Routes — /api/payments', () => {
 
     test('partial allocation does not mark invoice as paid', async () => {
       mockAuthUser();
-      allocationReads({ id: 5, client_id: 9, total: '500.00', contract_id: 10 }, '100.00');
+      allocationReads({ id: 5, client_id: 9, status: 'issued', total: '500.00', contract_id: 10 }, '100.00');
 
       const res = await request(app)
         .post('/api/payments/1/allocate')

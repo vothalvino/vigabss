@@ -175,8 +175,8 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
       .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       // load both invoices (both client_id = 5)
       .mockResolvedValueOnce([[
-        { id: 30, client_id: 5 },
-        { id: 31, client_id: 5 },
+        { id: 30, client_id: 5, status: 'issued' },
+        { id: 31, client_id: 5, status: 'issued' },
       ]])
       // soft-delete old allocation
       .mockResolvedValueOnce([{ affectedRows: 1 }])
@@ -269,8 +269,8 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
       .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
       .mockResolvedValueOnce([[
-        { id: 30, client_id: 5 },
-        { id: 31, client_id: 5 },
+        { id: 30, client_id: 5, status: 'issued' },
+        { id: 31, client_id: 5, status: 'issued' },
       ]])
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // soft-delete old alloc
       .mockRejectedValueOnce(Object.assign(new Error('exceeds total'), { sqlState: '45000', errno: 1644 })); // guard trigger fires
@@ -293,7 +293,7 @@ describe('POST /payments/:id/reallocate (Capability 2)', () => {
       .mockResolvedValueOnce([[]]) // lock both invoices (DAL-04)
       .mockResolvedValueOnce([[{ id: 99, payment_id: 20, invoice_id: 30, amount: '100.00' }]])
       .mockResolvedValueOnce([[]]) // REP guard: no REP binds this allocation
-      .mockResolvedValueOnce([[{ id: 30, client_id: 5 }, { id: 31, client_id: 5 }]])
+      .mockResolvedValueOnce([[{ id: 30, client_id: 5, status: 'issued' }, { id: 31, client_id: 5, status: 'issued' }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockRejectedValueOnce(Object.assign(new Error('Duplicate entry'), { code: 'ER_DUP_ENTRY', errno: 1062 }));
     db.getConnection.mockResolvedValue(conn);
@@ -484,7 +484,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
   }
 
   test('returns 422 INVOICE_VOID when invoice.status is void', async () => {
-    wire({ invoice: { id: 5, total: '200.00', status: 'void', contract_id: null, organization_id: 1 } });
+    wire({ invoice: { id: 5, total: '200.00', status: 'void', contract_id: null, organization_id: 1, client_id: 5 } });
 
     const res = await request(app)
       .post('/api/v1/payments/1/allocate')
@@ -497,7 +497,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
   });
 
   test('returns 422 INVOICE_NOT_PAYABLE when invoice.status is cancelled', async () => {
-    wire({ invoice: { id: 5, total: '200.00', status: 'cancelled', contract_id: null, organization_id: 1 } });
+    wire({ invoice: { id: 5, total: '200.00', status: 'cancelled', contract_id: null, organization_id: 1, client_id: 5 } });
 
     const res = await request(app)
       .post('/api/v1/payments/1/allocate')
@@ -522,7 +522,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
   });
 
   test('returns 404 when the payment does not belong to this org', async () => {
-    wire({ payment: null, invoice: { id: 5, total: '100.00', status: 'issued' } });
+    wire({ payment: null, invoice: { id: 5, total: '100.00', status: 'issued', client_id: 5 } });
 
     const res = await request(app)
       .post('/api/v1/payments/1/allocate')
@@ -537,7 +537,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
 
   test('returns 422 OVER_ALLOCATION when db trigger fires on INSERT', async () => {
     wire({
-      invoice: { id: 5, total: '100.00', status: 'issued', contract_id: null, organization_id: 1 },
+      invoice: { id: 5, total: '100.00', status: 'issued', contract_id: null, organization_id: 1, client_id: 5 },
       insertError: Object.assign(new Error('exceeds total'), { sqlState: '45000', errno: 1644 }),
     });
 
@@ -553,7 +553,7 @@ describe('INVOICE_NOT_PAYABLE guard — POST /payments/:id/allocate', () => {
 
   test('normal (non-void) allocate still returns 201', async () => {
     wire({
-      invoice: { id: 5, total: '100.00', status: 'issued', contract_id: null, organization_id: 1 },
+      invoice: { id: 5, total: '100.00', status: 'issued', contract_id: null, organization_id: 1, client_id: 5 },
       allocation: { id: 10, payment_id: 1, invoice_id: 5, amount: '100.00' },
     });
 

@@ -494,6 +494,14 @@ allocators both pass. A draft or live REP binds its payment: delete, unapply,
 reallocate, status edits and staff refunds answer `PAYMENT_HAS_REP` until the
 REP is cancelled (`repService.assertNoBindingRep`).
 
+Only `paymentAllocationService.applyAllocation` inserts `payment_allocations`
+rows (BIL-28; `tests/paymentAllocationWriters.test.js` fails on another
+writer). It refuses an invoice of another organization, of another client
+(except group billing, `anyClient`), in another currency, or not in
+`PAYABLE_STATUSES`, and maps the guard triggers to 422 `OVER_ALLOCATION` and
+`ALLOCATION_EXISTS`. Waterfalls without a selection pre-filter invoices with
+`allocationRefusal`, so another currency stays unallocated credit.
+
 `pnpm run sql:check` statically checks resolvable SQL in `src/` against
 `database/schema.sql`, including table/column names, ENUM values, and writes to
 generated columns. Dynamic SQL is reported as skipped. The exception lists in
