@@ -94,105 +94,33 @@ describe('POST /api/bulk/suspend', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  test('valid body → 200', async () => {
+  // The per-contract semantics (active only, exempt clients failed, not-found
+  // ids reported, suspensionService for every contract) moved with the work
+  // into the batch job: tests/batchJobsBackground.test.js (TNA-41).
+  test('valid body → 202 with the queued suspend job; nothing runs in the request', async () => {
     mockAuthUser();
-    // SELECT id, status FROM contracts — each contract exists and is active
-    db.query.mockResolvedValue([[{ id: 10, status: 'active', organization_id: 1 }]]);
-    suspensionService.suspendContract.mockResolvedValue(undefined);
+    db.query.mockResolvedValue([[{ id: 10, status: 'pending', operation: 'suspend', organization_id: 1 }]]);
 
     const res = await request(app)
       .post('/api/bulk/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ contract_ids: [10, 20], reason: 'Non-payment' });
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.success).toBe(2);
-    expect(suspensionService.suspendContract).toHaveBeenCalledTimes(2);
-  });
-
-  // Bug fix (fold-in requested by coordinator, 2026-07-12): bulk suspend
-  // previously ran a raw UPDATE that bypassed suspensionService entirely —
-  // no CoA disconnect, no radius.status flip, no suspension-exemption check.
-  test('routes each contract through suspensionService.suspendContract (CoA + radius + exemption checks apply)', async () => {
-    mockAuthUser();
-    db.query.mockResolvedValue([[{ id: 10, status: 'active', organization_id: 1 }]]);
-    suspensionService.suspendContract.mockResolvedValue(undefined);
-
-    await request(app)
-      .post('/api/bulk/suspend')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send({ contract_ids: [10], reason: 'Non-payment' });
-
-    expect(suspensionService.suspendContract).toHaveBeenCalledWith(10, null, 1, null);
-  });
-
-  test('reports a suspension-exempt client as failed, not success', async () => {
-    mockAuthUser();
-    db.query.mockResolvedValue([[{ id: 10, status: 'active', organization_id: 1 }]]);
-    suspensionService.suspendContract.mockResolvedValue({ skipped: true, reason: 'VIP' });
-
-    const res = await request(app)
-      .post('/api/bulk/suspend')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send({ contract_ids: [10] });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.success).toBe(0);
-    expect(res.body.data.failed).toBe(1);
-    expect(res.body.data.errors[0].error).toMatch(/exempt/i);
-  });
-
-  test('reports an already-suspended contract as failed without calling suspensionService', async () => {
-    mockAuthUser();
-    db.query.mockResolvedValue([[{ id: 10, status: 'suspended', organization_id: 1 }]]);
-
-    const res = await request(app)
-      .post('/api/bulk/suspend')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send({ contract_ids: [10] });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.failed).toBe(1);
-    expect(res.body.data.errors[0].error).toBe("Cannot suspend a 'suspended' contract");
+    expect(res.status).toBe(202);
+    expect(res.body.data).toMatchObject({ operation: 'suspend' });
     expect(suspensionService.suspendContract).not.toHaveBeenCalled();
+    const jobInsert = db.query.mock.calls.find(([sql]) => /INSERT INTO batch_jobs/.test(sql));
+    expect(jobInsert[1]).toEqual(expect.arrayContaining(['suspend', JSON.stringify({ contract_ids: [10, 20] })]));
   });
 
-  test('reports a not-found contract with a distinct message and does not call suspensionService', async () => {
+  test('rejects more than 500 contracts → 400', async () => {
     mockAuthUser();
-    db.query.mockResolvedValue([[]]);
-
     const res = await request(app)
       .post('/api/bulk/suspend')
       .set('Authorization', `Bearer ${authToken}`)
-      .send({ contract_ids: [999] });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.failed).toBe(1);
-    expect(res.body.data.errors[0].error).toBe('Not found');
-    expect(suspensionService.suspendContract).not.toHaveBeenCalled();
+      .send({ contract_ids: Array.from({ length: 501 }, (_, i) => i + 1) });
+    expect(res.status).toBe(400);
   });
-
-  // LOW finding (confirmed 2/2): the pre-filter only skipped status ===
-  // 'suspended' — pending/cancelled/terminated/expired rows fell through to
-  // suspendContract and failed with the FSM trigger's raw 'Invalid contract
-  // status transition' error instead of a clear per-row message.
-  test.each(['pending', 'cancelled', 'terminated', 'expired'])(
-    "reports a '%s' contract as a clear per-row error without calling suspensionService",
-    async (status) => {
-      mockAuthUser();
-      db.query.mockResolvedValue([[{ id: 10, status, organization_id: 1 }]]);
-
-      const res = await request(app)
-        .post('/api/bulk/suspend')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ contract_ids: [10] });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.failed).toBe(1);
-      expect(res.body.data.errors[0].error).toBe(`Cannot suspend a '${status}' contract`);
-      expect(suspensionService.suspendContract).not.toHaveBeenCalled();
-    },
-  );
 });
 
 // =============================================================================
@@ -363,6 +291,7 @@ describe('bulkEmailLimiter does not leak onto other /bulk routes', () => {
       .post('/api/bulk/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ contract_ids: [10] });
-    expect(suspendRes.status).toBe(200);
+    // 202: queued as a batch job (TNA-41).
+    expect(suspendRes.status).toBe(202);
   });
 });

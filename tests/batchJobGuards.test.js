@@ -46,7 +46,7 @@ test('suspend with another tenant\'s invoice creates no job', async () => {
 
 test('batch suspend is attributed to the job creator, not body ids', async () => {
   const suspend = jest.spyOn(suspensionService, 'suspendContract').mockResolvedValue({});
-  db.query.mockResolvedValueOnce([[{ id: 10 }]]);
+  db.query.mockResolvedValueOnce([[{ id: 10, status: 'active' }]]);
   await automationService.applyBatchOperation(1, 'suspend', { entity_id: 10 }, { rule_id: 55, user_id: 99 }, 7);
   expect(suspend).toHaveBeenCalledWith(10, null, 7, null);
   suspend.mockRestore();
@@ -63,16 +63,17 @@ test('a batch plan change is audited', async () => {
   }));
 });
 
-test('a cancelled job stops processing and keeps its status', async () => {
+// The job runs in the background now (TNA-41); cancellation between chunks
+// and the 'running'-only completion are covered by batchJobsBackground.test.js.
+test('creating a job only persists it: no item runs inside the request', async () => {
   db.query.mockImplementation(async (sql) => {
-    if (/^SELECT id AS entity_id/.test(sql)) return [[{ entity_id: 10, entity_type: 'contract' }, { entity_id: 11, entity_type: 'contract' }]];
+    if (/^SELECT id AS entity_id/.test(sql.trim())) return [[{ entity_id: 10, entity_type: 'contract' }, { entity_id: 11, entity_type: 'contract' }]];
     if (/INSERT INTO batch_jobs/.test(sql)) return [{ insertId: 1 }];
-    if (/SELECT status FROM batch_jobs/.test(sql)) return [[{ status: 'cancelled' }]];
     if (/^\s*(INSERT|UPDATE)/.test(sql)) return [{ affectedRows: 1 }];
-    return [[{ id: 1, status: 'cancelled' }]];
+    return [[{ id: 1, status: 'pending' }]];
   });
   await automationService.createBatchJob(1, job({ operation: 'rate_limit' }));
-  expect(sqlRan(/INSERT INTO batch_job_items/)).toBe(false);
-  const finalUpdate = db.query.mock.calls.find(([sql]) => /SET status = 'completed'/.test(sql));
-  expect(finalUpdate[0]).toMatch(/AND status = 'running'/);
+  expect(sqlRan(/INSERT INTO batch_job_items/)).toBe(true);
+  expect(sqlRan(/SET status = 'processing'/)).toBe(false);
+  expect(sqlRan(/SET status = 'completed'/)).toBe(false);
 });

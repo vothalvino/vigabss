@@ -57,23 +57,23 @@ vigabss/
 │   ├── app.js          # Express application setup
 │   ├── server.js       # HTTP server entry point
 │   ├── config/         # App config, database pool, FireRelay
-│   ├── controllers/    # Route handler logic (7 controllers)
+│   ├── controllers/    # Route handler logic
 │   ├── middleware/      # Auth, RBAC, rate limiting, validation, schemas
-│   ├── models/         # Database models (BaseModel + 89 entities)
-│   ├── routes/         # Express routers (69 route files)
-│   ├── services/       # Business logic (25 services)
+│   ├── models/         # Database models (BaseModel and one class per table)
+│   ├── routes/         # Express routers
+│   ├── services/       # Business logic
 │   ├── scripts/        # CLI tools (migrate, seed, backup, admin)
 │   ├── utils/          # Logger, i18n, errors, encryption, OpenAPI
 │   ├── views/          # Email templates
 │   └── locales/        # i18n translation files (en, es, pt-BR)
 ├── storage/            # File uploads and backups
-└── tests/              # Jest tests (71+ files, 1,440+ tests)
+└── tests/              # Jest tests and SQL tests (test_*.sql)
 ```
 
 ### API Architecture
 
 - **Auth**: JWT with refresh token rotation, TOTP 2FA
-- **Multi-org**: All data scoped by `organization_id` via `X-Org-Id` header
+- **Multi-org**: All data scoped by `organization_id`; the organization comes from the signed-in session or API token (`orgScope`), never from a request header. Switching organization is `POST /auth/switch-organization`
 - **RBAC**: Permission-based access control per route
 - **Versioning**: Routes available at both `/api/` and `/api/v1/`
 - **Real-time**: SSE event streams at `/api/v1/events/`
@@ -117,18 +117,21 @@ pnpm exec jest tests/billingService.test.js --forceExit
 Migrations are numbered SQL files in `database/migrations/`:
 
 ```bash
-# Create a new migration
-touch database/migrations/463_description.sql
+# The highest number so far; use the next one
+find database/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort -V | tail -1
 
 # Apply migrations
 pnpm run migrate
 ```
 
+ARCHITECTURE.md ("Database change contract") has the full rules.
+
 Rules:
 - Always add `IF NOT EXISTS` / `IF EXISTS` guards
-- Include both the forward migration in the file
+- Add a rollback with the same filename in `database/rollbacks/`; it must be honest about data it cannot restore
+- From migration 504 on, a migration must be safe to run again after a partial failure
 - Test with `docker compose -f docker-compose.test.yml up --build`
-- **Always update `database/schema.sql`** — every migration that changes the database structure (new table, altered column, new index, new trigger, etc.) **must** be reflected in `database/schema.sql`. This file is the combined structure reference that `sql:check`, `schema:parity` and the SQL test suite read; it is not an installer, because seed rows (permissions, role grants, scheduled tasks) live only in migrations — install with `pnpm run migrate`. If your migration adds a table, append the `CREATE TABLE` to `schema.sql`; if it alters a column, update the corresponding table definition in `schema.sql`. Alternatively, after applying all migrations on a fresh database you can regenerate it with: `mysqldump -u root -p --no-data vigabss > database/schema.sql` (substitute the configured database name; legacy installs may still use `fireisp`).
+- **Always update `database/schema.sql`** — every migration that changes the database structure (new table, altered column, new index, new trigger, etc.) **must** be reflected in `database/schema.sql`. This file is the combined structure reference that `sql:check`, `schema:parity` and the SQL test suite read; it is not an installer, because seed rows (permissions, role grants, scheduled tasks) live only in migrations — install with `pnpm run migrate`. If your migration adds a table, append the `CREATE TABLE` to `schema.sql`; if it alters a column, update the corresponding table definition in `schema.sql`. Edit it by hand: never regenerate it with `mysqldump --no-data`, which drops its seed `INSERT`s, routines and events.
 - **Always update `README.md`** — the README contains a **Database Tables** table and **migration notes** that serve as the project's living database reference. If your migration creates a new table, add a row to the Database Tables table. If your migration makes a notable structural change (ALTER TABLE, new trigger, new stored procedure, seed data, etc.), add a migration note blockquote (e.g. `> **Migration NNN — Short description:** ...`) to the README following the existing format.
 
 ### Commit Messages

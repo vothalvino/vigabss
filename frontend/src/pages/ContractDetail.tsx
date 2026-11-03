@@ -10,7 +10,7 @@
 // REST endpoints via postContractAction (same helper as ContractList).
 // =============================================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
@@ -19,7 +19,6 @@ import { gql } from '@/api/graphql';
 import { api, authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
-import { MarkdownView } from '@/components/MarkdownView';
 import {
   CommunicationOptInFields,
   type CommunicationContacts,
@@ -36,6 +35,9 @@ import {
 } from '@/components/MxContractEnvironment';
 import { formatDate } from '@/lib/dates';
 import { invalidateContractViews, queryKeys } from '@/api/queryKeys';
+
+// The markdown renderer is its own chunk (FE-21).
+const MarkdownView = lazy(() => import('@/components/MarkdownView'));
 
 // ---------------------------------------------------------------------------
 // GraphQL query — fetches the contract + all sub-resources in one request
@@ -1340,7 +1342,9 @@ function ActivationSignModal({ documentId, onClose, onSigned }: {
           <>
             <MxSandboxDocumentBanner environment={documentQ.data.mx_contract_environment} />
             <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '0.75rem', background: 'var(--bg-subtle)' }}>
-              <MarkdownView markdown={documentQ.data.rendered_body} />
+              <Suspense fallback={null}>
+                <MarkdownView markdown={documentQ.data.rendered_body} />
+              </Suspense>
             </div>
             {documentQ.data.status === 'signed' ? (
               <p>{t('contractActivation.signedBy', { name: documentQ.data.signer_name ?? '' })}</p>

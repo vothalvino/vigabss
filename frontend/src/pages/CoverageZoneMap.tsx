@@ -23,6 +23,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { authedFetch } from '@/api/client';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -168,20 +169,6 @@ function fitViewport(zones: CoverageZone[]): ViewPort {
 
 const API = '/api/v1';
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await authedFetch(`${API}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers as Record<string, string> | undefined),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { error?: { message?: string } };
-    throw new Error(body?.error?.message ?? `HTTP ${res.status}`);
-  }
-  return res.json() as Promise<T>;
-}
 
 async function fetchServiceAreas(): Promise<ServiceArea[]> {
   const data = await apiFetch<{ data: ServiceArea[] }>('/service-areas?limit=200');

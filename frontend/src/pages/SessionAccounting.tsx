@@ -16,8 +16,7 @@
 import { useState } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { tokenStore } from '@/api/client';
-import { parseApiError } from '@/api/errors';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,7 +67,6 @@ interface TopConsumersResponse {
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 50;
-const API_BASE = '/api/v1';
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const BYTES_PER_MB = 1024 * 1024;
 
@@ -103,20 +101,6 @@ function formatDuration(seconds: number): string {
   return `${m}m`;
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
-  const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(parseApiError(body, `HTTP ${res.status}`));
-  }
-  return res.json() as Promise<T>;
-}
 
 // ---------------------------------------------------------------------------
 // SVG Daily Bar Chart

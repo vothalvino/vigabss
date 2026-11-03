@@ -402,27 +402,12 @@ describe('automationService — additional branch coverage', () => {
     });
   });
 
-  describe('createBatchJob — item failure path', () => {
-    it('records failure status when applyBatchOperation throws', async () => {
-      // An unimplemented operation throws at applyBatchOperation's default case
-      // (BATCH_OPERATION_NOT_IMPLEMENTED), which createBatchJob catches and records
-      // as a 'failure' item — covering the catch block.
-      const job = { id: 1, name: 'FailBatch', operation: 'rate_limit', status: 'completed' };
-      db.query
-        .mockResolvedValueOnce([[{ entity_id: 10, entity_type: 'contract' }], []])  // targets
-        .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 }])  // INSERT batch_jobs
-        .mockResolvedValueOnce([[{ status: 'running' }], []])  // per-item status check
-        .mockResolvedValueOnce([{ insertId: 50, affectedRows: 1 }])  // INSERT batch_job_items
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE processed_items
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE completed
-        .mockResolvedValueOnce([[job], []]);
-      // Even though applyBatchOperation throws, createBatchJob continues
-      const result = await automationService.createBatchJob(1, {
-        name: 'FailBatch', operation: 'rate_limit',
-        filter_criteria: { status: 'active' },
-      });
-      // Result should still return a job row
-      expect(result).toBeDefined();
+  describe('batch item failure path', () => {
+    it('an unimplemented operation throws, which the job records as a failure item', async () => {
+      // applyBatchOperation's default case (BATCH_OPERATION_NOT_IMPLEMENTED);
+      // processBatchJob catches it per item (tests/batchJobsBackground.test.js).
+      await expect(automationService.applyBatchOperation(1, 'rate_limit', { entity_id: 10 }, {}, 1))
+        .rejects.toThrow();
     });
   });
 

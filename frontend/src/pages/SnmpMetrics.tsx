@@ -24,10 +24,10 @@ import { useState, useMemo, type CSSProperties, type KeyboardEvent, type MouseEv
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { tokenStore } from '@/api/client';
 import { Badge, Sparkline, type BadgeTone } from '@/components/ui';
 import { seriesToRates, currentRate, fmtBps, bucketedRates, type TrafficSample } from './snmpMetrics/rateTransform';
 import { fmtUptimeTicks, fmtRelativeTime, fmtPct, fmtSignal, fmtLatency, normalizeCpuSpark } from './snmpMetrics/format';
+import { apiFetch, ApiRequestError } from '@/api/apiFetch';
 
 // Chart series colours (--viz-in/out/aqua) are defined in the bundled
 // index.css under `.fi-snmp-metrics`, NOT injected here. The app's CSP
@@ -122,36 +122,6 @@ const RANGE_OPTIONS: RangeOption[] = [
   { labelKey: 'snmpMetrics.history.rangeOptions.daily30d', resolution: '1day', hours: 720 },
 ];
 const DEFAULT_RANGE_IDX = 1; // 7d hourly
-
-// ---------------------------------------------------------------------------
-// API helper
-// ---------------------------------------------------------------------------
-
-const API_BASE = '/api/v1';
-
-class ApiError extends Error {
-  status: number;
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
-  }
-}
-
-async function apiFetch<T>(path: string): Promise<T> {
-  const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const message = (body as { error?: { message?: string } }).error?.message || `HTTP ${res.status}`;
-    throw new ApiError(message, res.status);
-  }
-  return res.json() as Promise<T>;
-}
 
 // ---------------------------------------------------------------------------
 // Formatters
@@ -780,7 +750,7 @@ function DeviceHistoryView({
     refetchOnWindowFocus: false,
   });
 
-  const notFound = metricsError instanceof ApiError && metricsError.status === 404;
+  const notFound = metricsError instanceof ApiRequestError && metricsError.status === 404;
 
   const rows = metricsData?.data || [];
   const interfaces = metricsData?.meta?.interfaces || [];

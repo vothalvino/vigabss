@@ -26,10 +26,10 @@ import type { CSSProperties, FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { api, authedFetch } from '@/api/client';
+import { api } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { parseApiError } from '@/api/errors';
 import { localToday } from '@/lib/dates';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -131,17 +131,6 @@ interface IftListData {
 // API helpers
 // ---------------------------------------------------------------------------
 
-async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const res = await authedFetch(`/api/v1${path}`, {
-    ...opts,
-    headers: { 'Content-Type': 'application/json', ...(opts.headers as Record<string, string> | undefined) },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(parseApiError(body, `${res.status} ${res.statusText}`));
-  }
-  return res.json() as Promise<T>;
-}
 
 // Download a CSV export through the typed client (auth + silent-refresh aware)
 // and trigger a browser file download.

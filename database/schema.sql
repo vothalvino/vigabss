@@ -14561,7 +14561,8 @@ CREATE TABLE IF NOT EXISTS batch_job_items (
     organization_id     BIGINT UNSIGNED NOT NULL,
     entity_type         ENUM('contract','client','device') NOT NULL DEFAULT 'contract',
     entity_id           BIGINT UNSIGNED NOT NULL,
-    status              ENUM('pending','success','failure','skipped') NOT NULL DEFAULT 'pending',
+    status              ENUM('pending','processing','success','failure','skipped') NOT NULL DEFAULT 'pending'
+                                        COMMENT 'processing = claimed, outcome not yet recorded (migration 515)',
     result_message      VARCHAR(500)    NULL,
     processed_at        DATETIME        NULL,
     created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,

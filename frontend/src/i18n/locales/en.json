@@ -4483,6 +4483,7 @@
     },
     "audit": {
       "exportLogs": "Export Audit Logs",
+      "exportFailed": "Audit export failed",
       "reportAccessLogs": "Report Access Logs",
       "reportType": "Report Type",
       "accessedAt": "Accessed At",

@@ -16,6 +16,8 @@ const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
 vi.mock('@/api/client', () => ({
+  // Pages reach the API through authedFetch (FE-20); pass it to the stubbed fetch.
+  authedFetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init),
   api: { GET: vi.fn() },
   tokenStore: {
     getAccess: () => 'test-token',

@@ -2,7 +2,7 @@
 // VigaBSS 5.0 — App Layout (shell + nav)
 // =============================================================================
 
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, Suspense } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +21,7 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { NotificationBell } from '@/components/NotificationBell';
 import { BrandLockup } from '@/components/BrandLockup';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { LoadingState } from '@/components/FetchStates';
 import {
   SECTIONS,
   WORKSPACES,
@@ -469,7 +470,9 @@ export function Layout() {
         <UpdateAvailableBanner />
         <AdminIpAllowlistBanner />
         <ErrorBoundary key={location.pathname}>
-          <Outlet />
+          <Suspense fallback={<LoadingState />}>
+            <Outlet />
+          </Suspense>
         </ErrorBoundary>
       </main>
 

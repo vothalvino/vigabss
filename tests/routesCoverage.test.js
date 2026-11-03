@@ -148,10 +148,9 @@ beforeEach(() => {
 // =============================================================================
 describe('Bulk Routes — /api/bulk', () => {
   describe('POST /api/bulk/suspend', () => {
-    test('success — suspends contracts', async () => {
+    test('queues a suspend batch job and answers 202 (TNA-41)', async () => {
       mockAuthUser();
-      // SELECT id, status FROM contracts — each contract exists and is active
-      db.query.mockResolvedValue([[{ id: 10, status: 'active', organization_id: 1 }]]);
+      db.query.mockResolvedValue([[{ id: 10, status: 'pending', organization_id: 1 }]]);
       suspensionService.suspendContract.mockResolvedValue(undefined);
 
       const res = await request(app)
@@ -159,9 +158,11 @@ describe('Bulk Routes — /api/bulk', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ contract_ids: [10, 20], reason: 'Non-payment' });
 
-      expect(res.status).toBe(200);
-      expect(res.body.data.success).toBe(2);
-      expect(suspensionService.suspendContract).toHaveBeenCalledTimes(2);
+      expect(res.status).toBe(202);
+      expect(res.body.data).toBeDefined();
+      // Nothing is suspended inside the request; the job does it
+      // (per-contract results: tests/batchJobsBackground.test.js).
+      expect(suspensionService.suspendContract).not.toHaveBeenCalled();
     });
 
     test('validation — rejects missing contract_ids', async () => {
@@ -185,19 +186,6 @@ describe('Bulk Routes — /api/bulk', () => {
       expect(res.status).toBe(400);
     });
 
-    test('reports not found contracts as failed', async () => {
-      mockAuthUser();
-      db.query.mockResolvedValue([[]]); // SELECT finds no matching contract
-
-      const res = await request(app)
-        .post('/api/bulk/suspend')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ contract_ids: [999] });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.failed).toBe(1);
-      expect(suspensionService.suspendContract).not.toHaveBeenCalled();
-    });
   });
 
   describe('POST /api/bulk/email', () => {

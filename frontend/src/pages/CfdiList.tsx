@@ -71,7 +71,7 @@ async function fetchCfdi(page: number, statusFilter: string, typeFilter: string)
   const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
   if (statusFilter) params.set('sat_status', statusFilter);
   if (typeFilter) params.set('tipo_comprobante', typeFilter);
-  const res = await fetch(`${API_BASE}/cfdi-documents?${params}`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/cfdi-documents?${params}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load CFDI documents');
   return res.json() as Promise<CfdiListResponse>;
 }

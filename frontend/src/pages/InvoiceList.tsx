@@ -13,8 +13,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { api, tokenStore } from '@/api/client';
-import { readCsrfCookie } from '@/api/csrf';
+import { api } from '@/api/client';
+import { apiFetch } from '@/api/apiFetch';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { GenerateInvoiceModal } from '@/components/GenerateInvoiceModal';
 import { Pagination } from '@/components/Pagination';
@@ -77,28 +77,10 @@ interface BulkVoidResult {
 }
 
 async function bulkVoidInvoices(ids: number[]): Promise<BulkVoidResult> {
-  const token = tokenStore.getAccess();
-  const csrfToken = readCsrfCookie();
-  const res = await fetch('/api/v1/bulk/invoices/void', {
+  return apiFetch<BulkVoidResult>('/bulk/invoices/void', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-    },
     body: JSON.stringify({ invoice_ids: ids }),
   });
-  if (!res.ok) {
-    let msg = 'Failed to void invoices';
-    try {
-      const j = (await res.json()) as { error?: { message?: string } | string };
-      msg = (typeof j.error === 'string' ? j.error : j.error?.message) ?? msg;
-    } catch {
-      /* keep default */
-    }
-    throw new Error(msg);
-  }
-  return res.json() as Promise<BulkVoidResult>;
 }
 
 // ---------------------------------------------------------------------------

@@ -21,6 +21,7 @@ const config = require('../config');
 const logger = require('../utils/logger').child({ service: 'radiusServer' });
 const codec = require('./radiusServerCodec');
 const coa = require('./radiusCoaEncoder');
+const { openWalledGardenPredicate } = require('./suspensionLogConstants');
 const { generateAttributes, generateThrottleAttributes, hasThrottle } = require('./radiusAttributeService');
 const speedWindowService = require('./speedWindowService');
 const { resolveNasByIp } = require('./tenantNasResolverService');
@@ -149,7 +150,14 @@ async function findSubscriber(username, organizationId) {
             c.soft_suspend_download_kbps, c.soft_suspend_upload_kbps,
             CASE WHEN c.status = 'pending'
                  THEN GREATEST(TIMESTAMPDIFF(SECOND, NOW(), c.test_window_expires_at), 1)
-                 ELSE NULL END AS test_window_seconds_remaining
+                 ELSE NULL END AS test_window_seconds_remaining,
+            -- The walled-garden address list, while the contract is walled (NPR-08).
+            (SELECT COALESCE(wg.address_list_name, 'walled_garden')
+               FROM suspension_logs sl
+               LEFT JOIN organization_walled_garden_settings wg
+                 ON wg.organization_id = c.organization_id AND wg.enabled = 1
+              WHERE sl.contract_id = c.id AND ${openWalledGardenPredicate('sl')}
+              LIMIT 1) AS walled_address_list
        FROM radius r
        LEFT JOIN contracts c ON c.id = r.contract_id
        LEFT JOIN ip_pools ipv6_pool ON ipv6_pool.id = r.ipv6_pool_id AND ipv6_pool.deleted_at IS NULL
@@ -303,6 +311,11 @@ function buildAcceptAttributes(subscriber, plan, withMessageAuth) {
         parts.push(policy);
       }
     }
+  }
+  // A walled subscriber joins the walled-garden address list, as the
+  // FreeRADIUS sync writes for the external-server path (NPR-08).
+  if (subscriber.walled_address_list) {
+    parts.push(coa.encodeNamedAttributes([{ name: 'Mikrotik-Address-List', value: String(subscriber.walled_address_list) }]));
   }
   // Message-Authenticator placeholder (filled by signResponse) when the client used one.
   if (withMessageAuth) parts.unshift(codec.messageAuthenticatorPlaceholder());
@@ -603,5 +616,6 @@ module.exports = {
   // exported for tests
   handleAuth,
   handleAcct,
+  buildAcceptAttributes,
   _counters: counters,
 };

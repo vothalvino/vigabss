@@ -1,7 +1,6 @@
 {
   "src/routes/automationRules.js": 4,
   "src/routes/billing.js": 3,
-  "src/routes/bulk.js": 1,
   "src/routes/clients.js": 4,
   "src/routes/connectionLogs.js": 6,
   "src/routes/consumerProtection.js": 4,

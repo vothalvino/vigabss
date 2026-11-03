@@ -83,7 +83,7 @@ function fmt(dateStr: string | null | undefined): string {
 
 async function fetchAllPeers(page: number): Promise<AdminPeersResponse> {
   const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
-  const res = await fetch(`${API_BASE}/wg-peers/admin/all?${params}`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/wg-peers/admin/all?${params}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load peers');
   return res.json() as Promise<AdminPeersResponse>;
 }
@@ -105,7 +105,7 @@ async function adminRotatePeer(id: number): Promise<void> {
 }
 
 async function fetchAssignments(userId: number): Promise<AssignmentsResponse> {
-  const res = await fetch(`${API_BASE}/wg-peers/admin/assignments/${userId}`, {
+  const res = await authedFetch(`${API_BASE}/wg-peers/admin/assignments/${userId}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to load assignments');
@@ -124,13 +124,13 @@ async function putAssignments(userId: number, scopes: ScopeEntry[]): Promise<voi
 }
 
 async function fetchSites(): Promise<ListResponse<SiteRow>> {
-  const res = await fetch(`${API_BASE}/sites?limit=500`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/sites?limit=500`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load sites');
   return res.json() as Promise<ListResponse<SiteRow>>;
 }
 
 async function fetchNasList(): Promise<ListResponse<NasRow>> {
-  const res = await fetch(`${API_BASE}/nas?limit=500`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/nas?limit=500`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load NAS list');
   return res.json() as Promise<ListResponse<NasRow>>;
 }

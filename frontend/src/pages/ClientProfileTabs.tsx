@@ -12,7 +12,7 @@
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
-import { api, tokenStore, authedFetch } from '@/api/client';
+import { api, authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { extractApiError, errorBox, inputStyle, labelStyle, submitBtn, cancelBtn, dangerBtn } from '@/components/ClientFormModal';
@@ -481,11 +481,7 @@ export function DocumentsTab({ clientId, canEdit }: TabProps) {
   async function download(doc: ClientDocument) {
     setError('');
     try {
-      const token = tokenStore.getAccess();
-      const res = await fetch(`/api/v1/clients/${clientId}/documents/${doc.id}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: 'include',
-      });
+      const res = await authedFetch(`/api/v1/clients/${clientId}/documents/${doc.id}/download`);
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

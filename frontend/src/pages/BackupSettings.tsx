@@ -20,7 +20,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { api, tokenStore } from '@/api/client';
+import { api, authedFetch } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
 
 // ---------------------------------------------------------------------------
@@ -119,10 +119,7 @@ async function fetchRuns(): Promise<{ runs: BackupRun[]; files: BackupFile[] }> 
 // The CfdiList downloadFile mold: fetch with the bearer token, save via a
 // blob anchor (a plain <a href> can't carry the Authorization header).
 function downloadBackupFile(filename: string, onError: (msg: string) => void): void {
-  const token = tokenStore.getAccess();
-  fetch(`/api/v1/backup-settings/download/${encodeURIComponent(filename)}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
+  authedFetch(`/api/v1/backup-settings/download/${encodeURIComponent(filename)}`)
     .then(res => {
       if (!res.ok) throw new Error(`Download failed (${res.status})`);
       return res.blob();

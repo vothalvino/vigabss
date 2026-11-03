@@ -4483,6 +4483,7 @@
     },
     "audit": {
       "exportLogs": "Exportar Registros de Auditoria",
+      "exportFailed": "No se pudo exportar la auditoría",
       "reportAccessLogs": "Registros de Acceso a Reportes",
       "reportType": "Tipo de Reporte",
       "accessedAt": "Accedido En",
