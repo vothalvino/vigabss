@@ -1379,10 +1379,20 @@ async function walledGardenSuspendContract(contractId, ruleId, userId, invoiceId
 
   logger.info({ contractId, ruleId, invoiceId }, 'Applying walled garden suspension');
 
+  // Resolve the org from the contract (radius has no organization_id column).
+  const [orgRows] = await db.query(
+    'SELECT organization_id FROM contracts WHERE id = ? LIMIT 1',
+    [contractId],
+  );
+  const organizationId = orgRows[0]?.organization_id ?? null;
+
+  // The CoA carries the address list itself (NPR-08): it used to send the
+  // User-Name only, so a live session was never walled until it re-authed.
   let coaSent = false;
   let coaResponse;
   try {
-    const coaResult = await sendRadiusCoA(contractId, 'walled_garden');
+    const listName = await walledGardenListName(organizationId);
+    const coaResult = await sendRadiusCoA(contractId, 'walled_garden', [{ name: 'Mikrotik-Address-List', value: listName }]);
     coaSent = coaResult.sent;
     coaResponse = JSON.stringify({ action: 'walled_garden', result: coaResult.response });
   } catch (_err) {
@@ -1412,15 +1422,11 @@ async function walledGardenSuspendContract(contractId, ruleId, userId, invoiceId
     ],
   );
 
-  // Trigger a FreeRADIUS sync so re-auth picks up the walled attribute
-  // immediately. Resolve the org from the contract (radius has no
-  // organization_id column).
-  const [orgRows] = await db.query(
-    'SELECT organization_id FROM contracts WHERE id = ? LIMIT 1',
-    [contractId],
-  );
+  // Rewrite this contract's rows so a re-auth carries the walled attribute.
+  // A full-organization resync here rewrote every subscriber's rows once per
+  // walled contract (NPR-08).
   if (orgRows.length > 0) {
-    await syncFreeradiusTables(orgRows[0].organization_id).catch(() => {});
+    await syncFreeradiusTables(organizationId, { contractId: Number(contractId) }).catch(() => {});
   }
   await require('./businessEvents').emitContractSuspended(contractId, { invoiceId, mode: 'walled_garden' });
 }
@@ -1442,21 +1448,31 @@ async function walledGardenReconnect(contractId, _userId) {
     [contractId],
   );
 
-  try {
-    await sendRadiusCoA(contractId, 'walled_garden_remove');
-  } catch (_err) {
-    // CoA failure non-fatal — sync will remove the attribute on next run
-  }
-
-  // Trigger immediate sync so re-auth no longer gets walled attribute.
-  // Resolve the org from the contract (radius has no organization_id column).
+  // This contract's rows lose the walled attribute first (not a full-org
+  // resync, NPR-08); then the session is disconnected so it re-authenticates
+  // without it. A CoA cannot take a session off a MikroTik address list.
   const [orgRows] = await db.query(
     'SELECT organization_id FROM contracts WHERE id = ? LIMIT 1',
     [contractId],
   );
   if (orgRows.length > 0) {
-    await syncFreeradiusTables(orgRows[0].organization_id).catch(() => {});
+    await syncFreeradiusTables(orgRows[0].organization_id, { contractId: Number(contractId) }).catch(() => {});
   }
+  try {
+    await sendRadiusDisconnect(contractId);
+  } catch (_err) {
+    // Non-fatal: the next re-auth is already unwalled.
+  }
+}
+
+/** The organization's walled-garden address list (default 'walled_garden'). */
+async function walledGardenListName(organizationId) {
+  if (!organizationId) return 'walled_garden';
+  const [rows] = await db.query(
+    'SELECT address_list_name FROM organization_walled_garden_settings WHERE organization_id = ? AND enabled = 1 LIMIT 1',
+    [organizationId],
+  );
+  return rows[0]?.address_list_name || 'walled_garden';
 }
 
 /**
