@@ -99,6 +99,22 @@ describeDb('money and locking against a real database', () => {
     expect(new Set(nums).size).toBe(10);
   });
 
+  test('concurrent service-order numbers are distinct', async () => {
+    const { nextOrderNumber } = require('../../../src/services/lifecycleService');
+    const nums = await Promise.all(Array.from({ length: 10 }, async () => {
+      const conn = await db.getConnection();
+      try {
+        await conn.beginTransaction();
+        const n = await nextOrderNumber(conn, ORG);
+        await conn.commit();
+        return n;
+      } finally {
+        conn.release();
+      }
+    }));
+    expect(new Set(nums).size).toBe(10);
+  });
+
   test('two runs for the same contract create one billing period and one invoice', async () => {
     const billing = require('../../../src/services/billingService');
     const [[contract]] = await db.query('SELECT * FROM contracts WHERE id = ?', [fx[ORG].contract]);

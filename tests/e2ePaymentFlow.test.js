@@ -313,8 +313,7 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
         .mockResolvedValueOnce([[{ id: 100, status: 'pending' }]])             // FOR UPDATE lock
         .mockResolvedValueOnce([[{ tax_exempt: 0 }]])                          // resolveTaxContext: client exemption
         .mockResolvedValueOnce([[{ id: 1, rate: '0.1600', is_default: true }]]) // tax rate
-        .mockResolvedValueOnce([{ affectedRows: 0 }])                          // nextInvoiceNumber: INSERT IGNORE
-        .mockResolvedValueOnce([{ affectedRows: 1 }])                          // nextInvoiceNumber: UPDATE next_number
+        .mockResolvedValueOnce([{ affectedRows: 0 }])                          // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ insertId: 200 }])                            // INSERT invoice
         .mockResolvedValueOnce([{ affectedRows: 1 }])                          // INSERT line item
         .mockResolvedValueOnce([[]])                                            // contract addons
@@ -663,8 +662,7 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
         .mockResolvedValueOnce([[{ id: 100, status: 'pending' }]])
         .mockResolvedValueOnce([[{ tax_exempt: 0 }]])  // resolveTaxContext: client exemption
         .mockResolvedValueOnce([[{ id: 1, rate: '0.1600', is_default: true }]])
-        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: INSERT IGNORE
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // nextInvoiceNumber: UPDATE next_number
+        .mockResolvedValueOnce([{ affectedRows: 0 }])  // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ insertId: 200 }])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[]])

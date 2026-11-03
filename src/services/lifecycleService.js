@@ -56,10 +56,8 @@ const DEFAULT_ONBOARDING_TASKS = [
  * non-locking read: two concurrent callers for the same org could read the
  * same count and both attempt to INSERT the same order_number, hitting the
  * uq_service_orders_org_number unique-key 500. Mirrors
- * billingService.nextInvoiceNumber(conn, orgId) exactly — see that
- * function's doc comment for why the INSERT IGNORE + UPDATE pair is
- * deliberately NOT collapsed into a single `ON DUPLICATE KEY UPDATE`
- * statement.
+ * billingService.nextInvoiceNumber(conn, orgId), but keeps a separate
+ * UPDATE so it can skip numbers a live order already holds (RTE-05).
  *
  * `organization_id` is NULL for single-tenant deployments; the sequence
  * table uses sentinel `0` as its primary key for that bucket.
@@ -75,8 +73,13 @@ const ORDER_NUMBER_ATTEMPTS = 50;
 
 async function nextOrderNumber(conn, orgId) {
   const bucket = orgId ?? 0;
+  // An upsert, not INSERT IGNORE: on an existing row INSERT IGNORE takes a
+  // shared lock, two concurrent creates both held it and deadlocked waiting
+  // for the UPDATE's exclusive lock (OPS-20). The no-op update takes the
+  // exclusive lock at once.
   await conn.execute(
-    'INSERT IGNORE INTO organization_order_sequences (organization_id, next_number) VALUES (?, 1)',
+    `INSERT INTO organization_order_sequences (organization_id, next_number) VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE next_number = next_number`,
     [bucket],
   );
   // A live order can already hold the drawn number (one created with a
