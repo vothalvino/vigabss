@@ -346,13 +346,11 @@ harmless NAK. Per-session operations (duplicate-session kick, batch
 force-disconnect) additionally include an `Acct-Session-Id` attribute so only
 the targeted session is terminated.
 
-### Environment variables
+### Where the secret and port come from
 
-```env
-RADIUS_SECRET=your-shared-secret
-RADIUS_HOST=127.0.0.1
-RADIUS_COA_PORT=3799
-```
+Each NAS has its own shared secret and CoA port (default 3799), set in
+Network → NAS Devices and stored in `nas.secret` / `nas.coa_port`. There are no
+RADIUS secret or CoA environment variables.
 
 ### MikroTik CoA Configuration
 

@@ -106,13 +106,9 @@ Common operational scenarios and troubleshooting guides.
 
 ### PAC stamping fails
 
-1. **Check PAC provider credentials** in `.env`:
-   ```
-   PAC_PROVIDER=finkok
-   PAC_USER=your-user
-   PAC_PASSWORD=your-password
-   PAC_URL=https://demo-facturacion.finkok.com
-   ```
+1. **Check the PAC provider credentials** in Compliance → PAC Providers
+   (per organization, stored encrypted; there are no PAC environment
+   variables). Use the provider's test environment for test CSDs.
 
 2. **Check CFDI document status:**
    ```sql

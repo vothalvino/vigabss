@@ -921,11 +921,6 @@ SMTP_USER=
 SMTP_PASS=
 SMTP_FROM=noreply@${DOMAIN}
 
-# ---- RADIUS (configure after install) ----------------------------------------
-RADIUS_SECRET=
-RADIUS_HOST=127.0.0.1
-RADIUS_COA_PORT=3799
-
 # ---- Install operator --------------------------------------------------------
 # Who may change install-wide settings (ops alerts, map tiles, WireGuard), manage
 # poller nodes, and use the update/deploy controls. Comma-separated user IDs.
