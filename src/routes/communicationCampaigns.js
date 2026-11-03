@@ -16,9 +16,26 @@ const {
   patchCommunicationCampaign,
 } = require('../middleware/schemas/communicationCampaigns');
 const campaignService = require('../services/campaignService');
+const messageOutbox = require('../services/messageOutbox');
+const db = require('../config/database');
 
 const router = Router();
-const ctrl = crudController(CommunicationCampaign, { cacheResource: 'communication-campaigns' });
+// A cancelled or deleted campaign withdraws its messages still waiting in the
+// message outbox (ASY-33); messages already being delivered finish.
+async function withdrawQueuedMessages(campaign, req) {
+  if (!campaign || (campaign.status !== 'cancelled' && !campaign.deleted_at && req.method !== 'DELETE')) return;
+  const [rows] = await db.query(
+    'SELECT id FROM campaign_messages WHERE campaign_id = ? AND organization_id <=> ?',
+    [campaign.id, req.orgId],
+  );
+  await messageOutbox.cancelQueuedBySource(req.orgId, 'campaign_message', rows.map(r => r.id));
+}
+
+const ctrl = crudController(CommunicationCampaign, {
+  cacheResource: 'communication-campaigns',
+  afterUpdate: withdrawQueuedMessages,
+  afterDelete: withdrawQueuedMessages,
+});
 
 router.use(authenticate);
 router.use(orgScope);

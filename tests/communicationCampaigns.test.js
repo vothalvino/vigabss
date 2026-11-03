@@ -9,13 +9,10 @@ jest.mock('../src/config/database', () => ({
   withPrimaryContext: jest.fn(async callback => callback()),
 }));
 
-jest.mock('../src/services/emailTransport', () => ({
-  sendEmail: jest.fn().mockResolvedValue({ success: true, messageId: 'email-msg-id' }),
-}));
-
-jest.mock('../src/services/smsTransport', () => ({
-  sendSms: jest.fn().mockResolvedValue({ success: true, messageId: 'sms-msg-id' }),
-}));
+// Campaign messages are handed to the message outbox (ASY-33), which
+// delivers them; its rules are tested in tests/messageOutbox.test.js.
+const mockEnqueue = jest.fn();
+jest.mock('../src/services/messageOutbox', () => ({ enqueue: (...a) => mockEnqueue(...a) }));
 
 const mockGetOrganizationDeliveryState = jest.fn().mockResolvedValue({ active: true, epoch: 0 });
 jest.mock('../src/services/clientCommunicationPreferenceService', () => ({
@@ -31,8 +28,6 @@ jest.mock('../src/utils/logger', () => ({
 }));
 
 const db = require('../src/config/database');
-const emailTransport = require('../src/services/emailTransport');
-const smsTransport = require('../src/services/smsTransport');
 const logger = require('../src/utils/logger');
 const {
   buildRecipientList,
@@ -371,6 +366,7 @@ describe('dispatchCampaign', () => {
 describe('processQueue', () => {
   const deliveryClaimMarker = 'Delivery claimed; awaiting provider result';
   const deliveryOutcomeUnknown = 'Provider invocation started; delivery outcome is unknown';
+  const handedOff = 'Queued in the message outbox';
 
   const queuedMessage = overrides => ({
     id: 10,
@@ -386,71 +382,56 @@ describe('processQueue', () => {
     ...overrides,
   });
 
+  let conn;
   function installQueueMock({
     queued = [],
     templates = [{ id: 42, subject: 'Aviso', body: 'Hola' }],
     clients = [],
     staleAffected = 0,
     claimAffected = 1,
-    invocationAffected = 1,
-    outcomeAffected = 1,
-    outcomeError = null,
     terminalAffected = 1,
-    counterAffected = 1,
     finalizeAffected = 0,
   } = {}) {
     db.query.mockImplementation(async (sql) => {
       if (/FROM organization_database_configs/.test(sql)) return [[]];
-      if (/SET cm\.status = 'queued', cm\.error_message = NULL/.test(sql)) {
-        return [{ affectedRows: staleAffected }];
-      }
+      if (/SET cm\.status = 'queued', cm\.error_message = NULL/.test(sql)) return [{ affectedRows: staleAffected }];
       if (/SELECT cm\.\*, cc\.template_id AS campaign_template_id/.test(sql)) return [queued];
       if (/FROM message_templates/.test(sql)) return [templates];
       if (/SELECT \* FROM clients/.test(sql)) return [clients];
-      if (/UPDATE campaign_messages cm[\s\S]*JOIN clients c/.test(sql)) {
-        return [{ affectedRows: claimAffected }];
-      }
-      if (/SET error_message = \?[\s\S]*status = 'failed' AND error_message = \?/.test(sql)) {
-        return [{ affectedRows: invocationAffected }];
-      }
-      if (/SET status = 'sent', sent_at = NOW\(\)/.test(sql)) {
-        if (outcomeError) throw outcomeError;
-        return [{ affectedRows: outcomeAffected }];
-      }
-      if (/UPDATE campaign_messages\s+SET status = 'failed'/.test(sql)) {
-        return [{ affectedRows: terminalAffected }];
-      }
-      if (/UPDATE communication_campaigns\s+SET (?:sent_count|failed_count)/.test(sql)) {
-        return [{ affectedRows: counterAffected }];
-      }
-      if (/UPDATE communication_campaigns cc/.test(sql)) {
-        return [{ affectedRows: finalizeAffected }];
-      }
+      if (/UPDATE campaign_messages\s+SET status = 'failed'/.test(sql)) return [{ affectedRows: terminalAffected }];
+      if (/UPDATE communication_campaigns\s+SET failed_count/.test(sql)) return [{ affectedRows: 1 }];
+      if (/UPDATE communication_campaigns cc/.test(sql)) return [{ affectedRows: finalizeAffected }];
       throw new Error(`Unexpected campaign queue SQL: ${sql}`);
     });
+    // The claim and the outbox row commit together on one connection.
+    conn = {
+      beginTransaction: jest.fn(), commit: jest.fn(), rollback: jest.fn(async () => {}), release: jest.fn(),
+      execute: jest.fn(async (sql) => {
+        if (/UPDATE campaign_messages cm[\s\S]*JOIN clients c/.test(sql)) return [{ affectedRows: claimAffected }];
+        return [{ affectedRows: 1 }];
+      }),
+    };
+    db.getConnection.mockResolvedValue(conn);
   }
 
   beforeEach(() => {
     jest.clearAllMocks();
     db.query.mockReset();
-    emailTransport.sendEmail.mockReset().mockResolvedValue({ success: true, messageId: 'email-msg-id' });
-    smsTransport.sendSms.mockReset().mockResolvedValue({ success: true, messageId: 'sms-msg-id' });
+    mockEnqueue.mockReset().mockResolvedValue({ queued: true, id: 501 });
     mockGetOrganizationDeliveryState.mockReset().mockResolvedValue({ active: true, epoch: 0 });
   });
 
-  test('claims the snapshotted channel, marks provider invocation, and finalizes by CAS', async () => {
+  test('claims the snapshot and hands it to the outbox in the same transaction', async () => {
     installQueueMock({ queued: [queuedMessage({ campaign_channel: 'sms' })] });
 
-    await expect(processQueue(1)).resolves.toEqual({ sent: 1, failed: 0, total: 1 });
+    await expect(processQueue(1)).resolves.toEqual({ handed_off: 1, failed: 0, total: 1 });
 
-    expect(emailTransport.sendEmail).toHaveBeenCalledWith(expect.objectContaining({
-      organizationId: 1,
-      clientId: 1,
-      to: 'alice@example.com',
-      messageClass: 'marketing',
-      expectedClientContactEpoch: 9,
-    }));
-    expect(smsTransport.sendSms).not.toHaveBeenCalled();
+    expect(mockEnqueue).toHaveBeenCalledWith(expect.objectContaining({
+      channel: 'email', organizationId: 1, clientId: 1, messageClass: 'marketing', recipient: 'alice@example.com',
+      subject: 'Aviso', bodyHtml: 'Hola', sourceType: 'campaign_message', sourceId: 10,
+      dedupeKey: 'campaign_message:1:10',
+    }), { exec: expect.any(Function) });
+    expect(conn.commit).toHaveBeenCalledTimes(1);
 
     const [queueSql] = db.query.mock.calls.find(([sql]) => /SELECT cm\.\*/.test(sql));
     expect(queueSql).toMatch(/cm\.status = 'queued'/);
@@ -458,286 +439,134 @@ describe('processQueue', () => {
     expect(queueSql).toMatch(/cc\.deleted_at IS NULL/);
     expect(queueSql).toMatch(/cc\.organization_id <=> cm\.organization_id/);
 
-    const [claimSql, claimParams] = db.query.mock.calls.find(([sql]) => (
-      /UPDATE campaign_messages cm[\s\S]*JOIN clients c/.test(sql)
-    ));
+    const [claimSql, claimParams] = conn.execute.mock.calls.find(([sql]) => /JOIN clients c/.test(sql));
     expect(claimSql).toMatch(/c\.deleted_at IS NULL/);
     expect(claimSql).toMatch(/c\.status <> 'inactive'/);
     expect(claimSql).toMatch(/c\.email = cm\.recipient/);
     expect(claimSql).toMatch(/subscriber_consents/);
     expect(claimSql).toMatch(/client_dnd_preferences/);
     expect(claimSql).toMatch(/cm\.client_contact_epoch = CASE/);
-    expect(claimParams).toEqual([deliveryClaimMarker, 10, 1, 'email', 'alice@example.com']);
-
-    const invocationCall = db.query.mock.calls.find(([sql]) => (
-      /SET error_message = \?[\s\S]*status = 'failed' AND error_message = \?/.test(sql)
-    ));
-    expect(invocationCall[1]).toEqual([deliveryOutcomeUnknown, 10, 1, deliveryClaimMarker]);
-    expect(db.query.mock.invocationCallOrder[db.query.mock.calls.indexOf(invocationCall)])
-      .toBeLessThan(emailTransport.sendEmail.mock.invocationCallOrder[0]);
-
-    const [outcomeSql, outcomeParams] = db.query.mock.calls.find(([sql]) => (
-      /SET status = 'sent', sent_at = NOW\(\)/.test(sql)
-    ));
-    expect(outcomeSql).toMatch(/status = 'failed' AND error_message = \?/);
-    expect(outcomeParams).toEqual(['email-msg-id', 10, 1, deliveryOutcomeUnknown]);
+    expect(claimSql).toMatch(/cc\.status = 'sending' AND cc\.deleted_at IS NULL/);
+    expect(claimParams).toEqual([handedOff, 10, 1, 'email', 'alice@example.com']);
   });
 
-  test('sends SMS from a queued SMS snapshot with marketing attribution', async () => {
-    installQueueMock({ queued: [queuedMessage({
-      id: 11,
-      campaign_id: 2,
-      channel: 'sms',
-      recipient: '+521234567890',
-      client_id: 3,
-    })] });
+  test('an SMS snapshot is handed off as text', async () => {
+    installQueueMock({ queued: [queuedMessage({ channel: 'sms', recipient: '+5215555555555' })] });
 
-    await expect(processQueue(1)).resolves.toEqual({ sent: 1, failed: 0, total: 1 });
-    expect(smsTransport.sendSms).toHaveBeenCalledWith(expect.objectContaining({
-      to: '+521234567890',
-      organizationId: 1,
-      clientId: 3,
-      channel: 'sms',
-      messageClass: 'marketing',
-      expectedClientContactEpoch: 9,
-    }));
-  });
+    await processQueue(1);
 
-  test('preserves outcome-unknown when the provider reports a non-policy failure', async () => {
-    emailTransport.sendEmail.mockResolvedValueOnce({ success: false, error: 'SMTP error' });
-    installQueueMock({ queued: [queuedMessage({ id: 12, recipient: 'fail@example.com' })] });
-
-    await expect(processQueue(1)).resolves.toEqual({ sent: 0, failed: 1, total: 1 });
-
-    const invocationCall = db.query.mock.calls.find(([sql]) => /SET error_message = \?/.test(sql));
-    expect(invocationCall[1][0]).toBe(deliveryOutcomeUnknown);
-    expect(db.query.mock.calls.some(([sql]) => /SET status = 'sent'/.test(sql))).toBe(false);
-    const [finalizeSql, finalizeParams] = db.query.mock.calls.find(([sql]) => /UPDATE communication_campaigns cc/.test(sql));
-    expect(finalizeSql).toMatch(/THEN 'failed'/);
-    expect(finalizeParams.slice(0, 2)).toEqual([deliveryOutcomeUnknown, deliveryClaimMarker]);
-  });
-
-  test('returns empty stats while still recovering stale claims and finalizing eligible campaigns', async () => {
-    installQueueMock();
-
-    await expect(processQueue(1)).resolves.toEqual({ sent: 0, failed: 0, total: 0 });
-    expect(emailTransport.sendEmail).not.toHaveBeenCalled();
-    expect(smsTransport.sendSms).not.toHaveBeenCalled();
+    const [message] = mockEnqueue.mock.calls[0];
+    expect(message).toMatchObject({ channel: 'sms', recipient: '+5215555555555', bodyText: 'Hola', messageClass: 'marketing' });
+    expect(message.subject).toBeUndefined();
   });
 
   test('loads tenant-scoped template/client data and interpolates variables', async () => {
     installQueueMock({
-      queued: [queuedMessage({ id: 20, campaign_id: 5, campaign_template_id: 99, client_id: 7 })],
-      templates: [{ id: 99, subject: 'Hello {{name}}', body_text: 'Hi {{name}}!', body_html: null }],
-      clients: [{ id: 7, name: 'Carlos Lopez' }],
+      queued: [queuedMessage()],
+      templates: [{ id: 42, subject: 'Hola {{name}}', body: 'Su saldo es {{balance}}' }],
+      clients: [{ id: 1, name: 'Alice', balance: '100.00' }],
     });
 
     await processQueue(1);
 
-    expect(emailTransport.sendEmail).toHaveBeenCalledWith(expect.objectContaining({
-      subject: 'Hello Carlos Lopez',
-      text: 'Hi Carlos Lopez!',
-    }));
     const [templateSql, templateParams] = db.query.mock.calls.find(([sql]) => /FROM message_templates/.test(sql));
     expect(templateSql).toMatch(/organization_id <=> \? OR organization_id IS NULL/);
-    expect(templateSql).toMatch(/deleted_at IS NULL/);
-    expect(templateParams).toEqual([99, 1]);
-    const [clientSql, clientParams] = db.query.mock.calls.find(([sql]) => /SELECT \* FROM clients/.test(sql));
-    expect(clientSql).toMatch(/organization_id <=> \?/);
-    expect(clientSql).toMatch(/deleted_at IS NULL/);
-    expect(clientParams).toEqual([7, 1]);
+    expect(templateParams).toEqual([42, 1]);
+    expect(mockEnqueue.mock.calls[0][0]).toMatchObject({ subject: 'Hola Alice', bodyHtml: 'Su saldo es 100.00' });
   });
 
   test('HTML-escapes email merge values without touching template markup', async () => {
     installQueueMock({
-      queued: [queuedMessage({ id: 21, campaign_template_id: 100, client_id: 8 })],
-      templates: [{
-        id: 100,
-        subject: 'Hi {{name}}',
-        body_text: null,
-        body_html: '<p>Hola {{name}} &amp; equipo</p>',
-      }],
-      clients: [{ id: 8, name: "O'Brien <script>alert(1)</script>" }],
+      queued: [queuedMessage()],
+      templates: [{ id: 42, subject: 'Hi {{name}}', body: '<p>Hi <b>{{name}}</b></p>' }],
+      clients: [{ id: 1, name: '<script>x</script>' }],
     });
 
     await processQueue(1);
 
-    expect(emailTransport.sendEmail).toHaveBeenCalledWith(expect.objectContaining({
-      subject: 'Hi O&#x27;Brien &lt;script&gt;alert(1)&lt;/script&gt;',
-      html: '<p>Hola O&#x27;Brien &lt;script&gt;alert(1)&lt;/script&gt; &amp; equipo</p>',
-    }));
+    expect(mockEnqueue.mock.calls[0][0].bodyHtml).toBe('<p>Hi <b>&lt;script&gt;x&lt;/script&gt;</b></p>');
   });
 
   test('keeps SMS merge values as plain text', async () => {
     installQueueMock({
-      queued: [queuedMessage({
-        id: 22,
-        campaign_template_id: 101,
-        channel: 'sms',
-        recipient: '+521234567890',
-        client_id: 9,
-      })],
-      templates: [{ id: 101, subject: null, body_text: 'Hola {{name}} & equipo', body_html: null }],
-      clients: [{ id: 9, name: "O'Brien & Sons" }],
+      queued: [queuedMessage({ channel: 'sms', recipient: '+5215555555555' })],
+      templates: [{ id: 42, body: 'Hola {{name}} & co' }],
+      clients: [{ id: 1, name: "O'Brien <Ltd>" }],
     });
 
     await processQueue(1);
 
-    expect(smsTransport.sendSms).toHaveBeenCalledWith(expect.objectContaining({
-      body: "Hola O'Brien & Sons & equipo",
-    }));
+    expect(mockEnqueue.mock.calls[0][0].bodyText).toBe("Hola O'Brien <Ltd> & co");
   });
 
-  test('skips transport when the atomic contact/consent/DND claim rejects the snapshot', async () => {
-    installQueueMock({
-      queued: [queuedMessage({
-        id: 30,
-        campaign_id: 8,
-        campaign_org_id: 44,
-        recipient: 'withdrawn@example.com',
-        client_id: 91,
-      })],
-      claimAffected: 0,
-    });
+  test('a snapshot the live contact/consent/DND claim rejects is never handed off', async () => {
+    installQueueMock({ queued: [queuedMessage()], claimAffected: 0 });
 
-    await expect(processQueue(44)).resolves.toEqual({ sent: 0, failed: 1, total: 1 });
-    expect(emailTransport.sendEmail).not.toHaveBeenCalled();
-    expect(smsTransport.sendSms).not.toHaveBeenCalled();
+    await expect(processQueue(1)).resolves.toEqual({ handed_off: 0, failed: 1, total: 1 });
 
-    const [claimSql, claimParams] = db.query.mock.calls.find(([sql]) => (
-      /UPDATE campaign_messages cm[\s\S]*JOIN clients c/.test(sql)
-    ));
-    expect(claimSql).toMatch(/c\.organization_id <=> cc\.organization_id/);
-    expect(claimSql).toMatch(/consent\.withdrawn_at IS NULL/);
-    expect(claimSql).toMatch(/dnd\.channel IN \('all', cm\.channel\)/);
-    expect(claimParams.slice(1)).toEqual([30, 44, 'email', 'withdrawn@example.com']);
-    const [skipSql, skipParams] = db.query.mock.calls.find(([sql]) => (
-      /UPDATE campaign_messages\s+SET status = 'failed'[\s\S]*status = 'queued'/.test(sql)
-    ));
-    expect(skipParams[0]).toMatch(/message skipped/);
-    expect(skipSql).toMatch(/organization_id <=> \?/);
+    expect(mockEnqueue).not.toHaveBeenCalled();
+    expect(conn.rollback).toHaveBeenCalled();
+    const skip = db.query.mock.calls.find(([sql]) => /UPDATE campaign_messages\s+SET status = 'failed'[\s\S]*status = 'queued'/.test(sql));
+    expect(skip[1][0]).toBe('Recipient or email permission changed; message skipped');
   });
 
-  test.each(['cancelled', 'soft-deleted'])('does not send a row selected just before its campaign was %s', async () => {
-    installQueueMock({
-      queued: [queuedMessage({
-        id: 31,
-        campaign_id: 9,
-        campaign_org_id: 44,
-        channel: 'sms',
-        recipient: '+521111111111',
-        client_id: 92,
-      })],
-      claimAffected: 0,
-    });
+  test('a row claimed by another worker is left alone and not counted', async () => {
+    installQueueMock({ queued: [queuedMessage()], claimAffected: 0, terminalAffected: 0 });
 
-    await expect(processQueue(44)).resolves.toEqual({ sent: 0, failed: 1, total: 1 });
-    expect(emailTransport.sendEmail).not.toHaveBeenCalled();
-    expect(smsTransport.sendSms).not.toHaveBeenCalled();
-    const [claimSql] = db.query.mock.calls.find(([sql]) => (
-      /UPDATE campaign_messages cm[\s\S]*JOIN clients c/.test(sql)
-    ));
-    expect(claimSql).toMatch(/cc\.status = 'sending' AND cc\.deleted_at IS NULL/);
+    await expect(processQueue(1)).resolves.toEqual({ handed_off: 0, failed: 0, total: 1 });
+    expect(mockEnqueue).not.toHaveBeenCalled();
   });
 
-  test('only the worker that wins the guarded queue claim can invoke transport', async () => {
-    installQueueMock({
-      queued: [queuedMessage({ id: 32, campaign_org_id: 44, recipient: 'claimed@example.com' })],
-      claimAffected: 0,
-      terminalAffected: 0,
-    });
+  test('a message the outbox\'s own consent check blocks is recorded failed in the same transaction', async () => {
+    installQueueMock({ queued: [queuedMessage()] });
+    mockEnqueue.mockResolvedValueOnce({ queued: false, skipped: true, code: 'CLIENT_MARKETING_CONSENT_REQUIRED' });
 
-    await expect(processQueue(44)).resolves.toEqual({ sent: 0, failed: 0, total: 1 });
-    expect(emailTransport.sendEmail).not.toHaveBeenCalled();
-    expect(smsTransport.sendSms).not.toHaveBeenCalled();
-    expect(db.query.mock.calls.some(([sql]) => /failed_count = failed_count \+ 1/.test(sql))).toBe(false);
+    await expect(processQueue(1)).resolves.toEqual({ handed_off: 0, failed: 1, total: 1 });
+
+    const sqls = conn.execute.mock.calls.map(([sql]) => sql);
+    expect(sqls.some(sql => /UPDATE campaign_messages SET status = 'failed'/.test(sql))).toBe(true);
+    expect(sqls.some(sql => /failed_count = failed_count \+ 1/.test(sql))).toBe(true);
+    expect(conn.commit).toHaveBeenCalled();
   });
 
-  test('does not deliver a snapshot after an inactive-to-active epoch change', async () => {
-    mockGetOrganizationDeliveryState.mockResolvedValue({ active: true, epoch: 5 });
-    installQueueMock({ queued: [queuedMessage({
-      id: 33,
-      campaign_id: 11,
-      campaign_org_id: 44,
-      organization_epoch: 4,
-      recipient: 'old-epoch@example.com',
-      client_id: 94,
-    })] });
+  test('does not hand off a snapshot after an organization epoch change', async () => {
+    mockGetOrganizationDeliveryState.mockResolvedValue({ active: true, epoch: 3 });
+    installQueueMock({ queued: [queuedMessage()] });
 
-    await expect(processQueue(44)).resolves.toEqual({ sent: 0, failed: 1, total: 1 });
-    expect(emailTransport.sendEmail).not.toHaveBeenCalled();
-    expect(smsTransport.sendSms).not.toHaveBeenCalled();
-    const [, params] = db.query.mock.calls.find(([sql]) => (
-      /UPDATE campaign_messages SET status = 'failed'[\s\S]*status = 'queued'/.test(sql)
-    ));
-    expect(params[0]).toMatch(/authorization changed/);
+    await expect(processQueue(1)).resolves.toEqual({ handed_off: 0, failed: 1, total: 1 });
+    expect(mockEnqueue).not.toHaveBeenCalled();
   });
 
-  test('a hard-delete orphan with NULL organization is terminalized by the client lane', async () => {
-    emailTransport.sendEmail.mockResolvedValueOnce({
-      success: false,
-      skipped: true,
-      code: 'CLIENT_ORGANIZATION_REQUIRED',
-      error: 'Client communication preference blocks this delivery.',
-    });
-    installQueueMock({ queued: [queuedMessage({
-      id: 36,
-      campaign_id: 12,
-      campaign_org_id: null,
-      organization_epoch: 0,
-      recipient: 'orphan@example.com',
-      client_id: 95,
-    })] });
+  test('a failure before the hand-off marks the message failed, not lost', async () => {
+    installQueueMock({ queued: [queuedMessage()] });
+    mockEnqueue.mockRejectedValueOnce(new Error('database unavailable'));
 
-    await expect(processQueue()).resolves.toEqual({ sent: 0, failed: 1, total: 1 });
-    expect(emailTransport.sendEmail).toHaveBeenCalledWith(expect.objectContaining({
-      organizationId: null,
-      clientId: 95,
-      messageClass: 'marketing',
-    }));
-    const terminal = db.query.mock.calls.find(([sql, params]) => (
-      /UPDATE campaign_messages\s+SET status = 'failed'/.test(sql)
-      && params?.[0] === 'Client communication preference blocks this delivery.'
-    ));
-    expect(terminal[1].at(-1)).toBe(deliveryOutcomeUnknown);
+    await expect(processQueue(1)).resolves.toEqual({ handed_off: 0, failed: 1, total: 1 });
+    expect(conn.rollback).toHaveBeenCalled();
+    const failure = db.query.mock.calls.find(([sql, params]) => /UPDATE campaign_messages/.test(sql) && params?.[0] === 'Campaign message could not be queued for delivery');
+    expect(failure).toBeDefined();
   });
 
   test('recovers only stale pre-I/O claims and never outcome-unknown rows', async () => {
     installQueueMock({ staleAffected: 2 });
 
-    await expect(processQueue(44)).resolves.toEqual({ sent: 0, failed: 0, total: 0 });
+    await expect(processQueue(44)).resolves.toEqual({ handed_off: 0, failed: 0, total: 0 });
 
     const [recoverySql, recoveryParams] = db.query.mock.calls.find(([sql]) => /SET cm\.status = 'queued'/.test(sql));
     expect(recoverySql).toMatch(/cm\.error_message = \?/);
-    expect(recoverySql).toMatch(/updated_at < DATE_SUB/);
     expect(recoveryParams).toEqual([deliveryClaimMarker, 44]);
     expect(recoveryParams).not.toContain(deliveryOutcomeUnknown);
+    expect(recoveryParams).not.toContain(handedOff);
   });
 
-  test('provider success plus a throwing outcome CAS remains ambiguous and fails the campaign', async () => {
-    installQueueMock({
-      queued: [queuedMessage({ id: 34 })],
-      outcomeError: new Error('database unavailable after provider acceptance'),
-    });
+  test('a campaign stays sending while its messages are in the outbox, and fails on an unknown outcome', async () => {
+    installQueueMock();
 
-    await expect(processQueue(1)).resolves.toEqual({ sent: 0, failed: 1, total: 1 });
-    expect(emailTransport.sendEmail).toHaveBeenCalledTimes(1);
-    expect(db.query.mock.calls.some(([sql]) => /sent_count = sent_count \+ 1/.test(sql))).toBe(false);
-    expect(db.query.mock.calls.filter(([sql]) => /UPDATE campaign_messages/.test(sql))).toHaveLength(4);
+    await processQueue(1);
+
     const [finalizeSql, finalizeParams] = db.query.mock.calls.find(([sql]) => /UPDATE communication_campaigns cc/.test(sql));
     expect(finalizeSql).toMatch(/THEN 'failed'/);
-    expect(finalizeParams[0]).toBe(deliveryOutcomeUnknown);
-  });
-
-  test('provider success plus a lost outcome CAS is not counted sent and leaves campaign fail-closed', async () => {
-    installQueueMock({ queued: [queuedMessage({ id: 35 })], outcomeAffected: 0 });
-
-    await expect(processQueue(1)).resolves.toEqual({ sent: 0, failed: 0, total: 1 });
-    expect(emailTransport.sendEmail).toHaveBeenCalledTimes(1);
-    expect(db.query.mock.calls.some(([sql]) => /sent_count = sent_count \+ 1/.test(sql))).toBe(false);
-    const [finalizeSql, finalizeParams] = db.query.mock.calls.find(([sql]) => /UPDATE communication_campaigns cc/.test(sql));
-    expect(finalizeSql).toMatch(/THEN 'failed'/);
-    expect(finalizeParams.slice(0, 2)).toEqual([deliveryOutcomeUnknown, deliveryClaimMarker]);
+    expect(finalizeParams.slice(0, 3)).toEqual([deliveryOutcomeUnknown, deliveryClaimMarker, handedOff]);
   });
 
   test('fans out the shared queue and each isolated organization queue', async () => {
@@ -749,15 +578,10 @@ describe('processQueue', () => {
       throw new Error(`Unexpected isolated campaign SQL: ${sql}`);
     });
 
-    await expect(processQueue()).resolves.toEqual({ sent: 0, failed: 0, total: 0 });
+    await expect(processQueue()).resolves.toEqual({ handed_off: 0, failed: 0, total: 0 });
 
     expect(db.withPrimaryContext).toHaveBeenCalledTimes(2);
     expect(db.withTenantContext).toHaveBeenCalledWith(77, expect.any(Function));
-    const recoveries = db.query.mock.calls.filter(([sql]) => /SET cm\.status = 'queued'/.test(sql));
-    expect(recoveries.map(([, params]) => params)).toEqual([
-      [deliveryClaimMarker, 77],
-      [deliveryClaimMarker, 77],
-    ]);
     const queueReads = db.query.mock.calls.filter(([sql]) => /SELECT cm\.\*/.test(sql));
     expect(queueReads.map(([, params]) => params)).toEqual([[77], [77]]);
   });

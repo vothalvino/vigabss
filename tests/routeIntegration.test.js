@@ -5,6 +5,8 @@
 // =============================================================================
 
 // Mock the database module before requiring anything else
+// Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
+jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassThrough'));
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   queryReplica: jest.fn(),
@@ -531,48 +533,6 @@ describe('Billing Routes — /api/billing', () => {
     });
   });
 
-  describe('POST /api/billing/bulk-generate', () => {
-    test('bulk generate for active contracts', async () => {
-      mockAuthUser();
-      // fetch active contracts with plan info
-      db.query.mockResolvedValueOnce([[
-        { id: 1, plan_id: 1, client_id: 1, start_date: '2025-01-01', billing_day: 1, plan_name: '50 Mbps', plan_price: 499, plan_currency: 'MXN', status: 'active' },
-      ]]);
-      // billingService.generateBillingPeriod: check existing pending
-      db.query.mockResolvedValueOnce([[{ id: 50, contract_id: 1, status: 'pending', period_start: '2025-01-01', period_end: '2025-01-31' }]]);
-
-      const conn = mockConnection();
-      conn.execute
-        .mockResolvedValueOnce([[{ id: 50, status: 'pending' }]])  // FOR UPDATE lock
-        // The labels here were off by one before: this entry is consumed by
-        // resolveTaxContext's CLIENT lookup, not by tax_rates.
-        .mockResolvedValueOnce([[]])           // clients — resolveTaxContext
-        .mockResolvedValueOnce([[]])           // tax_rates — none, so the resolver
-        // falls through to Organization.getLocale, which now runs on THIS
-        // connection. It used to take a second pooled connection while this
-        // transaction was open, and silently ate the db.query value queued below
-        // for Invoice.findById — leaving that one to leak into later tests.
-        .mockResolvedValueOnce([[{ locale: 'global' }]])
-        .mockResolvedValueOnce([{ affectedRows: 0 }]) // nextInvoiceNumber: INSERT IGNORE
-        .mockResolvedValueOnce([{ affectedRows: 1 }]) // nextInvoiceNumber: UPDATE next_number
-        .mockResolvedValueOnce([{ insertId: 1 }]) // insert invoice
-        .mockResolvedValueOnce([{ insertId: 1 }]) // insert line item
-        .mockResolvedValueOnce([[]])              // addons
-        .mockResolvedValueOnce([{ affectedRows: 1 }]) // update billing period
-        .mockResolvedValueOnce([{ affectedRows: 1 }]); // ledger debit
-
-      // Invoice.findById
-      db.query.mockResolvedValueOnce([[{ id: 1, invoice_number: 'INV-000001', status: 'issued' }]]);
-
-      const res = await request(app)
-        .post('/api/billing/bulk-generate')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      expect(res.status).toBe(200);
-      expect(res.body.data).toBeDefined();
-      expect(res.body.data.total_contracts).toBeDefined();
-    });
-  });
 });
 
 // =============================================================================

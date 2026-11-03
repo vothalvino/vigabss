@@ -7,7 +7,7 @@
 const { toCsv: sharedToCsv } = require('../utils/csv');
 const db = require('../config/database');
 const reportService = require('./reportService');
-const emailTransport = require('./emailTransport');
+const messageOutbox = require('./messageOutbox');
 const logger = require('../utils/logger');
 // schedule.report_def_name (below) is DB-stored text interpolated raw into
 // the HTML report-delivery email — escape it.
@@ -185,9 +185,11 @@ async function runSchedule(schedule) {
   if (recipients.length > 0) {
     for (const email of recipients) {
       try {
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId: schedule.organization_id,
           operationalRecipient: true,
+          sourceType: 'scheduled_report',
+          sourceId: schedule.id,
           to: email,
           subject: `[VigaBSS] Scheduled Report: ${schedule.report_def_name}`,
           html: `<p>Your scheduled report <strong>${esc(schedule.report_def_name)}</strong> is attached.</p>
@@ -378,9 +380,10 @@ async function runOnDemand({ organizationId, reportDefName, format = 'csv', para
     const data = await generateReportData(organizationId, reportDefName, parameters);
     // formatReport is async (xlsx/pdf use streams)
     const { buffer, contentType, extension } = await formatReport(data, reportDefName, format);
-    const sent = await emailTransport.sendEmail({
+    const sent = await messageOutbox.sendEmailNow({
       organizationId,
       operationalRecipient: true,
+      sourceType: 'report_email',
       to: email,
       subject: `[VigaBSS] Report: ${reportDefName}`,
       html: `<p>The report <strong>${esc(reportDefName)}</strong> you requested is attached.</p>
@@ -391,7 +394,8 @@ async function runOnDemand({ organizationId, reportDefName, format = 'csv', para
         contentType,
       }],
     });
-    if (!sent?.success) throw new Error(`Report email was not sent: ${sent?.error || 'delivery failed'}`);
+    // Delivered, or queued for a retry the outbox will make.
+    if (!['sent', 'queued'].includes(sent?.status)) throw new Error(`Report email was not sent: ${sent?.error || sent?.status || 'delivery failed'}`);
     await db.query(
       `INSERT INTO report_access_logs
          (organization_id, user_id, report_type, entity_type, entity_id, parameters)

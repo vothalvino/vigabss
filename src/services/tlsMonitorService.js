@@ -225,7 +225,7 @@ function fetchPeerCertificate(hostname, port) {
  * reached.
  */
 async function deliverToOps({ opsEmails, title, body }) {
-  const emailTransport = require('./emailTransport');
+  const messageOutbox = require('./messageOutbox');
   const incidentTitle = normalizeIncidentTitle(title);
   const alertKey = incidentTitle;
 
@@ -247,16 +247,17 @@ async function deliverToOps({ opsEmails, title, body }) {
   let sent = 0;
   for (const to of opsEmails) {
     try {
-      const delivery = await emailTransport.sendEmail({
+      // Through the outbox, delivered now (ASY-33). Only retain the
+      // de-duplication claim when at least one address took the message or
+      // the outbox will retry it.
+      const delivery = await messageOutbox.sendEmailNow({
         operationalRecipient: true,
         to,
         subject: incidentTitle,
         text: body,
+        sourceType: 'tls_ops_alert',
       });
-      // emailTransport records SMTP failures and resolves with success:false;
-      // it does not reject them. Only retain the de-duplication claim when at
-      // least one address really accepted the message.
-      if (delivery?.success === true) sent += 1;
+      if (delivery?.status === 'sent' || delivery?.status === 'queued') sent += 1;
     } catch (err) {
       logger.warn({ err: err.message, to }, 'Ops alert email failed');
     }
@@ -282,7 +283,7 @@ async function deliverToOps({ opsEmails, title, body }) {
 async function deliver({ organizationId, type, title, body }) {
   const Notification = require('../models/Notification');
   const User = require('../models/User');
-  const emailTransport = require('./emailTransport');
+  const messageOutbox = require('./messageOutbox');
   const incidentTitle = normalizeIncidentTitle(title);
 
   // A configured ops contact wins. It is addressed by email only — there is no
@@ -327,11 +328,12 @@ async function deliver({ organizationId, type, title, body }) {
     }
 
     if (r.email) {
-      await emailTransport.sendEmail({
+      await messageOutbox.queueEmail({
         operationalRecipient: true,
         to: r.email, subject: incidentTitle, text: body, organizationId,
+        sourceType: 'tls_alert',
       })
-        .catch(err => logger.warn({ err: err.message, userId: r.id }, 'TLS alert email failed'));
+        .catch(err => logger.warn({ err: err.message, userId: r.id }, 'TLS alert email could not be queued'));
     }
     if (stored) sent += 1;
   }

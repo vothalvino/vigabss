@@ -14,6 +14,8 @@
 // and the escaping helper's own behavior.
 // =============================================================================
 
+// Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
+jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassThrough'));
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
 }));

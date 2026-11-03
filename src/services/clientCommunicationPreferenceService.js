@@ -23,6 +23,8 @@ const BLOCK_CODES = Object.freeze({
   CONTACT_MISMATCH: 'CLIENT_COMMUNICATION_CONTACT_MISMATCH',
   OPTED_OUT: 'CLIENT_COMMUNICATION_OPTED_OUT',
   CONSENT_REQUIRED: 'CLIENT_MARKETING_CONSENT_REQUIRED',
+  // A provider reported the current address or number undeliverable (ASY-33).
+  UNDELIVERABLE: 'CLIENT_CONTACT_UNDELIVERABLE',
 });
 
 function withPrimary(callback) {
@@ -153,12 +155,23 @@ async function evaluateWithRun(run, {
                    WHEN consent.communication_channel = 'email' THEN c.email_contact_epoch
                    ELSE c.phone_contact_epoch
                  END
-            ) AS has_marketing_consent
+            ) AS has_marketing_consent,
+            EXISTS (
+              SELECT 1
+                FROM client_contact_suppressions sup
+               WHERE sup.client_id = c.id
+                 AND sup.channel = ?
+                 AND sup.reason = 'bounce'
+                 AND sup.contact_epoch = CASE
+                   WHEN sup.channel = 'email' THEN c.email_contact_epoch
+                   ELSE c.phone_contact_epoch
+                 END
+            ) AS undeliverable
        FROM clients c
       WHERE c.id = ? AND c.organization_id <=> ?
         AND c.deleted_at IS NULL
       LIMIT 1`,
-    [channel, channel, Number(clientId), organizationId ?? null],
+    [channel, channel, channel, Number(clientId), organizationId ?? null],
   );
 
   const client = rows[0];
@@ -171,6 +184,10 @@ async function evaluateWithRun(run, {
   }
   if (client.opted_out) {
     return { allowed: false, code: BLOCK_CODES.OPTED_OUT };
+  }
+  // A bounced address is dead for every class; a new address (epoch) is not.
+  if (client.undeliverable) {
+    return { allowed: false, code: BLOCK_CODES.UNDELIVERABLE };
   }
   if (messageClass === 'marketing' && !client.has_marketing_consent) {
     return { allowed: false, code: BLOCK_CODES.CONSENT_REQUIRED };

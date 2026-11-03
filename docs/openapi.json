@@ -9052,32 +9052,6 @@
         }
       }
     },
-    "/billing/bulk-generate": {
-      "post": {
-        "tags": [
-          "Billing"
-        ],
-        "summary": "Bulk generate invoices for all active contracts",
-        "operationId": "bulkGenerate",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Results",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/billing/tax-reports": {
       "get": {
         "tags": [
@@ -9168,42 +9142,6 @@
         ],
         "requestBody": {
           "description": "invoice_ids",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Results",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/bulk/invoices/generate": {
-      "post": {
-        "tags": [
-          "Bulk"
-        ],
-        "summary": "Mass-generate invoices",
-        "operationId": "bulkGenerateInvoices",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "description": "contract_ids",
           "content": {
             "application/json": {
               "schema": {
@@ -28995,6 +28933,295 @@
         }
       }
     },
+    "/message-outbox": {
+      "get": {
+        "tags": [
+          "Communication"
+        ],
+        "summary": "Outgoing messages (email, SMS, WhatsApp, push) with their delivery state; bodies are on GET /message-outbox/{id}",
+        "operationId": "listMessageOutbox",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "claimed",
+                "sending",
+                "sent",
+                "skipped",
+                "failed",
+                "outcome_unknown",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "sms",
+                "whatsapp",
+                "push"
+              ]
+            }
+          },
+          {
+            "name": "client_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OutboxMessage[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message-outbox/summary": {
+      "get": {
+        "tags": [
+          "Communication"
+        ],
+        "summary": "Counts by status and channel: everything still open, plus the last day of finished messages",
+        "operationId": "getMessageOutboxSummary",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ status, channel, count }[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message-outbox/{id}": {
+      "get": {
+        "tags": [
+          "Communication"
+        ],
+        "summary": "One outgoing message with its body; attachments as names and sizes only",
+        "operationId": "getMessageOutbox",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OutboxMessage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message-outbox/{id}/retry": {
+      "post": {
+        "tags": [
+          "Communication"
+        ],
+        "summary": "Queue a failed, cancelled or outcome-unknown message again (outcome_unknown needs confirm_possible_duplicate)",
+        "operationId": "retryMessageOutbox",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Retry options",
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirm_possible_duplicate": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OutboxMessage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OUTBOX_NOT_RETRYABLE, OUTBOX_POSSIBLE_DUPLICATE or OUTBOX_CHANGED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message-outbox/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Communication"
+        ],
+        "summary": "Cancel a queued, failed or outcome-unknown message",
+        "operationId": "cancelMessageOutbox",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OutboxMessage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OUTBOX_NOT_CANCELLABLE or OUTBOX_CHANGED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/communication-campaigns": {
       "get": {
         "tags": [
@@ -29447,6 +29674,7 @@
           "Communication"
         ],
         "summary": "Delivery status callback from provider (webhook)",
+        "description": "Updates a campaign message's delivery state and applies what the report means for the recipient: a hard bounce (status bounced, or a Twilio ErrorCode 21211/21614/30005/30006) stops sends to that address until it changes; complained withdraws marketing consent; unsubscribed (or Twilio ErrorCode 21610, STOP) opts the client out of the channel.",
         "operationId": "communicationDeliveryWebhook",
         "requestBody": {
           "description": "DeliveryStatus",
@@ -54037,7 +54265,7 @@
           "Consumer Protection MX"
         ],
         "summary": "Deliver a service modification notice (email/SMS to its client), or record an outside delivery with delivery_evidence",
-        "description": "Marked sent only when delivery succeeds (502 otherwise, the notice stays pending). Broadcast, postal, portal and all-channel notices require delivery_evidence. Refused when the effective date leaves less than notice_required_days.",
+        "description": "Delivered through the message outbox and marked sent only when delivery succeeds. 202 when the provider could not take it yet: the notice stays pending and the outbox marks it sent when a retry delivers it. 502 when delivery failed for good (the notice stays pending; see /message-outbox). Broadcast, postal, portal and all-channel notices require delivery_evidence. Refused when the effective date leaves less than notice_required_days.",
         "operationId": "sendServiceModificationNotice",
         "security": [
           {
@@ -54064,6 +54292,9 @@
                 }
               }
             }
+          },
+          "202": {
+            "description": "Queued for retry; the notice stays pending"
           }
         }
       }
@@ -61563,10 +61794,6 @@
         "required": [
           "status"
         ]
-      },
-      "bulk_generateInvoices": {
-        "type": "object",
-        "properties": {}
       },
       "bulk_voidInvoices": {
         "type": "object",

@@ -513,8 +513,9 @@ router.put('/service-modifications/:id', requirePermission('service_modification
 // PUT /service-modifications/:id/send — deliver a notice (ASY-25). It used to
 // flip status to 'sent' and stamp noticed_at without sending anything.
 //   * A notice to one client on the email or sms channel is delivered through
-//     the transports (transactional class; each attempt is logged there) and
-//     is 'sent' only when delivery succeeded.
+//     the message outbox (transactional class) and is 'sent' only when its
+//     message is; if the provider cannot take it yet, the outbox retries and
+//     marks the notice sent then (202 queued).
 //   * A notice to every subscriber, or on the postal / portal / all channels,
 //     is not something this endpoint can deliver: it records that the
 //     operator delivered it, and requires delivery_evidence saying how.
@@ -550,28 +551,40 @@ router.put('/service-modifications/:id/send', requirePermission('service_modific
       );
       if (!client) throw new ValidationError('The notice\'s client no longer exists in this organization');
       const text = `Aviso de modificación del servicio (${notice.notice_type}), efectivo el ${effective.toISOString().slice(0, 10)}:\n\n${notice.description}`;
-      let result;
+      const message = {
+        organizationId: req.orgId, clientId: client.id, messageClass: 'transactional',
+        sourceType: 'service_modification_notice', sourceId: Number(notice.id),
+        dedupeKey: `service_modification_notice:${req.orgId}:${notice.id}`,
+      };
       if (notice.channel === 'email') {
         if (!client.email) throw new ValidationError('The client has no email address for this notice');
-        result = await require('../services/emailTransport').sendEmail({
-          organizationId: req.orgId, clientId: client.id, messageClass: 'transactional',
-          to: client.email, subject: 'Aviso de modificación del servicio', text,
-          html: `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`,
+        Object.assign(message, {
+          channel: 'email', recipient: client.email, subject: 'Aviso de modificación del servicio',
+          bodyText: text, bodyHtml: `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`,
         });
       } else {
         if (!client.phone) throw new ValidationError('The client has no phone number for this notice');
-        result = await require('../services/smsTransport').sendSms({
-          organizationId: req.orgId, clientId: client.id, messageClass: 'transactional',
-          to: client.phone, body: text.slice(0, 1500),
+        Object.assign(message, { channel: 'sms', recipient: client.phone, bodyText: text.slice(0, 1500) });
+      }
+      // Through the outbox, delivered now (ASY-33). The notice is 'sent' only
+      // once its message is; one the provider could not take yet stays pending
+      // and the outbox marks it sent when a retry delivers it
+      // (outboxOutcomeHandlers). One message per notice: sending again resumes
+      // the same message.
+      const result = await require('../services/messageOutbox').sendNow(message);
+      if (result.status === 'queued') {
+        return res.status(202).json({
+          success: true,
+          data: { delivered: false, queued: true, channel: notice.channel, outbox_id: result.id },
         });
       }
-      if (!result || !result.success) {
+      if (result.status !== 'sent') {
         throw new AppError(
-          `The notice was not delivered (${result?.error || result?.code || 'unknown error'}); it stays pending.`,
+          `The notice was not delivered (${result.error || result.code || result.status}); it stays pending.`,
           502, 'NOTICE_DELIVERY_FAILED',
         );
       }
-      outcome = { delivered: true, channel: notice.channel, message_id: result.messageId || null };
+      outcome = { delivered: true, channel: notice.channel, message_id: result.providerMessageId || null };
     } else {
       const evidence = typeof req.body?.delivery_evidence === 'string' ? req.body.delivery_evidence.trim() : '';
       if (!evidence) {

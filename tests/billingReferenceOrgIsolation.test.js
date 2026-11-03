@@ -11,7 +11,8 @@
 //           invoice then reconnected that (foreign) suspended contract.
 //   TNB-09  POST/PUT/PATCH /payments accepted another tenant's client_id.
 //   TNA-12  POST /bulk/invoices/generate inserted billing periods on any
-//           tenant's contracts and counted no-ops as success.
+//           tenant's contracts; the route is gone (BIL-28), see
+//           tests/legacyBillingRoutesRemoved.test.js.
 //   BIL-10  PUT /cfdi-documents/:id re-pointed filed CFDIs.
 // =============================================================================
 
@@ -303,48 +304,6 @@ describe('TNB-09: payments client_id stays in the caller org', () => {
     expect(res.status).toBe(200);
     const [update] = writesTo('payments');
     expect(update.sql).not.toMatch(/client_id/);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// TNA-12 — bulk invoice generation
-// ---------------------------------------------------------------------------
-describe('TNA-12: POST /bulk/invoices/generate', () => {
-  test('another tenant\'s contract is skipped, nothing is written, and it is not a success', async () => {
-    granted = ['invoices.create'];
-    const period = jest.spyOn(billingService, 'generateBillingPeriod');
-    const res = await send('post', '/api/v1/bulk/invoices/generate', { contract_ids: [70] });
-    expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({ success: 0, skipped: 1, failed: 0 });
-    expect(res.body.data.errors[0]).toMatchObject({ contract_id: 70, code: 'CONTRACT_NOT_FOUND' });
-    expect(period).not.toHaveBeenCalled();
-    expect(writesTo('billing_periods')).toEqual([]);
-  });
-
-  test('a contract with nothing due is reported as skipped, not success', async () => {
-    granted = ['invoices.create'];
-    jest.spyOn(billingService, 'generateBillingPeriod').mockResolvedValue({
-      id: 5, status: 'pending', scheduled_at: new Date(Date.now() + 86400000 * 10),
-    });
-    const invoice = jest.spyOn(billingService, 'generateInvoice');
-    const res = await send('post', '/api/v1/bulk/invoices/generate', { contract_ids: [7] });
-    expect(res.body.data).toMatchObject({ success: 0, skipped: 1 });
-    expect(res.body.data.errors[0].code).toBe('PERIOD_NOT_DUE');
-    expect(invoice).not.toHaveBeenCalled();
-  });
-
-  test('an own active contract with a due period produces a real invoice', async () => {
-    granted = ['invoices.create'];
-    jest.spyOn(billingService, 'generateBillingPeriod').mockResolvedValue({
-      id: 5, status: 'pending', scheduled_at: new Date(Date.now() - 1000),
-    });
-    const invoice = jest.spyOn(billingService, 'generateInvoice').mockResolvedValue({ id: 321 });
-    const res = await send('post', '/api/v1/bulk/invoices/generate', { contract_ids: [7] });
-    expect(res.body.data).toMatchObject({ success: 1, skipped: 0, invoice_ids: [321] });
-    expect(invoice).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 5 }), expect.objectContaining({ id: 7 }),
-      expect.objectContaining({ name: 'Home' }), OWN,
-    );
   });
 });
 

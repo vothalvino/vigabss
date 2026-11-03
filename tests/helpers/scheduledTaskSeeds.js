@@ -2,7 +2,7 @@
 // =============================================================================
 // The scheduled_tasks rows a fresh install ends up with (ASY-35)
 // =============================================================================
-// Replays the INSERT and UPDATE statements on scheduled_tasks from SQL text, in
+// Replays the INSERT, UPDATE and DELETE statements on scheduled_tasks from SQL text, in
 // order: every migration for a migrated install, or schema.sql. Only literal
 // values and `task_name = ... / IN (...)` filters are understood; anything else
 // throws, so a new seed shape is noticed instead of silently skipped.
@@ -144,6 +144,13 @@ function apply(rows, statement) {
     for (const row of rows.values()) {
       if (names.includes(row.task_name)) for (const [column, value] of changes) row[column] = value;
     }
+    return;
+  }
+  const remove = /^DELETE\s+FROM\s+scheduled_tasks\s+WHERE\s+([\s\S]*)$/i.exec(statement);
+  if (remove) {
+    const names = taskFilter(remove[1]);
+    if (!names) throw new Error(`Unexpected scheduled_tasks DELETE: ${statement.slice(0, 120)}`);
+    for (const [key, row] of rows) if (names.includes(row.task_name)) rows.delete(key);
   }
 }
 
@@ -151,7 +158,7 @@ function replay(sqlTexts) {
   const rows = new Map();
   for (const sql of sqlTexts) {
     for (const statement of splitTop(stripComments(sql), ';')) {
-      if (/^(INSERT\s+(IGNORE\s+)?INTO|UPDATE)\s+scheduled_tasks\b/i.test(statement)) apply(rows, statement);
+      if (/^(INSERT\s+(IGNORE\s+)?INTO|UPDATE|DELETE\s+FROM)\s+scheduled_tasks\b/i.test(statement)) apply(rows, statement);
     }
   }
   return [...rows.values()];

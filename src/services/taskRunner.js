@@ -17,9 +17,8 @@ const radiusService = require('./radiusService');
 const snmpPoller = require('./snmpPoller');
 const pollerEngine = require('./pollerEngine');
 const snmpTrapReceiver = require('./snmpTrapReceiver');
-const emailTransport = require('./emailTransport');
+const messageOutbox = require('./messageOutbox');
 const { noteInvoiceRun, noteBillingEmail } = require('../utils/opsMetrics');
-const smsTransport = require('./smsTransport');
 const webhookService = require('./webhookService');
 const checkoutService = require('./checkoutService');
 const alertService = require('./alertService');
@@ -220,8 +219,8 @@ async function dispatchTask(taskName, organizationId) {
         }
       }
       return { message: 'SNMP trap receiver started' };
-    case 'sms_send':
-      return smsTransport.processQueue(organizationId);
+    case 'message_outbox':
+      return require('./messageOutbox').processQueue(organizationId);
     case 'webhook_delivery':
     case 'webhook_retry':
       return Promise.all([
@@ -526,19 +525,22 @@ async function runAutoInvoice(organizationId) {
               dueDate: invoice.due_date ? new Date(invoice.due_date).toISOString().slice(0, 10) : '',
               items: itemRows,
             });
-            const sent = await emailTransport.sendEmail({
+            // Outbox (ASY-33): delivered and retried by message_outbox, one
+            // per invoice; billing_emails_total{result} is counted when the
+            // message is delivered or gives up (outboxOutcomeHandlers).
+            const queued = await messageOutbox.queueEmail({
               organizationId: contract.organization_id,
               clientId: contract.client_id,
               messageClass: 'transactional',
               to: client.email,
               subject,
               html,
+              sourceType: 'invoice_email',
+              sourceId: invoice.id,
+              dedupeKey: `invoice_email:${contract.organization_id}:${invoice.id}`,
             });
-            // sendEmail reports a failed delivery as { success: false }; it
-            // used to count as sent.
-            if (sent && sent.success === false) throw new Error(sent.error || 'Invoice email failed');
+            if (!queued.queued) throw new Error(`Invoice email blocked (${queued.code || 'not queued'})`);
             emailed++;
-            noteBillingEmail('invoice', 'sent');
           }
         } catch (emailErr) {
           // Email failure must not block the billing cycle, but it is counted.
@@ -648,18 +650,20 @@ async function runSuspensionWarnings(organizationId) {
             currency: contract.currency,
             dueDate: contract.due_date ? new Date(contract.due_date).toISOString().slice(0, 10) : '',
           });
-          const sent = await emailTransport.sendEmail({
+          const queued = await messageOutbox.queueEmail({
             organizationId: contract.organization_id,
             clientId: contract.client_id,
             messageClass: 'transactional',
             to: client.email,
             subject,
             html,
+            sourceType: 'suspension_warning',
+            sourceId: contract.contract_id,
+            dedupeKey: `suspension_warning:${contract.organization_id}:${contract.contract_id}:${contract.invoice_id}:${rule.id}`,
           });
-          if (sent && sent.success === false) throw new Error(sent.error || 'Suspension warning email failed');
+          if (!queued.queued) throw new Error(`Suspension warning blocked (${queued.code || 'not queued'})`);
           warnings_sent++;
-          noteBillingEmail('suspension_warning', 'sent');
-          // The email is sent; the suspension.warning hook adds the SMS (ASY-08).
+          // The email is queued; the suspension.warning hook adds the SMS (ASY-08).
           await require('./businessEvents').emitSuspensionWarning(contract.organization_id, {
             contract,
             client,
@@ -745,16 +749,17 @@ async function runAutoSuspend(organizationId) {
               total: contract.total,
               currency: contract.currency,
             });
-            const sent = await emailTransport.sendEmail({
+            const queued = await messageOutbox.queueEmail({
               organizationId: org.id,
               clientId: contract.client_id,
               messageClass: 'transactional',
               to: client.email,
               subject,
               html,
+              sourceType: 'suspension_notice',
+              sourceId: contract.id,
             });
-            if (sent && sent.success === false) throw new Error(sent.error || 'Suspension notice email failed');
-            noteBillingEmail('suspension_notice', 'sent');
+            if (!queued.queued) throw new Error(`Suspension notice blocked (${queued.code || 'not queued'})`);
           }
         } catch (emailErr) {
           // Email failure must not block the suspension cycle, but it is counted.
@@ -938,8 +943,6 @@ async function runCsdExpiryCheck(organizationId) {
 async function notifyCsdExpiry(cert, threshold, daysLeft = 0) {
   const Notification = require('../models/Notification');
   const User = require('../models/User');
-  const emailTransport = require('./emailTransport');
-
   const validTo = new Date(cert.valid_to).toISOString().slice(0, 10);
   const title = threshold === 0
     ? `CSD EXPIRADO — ${cert.rfc} (${cert.certificate_number})`
@@ -975,12 +978,13 @@ async function notifyCsdExpiry(cert, threshold, daysLeft = 0) {
       entity_type: 'csd_certificates', entity_id: cert.id,
     }).catch(err => logger.warn({ err: err.message, certId: cert.id }, 'CSD expiry bell failed'));
     if (r.email) {
-      await emailTransport.sendEmail({
+      await messageOutbox.queueEmail({
         organizationId: cert.organization_id,
         operationalRecipient: true,
         to: r.email, subject: title,
         html: `<p>${body}</p>`,
-      }).catch(err => logger.warn({ err: err.message, certId: cert.id }, 'CSD expiry email failed'));
+        sourceType: 'csd_expiry', sourceId: cert.id,
+      }).catch(err => logger.warn({ err: err.message, certId: cert.id }, 'CSD expiry email could not be queued'));
     }
   }
   return true;

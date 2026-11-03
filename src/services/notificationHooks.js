@@ -6,11 +6,10 @@
 // =============================================================================
 
 const eventBus = require('./eventBus');
-const emailTransport = require('./emailTransport');
+const messageOutbox = require('./messageOutbox');
 const smsTransport = require('./smsTransport');
 const templates = require('../views/emailTemplates');
 const webhookService = require('./webhookService');
-const portalPushService = require('./portalPushService');
 const alertService = require('./alertService');
 const logger = require('../utils/logger');
 // Every inline `html` string built directly in this file (as opposed to via
@@ -107,7 +106,7 @@ function registerHooks() {
           + 'Gracias por elegirnos.</p>'
           + portalBlock
           + '<p>Si tienes alguna duda, responde a este correo o abre un ticket de soporte.</p>';
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           clientId: order.client_id,
           messageClass: 'transactional',
@@ -158,7 +157,7 @@ function registerHooks() {
           items: items || [],
         });
 
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           clientId: invoice.client_id,
           messageClass: 'transactional',
@@ -203,15 +202,16 @@ function registerHooks() {
       // Web Push to client's portal subscriptions — like email and SMS, only
       // when the emitter asked for the subscriber to be notified (client set).
       if (client && invoice.client_id) {
-        await portalPushService.dispatch({
-          clientId: invoice.client_id,
-          eventType: 'billing',
+        await messageOutbox.enqueue({
+          channel: 'push', organizationId, clientId: invoice.client_id, messageClass: 'transactional',
           payload: {
+            event_type: 'billing',
             title: 'Nueva factura disponible',
             body: `Factura ${invoice.invoice_number} por ${invoice.currency} ${invoice.total}`,
             url: '/portal/invoices',
           },
-        }).catch(err2 => logger.warn({ err: err2, event: 'invoice.created' }, 'Portal push dispatch error'));
+          sourceType: 'invoice', sourceId: invoice.id,
+        }).catch(err2 => logger.warn({ err: err2, event: 'invoice.created' }, 'Portal push enqueue error'));
       }
     } catch (err) {
       logger.error({ err, event: 'invoice.created' }, 'Notification hook error');
@@ -231,7 +231,7 @@ function registerHooks() {
           paymentDate: payment.created_at ? new Date(payment.created_at).toISOString().slice(0, 10) : undefined,
         });
 
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           clientId: payment.client_id,
           messageClass: 'transactional',
@@ -272,15 +272,16 @@ function registerHooks() {
       // Web Push to client's portal subscriptions — only when the emitter asked
       // for the subscriber to be notified (client set).
       if (client && payment.client_id) {
-        await portalPushService.dispatch({
-          clientId: payment.client_id,
-          eventType: 'billing',
+        await messageOutbox.enqueue({
+          channel: 'push', organizationId, clientId: payment.client_id, messageClass: 'transactional',
           payload: {
+            event_type: 'billing',
             title: 'Pago recibido',
             body: `Recibimos tu pago de ${payment.currency} ${payment.amount}. ¡Gracias!`,
             url: '/portal/payments',
           },
-        }).catch(err2 => logger.warn({ err: err2, event: 'payment.received' }, 'Portal push dispatch error'));
+          sourceType: 'payment', sourceId: payment.id,
+        }).catch(err2 => logger.warn({ err: err2, event: 'payment.received' }, 'Portal push enqueue error'));
       }
     } catch (err) {
       logger.error({ err, event: 'payment.received' }, 'Notification hook error');
@@ -298,7 +299,7 @@ function registerHooks() {
           currency: invoice?.currency,
         });
 
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           clientId: contract.client_id,
           messageClass: 'transactional',
@@ -369,7 +370,7 @@ function registerHooks() {
           dueDate: invoice?.due_date ? new Date(invoice.due_date).toISOString().slice(0, 10) : 'N/A',
         });
 
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           clientId,
           messageClass: 'transactional',
@@ -453,7 +454,7 @@ function registerHooks() {
             + (scheduled ? `<p>Programada: ${esc(scheduled)}</p>` : '')
             + (workOrder.address ? `<p>Dirección: ${esc(workOrder.address)}</p>` : '')
             + '<p>Consulta los detalles en tu panel de técnico.</p>';
-          await emailTransport.sendEmail({
+          await messageOutbox.queueEmail({
             organizationId,
             operationalRecipient: true,
             emailFunction: 'support',
@@ -507,7 +508,7 @@ function registerHooks() {
           }).catch(err2 => logger.warn({ err: err2, event: 'outage.reported', userId: admin.id }, 'Outage in-app notification error'));
 
           if (admin.email) {
-            await emailTransport.sendEmail({
+            await messageOutbox.queueEmail({
               organizationId,
               operationalRecipient: true,
               emailFunction: 'noc',
@@ -529,19 +530,22 @@ function registerHooks() {
            WHERE organization_id = ? AND notify_outage = 1 AND deleted_at IS NULL`,
           [organizationId],
         );
-        // A few at a time, after the staff alerts above (ASY-12): a slow
-        // push endpoint must not hold back the people handling the outage.
-        const PUSH_CONCURRENCY = 10;
-        for (let i = 0; i < subs.length; i += PUSH_CONCURRENCY) {
-          await Promise.all(subs.slice(i, i + PUSH_CONCURRENCY).map(sub => portalPushService.dispatch({
-            clientId: sub.client_id,
-            eventType: 'outage',
+        // Queued after the staff alerts above (ASY-12); the outbox delivers
+        // them within the organization's push rate, so a slow push endpoint
+        // never holds back the people handling the outage. One per client
+        // per outage.
+        for (const sub of subs) {
+          await messageOutbox.enqueue({
+            channel: 'push', organizationId, clientId: sub.client_id, messageClass: 'transactional',
             payload: {
+              event_type: 'outage',
               title: 'Interrupción de servicio',
               body: outage.title || 'Se reportó una interrupción en su área',
               url: '/portal/dashboard',
             },
-          }).catch(err2 => logger.warn({ err: err2, clientId: sub.client_id }, 'Portal push outage dispatch error'))));
+            sourceType: 'outage', sourceId: outage.id ?? null,
+            dedupeKey: outage.id ? `outage_push:${organizationId}:${outage.id}:${sub.client_id}` : null,
+          }).catch(err2 => logger.warn({ err: err2, clientId: sub.client_id }, 'Portal push outage enqueue error'));
         }
       } catch (pushErr) {
         logger.warn({ err: pushErr, event: 'outage.reported' }, 'Portal push bulk dispatch error');
@@ -664,7 +668,7 @@ function registerHooks() {
         if (recipient.email) {
           const html = `<p>El dispositivo <strong>${esc(device.name)}</strong> dejó de responder.</p>`
             + (device.ip_address ? `<p>IP: ${esc(device.ip_address)}</p>` : '');
-          await emailTransport.sendEmail({
+          await messageOutbox.queueEmail({
             organizationId,
             operationalRecipient: true,
             emailFunction: 'noc',
@@ -785,7 +789,7 @@ function registerHooks() {
             + `(valor actual: ${esc(String(breach.current_value))})</p>`
             + (rule.severity ? `<p>Severidad: ${esc(rule.severity)}</p>` : '')
             + (deviceName ? `<p>Dispositivo: ${esc(deviceName)}</p>` : '');
-          await emailTransport.sendEmail({
+          await messageOutbox.queueEmail({
             organizationId,
             operationalRecipient: true,
             emailFunction: 'noc',
@@ -879,7 +883,7 @@ function registerHooks() {
               + `<p>Métrica: ${esc(eventRow.metric)} (valor actual: ${esc(String(eventRow.current_value))})</p>`
               + (eventRow.severity ? `<p>Severidad: ${esc(eventRow.severity)}</p>` : '')
               + (deviceName ? `<p>Dispositivo: ${esc(deviceName)}</p>` : '');
-            await emailTransport.sendEmail({
+            await messageOutbox.queueEmail({
               organizationId,
               operationalRecipient: true,
               emailFunction: 'noc',
@@ -938,7 +942,7 @@ function registerHooks() {
           + `<p><strong>${esc(reminder.title)}</strong></p>`
           + (reminder.notes ? `<p>${esc(reminder.notes)}</p>` : '')
           + `<p>Vencimiento: ${reminder.due_at ? new Date(reminder.due_at).toISOString().slice(0, 16).replace('T', ' ') : 'N/A'}</p>`;
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           operationalRecipient: true,
           emailFunction: 'support',
@@ -981,7 +985,7 @@ function registerHooks() {
           + `<p>${question}</p>${context}`
           + `<p>Responde a este correo con una calificación de <strong>${scale}</strong> y, si lo deseas, un comentario.</p>`
           + '<p>¡Gracias por ayudarnos a mejorar!</p>';
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           clientId: survey.client_id,
           messageClass: 'marketing',
@@ -1122,7 +1126,7 @@ function registerHooks() {
 
         for (const client of clients) {
           if (client.email) {
-            await emailTransport.sendEmail({
+            await messageOutbox.queueEmail({
               organizationId,
               clientId: client.id,
               messageClass: 'transactional',
@@ -1161,7 +1165,7 @@ function registerHooks() {
           + `as per your account's late fee policy (${esc(rule.name)}).</p>`
           + '<p>Please arrange payment at your earliest convenience to avoid further charges.</p>';
 
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           clientId: invoice.client_id,
           messageClass: 'transactional',
@@ -1201,7 +1205,7 @@ function registerHooks() {
   eventBus.on('refund.processed', async ({ organizationId, refundRequest, client }) => {
     try {
       if (client?.email) {
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           clientId: refundRequest.client_id || client.id,
           messageClass: 'transactional',
@@ -1249,7 +1253,7 @@ function registerHooks() {
         + '<p>Consider expanding the pool or adding a new one.</p>';
       for (const admin of admins) {
         if (!admin.email) continue;
-        await emailTransport.sendEmail({
+        await messageOutbox.queueEmail({
           organizationId,
           operationalRecipient: true,
           emailFunction: 'noc',

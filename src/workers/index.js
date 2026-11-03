@@ -69,12 +69,13 @@ function registerWorkers() {
       : run();
   });
 
-  // ---- SMS send -----------------------------------------------------------
-  jobQueue.process('sms-send', async (job) => {
-    const smsTransport = require('../services/smsTransport');
-    const { logId, organizationId = null } = job.data;
-    logger.debug({ logId }, 'Worker: processing SMS');
-    return smsTransport.deliverQueuedLog(logId, organizationId);
+  // ---- Message outbox -----------------------------------------------------
+  // The row is durable before the job exists; a lost job is delivered by the
+  // message_outbox sweep instead.
+  jobQueue.process('message-outbox', async (job) => {
+    const messageOutbox = require('../services/messageOutbox');
+    const { id, organizationId = null } = job.data;
+    return messageOutbox.deliverNow(id, organizationId);
   });
 
   // ---- AI triage ----------------------------------------------------------

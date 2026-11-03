@@ -60,7 +60,8 @@ describe('jobQueueService constants', () => {
     expect(QUEUE_NAMES).toContain('scheduled-task');
     expect(QUEUE_NAMES).toContain('webhook-delivery');
     expect(QUEUE_NAMES).toContain('trap-forwarding-delivery');
-    expect(QUEUE_NAMES).toContain('sms-send');
+    expect(QUEUE_NAMES).toContain('message-outbox');
+    expect(QUEUE_NAMES).not.toContain('sms-send');
     expect(QUEUE_NAMES).toContain('ai-triage');
   });
 
@@ -161,7 +162,7 @@ describe('workers/index.js — registerWorkers()', () => {
     expect(names).toContain('scheduled-task');
     expect(names).toContain('webhook-delivery');
     expect(names).toContain('trap-forwarding-delivery');
-    expect(names).toContain('sms-send');
+    expect(names).toContain('message-outbox');
     expect(names).toContain('ai-triage');
     expect(names).toHaveLength(5);
   });
@@ -186,16 +187,15 @@ describe('workers/index.js — registerWorkers()', () => {
     expect(db.withTenantContext).not.toHaveBeenCalled();
   });
 
-  test('SMS worker delivers the exact queued row through the atomic delivery path', async () => {
+  test('message-outbox worker delivers the exact outbox row in its organization', async () => {
+    const messageOutbox = require('../src/services/messageOutbox');
     const processSpy = jest.spyOn(jobQueue, 'process');
-    const deliverSpy = jest.spyOn(smsTransport, 'deliverQueuedLog')
-      .mockResolvedValueOnce({ claimed: true, success: true, messageId: 'SM-501' });
+    const deliverSpy = jest.spyOn(messageOutbox, 'deliverNow').mockResolvedValueOnce({ status: 'sent' });
     try {
       workers.registerWorkers();
-      const handler = processSpy.mock.calls.find(([name]) => name === 'sms-send')[1];
+      const handler = processSpy.mock.calls.find(([name]) => name === 'message-outbox')[1];
 
-      await expect(handler({ data: { logId: 501, organizationId: 42 } }))
-        .resolves.toEqual({ claimed: true, success: true, messageId: 'SM-501' });
+      await expect(handler({ data: { id: 501, organizationId: 42 } })).resolves.toEqual({ status: 'sent' });
       expect(deliverSpy).toHaveBeenCalledWith(501, 42);
     } finally {
       deliverSpy.mockRestore();
@@ -594,7 +594,7 @@ describe('webhookService.dispatch()', () => {
 // smsTransport.queueSms() without BullMQ
 // ============================================================================
 describe('smsTransport.queueSms() without BullMQ', () => {
-  test('inserts DB row and returns logId when REDIS_URL is unset', async () => {
+  test('writes an outbox row with the epochs it was checked against', async () => {
     db.query.mockImplementation(async (sql) => {
       if (/FROM organizations/.test(sql)) {
         return [[{ status: 'active', deleted_at: null, outbound_delivery_epoch: 6 }]];
@@ -611,7 +611,7 @@ describe('smsTransport.queueSms() without BullMQ', () => {
           has_marketing_consent: 0,
         }]];
       }
-      if (/INSERT INTO sms_logs/.test(sql)) return [{ insertId: 55 }];
+      if (/INSERT IGNORE INTO message_outbox/.test(sql)) return [{ insertId: 55, affectedRows: 1 }];
       throw new Error(`Unexpected queue SMS SQL: ${sql}`);
     });
     const result = await smsTransport.queueSms({
@@ -621,12 +621,10 @@ describe('smsTransport.queueSms() without BullMQ', () => {
       body: 'Test SMS',
       messageClass: 'transactional',
     });
-    expect(result).toEqual({ queued: true, logId: 55 });
-    expect(db.query).toHaveBeenCalledTimes(4); // organization twice, live client/DND, INSERT
-    const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO sms_logs/.test(sql));
-    expect(insert[1]).toEqual([
-      1, 6, 9, 4, '+521234567890', 'sms', null, 'Test SMS', 'none', 'transactional',
-    ]);
+    expect(result).toEqual({ queued: true, id: 55 });
+    const insert = db.query.mock.calls.find(([sql]) => /INSERT IGNORE INTO message_outbox/.test(sql));
+    expect(insert[1].slice(0, 9)).toEqual([1, 6, 9, 4, 'sms', 'transactional', 3, null, '+521234567890']);
+    expect(db.query.mock.calls.some(([sql]) => /sms_logs/.test(sql))).toBe(false);
   });
 });
 

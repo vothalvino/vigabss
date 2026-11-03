@@ -267,10 +267,13 @@ async function contractStillOwned(orgId, clientId, contractId) {
 /** Deliver the new Wi-Fi password by email — AWAITED and per-org routed. Returns bool. */
 async function sendWifiPasswordEmail({ orgId, clientId, client, password }) {
   try {
-    const emailTransport = require('./emailTransport');
+    const messageOutbox = require('./messageOutbox');
     const templates = require('../views/emailTemplates');
     const tpl = templates.whatsappWifiPasswordEmail({ userName: client.name, password });
-    const r = await emailTransport.sendEmail({
+    // Through the outbox, delivered now (ASY-33). sensitive: the body is the
+    // password. One attempt: the caller rolls the password back on failure,
+    // so a later retry would email a password that no longer works.
+    const r = await messageOutbox.sendEmailNow({
       to: client.email,
       subject: tpl.subject,
       html: tpl.html,
@@ -278,8 +281,11 @@ async function sendWifiPasswordEmail({ orgId, clientId, client, password }) {
       clientId,
       messageClass: 'security',
       emailFunction: 'general',
+      sensitive: true,
+      maxAttempts: 1,
+      sourceType: 'wifi_password',
     });
-    return !!(r && r.success);
+    return r?.status === 'sent';
   } catch (e) {
     logger.error({ err: e }, 'whatsapp: wifi-password email threw');
     return false;

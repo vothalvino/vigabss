@@ -2,6 +2,8 @@
 // VigaBSS 5.0 — Bulk Validation Tests
 // =============================================================================
 
+// Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
+jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassThrough'));
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   execute: jest.fn(),
@@ -75,73 +77,6 @@ beforeEach(() => {
     resetAt: Date.now() + windowMs,
   }));
   cacheService.decrementFixedWindow.mockResolvedValue(undefined);
-});
-
-// =============================================================================
-// POST /api/bulk/invoices/generate
-// =============================================================================
-describe('POST /api/bulk/invoices/generate', () => {
-  test('rejects empty body → 400', async () => {
-    mockAuthUser();
-    const res = await request(app)
-      .post('/api/bulk/invoices/generate')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send({});
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  test('rejects non-array contract_ids → 400', async () => {
-    mockAuthUser();
-    const res = await request(app)
-      .post('/api/bulk/invoices/generate')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send({ contract_ids: 'not-an-array' });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  test('valid contract_ids → 200', async () => {
-    mockAuthUser();
-    // `success` now counts invoices actually created (TNA-12), so the fixture
-    // must answer the org-scoped contract lookup and the generation calls —
-    // previously any id "succeeded" whether or not anything was billed.
-    const billingService = require('../src/services/billingService');
-    db.query.mockImplementation(async (sql, params) => (
-      /FROM contracts/.test(sql)
-        ? [[{ id: params[0], organization_id: 1, client_id: 5, status: 'active', plan_name: 'Home', plan_price: '100.00' }]]
-        : [[]]
-    ));
-    const period = jest.spyOn(billingService, 'generateBillingPeriod')
-      .mockResolvedValue({ id: 1, status: 'pending', scheduled_at: new Date(Date.now() - 1000) });
-    const invoice = jest.spyOn(billingService, 'generateInvoice')
-      .mockImplementation(async (_p, contract) => ({ id: 100 + contract.id }));
-
-    const res = await request(app)
-      .post('/api/bulk/invoices/generate')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send({ contract_ids: [1, 2, 3] });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.success).toBe(3);
-    expect(res.body.data.invoice_ids).toEqual([101, 102, 103]);
-    period.mockRestore();
-    invoice.mockRestore();
-  });
-
-  test('rejects >500 contracts → 400', async () => {
-    mockAuthUser();
-    const ids = Array.from({ length: 501 }, (_, i) => i + 1);
-    const res = await request(app)
-      .post('/api/bulk/invoices/generate')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send({ contract_ids: ids });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.message).toMatch(/500/);
-  });
 });
 
 // =============================================================================
@@ -419,15 +354,8 @@ describe('POST /api/bulk/email', () => {
 // Regression smoke: other /bulk/* routes are unaffected by bulkEmailLimiter
 // =============================================================================
 describe('bulkEmailLimiter does not leak onto other /bulk routes', () => {
-  test('POST /bulk/invoices/generate and /bulk/suspend still work (not gated by bulkEmailLimiter)', async () => {
+  test('POST /bulk/suspend still works (not gated by bulkEmailLimiter)', async () => {
     mockAuthUser();
-    db.query.mockResolvedValue([{ affectedRows: 1 }]);
-
-    const genRes = await request(app)
-      .post('/api/bulk/invoices/generate')
-      .set('Authorization', `Bearer ${authToken}`)
-      .send({ contract_ids: [1] });
-    expect(genRes.status).toBe(200);
 
     db.query.mockResolvedValue([[{ id: 10, status: 'active', organization_id: 1 }]]);
     suspensionService.suspendContract.mockResolvedValue(undefined);

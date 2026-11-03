@@ -76,7 +76,7 @@ const billingInvoices = registry.counter({
 });
 const billingEmails = registry.counter({
   name: 'billing_emails_total',
-  help: 'Billing emails to clients (kind: invoice, suspension_warning, suspension_notice; result: sent, failed)',
+  help: 'Billing emails to clients by final outcome (kind: invoice, suspension_warning, suspension_notice; result: sent, skipped, failed)',
   labelNames: ['kind', 'result'],
 });
 const autopayCharges = registry.counter({
@@ -114,7 +114,29 @@ const notePaymentWebhook = (provider, status) => paymentWebhooks.inc({ provider,
 const noteReconcileFailure = () => reconcileFailures.inc();
 const notePacError = (provider, operation) => pacErrors.inc({ provider, operation });
 
+// Message outbox (ASY-33): delivery results per attempt, and the backlog the
+// last delivery run saw, so a stuck queue or failing provider alerts.
+const outboxMessages = registry.counter({
+  name: 'outbox_messages_total',
+  help: 'Outbox delivery attempts by channel and result (sent, skipped, retried, failed, outcome_unknown, deferred)',
+  labelNames: ['channel', 'result'],
+});
+let outboxBacklog = { rows: [], oldestQueuedSeconds: 0 };
+registry.collected({
+  name: 'outbox_backlog_messages',
+  help: 'Outbox messages waiting or needing attention, by status and channel (refreshed by each delivery run)',
+  collect: () => outboxBacklog.rows.map(r => ({ labels: { status: r.status, channel: r.channel }, value: r.n })),
+});
+registry.collected({
+  name: 'outbox_oldest_queued_seconds',
+  help: 'Age of the oldest message still waiting to be delivered',
+  collect: () => outboxBacklog.oldestQueuedSeconds,
+});
+const noteOutboxMessage = (channel, result) => outboxMessages.inc({ channel, result });
+const noteOutboxBacklog = (rows, oldestQueuedSeconds) => { outboxBacklog = { rows, oldestQueuedSeconds }; };
+
 module.exports = {
+  noteOutboxMessage, noteOutboxBacklog,
   noteBackupSuccess, noteTaskRun, noteAuditWriteFailure, scheduledTaskRuns, auditWriteFailures,
   noteInvoiceRun, noteBillingEmail, noteAutopayCharge, notePaymentRetry, notePaymentWebhook,
   noteReconcileFailure, notePacError,

@@ -247,6 +247,7 @@
     "iftStatisticalReports": "IFT Reports",
     "facturasPublicas": "Public Invoices",
     "communicationCampaigns": "Campaigns",
+    "messageOutbox": "Message outbox",
     "messageTemplates": "Message Templates",
     "queueStats": "Queue Status",
     "analyticsDashboard": "Analytics Dashboard",
@@ -5733,6 +5734,51 @@
       "minutesAgo": "{{count}}m ago",
       "hoursAgo": "{{count}}h ago",
       "daysAgo": "{{count}}d ago"
+    }
+  },
+  "messageOutbox": {
+    "title": "Message outbox",
+    "description": "Every email, SMS, WhatsApp and push message, and whether it arrived. Failed messages ran out of retries; \"Maybe sent\" ones stopped mid-delivery and may already have reached the recipient.",
+    "total": "{{count}} messages",
+    "filterStatus": "Status",
+    "filterChannel": "Channel",
+    "all": "All",
+    "loadError": "The messages could not be loaded.",
+    "empty": "No messages match these filters.",
+    "actionFailed": "The action could not be completed.",
+    "confirmPossibleDuplicate": "This message may already have been delivered. Send it again anyway? The recipient could get it twice.",
+    "confirmCancel": "Cancel this message? It will not be sent.",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "prev": "← Prev",
+    "next": "Next →",
+    "pageOf": "Page {{page}} of {{total}}",
+    "clientDevices": "Client #{{id}}'s devices",
+    "col": {
+      "created": "Created",
+      "channel": "Channel",
+      "recipient": "Recipient",
+      "subject": "Subject",
+      "status": "Status",
+      "attempts": "Attempts",
+      "error": "Last error",
+      "actions": "Actions"
+    },
+    "status": {
+      "queued": "Waiting",
+      "claimed": "Sending",
+      "sending": "Sending",
+      "sent": "Sent",
+      "skipped": "Blocked by preferences",
+      "failed": "Failed",
+      "outcome_unknown": "Maybe sent",
+      "cancelled": "Cancelled"
+    },
+    "channel": {
+      "email": "Email",
+      "sms": "SMS",
+      "whatsapp": "WhatsApp",
+      "push": "Push"
     }
   },
   "portalPrivacy": {

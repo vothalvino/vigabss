@@ -1052,7 +1052,7 @@ router.post('/:id/send-email', requirePermission('invoices.update'), async (req,
   try {
     const invoiceId = parseInt(req.params.id, 10);
     const pdfService = require('../services/pdfService');
-    const emailTransport = require('../services/emailTransport');
+    const messageOutbox = require('../services/messageOutbox');
     const templates = require('../views/emailTemplates');
 
     const [rows] = await db.query(
@@ -1088,7 +1088,9 @@ router.post('/:id/send-email', requirePermission('invoices.update'), async (req,
       items: itemRows,
     });
 
-    const result = await emailTransport.sendEmail({
+    // Through the outbox, delivered now (ASY-33); if the mail server cannot
+    // take it yet the outbox retries it (202).
+    const result = await messageOutbox.sendEmailNow({
       organizationId: invoice.organization_id,
       clientId: invoice.client_id,
       messageClass: 'transactional',
@@ -1097,8 +1099,12 @@ router.post('/:id/send-email', requirePermission('invoices.update'), async (req,
       subject: template.subject,
       html: template.html,
       attachments: [{ filename: `invoice-${invoice.invoice_number || invoiceId}.pdf`, content: buffer }],
+      sourceType: 'invoice', sourceId: Number(invoiceId),
     });
-    if (!result.success) {
+    if (result.status === 'queued') {
+      return res.status(202).json({ message: 'Invoice queued; delivery will be retried', to: invoice.client_email, outbox_id: result.id });
+    }
+    if (result.status !== 'sent') {
       return res.status(502).json({ error: { code: 'EMAIL_FAILED', message: result.error || 'Failed to send email' } });
     }
 

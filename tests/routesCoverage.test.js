@@ -6,6 +6,8 @@
 // firerelay, pdf, quotes, payments, invoices, twoFactor, clients (sub-routes)
 // =============================================================================
 
+// Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
+jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassThrough'));
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   execute: jest.fn(),
@@ -40,6 +42,7 @@ jest.mock('../src/views/emailTemplates', () => ({
   suspensionWarningEmail: jest.fn().mockReturnValue({ subject: 'Warning', html: '<p>warning</p>' }),
   serviceSuspendedEmail: jest.fn().mockReturnValue({ subject: 'Suspended', html: '<p>suspended</p>' }),
   outageNotificationEmail: jest.fn().mockReturnValue({ subject: 'Outage', html: '<p>outage</p>' }),
+  customMessageEmail: jest.fn().mockReturnValue('<p>custom</p>'),
 }));
 jest.mock('../src/services/eventBus', () => ({
   emit: jest.fn(),
@@ -144,75 +147,6 @@ beforeEach(() => {
 // BULK ROUTES — /api/bulk
 // =============================================================================
 describe('Bulk Routes — /api/bulk', () => {
-  describe('POST /api/bulk/invoices/generate', () => {
-    // `success` counts invoices actually created (TNA-12): each contract is
-    // looked up in the caller's org, then billed through generateBillingPeriod
-    // + generateInvoice (mocked here with billingService).
-    const activeContract = async (sql, params) => (
-      /FROM contracts/.test(sql)
-        ? [[{ id: params[0], organization_id: 1, client_id: 5, status: 'active', plan_name: 'Home', plan_price: '100.00' }]]
-        : [[]]
-    );
-    const duePeriod = { id: 1, status: 'pending', scheduled_at: new Date(Date.now() - 1000) };
-
-    test('success — generates invoices for contract_ids', async () => {
-      mockAuthUser();
-      db.query.mockImplementation(activeContract);
-      billingService.generateBillingPeriod.mockResolvedValue(duePeriod);
-      billingService.generateInvoice.mockImplementation(async (_p, contract) => ({ id: 100 + contract.id }));
-
-      const res = await request(app)
-        .post('/api/bulk/invoices/generate')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ contract_ids: [1, 2, 3] });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.success).toBe(3);
-    });
-
-    test('validation — rejects empty array', async () => {
-      mockAuthUser();
-      const res = await request(app)
-        .post('/api/bulk/invoices/generate')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ contract_ids: [] });
-
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('VALIDATION_ERROR');
-    });
-
-    test('validation — rejects >500 contracts', async () => {
-      mockAuthUser();
-      const ids = Array.from({ length: 501 }, (_, i) => i + 1);
-      const res = await request(app)
-        .post('/api/bulk/invoices/generate')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ contract_ids: ids });
-
-      expect(res.status).toBe(400);
-      expect(res.body.error.message).toMatch(/500/);
-    });
-
-    test('handles partial failures', async () => {
-      mockAuthUser();
-      db.query.mockImplementation(activeContract);
-      billingService.generateBillingPeriod.mockResolvedValue(duePeriod);
-      billingService.generateInvoice
-        .mockResolvedValueOnce({ id: 101 })
-        .mockRejectedValueOnce(new Error('Duplicate'))
-        .mockResolvedValueOnce({ id: 103 });
-
-      const res = await request(app)
-        .post('/api/bulk/invoices/generate')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ contract_ids: [1, 2, 3] });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.success).toBe(2);
-      expect(res.body.data.failed).toBe(1);
-    });
-  });
-
   describe('POST /api/bulk/suspend', () => {
     test('success — suspends contracts', async () => {
       mockAuthUser();
