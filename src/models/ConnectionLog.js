@@ -8,8 +8,8 @@ class ConnectionLog extends BaseModel {
   static get tableName() { return 'connection_logs'; }
   static get fillable() {
     return [
-      'organization_id', 'radius_id', 'nas_id', 'session_id', 'ip_address',
-      'event_type', 'bytes_in', 'bytes_out', 'session_time', 'terminate_cause',
+      'organization_id', 'nas_id', 'session_id', 'ip_address',
+      'event_type', 'bytes_in', 'bytes_out', 'session_duration', 'terminate_cause',
     ];
   }
   // Migration 457 adds a direct organization_id owner. Keep every generic

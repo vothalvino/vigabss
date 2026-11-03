@@ -64,3 +64,24 @@ describe('migration-smoke-test — extractSchemaColumns', () => {
     expect(cols.get('test_table')).toEqual(new Set(['id', 'name', 'location']));
   });
 });
+
+describe('migration-smoke-test — generated columns and schema-ahead drift (DB-20)', () => {
+  test('a GENERATED ALWAYS AS continuation line is not a column', () => {
+    const sql = `CREATE TABLE IF NOT EXISTS tax_rates (
+    id     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    scope  VARCHAR(10) NOT NULL,
+    scope_key VARCHAR(20)
+                    GENERATED ALWAYS AS (
+                      COALESCE(scope, 'none')
+                    ) STORED,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB;`;
+    expect([...extractSchemaColumns(sql).get('tax_rates')]).toEqual(['id', 'scope', 'scope_key']);
+  });
+
+  test('schema.sql columns missing from the migrated database fail the smoke test', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'scripts', 'migration-smoke-test.js'), 'utf8');
+    const block = src.slice(src.indexOf('if (colsMissingFromDb.length > 0) {'));
+    expect(block.slice(0, block.indexOf('\n  }\n'))).toMatch(/passed = false/);
+  });
+});

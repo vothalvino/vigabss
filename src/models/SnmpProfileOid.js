@@ -8,7 +8,7 @@ class SnmpProfileOid extends BaseModel {
   static get tableName() { return 'snmp_profile_oids'; }
   static get fillable() {
     return [
-      'profile_id', 'oid', 'label', 'oid_type', 'metric_column', 'description', 'status',
+      'profile_id', 'oid', 'label', 'oid_type', 'metric_column', 'status',
       'is_per_interface', 'transform', 'sort_order', 'aggregate',
     ];
   }

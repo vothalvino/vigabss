@@ -8,7 +8,7 @@ class DdosProtectionRule extends BaseModel {
   static get tableName() { return 'ddos_protection_rules'; }
   static get hasOrgScope() { return true; }
   static get fillable() {
-    return ['organization_id', 'name', 'rule_type', 'target_prefix', 'action', 'threshold_pps', 'threshold_bps', 'is_active', 'triggered_at', 'deactivated_at', 'notes'];
+    return ['organization_id', 'name', 'rule_type', 'target_prefix', 'action', 'pps_threshold', 'bandwidth_threshold_mbps', 'status', 'triggered_at', 'expires_at', 'notes'];
   }
 }
 

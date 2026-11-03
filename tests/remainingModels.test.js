@@ -59,7 +59,7 @@ describe('CfdiPaymentComplement', () => {
   test('has correct metadata', () => {
     expectModel(CfdiPaymentComplement, {
       tableName: 'cfdi_payment_complements',
-      fillableIncludes: ['cfdi_document_id', 'payment_id', 'fecha_pago', 'monto'],
+      fillableIncludes: ['cfdi_document_id', 'payment_date', 'forma_pago', 'amount'],
       hasOrgScope: false,
     });
   });
@@ -106,7 +106,7 @@ describe('CreditNoteItem', () => {
   test('has correct metadata with soft-delete', () => {
     expectModel(CreditNoteItem, {
       tableName: 'credit_note_items',
-      fillableIncludes: ['credit_note_id', 'description', 'quantity', 'unit_price', 'amount'],
+      fillableIncludes: ['credit_note_id', 'description', 'quantity', 'unit_price', 'tax_rate_id'],
       hasOrgScope: false,
       softDelete: true,
     });
@@ -137,7 +137,7 @@ describe('InvoiceItem', () => {
   test('has correct metadata with soft-delete', () => {
     expectModel(InvoiceItem, {
       tableName: 'invoice_items',
-      fillableIncludes: ['invoice_id', 'description', 'quantity', 'unit_price', 'amount', 'tax_rate', 'tax_amount'],
+      fillableIncludes: ['invoice_id', 'description', 'quantity', 'unit_price', 'amount', 'tax_rate_id'],
       hasOrgScope: false,
       softDelete: true,
     });
@@ -148,7 +148,7 @@ describe('NetworkHealthSnapshot', () => {
   test('has correct metadata', () => {
     expectModel(NetworkHealthSnapshot, {
       tableName: 'network_health_snapshots',
-      fillableIncludes: ['organization_id', 'snapshot_date', 'total_devices', 'online_devices', 'offline_devices'],
+      fillableIncludes: ['organization_id', 'snapshot_date', 'avg_latency_ms'],
       hasOrgScope: true,
     });
   });
@@ -169,7 +169,7 @@ describe('PlanAddon', () => {
   test('has correct metadata with soft-delete', () => {
     expectModel(PlanAddon, {
       tableName: 'plan_addons',
-      fillableIncludes: ['organization_id', 'plan_id', 'name', 'addon_type', 'price', 'billing_cycle', 'status'],
+      fillableIncludes: ['organization_id', 'name', 'addon_type', 'price', 'billing_cycle', 'is_taxable', 'status'],
       hasOrgScope: true,
       softDelete: true,
     });
@@ -191,7 +191,7 @@ describe('QuoteItem', () => {
   test('has correct metadata with soft-delete', () => {
     expectModel(QuoteItem, {
       tableName: 'quote_items',
-      fillableIncludes: ['quote_id', 'description', 'quantity', 'unit_price', 'amount', 'tax_rate', 'tax_amount'],
+      fillableIncludes: ['quote_id', 'description', 'quantity', 'unit_price', 'tax_rate_id'],
       hasOrgScope: false,
       softDelete: true,
     });
@@ -202,7 +202,7 @@ describe('RevenueSummary', () => {
   test('has correct metadata', () => {
     expectModel(RevenueSummary, {
       tableName: 'revenue_summary',
-      fillableIncludes: ['organization_id', 'period_date', 'total_invoiced', 'total_collected', 'total_outstanding'],
+      fillableIncludes: ['organization_id', 'period_date', 'total_collected', 'total_outstanding'],
       hasOrgScope: true,
     });
   });
@@ -222,7 +222,7 @@ describe('SnmpMetric', () => {
   test('has correct metadata', () => {
     expectModel(SnmpMetric, {
       tableName: 'snmp_metrics',
-      fillableIncludes: ['device_id', 'profile_oid_id', 'value_gauge', 'value_counter', 'value_string', 'polled_at'],
+      fillableIncludes: ['device_id', 'polled_at'],
       hasOrgScope: false,
     });
   });

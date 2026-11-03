@@ -9,8 +9,8 @@ class QuoteItem extends BaseModel {
 
   static get fillable() {
     return [
-      'quote_id', 'description', 'quantity', 'unit_price', 'amount',
-      'tax_rate', 'tax_amount',
+      'quote_id', 'description', 'quantity', 'unit_price', 
+      'tax_rate_id', 
     ];
   }
 
