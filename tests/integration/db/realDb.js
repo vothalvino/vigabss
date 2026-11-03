@@ -223,7 +223,9 @@ async function createOrgAdmin(db, org, mark = MARK[org] || `ORG${org}`) {
   const [[role]] = await db.query("SELECT id FROM roles WHERE name = 'it_all_permissions' AND deleted_at IS NULL");
   await db.query('INSERT IGNORE INTO role_permissions (role_id, permission_id) SELECT ?, id FROM permissions', [role.id]);
   await db.query(
-    "INSERT INTO organizations (id, name, locale, country, status, currency) VALUES (?, ?, 'MX', 'MX', 'active', 'MXN')",
+    // locale global: an MX organization's contracts need a classified
+    // contract source and environment, which the generic seed cannot supply.
+    "INSERT INTO organizations (id, name, locale, country, status, currency) VALUES (?, ?, 'global', 'US', 'active', 'MXN')",
     [org, `${mark} ISP`],
   );
   const [result] = await db.query(

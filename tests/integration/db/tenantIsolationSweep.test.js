@@ -166,11 +166,14 @@ describeDb('tenant isolation against a real database', () => {
     const byStatus = {};
     for (const r of results) byStatus[r.status] = (byStatus[r.status] || 0) + 1;
 
-    const report = { requests: results.length, byStatus, unresolved, leaks, skippedTables: Object.fromEntries(ctx.skipped) };
+    const failed = results
+      .filter(r => r.status === 'timeout' || r.status === 'error' || r.status >= 500)
+      .map(r => `${r.route} -> ${r.status}`);
+    const report = { requests: results.length, byStatus, failed, unresolved, leaks, skippedTables: Object.fromEntries(ctx.skipped) };
     const out = process.env.DB_INTEGRATION_REPORT || path.join(__dirname, '../../../coverage/db-isolation-report.json');
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, JSON.stringify(report, null, 2));
-    console.log(`swept ${results.length} requests ${JSON.stringify(byStatus)}; ${unresolved.length} parameterised routes had no seeded table`);
+    console.log(`swept ${results.length} requests ${JSON.stringify(byStatus)}; ${unresolved.length} parameterised routes had no seeded table; failed: ${failed.join(', ')}`);
 
     expect(leaks).toEqual([]);
     // The sweep must stay meaningful: most requests are answered, not refused
