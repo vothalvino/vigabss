@@ -13791,6 +13791,8 @@ CREATE TABLE IF NOT EXISTS preservation_holds (
     KEY idx_preservation_holds_active (organization_id, released_at),
     KEY idx_preservation_holds_gov (gov_data_request_id),
     KEY idx_preservation_holds_dsar (dsar_request_id),
+    -- MySQL refuses a CHECK on a column whose foreign key cascades, so the
+    -- case and subject keys below use RESTRICT on update too.
     CONSTRAINT chk_preservation_holds_one_case
         CHECK ((gov_data_request_id IS NOT NULL) + (dsar_request_id IS NOT NULL) = 1),
     CONSTRAINT chk_preservation_holds_subject
@@ -13800,13 +13802,13 @@ CREATE TABLE IF NOT EXISTS preservation_holds (
     CONSTRAINT fk_preservation_holds_org FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_preservation_holds_gov FOREIGN KEY (gov_data_request_id)
-        REFERENCES gov_data_requests (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+        REFERENCES gov_data_requests (id) ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_preservation_holds_dsar FOREIGN KEY (dsar_request_id)
-        REFERENCES dsar_requests (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+        REFERENCES dsar_requests (id) ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_preservation_holds_client FOREIGN KEY (client_id)
-        REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+        REFERENCES clients (id) ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_preservation_holds_contract FOREIGN KEY (contract_id)
-        REFERENCES contracts (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+        REFERENCES contracts (id) ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_preservation_holds_created_by FOREIGN KEY (created_by)
         REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_preservation_holds_released_by FOREIGN KEY (released_by)
