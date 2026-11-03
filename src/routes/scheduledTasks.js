@@ -203,21 +203,12 @@ router.post('/:id/run', requirePermission('scheduled_tasks.update'), async (req,
         'UPDATE scheduled_tasks SET last_status = ?, last_run_at = NOW() WHERE id = ?',
         ['running', selectedTask.id],
       );
-      try {
-        const result = await taskRunner.runTask(selectedTask.task_name, organizationId);
-        const completionStatus = taskRunner.completionStatus(result);
-        await db.query(
-          'UPDATE scheduled_tasks SET last_status = ?, last_run_at = NOW() WHERE id = ?',
-          [completionStatus, selectedTask.id],
-        );
-        res.json({ data: { task_name: selectedTask.task_name, result } });
-      } catch (err) {
-        await db.query(
-          'UPDATE scheduled_tasks SET last_status = ? WHERE id = ?',
-          ['failed', selectedTask.id],
-        ).catch(() => {});
-        throw err;
-      }
+      // Records the outcome and history, a failure included (ASY-28).
+      const result = await taskRunner.executeScheduledTask(
+        { id: selectedTask.id, task_name: selectedTask.task_name, organization_id: organizationId },
+        'manual',
+      );
+      res.json({ data: { task_name: selectedTask.task_name, result } });
     };
 
     return await execute(task);

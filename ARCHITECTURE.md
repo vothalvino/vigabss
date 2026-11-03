@@ -578,6 +578,17 @@ browser WebSocket and GraphQL subscription events go through
 Publish through `events.broadcast` or `pubsub.publish`, never to a local client
 set directly. FireRelay agent tunnels remain per process.
 
+Every scheduled task run goes through `taskRunner.executeScheduledTask(task,
+via)` (ASY-28), from the inline cron path (`via = 'cron'`), the BullMQ
+`scheduled-task` worker (`'worker'`) and a manual run (`'manual'`). It records
+the row's `last_status`, `last_error` and `last_duration_ms`, a
+`scheduled_task_runs` history row and the `scheduled_task_runs_total` and
+`scheduled_task_duration_seconds` metrics, a throw included. Both the inline
+path and the worker hold the task's MySQL advisory lock
+(`scheduler.runExclusive`) for the whole run, so a run never overlaps the
+previous one; the worker records a refused overlap as skipped. On shutdown the
+app waits for inline runs (`scheduler.drain`) before closing the database.
+
 Outgoing messages go through `src/services/messageOutbox.js` (ASY-33):
 `enqueue()` writes a `message_outbox` row (optionally inside the caller's
 transaction), and the `message_outbox` task, or with Redis a `message-outbox`

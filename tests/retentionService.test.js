@@ -70,6 +70,7 @@ describe('retentionService', () => {
         snmp_trap_ingest_daily_usage: 14,
         email_logs: 180,
         sms_logs: 180,
+        scheduled_task_runs: 30,
         idempotency_keys: 7,
         radpostauth: 90,
         pppoe_event_logs: 90,

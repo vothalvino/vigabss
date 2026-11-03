@@ -26,6 +26,7 @@ jest.mock('node-cron', () => ({
 jest.mock('../src/services/taskRunner', () => ({
   runTask: jest.fn(),
   markTaskRun: jest.fn(),
+  executeScheduledTask: jest.fn(),
 }));
 
 jest.mock('../src/services/jobQueueService', () => ({
@@ -117,7 +118,7 @@ describe('Scheduler Service', () => {
   });
 
   describe('task completion status', () => {
-    test('passes an overlap skip and exact task id to the status writer', async () => {
+    test('runs the exact task row through the recorder (ASY-28)', async () => {
       let callback;
       const task = {
         id: 455,
@@ -131,17 +132,59 @@ describe('Scheduler Service', () => {
         callback = handler;
         return { stop: jest.fn() };
       });
-      const skipped = { skipped: true, reason: 'already_running' };
-      taskRunner.runTask.mockResolvedValueOnce(skipped);
+      taskRunner.executeScheduledTask.mockResolvedValueOnce({ skipped: true, reason: 'already_running' });
 
       await scheduler.start();
       await callback();
 
-      expect(taskRunner.markTaskRun).toHaveBeenCalledWith(
-        'poll_pppoe_events',
-        skipped,
-        { taskId: 455, organizationId: null },
-      );
+      // executeScheduledTask records the outcome, an overlap skip or a throw
+      // included, on this exact row.
+      expect(taskRunner.executeScheduledTask).toHaveBeenCalledWith(expect.objectContaining({ id: 455 }), 'cron');
+    });
+
+    test('a task that throws is logged and the lock is still released', async () => {
+      let callback;
+      const task = { id: 456, task_name: 'boom', cron_expression: '* * * * *', organization_id: null };
+      db.query.mockResolvedValueOnce([[task]]).mockResolvedValue([{ affectedRows: 1 }]);
+      cron.validate.mockReturnValue(true);
+      cron.schedule.mockImplementation((_expression, handler) => {
+        callback = handler;
+        return { stop: jest.fn() };
+      });
+      taskRunner.executeScheduledTask.mockRejectedValueOnce(new Error('boom'));
+
+      await scheduler.start();
+      await expect(callback()).resolves.toBeUndefined();
+
+      expect(mockConnection.query).toHaveBeenCalledWith('SELECT RELEASE_LOCK(?) AS released', [expect.stringContaining(':scheduled-task:456')]);
+      expect(mockConnection.release).toHaveBeenCalled();
+    });
+
+    test('drain() waits for an inline run still in progress (ASY-28)', async () => {
+      let callback;
+      let finish;
+      const task = { id: 457, task_name: 'slow', cron_expression: '* * * * *', organization_id: null };
+      db.query.mockResolvedValueOnce([[task]]).mockResolvedValue([{ affectedRows: 1 }]);
+      cron.validate.mockReturnValue(true);
+      cron.schedule.mockImplementation((_expression, handler) => {
+        callback = handler;
+        return { stop: jest.fn() };
+      });
+      taskRunner.executeScheduledTask.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+
+      await scheduler.start();
+      const tick = callback();
+      await new Promise(resolve => setImmediate(resolve));
+      scheduler.stop();
+
+      let drained = false;
+      const draining = scheduler.drain(5000).then((left) => { drained = true; return left; });
+      await new Promise(resolve => setImmediate(resolve));
+      expect(drained).toBe(false);
+
+      finish({ processed: 1 });
+      await expect(draining).resolves.toBe(0);
+      await tick;
     });
 
     test('includes the exact task id in the BullMQ job payload', async () => {

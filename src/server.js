@@ -153,6 +153,8 @@ async function start() {
       scheduler.stop();
       require('./utils/mapTileOrigins').stopMapTileOriginRefresh();
       await trapDrain;
+      // Let inline scheduled tasks finish before the database closes (ASY-28).
+      await scheduler.drain(Math.max(0, parseInt(process.env.SHUTDOWN_TIMEOUT_MS || '25000', 10) - 5000));
     },
     closeQueues: () => Promise.all([jobQueue.close(), require('./services/realtimeBus').close()]),
     closeDb: () => db.close(),

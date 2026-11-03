@@ -31,10 +31,12 @@ const lockDatabaseName = db.baseConnectionConfig?.database || process.env.DB_NAM
 const lockPrefix = `fireisp:${crypto.createHash('sha256').update(lockDatabaseName).digest('hex').slice(0, 16)}:scheduled-task:`;
 
 /**
- * Run `fn` only if this process wins the task's lock and its minute slot.
+ * Run `fn` while holding the task's advisory lock, so no other run of the
+ * same task overlaps it in any process. Without the lock, `fn` does not run.
+ * `claim(connection)` may refuse the run after the lock is taken.
  * @returns {Promise<boolean>} whether `fn` ran
  */
-async function runClaimed(task, fn) {
+async function runExclusive(task, fn, claim = null) {
   const connection = await db.getLockConnection();
   const lockName = `${lockPrefix}${task.id}`;
   let locked = false;
@@ -46,18 +48,7 @@ async function runClaimed(task, fn) {
       logger.debug({ taskName: task.task_name, taskId: task.id }, 'Scheduled task already running elsewhere');
       return false;
     }
-    // Both sides of the comparison use the database clock.
-    const [claim] = await connection.query(
-      `UPDATE scheduled_tasks
-          SET last_status = 'running', last_run_at = NOW()
-        WHERE id = ? AND is_enabled = 1
-          AND (last_run_at IS NULL OR last_run_at < DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:00'))`,
-      [task.id],
-    );
-    if (Number(claim?.affectedRows) !== 1) {
-      logger.debug({ taskName: task.task_name, taskId: task.id }, 'Scheduled task already ran this minute');
-      return false;
-    }
+    if (claim && !await claim(connection)) return false;
     await fn();
     return true;
   } finally {
@@ -74,6 +65,53 @@ async function runClaimed(task, fn) {
     if (discardConnection && typeof connection.destroy === 'function') connection.destroy();
     else connection.release();
   }
+}
+
+/**
+ * Run `fn` only if this process wins the task's lock and its minute slot.
+ * @returns {Promise<boolean>} whether `fn` ran
+ */
+function runClaimed(task, fn) {
+  return runExclusive(task, fn, async (connection) => {
+    // Both sides of the comparison use the database clock.
+    const [claim] = await connection.query(
+      `UPDATE scheduled_tasks
+          SET last_status = 'running', last_run_at = NOW()
+        WHERE id = ? AND is_enabled = 1
+          AND (last_run_at IS NULL OR last_run_at < DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:00'))`,
+      [task.id],
+    );
+    if (Number(claim?.affectedRows) !== 1) {
+      logger.debug({ taskName: task.task_name, taskId: task.id }, 'Scheduled task already ran this minute');
+      return false;
+    }
+    return true;
+  });
+}
+
+// Inline runs in progress, so shutdown can wait for them (ASY-28).
+const inFlight = new Set();
+
+function track(promise) {
+  inFlight.add(promise);
+  promise.finally(() => inFlight.delete(promise)).catch(() => {});
+  return promise;
+}
+
+/**
+ * Wait for inline runs still in progress, up to `timeoutMs`. Call after
+ * stop(): a SIGTERM used to close the database under a running task.
+ * @returns {Promise<number>} how many were still running at the deadline
+ */
+async function drain(timeoutMs = 20_000) {
+  if (inFlight.size === 0) return 0;
+  logger.info({ running: inFlight.size }, 'Waiting for scheduled tasks to finish');
+  let timer;
+  const deadline = new Promise((resolve) => { timer = setTimeout(resolve, timeoutMs); });
+  await Promise.race([Promise.allSettled([...inFlight]), deadline]);
+  clearTimeout(timer);
+  if (inFlight.size > 0) logger.warn({ running: inFlight.size }, 'Scheduled tasks still running at shutdown');
+  return inFlight.size;
 }
 
 // What a scheduled handle was built from; a row whose signature changed is
@@ -174,23 +212,17 @@ function schedule(task) {
       return;
     }
 
-    // No Redis: run inline, once across all processes (see runClaimed).
-    try {
-      await runClaimed(task, async () => {
-        const result = await taskRunner.runTask(task.task_name, task.organization_id);
-        await taskRunner.markTaskRun(task.task_name, result, {
-          taskId: task.id,
-          organizationId: task.organization_id,
-        });
-      });
-    } catch (err) {
-      logger.error({ err, taskName: task.task_name }, 'Scheduler error on task');
-      require('../utils/opsMetrics').noteTaskRun(task.task_name, 'failed');
-      await db.query(
-        'UPDATE scheduled_tasks SET last_status = ? WHERE id = ?',
-        ['failed', task.id],
-      ).catch(() => {});
-    }
+    // No Redis: run inline, once across all processes (see runClaimed). The
+    // run records its own outcome, a failure included (ASY-28).
+    await track(runClaimed(task, async () => {
+      try {
+        await taskRunner.executeScheduledTask(task, 'cron');
+      } catch (err) {
+        logger.error({ err, taskName: task.task_name }, 'Scheduled task failed');
+      }
+    })).catch((err) => {
+      logger.error({ err, taskName: task.task_name }, 'Scheduler could not claim the task');
+    });
   });
 
   // Keyed by id: per-organization rows share a task_name, and keying by name
@@ -222,4 +254,4 @@ function getStatus() {
   return result;
 }
 
-module.exports = { start, stop, getStatus, runClaimed, sync, reload };
+module.exports = { start, stop, drain, getStatus, runClaimed, runExclusive, sync, reload };

@@ -24,11 +24,16 @@ jest.mock('../src/config/database', () => ({
   query: jest.fn(), execute: jest.fn(), getConnection: jest.fn(), close: jest.fn(), pool: { end: jest.fn() },
   withPrimaryContext: jest.fn((callback) => callback()),
 }));
-jest.mock('../src/services/taskRunner', () => ({
-  runTask: jest.fn().mockResolvedValue({ ok: true }),
-  markTaskRun: jest.fn().mockResolvedValue(undefined),
-  completionStatus: jest.requireActual('../src/services/taskRunner').completionStatus,
-}));
+jest.mock('../src/services/taskRunner', () => {
+  const runTask = jest.fn().mockResolvedValue({ ok: true });
+  return {
+    runTask,
+    markTaskRun: jest.fn().mockResolvedValue(undefined),
+    completionStatus: jest.requireActual('../src/services/taskRunner').completionStatus,
+    // The recorder itself is covered by scheduledTaskRunHistory.test.js.
+    executeScheduledTask: jest.fn(task => runTask(task.task_name, task.organization_id)),
+  };
+});
 
 const config = require('../src/config');
 const db = require('../src/config/database');
@@ -146,15 +151,14 @@ describe('running a task', () => {
     expect(res.status).toBe(200);
     expect(taskRunner.runTask).toHaveBeenCalledWith('data_retention', null);
     expect(taskRunner.markTaskRun).not.toHaveBeenCalled();
-    expect(db.query.mock.calls).toEqual(expect.arrayContaining([
-      expect.arrayContaining([
-        expect.stringMatching(/UPDATE scheduled_tasks SET last_status = \?, last_run_at = NOW\(\) WHERE id = \?/),
-        ['success', 3],
-      ]),
-    ]));
+    // The outcome is recorded on this exact row, as a manual run.
+    expect(taskRunner.executeScheduledTask).toHaveBeenCalledWith(
+      { id: 3, task_name: 'data_retention', organization_id: null },
+      'manual',
+    );
   });
 
-  it('records a manually triggered overlap as skipped instead of success', async () => {
+  it('returns a manually triggered overlap as skipped', async () => {
     const pollTask = { ...GLOBAL, task_name: 'poll_pppoe_events' };
     const skipped = { skipped: true, reason: 'already_running' };
     taskRunner.runTask.mockResolvedValueOnce(skipped);
@@ -164,17 +168,10 @@ describe('running a task', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.result).toEqual(skipped);
-    expect(db.query.mock.calls).toEqual(expect.arrayContaining([
-      expect.arrayContaining([
-        expect.stringMatching(/UPDATE scheduled_tasks SET last_status = \?, last_run_at = NOW\(\) WHERE id = \?/),
-        ['skipped', 3],
-      ]),
-    ]));
+    // No status is written here any more: executeScheduledTask records it
+    // ('skipped' for this result) on the row.
     expect(db.query.mock.calls).not.toEqual(expect.arrayContaining([
-      expect.arrayContaining([
-        expect.stringMatching(/UPDATE scheduled_tasks SET last_status = \?, last_run_at = NOW\(\) WHERE id = \?/),
-        ['success', 3],
-      ]),
+      expect.arrayContaining([expect.stringMatching(/UPDATE scheduled_tasks SET last_status/), ['success', 3]]),
     ]));
   });
 

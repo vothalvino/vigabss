@@ -68,6 +68,13 @@ const POLICY_CONFIG = Object.freeze({
     dateColumn: 'created_at',
     tenantWhere: '`organization_id` = ?',
   },
+  // Scheduled task run history (ASY-28). Install-wide task rows have no
+  // organization, so a tenant purge removes only that organization's runs.
+  scheduled_task_runs: {
+    defaultDays: 30,
+    dateColumn: 'started_at',
+    tenantWhere: '`organization_id` = ?',
+  },
   idempotency_keys: {
     defaultDays: 7,
     dateColumn: 'expires_at',
