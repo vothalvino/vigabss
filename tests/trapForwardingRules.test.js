@@ -34,7 +34,7 @@ jest.mock('../src/services/snmpTrapReceiver', () => ({
 }));
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const dns = require('node:dns').promises;
 const config = require('../src/config');
 const db = require('../src/config/database');

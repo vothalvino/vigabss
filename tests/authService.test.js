@@ -558,7 +558,7 @@ describe('authService', () => {
         .mockResolvedValueOnce([[{ id: 1, token_hash: refreshHash, user_id: 1, token_family: 'fam-1', expires_at: futureDate }]])  // session exists
         .mockResolvedValueOnce([[{ id: 1, email: 'john@example.com', role: 'admin', status: 'active', organization_id: 42 }]])  // findById
         .mockResolvedValueOnce([[{ id: 42 }]]);  // getOrganizations
-      const conn = mockSessionTxn([{ affectedRows: 1 }], [{ insertId: 2 }]);  // DELETE claim + INSERT new
+      const conn = mockSessionTxn([{ affectedRows: 1 }], [{ insertId: 2 }]);  // consumed_at claim + INSERT new
 
       const result = await authService.refreshToken(refreshTokenValue);
 
@@ -590,7 +590,7 @@ describe('authService', () => {
           is_install_operator: 0,
           authority_persona: 'admin',
         }]]);                                               // principal: live control-plane user
-      mockSessionTxn([{ affectedRows: 1 }], [{ insertId: 2 }]);  // DELETE claim + INSERT new
+      mockSessionTxn([{ affectedRows: 1 }], [{ insertId: 2 }]);  // consumed_at claim + INSERT new
 
       const result = await authService.refreshToken(refreshTokenValue, '7');
 
@@ -617,7 +617,7 @@ describe('authService', () => {
           is_install_operator: 0,
           authority_persona: 'support',
         }]]);                                               // principal: live control-plane user
-      mockSessionTxn([{ affectedRows: 1 }], [{ insertId: 2 }]);  // DELETE claim + INSERT new
+      mockSessionTxn([{ affectedRows: 1 }], [{ insertId: 2 }]);  // consumed_at claim + INSERT new
 
       // Not an admin and not a member of org 7 → the switch is rejected on refresh.
       const result = await authService.refreshToken(refreshTokenValue, '7');
@@ -663,7 +663,7 @@ describe('authService', () => {
       ).rejects.toThrow('User not found or inactive');
     });
 
-    test('rotates session: deletes old, creates new with same family', async () => {
+    test('rotates session: marks the old one consumed, creates new with same family', async () => {
       const refreshTokenValue = crypto.randomBytes(32).toString('hex');
       const refreshHash = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');
       const futureDate = new Date(Date.now() + 86400000).toISOString();
@@ -676,12 +676,14 @@ describe('authService', () => {
 
       const result = await authService.refreshToken(refreshTokenValue);
 
-      // Rotation runs inside a transaction: DELETE claim then INSERT successor.
-      const deleteCall = conn.execute.mock.calls.find(c =>
-        typeof c[0] === 'string' && c[0].includes('DELETE FROM user_sessions WHERE id'),
+      // Rotation runs inside a transaction: the consumed_at claim, then the
+      // successor. The old row is kept so a replay is recognised (SEC-23).
+      const claimCall = conn.execute.mock.calls.find(c =>
+        typeof c[0] === 'string' && c[0].includes('SET consumed_at = NOW() WHERE id = ? AND consumed_at IS NULL'),
       );
-      expect(deleteCall).toBeDefined();
-      expect(deleteCall[1]).toContain(10);
+      expect(claimCall).toBeDefined();
+      expect(claimCall[1]).toEqual([10]);
+      expect(conn.execute.mock.calls.some(c => /DELETE FROM user_sessions WHERE id/.test(c[0]))).toBe(false);
 
       // Verify INSERT carries the same token_family
       const insertCall = conn.execute.mock.calls.find(c =>
@@ -697,7 +699,7 @@ describe('authService', () => {
       expect(conn.commit).toHaveBeenCalled();
     });
 
-    test('loses the concurrent-redeem race cleanly: DELETE claims 0 rows → 401, no second session minted', async () => {
+    test('loses the concurrent-redeem race cleanly: the claim updates 0 rows → 401, no second session minted', async () => {
       // Two requests redeem the same one-shot token; the other one's DELETE
       // already consumed the row. This request must NOT insert a session pair
       // from the stale read — that would mint two live sessions from one token.
@@ -709,7 +711,7 @@ describe('authService', () => {
         .mockResolvedValueOnce([[{ id: 1, token_hash: refreshHash, user_id: 1, token_family: 'fam-1', expires_at: futureDate }]])  // stale SELECT (row still visible)
         .mockResolvedValueOnce([[{ id: 1, email: 'john@example.com', role: 'admin', status: 'active', organization_id: 42 }]])  // findById
         .mockResolvedValueOnce([[{ id: 42 }]]);         // getOrganizations
-      const conn = mockSessionTxn([{ affectedRows: 0 }]);  // DELETE — the other request won
+      const conn = mockSessionTxn([{ affectedRows: 0 }]);  // claim — the other request won
 
       await expect(
         authService.refreshToken(refreshTokenValue),
@@ -730,7 +732,7 @@ describe('authService', () => {
         .mockResolvedValueOnce([[{ id: 1, token_hash: refreshHash, user_id: 1, token_family: 'fam-1', expires_at: futureDate }]])
         .mockResolvedValueOnce([[{ id: 1, email: 'john@example.com', role: 'admin', status: 'active', organization_id: 42 }]])
         .mockResolvedValueOnce([[{ id: 42 }]]);
-      const conn = mockSessionTxn([{ affectedRows: 1 }]);  // DELETE claim succeeds…
+      const conn = mockSessionTxn([{ affectedRows: 1 }]);  // claim succeeds…
       conn.execute.mockRejectedValueOnce(new Error('deadlock'));  // …INSERT fails
 
       await expect(authService.refreshToken(refreshTokenValue)).rejects.toThrow('deadlock');
@@ -748,7 +750,7 @@ describe('authService', () => {
   // switchOrganization — refresh-token rotation shares the atomic claim
   // =========================================================================
   describe('switchOrganization', () => {
-    test('loses the concurrent-redeem race cleanly: DELETE claims 0 rows → 401, no second session minted', async () => {
+    test('loses the concurrent-redeem race cleanly: the claim updates 0 rows → 401, no second session minted', async () => {
       const refreshTokenValue = crypto.randomBytes(32).toString('hex');
       const refreshHash = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');
       const futureDate = new Date(Date.now() + 86400000).toISOString();
@@ -766,7 +768,7 @@ describe('authService', () => {
           authority_persona: 'admin',
         }]])  // live control-plane user
         .mockResolvedValueOnce([[{ id: 3, token_hash: refreshHash, user_id: 1, token_family: 'fam-1', expires_at: futureDate }]]);  // session SELECT
-      const conn = mockSessionTxn([{ affectedRows: 0 }]);  // DELETE — concurrent redeem won
+      const conn = mockSessionTxn([{ affectedRows: 0 }]);  // claim — concurrent redeem won
 
       await expect(
         authService.switchOrganization(1, 7, refreshTokenValue),
@@ -781,32 +783,32 @@ describe('authService', () => {
   // logout
   // =========================================================================
   describe('logout', () => {
-    test('deletes session by refresh token hash', async () => {
-      db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
+    test('ends the whole sign-in: every row of the token\'s family', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 7, token_family: 'fam-1' }]])
+        .mockResolvedValueOnce([{ affectedRows: 3 }]);
 
       await authService.logout('some-refresh-token');
 
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM user_sessions'),
-        expect.any(Array),
-      );
+      expect(db.query).toHaveBeenLastCalledWith('DELETE FROM user_sessions WHERE token_family = ?', ['fam-1']);
     });
 
     test('completes without error even if no session found', async () => {
-      db.query.mockResolvedValueOnce([{ affectedRows: 0 }]);
+      db.query.mockResolvedValueOnce([[]]);
 
       await expect(authService.logout('expired-token')).resolves.not.toThrow();
+      expect(db.query).toHaveBeenCalledTimes(1);
     });
 
     test('uses SHA-256 hash of refresh token for lookup', async () => {
-      db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
+      db.query.mockResolvedValueOnce([[]]);
       const token = 'test-refresh-token-123';
       const expectedHash = crypto.createHash('sha256').update(token).digest('hex');
 
       await authService.logout(token);
 
       expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM user_sessions'),
+        expect.stringContaining('FROM user_sessions WHERE token_hash = ?'),
         [expectedHash],
       );
     });

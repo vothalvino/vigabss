@@ -22,7 +22,7 @@ jest.mock('../src/services/orgPrincipalService', () => ({
 }));
 
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const db = require('../src/config/database');
 const config = require('../src/config');
 const { resolveOrgPrincipal } = require('../src/services/orgPrincipalService');

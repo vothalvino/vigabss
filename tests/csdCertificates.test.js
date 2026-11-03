@@ -22,7 +22,7 @@ jest.mock('../src/models/CsdCertificate');
 jest.mock('../src/models/User');
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const CsdCertificate = require('../src/models/CsdCertificate');

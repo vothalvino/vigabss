@@ -28,7 +28,7 @@ jest.mock('../src/services/orgPrincipalService', () => ({
 }));
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const checkoutService = require('../src/services/checkoutService');

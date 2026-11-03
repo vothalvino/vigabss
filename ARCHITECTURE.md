@@ -172,7 +172,19 @@ SSE, and the browser WebSocket hub) uses `verifyStaffAccessToken`, which also
 rejects any token claiming the portal type or audience; `portalAuthenticate`
 uses `verifyPortalAccessToken`. Never verify an access JWT with a raw
 `jwt.verify(..., JWT_SECRET)` on a new surface: a `clients.id` must never be
-resolved as a `users.id`.
+resolved as a `users.id`. Staff tokens are minted only by
+`signStaffAccessToken` and carry `type: 'staff'`, `aud: vigabss-staff`,
+`iss: vigabss` and a `jti`; `verifyStaffAccessToken` requires all of them
+(SEC-23). Tests that sign staff tokens by hand use `tests/helpers/staffJwt.js`.
+Derive any other key from `JWT_SECRET` with HKDF and its own label, as the
+portal, MFA and WhatsApp-pepper keys do; never reuse the secret itself.
+
+Refresh tokens rotate on every use and a replay of a rotated one is treated as
+theft (migration 509). A rotated staff row is kept with `consumed_at` until it
+expires, and presenting it deletes its whole `token_family`; a rotated portal
+row has `rotated_at`, and presenting it revokes every portal session of the
+client. Logout ends the token's family. `GET /auth/sessions` lists the caller's
+live sign-ins and `DELETE /auth/sessions/:id` ends one.
 
 Both access-token classes carry a token version (`tv`): `users.token_version`
 for staff and `clients.portal_token_version` for the portal (migration 482).

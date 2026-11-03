@@ -4410,6 +4410,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     user_agent     VARCHAR(500)     NULL,
     expires_at     TIMESTAMP        NOT NULL,
     last_active_at TIMESTAMP        NULL,
+    consumed_at    TIMESTAMP        NULL     COMMENT 'Set when the refresh token was rotated; a replay revokes the family (migration 509)',
     created_at     TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
@@ -4431,6 +4432,7 @@ CREATE TABLE IF NOT EXISTS portal_refresh_tokens (
     token_hash  VARCHAR(64)     NOT NULL COMMENT 'SHA-256 hex of the opaque refresh token',
     expires_at  TIMESTAMP       NOT NULL,
     revoked_at  TIMESTAMP       NULL,
+    rotated_at  TIMESTAMP       NULL     COMMENT 'Set when the token was exchanged; a replay revokes every portal session (migration 509)',
     created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),

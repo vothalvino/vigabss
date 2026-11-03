@@ -82,7 +82,7 @@ process.env.RATE_LIMIT_API = '9999';
 process.env.RATE_LIMIT_TENANT_API = '9999';
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const securityService = require('../src/services/securityService');
 const app = require('../src/app');

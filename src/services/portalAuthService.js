@@ -186,7 +186,6 @@ async function refreshToken(token) {
      FROM portal_refresh_tokens prt
      JOIN clients c ON c.id = prt.client_id
      WHERE prt.token_hash = ?
-       AND prt.revoked_at IS NULL
        AND prt.expires_at > NOW()
        AND c.deleted_at IS NULL
      LIMIT 1`,
@@ -194,8 +193,16 @@ async function refreshToken(token) {
   ));
 
   if (rows.length === 0) throw new UnauthorizedError('Invalid or expired refresh token');
+  const row = rows[0];
+  if (row.rotated_at) {
+    // A token that was already exchanged is back (SEC-23): the subscriber or a
+    // thief holds a copy. End every portal session of the client.
+    await inScope(row.scopeOrgId, () => revokePortalSessions(row.client_id));
+    throw new UnauthorizedError('Invalid or expired refresh token');
+  }
+  if (row.revoked_at) throw new UnauthorizedError('Invalid or expired refresh token');
 
-  return inScope(rows[0].scopeOrgId, () => rotateRefreshToken(rows[0]));
+  return inScope(row.scopeOrgId, () => rotateRefreshToken(row));
 }
 
 async function rotateRefreshToken(row) {
@@ -224,7 +231,7 @@ async function rotateRefreshToken(row) {
   try {
     await conn.beginTransaction();
     const [claim] = await conn.execute(
-      'UPDATE portal_refresh_tokens SET revoked_at = NOW() WHERE id = ? AND revoked_at IS NULL',
+      'UPDATE portal_refresh_tokens SET revoked_at = NOW(), rotated_at = NOW() WHERE id = ? AND revoked_at IS NULL',
       [row.id],
     );
     if (!claim || claim.affectedRows === 0) {

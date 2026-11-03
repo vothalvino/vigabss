@@ -91,7 +91,7 @@ describe('auth middleware', () => {
     });
 
     test('rejects when JWT user is not found', async () => {
-      jwt.verify.mockReturnValue({ sub: 99 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 99 });
       User.findById.mockResolvedValueOnce(null);
 
       const { req, res, next } = mockReqRes({
@@ -108,7 +108,7 @@ describe('auth middleware', () => {
     });
 
     test('rejects when JWT user is inactive', async () => {
-      jwt.verify.mockReturnValue({ sub: 1 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 1 });
       User.findById.mockResolvedValueOnce({
         id: 1,
         email: 'user@example.com',
@@ -129,7 +129,7 @@ describe('auth middleware', () => {
     });
 
     test('succeeds on valid JWT and attaches req.user', async () => {
-      jwt.verify.mockReturnValue({ sub: 1 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 1 });
       User.findById.mockResolvedValueOnce({
         id: 1,
         email: 'user@example.com',
@@ -158,7 +158,7 @@ describe('auth middleware', () => {
     });
 
     test('is idempotent when a composed admin route applies auth twice', async () => {
-      jwt.verify.mockReturnValue({ sub: 1 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 1 });
       User.findById.mockResolvedValue({
         id: 1,
         email: 'user@example.com',
@@ -180,7 +180,7 @@ describe('auth middleware', () => {
     });
 
     test('uses orgId from JWT payload when present', async () => {
-      jwt.verify.mockReturnValue({ sub: 1, orgId: 77 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 1, orgId: 77 });
       User.findById.mockResolvedValueOnce({
         id: 1,
         email: 'user@example.com',
@@ -200,7 +200,7 @@ describe('auth middleware', () => {
     });
 
     test('falls back to user.organization_id when no orgId in payload', async () => {
-      jwt.verify.mockReturnValue({ sub: 1 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 1 });
       User.findById.mockResolvedValueOnce({
         id: 1,
         email: 'user@example.com',
@@ -220,7 +220,7 @@ describe('auth middleware', () => {
     });
 
     test('passes token string (without "Bearer ") to jwt.verify', async () => {
-      jwt.verify.mockReturnValue({ sub: 1 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 1 });
       User.findById.mockResolvedValueOnce({
         id: 1,
         email: 'a@b.com',
@@ -235,7 +235,7 @@ describe('auth middleware', () => {
 
       await authenticate(req, res, next);
 
-      expect(jwt.verify).toHaveBeenCalledWith('my-secret-token', 'test-jwt-secret', { algorithms: ['HS256'] });
+      expect(jwt.verify).toHaveBeenCalledWith('my-secret-token', 'test-jwt-secret', { algorithms: ['HS256'], audience: 'vigabss-staff', issuer: 'vigabss' });
     });
   });
 
@@ -244,7 +244,7 @@ describe('auth middleware', () => {
   // =========================================================================
   describe('authenticate – httpOnly cookie', () => {
     test('succeeds when JWT is provided via fireisp_access cookie', async () => {
-      jwt.verify.mockReturnValue({ sub: 1, orgId: 5 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 1, orgId: 5 });
       User.findById.mockResolvedValueOnce({
         id: 1,
         email: 'cookie@example.com',
@@ -259,7 +259,7 @@ describe('auth middleware', () => {
 
       await authenticate(req, res, next);
 
-      expect(jwt.verify).toHaveBeenCalledWith('cookie-jwt-token', 'test-jwt-secret', { algorithms: ['HS256'] });
+      expect(jwt.verify).toHaveBeenCalledWith('cookie-jwt-token', 'test-jwt-secret', { algorithms: ['HS256'], audience: 'vigabss-staff', issuer: 'vigabss' });
       expect(next).toHaveBeenCalledWith();
       expect(req.user).toMatchObject({ id: 1, email: 'cookie@example.com', organizationId: 5 });
     });
@@ -279,7 +279,7 @@ describe('auth middleware', () => {
     });
 
     test('Bearer header takes precedence over cookie when both are present', async () => {
-      jwt.verify.mockReturnValue({ sub: 1 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 1 });
       User.findById.mockResolvedValueOnce({
         id: 1,
         email: 'bearer@example.com',
@@ -296,12 +296,12 @@ describe('auth middleware', () => {
       await authenticate(req, res, next);
 
       // Must use the Bearer token string, not the cookie value
-      expect(jwt.verify).toHaveBeenCalledWith('bearer-wins', 'test-jwt-secret', { algorithms: ['HS256'] });
+      expect(jwt.verify).toHaveBeenCalledWith('bearer-wins', 'test-jwt-secret', { algorithms: ['HS256'], audience: 'vigabss-staff', issuer: 'vigabss' });
       expect(next).toHaveBeenCalledWith();
     });
 
     test('optionalAuth delegates to authenticate when only cookie is present', async () => {
-      jwt.verify.mockReturnValue({ sub: 2, orgId: 9 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 2, orgId: 9 });
       User.findById.mockResolvedValueOnce({
         id: 2,
         email: 'cookie-optional@example.com',
@@ -316,7 +316,7 @@ describe('auth middleware', () => {
 
       await optionalAuth(req, res, next);
 
-      expect(jwt.verify).toHaveBeenCalledWith('optional-cookie-jwt', 'test-jwt-secret', { algorithms: ['HS256'] });
+      expect(jwt.verify).toHaveBeenCalledWith('optional-cookie-jwt', 'test-jwt-secret', { algorithms: ['HS256'], audience: 'vigabss-staff', issuer: 'vigabss' });
       expect(next).toHaveBeenCalledWith();
       expect(req.user).toBeDefined();
     });
@@ -517,7 +517,7 @@ describe('auth middleware', () => {
     });
 
     test('delegates to authenticate when Bearer header present', async () => {
-      jwt.verify.mockReturnValue({ sub: 1 });
+      jwt.verify.mockReturnValue({ type: 'staff', sub: 1 });
       User.findById.mockResolvedValueOnce({
         id: 1,
         email: 'u@x.com',

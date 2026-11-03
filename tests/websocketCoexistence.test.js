@@ -39,7 +39,7 @@ jest.mock('../src/middleware/rbac', () => ({ userHasPermission: jest.fn(async ()
 
 const http = require('node:http');
 const WebSocket = require('ws');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const { TunnelServer, FIRERELAY_WS_PATH } = require('../src/services/firerelayTunnel');
 const { WsHub, BROWSER_WS_PATH } = require('../src/services/wsHub');
 
