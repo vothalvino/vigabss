@@ -811,8 +811,15 @@ async function runAlertEvaluation(organizationId = null) {
     typeof db.withTenantContext === 'function' ? db.withTenantContext(orgId, callback) : callback()
   );
 
+  // Evaluate, then climb the escalation chains of alerts still unacknowledged
+  // (TNA-40).
+  const evaluateAndEscalate = async (orgId) => {
+    const result = await alertService.evaluateAlerts(orgId);
+    return { ...result, escalated: await alertService.advanceEscalations(orgId) };
+  };
+
   if (organizationId !== null && organizationId !== undefined) {
-    return withTenant(Number(organizationId), () => alertService.evaluateAlerts(Number(organizationId)));
+    return withTenant(Number(organizationId), () => evaluateAndEscalate(Number(organizationId)));
   }
 
   const [organizations] = await withPrimary(() => db.query(
@@ -831,6 +838,7 @@ async function runAlertEvaluation(organizationId = null) {
     evaluated: 0,
     triggered: 0,
     suppressed: 0,
+    escalated: 0,
     alerts: [],
     failures: [],
   };
@@ -838,7 +846,7 @@ async function runAlertEvaluation(organizationId = null) {
   for (const organization of organizations) {
     const orgId = Number(organization.id);
     try {
-      const evaluate = () => alertService.evaluateAlerts(orgId);
+      const evaluate = () => evaluateAndEscalate(orgId);
       const result = organization.database_scope === 'isolated'
         ? await withTenant(orgId, evaluate)
         : await withPrimary(evaluate);
@@ -846,6 +854,7 @@ async function runAlertEvaluation(organizationId = null) {
       summary.evaluated += Number(result?.evaluated || 0);
       summary.triggered += Number(result?.triggered || 0);
       summary.suppressed += Number(result?.suppressed || 0);
+      summary.escalated += Number(result?.escalated || 0);
       if (Array.isArray(result?.alerts)) {
         summary.alerts.push(...result.alerts.map(alert => ({ organization_id: orgId, ...alert })));
       }

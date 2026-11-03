@@ -88,6 +88,7 @@ jest.mock('../src/services/checkoutService', () => ({
 
 jest.mock('../src/services/alertService', () => ({
   evaluateAlerts: jest.fn(),
+  advanceEscalations: jest.fn(async () => 0),
 }));
 
 jest.mock('../src/services/retentionService', () => ({
@@ -364,9 +365,13 @@ describe('taskRunner', () => {
         .mockResolvedValueOnce({ evaluated: 2, triggered: 1, suppressed: 0, alerts: [{ rule_id: 1 }] })
         .mockResolvedValueOnce({ evaluated: 3, triggered: 0, suppressed: 1, alerts: [] });
 
+      alertService.advanceEscalations.mockResolvedValueOnce(2).mockResolvedValueOnce(1);
+
       const result = await taskRunner.runTask('alert_evaluation');
 
       expect(alertService.evaluateAlerts.mock.calls).toEqual([[11], [22]]);
+      // TNA-40: escalation chains climb in each organization's own scope.
+      expect(alertService.advanceEscalations.mock.calls).toEqual([[11], [22]]);
       expect(db.withPrimaryContext).toHaveBeenCalled();
       expect(db.withTenantContext).toHaveBeenCalledTimes(1);
       expect(db.withTenantContext).toHaveBeenCalledWith(22, expect.any(Function));
@@ -377,6 +382,7 @@ describe('taskRunner', () => {
         evaluated: 5,
         triggered: 1,
         suppressed: 1,
+        escalated: 3,
       }));
       expect(result.alerts[0]).toEqual(expect.objectContaining({ organization_id: 11, rule_id: 1 }));
     });

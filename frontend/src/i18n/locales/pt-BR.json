@@ -1,4 +1,15 @@
 {
+  "notApplied": {
+    "badge": "Ainda não aplicado",
+    "backupSchedules": "Os agendamentos são registrados, mas ainda não são aplicados: o backup noturno de configuração é executado para todos os equipamentos elegíveis, seja qual for a configuração aqui.",
+    "dataMasking": "As regras de mascaramento são registradas, mas ainda não são aplicadas: telas, respostas da API e exportações mostram estes campos sem máscara.",
+    "billingAdjustments": "Os ajustes são anotações: registrar um não altera uma fatura, um pagamento nem o saldo do cliente. Use uma nota de crédito ou um pagamento para alterar o valor devido."
+  },
+  "alertRulesTab": {
+    "escalationChain": "Cadeia de escalonamento",
+    "noEscalation": "Sem escalonamento",
+    "escalationHint": "Enquanto o alerta não for reconhecido, cada etapa da cadeia avisa seu contato após o seu atraso."
+  },
   "deviceForm": {
     "trapCommunity": "Comunidade de traps",
     "trapCommunityHint": "Somente se o equipamento enviar traps com outra comunidade. Os traps devem trazer esta comunidade (ou a de cima); os demais são descartados.",
@@ -6626,12 +6637,10 @@
     "stats": "{{views}} visualizações · {{helpful}} acharam útil"
   },
   "portalSpeedTest": {
-    "queueFailed": "Não foi possível agendar o teste de velocidade. Tente novamente.",
     "title": "Teste de Velocidade",
-    "subtitle": "Teste a velocidade da sua conexão e veja o histórico",
-    "queued": "Teste agendado! Os resultados aparecerão abaixo ao terminar (geralmente em até 30 segundos).",
-    "queuing": "Agendando…",
-    "run": "Iniciar Teste",
+    "unavailableBadge": "Ainda não disponível",
+    "unavailable": "Ainda não é possível iniciar um teste de velocidade pelo portal. Fale com o suporte se a sua conexão parecer lenta.",
+    "subtitle": "Histórico de testes de velocidade da sua conexão",
     "latest": "Último Resultado",
     "mbpsDown": "Mbps de Download",
     "mbpsUp": "Mbps de Upload",
@@ -6639,7 +6648,7 @@
     "tested": "Testado: {{date}}",
     "history": "Histórico de Testes",
     "refresh": "Atualizar",
-    "none": "Nenhum teste ainda. Faça seu primeiro teste acima.",
+    "none": "Nenhum teste ainda.",
     "date": "Data",
     "status": "Status",
     "down": "Download",

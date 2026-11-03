@@ -3,6 +3,8 @@
 // =============================================================================
 // VigaBSS 5.0 — DHCP Servers + Static Reservations Routes (§5 Dual Stack)
 // =============================================================================
+// Reservations are records only: nothing pushes them to a DHCP server or
+// router yet (TNA-40), and the API says so (meta.applied_to_server: false).
 
 const { Router } = require('express');
 const db = require('../config/database');
@@ -131,7 +133,7 @@ router.get('/:id/reservations', requirePermission('dhcp_reservations.view'), asy
       `SELECT * FROM dhcp_static_reservations WHERE dhcp_server_id = ? AND organization_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${limitNum} OFFSET ${offset}`,
       [req.params.id, req.orgId],
     );
-    res.json({ data: rows, meta: { total, page: pageNum, limit: limitNum } });
+    res.json({ data: rows, meta: { total, page: pageNum, limit: limitNum, applied_to_server: false } });
   } catch (err) { next(err); }
 });
 
@@ -151,7 +153,7 @@ router.post('/:id/reservations', requirePermission('dhcp_reservations.create'), 
       values,
     );
     const [rows] = await db.query('SELECT * FROM dhcp_static_reservations WHERE id = ?', [result.insertId]);
-    res.status(201).json({ data: rows[0] });
+    res.status(201).json({ data: rows[0], meta: { applied_to_server: false } });
   } catch (err) { next(err); }
 });
 

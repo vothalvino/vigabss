@@ -74,6 +74,7 @@ const portalAuthService = require('../services/portalAuthService');
 const checkoutService = require('../services/checkoutService');
 const db = require('../config/database');
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const { speedTestJobsUnavailable } = require('../utils/speedTestAvailability');
 const dataPackService = require('../services/dataPackService');
 const portalServiceRequestService = require('../services/portalServiceRequestService');
 const privacyNoticeService = require('../services/privacyNoticeService');
@@ -1277,47 +1278,11 @@ router.post('/kb/:slugOrId/rate', validate(kbRateSchema, { strip: false }), asyn
   }
 });
 
-// POST /portal/speed-test — queue a speed test job for this client
-router.post('/speed-test', async (req, res, next) => {
-  try {
-    const [contracts] = await db.query(
-      `SELECT id, organization_id FROM contracts
-       WHERE client_id = ? AND organization_id <=> ? AND status = 'active' AND deleted_at IS NULL
-       LIMIT 1`,
-      [req.client.id, req.client.organizationId],
-    );
-    if (!contracts[0]) throw new ValidationError('No active contract found');
-
-    // Pick an available test server for this org (or any global one)
-    const [servers] = await db.query(
-      `SELECT id FROM bandwidth_test_servers
-       WHERE (organization_id = ? OR organization_id IS NULL)
-         AND is_active = 1 AND deleted_at IS NULL
-       LIMIT 1`,
-      [req.client.organizationId],
-    );
-
-    const [result] = await db.query(
-      `INSERT INTO subscriber_speed_test_jobs
-         (organization_id, contract_id, test_server_id, requested_by, scheduled_at, status)
-       VALUES (?, ?, ?, 'client_portal', NOW(), 'queued')`,
-      [
-        contracts[0].organization_id,
-        contracts[0].id,
-        servers[0] ? servers[0].id : null,
-      ],
-    );
-
-    res.status(201).json({
-      data: {
-        job_id: result.insertId,
-        status: 'queued',
-        message: 'Speed test has been queued. Results will be available shortly.',
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
+// POST /portal/speed-test — speed tests cannot be run yet (TNA-40): no
+// runner exists, so a queued job never completed while the reply promised
+// results "shortly". Refused until a runner ships; past results still list.
+router.post('/speed-test', (_req, _res, next) => {
+  next(speedTestJobsUnavailable());
 });
 
 // GET /portal/speed-test/results — list speed test results for this client

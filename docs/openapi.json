@@ -402,7 +402,7 @@
     },
     {
       "name": "DHCP Servers",
-      "description": "DHCP server integrations (ISC Kea, MikroTik) and static reservations — §5.1"
+      "description": "DHCP server integrations (ISC Kea, MikroTik) and static reservations — §5.1. Reservations are records only: they are not pushed to the DHCP server or router (TNA-40)."
     },
     {
       "name": "NAT Management",
@@ -32243,7 +32243,7 @@
         "tags": [
           "DHCP Servers"
         ],
-        "summary": "Create a static DHCP reservation",
+        "summary": "Record a static DHCP reservation (not pushed to the server)",
         "operationId": "createDhcpReservation",
         "security": [
           {
@@ -45486,7 +45486,8 @@
         "tags": [
           "Subscriber Speed Test Jobs"
         ],
-        "summary": "Schedule a subscriber speed test job",
+        "summary": "Schedule a subscriber speed test job (not available yet)",
+        "description": "No speed-test runner exists yet, so after validating the contract and server this answers 501 SPEED_TEST_UNAVAILABLE instead of queuing a job that would never complete (TNA-40).",
         "operationId": "createSubscriberSpeedTestJob",
         "security": [
           {
@@ -45510,6 +45511,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "No speed-test runner is installed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -46914,7 +46942,8 @@
         "tags": [
           "Portal Support"
         ],
-        "summary": "Queue a speed test job for this subscriber",
+        "summary": "Queue a speed test job for this subscriber (not available yet)",
+        "description": "No speed-test runner exists yet: answers 501 SPEED_TEST_UNAVAILABLE (TNA-40). Past results stay available from /portal/speed-test/results.",
         "operationId": "portalQueueSpeedTest",
         "security": [
           {
@@ -46922,12 +46951,29 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": "SpeedTestJob",
+          "501": {
+            "description": "No speed-test runner is installed",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -61213,6 +61259,10 @@
           "auto_create_ticket": {
             "type": "boolean"
           },
+          "escalation_chain_id": {
+            "type": "number",
+            "minimum": 1
+          },
           "is_enabled": {
             "type": "boolean"
           }
@@ -61301,6 +61351,10 @@
           },
           "auto_create_ticket": {
             "type": "boolean"
+          },
+          "escalation_chain_id": {
+            "type": "number",
+            "minimum": 1
           },
           "is_enabled": {
             "type": "boolean"

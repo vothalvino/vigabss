@@ -1,4 +1,15 @@
 {
+  "notApplied": {
+    "badge": "Not applied yet",
+    "backupSchedules": "Schedules are recorded but not applied yet: the nightly configuration backup runs for every eligible device, whatever is set here.",
+    "dataMasking": "Masking rules are recorded but not enforced yet: screens, API responses and exports show these fields unmasked.",
+    "billingAdjustments": "Adjustments are notes: recording one does not change an invoice, a payment or the client balance. Use a credit note or a payment to change what is owed."
+  },
+  "alertRulesTab": {
+    "escalationChain": "Escalation chain",
+    "noEscalation": "No escalation",
+    "escalationHint": "While the alert stays unacknowledged, each step of the chain notifies its contact after its delay."
+  },
   "deviceForm": {
     "trapCommunity": "Trap community",
     "trapCommunityHint": "Only if the device sends traps with a different community. Traps must carry this community (or the community above); others are dropped.",
@@ -6632,12 +6643,10 @@
     "stats": "{{views}} views · {{helpful}} found helpful"
   },
   "portalSpeedTest": {
-    "queueFailed": "Failed to queue speed test. Please try again.",
     "title": "Speed Test",
-    "subtitle": "Test your connection speed and view history",
-    "queued": "Speed test queued! Results will appear below once complete (usually within 30 seconds).",
-    "queuing": "Queuing…",
-    "run": "Run Speed Test",
+    "unavailableBadge": "Not available yet",
+    "unavailable": "Running a speed test from the portal is not available yet. Contact support if your connection seems slow.",
+    "subtitle": "Your connection speed test history",
     "latest": "Latest Result",
     "mbpsDown": "Mbps Down",
     "mbpsUp": "Mbps Up",
@@ -6645,7 +6654,7 @@
     "tested": "Tested: {{date}}",
     "history": "Test History",
     "refresh": "Refresh",
-    "none": "No speed tests yet. Run your first test above.",
+    "none": "No speed tests yet.",
     "date": "Date",
     "status": "Status",
     "down": "Down",

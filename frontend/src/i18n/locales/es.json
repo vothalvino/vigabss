@@ -1,4 +1,15 @@
 {
+  "notApplied": {
+    "badge": "Aún no se aplica",
+    "backupSchedules": "Los horarios se guardan pero aún no se aplican: el respaldo nocturno de configuración se ejecuta para todos los equipos elegibles, sin importar lo que se configure aquí.",
+    "dataMasking": "Las reglas de enmascaramiento se guardan pero aún no se aplican: las pantallas, las respuestas de la API y las exportaciones muestran estos campos sin enmascarar.",
+    "billingAdjustments": "Los ajustes son notas: registrar uno no cambia una factura, un pago ni el saldo del cliente. Usa una nota de crédito o un pago para cambiar lo que se debe."
+  },
+  "alertRulesTab": {
+    "escalationChain": "Cadena de escalamiento",
+    "noEscalation": "Sin escalamiento",
+    "escalationHint": "Mientras la alerta no se reconozca, cada paso de la cadena avisa a su contacto tras su retraso."
+  },
   "deviceForm": {
     "trapCommunity": "Comunidad de traps",
     "trapCommunityHint": "Solo si el equipo envía traps con otra comunidad. Los traps deben traer esta comunidad (o la de arriba); los demás se descartan.",
@@ -6626,12 +6637,10 @@
     "stats": "{{views}} vistas · a {{helpful}} les resultó útil"
   },
   "portalSpeedTest": {
-    "queueFailed": "No se pudo programar la prueba de velocidad. Inténtalo de nuevo.",
     "title": "Prueba de Velocidad",
-    "subtitle": "Mide la velocidad de tu conexión y consulta el historial",
-    "queued": "¡Prueba programada! Los resultados aparecerán abajo al terminar (normalmente en unos 30 segundos).",
-    "queuing": "Programando…",
-    "run": "Iniciar Prueba",
+    "unavailableBadge": "Aún no disponible",
+    "unavailable": "Todavía no es posible iniciar una prueba de velocidad desde el portal. Contacta a soporte si tu conexión parece lenta.",
+    "subtitle": "Historial de pruebas de velocidad de tu conexión",
     "latest": "Último Resultado",
     "mbpsDown": "Mbps de Bajada",
     "mbpsUp": "Mbps de Subida",
@@ -6639,7 +6648,7 @@
     "tested": "Probado: {{date}}",
     "history": "Historial de Pruebas",
     "refresh": "Actualizar",
-    "none": "Aún no hay pruebas. Inicia tu primera prueba arriba.",
+    "none": "Aún no hay pruebas.",
     "date": "Fecha",
     "status": "Estado",
     "down": "Bajada",

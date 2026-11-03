@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
+import { NotAppliedNotice } from '@/components/NotAppliedNotice';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
@@ -164,6 +165,7 @@ export function ConfigBackupScheduleList() {
           + {t('config_backup_schedules.new')}
         </button>
       </div>
+      <NotAppliedNotice detail={t('notApplied.backupSchedules')} />
 
       {feedback && (
         <div style={{ padding: '0.6rem 1rem', borderRadius: 6, marginBottom: '1rem', background: feedback.type === 'ok' ? '#d1fae5' : '#fee2e2', color: feedback.type === 'ok' ? '#065f46' : '#991b1b', fontSize: '0.85rem' }}>

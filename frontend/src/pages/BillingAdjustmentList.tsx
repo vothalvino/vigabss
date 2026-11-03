@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
+import { NotAppliedNotice } from '@/components/NotAppliedNotice';
 import { api } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
@@ -220,6 +221,7 @@ export function BillingAdjustmentList() {
           </button>
         )}
       </div>
+      <NotAppliedNotice detail={t('notApplied.billingAdjustments')} />
 
       <div style={styles.tableCard}>
         {isLoading ? (

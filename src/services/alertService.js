@@ -143,6 +143,11 @@ async function evaluateAlerts(organizationId) {
             rule,
             breach: breached,
           });
+          // A new episode starts the rule's escalation chain; advanceEscalations
+          // climbs the later steps while it stays unacknowledged (TNA-40).
+          if (rule.escalation_chain_id) {
+            await triggerEscalation(insertedEventId, rule.escalation_chain_id, 1, organizationId);
+          }
         }
 
         // Auto-create outage if configured
@@ -628,24 +633,76 @@ async function checkFlapping(ruleId) {
 }
 
 /**
- * Trigger an escalation step for an alert event.
+ * Trigger an escalation step for an alert event. The chain must belong to the
+ * event's organization, and a step is taken at most once: the event is moved
+ * to it only from an earlier step.
+ *
+ * @returns {Promise<boolean>} whether the step was taken
  */
-async function triggerEscalation(alertEventId, escalationChainId, stepNumber) {
+async function triggerEscalation(alertEventId, escalationChainId, stepNumber, organizationId) {
+  if (!organizationId) {
+    logger.warn({ alertEventId, escalationChainId }, 'Escalation without an organization; skipped');
+    return false;
+  }
   const [steps] = await db.query(
-    'SELECT * FROM alert_escalation_steps WHERE chain_id = ? AND step_number = ?',
-    [escalationChainId, stepNumber],
+    `SELECT s.*
+       FROM alert_escalation_steps s
+       JOIN alert_escalation_chains c
+         ON c.id = s.chain_id AND c.organization_id = ? AND c.deleted_at IS NULL
+      WHERE s.chain_id = ? AND s.step_number = ?`,
+    [organizationId, escalationChainId, stepNumber],
   );
-  if (!steps.length) return;
+  if (!steps.length) return false;
   const step = steps[0];
+  const [moved] = await db.query(
+    `UPDATE alert_events SET escalation_step = ?, escalated_at = NOW()
+      WHERE id = ? AND organization_id = ? AND escalation_step < ?`,
+    [stepNumber, alertEventId, organizationId, stepNumber],
+  );
+  if (!moved.affectedRows) return false;
   logger.info(
     { alertEventId, escalationChainId, stepNumber, channel: step.notification_channel },
     'Alert escalation triggered',
   );
-  await db.query(
-    'UPDATE alert_events SET escalation_step = ?, escalated_at = NOW() WHERE id = ?',
-    [stepNumber, alertEventId],
-  );
   eventBus.emit('alert.escalated', { alertEventId, escalationChainId, stepNumber, step });
+  return true;
+}
+
+/**
+ * Climb escalation chains (TNA-40). An alert still 'triggered' (neither
+ * acknowledged nor resolved) moves to its chain's next step once that step's
+ * delay_minutes have passed since the previous one. Run by the scheduled
+ * alert_evaluation task after evaluateAlerts.
+ *
+ * @returns {Promise<number>} steps taken
+ */
+async function advanceEscalations(organizationId) {
+  const [due] = await db.query(
+    `SELECT ae.id, r.escalation_chain_id, s.step_number
+       FROM alert_events ae
+       JOIN alert_rules r
+         ON r.id = ae.alert_rule_id AND r.organization_id = ae.organization_id AND r.deleted_at IS NULL
+       JOIN alert_escalation_chains c
+         ON c.id = r.escalation_chain_id AND c.organization_id = ae.organization_id AND c.deleted_at IS NULL
+       JOIN alert_escalation_steps s
+         ON s.chain_id = c.id AND s.step_number = ae.escalation_step + 1
+      WHERE ae.organization_id = ?
+        AND ae.status = 'triggered' AND ae.suppressed = 0
+        AND ae.escalation_step >= 1
+        AND ae.escalated_at <= NOW() - INTERVAL s.delay_minutes MINUTE
+      ORDER BY ae.id
+      LIMIT 200`,
+    [organizationId],
+  );
+  let taken = 0;
+  for (const row of due) {
+    try {
+      if (await triggerEscalation(row.id, row.escalation_chain_id, row.step_number, organizationId)) taken += 1;
+    } catch (err) {
+      logger.error({ err, alertEventId: row.id }, 'Alert escalation step failed');
+    }
+  }
+  return taken;
 }
 
 /**
@@ -715,7 +772,7 @@ async function evaluateAlertsV2(organizationId) {
 
       // Escalation
       if (rule.escalation_chain_id) {
-        await triggerEscalation(eventId, rule.escalation_chain_id, 1);
+        await triggerEscalation(eventId, rule.escalation_chain_id, 1, organizationId);
       }
     } catch (err) {
       logger.error({ err, ruleId: rule.id }, 'Alert rule v2 evaluation failed');
@@ -734,6 +791,7 @@ async function evaluateAlertsV2(organizationId) {
 module.exports = {
   evaluateAlerts, checkRule, getAlertHistory, acknowledgeAlert, autoCreateTicket,
   isInMaintenanceWindow, activeMaintenanceWindowId, expireMaintenanceWindows, isSuppressedByCorrelation, checkFlapping, triggerEscalation,
+  advanceEscalations,
   evaluateAlertsV2, getActiveAlerts,
   // Exported so other services building a dynamic `snmp_metrics.<column>`
   // reference (e.g. automationService's remediation-rule engine) validate

@@ -410,11 +410,13 @@ describe('POST /subscriber-speed-test-jobs verifies body references in req.orgId
     expect(writesTo('subscriber_speed_test_jobs')).toEqual([]);
   });
 
-  test('an own contract with a global test server is accepted in req.orgId', async () => {
+  test('an own contract with a global test server passes the reference checks', async () => {
     const res = await staff('post', '/api/v1/subscriber-speed-test-jobs').send({ contract_id: 31, test_server_id: 73 });
-    expect(res.status).toBe(201);
-    const [insert] = writesTo('subscriber_speed_test_jobs');
-    expect(insert.params.slice(0, 3)).toEqual([ORG_A, 31, 73]);
+    // The references are valid, but no speed-test runner exists, so the job
+    // is refused rather than queued forever (TNA-40).
+    expect(res.status).toBe(501);
+    expect(res.body.error.code).toBe('SPEED_TEST_UNAVAILABLE');
+    expect(writesTo('subscriber_speed_test_jobs')).toEqual([]);
   });
 });
 
