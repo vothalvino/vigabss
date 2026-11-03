@@ -33,6 +33,8 @@ const REVIEWED = {
   'POST /auth/change-password': 'the caller\'s own account',
   'POST /auth/verify-email/resend': 'the caller\'s own account',
   'POST /auth/switch-organization': 'membership is checked by the handler',
+  'GET /auth/sessions': 'the caller\'s own sessions',
+  'DELETE /auth/sessions/:id': 'the caller\'s own sessions; the query is keyed by user_id',
   'GET /2fa/status': 'the caller\'s own account',
   'POST /2fa/setup': 'the caller\'s own account',
   'POST /2fa/verify': 'the caller\'s own account',

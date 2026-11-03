@@ -25,7 +25,7 @@ jest.mock('../src/models/PaymentGateway');
 jest.mock('../src/models/User');
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const PaymentGateway = require('../src/models/PaymentGateway');
 const User = require('../src/models/User');

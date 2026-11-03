@@ -81,6 +81,7 @@ router.get('/tax-reports',
            FROM credit_notes cn
            LEFT JOIN clients cl ON cl.id = cn.client_id
            LEFT JOIN cfdi_documents cd ON cd.credit_note_id = cn.id
+                                    AND cd.pac_environment = 'production'
            WHERE cn.organization_id = ?
              AND cn.deleted_at IS NULL
              ${from ? 'AND DATE(cn.created_at) >= ?' : ''}
@@ -90,7 +91,8 @@ router.get('/tax-reports',
         );
         rows = results;
       } else {
-        // Default: invoices
+        // Default: invoices. Only production CFDIs carry a fiscal UUID here;
+        // a sandbox UUID looks real but SAT never saw it (CFD-13).
         const [results] = await db.query(
           `SELECT i.id, i.invoice_number, i.subtotal, i.tax_amount, i.total,
                   i.currency, i.status, i.created_at, i.due_date, i.paid_at,
@@ -100,6 +102,7 @@ router.get('/tax-reports',
            FROM invoices i
            LEFT JOIN clients cl ON cl.id = i.client_id
            LEFT JOIN cfdi_documents cd ON cd.invoice_id = i.id
+                                    AND cd.pac_environment = 'production'
            WHERE i.organization_id = ?
              AND i.deleted_at IS NULL
              ${from ? 'AND DATE(i.created_at) >= ?' : ''}

@@ -41,7 +41,7 @@ jest.mock('../src/services/inventorySerialService', () => ({
 }));
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const suspensionService = require('../src/services/suspensionService');

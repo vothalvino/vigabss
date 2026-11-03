@@ -18,6 +18,7 @@ const API_BASE = '/api/v1/portal';
 
 interface PrivacyNotice {
   version: string;
+  hash: string;
   content: string;
   accepted: boolean;
   accepted_at: string | null;
@@ -32,8 +33,8 @@ async function portalFetch<T>(path: string, opts: RequestInit = {}): Promise<T> 
     },
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { error?: { message?: string } };
-    throw new Error(body?.error?.message || 'Request failed');
+    const body = await res.json().catch(() => ({})) as { error?: { code?: string; message?: string } };
+    throw Object.assign(new Error(body?.error?.message || 'Request failed'), { code: body?.error?.code });
   }
   return res.json() as Promise<T>;
 }
@@ -47,10 +48,21 @@ export function PortalPrivacy() {
     queryFn: () => portalFetch<{ data: PrivacyNotice }>('/privacy-notice'),
   });
 
+  // Acceptance names the text on screen; if the notice changed meanwhile the
+  // server refuses it and the current text is loaded instead.
   const accept = useMutation({
-    mutationFn: () => portalFetch('/privacy-notice/accept', { method: 'POST' }),
+    mutationFn: (shown: PrivacyNotice) => portalFetch('/privacy-notice/accept', {
+      method: 'POST',
+      body: JSON.stringify({ version: shown.version, hash: shown.hash }),
+    }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-privacy-notice'] }),
+    onError: (err: unknown) => {
+      if ((err as { code?: string })?.code === 'PRIVACY_NOTICE_CHANGED') {
+        qc.invalidateQueries({ queryKey: ['portal-privacy-notice'] });
+      }
+    },
   });
+  const noticeChanged = (accept.error as { code?: string } | null)?.code === 'PRIVACY_NOTICE_CHANGED';
 
   if (notice.isLoading) return <p>{t('common.loading')}</p>;
   if (notice.isError || !notice.data) return <p>{t('portalPrivacy.loadError')}</p>;
@@ -71,14 +83,16 @@ export function PortalPrivacy() {
             <span style={styles.pending}>{t('portalPrivacy.pendingPrompt')}</span>
             <button
               style={styles.acceptBtn}
-              onClick={() => accept.mutate()}
+              onClick={() => accept.mutate(n)}
               disabled={accept.isPending}
             >
               {accept.isPending ? t('common.saving') : t('portalPrivacy.acceptButton')}
             </button>
           </>
         )}
-        {accept.isError && <span style={styles.error}>{t('portalPrivacy.acceptError')}</span>}
+        {accept.isError && (
+          <span style={styles.error}>{t(noticeChanged ? 'portalPrivacy.noticeChanged' : 'portalPrivacy.acceptError')}</span>
+        )}
       </div>
 
       <Suspense fallback={<p>{t('common.loading')}</p>}>

@@ -27,7 +27,7 @@ jest.mock('../src/services/quotaService', () => ({
 }));
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const User = require('../src/models/User');

@@ -4410,6 +4410,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     user_agent     VARCHAR(500)     NULL,
     expires_at     TIMESTAMP        NOT NULL,
     last_active_at TIMESTAMP        NULL,
+    consumed_at    TIMESTAMP        NULL     COMMENT 'Set when the refresh token was rotated; a replay revokes the family (migration 509)',
     created_at     TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
@@ -4431,6 +4432,7 @@ CREATE TABLE IF NOT EXISTS portal_refresh_tokens (
     token_hash  VARCHAR(64)     NOT NULL COMMENT 'SHA-256 hex of the opaque refresh token',
     expires_at  TIMESTAMP       NOT NULL,
     revoked_at  TIMESTAMP       NULL,
+    rotated_at  TIMESTAMP       NULL     COMMENT 'Set when the token was exchanged; a replay revokes every portal session (migration 509)',
     created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
@@ -13469,6 +13471,28 @@ CREATE TABLE IF NOT EXISTS custom_reports (
   COMMENT='User-defined custom report definitions (§15.5)';
 
 -- ---------------------------------------------------------------------------
+-- Table: privacy_notice_versions (migration 510 — REG-11)
+-- Purpose: Every privacy notice text served to subscribers, kept as consent
+--          evidence. Written on first serve; never updated or deleted.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS privacy_notice_versions (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    organization_id  BIGINT UNSIGNED NOT NULL,
+    version          VARCHAR(20)     NOT NULL,
+    content          MEDIUMTEXT      NOT NULL,
+    sha256           CHAR(64)        NOT NULL COMMENT 'SHA-256 of content; what consents and signed choices record',
+    source           ENUM('org','bundled') NOT NULL COMMENT 'org = organization-authored text; bundled = filled template',
+    first_served_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_privacy_notice_versions_org_sha (organization_id, sha256),
+    KEY idx_privacy_notice_versions_org_version (organization_id, version),
+    CONSTRAINT fk_privacy_notice_versions_org
+        FOREIGN KEY (organization_id) REFERENCES organizations (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Every privacy notice text served to subscribers, kept as consent evidence (REG-11)';
+
+-- ---------------------------------------------------------------------------
 -- Table: subscriber_consents (migration 314 — §16.2)
 -- Purpose: Aviso de Privacidad consent tracking per subscriber.
 -- ---------------------------------------------------------------------------
@@ -13498,6 +13522,8 @@ CREATE TABLE IF NOT EXISTS subscriber_consents (
     captured_by     BIGINT UNSIGNED NULL
                          COMMENT 'Staff user who recorded the subscriber choice; NULL for self-service/system capture',
     document_hash   VARCHAR(64)     NULL COMMENT 'SHA-256 of the privacy notice version',
+    privacy_notice_version_id BIGINT UNSIGNED NULL
+                         COMMENT 'The archived notice text this consent accepted (migration 510)',
     notes           TEXT            NULL,
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -13511,6 +13537,7 @@ CREATE TABLE IF NOT EXISTS subscriber_consents (
     KEY idx_subscriber_consents_work_order (work_order_id),
     KEY idx_subscriber_consents_signed_document (signed_document_id),
     KEY idx_subscriber_consents_captured_by (captured_by),
+    KEY idx_subscriber_consents_notice_version (privacy_notice_version_id),
     CONSTRAINT fk_sub_consents_organization FOREIGN KEY (organization_id)
         REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_sub_consents_client FOREIGN KEY (client_id)
@@ -13520,7 +13547,9 @@ CREATE TABLE IF NOT EXISTS subscriber_consents (
     CONSTRAINT fk_sub_consents_work_order FOREIGN KEY (work_order_id)
         REFERENCES work_orders (id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_sub_consents_captured_by FOREIGN KEY (captured_by)
-        REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
+        REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_subscriber_consents_notice_version FOREIGN KEY (privacy_notice_version_id)
+        REFERENCES privacy_notice_versions (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Aviso de Privacidad consent tracking per subscriber (§16.2)';
 

@@ -16,7 +16,7 @@
 // =============================================================================
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const fs = require('fs');
 const path = require('path');
 

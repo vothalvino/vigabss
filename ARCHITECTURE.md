@@ -172,7 +172,19 @@ SSE, and the browser WebSocket hub) uses `verifyStaffAccessToken`, which also
 rejects any token claiming the portal type or audience; `portalAuthenticate`
 uses `verifyPortalAccessToken`. Never verify an access JWT with a raw
 `jwt.verify(..., JWT_SECRET)` on a new surface: a `clients.id` must never be
-resolved as a `users.id`.
+resolved as a `users.id`. Staff tokens are minted only by
+`signStaffAccessToken` and carry `type: 'staff'`, `aud: vigabss-staff`,
+`iss: vigabss` and a `jti`; `verifyStaffAccessToken` requires all of them
+(SEC-23). Tests that sign staff tokens by hand use `tests/helpers/staffJwt.js`.
+Derive any other key from `JWT_SECRET` with HKDF and its own label, as the
+portal, MFA and WhatsApp-pepper keys do; never reuse the secret itself.
+
+Refresh tokens rotate on every use and a replay of a rotated one is treated as
+theft (migration 509). A rotated staff row is kept with `consumed_at` until it
+expires, and presenting it deletes its whole `token_family`; a rotated portal
+row has `rotated_at`, and presenting it revokes every portal session of the
+client. Logout ends the token's family. `GET /auth/sessions` lists the caller's
+live sign-ins and `DELETE /auth/sessions/:id` ends one.
 
 Both access-token classes carry a token version (`tv`): `users.token_version`
 for staff and `clients.portal_token_version` for the portal (migration 482).
@@ -384,6 +396,11 @@ that inevitably fail, but they never replace server-side authorization.
 Most models extend `src/models/BaseModel.js`:
 
 - `fillable` is an allowlist for insert/update and silently omits unknown keys.
+  List filters accept `fillable`, `filterableColumns`, `id` and
+  `organization_id`; a service-managed `status` is listed in
+  `filterableColumns`, never assumed (DB-06).
+  `tests/modelSchemaContract.test.js` checks fillable, filterable,
+  `hasOrgScope`, `softDelete` and `status` against `database/schema.sql`.
 - `hasOrgScope` adds the `organization_id` predicate to every generic method,
   and an omitted or `null` organization throws instead of dropping it
   (TNB-34). An install-wide caller passes `BaseModel.UNSCOPED` explicitly
@@ -446,6 +463,14 @@ inserts the note) post at creation. A posted note cannot return to draft,
 Egreso is refused until the CFDI is cancelled. `billing_adjustments` is an
 audit record and feeds no balance.
 
+The organization's switch (`organization_mx_profiles.pac_environment`) picks
+the PAC rows that stamp; each CFDI records the environment that stamped it in
+`cfdi_documents.pac_environment`, and cancellation uses PAC rows of that
+environment, not the current switch (CFD-13). A sandbox CFDI was never
+registered at SAT: it does not block voiding its invoice and its UUID stays
+out of `/billing/tax-reports`. `GET /pac-providers/environment` reports
+`sandbox_vigente_count` so the switch to production can warn about them.
+
 A succeeded gateway capture is money like any other payment:
 `paymentGatewayService.reconcilePayment` posts one `completed` `payments` row,
 links it through `payment_transactions.payment_id` (set in the same transaction,
@@ -482,11 +507,28 @@ allocators both pass. A draft or live REP binds its payment: delete, unapply,
 reallocate, status edits and staff refunds answer `PAYMENT_HAS_REP` until the
 REP is cancelled (`repService.assertNoBindingRep`).
 
+Only `paymentAllocationService.applyAllocation` inserts `payment_allocations`
+rows (BIL-28; `tests/paymentAllocationWriters.test.js` fails on another
+writer). It refuses an invoice of another organization, of another client
+(except group billing, `anyClient`), in another currency, or not in
+`PAYABLE_STATUSES`, and maps the guard triggers to 422 `OVER_ALLOCATION` and
+`ALLOCATION_EXISTS`. Waterfalls without a selection pre-filter invoices with
+`allocationRefusal`, so another currency stays unallocated credit.
+
 `pnpm run sql:check` statically checks resolvable SQL in `src/` against
 `database/schema.sql`, including table/column names, ENUM values, and writes to
 generated columns. Dynamic SQL is reported as skipped. The exception lists in
 the checker are a ratchet: shrink them when fixing a gap and never add an entry
 without a specific explanation.
+
+`privacyNoticeService.getNotice` archives each distinct notice text the first
+time it is served in `privacy_notice_versions` (one row per organization and
+SHA-256; never updated) and returns its `versionId`. Portal and signed-handoff
+consents store that id with the version and hash, and the portal accept
+endpoint takes the displayed `version` and `hash` and answers 409
+`PRIVACY_NOTICE_CHANGED` when they are no longer what is served (REG-11). An
+organization that edits its own notice text must change
+`privacy_notice_version` in the same update.
 
 ### Scheduled and asynchronous work
 

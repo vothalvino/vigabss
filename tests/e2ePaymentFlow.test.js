@@ -17,7 +17,7 @@ jest.mock('../src/config/database', () => ({
 jest.mock('../src/models/User');
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const { mockTxConnection } = require('./fixtures/mockTxConnection');
@@ -430,7 +430,7 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       db.query
         .mockResolvedValueOnce([[{ id: 300, client_id: 10, amount: '694.84', organization_id: 1, status: 'completed' }]])
         .mockResolvedValueOnce([[]])                                    // lock the invoice (DAL-04)
-        .mockResolvedValueOnce([[{ id: 200, total: '694.84', contract_id: 1, status: 'issued' }]])
+        .mockResolvedValueOnce([[{ id: 200, client_id: 10, total: '694.84', contract_id: 1, status: 'issued' }]])
         .mockResolvedValueOnce([[{ allocated: '0' }]])                 // what the payment has used
         .mockResolvedValueOnce([[]])                                    // balance read (falls back to the total)
         .mockResolvedValueOnce([{ insertId: 1 }])
@@ -473,7 +473,7 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       db.query
         .mockResolvedValueOnce([[{ id: 301, client_id: 10, amount: '300.00', organization_id: 1, status: 'completed' }]])
         .mockResolvedValueOnce([[]])                                    // lock the invoice (DAL-04)
-        .mockResolvedValueOnce([[{ id: 200, total: '694.84', contract_id: 1, status: 'issued' }]])
+        .mockResolvedValueOnce([[{ id: 200, client_id: 10, total: '694.84', contract_id: 1, status: 'issued' }]])
         .mockResolvedValueOnce([[{ allocated: '0' }]])                 // what the payment has used
         .mockResolvedValueOnce([[]])                                    // balance read (falls back to the total)
         .mockResolvedValueOnce([{ insertId: 2 }])
@@ -734,7 +734,7 @@ describe('E2E Payment Flow: client → plan → contract → invoice → payment
       db.query
         .mockResolvedValueOnce([[{ id: paymentId, client_id: clientId, amount: '694.84', organization_id: 1, status: 'completed' }]])
         .mockResolvedValueOnce([[]])
-        .mockResolvedValueOnce([[{ id: invoiceId, total: '694.84', contract_id: contractId, status: 'issued' }]])
+        .mockResolvedValueOnce([[{ id: invoiceId, client_id: clientId, total: '694.84', contract_id: contractId, status: 'issued' }]])
         .mockResolvedValueOnce([[{ allocated: '0' }]])
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([{ insertId: 1 }])

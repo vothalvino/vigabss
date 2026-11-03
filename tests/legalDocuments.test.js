@@ -8,7 +8,7 @@
 
 const crypto = require('crypto');
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 
 jest.mock('../src/config/database', () => ({
   query: jest.fn(), execute: jest.fn(), getConnection: jest.fn(), close: jest.fn(), pool: { end: jest.fn() },
@@ -547,10 +547,11 @@ describe('POST /signed-documents/:id/sign', () => {
       if (/communication_choices IS NOT NULL/.test(sql)) return [[]];
       if (/FROM organizations WHERE id/.test(sql)) {
         return [[{
-          name: 'Global ISP', legal_name: 'Global ISP LLC', email: 'privacy@example.test',
+          id: 42, name: 'Global ISP', legal_name: 'Global ISP LLC', email: 'privacy@example.test',
           locale: 'global', privacy_notice: NOTICE, privacy_notice_version: NOTICE_VERSION,
         }]];
       }
+      if (/FROM privacy_notice_versions/.test(sql)) return [[{ id: 31 }]]; // the archived text
       if (/FROM clients/.test(sql)) {
         return [[{
           id: doc.client_id,
@@ -596,7 +597,10 @@ describe('POST /signed-documents/:id/sign', () => {
       confirmed: true,
       privacy_notice_version: NOTICE_VERSION,
       privacy_notice_hash: NOTICE_HASH,
+      privacy_notice_version_id: 31,
     });
+    // Each consent row points at the archived text (REG-11).
+    expect(consentWrites.map(([, params]) => params.at(-2))).toEqual([31, 31]);
   });
 
   it('refuses to record choices when the notice changed after it was reviewed', async () => {

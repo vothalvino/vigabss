@@ -116,6 +116,7 @@ describe('Session hardening', () => {
   // ---------------------------------------------------------------------------
   describe('POST /auth/logout', () => {
     it('with the refresh cookie: returns 200 and clears auth cookies (post-access-expiry logout must not 401)', async () => {
+      require('../src/config/database').query.mockResolvedValueOnce([[]]); // session lookup: already gone
       const res = await request(app)
         .post('/api/v1/auth/logout')
         .set('Cookie', 'fireisp_refresh=some-refresh-token');

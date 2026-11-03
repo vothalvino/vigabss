@@ -25,7 +25,7 @@ jest.mock('../src/utils/logger', () => {
 });
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const { mockTxConnection } = require('./fixtures/mockTxConnection');

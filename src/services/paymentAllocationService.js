@@ -1,12 +1,12 @@
 // =============================================================================
 // VigaBSS 5.0 — Payment Allocation Service
 // =============================================================================
-// Shared logic between POST /payments/:id/allocate (single invoice, kept for
-// API compatibility) and POST /payments/:id/allocate-auto (FIFO oldest→newest,
-// multi-invoice waterfall). Both routes call the SAME "mark a fully-covered
-// invoice paid + reconnect a suspended contract" logic and the SAME "client's
-// payable invoices with a live balance_due" query, so the two endpoints
-// cannot drift out of sync with each other (see PR brief "payment waterfall").
+// Every writer of payment_allocations goes through applyAllocation (BIL-28):
+// POST /payments/:id/allocate, allocate-auto and reallocate, gateway
+// reconciliation, payment plans and group billing. It refuses an allocation
+// across organizations, clients or currencies, or to an invoice that is not
+// payable, maps the guard triggers to 422s, and marks a fully covered invoice
+// paid. tests/paymentAllocationWriters.test.js fails on a new raw INSERT.
 //
 // invoices.status has NO 'partial'/'partially_paid' value in the ENUM
 // (database/schema.sql) — a partially-allocated invoice is intentionally left
@@ -18,6 +18,7 @@ const db = require('../config/database');
 const suspensionService = require('./suspensionService');
 const { requireOrgId } = require('../utils/requireOrgId');
 const { creditAppliedSql } = require('../utils/invoiceBalance');
+const { AppError } = require('../utils/errors');
 
 // Invoices in these statuses can receive a payment allocation. Mirrors the
 // frontend's NON_PAYABLE_STATUSES set (frontend/src/pages/payments/
@@ -178,7 +179,68 @@ async function getInvoicesWithBalance(exec, orgId, clientId, invoiceIds, forUpda
   return rows;
 }
 
+const sameCurrency = (a, b) => !a || !b || String(a).toUpperCase() === String(b).toUpperCase();
+
 /**
+ * Why `payment` may not settle `invoice`, or null when it may.
+ * @param {{organization_id:number, client_id:number, currency?:string}} payment
+ * @param {{organization_id?:number, client_id:number, currency?:string, status:string}} invoice
+ * @param {{ anyClient?: boolean }} [opts] anyClient: group billing, where the
+ *   group primary's payment settles its members' invoices.
+ * @returns {{code:string, message:string}|null}
+ */
+function allocationRefusal(payment, invoice, { anyClient = false } = {}) {
+  if (invoice.organization_id !== undefined && Number(invoice.organization_id) !== Number(payment.organization_id)) {
+    return { code: 'NOT_FOUND', message: 'Invoice not found.' };
+  }
+  if (!PAYABLE_STATUSES.includes(invoice.status)) {
+    return { code: 'INVOICE_NOT_PAYABLE', message: `Cannot apply a payment to a ${invoice.status} invoice.` };
+  }
+  if (!anyClient && Number(invoice.client_id) !== Number(payment.client_id)) {
+    return { code: 'CROSS_CLIENT_ALLOCATION', message: 'The invoice belongs to a different client than the payment.' };
+  }
+  if (!sameCurrency(payment.currency, invoice.currency)) {
+    return {
+      code: 'CURRENCY_MISMATCH',
+      message: `A ${payment.currency} payment cannot settle a ${invoice.currency} invoice.`,
+    };
+  }
+  return null;
+}
+
+/**
+ * Insert one allocation inside the caller's open transaction and mark the
+ * invoice paid once fully covered. Throws a 422 AppError when the allocation
+ * is refused, would exceed the invoice or payment (guard trigger), or
+ * duplicates a live allocation of the same pair. finalize: false leaves the
+ * paid status to the caller (reallocation re-derives both invoices after
+ * commit; the single-invoice route reads the row back first).
+ * @returns {Promise<{ id: number, becamePaid: boolean }>}
+ */
+async function applyAllocation(exec, { payment, invoice, amount, anyClient = false, finalize = true }) {
+  const refusal = allocationRefusal(payment, invoice, { anyClient });
+  if (refusal) throw new AppError(refusal.message, refusal.code === 'NOT_FOUND' ? 404 : 422, refusal.code);
+  let result;
+  try {
+    [result] = await exec(
+      'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
+      [payment.id, invoice.id, amount],
+    );
+  } catch (err) {
+    if (isOverAllocationError(err)) {
+      throw new AppError('Allocation would exceed the invoice or payment total.', 422, 'OVER_ALLOCATION');
+    }
+    if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
+      throw new AppError('This payment is already applied to that invoice.', 422, 'ALLOCATION_EXISTS');
+    }
+    throw err;
+  }
+  const becamePaid = finalize ? await finalizeIfFullyPaid(exec, invoice) : false;
+  return { id: result.insertId, becamePaid };
+}
+
+/**
+ * Apply up to `amount` of a payment across the given invoice rows, oldest/**
  * Apply up to `amount` of a payment across the given invoice rows, oldest
  * first (the rows' order), inside the caller's open transaction. Each invoice
  * receives min(remainder, live balance_due); a fully covered invoice is
@@ -188,18 +250,18 @@ async function getInvoicesWithBalance(exec, orgId, clientId, invoiceIds, forUpda
  * the same way.
  *
  * A second live allocation of the same payment to the same invoice (the
- * soft-delete-aware UNIQUE, migration 361) is skipped. Any other error,
- * including the over-allocation guard trigger (SQLSTATE 45000), is rethrown
- * for the caller to map and roll back.
+ * soft-delete-aware UNIQUE, migration 361) is skipped. Any other refusal
+ * (applyAllocation's 422s, including over-allocation) is thrown for the
+ * caller to roll back. Callers pass only invoices in the payment's currency.
  *
  * @param {Function} exec - bound query function on the open transaction
  * @param {object} params
- * @param {number} params.paymentId
+ * @param {{id:number, organization_id:number, client_id:number, currency?:string}} params.payment
  * @param {number|string} params.amount - the payment's unallocated remainder
  * @param {object[]} params.invoices - rows from getInvoicesWithBalance(..., forUpdate=true)
  * @returns {Promise<{allocations: object[], justPaidInvoices: object[], remainder: number}>}
  */
-async function allocateAcrossInvoices(exec, { paymentId, amount, invoices }) {
+async function allocateAcrossInvoices(exec, { payment, amount, invoices }) {
   let remainder = Math.round(Number(amount) * 100) / 100;
   const allocations = [];
   const justPaidInvoices = [];
@@ -212,27 +274,22 @@ async function allocateAcrossInvoices(exec, { paymentId, amount, invoices }) {
     const applyAmount = Math.round(Math.min(remainder, balanceDue) * 100) / 100;
     if (applyAmount <= 0) continue;
 
-    let insertResult;
+    let applied;
     try {
-      [insertResult] = await exec(
-        'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
-        [paymentId, invoice.id, applyAmount],
-      );
-    } catch (allocErr) {
+      applied = await applyAllocation(exec, { payment, invoice, amount: applyAmount });
+    } catch (err) {
       // Already allocated live from this payment (e.g. allocate-auto called
       // twice with overlapping invoice_ids): the earlier row covers it.
-      if (allocErr.code === 'ER_DUP_ENTRY' || allocErr.errno === 1062) continue;
-      throw allocErr;
+      if (err.code === 'ALLOCATION_EXISTS') continue;
+      throw err;
     }
 
     allocations.push({
-      id: insertResult.insertId, payment_id: paymentId, invoice_id: invoice.id,
+      id: applied.id, payment_id: payment.id, invoice_id: invoice.id,
       invoice_number: invoice.invoice_number, amount: applyAmount,
     });
     remainder = Math.round((remainder - applyAmount) * 100) / 100;
-
-    const becamePaid = await finalizeIfFullyPaid(exec, invoice);
-    if (becamePaid) justPaidInvoices.push(invoice);
+    if (applied.becamePaid) justPaidInvoices.push(invoice);
   }
   return { allocations, justPaidInvoices, remainder };
 }
@@ -250,6 +307,8 @@ module.exports = {
   finalizeIfFullyPaid,
   reconnectIfSuspended,
   getInvoicesWithBalance,
+  allocationRefusal,
+  applyAllocation,
   allocateAcrossInvoices,
   isOverAllocationError,
 };

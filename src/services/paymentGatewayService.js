@@ -1439,9 +1439,11 @@ async function reconcilePayment(transactionId) {
 
     // Target invoices, locked: the linked invoice only (still payable, same
     // org + client), or every payable invoice of the client, oldest first.
-    const invoices = await paymentAllocationService.getInvoicesWithBalance(
+    // Only invoices in the captured currency: anything else stays credit.
+    const payer = { organization_id: orgId, client_id: tx.client_id, currency: tx.currency };
+    const invoices = (await paymentAllocationService.getInvoicesWithBalance(
       exec, orgId, tx.client_id, tx.invoice_id ? [tx.invoice_id] : null, true,
-    );
+    )).filter((inv) => !paymentAllocationService.allocationRefusal(payer, inv));
     const linkedInvoice = tx.invoice_id ? (invoices[0] || null) : null;
 
     const reference = String(tx.gateway_reference_id || `transaction ${tx.id}`).slice(0, 100);
@@ -1464,7 +1466,7 @@ async function reconcilePayment(transactionId) {
     );
 
     const { allocations, justPaidInvoices, remainder } = await paymentAllocationService.allocateAcrossInvoices(
-      exec, { paymentId, amount: tx.amount, invoices },
+      exec, { payment: { ...payer, id: paymentId }, amount: tx.amount, invoices },
     );
 
     // settled_invoice_id records the invoice this capture turned paid (kept for

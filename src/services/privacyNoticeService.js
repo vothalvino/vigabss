@@ -20,7 +20,7 @@
 
 const crypto = require('crypto');
 const db = require('../config/database');
-const { NotFoundError } = require('../utils/errors');
+const { NotFoundError, AppError } = require('../utils/errors');
 
 // The default version deliberately identifies the BUNDLED template. An org
 // that pastes its own notice should set its own version; until it does, its
@@ -136,8 +136,11 @@ function fill(template, org, version) {
 }
 
 /**
- * Build the privacy notice an org currently serves.
- * Returns { version, content, hash, source: 'org' | 'bundled' }.
+ * Build the privacy notice an org currently serves, and archive its text the
+ * first time it is served (REG-11): privacy_notice_versions keeps every
+ * distinct text, so the notice a consent accepted can be shown later even
+ * after the organization edits it or its details change.
+ * Returns { version, content, hash, source: 'org' | 'bundled', versionId, organizationId }.
  */
 async function getNotice(orgId, run = db.query.bind(db)) {
   // orgId is NULL on single-tenant installs (parent org columns are
@@ -145,13 +148,13 @@ async function getNotice(orgId, run = db.query.bind(db)) {
   // serve that one rather than 404ing every subscriber of the install.
   const [rows] = orgId !== null && orgId !== undefined
     ? await run(
-      `SELECT name, legal_name, email, phone, address, city, state, zip_code,
+      `SELECT id, name, legal_name, email, phone, address, city, state, zip_code,
               country, locale, privacy_notice, privacy_notice_version
        FROM organizations WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
       [orgId],
     )
     : await run(
-      `SELECT name, legal_name, email, phone, address, city, state, zip_code,
+      `SELECT id, name, legal_name, email, phone, address, city, state, zip_code,
               country, locale, privacy_notice, privacy_notice_version
        FROM organizations WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 1`,
     );
@@ -173,7 +176,49 @@ async function getNotice(orgId, run = db.query.bind(db)) {
   }
 
   const hash = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
-  return { version, content, hash, source };
+  const versionId = await archive(run, { organizationId: org.id, version, content, hash, source });
+  return { version, content, hash, source, versionId, organizationId: org.id };
 }
 
-module.exports = { getNotice, BUNDLED_VERSION };
+/** Insert the text once per (organization, sha256) and return its row id. */
+async function archive(run, { organizationId, version, content, hash, source }) {
+  const [found] = await run(
+    'SELECT id FROM privacy_notice_versions WHERE organization_id = ? AND sha256 = ? LIMIT 1',
+    [organizationId, hash],
+  );
+  if (found[0]) return found[0].id;
+  // Two first serves can race; the unique key keeps one row and the loser
+  // reads it back.
+  await run(
+    `INSERT IGNORE INTO privacy_notice_versions (organization_id, version, content, sha256, source)
+     VALUES (?, ?, ?, ?, ?)`,
+    [organizationId, version, content, hash, source],
+  );
+  const [rows] = await run(
+    'SELECT id FROM privacy_notice_versions WHERE organization_id = ? AND sha256 = ? LIMIT 1',
+    [organizationId, hash],
+  );
+  return rows[0]?.id ?? null;
+}
+
+/**
+ * An organization edits its own notice text: the version must change with it,
+ * or consents to the old text would read as consents to the new one.
+ */
+function assertNoticeEditBumpsVersion(old, body) {
+  if (!body || !Object.prototype.hasOwnProperty.call(body, 'privacy_notice')) return;
+  const before = String(old.privacy_notice || '').trim();
+  const after = String(body.privacy_notice || '').trim();
+  if (before === after) return;
+  const nextVersion = Object.prototype.hasOwnProperty.call(body, 'privacy_notice_version')
+    ? body.privacy_notice_version
+    : old.privacy_notice_version;
+  if ((nextVersion || null) === (old.privacy_notice_version || null)) {
+    throw new AppError(
+      'The privacy notice text changed: give it a new privacy_notice_version so subscribers accept the new text.',
+      422, 'PRIVACY_NOTICE_VERSION_REQUIRED',
+    );
+  }
+}
+
+module.exports = { getNotice, assertNoticeEditBumpsVersion, BUNDLED_VERSION };

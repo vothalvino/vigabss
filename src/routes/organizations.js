@@ -26,6 +26,7 @@ const { updateEmailSettings, testEmailSettings: testEmailSettingsSchema } = requ
 const auditLog = require('../services/auditLog');
 const { emailSettingsTestLimiter } = require('../middleware/rateLimit');
 const { AppError } = require('../utils/errors');
+const privacyNoticeService = require('../services/privacyNoticeService');
 const logger = require('../utils/logger').child({ service: 'routes/organizations' });
 
 const router = Router();
@@ -96,12 +97,17 @@ async function assertLocaleChangeHasNoOpenWork(old, req, exec) {
 
 const localeGuardedCtrl = crudController(Organization, {
   transactionalWrites: true,
-  beforeUpdate: assertLocaleChangeHasNoOpenWork,
+  beforeUpdate: async (old, req, exec) => {
+    await assertLocaleChangeHasNoOpenWork(old, req, exec);
+    privacyNoticeService.assertNoticeEditBumpsVersion(old, req.body);
+  },
 });
 
 function localeAwareUpdate(method) {
   return (req, res, next) => {
-    const controller = Object.prototype.hasOwnProperty.call(req.body || {}, 'locale')
+    const body = req.body || {};
+    const controller = Object.prototype.hasOwnProperty.call(body, 'locale')
+      || Object.prototype.hasOwnProperty.call(body, 'privacy_notice')
       ? localeGuardedCtrl
       : ctrl;
     return controller[method](req, res, next);

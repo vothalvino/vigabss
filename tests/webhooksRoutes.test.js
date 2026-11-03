@@ -25,7 +25,7 @@ jest.mock('../src/models/Webhook');
 jest.mock('../src/models/User');
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const Webhook = require('../src/models/Webhook');
 const User = require('../src/models/User');

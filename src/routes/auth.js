@@ -285,6 +285,26 @@ router.get('/me', authenticate, async (req, res, next) => {
   }
 });
 
+// GET /api/auth/sessions — the signed-in user's live sessions (SEC-23)
+router.get('/sessions', authenticate, async (req, res, next) => {
+  try {
+    const data = await authService.listSessions(req.user.id, req.cookies?.fireisp_refresh || null);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/auth/sessions/:id — end one of your own sessions
+router.delete('/sessions/:id', authenticate, async (req, res, next) => {
+  try {
+    await authService.revokeSession(req.user.id, Number(req.params.id));
+    res.json({ message: 'Session ended' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/auth/password-reset/request — request a password reset email
 router.post('/password-reset/request',
   validate(authSchemas.requestPasswordReset, { strip: false }),

@@ -2,6 +2,8 @@
 // VigaBSS 5.0 — Application Configuration
 // =============================================================================
 
+const crypto = require('crypto');
+
 // TRUST_PROXY is a hop count. Express turns a number n into "trust the n
 // nearest hops", so parseInt read '10.0.0.1' as 10 and '172.16.0.0/12' as 172,
 // trusting arbitrarily many spoofable X-Forwarded-For entries (SEC-27). Only
@@ -237,8 +239,11 @@ const config = {
     businessNumber: process.env.WHATSAPP_BUSINESS_NUMBER || process.env.TWILIO_WHATSAPP_FROM || '',
     // Server pepper mixed into linking/step-up code hashes so a stolen
     // whatsapp_verifications row can't be brute-forced offline (codes are short
-    // numeric). Defaults to the JWT secret (always a server secret).
-    otpPepper: process.env.WHATSAPP_OTP_PEPPER || (process.env.JWT_SECRET || DEFAULT_JWT_SECRET),
+    // numeric). Defaults to a key derived from the JWT secret with its own
+    // label (SEC-23), so the pepper is never the token signing key itself.
+    otpPepper: process.env.WHATSAPP_OTP_PEPPER || Buffer.from(crypto.hkdfSync(
+      'sha256', process.env.JWT_SECRET || DEFAULT_JWT_SECRET, '', 'vigabss whatsapp otp pepper v1', 32,
+    )).toString('hex'),
     linkCodeTtlMinutes: parseIntEnv('WHATSAPP_LINK_CODE_TTL_MIN', 10),
     // Per-phone abuse limits (enforced in the bot, not express-rate-limit).
     maxCodeAttempts: parseIntEnv('WHATSAPP_MAX_CODE_ATTEMPTS', 5),

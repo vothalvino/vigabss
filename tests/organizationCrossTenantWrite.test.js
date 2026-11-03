@@ -23,7 +23,7 @@
 // =============================================================================
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 
 jest.mock('../src/config/database', () => ({
   query: jest.fn(), execute: jest.fn(), getConnection: jest.fn(), close: jest.fn(), pool: { end: jest.fn() },
@@ -37,6 +37,7 @@ jest.mock('../src/services/auditLog', () => ({ log: jest.fn().mockResolvedValue(
 
 const config = require('../src/config');
 const db = require('../src/config/database');
+const { mockTxConnection } = require('./fixtures/mockTxConnection');
 const app = require('../src/app');
 
 // role 'manager' = NOT the legacy admin bypass tier. orgId 1 = the caller's org.
@@ -56,6 +57,8 @@ function wireDb(role = 'manager', isOperator = false) {
     return [[]];
   });
   db.execute.mockImplementation(db.query.getMockImplementation());
+  // A notice edit runs on the guarded, transactional controller.
+  mockTxConnection(db);
 }
 
 const updateOf = () => db.query.mock.calls.find(c => /^UPDATE `?organizations`?/i.test(c[0]));
@@ -90,7 +93,7 @@ describe('legitimate writes still work', () => {
     const res = await request(app)
       .put('/api/v1/organizations/1')
       .set('Authorization', `Bearer ${token()}`)
-      .send({ name: 'My ISP', privacy_notice: '# Our notice' });
+      .send({ name: 'My ISP', privacy_notice: '# Our notice', privacy_notice_version: '2026-11' });
     expect(res.status).not.toBe(403);
     expect(updateOf()).toBeDefined();
   });

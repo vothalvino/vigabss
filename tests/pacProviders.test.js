@@ -21,7 +21,7 @@ jest.mock('../src/models/PacProvider');
 jest.mock('../src/models/User');
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const PacProvider = require('../src/models/PacProvider');

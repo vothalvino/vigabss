@@ -159,7 +159,7 @@ describe('provisioning copies the contract static IP to RADIUS', () => {
 
 describe('routes remove FreeRADIUS rows when service goes off', () => {
   const request = require('supertest');
-  const jwt = require('jsonwebtoken');
+  const jwt = require('./helpers/staffJwt');
   const config = require('../src/config');
   const User = require('../src/models/User');
   const Radius = require('../src/models/Radius');
