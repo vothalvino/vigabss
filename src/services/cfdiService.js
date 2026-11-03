@@ -1073,6 +1073,23 @@ async function syncInvoiceCancelled(cfdiDocumentId) {
       return;
     }
     if (!doc.invoice_id) return;
+    // Substituted (BIL-33): cancelled with motivo 01 naming a replacement CFDI
+    // of the same invoice that is still live, so the invoice continues under
+    // the replacement and is not settled to cancelled.
+    const [replacement] = await db.query(
+      `SELECT r.id
+         FROM cfdi_cancellations c
+         JOIN cfdi_documents r
+           ON r.uuid = c.folio_sustitucion AND r.invoice_id = ? AND r.organization_id = ?
+          AND r.sat_status IN ('vigente', 'cancel_pending')
+        WHERE c.cfdi_document_id = ? AND c.motivo = '01'
+        LIMIT 1`,
+      [doc.invoice_id, doc.organization_id, cfdiDocumentId],
+    );
+    if (replacement[0]) {
+      logger.info({ cfdiDocumentId, replacementId: replacement[0].id }, 'Substituted CFDI cancelled; the invoice continues under its replacement');
+      return;
+    }
     const billingService = require('./billingService');
     await billingService.cancelInvoiceForSat(doc.invoice_id, doc.organization_id, null);
   } catch (err) {

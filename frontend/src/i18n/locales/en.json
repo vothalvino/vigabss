@@ -1,4 +1,18 @@
 {
+  "cfdiAutoStamp": {
+    "label": "Stamp generated invoices automatically",
+    "hint": "When on, the scheduled billing run stamps each invoice it generates, in the fiscal environment above. An invoice that cannot be stamped (an incomplete client fiscal profile, a PAC error) stays unstamped or as a draft CFDI to retry from CFDI Management.",
+    "saveFailed": "Could not change automatic stamping."
+  },
+  "cfdiSubstitution": {
+    "button": "Substitute",
+    "buttonTitle": "Stamp a corrected CFDI for the same invoice and cancel this one (motivo 01)",
+    "confirm": "Substitute CFDI {{uuid}}? A new CFDI is stamped for the same invoice from what the invoice says now, and this one is then cancelled at SAT with motivo 01 (errors, with a replacement). The invoice stays open.",
+    "notStamped": "The replacement was not stamped ({{error}}); CFDI {{uuid}} is still vigente. Retry the replacement draft from this list.",
+    "cancelFailed": "Replacement {{replacement}} stamped, but cancelling {{uuid}} failed: {{error}}. Cancel it with motivo 01 and the replacement UUID.",
+    "done": "Replacement {{replacement}} stamped; cancellation of {{uuid}}: {{status}}.",
+    "failed": "Failed to substitute the CFDI"
+  },
   "portalDataPacks": {
     "title": "Data packs",
     "subtitle": "Your data allowance this period, and extra data you can add.",

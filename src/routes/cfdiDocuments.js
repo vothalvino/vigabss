@@ -143,6 +143,22 @@ router.post('/:id/rebuild', requireMxLocale, requirePermission('cfdi_documents.c
   }
 });
 
+// Substitute a vigente invoice CFDI (BIL-33): stamp a replacement for the
+// same invoice (TipoRelacion 04), then cancel this one with motivo 01. The
+// invoice itself stays open.
+router.post('/:id/substitute', requireMxLocale, requirePermission('cfdi_documents.create'), requirePermission('cfdi_documents.update'), async (req, res, next) => {
+  try {
+    const result = await invoiceCfdiService.substituteInvoiceCfdi(req.params.id, req.orgId, {
+      userId: req.user?.id ?? null,
+      uso_cfdi: req.body?.uso_cfdi,
+      forma_pago: req.body?.forma_pago,
+    });
+    res.status(201).json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Get CFDI conceptos
 router.get('/:id/conceptos', requirePermission('cfdi_documents.view'), async (req, res, next) => {
   try {

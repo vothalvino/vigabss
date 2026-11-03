@@ -486,6 +486,8 @@ async function runAutoInvoice(organizationId) {
   let emailed = 0;
   let emailFailed = 0;
   let failed = 0;
+  let stamped = 0;
+  let stampFailed = 0;
   const errors = [];
   for (const contract of contracts) {
     try {
@@ -548,6 +550,12 @@ async function runAutoInvoice(organizationId) {
           noteBillingEmail('invoice', 'failed');
           logger.warn({ err: emailErr, contractId: contract.id, invoiceId: invoice.id }, 'Invoice email not sent');
         }
+
+        // Opt-in CFDI stamping (BIL-33). A failure is counted, not thrown:
+        // the invoice stands and can be stamped from its page.
+        const stamp = await require('./invoiceCfdiService').autoStampInvoice(invoice.id, contract.organization_id);
+        if (stamp.attempted && stamp.stamped) stamped++;
+        else if (stamp.attempted && !stamp.already) stampFailed++;
       }
     } catch (err) {
       // One contract must not stop the run, but a failure must not vanish
@@ -567,6 +575,8 @@ async function runAutoInvoice(organizationId) {
     emails_failed: emailFailed,
     contracts_checked: contracts.length,
     contracts_failed: failed,
+    cfdi_stamped: stamped,
+    cfdi_stamp_failed: stampFailed,
     errors,
   };
 }
@@ -890,6 +900,8 @@ async function runBillingCycle(organizationId) {
     emails_failed: invoiceResult.emails_failed,
     contracts_checked: invoiceResult.contracts_checked,
     contracts_failed: invoiceResult.contracts_failed,
+    cfdi_stamped: invoiceResult.cfdi_stamped,
+    cfdi_stamp_failed: invoiceResult.cfdi_stamp_failed,
     errors: invoiceResult.errors,
     contracts_suspended: suspendResult.contracts_suspended,
     warnings_sent: suspendResult.warnings_sent,

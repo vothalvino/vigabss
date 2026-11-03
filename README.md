@@ -126,7 +126,7 @@ working. New documentation uses the VigaBSS names.
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 374 tables + column additions)
-│   └── migrations/          # Individual numbered migration files (001–517)
+│   └── migrations/          # Individual numbered migration files (001–518)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point

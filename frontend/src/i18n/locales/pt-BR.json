@@ -1,4 +1,18 @@
 {
+  "cfdiAutoStamp": {
+    "label": "Emitir automaticamente as faturas geradas",
+    "hint": "Quando ativado, o faturamento agendado emite cada fatura que gera, no ambiente fiscal acima. Uma fatura que não puder ser emitida (perfil fiscal do cliente incompleto, erro do PAC) fica sem emissão ou como rascunho de CFDI para tentar de novo em Gestão de CFDI.",
+    "saveFailed": "Não foi possível alterar a emissão automática."
+  },
+  "cfdiSubstitution": {
+    "button": "Substituir",
+    "buttonTitle": "Emitir um CFDI corrigido para a mesma fatura e cancelar este (motivo 01)",
+    "confirm": "Substituir o CFDI {{uuid}}? Um novo CFDI é emitido para a mesma fatura com o que a fatura diz agora e depois este é cancelado no SAT com motivo 01 (erros, com relação). A fatura continua aberta.",
+    "notStamped": "O CFDI substituto não foi emitido ({{error}}); o CFDI {{uuid}} continua vigente. Tente novamente o rascunho substituto nesta lista.",
+    "cancelFailed": "O CFDI substituto {{replacement}} foi emitido, mas o cancelamento de {{uuid}} falhou: {{error}}. Cancele-o com motivo 01 e o UUID substituto.",
+    "done": "CFDI substituto {{replacement}} emitido; cancelamento de {{uuid}}: {{status}}.",
+    "failed": "Não foi possível substituir o CFDI"
+  },
   "portalDataPacks": {
     "title": "Pacotes de dados",
     "subtitle": "Sua franquia de dados neste período e os dados extras que você pode adicionar.",

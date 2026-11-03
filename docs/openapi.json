@@ -9937,6 +9937,42 @@
         }
       }
     },
+    "/cfdi-documents/{id}/substitute": {
+      "post": {
+        "tags": [
+          "CFDI Documents"
+        ],
+        "summary": "Substitute a vigente invoice CFDI: stamp a replacement for the same invoice (TipoRelacion 04), then cancel this one with motivo 01; the invoice stays open",
+        "operationId": "substituteCfdiDocument",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Stamp result for the replacement, with the cancellation of the original",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cfdi-documents/{id}/rebuild": {
       "post": {
         "tags": [
@@ -10726,6 +10762,75 @@
         "responses": {
           "200": {
             "description": "CsdCertificate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pac-providers/auto-stamp": {
+      "get": {
+        "tags": [
+          "PAC Providers"
+        ],
+        "summary": "Whether the billing run stamps each invoice it generates",
+        "operationId": "getCfdiAutoStamp",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ cfdi_auto_stamp: boolean }",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "PAC Providers"
+        ],
+        "summary": "Turn automatic stamping of generated invoices on or off",
+        "operationId": "setCfdiAutoStamp",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "The setting",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cfdi_auto_stamp"
+                ],
+                "properties": {
+                  "cfdi_auto_stamp": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ cfdi_auto_stamp: boolean }",
             "content": {
               "application/json": {
                 "schema": {

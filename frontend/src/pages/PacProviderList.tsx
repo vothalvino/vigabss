@@ -11,6 +11,7 @@
 // =============================================================================
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
@@ -358,6 +359,50 @@ function FiscalEnvironmentBar() {
 }
 
 // ---------------------------------------------------------------------------
+// Automatic stamping (BIL-33): the scheduled billing run stamps each invoice
+// it generates. Off by default. Backed by /pac-providers/auto-stamp.
+// ---------------------------------------------------------------------------
+
+function AutoStampBar() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [err, setErr] = useState<string | null>(null);
+  const q = useQuery({
+    queryKey: ['cfdi-auto-stamp'],
+    queryFn: async () => {
+      const res = await api.GET('/pac-providers/auto-stamp' as never);
+      if ((res as { error?: unknown }).error) throw new Error('load failed');
+      return Boolean((res as { data: { data: { cfdi_auto_stamp: boolean } } }).data?.data?.cfdi_auto_stamp);
+    },
+  });
+  const save = useMutation({
+    mutationFn: async (value: boolean) => {
+      const res = await api.PUT('/pac-providers/auto-stamp' as never, { body: { cfdi_auto_stamp: value } as never } as never);
+      const e = (res as { error?: { error?: { message?: string } } }).error;
+      if (e) throw new Error(e.error?.message || t('cfdiAutoStamp.saveFailed'));
+    },
+    onSuccess: () => { setErr(null); qc.invalidateQueries({ queryKey: ['cfdi-auto-stamp'] }); },
+    onError: (e: unknown) => setErr(e instanceof Error ? e.message : t('cfdiAutoStamp.saveFailed')),
+  });
+  const on = q.data ?? false;
+  return (
+    <div style={{ border: '1px solid var(--border-color, #e2e8f0)', borderRadius: 8, padding: '10px 14px', margin: '0 0 12px' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={q.isLoading || save.isPending}
+          onChange={e => save.mutate(e.target.checked)}
+        />
+        {t('cfdiAutoStamp.label')}
+      </label>
+      <p style={{ margin: '6px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t('cfdiAutoStamp.hint')}</p>
+      {err && <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#991b1b' }}>{err}</p>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PacProviderList component
 // ---------------------------------------------------------------------------
 
@@ -389,6 +434,7 @@ export function PacProviderList() {
       </div>
 
       <FiscalEnvironmentBar />
+      <AutoStampBar />
 
       <div style={styles.tableCard}>
         {providersQ.isLoading ? (

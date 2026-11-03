@@ -646,6 +646,7 @@ function generateSpec() {
       '/cfdi-documents/{id}/conceptos': { get: { tags: ['CFDI Documents'], summary: 'List the conceptos (line items) of a CFDI', operationId: 'listCfdiDocumentConceptos', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Concepto[]') } },
       '/cfdi-documents/{id}/related': { get: { tags: ['CFDI Documents'], summary: 'List the CFDIs related to this one (substitutions, credit notes, payment complements)', operationId: 'listCfdiDocumentRelated', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CfdiDocument[]') } },
       '/cfdi-documents/{id}/cancel': { post: { tags: ['CFDI Documents'], summary: 'Cancel a stamped CFDI at SAT', operationId: 'cancelCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('cancellation_reason (01-04) + replacement_uuid for 01'), responses: r200('Cancellation result') } },
+      '/cfdi-documents/{id}/substitute': { post: { tags: ['CFDI Documents'], summary: 'Substitute a vigente invoice CFDI: stamp a replacement for the same invoice (TipoRelacion 04), then cancel this one with motivo 01; the invoice stays open', operationId: 'substituteCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r201('Stamp result for the replacement, with the cancellation of the original') } },
       '/cfdi-documents/{id}/rebuild': { post: { tags: ['CFDI Documents'], summary: 'Rebuild an invoice draft CFDI from the invoice (new Fecha, current receptor and conceptos) and submit it; refused while the last stamp attempt may have been stamped', operationId: 'rebuildCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Stamp result for the rebuilt CFDI') } },
 
       // ---- SAT Catalogs ----
@@ -687,6 +688,10 @@ function generateSpec() {
       },
 
       // ---- PAC Providers ----
+      '/pac-providers/auto-stamp': {
+        get: { tags: ['PAC Providers'], summary: 'Whether the billing run stamps each invoice it generates', operationId: 'getCfdiAutoStamp', security: [{ bearerAuth: [] }], responses: r200('{ cfdi_auto_stamp: boolean }') },
+        put: { tags: ['PAC Providers'], summary: 'Turn automatic stamping of generated invoices on or off', operationId: 'setCfdiAutoStamp', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', required: ['cfdi_auto_stamp'], properties: { cfdi_auto_stamp: { type: 'boolean' } } }, 'The setting'), responses: r200('{ cfdi_auto_stamp: boolean }') },
+      },
       '/pac-providers/environment': {
         get: { tags: ['PAC Providers'], summary: "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp; a CFDI is cancelled in the environment that stamped it", operationId: 'getPacEnvironment', security: [{ bearerAuth: [] }], responses: r200('{ pac_environment, sandbox_vigente_count }') },
         put: { tags: ['PAC Providers'], summary: "Set the org's active fiscal environment (sandbox|production)", operationId: 'setPacEnvironment', security: [{ bearerAuth: [] }], requestBody: jsonBody('pac_environment: sandbox|production'), responses: r200('{ pac_environment }') },

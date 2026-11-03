@@ -5011,6 +5011,8 @@ CREATE TABLE IF NOT EXISTS organization_mx_profiles (
                                 COMMENT 'PAC API password encrypted at rest — app handles encryption',
     pac_environment         ENUM('sandbox', 'production') NOT NULL DEFAULT 'sandbox'
                                 COMMENT 'sandbox = PAC test environment; production = live stamping',
+    cfdi_auto_stamp         TINYINT(1)      NOT NULL DEFAULT 0
+                                COMMENT '1 = the scheduled invoice run stamps each invoice it generates (migration 518)',
 
     -- CFDI series & folio auto-numbering
     cfdi_serie_ingreso      VARCHAR(10)     NOT NULL DEFAULT 'A'

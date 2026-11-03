@@ -1,4 +1,18 @@
 {
+  "cfdiAutoStamp": {
+    "label": "Timbrar automáticamente las facturas generadas",
+    "hint": "Si está activo, la facturación programada timbra cada factura que genera, en el entorno fiscal de arriba. Una factura que no se puede timbrar (perfil fiscal del cliente incompleto, error del PAC) queda sin timbrar o como borrador de CFDI para reintentar desde Gestión de CFDI.",
+    "saveFailed": "No se pudo cambiar el timbrado automático."
+  },
+  "cfdiSubstitution": {
+    "button": "Sustituir",
+    "buttonTitle": "Timbrar un CFDI corregido para la misma factura y cancelar este (motivo 01)",
+    "confirm": "¿Sustituir el CFDI {{uuid}}? Se timbra un CFDI nuevo para la misma factura con lo que la factura dice ahora y después este se cancela ante el SAT con motivo 01 (errores, con relación). La factura sigue abierta.",
+    "notStamped": "El CFDI de sustitución no se timbró ({{error}}); el CFDI {{uuid}} sigue vigente. Reintenta el borrador de sustitución desde esta lista.",
+    "cancelFailed": "Se timbró el CFDI de sustitución {{replacement}}, pero no se pudo cancelar {{uuid}}: {{error}}. Cancélalo con motivo 01 y el UUID de sustitución.",
+    "done": "Se timbró el CFDI de sustitución {{replacement}}; cancelación de {{uuid}}: {{status}}.",
+    "failed": "No se pudo sustituir el CFDI"
+  },
   "portalDataPacks": {
     "title": "Paquetes de datos",
     "subtitle": "Tus datos disponibles en este periodo y los datos extra que puedes agregar.",

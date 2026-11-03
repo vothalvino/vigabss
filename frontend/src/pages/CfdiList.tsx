@@ -9,6 +9,7 @@
 // =============================================================================
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authedFetch, tokenStore } from '@/api/client';
 import { SandboxCfdiBadge, SandboxEnvironmentBanner } from '@/components/SandboxFiscal';
@@ -37,6 +38,7 @@ interface CfdiDocument {
   cancelled_at: string | null;
   pac_provider: string | null;
   pac_environment?: 'sandbox' | 'production' | null;
+  invoice_id?: number | null;
   created_at: string;
 }
 
@@ -107,6 +109,22 @@ async function cancelCfdi(id: number, reason: string, replacementUuid?: string):
   }
   const resBody = await res.json().catch(() => ({})) as { data?: CancelResult };
   return resBody.data ?? { status: 'cancel_pending' };
+}
+
+// Substitute a vigente invoice CFDI (BIL-33): the server stamps a replacement
+// for the same invoice (TipoRelacion 04), then cancels this one with motivo 01.
+interface SubstituteResult {
+  stamped: boolean;
+  uuid: string | null;
+  stamp_error?: string;
+  cancel_error?: string;
+  original_cancellation: CancelResult | null;
+}
+async function substituteCfdi(id: number): Promise<SubstituteResult> {
+  const res = await authedFetch(`${API_BASE}/cfdi-documents/${id}/substitute`, { method: 'POST' });
+  const resBody = await res.json().catch(() => ({})) as { data?: SubstituteResult; error?: { message?: string } };
+  if (!res.ok || !resBody.data) throw new Error(resBody.error?.message ?? 'Failed to substitute the CFDI');
+  return resBody.data;
 }
 
 // Delete an unstamped draft. The server refuses while the last stamp attempt
@@ -345,6 +363,7 @@ const STATUS_OPTIONS = ['', 'draft', 'vigente', 'cancelado', 'cancel_pending'];
 const TYPE_OPTIONS   = ['', 'I', 'E', 'P', 'T', 'N'];
 
 export function CfdiList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -372,6 +391,23 @@ export function CfdiList() {
       refresh();
     } catch (err) {
       setStatusNotice(err instanceof Error ? err.message : 'Failed to discard the draft');
+    }
+  }
+  async function handleSubstitute(doc: CfdiDocument) {
+    if (!window.confirm(t('cfdiSubstitution.confirm', { uuid: doc.uuid }))) return;
+    setStatusNotice('');
+    try {
+      const result = await substituteCfdi(doc.id);
+      if (!result.stamped) {
+        setStatusNotice(t('cfdiSubstitution.notStamped', { uuid: doc.uuid, error: result.stamp_error ?? '' }));
+      } else if (result.cancel_error) {
+        setStatusNotice(t('cfdiSubstitution.cancelFailed', { replacement: result.uuid, uuid: doc.uuid, error: result.cancel_error }));
+      } else {
+        setStatusNotice(t('cfdiSubstitution.done', { replacement: result.uuid, uuid: doc.uuid, status: result.original_cancellation?.status ?? 'requested' }));
+      }
+      refresh();
+    } catch (err) {
+      setStatusNotice(err instanceof Error ? err.message : t('cfdiSubstitution.failed'));
     }
   }
   async function handleCheckStatus(doc: CfdiDocument) {
@@ -560,6 +596,17 @@ export function CfdiList() {
                             title="Request cancellation via SAT/PAC"
                           >
                             {doc.sat_status === 'cancel_pending' ? '✕ Retry cancel' : '✕ Cancel'}
+                          </button>
+                        )}
+
+                        {/* Substitute — replace an invoice CFDI issued with errors (BIL-33) */}
+                        {doc.sat_status === 'vigente' && doc.tipo_comprobante === 'I' && doc.invoice_id && (
+                          <button
+                            onClick={() => { void handleSubstitute(doc); }}
+                            style={actionBtn}
+                            title={t('cfdiSubstitution.buttonTitle')}
+                          >
+                            ⇄ {t('cfdiSubstitution.button')}
                           </button>
                         )}
 
