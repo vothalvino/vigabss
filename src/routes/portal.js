@@ -715,9 +715,19 @@ router.get('/tickets/:id', async (req, res, next) => {
     );
     if (!rows[0]) throw new NotFoundError('Ticket');
 
+    // Who wrote each comment (FE-26): the subscriber, a staff member (first
+    // name only) or the system.
     const [comments] = await db.query(
-      `SELECT tc.id, tc.body, tc.created_at
+      `SELECT tc.id, tc.body, tc.created_at, tc.author_type,
+              CASE tc.author_type
+                WHEN 'client' THEN c.name
+                WHEN 'staff' THEN u.first_name
+                ELSE NULL
+              END AS author_name
        FROM ticket_comments tc
+       /* includes deleted rows: a comment keeps its author's name after the author is archived */
+       LEFT JOIN clients c ON c.id = tc.client_id
+       LEFT JOIN users u ON u.id = tc.user_id
        WHERE tc.ticket_id = ? AND tc.deleted_at IS NULL AND tc.is_internal = 0
        ORDER BY tc.created_at ASC`,
       [req.params.id],
@@ -739,12 +749,12 @@ router.post('/tickets/:id/comments', validate(createCommentSchema, { strip: fals
     if (!ticketRows[0]) throw new NotFoundError('Ticket');
 
     const [result] = await db.query(
-      'INSERT INTO ticket_comments (ticket_id, body, is_internal) VALUES (?, ?, 0)',
-      [req.params.id, req.body.body],
+      "INSERT INTO ticket_comments (ticket_id, author_type, client_id, body, is_internal) VALUES (?, 'client', ?, ?, 0)",
+      [req.params.id, req.client.id, req.body.body],
     );
 
     const [rows] = await db.query(
-      'SELECT id, ticket_id, body, is_internal, created_at FROM ticket_comments WHERE id = ?',
+      'SELECT id, ticket_id, author_type, body, is_internal, created_at FROM ticket_comments WHERE id = ?',
       [result.insertId],
     );
     require('../services/pubsub').publishTicketComment(req.client.organizationId, ticketRows[0].id, rows[0]);
@@ -1137,9 +1147,10 @@ router.get('/payments', async (req, res, next) => {
     // Bound to the subscriber's organization as well as client_id (list and
     // count alike): a payment another tenant recorded against this client_id
     // must never surface here. Null-safe <=> for single-tenant NULL-org rows.
+    // notes are staff notes and stay out (FE-26).
     const [rows] = await db.query(
       `SELECT p.id, p.amount, p.currency, p.payment_method, p.payment_date,
-              p.reference_number, p.status, p.notes, p.created_at
+              p.reference_number, p.status, p.created_at
        FROM payments p
        WHERE p.client_id = ? AND p.organization_id <=> ? AND p.deleted_at IS NULL
        ORDER BY p.payment_date DESC, p.created_at DESC
@@ -1386,7 +1397,10 @@ router.post('/chat/:token/message', validate(chatMessageSchema, { strip: false }
       if (!live) ticketId = null;
     }
     if (ticketId) {
-      const [comment] = await db.query('INSERT INTO ticket_comments (ticket_id, body, is_internal) VALUES (?, ?, 0)', [ticketId, message]);
+      const [comment] = await db.query(
+        "INSERT INTO ticket_comments (ticket_id, author_type, client_id, body, is_internal) VALUES (?, 'client', ?, ?, 0)",
+        [ticketId, req.client.id, message],
+      );
       require('../services/pubsub').publishTicketComment(req.client.organizationId, ticketId, { id: comment.insertId, ticket_id: ticketId });
     } else {
       const [ticketResult] = await db.query(

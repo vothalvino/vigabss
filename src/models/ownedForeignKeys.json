@@ -525,6 +525,7 @@
     "ticket_id": "tickets"
   },
   "ticket_comments": {
+    "client_id": "clients",
     "ticket_id": "tickets"
   },
   "ticket_escalations": {

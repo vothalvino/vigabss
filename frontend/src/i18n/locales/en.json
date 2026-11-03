@@ -1,4 +1,74 @@
 {
+  "portalDataPacks": {
+    "title": "Data packs",
+    "subtitle": "Your data allowance this period, and extra data you can add.",
+    "allowance": "Your allowance",
+    "allowanceParts": {
+      "plan": "Plan",
+      "packs": "Data packs",
+      "rollover": "Rollover",
+      "total": "Total"
+    },
+    "unlimited": "Unlimited",
+    "noContract": "You have no active service.",
+    "available": "Available packs",
+    "noPacks": "No data packs are offered right now.",
+    "pack": "Pack",
+    "data": "Data",
+    "validity": "Valid for",
+    "price": "Price",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "buy": "Buy",
+    "confirm": "An invoice for {{price}} will be issued.",
+    "confirmBuy": "Confirm purchase",
+    "buying": "Buying…",
+    "cancel": "Cancel",
+    "bought": "{{name}} was added to your allowance.",
+    "purchases": "Your purchases",
+    "noPurchases": "No purchases yet.",
+    "purchased": "Purchased",
+    "expires": "Expires",
+    "status": "Status",
+    "statuses": {
+      "pending": "Pending",
+      "active": "Active",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    }
+  },
+  "portalPayments": {
+    "title": "Payments",
+    "subtitle": "Payments recorded on your account.",
+    "loadError": "Your payments could not be loaded.",
+    "none": "No payments yet.",
+    "date": "Date",
+    "amount": "Amount",
+    "method": "Method",
+    "reference": "Reference",
+    "status": "Status",
+    "statuses": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "failed": "Failed",
+      "refunded": "Refunded",
+      "cancelled": "Cancelled"
+    }
+  },
+  "portalSecurity": {
+    "title": "Security",
+    "subtitle": "Change the password you use to sign in to this portal.",
+    "changePassword": "Change password",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "hint": "At least {{min}} characters.",
+    "tooShort": "The new password must have at least {{min}} characters.",
+    "mismatch": "The new passwords do not match.",
+    "save": "Change password",
+    "saving": "Saving…",
+    "changed": "Your password has been changed."
+  },
   "notApplied": {
     "badge": "Not applied yet",
     "backupSchedules": "Schedules are recorded but not applied yet: the nightly configuration backup runs for every eligible device, whatever is set here.",
@@ -400,6 +470,10 @@
     "switchOrgFailed": "Failed to switch organization"
   },
   "portalLayout": {
+    "navPayments": "💳 Payments",
+    "navDataPacks": "📶 Data packs",
+    "navChat": "💬 Chat",
+    "navSecurity": "🔒 Security",
     "brandName": "VigaBSS Alpha — My Account",
     "navHome": "🏠 Home",
     "navInvoices": "🧾 Invoices",
@@ -3988,6 +4062,8 @@
     }
   },
   "ticketDetail": {
+    "authorClient": "{{name}} (client)",
+    "authorSystem": "System",
     "aiTriage": "AI Triage Suggestions",
     "aiTriageCategory": "Suggested Category",
     "aiTriagePriority": "Suggested Priority",
@@ -6669,6 +6745,10 @@
     }
   },
   "portalTicketDetail": {
+    "authorYou": "You",
+    "authorStaff": "Support team",
+    "authorStaffNamed": "{{name}} (support)",
+    "authorSystem": "System",
     "replyFailed": "Your reply could not be sent. Please try again.",
     "notFound": "Ticket not found.",
     "back": "Back to tickets",

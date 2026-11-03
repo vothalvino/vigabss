@@ -1569,6 +1569,8 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
     id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     ticket_id  BIGINT UNSIGNED NOT NULL,
     user_id    BIGINT UNSIGNED NULL     COMMENT 'Staff member who posted the comment; NULL for system messages',
+    author_type ENUM('staff','client','system') NOT NULL DEFAULT 'system' COMMENT 'Who wrote it: staff (user_id), client (client_id) or system (migration 517)',
+    client_id  BIGINT UNSIGNED NULL     COMMENT 'Client who wrote it from the portal or chat (migration 517)',
     body       TEXT            NOT NULL,
     is_internal TINYINT(1)     NOT NULL DEFAULT 0 COMMENT '1 = internal note visible only to staff',
     created_at TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1578,11 +1580,14 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
     PRIMARY KEY (id),
     KEY idx_ticket_comments_ticket_id (ticket_id),
     KEY idx_ticket_comments_user_id (user_id),
+    KEY idx_ticket_comments_client_id (client_id),
     KEY idx_ticket_comments_deleted_at (deleted_at),
     CONSTRAINT fk_ticket_comments_ticket FOREIGN KEY (ticket_id)
         REFERENCES tickets (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_ticket_comments_user FOREIGN KEY (user_id)
-        REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
+        REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_ticket_comments_client FOREIGN KEY (client_id)
+        REFERENCES clients (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------

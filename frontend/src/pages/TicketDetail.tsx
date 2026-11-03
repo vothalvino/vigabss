@@ -51,6 +51,8 @@ interface TicketComment {
   created_at: string;
   first_name: string | null;
   last_name: string | null;
+  author_type?: 'staff' | 'client' | 'system';
+  author_name?: string | null;
 }
 
 interface Client {
@@ -431,6 +433,7 @@ interface CommentItemProps {
 }
 
 function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState(comment.body);
@@ -459,7 +462,10 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
         <span style={{ fontWeight: 600, fontSize: '0.82rem', color: '#374151' }}>
-          {comment.first_name && comment.last_name ? `${comment.first_name} ${comment.last_name}` : 'System'}
+          {/* FE-26: a client's portal or chat reply used to show as "System". */}
+          {comment.author_type === 'client'
+            ? t('ticketDetail.authorClient', { name: comment.author_name || '' })
+            : comment.author_name || (comment.first_name && comment.last_name ? `${comment.first_name} ${comment.last_name}` : t('ticketDetail.authorSystem'))}
         </span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {isInternal && (

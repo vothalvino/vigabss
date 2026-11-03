@@ -36,9 +36,9 @@ class Ticket extends BaseModel {
   static async addComment(data) {
     const db = require('../config/database');
     const [result] = await db.query(
-      `INSERT INTO ticket_comments (ticket_id, user_id, body, is_internal)
-       VALUES (?, ?, ?, ?)`,
-      [data.ticket_id, data.user_id, data.body, data.is_internal || false],
+      `INSERT INTO ticket_comments (ticket_id, user_id, author_type, body, is_internal)
+       VALUES (?, ?, ?, ?, ?)`,
+      [data.ticket_id, data.user_id, data.user_id ? 'staff' : 'system', data.body, data.is_internal || false],
     );
     const [rows] = await db.query('SELECT * FROM ticket_comments WHERE id = ?', [result.insertId]);
     return rows[0];

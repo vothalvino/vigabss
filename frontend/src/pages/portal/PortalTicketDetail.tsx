@@ -18,6 +18,8 @@ interface Comment {
   id: number;
   body: string;
   created_at: string;
+  author_type?: 'staff' | 'client' | 'system';
+  author_name?: string | null;
 }
 
 interface Ticket {
@@ -129,7 +131,16 @@ export function PortalTicketDetail() {
         <div style={styles.thread}>
           {ticket.comments.map(comment => (
             <div key={comment.id} style={styles.comment}>
-              <div style={styles.commentMeta}>{comment.created_at.slice(0, 16).replace('T', ' ')}</div>
+              <div style={styles.commentMeta}>
+                <strong>
+                  {comment.author_type === 'client'
+                    ? t('portalTicketDetail.authorYou')
+                    : comment.author_type === 'staff'
+                      ? (comment.author_name ? t('portalTicketDetail.authorStaffNamed', { name: comment.author_name }) : t('portalTicketDetail.authorStaff'))
+                      : t('portalTicketDetail.authorSystem')}
+                </strong>
+                {' · '}{comment.created_at.slice(0, 16).replace('T', ' ')}
+              </div>
               <p style={styles.commentBody}>{comment.body}</p>
             </div>
           ))}

@@ -75,10 +75,28 @@ export function PortalLayout() {
             {t('portalLayout.navInvoices')}
           </NavLink>
           <NavLink
+            to="/portal/payments"
+            style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
+          >
+            {t('portalLayout.navPayments')}
+          </NavLink>
+          <NavLink
+            to="/portal/data-packs"
+            style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
+          >
+            {t('portalLayout.navDataPacks')}
+          </NavLink>
+          <NavLink
             to="/portal/tickets"
             style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
           >
             {t('portalLayout.navSupport')}
+          </NavLink>
+          <NavLink
+            to="/portal/chat"
+            style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
+          >
+            {t('portalLayout.navChat')}
           </NavLink>
           <NavLink
             to="/portal/kb"
@@ -91,6 +109,12 @@ export function PortalLayout() {
             style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
           >
             {t('portalLayout.navAccount', 'Account')}
+          </NavLink>
+          <NavLink
+            to="/portal/security"
+            style={({ isActive }) => ({ ...styles.navLink, ...(isActive ? styles.navLinkActive : {}) })}
+          >
+            {t('portalLayout.navSecurity')}
           </NavLink>
         </nav>
         <div className="portal-user-area">

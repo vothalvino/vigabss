@@ -1,4 +1,74 @@
 {
+  "portalDataPacks": {
+    "title": "Paquetes de datos",
+    "subtitle": "Tus datos disponibles en este periodo y los datos extra que puedes agregar.",
+    "allowance": "Tus datos disponibles",
+    "allowanceParts": {
+      "plan": "Plan",
+      "packs": "Paquetes de datos",
+      "rollover": "Acumulados",
+      "total": "Total"
+    },
+    "unlimited": "Ilimitado",
+    "noContract": "No tienes un servicio activo.",
+    "available": "Paquetes disponibles",
+    "noPacks": "Por ahora no hay paquetes de datos.",
+    "pack": "Paquete",
+    "data": "Datos",
+    "validity": "Vigencia",
+    "price": "Precio",
+    "days_one": "{{count}} día",
+    "days_other": "{{count}} días",
+    "buy": "Comprar",
+    "confirm": "Se emitirá una factura por {{price}}.",
+    "confirmBuy": "Confirmar compra",
+    "buying": "Comprando…",
+    "cancel": "Cancelar",
+    "bought": "{{name}} se agregó a tus datos disponibles.",
+    "purchases": "Tus compras",
+    "noPurchases": "Aún no hay compras.",
+    "purchased": "Comprado",
+    "expires": "Vence",
+    "status": "Estado",
+    "statuses": {
+      "pending": "Pendiente",
+      "active": "Activo",
+      "expired": "Vencido",
+      "cancelled": "Cancelado"
+    }
+  },
+  "portalPayments": {
+    "title": "Pagos",
+    "subtitle": "Pagos registrados en tu cuenta.",
+    "loadError": "No se pudieron cargar tus pagos.",
+    "none": "Aún no hay pagos.",
+    "date": "Fecha",
+    "amount": "Monto",
+    "method": "Método",
+    "reference": "Referencia",
+    "status": "Estado",
+    "statuses": {
+      "pending": "Pendiente",
+      "completed": "Completado",
+      "failed": "Fallido",
+      "refunded": "Reembolsado",
+      "cancelled": "Cancelado"
+    }
+  },
+  "portalSecurity": {
+    "title": "Seguridad",
+    "subtitle": "Cambia la contraseña con la que entras a este portal.",
+    "changePassword": "Cambiar contraseña",
+    "current": "Contraseña actual",
+    "new": "Nueva contraseña",
+    "confirm": "Confirma la nueva contraseña",
+    "hint": "Al menos {{min}} caracteres.",
+    "tooShort": "La nueva contraseña debe tener al menos {{min}} caracteres.",
+    "mismatch": "Las nuevas contraseñas no coinciden.",
+    "save": "Cambiar contraseña",
+    "saving": "Guardando…",
+    "changed": "Tu contraseña se cambió."
+  },
   "notApplied": {
     "badge": "Aún no se aplica",
     "backupSchedules": "Los horarios se guardan pero aún no se aplican: el respaldo nocturno de configuración se ejecuta para todos los equipos elegibles, sin importar lo que se configure aquí.",
@@ -400,6 +470,10 @@
     "switchOrgFailed": "Error al cambiar de organización"
   },
   "portalLayout": {
+    "navPayments": "💳 Pagos",
+    "navDataPacks": "📶 Paquetes de datos",
+    "navChat": "💬 Chat",
+    "navSecurity": "🔒 Seguridad",
     "brandName": "VigaBSS Alpha — Mi cuenta",
     "navHome": "🏠 Inicio",
     "navInvoices": "🧾 Facturas",
@@ -3988,6 +4062,8 @@
     }
   },
   "ticketDetail": {
+    "authorClient": "{{name}} (cliente)",
+    "authorSystem": "Sistema",
     "attachmentsUpload": "Subir archivo",
     "attachmentsDownload": "Descargar",
     "aiSummaryGenerating": "Generando...",
@@ -6663,6 +6739,10 @@
     }
   },
   "portalTicketDetail": {
+    "authorYou": "Tú",
+    "authorStaff": "Equipo de soporte",
+    "authorStaffNamed": "{{name}} (soporte)",
+    "authorSystem": "Sistema",
     "replyFailed": "No se pudo enviar tu respuesta. Inténtalo de nuevo.",
     "notFound": "Ticket no encontrado.",
     "back": "Volver a tickets",
