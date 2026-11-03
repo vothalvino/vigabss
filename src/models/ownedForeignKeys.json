@@ -380,6 +380,10 @@
   "portal_service_requests": {
     "client_id": "clients"
   },
+  "preservation_holds": {
+    "client_id": "clients",
+    "contract_id": "contracts"
+  },
   "profeco_complaints": {
     "client_id": "clients",
     "ticket_id": "tickets"

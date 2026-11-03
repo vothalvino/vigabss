@@ -570,6 +570,13 @@ documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;
 do not replace those with process-local state.
 
+Retention keeps connection logs, accounting events, daily usage, CGNAT
+bindings and binding events covered by an active `preservation_holds` row
+(REG-06, `src/services/preservationHoldService.js`): same organization, a
+matching client, contract, username or IP, and an overlapping UTC range. A hold
+belongs to one government request or one DSAR (whose legal hold places one).
+`tests/test_preservation_holds.sql` runs the connection-log predicate in MySQL.
+
 Calendar days are business days (BIL-34): `src/utils/businessDate.js` gives
 the day in `BUSINESS_TIMEZONE` (default `America/Mexico_City`). Containers and
 MySQL sessions run in UTC, so never write `CURDATE()`, `CURRENT_DATE`, a

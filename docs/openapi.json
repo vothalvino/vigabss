@@ -52206,6 +52206,7 @@
           "Regulatory Compliance MX"
         ],
         "summary": "Set legal hold on DSAR request",
+        "description": "Also places an open-ended preservation hold on the client's connection, accounting, usage and CGNAT data, which retention then keeps (REG-06).",
         "operationId": "legalHoldDsarRequest",
         "security": [
           {
@@ -52225,6 +52226,101 @@
         "responses": {
           "200": {
             "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/regulatory-compliance/dsar-requests/{id}/release-legal-hold": {
+      "put": {
+        "tags": [
+          "Regulatory Compliance MX"
+        ],
+        "summary": "Release a DSAR legal hold",
+        "description": "Releases the request's preservation holds and returns it to in_review.",
+        "operationId": "releaseDsarLegalHold",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Reviewed hold-release reason",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/regulatory-compliance/dsar-requests/{id}/preservation-holds": {
+      "get": {
+        "tags": [
+          "Regulatory Compliance MX"
+        ],
+        "summary": "List a DSAR request's preservation holds",
+        "operationId": "listDsarPreservationHolds",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preservation holds",
             "content": {
               "application/json": {
                 "schema": {
@@ -52622,6 +52718,178 @@
         "responses": {
           "200": {
             "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/regulatory-compliance/gov-data-requests/{id}/preservation-holds": {
+      "get": {
+        "tags": [
+          "Regulatory Compliance MX"
+        ],
+        "summary": "List a government request's preservation holds",
+        "operationId": "listGovDataRequestPreservationHolds",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preservation holds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Regulatory Compliance MX"
+        ],
+        "summary": "Place a preservation hold for a government request",
+        "description": "Interactive manage permission, while the request is received, pending legal review or processing (including after an ambiguous or unavailable lookup). Keeps every matching connection log, accounting event, daily usage row and CGNAT binding out of the retention purge until released. Subject and UTC range default to the request's client, contract, IP address and date_from..date_to, else its observed instant.",
+        "operationId": "createGovDataRequestPreservationHold",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Optional subject, UTC range and reason",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "client_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "contract_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "username": {
+                    "type": "string",
+                    "maxLength": 253
+                  },
+                  "ip_address": {
+                    "type": "string",
+                    "maxLength": 45
+                  },
+                  "held_from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "held_to": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Preservation hold",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/regulatory-compliance/preservation-holds/{id}/release": {
+      "put": {
+        "tags": [
+          "Regulatory Compliance MX"
+        ],
+        "summary": "Release a preservation hold",
+        "description": "Requires the manage permission of the hold's case. Held rows resume their original retention clock.",
+        "operationId": "releasePreservationHold",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Reviewed hold-release reason",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Released hold",
             "content": {
               "application/json": {
                 "schema": {

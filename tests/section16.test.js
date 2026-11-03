@@ -481,6 +481,19 @@ describe('PUT /api/v1/regulatory-compliance/dsar-requests/:id/legal-hold', () =>
   afterEach(() => { jest.clearAllMocks(); });
 
   it('returns 200 on legal hold', async () => {
+    // The status change and the client's preservation hold share one
+    // transaction (REG-06; tests/preservationHolds.test.js).
+    const conn = {
+      beginTransaction: jest.fn(), commit: jest.fn(), rollback: jest.fn(async () => {}), release: jest.fn(),
+      execute: jest.fn(async (sql) => {
+        if (/FROM dsar_requests/.test(sql)) return [[{ id: 1, client_id: 5, status: 'pending' }]];
+        if (/SELECT id FROM preservation_holds/.test(sql)) return [[]];
+        if (/FROM clients/.test(sql)) return [[{ id: 5 }]];
+        if (/INSERT INTO preservation_holds/.test(sql)) return [{ insertId: 3 }];
+        return [{ affectedRows: 1 }];
+      }),
+    };
+    db.getConnection.mockResolvedValue(conn);
     const res = await request(app)
       .put('/api/v1/regulatory-compliance/dsar-requests/1/legal-hold')
       .set('Authorization', `Bearer ${adminToken()}`)
@@ -488,6 +501,7 @@ describe('PUT /api/v1/regulatory-compliance/dsar-requests/:id/legal-hold', () =>
       .send({ legal_hold_reason: 'Active litigation' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
+    expect(res.body).toHaveProperty('preservation_hold_id', 3);
   });
 });
 
