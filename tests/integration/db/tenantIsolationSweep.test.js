@@ -20,13 +20,18 @@ const { describeDb, ORG_A, ORG_B, LEAK_RE, setup, teardown, relaxLimits } = requ
 
 // Routes that are not a single request/response.
 const NOT_SWEPT = [
-  /\/events\/stream$/, // server-sent events: never ends
+  /\/events\/(stream|metrics|outages)$/, // server-sent events: never end
   /\/ws(\/|$)/,
 ];
 
 // Reviewed responses that contain B's marker for a reason other than a leak.
 // Each needs the reason; the list starts empty.
 const REVIEWED_LEAKS = {};
+
+// Reviewed 5xx answers; any other 5xx or timeout fails the sweep.
+const REVIEWED_FAILURES = {
+  '/api/v1/firerelay/health': '503 by design when no FIRERELAY cluster token is configured',
+};
 
 const snake = s => s.replace(/-/g, '_').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 function plurals(word) {
@@ -176,6 +181,7 @@ describeDb('tenant isolation against a real database', () => {
     console.log(`swept ${results.length} requests ${JSON.stringify(byStatus)}; ${unresolved.length} parameterised routes had no seeded table; failed: ${failed.join(', ')}`);
 
     expect(leaks).toEqual([]);
+    expect(failed.filter(f => !REVIEWED_FAILURES[f.replace(/\?<B filters>/, '').replace(/ -> .*/, '')])).toEqual([]);
     // The sweep must stay meaningful: most requests are answered, not refused
     // by authentication or rate limits.
     expect(byStatus[401] || 0).toBeLessThan(results.length * 0.05);

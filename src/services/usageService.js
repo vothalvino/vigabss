@@ -17,9 +17,11 @@ async function getClientUsage(clientId, { organizationId, from, to } = {}) {
   const overlapParams = [organizationId, clientId];
   if (from) overlapParams.push(from);
   if (to) overlapParams.push(to);
+  // Aggregates only: a bare client_id here has no GROUP BY, which MySQL's
+  // default only_full_group_by refuses, so this 500'd for every client. The
+  // result's client_id is the parameter (TNA-37 sweep).
   let sql = `
     SELECT
-      client_id,
       COUNT(DISTINCT session_instance_id) AS session_count,
       COALESCE(SUM(bytes_in_delta), 0) AS total_bytes_in,
       COALESCE(SUM(bytes_out_delta), 0) AS total_bytes_out,

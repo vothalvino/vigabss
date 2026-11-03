@@ -38,6 +38,17 @@ describe('usageService', () => {
       expect(result.sessions).toBe(5);
     });
 
+    // The real-DB sweep (TNA-37) found this 500 for every client: a bare
+    // column beside aggregates with no GROUP BY fails only_full_group_by.
+    test('selects only aggregates, so MySQL only_full_group_by accepts it', async () => {
+      db.query.mockResolvedValueOnce([[{ session_count: 0, total_bytes_in: 0, total_bytes_out: 0, total_bytes: 0 }]]);
+      await usageService.getClientUsage(1, { organizationId: 7 });
+      const [sql] = db.query.mock.calls[0];
+      const selectList = sql.slice(sql.indexOf('SELECT') + 6, sql.indexOf('FROM radius_accounting_usage_daily'));
+      expect(selectList).not.toMatch(/^\s*client_id\s*,/m);
+      expect(sql).not.toMatch(/GROUP BY/);
+    });
+
     test('marks a summary incomplete when a pre-period unverified lifecycle overlaps', async () => {
       db.query.mockResolvedValueOnce([[
         {
