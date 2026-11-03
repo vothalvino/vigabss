@@ -15,6 +15,7 @@ const { createBandwidthTestServer, updateBandwidthTestServer } = require('../mid
 const { createSpeedTestJob } = require('../middleware/schemas/subscriberSpeedTestJobs');
 const db = require('../config/database');
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const { speedTestJobsUnavailable } = require('../utils/speedTestAvailability');
 
 const router = Router();
 
@@ -247,16 +248,10 @@ router.get('/subscriber-speed-test-jobs/:id', requirePermission('subscriber_spee
 // POST /subscriber-speed-test-jobs
 router.post('/subscriber-speed-test-jobs', requirePermission('subscriber_speed_tests.create'), validate(createSpeedTestJob, { strip: false }), async (req, res, next) => {
   try {
-    const { contract_id, test_server_id, scheduled_at, notes } = req.body;
     await assertSpeedTestJobFks(req.body, req.orgId);
-    const [result] = await db.query(
-      `INSERT INTO subscriber_speed_test_jobs
-         (organization_id, contract_id, test_server_id, requested_by, scheduled_at, notes)
-       VALUES (?, ?, ?, 'admin', ?, ?)`,
-      [req.orgId, contract_id, test_server_id || null, scheduled_at || new Date(), notes || null],
-    );
-    const [[row]] = await db.query('SELECT * FROM subscriber_speed_test_jobs WHERE id = ?', [result.insertId]);
-    res.status(201).json({ data: row });
+    // Nothing runs these jobs yet (TNA-40): refuse rather than queue a job
+    // that would stay 'queued' forever.
+    throw speedTestJobsUnavailable();
   } catch (err) {
     next(err);
   }

@@ -486,6 +486,8 @@ async function runAutoInvoice(organizationId) {
   let emailed = 0;
   let emailFailed = 0;
   let failed = 0;
+  let stamped = 0;
+  let stampFailed = 0;
   const errors = [];
   for (const contract of contracts) {
     try {
@@ -548,6 +550,12 @@ async function runAutoInvoice(organizationId) {
           noteBillingEmail('invoice', 'failed');
           logger.warn({ err: emailErr, contractId: contract.id, invoiceId: invoice.id }, 'Invoice email not sent');
         }
+
+        // Opt-in CFDI stamping (BIL-33). A failure is counted, not thrown:
+        // the invoice stands and can be stamped from its page.
+        const stamp = await require('./invoiceCfdiService').autoStampInvoice(invoice.id, contract.organization_id);
+        if (stamp.attempted && stamp.stamped) stamped++;
+        else if (stamp.attempted && !stamp.already) stampFailed++;
       }
     } catch (err) {
       // One contract must not stop the run, but a failure must not vanish
@@ -567,6 +575,8 @@ async function runAutoInvoice(organizationId) {
     emails_failed: emailFailed,
     contracts_checked: contracts.length,
     contracts_failed: failed,
+    cfdi_stamped: stamped,
+    cfdi_stamp_failed: stampFailed,
     errors,
   };
 }
@@ -811,8 +821,15 @@ async function runAlertEvaluation(organizationId = null) {
     typeof db.withTenantContext === 'function' ? db.withTenantContext(orgId, callback) : callback()
   );
 
+  // Evaluate, then climb the escalation chains of alerts still unacknowledged
+  // (TNA-40).
+  const evaluateAndEscalate = async (orgId) => {
+    const result = await alertService.evaluateAlerts(orgId);
+    return { ...result, escalated: await alertService.advanceEscalations(orgId) };
+  };
+
   if (organizationId !== null && organizationId !== undefined) {
-    return withTenant(Number(organizationId), () => alertService.evaluateAlerts(Number(organizationId)));
+    return withTenant(Number(organizationId), () => evaluateAndEscalate(Number(organizationId)));
   }
 
   const [organizations] = await withPrimary(() => db.query(
@@ -831,6 +848,7 @@ async function runAlertEvaluation(organizationId = null) {
     evaluated: 0,
     triggered: 0,
     suppressed: 0,
+    escalated: 0,
     alerts: [],
     failures: [],
   };
@@ -838,7 +856,7 @@ async function runAlertEvaluation(organizationId = null) {
   for (const organization of organizations) {
     const orgId = Number(organization.id);
     try {
-      const evaluate = () => alertService.evaluateAlerts(orgId);
+      const evaluate = () => evaluateAndEscalate(orgId);
       const result = organization.database_scope === 'isolated'
         ? await withTenant(orgId, evaluate)
         : await withPrimary(evaluate);
@@ -846,6 +864,7 @@ async function runAlertEvaluation(organizationId = null) {
       summary.evaluated += Number(result?.evaluated || 0);
       summary.triggered += Number(result?.triggered || 0);
       summary.suppressed += Number(result?.suppressed || 0);
+      summary.escalated += Number(result?.escalated || 0);
       if (Array.isArray(result?.alerts)) {
         summary.alerts.push(...result.alerts.map(alert => ({ organization_id: orgId, ...alert })));
       }
@@ -881,6 +900,8 @@ async function runBillingCycle(organizationId) {
     emails_failed: invoiceResult.emails_failed,
     contracts_checked: invoiceResult.contracts_checked,
     contracts_failed: invoiceResult.contracts_failed,
+    cfdi_stamped: invoiceResult.cfdi_stamped,
+    cfdi_stamp_failed: invoiceResult.cfdi_stamp_failed,
     errors: invoiceResult.errors,
     contracts_suspended: suspendResult.contracts_suspended,
     warnings_sent: suspendResult.warnings_sent,

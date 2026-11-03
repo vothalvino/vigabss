@@ -1,5 +1,103 @@
 {
+  "cfdiAutoStamp": {
+    "label": "Timbrar automáticamente las facturas generadas",
+    "hint": "Si está activo, la facturación programada timbra cada factura que genera, en el entorno fiscal de arriba. Una factura que no se puede timbrar (perfil fiscal del cliente incompleto, error del PAC) queda sin timbrar o como borrador de CFDI para reintentar desde Gestión de CFDI.",
+    "saveFailed": "No se pudo cambiar el timbrado automático."
+  },
+  "cfdiSubstitution": {
+    "button": "Sustituir",
+    "buttonTitle": "Timbrar un CFDI corregido para la misma factura y cancelar este (motivo 01)",
+    "confirm": "¿Sustituir el CFDI {{uuid}}? Se timbra un CFDI nuevo para la misma factura con lo que la factura dice ahora y después este se cancela ante el SAT con motivo 01 (errores, con relación). La factura sigue abierta.",
+    "notStamped": "El CFDI de sustitución no se timbró ({{error}}); el CFDI {{uuid}} sigue vigente. Reintenta el borrador de sustitución desde esta lista.",
+    "cancelFailed": "Se timbró el CFDI de sustitución {{replacement}}, pero no se pudo cancelar {{uuid}}: {{error}}. Cancélalo con motivo 01 y el UUID de sustitución.",
+    "done": "Se timbró el CFDI de sustitución {{replacement}}; cancelación de {{uuid}}: {{status}}.",
+    "failed": "No se pudo sustituir el CFDI"
+  },
+  "portalDataPacks": {
+    "title": "Paquetes de datos",
+    "subtitle": "Tus datos disponibles en este periodo y los datos extra que puedes agregar.",
+    "allowance": "Tus datos disponibles",
+    "allowanceParts": {
+      "plan": "Plan",
+      "packs": "Paquetes de datos",
+      "rollover": "Acumulados",
+      "total": "Total"
+    },
+    "unlimited": "Ilimitado",
+    "noContract": "No tienes un servicio activo.",
+    "available": "Paquetes disponibles",
+    "noPacks": "Por ahora no hay paquetes de datos.",
+    "pack": "Paquete",
+    "data": "Datos",
+    "validity": "Vigencia",
+    "price": "Precio",
+    "days_one": "{{count}} día",
+    "days_other": "{{count}} días",
+    "buy": "Comprar",
+    "confirm": "Se emitirá una factura por {{price}}.",
+    "confirmBuy": "Confirmar compra",
+    "buying": "Comprando…",
+    "cancel": "Cancelar",
+    "bought": "{{name}} se agregó a tus datos disponibles.",
+    "purchases": "Tus compras",
+    "noPurchases": "Aún no hay compras.",
+    "purchased": "Comprado",
+    "expires": "Vence",
+    "status": "Estado",
+    "statuses": {
+      "pending": "Pendiente",
+      "active": "Activo",
+      "expired": "Vencido",
+      "cancelled": "Cancelado"
+    }
+  },
+  "portalPayments": {
+    "title": "Pagos",
+    "subtitle": "Pagos registrados en tu cuenta.",
+    "loadError": "No se pudieron cargar tus pagos.",
+    "none": "Aún no hay pagos.",
+    "date": "Fecha",
+    "amount": "Monto",
+    "method": "Método",
+    "reference": "Referencia",
+    "status": "Estado",
+    "statuses": {
+      "pending": "Pendiente",
+      "completed": "Completado",
+      "failed": "Fallido",
+      "refunded": "Reembolsado",
+      "cancelled": "Cancelado"
+    }
+  },
+  "portalSecurity": {
+    "title": "Seguridad",
+    "subtitle": "Cambia la contraseña con la que entras a este portal.",
+    "changePassword": "Cambiar contraseña",
+    "current": "Contraseña actual",
+    "new": "Nueva contraseña",
+    "confirm": "Confirma la nueva contraseña",
+    "hint": "Al menos {{min}} caracteres.",
+    "tooShort": "La nueva contraseña debe tener al menos {{min}} caracteres.",
+    "mismatch": "Las nuevas contraseñas no coinciden.",
+    "save": "Cambiar contraseña",
+    "saving": "Guardando…",
+    "changed": "Tu contraseña se cambió."
+  },
+  "notApplied": {
+    "badge": "Aún no se aplica",
+    "backupSchedules": "Los horarios se guardan pero aún no se aplican: el respaldo nocturno de configuración se ejecuta para todos los equipos elegibles, sin importar lo que se configure aquí.",
+    "dataMasking": "Las reglas de enmascaramiento se guardan pero aún no se aplican: las pantallas, las respuestas de la API y las exportaciones muestran estos campos sin enmascarar.",
+    "billingAdjustments": "Los ajustes son notas: registrar uno no cambia una factura, un pago ni el saldo del cliente. Usa una nota de crédito o un pago para cambiar lo que se debe."
+  },
+  "alertRulesTab": {
+    "escalationChain": "Cadena de escalamiento",
+    "noEscalation": "Sin escalamiento",
+    "escalationHint": "Mientras la alerta no se reconozca, cada paso de la cadena avisa a su contacto tras su retraso."
+  },
   "deviceForm": {
+    "trapCommunity": "Comunidad de traps",
+    "trapCommunityHint": "Solo si el equipo envía traps con otra comunidad. Los traps deben traer esta comunidad (o la de arriba); los demás se descartan.",
+    "trapCommunityKeep": "Déjalo vacío para conservar la comunidad de traps guardada",
     "snmpV3": {
       "securityName": "Usuario SNMPv3 (nombre de seguridad)",
       "authProtocol": "Protocolo de autenticación",
@@ -386,6 +484,10 @@
     "switchOrgFailed": "Error al cambiar de organización"
   },
   "portalLayout": {
+    "navPayments": "💳 Pagos",
+    "navDataPacks": "📶 Paquetes de datos",
+    "navChat": "💬 Chat",
+    "navSecurity": "🔒 Seguridad",
     "brandName": "VigaBSS Alpha — Mi cuenta",
     "navHome": "🏠 Inicio",
     "navInvoices": "🧾 Facturas",
@@ -3974,6 +4076,8 @@
     }
   },
   "ticketDetail": {
+    "authorClient": "{{name}} (cliente)",
+    "authorSystem": "Sistema",
     "attachmentsUpload": "Subir archivo",
     "attachmentsDownload": "Descargar",
     "aiSummaryGenerating": "Generando...",
@@ -6623,12 +6727,10 @@
     "stats": "{{views}} vistas · a {{helpful}} les resultó útil"
   },
   "portalSpeedTest": {
-    "queueFailed": "No se pudo programar la prueba de velocidad. Inténtalo de nuevo.",
     "title": "Prueba de Velocidad",
-    "subtitle": "Mide la velocidad de tu conexión y consulta el historial",
-    "queued": "¡Prueba programada! Los resultados aparecerán abajo al terminar (normalmente en unos 30 segundos).",
-    "queuing": "Programando…",
-    "run": "Iniciar Prueba",
+    "unavailableBadge": "Aún no disponible",
+    "unavailable": "Todavía no es posible iniciar una prueba de velocidad desde el portal. Contacta a soporte si tu conexión parece lenta.",
+    "subtitle": "Historial de pruebas de velocidad de tu conexión",
     "latest": "Último Resultado",
     "mbpsDown": "Mbps de Bajada",
     "mbpsUp": "Mbps de Subida",
@@ -6636,7 +6738,7 @@
     "tested": "Probado: {{date}}",
     "history": "Historial de Pruebas",
     "refresh": "Actualizar",
-    "none": "Aún no hay pruebas. Inicia tu primera prueba arriba.",
+    "none": "Aún no hay pruebas.",
     "date": "Fecha",
     "status": "Estado",
     "down": "Bajada",
@@ -6651,6 +6753,10 @@
     }
   },
   "portalTicketDetail": {
+    "authorYou": "Tú",
+    "authorStaff": "Equipo de soporte",
+    "authorStaffNamed": "{{name}} (soporte)",
+    "authorSystem": "Sistema",
     "replyFailed": "No se pudo enviar tu respuesta. Inténtalo de nuevo.",
     "notFound": "Ticket no encontrado.",
     "back": "Volver a tickets",

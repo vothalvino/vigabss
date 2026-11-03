@@ -10,6 +10,7 @@ const { validate } = require('../middleware/validate');
 const alertSchemas = require('../middleware/schemas/alerts');
 const alertService = require('../services/alertService');
 const db = require('../config/database');
+const { AppError } = require('../utils/errors');
 const { encrypt } = require('../utils/encryption');
 const escalationSchemas = require('../middleware/schemas/alertEscalations');
 const maintenanceSchemas = require('../middleware/schemas/maintenanceWindows');
@@ -45,18 +46,33 @@ router.get('/rules', requirePermission('devices.view'), async (req, res, next) =
   } catch (err) { next(err); }
 });
 
+// An escalation chain may only be one of the caller's organization (TNA-40):
+// the scheduled evaluator escalates through it and notifies its contacts.
+async function assertOwnedEscalationChain(orgId, chainId) {
+  if (chainId === undefined || chainId === null) return;
+  const [rows] = await db.query(
+    'SELECT id FROM alert_escalation_chains WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+    [chainId, orgId],
+  );
+  if (!rows.length) {
+    throw new AppError('Escalation chain not found in this organization', 422, 'ESCALATION_CHAIN_NOT_FOUND');
+  }
+}
+
 // POST /api/alerts/rules — Create an alert rule
 router.post('/rules', requirePermission('devices.create'), validate(alertSchemas.createRule, { strip: false }), async (req, res, next) => {
   try {
+    await assertOwnedEscalationChain(req.orgId, req.body.escalation_chain_id);
     const [result] = await db.query(
-      `INSERT INTO alert_rules (organization_id, name, description, metric, operator, threshold, device_id, duration_minutes, severity, auto_create_outage, auto_create_ticket, notification_channels, is_enabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO alert_rules (organization_id, name, description, metric, operator, threshold, device_id, duration_minutes, severity, auto_create_outage, auto_create_ticket, notification_channels, escalation_chain_id, is_enabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.orgId, req.body.name, req.body.description || null, req.body.metric,
         req.body.operator || '>', req.body.threshold, req.body.device_id || null,
         req.body.duration_minutes || 5, req.body.severity || 'major',
         req.body.auto_create_outage || false,
         req.body.auto_create_ticket || false,
         req.body.notification_channels ? JSON.stringify(req.body.notification_channels) : null,
+        req.body.escalation_chain_id || null,
         req.body.is_enabled !== false],
     );
     const [rows] = await db.query(
@@ -73,7 +89,8 @@ router.put('/rules/:id', requirePermission('devices.update'), validate(alertSche
     const fields = [];
     const params = [];
     const allowed = ['name', 'description', 'metric', 'operator', 'threshold', 'device_id',
-      'duration_minutes', 'severity', 'auto_create_outage', 'auto_create_ticket', 'is_enabled'];
+      'duration_minutes', 'severity', 'auto_create_outage', 'auto_create_ticket', 'escalation_chain_id', 'is_enabled'];
+    await assertOwnedEscalationChain(req.orgId, req.body.escalation_chain_id);
 
     for (const key of allowed) {
       if (req.body[key] !== undefined) {

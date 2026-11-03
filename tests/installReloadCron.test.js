@@ -19,7 +19,7 @@ const SCRIPT = path.join(__dirname, '..', 'nginx', 'install-reload-cron.sh');
 const OLD_LINE = '0 */6 * * * /usr/sbin/nginx -s reload 2>/dev/null || true  # vigabss-nginx-reload';
 const LEGACY_LINE = '0 */6 * * * /usr/sbin/nginx -s reload 2>/dev/null || true  # fireisp-nginx-reload';
 
-function run(initialCrontab) {
+function run(initialCrontab, { times = 1 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-cron-'));
   const cronDir = path.join(dir, 'cron.d');
   const bin = path.join(dir, 'bin');
@@ -36,10 +36,12 @@ elif [[ "$1" == "-" ]]; then
   cat > "${store}.tmp" && mv "${store}.tmp" "${store}"
 fi
 `, { mode: 0o755 });
-  execFileSync('bash', [SCRIPT], {
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, VIGABSS_CRON_DIR: cronDir },
-    stdio: 'pipe',
-  });
+  for (let i = 0; i < times; i++) {
+    execFileSync('bash', [SCRIPT], {
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, VIGABSS_CRON_DIR: cronDir },
+      stdio: 'pipe',
+    });
+  }
   const cronFile = path.join(cronDir, 'vigabss-nginx-reload');
   return {
     cronFile: fs.readFileSync(cronFile, 'utf8'),
@@ -65,6 +67,13 @@ test.each([
 test("other root crontab lines are kept and the old VigaBSS line removed", () => {
   const result = run(`MAILTO=ops@example.com\n15 3 * * * /usr/local/bin/backup\n${OLD_LINE}\n`);
   expect(result.crontab).toBe('MAILTO=ops@example.com\n15 3 * * * /usr/local/bin/backup\n');
+});
+
+// SUP-14: an installer rerun runs it again over its own result.
+test('rerunning it changes nothing', () => {
+  const once = run(`15 3 * * * /usr/local/bin/backup\n${OLD_LINE}\n`);
+  const twice = run(`15 3 * * * /usr/local/bin/backup\n${OLD_LINE}\n`, { times: 2 });
+  expect(twice).toEqual(once);
 });
 
 test('a crontab without VigaBSS lines is not rewritten', () => {

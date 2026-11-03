@@ -203,8 +203,11 @@ describe('SNMP trap listener deployment boundary', () => {
     expect(guide).toMatch(/SNMP_TRAP_BIND_IP/);
     expect(guide).toMatch(/SNMP_TRAP_PUBLISH_IP/);
     expect(guide).toMatch(/trusted device-management networks/i);
-    expect(guide).toMatch(/attributes\s+senders by source IP[\s\S]*does not authenticate inbound traps with an SNMP\s+community/i);
-    expect(guide).toMatch(/non-loopback deployment must enforce that network ACL/i);
+    // NET-24: network ACL plus the device's community or SNMPv3 user.
+    expect(guide).toMatch(/### Trust model/);
+    expect(guide).toMatch(/Network ACL\.\*\*[\s\S]*The device's own credential/);
+    expect(guide).toMatch(/Source address alone never attributes a trap/);
+    expect(guide).toMatch(/Keep the network ACL in place even when communities are set/);
     expect(guide).toMatch(/refuses to render an externally reachable Service without a nonempty/i);
     expect(guide).toMatch(/fixed-memory overload boundary/i);
     expect(guide).toMatch(/SNMP_TRAP_MAX_IN_FLIGHT/);

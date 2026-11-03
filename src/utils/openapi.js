@@ -137,7 +137,7 @@ function generateSpec() {
       { name: 'Subscriber Certificates', description: 'EAP-TLS subscriber certificate metadata registry — §3.1' },
       { name: 'PPPoE Service Profiles', description: 'PPPoE service profile management — MTU, DNS, rate-limit, address-list — §4B' },
       { name: 'PPPoE', description: 'PPPoE diagnostics (auth failures, MTU issues) and M2M event log ingest — §4B' },
-      { name: 'DHCP Servers', description: 'DHCP server integrations (ISC Kea, MikroTik) and static reservations — §5.1' },
+      { name: 'DHCP Servers', description: 'DHCP server integrations (ISC Kea, MikroTik) and static reservations — §5.1. Reservations are records only: they are not pushed to the DHCP server or router (TNA-40).' },
       { name: 'NAT Management', description: 'CGNAT/NAT pool management — §5.1' },
       { name: 'PTR Records', description: 'Reverse DNS PTR record management — §5.1' },
       { name: 'IPv6 Management', description: 'DHCPv6, SLAAC, RA management, RA Guard, subnet visualization — §5.2' },
@@ -646,6 +646,7 @@ function generateSpec() {
       '/cfdi-documents/{id}/conceptos': { get: { tags: ['CFDI Documents'], summary: 'List the conceptos (line items) of a CFDI', operationId: 'listCfdiDocumentConceptos', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Concepto[]') } },
       '/cfdi-documents/{id}/related': { get: { tags: ['CFDI Documents'], summary: 'List the CFDIs related to this one (substitutions, credit notes, payment complements)', operationId: 'listCfdiDocumentRelated', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CfdiDocument[]') } },
       '/cfdi-documents/{id}/cancel': { post: { tags: ['CFDI Documents'], summary: 'Cancel a stamped CFDI at SAT', operationId: 'cancelCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('cancellation_reason (01-04) + replacement_uuid for 01'), responses: r200('Cancellation result') } },
+      '/cfdi-documents/{id}/substitute': { post: { tags: ['CFDI Documents'], summary: 'Substitute a vigente invoice CFDI: stamp a replacement for the same invoice (TipoRelacion 04), then cancel this one with motivo 01; the invoice stays open', operationId: 'substituteCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r201('Stamp result for the replacement, with the cancellation of the original') } },
       '/cfdi-documents/{id}/rebuild': { post: { tags: ['CFDI Documents'], summary: 'Rebuild an invoice draft CFDI from the invoice (new Fecha, current receptor and conceptos) and submit it; refused while the last stamp attempt may have been stamped', operationId: 'rebuildCfdiDocument', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Stamp result for the rebuilt CFDI') } },
 
       // ---- SAT Catalogs ----
@@ -687,6 +688,10 @@ function generateSpec() {
       },
 
       // ---- PAC Providers ----
+      '/pac-providers/auto-stamp': {
+        get: { tags: ['PAC Providers'], summary: 'Whether the billing run stamps each invoice it generates', operationId: 'getCfdiAutoStamp', security: [{ bearerAuth: [] }], responses: r200('{ cfdi_auto_stamp: boolean }') },
+        put: { tags: ['PAC Providers'], summary: 'Turn automatic stamping of generated invoices on or off', operationId: 'setCfdiAutoStamp', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', required: ['cfdi_auto_stamp'], properties: { cfdi_auto_stamp: { type: 'boolean' } } }, 'The setting'), responses: r200('{ cfdi_auto_stamp: boolean }') },
+      },
       '/pac-providers/environment': {
         get: { tags: ['PAC Providers'], summary: "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp; a CFDI is cancelled in the environment that stamped it", operationId: 'getPacEnvironment', security: [{ bearerAuth: [] }], responses: r200('{ pac_environment, sandbox_vigente_count }') },
         put: { tags: ['PAC Providers'], summary: "Set the org's active fiscal environment (sandbox|production)", operationId: 'setPacEnvironment', security: [{ bearerAuth: [] }], requestBody: jsonBody('pac_environment: sandbox|production'), responses: r200('{ pac_environment }') },
@@ -1685,7 +1690,7 @@ function generateSpec() {
       ...crudPaths('dhcp-servers', 'DHCP Servers', 'DhcpServer'),
       '/dhcp-servers/{id}/reservations': {
         get: { tags: ['DHCP Servers'], summary: 'List static reservations for a DHCP server', operationId: 'listDhcpReservations', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DhcpReservation[]') },
-        post: { tags: ['DHCP Servers'], summary: 'Create a static DHCP reservation', operationId: 'createDhcpReservation', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('dhcpServers_createDhcpReservation'), responses: r201('DhcpReservation') },
+        post: { tags: ['DHCP Servers'], summary: 'Record a static DHCP reservation (not pushed to the server)', operationId: 'createDhcpReservation', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('dhcpServers_createDhcpReservation'), responses: r201('DhcpReservation') },
       },
       '/dhcp-servers/reservations/{rid}': {
         put: { tags: ['DHCP Servers'], summary: 'Update a static DHCP reservation', operationId: 'updateDhcpReservation', security: [{ bearerAuth: [] }], parameters: [{ name: 'rid', in: 'path', required: true, schema: { type: 'integer' } }], requestBody: jsonBody('dhcpServers_updateDhcpReservation'), responses: r200('DhcpReservation') },
@@ -2396,7 +2401,7 @@ function generateSpec() {
       // ---- Subscriber Speed Test Jobs §10.4 ----
       '/subscriber-speed-test-jobs': {
         get: { tags: ['Subscriber Speed Test Jobs'], summary: 'List subscriber speed test jobs', operationId: 'listSubscriberSpeedTestJobs', security: [{ bearerAuth: [] }], parameters: [{ name: 'contract_id', in: 'query', required: false, schema: { type: 'integer' } }, { name: 'status', in: 'query', required: false, schema: { type: 'string' } }, pageParam(), limitParam()], responses: r200('SubscriberSpeedTestJob[]') },
-        post: { tags: ['Subscriber Speed Test Jobs'], summary: 'Schedule a subscriber speed test job', operationId: 'createSubscriberSpeedTestJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('SubscriberSpeedTestJob'), responses: r201('SubscriberSpeedTestJob') },
+        post: { tags: ['Subscriber Speed Test Jobs'], summary: 'Schedule a subscriber speed test job (not available yet)', description: 'No speed-test runner exists yet, so after validating the contract and server this answers 501 SPEED_TEST_UNAVAILABLE instead of queuing a job that would never complete (TNA-40).', operationId: 'createSubscriberSpeedTestJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('SubscriberSpeedTestJob'), responses: { ...r201('SubscriberSpeedTestJob'), 501: errorResponse('No speed-test runner is installed') } },
       },
       '/subscriber-speed-test-jobs/{id}': {
         get: { tags: ['Subscriber Speed Test Jobs'], summary: 'Get a subscriber speed test job', operationId: 'getSubscriberSpeedTestJob', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('SubscriberSpeedTestJob') },
@@ -2537,7 +2542,7 @@ function generateSpec() {
         post: { tags: ['Portal Support'], summary: 'Rate a KB article helpful or not', operationId: 'portalRateKbArticle', security: [{ bearerAuth: [] }], parameters: [{ name: 'slugOrId', in: 'path', required: true, schema: { type: 'string' } }], requestBody: jsonBody('helpful: boolean'), responses: r200('Rating result') },
       },
       '/portal/speed-test': {
-        post: { tags: ['Portal Support'], summary: 'Queue a speed test job for this subscriber', operationId: 'portalQueueSpeedTest', security: [{ bearerAuth: [] }], responses: r201('SpeedTestJob') },
+        post: { tags: ['Portal Support'], summary: 'Queue a speed test job for this subscriber (not available yet)', description: 'No speed-test runner exists yet: answers 501 SPEED_TEST_UNAVAILABLE (TNA-40). Past results stay available from /portal/speed-test/results.', operationId: 'portalQueueSpeedTest', security: [{ bearerAuth: [] }], responses: { 501: errorResponse('No speed-test runner is installed') } },
       },
       '/portal/speed-test/results': {
         get: { tags: ['Portal Support'], summary: 'List speed test results for this subscriber', operationId: 'portalListSpeedTestResults', security: [{ bearerAuth: [] }], responses: r200('SpeedTestJob[]') },

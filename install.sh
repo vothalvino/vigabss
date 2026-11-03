@@ -1250,7 +1250,10 @@ fi
 if [[ -n "$SOURCE_RELEASE" ]]; then
   export VIGABSS_IMAGE="ghcr.io/vothalvino/vigabss:${SOURCE_RELEASE#v}"
 else
-  export VIGABSS_IMAGE="ghcr.io/vothalvino/vigabss:$(git -C "$INSTALL_DIR" rev-parse HEAD)"
+  # Assigned before export so a failed rev-parse stops the install under
+  # set -e instead of exporting an image tag with no commit (SC2155).
+  _head_sha="$(git -C "$INSTALL_DIR" rev-parse HEAD)"
+  export VIGABSS_IMAGE="ghcr.io/vothalvino/vigabss:${_head_sha}"
 fi
 export FIREISP_IMAGE="$VIGABSS_IMAGE"
 

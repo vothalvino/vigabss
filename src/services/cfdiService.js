@@ -11,6 +11,7 @@ const cfdiSealService = require('./cfdiSealService');
 const encryption = require('../utils/encryption');
 const db = require('../config/database');
 const { formatMoney, formatQuantity, formatUnitValue, anexo20Violations } = require('../utils/cfdiAmounts');
+const money = require('../utils/money');
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
@@ -1072,6 +1073,23 @@ async function syncInvoiceCancelled(cfdiDocumentId) {
       return;
     }
     if (!doc.invoice_id) return;
+    // Substituted (BIL-33): cancelled with motivo 01 naming a replacement CFDI
+    // of the same invoice that is still live, so the invoice continues under
+    // the replacement and is not settled to cancelled.
+    const [replacement] = await db.query(
+      `SELECT r.id
+         FROM cfdi_cancellations c
+         JOIN cfdi_documents r
+           ON r.uuid = c.folio_sustitucion AND r.invoice_id = ? AND r.organization_id = ?
+          AND r.sat_status IN ('vigente', 'cancel_pending')
+        WHERE c.cfdi_document_id = ? AND c.motivo = '01'
+        LIMIT 1`,
+      [doc.invoice_id, doc.organization_id, cfdiDocumentId],
+    );
+    if (replacement[0]) {
+      logger.info({ cfdiDocumentId, replacementId: replacement[0].id }, 'Substituted CFDI cancelled; the invoice continues under its replacement');
+      return;
+    }
     const billingService = require('./billingService');
     await billingService.cancelInvoiceForSat(doc.invoice_id, doc.organization_id, null);
   } catch (err) {
@@ -2032,9 +2050,11 @@ async function enrichRelatedDocumentsWithTaxes(relatedDocuments, organizationId)
     }
     // Proportional breakdown of this parcialidad's payment (guía de llenado):
     // base = pagado net of IVA at the invoice's rate, importe = the remainder.
-    const pagado = Number(rd.imp_pagado);
-    const base = Math.round((pagado / (1 + rate)) * 100) / 100;
-    const importe = Math.round((pagado - base) * 100) / 100;
+    // Integer cents (BIL-31); importe is the remainder, so base + importe
+    // is always exactly the parcialidad.
+    const pagado = rd.imp_pagado;
+    const base = money.div(pagado, 1 + rate);
+    const importe = money.sub(pagado, base);
     out.push({
       ...rd,
       objeto_imp_dr: '02',

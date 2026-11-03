@@ -26,6 +26,8 @@ const createRule = {
   severity: { type: 'string', required: false, enum: ALERT_SEVERITIES },
   auto_create_outage: { type: 'boolean', required: false },
   auto_create_ticket: { type: 'boolean', required: false },
+  // An escalation chain of the same organization (TNA-40); null clears it.
+  escalation_chain_id: { type: 'number', required: false, min: 1 },
   is_enabled: { type: 'boolean', required: false },
 };
 
@@ -40,6 +42,8 @@ const updateRule = {
   severity: { type: 'string', required: false, enum: ALERT_SEVERITIES },
   auto_create_outage: { type: 'boolean', required: false },
   auto_create_ticket: { type: 'boolean', required: false },
+  // An escalation chain of the same organization (TNA-40); null clears it.
+  escalation_chain_id: { type: 'number', required: false, min: 1 },
   is_enabled: { type: 'boolean', required: false },
 };
 

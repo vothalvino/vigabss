@@ -1,4 +1,7 @@
 // Resolve one device management IP without crossing a tenant boundary.
+// The device's SNMP trap credentials come back with it (sealed) so the trap
+// receiver can check them before attribution (NET-24); it strips them before
+// the device reaches events or forwarding.
 //
 // Isolated tenant databases cannot presently participate in an atomic,
 // install-wide uniqueness decision. Until VigaBSS has a primary canonical
@@ -36,6 +39,8 @@ async function sharedMatches(ipAddress, exec = db.query, { lock = false } = {}) 
   const queryColumn = async (column) => {
     const [rows] = await exec(
       `SELECT d.id, d.organization_id, d.name, d.ip_address, d.ipv6_address,
+              d.snmp_version, d.snmp_community, d.snmp_trap_community,
+              d.snmp_v3_security_name, d.snmp_v3_auth_key_encrypted,
               d.deleted_at AS device_deleted_at,
             o.status AS organization_status,
             o.deleted_at AS organization_deleted_at
@@ -172,9 +177,19 @@ async function lockSharedDeviceByIp(value, exec) {
   return resolveWithExecutor(value, exec, { lock: true });
 }
 
-// Compatibility hook retained for device CRUD call sites. No positive routing
-// result or isolated-tenant connection is cached by this service.
-function invalidateDeviceRoutingCache() {}
+// Called by device CRUD. No positive routing result or isolated-tenant
+// connection is cached by this service; listeners (the trap receiver's
+// credential set, NET-24) reload what they derive from devices.
+const routingChangeListeners = new Set();
+function onDeviceRoutingChange(listener) {
+  routingChangeListeners.add(listener);
+  return () => routingChangeListeners.delete(listener);
+}
+function invalidateDeviceRoutingCache() {
+  for (const listener of routingChangeListeners) {
+    try { listener(); } catch (err) { logger.warn({ err: err.message }, 'Device routing change listener failed'); }
+  }
+}
 
 module.exports = {
   ISOLATED_UNSUPPORTED_REASON,
@@ -184,4 +199,5 @@ module.exports = {
   activeIsolatedOrganizations,
   retainedOrganizations,
   invalidateDeviceRoutingCache,
+  onDeviceRoutingChange,
 };

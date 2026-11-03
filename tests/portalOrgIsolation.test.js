@@ -222,7 +222,8 @@ describe('active-contract lookups ignore another org\'s contract naming this cli
 
   test('speed test cannot be queued against the foreign contract', async () => {
     const res = await portal('post', '/api/v1/portal/speed-test');
-    expect(res.status).toBe(422);
+    // No speed-test runner exists, so nothing is queued for any contract (TNA-40).
+    expect(res.status).toBe(501);
     expect(writesTo('subscriber_speed_test_jobs')).toEqual([]);
   });
 

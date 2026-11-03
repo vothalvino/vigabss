@@ -99,6 +99,51 @@ router.get('/environment', requirePermission('pac_providers.view'), async (req, 
   }
 });
 
+// Stamp each invoice the billing run generates (BIL-33). Off by default;
+// organization_mx_profiles.cfdi_auto_stamp. Declared before '/:id'.
+router.get('/auto-stamp', requirePermission('pac_providers.view'), async (req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT cfdi_auto_stamp FROM organization_mx_profiles WHERE organization_id = ? AND deleted_at IS NULL',
+      [req.orgId],
+    );
+    res.json({ data: { cfdi_auto_stamp: Boolean(Number(rows[0]?.cfdi_auto_stamp || 0)) } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/auto-stamp', requirePermission('pac_providers.update'), async (req, res, next) => {
+  try {
+    const value = req.body?.cfdi_auto_stamp;
+    if (typeof value !== 'boolean') {
+      throw new AppError('cfdi_auto_stamp must be true or false.', 422, 'VALIDATION_ERROR');
+    }
+    const [existing] = await db.query(
+      'SELECT id FROM organization_mx_profiles WHERE organization_id = ? AND deleted_at IS NULL',
+      [req.orgId],
+    );
+    if (!existing[0]) {
+      throw new AppError(
+        'Configure the organization fiscal profile (Organization → Fiscal) before turning on automatic stamping.',
+        422, 'ORG_MX_PROFILE_MISSING',
+      );
+    }
+    await db.query(
+      'UPDATE organization_mx_profiles SET cfdi_auto_stamp = ? WHERE organization_id = ? AND deleted_at IS NULL',
+      [value ? 1 : 0, req.orgId],
+    );
+    await auditLog.log({
+      userId: req.user?.id, organizationId: req.orgId, action: 'update',
+      tableName: 'organization_mx_profiles', recordId: existing[0].id,
+      summary: `${value ? 'Enabled' : 'Disabled'} automatic CFDI stamping of generated invoices`,
+    });
+    res.json({ data: { cfdi_auto_stamp: value } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.put('/environment', requirePermission('pac_providers.update'), async (req, res, next) => {
   try {
     const value = req.body?.pac_environment;

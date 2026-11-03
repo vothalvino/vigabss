@@ -63,6 +63,7 @@ interface AlertRule {
   duration_minutes: number;
   severity: string;
   auto_create_outage: boolean;
+  escalation_chain_id?: number | null;
   is_enabled: boolean;
   created_at: string;
 }
@@ -285,10 +286,11 @@ function OrgConfigTab() {
 const EMPTY_RULE = {
   name: '', description: '', metric: 'cpu_usage', operator: '>',
   threshold: '90', device_id: '', duration_minutes: '5', severity: 'major',
-  auto_create_outage: false, is_enabled: true,
+  auto_create_outage: false, is_enabled: true, escalation_chain_id: '',
 };
 
 function AlertRulesTab() {
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<AlertRule | null>(null);
   const [form, setForm] = useState({ ...EMPTY_RULE });
@@ -301,6 +303,12 @@ function AlertRulesTab() {
     queryFn: () =>
       apiFetch<{ data: AlertRule[]; meta: { total: number } }>(`${API_BASE}/alerts/rules?limit=100`),
   });
+  const { data: chainData } = useQuery({
+    queryKey: ['alert-escalation-chains'],
+    queryFn: () =>
+      apiFetch<{ data: { id: number; name: string }[] }>(`${API_BASE}/alerts/escalation-chains?limit=100`),
+  });
+  const chains = chainData?.data ?? [];
 
   const saveMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
@@ -331,6 +339,7 @@ function AlertRulesTab() {
       device_id: r.device_id ? String(r.device_id) : '',
       duration_minutes: String(r.duration_minutes),
       severity: r.severity, auto_create_outage: r.auto_create_outage, is_enabled: r.is_enabled,
+      escalation_chain_id: r.escalation_chain_id ? String(r.escalation_chain_id) : '',
     });
     setFormError(''); setShowModal(true);
   }
@@ -348,6 +357,8 @@ function AlertRulesTab() {
       device_id: form.device_id ? parseInt(form.device_id, 10) : undefined,
       duration_minutes: parseInt(form.duration_minutes, 10) || 5,
       severity: form.severity, auto_create_outage: form.auto_create_outage,
+      // null clears a chain on edit.
+      escalation_chain_id: form.escalation_chain_id ? parseInt(form.escalation_chain_id, 10) : (editing ? null : undefined),
       is_enabled: form.is_enabled,
     });
   }
@@ -443,6 +454,14 @@ function AlertRulesTab() {
                   onChange={e => setForm(f => ({ ...f, device_id: e.target.value }))} />
               </label>
             </div>
+            <label style={sty.label}>{t('alertRulesTab.escalationChain')}
+              <select style={sty.select} value={form.escalation_chain_id}
+                onChange={e => setForm(f => ({ ...f, escalation_chain_id: e.target.value }))}>
+                <option value="">{t('alertRulesTab.noEscalation')}</option>
+                {chains.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+              </select>
+              <span style={{ fontSize: '0.8rem', color: '#888' }}>{t('alertRulesTab.escalationHint')}</span>
+            </label>
             <div style={sty.checkRow}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input type="checkbox" checked={form.auto_create_outage}

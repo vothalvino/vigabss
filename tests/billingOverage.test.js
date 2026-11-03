@@ -34,6 +34,22 @@ describe('billingService — overage charges', () => {
     expect(result.amount).toBe(0);
   });
 
+  // BIL-31: 2.01 GB × 0.50 is 1.005 exactly; Math.round on the float billed 1.00.
+  it('bills an exact half cent rounded up', async () => {
+    db.query.mockResolvedValueOnce([[{
+      data_cap_gb: 100,
+      overage_mode: 'per_gb',
+      overage_price_per_gb: '0.50',
+      bytes_used: Math.round(102.01 * 1073741824),
+      observed_rows: 1,
+      incomplete_rows: 0,
+      unverifiable_session_rows: 0,
+    }]]);
+
+    const result = await calculateOverageCharges(1, '2025-01-01', '2025-01-31');
+    expect(result).toMatchObject({ overage_gb: 2.01, price_per_gb: 0.5, amount: 1.01 });
+  });
+
   it('returns zero when usage is under cap', async () => {
     db.query.mockResolvedValueOnce([[{
       data_cap_gb: 100,

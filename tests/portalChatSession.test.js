@@ -84,7 +84,9 @@ test('an auto-sent reply is shown, and later messages reuse the same ticket', as
   expect(sqlCalls(/INSERT INTO tickets/)).toHaveLength(1);
   const comments = sqlCalls(/INSERT INTO ticket_comments/);
   expect(comments).toHaveLength(1);
-  expect(comments[0][1]).toEqual([900, 'Ya lo reinicié']);
+  // Recorded as the client's own comment (FE-26).
+  expect(comments[0][0]).toMatch(/'client'/);
+  expect(comments[0][1]).toEqual([900, 5, 'Ya lo reinicié']);
   expect(aiReplyService.generate).toHaveBeenLastCalledWith(expect.objectContaining({ ticketId: 900, inboundText: 'Ya lo reinicié' }));
   expect(sqlCalls(/SET status = 'waiting'/).length).toBeGreaterThan(0);
 });

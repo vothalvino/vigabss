@@ -146,7 +146,18 @@ registry.collected({
 const noteOutboxMessage = (channel, result) => outboxMessages.inc({ channel, result });
 const noteOutboxBacklog = (rows, oldestQueuedSeconds) => { outboxBacklog = { rows, oldestQueuedSeconds }; };
 
+// SNMP traps dropped because their community or SNMPv3 user did not
+// authenticate them as the device they came from (NET-24).
+const snmpTrapAuthDrops = registry.counter({
+  name: 'snmp_trap_dropped_auth_total',
+  help: 'SNMP traps dropped for failed authentication (reason: unknown_community, unknown_user, security_level, bad_digest, decrypt_failed, community_mismatch, user_mismatch, no_credentials)',
+  labelNames: ['reason'],
+  maxSeries: 20,
+});
+const noteSnmpTrapAuthDrop = reason => snmpTrapAuthDrops.inc({ reason });
+
 module.exports = {
+  noteSnmpTrapAuthDrop,
   noteOutboxMessage, noteOutboxBacklog,
   noteBackupSuccess, noteTaskRun, noteAuditWriteFailure, scheduledTaskRuns, auditWriteFailures,
   noteInvoiceRun, noteBillingEmail, noteAutopayCharge, notePaymentRetry, notePaymentWebhook,

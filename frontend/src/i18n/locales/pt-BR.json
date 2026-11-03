@@ -1,5 +1,103 @@
 {
+  "cfdiAutoStamp": {
+    "label": "Emitir automaticamente as faturas geradas",
+    "hint": "Quando ativado, o faturamento agendado emite cada fatura que gera, no ambiente fiscal acima. Uma fatura que não puder ser emitida (perfil fiscal do cliente incompleto, erro do PAC) fica sem emissão ou como rascunho de CFDI para tentar de novo em Gestão de CFDI.",
+    "saveFailed": "Não foi possível alterar a emissão automática."
+  },
+  "cfdiSubstitution": {
+    "button": "Substituir",
+    "buttonTitle": "Emitir um CFDI corrigido para a mesma fatura e cancelar este (motivo 01)",
+    "confirm": "Substituir o CFDI {{uuid}}? Um novo CFDI é emitido para a mesma fatura com o que a fatura diz agora e depois este é cancelado no SAT com motivo 01 (erros, com relação). A fatura continua aberta.",
+    "notStamped": "O CFDI substituto não foi emitido ({{error}}); o CFDI {{uuid}} continua vigente. Tente novamente o rascunho substituto nesta lista.",
+    "cancelFailed": "O CFDI substituto {{replacement}} foi emitido, mas o cancelamento de {{uuid}} falhou: {{error}}. Cancele-o com motivo 01 e o UUID substituto.",
+    "done": "CFDI substituto {{replacement}} emitido; cancelamento de {{uuid}}: {{status}}.",
+    "failed": "Não foi possível substituir o CFDI"
+  },
+  "portalDataPacks": {
+    "title": "Pacotes de dados",
+    "subtitle": "Sua franquia de dados neste período e os dados extras que você pode adicionar.",
+    "allowance": "Sua franquia",
+    "allowanceParts": {
+      "plan": "Plano",
+      "packs": "Pacotes de dados",
+      "rollover": "Acumulado",
+      "total": "Total"
+    },
+    "unlimited": "Ilimitado",
+    "noContract": "Você não tem um serviço ativo.",
+    "available": "Pacotes disponíveis",
+    "noPacks": "No momento não há pacotes de dados.",
+    "pack": "Pacote",
+    "data": "Dados",
+    "validity": "Validade",
+    "price": "Preço",
+    "days_one": "{{count}} dia",
+    "days_other": "{{count}} dias",
+    "buy": "Comprar",
+    "confirm": "Será emitida uma fatura de {{price}}.",
+    "confirmBuy": "Confirmar compra",
+    "buying": "Comprando…",
+    "cancel": "Cancelar",
+    "bought": "{{name}} foi adicionado à sua franquia.",
+    "purchases": "Suas compras",
+    "noPurchases": "Nenhuma compra ainda.",
+    "purchased": "Comprado",
+    "expires": "Expira",
+    "status": "Situação",
+    "statuses": {
+      "pending": "Pendente",
+      "active": "Ativo",
+      "expired": "Expirado",
+      "cancelled": "Cancelado"
+    }
+  },
+  "portalPayments": {
+    "title": "Pagamentos",
+    "subtitle": "Pagamentos registrados na sua conta.",
+    "loadError": "Não foi possível carregar seus pagamentos.",
+    "none": "Nenhum pagamento ainda.",
+    "date": "Data",
+    "amount": "Valor",
+    "method": "Forma",
+    "reference": "Referência",
+    "status": "Situação",
+    "statuses": {
+      "pending": "Pendente",
+      "completed": "Concluído",
+      "failed": "Falhou",
+      "refunded": "Reembolsado",
+      "cancelled": "Cancelado"
+    }
+  },
+  "portalSecurity": {
+    "title": "Segurança",
+    "subtitle": "Altere a senha que você usa para entrar neste portal.",
+    "changePassword": "Alterar senha",
+    "current": "Senha atual",
+    "new": "Nova senha",
+    "confirm": "Confirme a nova senha",
+    "hint": "Pelo menos {{min}} caracteres.",
+    "tooShort": "A nova senha deve ter pelo menos {{min}} caracteres.",
+    "mismatch": "As novas senhas não coincidem.",
+    "save": "Alterar senha",
+    "saving": "Salvando…",
+    "changed": "Sua senha foi alterada."
+  },
+  "notApplied": {
+    "badge": "Ainda não aplicado",
+    "backupSchedules": "Os agendamentos são registrados, mas ainda não são aplicados: o backup noturno de configuração é executado para todos os equipamentos elegíveis, seja qual for a configuração aqui.",
+    "dataMasking": "As regras de mascaramento são registradas, mas ainda não são aplicadas: telas, respostas da API e exportações mostram estes campos sem máscara.",
+    "billingAdjustments": "Os ajustes são anotações: registrar um não altera uma fatura, um pagamento nem o saldo do cliente. Use uma nota de crédito ou um pagamento para alterar o valor devido."
+  },
+  "alertRulesTab": {
+    "escalationChain": "Cadeia de escalonamento",
+    "noEscalation": "Sem escalonamento",
+    "escalationHint": "Enquanto o alerta não for reconhecido, cada etapa da cadeia avisa seu contato após o seu atraso."
+  },
   "deviceForm": {
+    "trapCommunity": "Comunidade de traps",
+    "trapCommunityHint": "Somente se o equipamento enviar traps com outra comunidade. Os traps devem trazer esta comunidade (ou a de cima); os demais são descartados.",
+    "trapCommunityKeep": "Deixe em branco para manter a comunidade de traps salva",
     "snmpV3": {
       "securityName": "Usuário SNMPv3 (nome de segurança)",
       "authProtocol": "Protocolo de autenticação",
@@ -386,6 +484,10 @@
     "switchOrgFailed": "Falha ao trocar de organização"
   },
   "portalLayout": {
+    "navPayments": "💳 Pagamentos",
+    "navDataPacks": "📶 Pacotes de dados",
+    "navChat": "💬 Chat",
+    "navSecurity": "🔒 Segurança",
     "brandName": "VigaBSS Alpha — Minha conta",
     "navHome": "🏠 Início",
     "navInvoices": "🧾 Faturas",
@@ -3974,6 +4076,8 @@
     }
   },
   "ticketDetail": {
+    "authorClient": "{{name}} (cliente)",
+    "authorSystem": "Sistema",
     "attachmentsUpload": "Enviar arquivo",
     "attachmentsDownload": "Baixar",
     "aiSummaryGenerating": "Gerando...",
@@ -6623,12 +6727,10 @@
     "stats": "{{views}} visualizações · {{helpful}} acharam útil"
   },
   "portalSpeedTest": {
-    "queueFailed": "Não foi possível agendar o teste de velocidade. Tente novamente.",
     "title": "Teste de Velocidade",
-    "subtitle": "Teste a velocidade da sua conexão e veja o histórico",
-    "queued": "Teste agendado! Os resultados aparecerão abaixo ao terminar (geralmente em até 30 segundos).",
-    "queuing": "Agendando…",
-    "run": "Iniciar Teste",
+    "unavailableBadge": "Ainda não disponível",
+    "unavailable": "Ainda não é possível iniciar um teste de velocidade pelo portal. Fale com o suporte se a sua conexão parecer lenta.",
+    "subtitle": "Histórico de testes de velocidade da sua conexão",
     "latest": "Último Resultado",
     "mbpsDown": "Mbps de Download",
     "mbpsUp": "Mbps de Upload",
@@ -6636,7 +6738,7 @@
     "tested": "Testado: {{date}}",
     "history": "Histórico de Testes",
     "refresh": "Atualizar",
-    "none": "Nenhum teste ainda. Faça seu primeiro teste acima.",
+    "none": "Nenhum teste ainda.",
     "date": "Data",
     "status": "Status",
     "down": "Download",
@@ -6651,6 +6753,10 @@
     }
   },
   "portalTicketDetail": {
+    "authorYou": "Você",
+    "authorStaff": "Equipe de suporte",
+    "authorStaffNamed": "{{name}} (suporte)",
+    "authorSystem": "Sistema",
     "replyFailed": "Não foi possível enviar sua resposta. Tente novamente.",
     "notFound": "Chamado não encontrado.",
     "back": "Voltar para chamados",

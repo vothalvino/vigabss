@@ -573,8 +573,8 @@ router.post('/reply/send', requirePermission('ai.reply.send'), validate(replySen
     // Post as a ticket comment when the reply is actually being sent/edited
     if (action === 'sent' || action === 'edited') {
       await db.query(
-        'INSERT INTO ticket_comments (ticket_id, user_id, body, is_internal) VALUES (?, ?, ?, ?)',
-        [log.ticket_id, req.user?.id || null, final_text, false],
+        'INSERT INTO ticket_comments (ticket_id, user_id, author_type, body, is_internal) VALUES (?, ?, ?, ?, ?)',
+        [log.ticket_id, req.user?.id || null, req.user?.id ? 'staff' : 'system', final_text, false],
       );
     }
 

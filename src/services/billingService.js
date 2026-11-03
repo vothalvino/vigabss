@@ -7,6 +7,7 @@
 
 const db = require('../config/database');
 const { businessToday } = require('../utils/businessDate');
+const money = require('../utils/money');
 const { creditAppliedSql } = require('../utils/invoiceBalance');
 const Invoice = require('../models/Invoice');
 const Organization = require('../models/Organization');
@@ -570,21 +571,24 @@ async function calculateOverageCharges(contractId, periodStart, periodEnd) {
   }
 
   const BYTES_PER_GB = 1073741824;
-  const usedGb = r.bytes_used / BYTES_PER_GB;
   // Data packs bought for the period, and available rollover, raise the cap
   // before anything is billed as overage (TNA-21).
   const extra = await require('./dataPackService').extraAllowanceGb(contractId, r.organization_id, periodStart, periodEnd);
-  const overageGb = Math.max(0, usedGb - parseFloat(r.data_cap_gb) - extra.total_gb);
-
-  if (overageGb <= 0) return { overage_gb: 0, amount: 0 };
+  // In exact decimal bytes (BIL-31): float GB subtraction turned 12.345 GB
+  // over into 12.3449999…, which then rounded down.
+  const allowanceBytes = money.add(money.mul(r.data_cap_gb, BYTES_PER_GB), money.mul(extra.total_gb || 0, BYTES_PER_GB));
+  const overageBytes = money.sub(r.bytes_used, allowanceBytes);
+  if (overageBytes <= 0) return { overage_gb: 0, amount: 0 };
+  const overageGb = money.div(overageBytes, BYTES_PER_GB);
 
   // The line stores quantity and unit_price as DECIMAL(10,2): bill exactly the
   // stored GB × stored price, so the CFDI Importe equals Cantidad ×
   // ValorUnitario (CFD-03).
-  const gb = Math.round(overageGb * 100) / 100;
-  const pricePerGb = Math.round(parseFloat(r.overage_price_per_gb) * 100) / 100;
+  const gb = overageGb;
+  const pricePerGb = money.round(r.overage_price_per_gb);
   if (gb <= 0) return { overage_gb: 0, amount: 0 };
-  const amount = Math.round(gb * pricePerGb * 100) / 100;
+  // Exact product, half up: 2.01 GB × 0.50 is 1.01, not the float's 1.00 (BIL-31).
+  const amount = money.mul(gb, pricePerGb);
   return { overage_gb: gb, price_per_gb: pricePerGb, amount };
 }
 
@@ -688,9 +692,11 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
     const taxPct = tax.rate;
     const taxRateId = tax.taxRateId;
 
-    const subtotal = parseFloat(price);
-    const taxAmount = Math.round(subtotal * taxPct * 100) / 100;
-    const total = subtotal + taxAmount;
+    // Integer-cent arithmetic (BIL-31): the total was subtotal + tax as an
+    // unrounded float, and a half-cent tax rounded down.
+    const subtotal = money.round(price);
+    const taxAmount = money.mul(subtotal, taxPct);
+    const total = money.add(subtotal, taxAmount);
 
     // Generate invoice number — atomic per-org sequence (migration 381),
     // race-free under concurrent invoice generation for the same org.
@@ -740,7 +746,7 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
           [invoiceId, `Data overage — ${overage.overage_gb} GB @ ${currency} ${overage.price_per_gb}/GB`,
             overage.overage_gb, overage.price_per_gb, overage.amount],
         );
-        runningSubtotal += overage.amount;
+        runningSubtotal = money.add(runningSubtotal, overage.amount);
       }
     }
 
@@ -767,7 +773,7 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
          VALUES (?, ?, ?, ?, ?)`,
         [invoiceId, line.description, line.quantity, line.unitPrice, line.amount],
       );
-      runningSubtotal += line.amount;
+      runningSubtotal = money.add(runningSubtotal, line.amount);
       // A one-time charge bills once; expiring it here, in the same
       // transaction, keeps the next period from billing it again.
       if (addon.addon_cycle === 'one_time') {
@@ -781,10 +787,10 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
     // Fold overage + add-ons into the stored totals (single UPDATE); the
     // ledger debit below uses the same final figures.
     let finalTotal = total;
-    if (runningSubtotal !== subtotal) {
-      const newSubtotal = Math.round(runningSubtotal * 100) / 100;
-      const newTaxAmount = Math.round(newSubtotal * taxPct * 100) / 100;
-      finalTotal = Math.round((newSubtotal + newTaxAmount) * 100) / 100;
+    if (!money.equal(runningSubtotal, subtotal)) {
+      const newSubtotal = runningSubtotal;
+      const newTaxAmount = money.mul(newSubtotal, taxPct);
+      finalTotal = money.add(newSubtotal, newTaxAmount);
       await conn.execute(
         'UPDATE invoices SET subtotal = ?, tax_amount = ?, total = ? WHERE id = ?',
         [newSubtotal, newTaxAmount, finalTotal, invoiceId],
@@ -876,9 +882,9 @@ async function createOneOffInvoice({
     const taxPct = tax.rate;
     const taxRateId = tax.taxRateId;
 
-    const subtotal = Math.round(parseFloat(amount) * 100) / 100;
-    const taxAmount = Math.round(subtotal * taxPct * 100) / 100;
-    const total = Math.round((subtotal + taxAmount) * 100) / 100;
+    const subtotal = money.round(amount);
+    const taxAmount = money.mul(subtotal, taxPct);
+    const total = money.add(subtotal, taxAmount);
 
     // Sequential invoice number — atomic per-org sequence (migration 381),
     // race-free under concurrent invoice generation for the same org.
@@ -1060,9 +1066,9 @@ function invoiceTaxFraction(taxRate) {
  * @returns {Promise<number>} the delta applied to `total`
  */
 async function applyLineItemToTotals(exec, invoiceId, taxRate, lineAmount) {
-  const amt = Math.round((parseFloat(lineAmount) || 0) * 100) / 100;
-  const lineTax = Math.round(amt * invoiceTaxFraction(taxRate) * 100) / 100;
-  const delta = Math.round((amt + lineTax) * 100) / 100;
+  const amt = money.round(parseFloat(lineAmount) || 0);
+  const lineTax = money.mul(amt, invoiceTaxFraction(taxRate));
+  const delta = money.add(amt, lineTax);
   await exec(
     'UPDATE invoices SET subtotal = subtotal + ?, tax_amount = tax_amount + ?, total = total + ? WHERE id = ?',
     [amt, lineTax, delta, invoiceId],
@@ -1092,9 +1098,9 @@ async function applyLineItemToTotals(exec, invoiceId, taxRate, lineAmount) {
  * @returns {Promise<number>} the delta applied to `total`
  */
 async function applyQuoteLineItemToTotals(exec, quoteId, taxRate, lineAmount) {
-  const amt = Math.round((parseFloat(lineAmount) || 0) * 100) / 100;
-  const lineTax = Math.round(amt * invoiceTaxFraction(taxRate) * 100) / 100;
-  const delta = Math.round((amt + lineTax) * 100) / 100;
+  const amt = money.round(parseFloat(lineAmount) || 0);
+  const lineTax = money.mul(amt, invoiceTaxFraction(taxRate));
+  const delta = money.add(amt, lineTax);
   await exec(
     'UPDATE quotes SET subtotal = subtotal + ?, tax_amount = tax_amount + ?, total = total + ? WHERE id = ?',
     [amt, lineTax, delta, quoteId],
@@ -1121,9 +1127,9 @@ async function applyQuoteLineItemToTotals(exec, quoteId, taxRate, lineAmount) {
  * @returns {Promise<number>} the delta applied to `total`
  */
 async function applyCreditNoteLineItemToTotals(exec, creditNoteId, taxRate, lineAmount) {
-  const amt = Math.round((parseFloat(lineAmount) || 0) * 100) / 100;
-  const lineTax = Math.round(amt * invoiceTaxFraction(taxRate) * 100) / 100;
-  const delta = Math.round((amt + lineTax) * 100) / 100;
+  const amt = money.round(parseFloat(lineAmount) || 0);
+  const lineTax = money.mul(amt, invoiceTaxFraction(taxRate));
+  const delta = money.add(amt, lineTax);
   await exec(
     'UPDATE credit_notes SET subtotal = subtotal + ?, tax_amount = tax_amount + ?, total = total + ? WHERE id = ?',
     [amt, lineTax, delta, creditNoteId],

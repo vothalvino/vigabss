@@ -270,7 +270,19 @@ router.post('/:id/restore', requireOwnedTicketIncludingDeleted('tickets.update')
 router.get('/:id/comments', requireOwnedTicket('tickets.view'), async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      'SELECT tc.*, u.first_name, u.last_name FROM ticket_comments tc LEFT JOIN users u ON u.id = tc.user_id WHERE tc.ticket_id = ? AND tc.deleted_at IS NULL ORDER BY tc.created_at ASC',
+      // author_name: the staff member, or the client who replied from the
+      // portal or chat (FE-26: those showed as "System").
+      `SELECT tc.*, u.first_name, u.last_name,
+              CASE tc.author_type
+                WHEN 'client' THEN c.name
+                WHEN 'staff' THEN TRIM(CONCAT_WS(' ', u.first_name, u.last_name))
+                ELSE NULL
+              END AS author_name
+         FROM ticket_comments tc
+         LEFT JOIN users u ON u.id = tc.user_id
+         /* includes deleted rows: a comment keeps its author's name after the author is archived */
+         LEFT JOIN clients c ON c.id = tc.client_id
+        WHERE tc.ticket_id = ? AND tc.deleted_at IS NULL ORDER BY tc.created_at ASC`,
       [req.params.id],
     );
     res.json({ data: rows });
@@ -283,7 +295,7 @@ router.post('/:id/comments', requireOwnedTicket('tickets.update', 'tickets.comme
   try {
     const { body, is_internal } = req.body;
     const [result] = await db.query(
-      'INSERT INTO ticket_comments (ticket_id, user_id, body, is_internal) VALUES (?, ?, ?, ?)',
+      "INSERT INTO ticket_comments (ticket_id, user_id, author_type, body, is_internal) VALUES (?, ?, 'staff', ?, ?)",
       [req.params.id, req.user.id, body, is_internal || false],
     );
     const [rows] = await db.query('SELECT * FROM ticket_comments WHERE id = ?', [result.insertId]);
