@@ -709,8 +709,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run frontend tests
-        run: pnpm --filter vigabss-frontend test
+      - name: Run frontend tests with the coverage threshold
+        # test:coverage, not test: the line threshold in vite.config.ts never
+        # gated anything while CI ran plain `test` (FE-24).
+        run: pnpm --filter vigabss-frontend test:coverage
 
       - name: Run frontend type-check
         run: pnpm --filter vigabss-frontend run lint

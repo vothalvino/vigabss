@@ -5,7 +5,7 @@
 //   GET /billing/tax-reports?from=&to=&type=invoices|payments|credit_notes&format=csv|json
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authedFetch } from '@/api/client';
@@ -81,6 +81,7 @@ const exportBtn: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 
 export function TaxReports() {
+  const fieldId = useId();
   const { t } = useTranslation();
 
   const today = localToday();
@@ -139,8 +140,8 @@ export function TaxReports() {
 
         <div style={row}>
           <div style={fieldGroup}>
-            <label style={labelStyle}>{t('taxReports.from')}</label>
-            <input
+            <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('taxReports.from')}</label>
+            <input id={`${fieldId}-1`}
               style={inputStyle}
               type="date"
               value={from}
@@ -149,8 +150,8 @@ export function TaxReports() {
             />
           </div>
           <div style={fieldGroup}>
-            <label style={labelStyle}>{t('taxReports.to')}</label>
-            <input
+            <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('taxReports.to')}</label>
+            <input id={`${fieldId}-2`}
               style={inputStyle}
               type="date"
               value={to}
@@ -162,8 +163,8 @@ export function TaxReports() {
 
         <div style={row}>
           <div style={fieldGroup}>
-            <label style={labelStyle}>{t('taxReports.type')}</label>
-            <select
+            <label htmlFor={`${fieldId}-3`} style={labelStyle}>{t('taxReports.type')}</label>
+            <select id={`${fieldId}-3`}
               style={selectStyle}
               value={type}
               onChange={e => setType(e.target.value as ReportType)}
@@ -174,8 +175,8 @@ export function TaxReports() {
             </select>
           </div>
           <div style={fieldGroup}>
-            <label style={labelStyle}>{t('taxReports.format')}</label>
-            <select
+            <label htmlFor={`${fieldId}-4`} style={labelStyle}>{t('taxReports.format')}</label>
+            <select id={`${fieldId}-4`}
               style={selectStyle}
               value={format}
               onChange={e => setFormat(e.target.value as ReportFormat)}
