@@ -33,6 +33,9 @@ class ServiceOrder extends BaseModel {
     ];
   }
 
+  // Lists filter by status even though only lifecycleService writes it.
+  static get filterableColumns() { return ['status']; }
+
   static get hasOrgScope() { return true; }
 
   static get softDelete() { return true; }

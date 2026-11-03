@@ -133,6 +133,9 @@ class BaseModel {
    * Non-fillable columns a model additionally allows as WHERE filters on list
    * endpoints (service-managed columns like sat_status that users must be able
    * to filter by but never write). Empty by default; override per model.
+   * `status` is not implicit: on a table without that column a ?status= list
+   * filter was an "Unknown column" 500 (DB-06), so a model whose status is
+   * service-managed lists it here.
    * @returns {string[]}
    */
   static get filterableColumns() {
@@ -168,7 +171,7 @@ class BaseModel {
     }
 
     for (const [col, val] of Object.entries(where)) {
-      if (this.fillable.includes(col) || this.filterableColumns.includes(col) || col === 'id' || col === 'status' || col === 'organization_id') {
+      if (this.fillable.includes(col) || this.filterableColumns.includes(col) || col === 'id' || col === 'organization_id') {
         conditions.push(`\`${col}\` = ?`);
         params.push(val);
       }
@@ -215,7 +218,7 @@ class BaseModel {
     }
 
     for (const [col, val] of Object.entries(where)) {
-      if (this.fillable.includes(col) || this.filterableColumns.includes(col) || col === 'id' || col === 'status' || col === 'organization_id') {
+      if (this.fillable.includes(col) || this.filterableColumns.includes(col) || col === 'id' || col === 'organization_id') {
         conditions.push(`\`${col}\` = ?`);
         params.push(val);
       }

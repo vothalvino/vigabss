@@ -396,6 +396,11 @@ that inevitably fail, but they never replace server-side authorization.
 Most models extend `src/models/BaseModel.js`:
 
 - `fillable` is an allowlist for insert/update and silently omits unknown keys.
+  List filters accept `fillable`, `filterableColumns`, `id` and
+  `organization_id`; a service-managed `status` is listed in
+  `filterableColumns`, never assumed (DB-06).
+  `tests/modelSchemaContract.test.js` checks fillable, filterable,
+  `hasOrgScope`, `softDelete` and `status` against `database/schema.sql`.
 - `hasOrgScope` adds the `organization_id` predicate to every generic method,
   and an omitted or `null` organization throws instead of dropping it
   (TNB-34). An install-wide caller passes `BaseModel.UNSCOPED` explicitly
