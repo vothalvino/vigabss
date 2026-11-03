@@ -3,9 +3,10 @@
 // =============================================================================
 // Faithful TSX port of @vigabss/ui Modal. Centered dialog over a dimmed
 // overlay; ESC and backdrop-click close it. open/title/onClose/footer.
+// Keyboard focus (trap, initial focus, restore) is DialogFocusManager's.
 // =============================================================================
 
-import { useCallback, useEffect, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, type CSSProperties, type ReactNode } from 'react';
 
 export interface ModalProps {
   open: boolean;
@@ -18,6 +19,8 @@ export interface ModalProps {
 }
 
 export function Modal({ open, title, onClose, children, footer, inline = false, style }: ModalProps) {
+  // Unique per instance: a fixed id named the wrong title when two were open.
+  const titleId = useId();
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); },
     [onClose],
@@ -109,11 +112,11 @@ export function Modal({ open, title, onClose, children, footer, inline = false, 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="vigabss-modal-title"
+      aria-labelledby={titleId}
     >
       <div style={cardStyle}>
         <div style={headerStyle}>
-          <h2 id="vigabss-modal-title" style={titleStyle}>{title}</h2>
+          <h2 id={titleId} style={titleStyle}>{title}</h2>
           <button style={closeStyle} onClick={onClose} aria-label="Close" type="button">✕</button>
         </div>
         <div style={bodyStyle}>{children}</div>

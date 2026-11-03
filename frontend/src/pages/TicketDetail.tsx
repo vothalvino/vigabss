@@ -9,7 +9,7 @@
 //   • Comments thread (chronological list, add comment with is_internal toggle)
 // =============================================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
@@ -224,6 +224,7 @@ interface ActionsProps {
 }
 
 function TicketActions({ ticket, users, onPatched }: ActionsProps) {
+  const fieldId = useId();
   const [newStatus, setNewStatus] = useState(ticket.status);
   const [newAssignee, setNewAssignee] = useState(String(ticket.assigned_to ?? ''));
   const [err, setErr] = useState('');
@@ -250,8 +251,8 @@ function TicketActions({ ticket, users, onPatched }: ActionsProps) {
       <h3 style={cardTitle}>Actions</h3>
       {err && <div style={errStyle}>{err}</div>}
 
-      <label style={labelStyle}>Status</label>
-      <select
+      <label htmlFor={`${fieldId}-1`} style={labelStyle}>Status</label>
+      <select id={`${fieldId}-1`}
         style={inputStyle}
         value={newStatus}
         onChange={e => setNewStatus(e.target.value)}
@@ -259,8 +260,8 @@ function TicketActions({ ticket, users, onPatched }: ActionsProps) {
         {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
       </select>
 
-      <label style={labelStyle}>Assigned To</label>
-      <select
+      <label htmlFor={`${fieldId}-2`} style={labelStyle}>Assigned To</label>
+      <select id={`${fieldId}-2`}
         style={inputStyle}
         value={newAssignee}
         onChange={e => setNewAssignee(e.target.value)}
@@ -318,6 +319,7 @@ interface EditTicketModalProps {
 }
 
 export function EditTicketModal({ ticket, onClose, onSaved }: EditTicketModalProps) {
+  const fieldId = useId();
   const [form, setForm] = useState({
     subject: ticket.subject,
     description: ticket.description ?? '',
@@ -358,11 +360,11 @@ export function EditTicketModal({ ticket, onClose, onSaved }: EditTicketModalPro
         <h3 style={{ margin: '0 0 1rem' }}>Edit Ticket #{ticket.id}</h3>
         {err && <div style={errStyle}>{err}</div>}
 
-        <label style={labelStyle}>Subject *</label>
-        <input style={inputStyle} value={form.subject} onChange={set('subject')} />
+        <label htmlFor={`${fieldId}-1`} style={labelStyle}>Subject *</label>
+        <input id={`${fieldId}-1`} style={inputStyle} value={form.subject} onChange={set('subject')} />
 
-        <label style={labelStyle}>Description</label>
-        <textarea
+        <label htmlFor={`${fieldId}-2`} style={labelStyle}>Description</label>
+        <textarea id={`${fieldId}-2`}
           style={{ ...inputStyle, height: 90, resize: 'vertical' }}
           value={form.description}
           onChange={set('description')}
@@ -370,21 +372,21 @@ export function EditTicketModal({ ticket, onClose, onSaved }: EditTicketModalPro
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
           <div>
-            <label style={labelStyle}>Category</label>
-            <select style={inputStyle} value={form.category} onChange={set('category')}>
+            <label htmlFor={`${fieldId}-3`} style={labelStyle}>Category</label>
+            <select id={`${fieldId}-3`} style={inputStyle} value={form.category} onChange={set('category')}>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Priority</label>
-            <select style={inputStyle} value={form.priority} onChange={set('priority')}>
+            <label htmlFor={`${fieldId}-4`} style={labelStyle}>Priority</label>
+            <select id={`${fieldId}-4`} style={inputStyle} value={form.priority} onChange={set('priority')}>
               {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
         </div>
 
-        <label style={labelStyle}>Internal notes (never shown to the client)</label>
-        <textarea
+        <label htmlFor={`${fieldId}-5`} style={labelStyle}>Internal notes (never shown to the client)</label>
+        <textarea id={`${fieldId}-5`}
           style={{ ...inputStyle, height: 70, resize: 'vertical' }}
           value={form.notes}
           onChange={set('notes')}
@@ -540,6 +542,7 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
 }
 
 function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
+  const commentId = useId();
   // POST /tickets/:id/comments accepts tickets.comment or tickets.update (DB-23).
   const { user } = useAuth();
   const canComment = can(user, 'tickets.comment') || can(user, 'tickets.update');
@@ -569,9 +572,10 @@ function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
 
       {/* Add comment form */}
       {canComment && <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
-        <label style={labelStyle}>Add Comment</label>
+        <label htmlFor={`${commentId}-body`} style={labelStyle}>Add Comment</label>
         {err && <div style={errStyle}>{err}</div>}
         <textarea
+          id={`${commentId}-body`}
           style={{ ...inputStyle, height: 90, resize: 'vertical' }}
           value={body}
           onChange={e => setBody(e.target.value)}
@@ -1208,6 +1212,7 @@ async function removeRelation(ticketId: number, relId: number): Promise<void> {
 }
 
 function RelationsPanel({ ticketId }: { ticketId: number }) {
+  const fieldId = useId();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -1260,16 +1265,16 @@ function RelationsPanel({ ticketId }: { ticketId: number }) {
       {showForm && (
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
-          <label style={labelStyle}>{t('ticketDetail.relationsRelatedId')}</label>
-          <input
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.relationsRelatedId')}</label>
+          <input id={`${fieldId}-1`}
             type="number"
             style={inputStyle}
             value={relatedId}
             onChange={e => setRelatedId(e.target.value)}
             placeholder="e.g. 1234"
           />
-          <label style={labelStyle}>{t('ticketDetail.relationsType')}</label>
-          <select style={inputStyle} value={relationType} onChange={e => setRelationType(e.target.value)}>
+          <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('ticketDetail.relationsType')}</label>
+          <select id={`${fieldId}-2`} style={inputStyle} value={relationType} onChange={e => setRelationType(e.target.value)}>
             {RELATION_TYPES.map(rt => <option key={rt} value={rt}>{typeLabel(rt)}</option>)}
           </select>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -1347,6 +1352,7 @@ async function addTimeLog(ticketId: number, minutes: number, workDate: string, d
 }
 
 function TimeLogsPanel({ ticketId }: { ticketId: number }) {
+  const fieldId = useId();
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [minutes, setMinutes] = useState('');
@@ -1393,12 +1399,12 @@ function TimeLogsPanel({ ticketId }: { ticketId: number }) {
       {showForm && (
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
-          <label style={labelStyle}>{t('ticketDetail.timeLogsMinutes')}</label>
-          <input type="number" min="1" style={inputStyle} value={minutes} onChange={e => setMinutes(e.target.value)} />
-          <label style={labelStyle}>{t('ticketDetail.timeLogsDate')}</label>
-          <input type="date" style={inputStyle} value={workDate} onChange={e => setWorkDate(e.target.value)} />
-          <label style={labelStyle}>{t('ticketDetail.timeLogsDescription')}</label>
-          <input type="text" style={inputStyle} value={description} onChange={e => setDescription(e.target.value)} />
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.timeLogsMinutes')}</label>
+          <input id={`${fieldId}-1`} type="number" min="1" style={inputStyle} value={minutes} onChange={e => setMinutes(e.target.value)} />
+          <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('ticketDetail.timeLogsDate')}</label>
+          <input id={`${fieldId}-2`} type="date" style={inputStyle} value={workDate} onChange={e => setWorkDate(e.target.value)} />
+          <label htmlFor={`${fieldId}-3`} style={labelStyle}>{t('ticketDetail.timeLogsDescription')}</label>
+          <input id={`${fieldId}-3`} type="text" style={inputStyle} value={description} onChange={e => setDescription(e.target.value)} />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button style={btnPrimary} disabled={!minutes || addMut.isPending} onClick={() => addMut.mutate()}>
               {addMut.isPending ? '...' : t('ticketDetail.timeLogsSave')}
@@ -1490,6 +1496,7 @@ async function fetchWorkOrderAssignableUsers(): Promise<AssignableUser[]> {
 }
 
 function WorkOrdersPanel({ ticket }: { ticket: Ticket }) {
+  const fieldId = useId();
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
@@ -1538,16 +1545,16 @@ function WorkOrdersPanel({ ticket }: { ticket: Ticket }) {
       {showForm && (
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
-          <label style={labelStyle}>{t('ticketDetail.workOrdersTitle', 'Title')}</label>
-          <input type="text" style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder={t('ticketDetail.workOrdersTitlePlaceholder', 'Describe the work needed')} />
-          <label style={labelStyle}>{t('ticketDetail.workOrdersType', 'Work Type')}</label>
-          <select style={inputStyle} value={workType} onChange={e => setWorkType(e.target.value)}>
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.workOrdersTitle', 'Title')}</label>
+          <input id={`${fieldId}-1`} type="text" style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder={t('ticketDetail.workOrdersTitlePlaceholder', 'Describe the work needed')} />
+          <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('ticketDetail.workOrdersType', 'Work Type')}</label>
+          <select id={`${fieldId}-2`} style={inputStyle} value={workType} onChange={e => setWorkType(e.target.value)}>
             {WORK_TYPES_LIST.map(wt => <option key={wt} value={wt}>{t(`workOrders.workType.${wt}`, wt)}</option>)}
           </select>
-          <label style={labelStyle}>{t('ticketDetail.workOrdersScheduled', 'Scheduled At')}</label>
-          <input type="datetime-local" style={inputStyle} value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
-          <label style={labelStyle}>{t('ticketDetail.workOrdersAssignee', 'Assign To')}</label>
-          <select style={inputStyle} value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+          <label htmlFor={`${fieldId}-3`} style={labelStyle}>{t('ticketDetail.workOrdersScheduled', 'Scheduled At')}</label>
+          <input id={`${fieldId}-3`} type="datetime-local" style={inputStyle} value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
+          <label htmlFor={`${fieldId}-4`} style={labelStyle}>{t('ticketDetail.workOrdersAssignee', 'Assign To')}</label>
+          <select id={`${fieldId}-4`} style={inputStyle} value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
             <option value="">{t('common.unassigned', '— unassigned —')}</option>
             {assignableUsers.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
           </select>
@@ -1623,6 +1630,7 @@ const ESC_STATUS_COLOR: Record<string, { bg: string; color: string }> = {
 };
 
 function EscalationsPanel({ ticket, users }: { ticket: Ticket; users: User[] }) {
+  const fieldId = useId();
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [reason, setReason] = useState('');
@@ -1652,15 +1660,15 @@ function EscalationsPanel({ ticket, users }: { ticket: Ticket; users: User[] }) 
       {showForm && (
         <div style={{ background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
-          <label style={labelStyle}>{t('ticketDetail.escalationsReason', 'Reason')}</label>
-          <textarea
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.escalationsReason', 'Reason')}</label>
+          <textarea id={`${fieldId}-1`}
             style={{ ...inputStyle, height: 70, resize: 'vertical' as const }}
             value={reason}
             onChange={e => setReason(e.target.value)}
             placeholder={t('ticketDetail.escalationsReasonPlaceholder', 'Why is this ticket being escalated?')}
           />
-          <label style={labelStyle}>{t('ticketDetail.escalationsAssignee', 'Escalate To')}</label>
-          <select style={inputStyle} value={escalatedTo} onChange={e => setEscalatedTo(e.target.value)}>
+          <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('ticketDetail.escalationsAssignee', 'Escalate To')}</label>
+          <select id={`${fieldId}-2`} style={inputStyle} value={escalatedTo} onChange={e => setEscalatedTo(e.target.value)}>
             <option value="">{t('common.unassigned', '— unassigned —')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
           </select>
@@ -1735,6 +1743,7 @@ async function createFollowUp(body: { client_id: number; ticket_id: number; titl
 }
 
 function FollowUpsPanel({ ticket }: { ticket: Ticket }) {
+  const fieldId = useId();
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
@@ -1769,10 +1778,10 @@ function FollowUpsPanel({ ticket }: { ticket: Ticket }) {
       {showForm && (
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.75rem' }}>
           {formErr && <div style={errStyle}>{formErr}</div>}
-          <label style={labelStyle}>{t('ticketDetail.followUpsTitle', 'Title')}</label>
-          <input type="text" style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} />
-          <label style={labelStyle}>{t('ticketDetail.followUpsDue', 'Due date')}</label>
-          <input type="date" style={inputStyle} value={dueAt} onChange={e => setDueAt(e.target.value)} />
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ticketDetail.followUpsTitle', 'Title')}</label>
+          <input id={`${fieldId}-1`} type="text" style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} />
+          <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('ticketDetail.followUpsDue', 'Due date')}</label>
+          <input id={`${fieldId}-2`} type="date" style={inputStyle} value={dueAt} onChange={e => setDueAt(e.target.value)} />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button style={btnPrimary} disabled={!title.trim() || addMut.isPending} onClick={() => addMut.mutate()}>
               {addMut.isPending ? '...' : t('ticketDetail.followUpsSave', 'Save')}
