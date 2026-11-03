@@ -19,7 +19,7 @@ router.use(authenticate);
 router.use(orgScope);
 
 // Open a new session
-router.post('/sessions', requirePermission('cash_reconciliation.create'), validate(openSessionSchema), async (req, res, next) => {
+router.post('/sessions', requirePermission('cash_reconciliation.create'), validate(openSessionSchema, { strip: false }), async (req, res, next) => {
   try {
     const session = await cashReconciliationService.openSession({
       organizationId: req.orgId,
@@ -49,7 +49,7 @@ router.get('/sessions/:id', requirePermission('cash_reconciliation.view'), async
 });
 
 // Close session
-router.post('/sessions/:id/close', requirePermission('cash_reconciliation.update'), validate(closeSessionSchema), async (req, res, next) => {
+router.post('/sessions/:id/close', requirePermission('cash_reconciliation.update'), validate(closeSessionSchema, { strip: false }), async (req, res, next) => {
   try {
     const session = await cashReconciliationService.closeSession(
       parseInt(req.params.id, 10),

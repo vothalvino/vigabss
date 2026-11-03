@@ -80,8 +80,8 @@ const sealGatewaySecrets = sealSecretFields(
   { defaults: { secret_key_encrypted: '' } },
 );
 
-router.post('/', requirePermission('payment_gateways.create'), validate(createPaymentGateway), sealGatewaySecrets, ctrl.create);
-router.put('/:id', requirePermission('payment_gateways.update'), validate(updatePaymentGateway), sealGatewaySecrets, ctrl.update);
+router.post('/', requirePermission('payment_gateways.create'), validate(createPaymentGateway, { strip: false }), sealGatewaySecrets, ctrl.create);
+router.put('/:id', requirePermission('payment_gateways.update'), validate(updatePaymentGateway, { strip: false }), sealGatewaySecrets, ctrl.update);
 router.delete('/:id', requirePermission('payment_gateways.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('payment_gateways.update'), ctrl.restore);
 

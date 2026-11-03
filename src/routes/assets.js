@@ -56,7 +56,7 @@ router.get('/low-stock', requirePermission('assets.view'), async (req, res, next
 });
 
 // POST /assets/scan — lookup by barcode
-router.post('/scan', requirePermission('assets.scan'), validate(scanAsset), async (req, res, next) => {
+router.post('/scan', requirePermission('assets.scan'), validate(scanAsset, { strip: false }), async (req, res, next) => {
   try {
     const asset = await svc.findByBarcode(req.orgId, req.body.barcode);
     if (!asset) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'No asset found with that barcode' } });
@@ -70,8 +70,8 @@ router.post('/scan', requirePermission('assets.scan'), validate(scanAsset), asyn
 
 router.get('/', requirePermission('assets.view'), ctrl.list);
 router.get('/:id', requirePermission('assets.view'), ctrl.get);
-router.post('/', requirePermission('assets.create'), validate(createAsset), ctrl.create);
-router.put('/:id', requirePermission('assets.update'), validate(updateAsset), ctrl.update);
+router.post('/', requirePermission('assets.create'), validate(createAsset, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('assets.update'), validate(updateAsset, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('assets.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('assets.update'), ctrl.restore);
 
@@ -120,7 +120,7 @@ router.get('/:id/rma', requirePermission('assets.view'), async (req, res, next) 
 });
 
 // POST /assets/:id/assign
-router.post('/:id/assign', requirePermission('assets.assign'), validate(assignAsset), ownedReferences(ASSIGNMENT_REFS), async (req, res, next) => {
+router.post('/:id/assign', requirePermission('assets.assign'), validate(assignAsset, { strip: false }), ownedReferences(ASSIGNMENT_REFS), async (req, res, next) => {
   try {
     const asset = await Asset.findById(parseInt(req.params.id, 10), req.orgId);
     if (!asset) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Asset not found' } });
@@ -160,7 +160,7 @@ router.post('/:id/unassign', requirePermission('assets.assign'), async (req, res
 });
 
 // POST /assets/:id/swap — swap asset to a new assignment (unassign current, assign new)
-router.post('/:id/swap', requirePermission('assets.assign'), validate(assignAsset), ownedReferences(ASSIGNMENT_REFS), async (req, res, next) => {
+router.post('/:id/swap', requirePermission('assets.assign'), validate(assignAsset, { strip: false }), ownedReferences(ASSIGNMENT_REFS), async (req, res, next) => {
   try {
     const asset = await Asset.findById(parseInt(req.params.id, 10), req.orgId);
     if (!asset) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Asset not found' } });
@@ -185,7 +185,7 @@ router.post('/:id/swap', requirePermission('assets.assign'), validate(assignAsse
 });
 
 // POST /assets/:id/dispose
-router.post('/:id/dispose', requirePermission('assets.dispose'), validate(disposeAsset), async (req, res, next) => {
+router.post('/:id/dispose', requirePermission('assets.dispose'), validate(disposeAsset, { strip: false }), async (req, res, next) => {
   try {
     const asset = await Asset.findById(parseInt(req.params.id, 10), req.orgId);
     if (!asset) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Asset not found' } });

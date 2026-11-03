@@ -207,7 +207,7 @@ router.get('/', requirePermission('resellers.view'), async (req, res, next) => {
 });
 
 // POST /resellers
-router.post('/', requirePermission('resellers.create'), validate(createResellerSchema), async (req, res, next) => {
+router.post('/', requirePermission('resellers.create'), validate(createResellerSchema, { strip: false }), async (req, res, next) => {
   try {
     const {
       name, email, phone, contact_name, parent_id, commission_rate = 0,
@@ -258,7 +258,7 @@ router.get('/:id', requirePermission('resellers.view'), async (req, res, next) =
 });
 
 // PUT /resellers/:id
-router.put('/:id', requirePermission('resellers.update'), validate(updateResellerSchema), async (req, res, next) => {
+router.put('/:id', requirePermission('resellers.update'), validate(updateResellerSchema, { strip: false }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const {
@@ -330,7 +330,7 @@ router.get('/:id/plan-prices', requirePermission('reseller_plan_prices.view'), a
 });
 
 // POST /resellers/:id/plan-prices
-router.post('/:id/plan-prices', requirePermission('reseller_plan_prices.manage'), validate(planPriceSchema), ownedReferences({ plan_id: 'plans' }), async (req, res, next) => {
+router.post('/:id/plan-prices', requirePermission('reseller_plan_prices.manage'), validate(planPriceSchema, { strip: false }), ownedReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const { plan_id, custom_price, is_active = true, notes } = req.body;
@@ -442,7 +442,7 @@ router.get('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.view
 });
 
 // POST /resellers/:id/ip-pools
-router.post('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.manage'), validate(ipPoolAllocationSchema), ownedReferences({ ip_pool_id: 'ip_pools' }), async (req, res, next) => {
+router.post('/:id/ip-pools', requirePermission('reseller_ip_pool_allocations.manage'), validate(ipPoolAllocationSchema, { strip: false }), ownedReferences({ ip_pool_id: 'ip_pools' }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const { ip_pool_id, notes } = req.body;
@@ -492,7 +492,7 @@ router.get('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.
 });
 
 // PUT /resellers/:id/bandwidth-quota
-router.put('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.manage'), validate(bandwidthQuotaSchema), async (req, res, next) => {
+router.put('/:id/bandwidth-quota', requirePermission('reseller_bandwidth_quotas.manage'), validate(bandwidthQuotaSchema, { strip: false }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const {
@@ -541,7 +541,7 @@ router.get('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.vi
 });
 
 // POST /resellers/:id/olt-ports
-router.post('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.manage'), validate(oltPortAssignmentSchema), ownedReferences({ olt_port_id: 'olt_ports' }), async (req, res, next) => {
+router.post('/:id/olt-ports', requirePermission('reseller_olt_port_assignments.manage'), validate(oltPortAssignmentSchema, { strip: false }), ownedReferences({ olt_port_id: 'olt_ports' }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const { olt_port_id, notes } = req.body;
@@ -590,7 +590,7 @@ router.get('/:id/billing-entity', requirePermission('reseller_billing_entities.v
 });
 
 // PUT /resellers/:id/billing-entity
-router.put('/:id/billing-entity', requirePermission('reseller_billing_entities.manage'), validate(billingEntitySchema), async (req, res, next) => {
+router.put('/:id/billing-entity', requirePermission('reseller_billing_entities.manage'), validate(billingEntitySchema, { strip: false }), async (req, res, next) => {
   try {
     await getResellerOrThrow(req);
     const {

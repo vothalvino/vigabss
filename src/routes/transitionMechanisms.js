@@ -167,8 +167,8 @@ function deleteHandler(tableName) {
 
 router.get('/6rd', requirePermission('transition_mechanisms.view'), listHandler('tunnel_6rd_configs'));
 router.get('/6rd/:id', requirePermission('transition_mechanisms.view'), getOneHandler('tunnel_6rd_configs'));
-router.post('/6rd', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism), createHandler('tunnel_6rd_configs'));
-router.put('/6rd/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism), updateHandler('tunnel_6rd_configs'));
+router.post('/6rd', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism, { strip: false }), createHandler('tunnel_6rd_configs'));
+router.put('/6rd/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism, { strip: false }), updateHandler('tunnel_6rd_configs'));
 router.delete('/6rd/:id', requirePermission('transition_mechanisms.delete'), deleteHandler('tunnel_6rd_configs'));
 
 // ---------------------------------------------------------------------------
@@ -177,8 +177,8 @@ router.delete('/6rd/:id', requirePermission('transition_mechanisms.delete'), del
 
 router.get('/ds-lite', requirePermission('transition_mechanisms.view'), listHandler('ds_lite_configs'));
 router.get('/ds-lite/:id', requirePermission('transition_mechanisms.view'), getOneHandler('ds_lite_configs'));
-router.post('/ds-lite', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism), createHandler('ds_lite_configs'));
-router.put('/ds-lite/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism), updateHandler('ds_lite_configs'));
+router.post('/ds-lite', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism, { strip: false }), createHandler('ds_lite_configs'));
+router.put('/ds-lite/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism, { strip: false }), updateHandler('ds_lite_configs'));
 router.delete('/ds-lite/:id', requirePermission('transition_mechanisms.delete'), deleteHandler('ds_lite_configs'));
 
 // ---------------------------------------------------------------------------
@@ -187,8 +187,8 @@ router.delete('/ds-lite/:id', requirePermission('transition_mechanisms.delete'),
 
 router.get('/map-rules', requirePermission('transition_mechanisms.view'), listHandler('map_rules'));
 router.get('/map-rules/:id', requirePermission('transition_mechanisms.view'), getOneHandler('map_rules'));
-router.post('/map-rules', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism), createHandler('map_rules'));
-router.put('/map-rules/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism), updateHandler('map_rules'));
+router.post('/map-rules', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism, { strip: false }), createHandler('map_rules'));
+router.put('/map-rules/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism, { strip: false }), updateHandler('map_rules'));
 router.delete('/map-rules/:id', requirePermission('transition_mechanisms.delete'), deleteHandler('map_rules'));
 
 // ---------------------------------------------------------------------------
@@ -197,8 +197,8 @@ router.delete('/map-rules/:id', requirePermission('transition_mechanisms.delete'
 
 router.get('/464xlat', requirePermission('transition_mechanisms.view'), listHandler('xlat464_configs'));
 router.get('/464xlat/:id', requirePermission('transition_mechanisms.view'), getOneHandler('xlat464_configs'));
-router.post('/464xlat', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism), createHandler('xlat464_configs'));
-router.put('/464xlat/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism), updateHandler('xlat464_configs'));
+router.post('/464xlat', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism, { strip: false }), createHandler('xlat464_configs'));
+router.put('/464xlat/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism, { strip: false }), updateHandler('xlat464_configs'));
 router.delete('/464xlat/:id', requirePermission('transition_mechanisms.delete'), deleteHandler('xlat464_configs'));
 
 module.exports = router;

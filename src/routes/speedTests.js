@@ -150,8 +150,8 @@ async function rejectBoundCommissioningMutation(req, _res, next) {
   } catch (err) { next(err); }
 }
 
-router.post('/', requirePermission('speed_tests.create'), rejectCommissioningBinding, validate(createSpeedTest), assertOwnedReferences, ctrl.create);
-router.put('/:id', requirePermission('speed_tests.update'), rejectBoundCommissioningMutation, rejectMove, validate(updateSpeedTest), assertOwnedReferences, adopt, ctrl.update);
+router.post('/', requirePermission('speed_tests.create'), rejectCommissioningBinding, validate(createSpeedTest, { strip: false }), assertOwnedReferences, ctrl.create);
+router.put('/:id', requirePermission('speed_tests.update'), rejectBoundCommissioningMutation, rejectMove, validate(updateSpeedTest, { strip: false }), assertOwnedReferences, adopt, ctrl.update);
 router.delete('/:id', requirePermission('speed_tests.delete'), rejectBoundCommissioningMutation, adopt, ctrl.destroy);
 router.post('/:id/restore', requirePermission('speed_tests.update'), rejectBoundCommissioningMutation, adopt, ctrl.restore);
 

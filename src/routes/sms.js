@@ -72,7 +72,7 @@ const sendSchema = {
   templateId: { type: 'number' },
 };
 
-router.post('/send', requirePermission('sms.send'), validate(sendSchema), async (req, res) => {
+router.post('/send', requirePermission('sms.send'), validate(sendSchema, { strip: false }), async (req, res) => {
   const { to, body, channel = 'sms', clientId, templateId = null } = req.body;
 
   const result = await smsTransport.sendSms({

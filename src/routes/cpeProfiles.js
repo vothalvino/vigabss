@@ -96,14 +96,14 @@ async function assertProfileRefs(req, _res, next) {
   } catch (err) { return next(err); }
 }
 
-router.post('/', requirePermission('cpe_profiles.create'), validate(createCpeProfile), assertProfileRefs, async (req, res, next) => {
+router.post('/', requirePermission('cpe_profiles.create'), validate(createCpeProfile, { strip: false }), assertProfileRefs, async (req, res, next) => {
   try {
     const record = await CpeProfile.create({ ...req.body, organization_id: req.orgId });
     res.status(201).json({ data: record });
   } catch (err) { next(err); }
 });
 
-router.put('/:id', requirePermission('cpe_profiles.update'), validate(updateCpeProfile), assertProfileRefs, async (req, res, next) => {
+router.put('/:id', requirePermission('cpe_profiles.update'), validate(updateCpeProfile, { strip: false }), assertProfileRefs, async (req, res, next) => {
   try {
     const record = await CpeProfile.update(req.params.id, req.body, req.orgId);
     res.json({ data: record });
@@ -171,7 +171,7 @@ router.get('/:id/mappings', requirePermission('cpe_mappings.view'), async (req, 
   } catch (err) { next(err); }
 });
 
-router.post('/:id/mappings', requirePermission('cpe_mappings.create'), validate(createCpeParameterMapping), async (req, res, next) => {
+router.post('/:id/mappings', requirePermission('cpe_mappings.create'), validate(createCpeParameterMapping, { strip: false }), async (req, res, next) => {
   try {
     await CpeProfile.findByIdOrFail(req.params.id, req.orgId);
     const record = await CpeParameterMapping.create({
@@ -183,7 +183,7 @@ router.post('/:id/mappings', requirePermission('cpe_mappings.create'), validate(
   } catch (err) { next(err); }
 });
 
-router.put('/:id/mappings/:mappingId', requirePermission('cpe_mappings.update'), validate(updateCpeParameterMapping), async (req, res, next) => {
+router.put('/:id/mappings/:mappingId', requirePermission('cpe_mappings.update'), validate(updateCpeParameterMapping, { strip: false }), async (req, res, next) => {
   try {
     await CpeProfile.findByIdOrFail(req.params.id, req.orgId);
     await findMappingOrFail(req);

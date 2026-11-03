@@ -348,8 +348,15 @@ that inevitably fail, but they never replace server-side authorization.
   guards are marked with `tagGuard` from `src/middleware/routeGuard.js` so the test
   can see them.
 - Validation schemas live in `src/middleware/schemas/`. The custom `validate()`
-  middleware validates declared fields but, by default, leaves undeclared fields
-  in the body. Sensitive mutation routes can opt into `{ strip: true }`.
+  middleware validates declared fields and, on POST, PUT and PATCH, strips
+  undeclared ones by default (TNA-38). The routes that predate this pass
+  `{ strip: false }` explicitly; `tests/validateStripRatchet.test.js` keeps
+  that list from growing.
+- `crudController` checks every foreign key a create or update writes against
+  `req.orgId`, from the FOREIGN KEY constraints in `schema.sql`
+  (`src/models/ownedForeignKeys.json`, regenerated with
+  `node src/scripts/generate-owned-fks.js --write`). It runs after the route's
+  own hooks; a route that checks a field itself sets `ownedRefs: { field: null }`.
 - `crudController.js` centralizes common list/get/create/update/delete behavior,
   audit logging, cache invalidation, serializers, hooks, and optional locked
   transactions. Use its extension points before forking a second CRUD pattern.

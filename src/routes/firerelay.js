@@ -152,7 +152,7 @@ router.get('/nodes', requireRole('admin', 'owner'), async (req, res, next) => {
 router.post(
   '/nodes',
   requireRole('admin', 'owner'),
-  validate(firerelayNode),
+  validate(firerelayNode, { strip: false }),
   async (req, res, next) => {
     try {
       if (relayConfig.mode !== 'master') {
@@ -172,7 +172,7 @@ router.post(
 router.put(
   '/nodes/:id',
   requireRole('admin', 'owner'),
-  validate(firerelayNodeUpdate),
+  validate(firerelayNodeUpdate, { strip: false }),
   async (req, res, next) => {
     try {
       if (relayConfig.mode !== 'master') {
@@ -219,7 +219,7 @@ router.get('/tunnel/agents', requireRole('admin', 'owner'), (_req, res) => {
 router.post(
   '/tunnel/command',
   requireRole('admin', 'owner'),
-  validate(firerelayTunnelCommand),
+  validate(firerelayTunnelCommand, { strip: false }),
   async (req, res, next) => {
     try {
       const { node_id, method, params, timeout_ms } = req.body;

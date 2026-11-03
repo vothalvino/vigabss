@@ -18,19 +18,19 @@ router.use(requireMxLocale);
 
 router.post('/generate-xml',
   requirePermission('cfdi_documents.create'),
-  validate(cfdiSchemas.generateXml),
+  validate(cfdiSchemas.generateXml, { strip: false }),
   cfdiController.generateXml,
 );
 
 router.post('/stamp',
   requirePermission('cfdi_documents.create'),
-  validate(cfdiSchemas.stamp),
+  validate(cfdiSchemas.stamp, { strip: false }),
   cfdiController.stamp,
 );
 
 router.post('/cancel',
   requirePermission('cfdi_documents.update'),
-  validate(cfdiSchemas.cancel),
+  validate(cfdiSchemas.cancel, { strip: false }),
   cfdiController.cancel,
 );
 
@@ -49,7 +49,7 @@ router.get('/:id/pdf', requirePermission('cfdi_documents.view'), cfdiController.
 
 router.post('/payment-complement',
   requirePermission('cfdi_documents.create'),
-  validate(cfdiSchemas.paymentComplement),
+  validate(cfdiSchemas.paymentComplement, { strip: false }),
   cfdiController.createPaymentComplement,
 );
 

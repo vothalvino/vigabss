@@ -145,8 +145,8 @@ router.get('/:id', requirePermission('tax_rates.view'), async (req, res, next) =
   } catch (err) { next(err); }
 });
 
-router.post('/', requirePermission('tax_rates.create'), validate(createTaxRate), ctrl.create);
-router.put('/:id', requirePermission('tax_rates.update'), blockSharedRateWrites, validate(updateTaxRate), ctrl.update);
+router.post('/', requirePermission('tax_rates.create'), validate(createTaxRate, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('tax_rates.update'), blockSharedRateWrites, validate(updateTaxRate, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('tax_rates.delete'), blockSharedRateWrites, ctrl.destroy);
 router.post('/:id/restore', requirePermission('tax_rates.update'), blockSharedRateWrites, ctrl.restore);
 

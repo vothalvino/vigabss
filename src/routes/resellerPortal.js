@@ -120,7 +120,7 @@ router.get('/:id/clients', requirePermission('reseller_portal.manage_customers')
 // POST /reseller-portal/:id/clients
 // Same validation and tenant client quota as POST /clients: this path used to
 // skip both, so a reseller could exceed the organization's max_clients.
-router.post('/:id/clients', requirePermission('reseller_portal.manage_customers'), quotaCheck('clients'), validate(createClient), async (req, res, next) => {
+router.post('/:id/clients', requirePermission('reseller_portal.manage_customers'), quotaCheck('clients'), validate(createClient, { strip: false }), async (req, res, next) => {
   try {
     const reseller = await getResellerOrThrow(req);
     if (reseller.status !== 'active') {

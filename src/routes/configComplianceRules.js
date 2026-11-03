@@ -85,7 +85,7 @@ router.get('/', requirePermission('config_compliance.view'), async (req, res, ne
 });
 
 // POST / — create rule
-router.post('/', requirePermission('config_compliance.create'), validate(createRule), async (req, res, next) => {
+router.post('/', requirePermission('config_compliance.create'), validate(createRule, { strip: false }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { name, description, rule_type, pattern, severity, applies_to_device_type, is_enabled } = req.body;
@@ -102,7 +102,7 @@ router.post('/', requirePermission('config_compliance.create'), validate(createR
 });
 
 // PUT /:id — update
-router.put('/:id', requirePermission('config_compliance.update'), validate(updateRule), async (req, res, next) => {
+router.put('/:id', requirePermission('config_compliance.update'), validate(updateRule, { strip: false }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { id } = req.params;

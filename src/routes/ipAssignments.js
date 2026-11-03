@@ -15,7 +15,10 @@ const db = require('../config/database');
 const { ValidationError } = require('../utils/errors');
 
 const router = Router();
-const ctrl = crudController(IpAssignment);
+// OWNED_REFERENCES below checks these four itself (NET-07).
+const ctrl = crudController(IpAssignment, {
+  ownedRefs: { pool_id: null, contract_id: null, client_id: null, device_id: null },
+});
 
 router.use(authenticate);
 router.use(orgScope);
@@ -50,7 +53,7 @@ async function assertOwnedReferences(req, _res, next) {
 
 router.get('/', requirePermission('ip_assignments.view'), ctrl.list);
 router.get('/:id', requirePermission('ip_assignments.view'), ctrl.get);
-router.post('/', requirePermission('ip_assignments.create'), validate(createIpAssignment), assertOwnedReferences, async (req, res, next) => {
+router.post('/', requirePermission('ip_assignments.create'), validate(createIpAssignment, { strip: false }), assertOwnedReferences, async (req, res, next) => {
   try {
     await provisioningService.assertIpAvailable(db, {
       ip: req.body.ip_address,
@@ -60,7 +63,7 @@ router.post('/', requirePermission('ip_assignments.create'), validate(createIpAs
     return ctrl.create(req, res, next);
   } catch (err) { return next(err); }
 });
-router.put('/:id', requirePermission('ip_assignments.update'), validate(updateIpAssignment), assertOwnedReferences, async (req, res, next) => {
+router.put('/:id', requirePermission('ip_assignments.update'), validate(updateIpAssignment, { strip: false }), assertOwnedReferences, async (req, res, next) => {
   try {
     if (req.body.ip_address) {
       const existing = await IpAssignment.findByIdOrFail(req.params.id, req.orgId);

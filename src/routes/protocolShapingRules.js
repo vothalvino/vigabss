@@ -20,8 +20,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('protocol_shaping_rules.view'), ctrl.list);
 router.get('/:id', requirePermission('protocol_shaping_rules.view'), ctrl.get);
-router.post('/', requirePermission('protocol_shaping_rules.create'), validate(createProtocolShapingRule), ctrl.create);
-router.put('/:id', requirePermission('protocol_shaping_rules.update'), validate(updateProtocolShapingRule), ctrl.update);
+router.post('/', requirePermission('protocol_shaping_rules.create'), validate(createProtocolShapingRule, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('protocol_shaping_rules.update'), validate(updateProtocolShapingRule, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('protocol_shaping_rules.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('protocol_shaping_rules.update'), ctrl.restore);
 

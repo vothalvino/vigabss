@@ -187,7 +187,7 @@ async function sendLoginSession(req, res, result) {
 }
 
 router.post('/login',
-  validate(authSchemas.login),
+  validate(authSchemas.login, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await authService.login(req.body);
@@ -208,7 +208,7 @@ router.post('/login',
 // POST /api/auth/login/2fa — complete a password or SSO login with a TOTP or
 // backup code. Mounted under the auth rate limiter like /login.
 router.post('/login/2fa',
-  validate(authSchemas.loginMfa),
+  validate(authSchemas.loginMfa, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await authService.completeMfaLogin({
@@ -239,7 +239,7 @@ router.post('/login/2fa',
 // don't SEND SameSite=Strict cookies with the request. A body refreshToken
 // (attacker-suppliable via cross-site form) revokes only the session it
 // itself names — self-harm — and never triggers cookie clearing.
-router.post('/logout', validate(authSchemas.refreshToken), async (req, res, next) => {
+router.post('/logout', validate(authSchemas.refreshToken, { strip: false }), async (req, res, next) => {
   try {
     // Accept refresh token from cookie (browser SPA) or body (API clients)
     const cookieToken = req.cookies?.fireisp_refresh;
@@ -287,7 +287,7 @@ router.get('/me', authenticate, async (req, res, next) => {
 
 // POST /api/auth/password-reset/request — request a password reset email
 router.post('/password-reset/request',
-  validate(authSchemas.requestPasswordReset),
+  validate(authSchemas.requestPasswordReset, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await authService.requestPasswordReset(req.body.email);
@@ -349,7 +349,7 @@ router.post('/password-reset/request',
 
 // POST /api/auth/password-reset — reset password with token
 router.post('/password-reset',
-  validate(authSchemas.resetPassword),
+  validate(authSchemas.resetPassword, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await authService.resetPassword(req.body.token, req.body.password);
@@ -362,7 +362,7 @@ router.post('/password-reset',
 
 // POST /api/auth/change-password — change password for authenticated user
 router.post('/change-password', authenticate,
-  validate(authSchemas.changePassword),
+  validate(authSchemas.changePassword, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
@@ -375,7 +375,7 @@ router.post('/change-password', authenticate,
 
 // POST /api/auth/verify-email — verify email with token
 router.post('/verify-email',
-  validate(authSchemas.verifyEmail),
+  validate(authSchemas.verifyEmail, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await authService.verifyEmail(req.body.token);
@@ -402,7 +402,7 @@ router.post('/verify-email/resend', authenticate, async (req, res, next) => {
 // Accepts the refresh token from the httpOnly cookie (browser SPA) or
 // request body (API clients / programmatic callers).
 router.post('/refresh',
-  validate(authSchemas.refreshToken),
+  validate(authSchemas.refreshToken, { strip: false }),
   async (req, res, next) => {
     try {
       // Prefer the httpOnly cookie; fall back to explicit body field
@@ -430,7 +430,7 @@ router.post('/refresh',
 // claim is the requested organization, and rotates the refresh token within
 // the same family.  The user must currently be a member of the target org.
 router.post('/switch-organization', authenticate,
-  validate(authSchemas.switchOrganization),
+  validate(authSchemas.switchOrganization, { strip: false }),
   async (req, res, next) => {
     try {
       // Accept refresh token from cookie (browser SPA) or body (API clients)

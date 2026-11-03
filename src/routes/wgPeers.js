@@ -173,7 +173,7 @@ router.get('/admin/assignments/:userId', requirePermission('wireguard.assignment
 router.put(
   '/admin/assignments/:userId',
   requirePermission('wireguard.assignments.manage'),
-  validate(wgPeers_updateAssignments),
+  validate(wgPeers_updateAssignments, { strip: false }),
   async (req, res, next) => {
     try {
       const targetUserId = req.params.userId;
@@ -262,7 +262,7 @@ router.get('/', requirePermission('wireguard.peers.view'), async (req, res, next
 router.post(
   '/',
   requirePermission('wireguard.peers.create'),
-  validate(wgPeers_createPeer),
+  validate(wgPeers_createPeer, { strip: false }),
   async (req, res, next) => {
     try {
       // full_tunnel defaults to true: any value other than explicit false means full-tunnel

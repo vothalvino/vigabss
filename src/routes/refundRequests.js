@@ -31,7 +31,7 @@ router.get('/', requirePermission('refund_requests.view'), ctrl.list);
 router.get('/:id', requirePermission('refund_requests.view'), ctrl.get);
 
 // Create a refund request
-router.post('/', requirePermission('refund_requests.create'), validate(createRefundRequestSchema), async (req, res, next) => {
+router.post('/', requirePermission('refund_requests.create'), validate(createRefundRequestSchema, { strip: false }), async (req, res, next) => {
   try {
     const refundRequest = await refundRequestService.createRequest(
       req.orgId,
@@ -68,7 +68,7 @@ router.put('/:id', requirePermission('refund_requests.create'), rejectOrgReassig
 router.delete('/:id', requirePermission('refund_requests.create'), ctrl.destroy);
 
 // Review (approve / reject)
-router.post('/:id/review', requirePermission('refund_requests.review'), validate(reviewRefundRequestSchema), async (req, res, next) => {
+router.post('/:id/review', requirePermission('refund_requests.review'), validate(reviewRefundRequestSchema, { strip: false }), async (req, res, next) => {
   try {
     const updated = await refundRequestService.reviewRequest(
       req.orgId,
@@ -83,7 +83,7 @@ router.post('/:id/review', requirePermission('refund_requests.review'), validate
 });
 
 // Process an approved refund request
-router.post('/:id/process', requirePermission('refund_requests.process'), validate(processRefundRequestSchema), async (req, res, next) => {
+router.post('/:id/process', requirePermission('refund_requests.process'), validate(processRefundRequestSchema, { strip: false }), async (req, res, next) => {
   try {
     const updated = await refundRequestService.processRequest(
       req.orgId,

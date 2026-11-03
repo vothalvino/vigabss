@@ -23,15 +23,15 @@ router.use(orgScope);
 
 router.get('/', requirePermission('plans.view'), httpCache('plans', 300), ctrl.list);
 router.get('/:id', requirePermission('plans.view'), ctrl.get);
-router.post('/', requirePermission('plans.create'), validate(createPlan), async (req, res, next) => {
+router.post('/', requirePermission('plans.create'), validate(createPlan, { strip: false }), async (req, res, next) => {
   // Default currency to the org's currency when the client omits it.
   if (!req.body.currency && req.orgId) {
     req.body.currency = await Organization.getCurrency(req.orgId);
   }
   return ctrl.create(req, res, next);
 });
-router.put('/:id', requirePermission('plans.update'), validate(updatePlan), ctrl.update);
-router.patch('/:id', requirePermission('plans.update'), validate(patchPlan), ctrl.partialUpdate);
+router.put('/:id', requirePermission('plans.update'), validate(updatePlan, { strip: false }), ctrl.update);
+router.patch('/:id', requirePermission('plans.update'), validate(patchPlan, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('plans.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('plans.update'), ctrl.restore);
 
@@ -45,7 +45,7 @@ router.get('/addons/catalog', requirePermission('plans.view'), async (req, res, 
   }
 });
 
-router.post('/addons', requirePermission('plans.create'), validate(createPlanAddon), async (req, res, next) => {
+router.post('/addons', requirePermission('plans.create'), validate(createPlanAddon, { strip: false }), async (req, res, next) => {
   try {
     const { name, addon_type, inventory_item_id, description, price, billing_cycle, taxable, status } = req.body;
 
@@ -108,7 +108,7 @@ router.get('/:id/speed-windows', requirePermission('plans.view'), async (req, re
   }
 });
 
-router.post('/:id/speed-windows', requirePermission('plans.create'), validate(createSpeedWindow), async (req, res, next) => {
+router.post('/:id/speed-windows', requirePermission('plans.create'), validate(createSpeedWindow, { strip: false }), async (req, res, next) => {
   try {
     // The plan must belong to the caller's organization (404 otherwise): the
     // window is keyed by plan_id, so an unchecked id would let one tenant
@@ -127,7 +127,7 @@ router.post('/:id/speed-windows', requirePermission('plans.create'), validate(cr
   }
 });
 
-router.put('/:id/speed-windows/:windowId', requirePermission('plans.update'), validate(createSpeedWindow), async (req, res, next) => {
+router.put('/:id/speed-windows/:windowId', requirePermission('plans.update'), validate(createSpeedWindow, { strip: false }), async (req, res, next) => {
   try {
     const { label, day_mask, start_time, end_time, download_speed_mbps, upload_speed_mbps, priority, status } = req.body;
     await db.query(
@@ -177,7 +177,7 @@ router.get('/:id/access-windows', requirePermission('plan_access_windows.view'),
   }
 });
 
-router.post('/:id/access-windows', requirePermission('plan_access_windows.create'), validate(createAccessWindow), async (req, res, next) => {
+router.post('/:id/access-windows', requirePermission('plan_access_windows.create'), validate(createAccessWindow, { strip: false }), async (req, res, next) => {
   try {
     // The plan must belong to the caller's organization (404 otherwise): the
     // window is keyed by plan_id, so an unchecked id would let one tenant
@@ -196,7 +196,7 @@ router.post('/:id/access-windows', requirePermission('plan_access_windows.create
   }
 });
 
-router.put('/:id/access-windows/:windowId', requirePermission('plan_access_windows.update'), validate(createAccessWindow), async (req, res, next) => {
+router.put('/:id/access-windows/:windowId', requirePermission('plan_access_windows.update'), validate(createAccessWindow, { strip: false }), async (req, res, next) => {
   try {
     const { label, day_mask, start_time, end_time, status } = req.body;
     await db.query(

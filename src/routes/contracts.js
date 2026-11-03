@@ -569,7 +569,7 @@ router.post(
     } catch (err) { next(err); }
   },
 );
-router.post('/', requirePermission('contracts.create'), validate(createContract), async (req, res, next) => {
+router.post('/', requirePermission('contracts.create'), validate(createContract, { strip: false }), async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -683,8 +683,8 @@ router.post('/', requirePermission('contracts.create'), validate(createContract)
     conn.release();
   }
 });
-router.put('/:id', requirePermission('contracts.update'), validate(updateContract), updateContractHandler);
-router.patch('/:id', requirePermission('contracts.update'), validate(patchContract), updateContractHandler);
+router.put('/:id', requirePermission('contracts.update'), validate(updateContract, { strip: false }), updateContractHandler);
+router.patch('/:id', requirePermission('contracts.update'), validate(patchContract, { strip: false }), updateContractHandler);
 router.delete('/:id', requirePermission('contracts.delete'), async (req, res, next) => {
   try {
     const old = await Contract.findByIdOrFail(req.params.id, req.orgId);
@@ -1139,7 +1139,7 @@ router.post('/:id/terminate', requirePermission('contracts.update'), async (req,
   } catch (err) { next(err); }
 });
 
-router.post('/:id/addons', requirePermission('contracts.update'), validate(createContractAddon), async (req, res, next) => {
+router.post('/:id/addons', requirePermission('contracts.update'), validate(createContractAddon, { strip: false }), async (req, res, next) => {
   try {
     const { plan_addon_id, quantity, unit_price, start_date, end_date } = req.body;
     // The contract must belong to the caller's organization (404 otherwise),
@@ -1181,7 +1181,7 @@ async function findContractAddon(req) {
   return rows[0];
 }
 
-router.patch('/:id/addons/:addonId', requirePermission('contracts.update'), validate(updateContractAddon), async (req, res, next) => {
+router.patch('/:id/addons/:addonId', requirePermission('contracts.update'), validate(updateContractAddon, { strip: false }), async (req, res, next) => {
   try {
     const addon = await findContractAddon(req);
     if (addon.status !== 'active') {

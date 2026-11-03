@@ -55,7 +55,7 @@ router.get('/ra-guard/:id', requirePermission('ra_guard.view'), async (req, res,
   } catch (err) { next(err); }
 });
 
-router.post('/ra-guard', requirePermission('ra_guard.create'), validate(createRaGuardPolicy), async (req, res, next) => {
+router.post('/ra-guard', requirePermission('ra_guard.create'), validate(createRaGuardPolicy, { strip: false }), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createRaGuardPolicy, 'organization_id'));
@@ -68,7 +68,7 @@ router.post('/ra-guard', requirePermission('ra_guard.create'), validate(createRa
   } catch (err) { next(err); }
 });
 
-router.put('/ra-guard/:id', requirePermission('ra_guard.update'), validate(updateRaGuardPolicy), async (req, res, next) => {
+router.put('/ra-guard/:id', requirePermission('ra_guard.update'), validate(updateRaGuardPolicy, { strip: false }), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM ra_guard_policies WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',

@@ -40,8 +40,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('recurring_payment_profiles.view'), ctrl.list);
 router.get('/:id', requirePermission('recurring_payment_profiles.view'), ctrl.get);
-router.post('/', requirePermission('recurring_payment_profiles.create'), validate(createRecurringPaymentProfile), ctrl.create);
-router.put('/:id', requirePermission('recurring_payment_profiles.update'), validate(updateRecurringPaymentProfile), ctrl.update);
+router.post('/', requirePermission('recurring_payment_profiles.create'), validate(createRecurringPaymentProfile, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('recurring_payment_profiles.update'), validate(updateRecurringPaymentProfile, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('recurring_payment_profiles.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('recurring_payment_profiles.update'), ctrl.restore);
 

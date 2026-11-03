@@ -46,7 +46,7 @@ router.get('/rules', requirePermission('devices.view'), async (req, res, next) =
 });
 
 // POST /api/alerts/rules — Create an alert rule
-router.post('/rules', requirePermission('devices.create'), validate(alertSchemas.createRule), async (req, res, next) => {
+router.post('/rules', requirePermission('devices.create'), validate(alertSchemas.createRule, { strip: false }), async (req, res, next) => {
   try {
     const [result] = await db.query(
       `INSERT INTO alert_rules (organization_id, name, description, metric, operator, threshold, device_id, duration_minutes, severity, auto_create_outage, auto_create_ticket, notification_channels, is_enabled)
@@ -68,7 +68,7 @@ router.post('/rules', requirePermission('devices.create'), validate(alertSchemas
 });
 
 // PUT /api/alerts/rules/:id — Update an alert rule
-router.put('/rules/:id', requirePermission('devices.update'), validate(alertSchemas.updateRule), async (req, res, next) => {
+router.put('/rules/:id', requirePermission('devices.update'), validate(alertSchemas.updateRule, { strip: false }), async (req, res, next) => {
   try {
     const fields = [];
     const params = [];
@@ -172,7 +172,7 @@ router.get('/escalation-chains', requirePermission('alert_escalations.view'), as
   } catch (err) { next(err); }
 });
 
-router.post('/escalation-chains', requirePermission('alert_escalations.create'), validate(escalationSchemas.createChain), async (req, res, next) => {
+router.post('/escalation-chains', requirePermission('alert_escalations.create'), validate(escalationSchemas.createChain, { strip: false }), async (req, res, next) => {
   try {
     const [result] = await db.query(
       'INSERT INTO alert_escalation_chains (organization_id, name, description) VALUES (?, ?, ?)',
@@ -183,7 +183,7 @@ router.post('/escalation-chains', requirePermission('alert_escalations.create'),
   } catch (err) { next(err); }
 });
 
-router.put('/escalation-chains/:id', requirePermission('alert_escalations.update'), validate(escalationSchemas.updateChain), async (req, res, next) => {
+router.put('/escalation-chains/:id', requirePermission('alert_escalations.update'), validate(escalationSchemas.updateChain, { strip: false }), async (req, res, next) => {
   try {
     const fields = [];
     const params = [];
@@ -221,7 +221,7 @@ router.get('/escalation-chains/:id/steps', requirePermission('alert_escalations.
   } catch (err) { next(err); }
 });
 
-router.post('/escalation-chains/:id/steps', requirePermission('alert_escalations.create'), validate(escalationSchemas.createStep), async (req, res, next) => {
+router.post('/escalation-chains/:id/steps', requirePermission('alert_escalations.create'), validate(escalationSchemas.createStep, { strip: false }), async (req, res, next) => {
   try {
     // The chain must be this organization's: a step on another tenant's chain
     // sent that tenant's alerts to a recipient of the caller's choosing (TNA-20).
@@ -286,7 +286,7 @@ router.get('/maintenance-windows', requirePermission('maintenance_windows.view')
   } catch (err) { next(err); }
 });
 
-router.post('/maintenance-windows', requirePermission('maintenance_windows.create'), validate(maintenanceSchemas.createWindow), async (req, res, next) => {
+router.post('/maintenance-windows', requirePermission('maintenance_windows.create'), validate(maintenanceSchemas.createWindow, { strip: false }), async (req, res, next) => {
   try {
     const [result] = await db.query(
       'INSERT INTO maintenance_windows (organization_id, name, description, device_id, site_id, starts_at, ends_at, is_recurring, recurrence_cron, recurrence_duration_minutes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -301,7 +301,7 @@ router.post('/maintenance-windows', requirePermission('maintenance_windows.creat
   } catch (err) { next(err); }
 });
 
-router.put('/maintenance-windows/:id', requirePermission('maintenance_windows.update'), validate(maintenanceSchemas.updateWindow), async (req, res, next) => {
+router.put('/maintenance-windows/:id', requirePermission('maintenance_windows.update'), validate(maintenanceSchemas.updateWindow, { strip: false }), async (req, res, next) => {
   try {
     const allowed = ['name', 'description', 'device_id', 'site_id', 'starts_at', 'ends_at', 'is_recurring', 'recurrence_cron', 'recurrence_duration_minutes', 'status'];
     const fields = [];
@@ -350,7 +350,7 @@ router.get('/notification-channels', requirePermission('alert_channels.view'), a
   } catch (err) { next(err); }
 });
 
-router.post('/notification-channels', requirePermission('alert_channels.create'), validate(channelSchemas.createChannel), async (req, res, next) => {
+router.post('/notification-channels', requirePermission('alert_channels.create'), validate(channelSchemas.createChannel, { strip: false }), async (req, res, next) => {
   try {
     const configStr = req.body.config ? encrypt(JSON.stringify(req.body.config)) : null;
     const [result] = await db.query(
@@ -365,7 +365,7 @@ router.post('/notification-channels', requirePermission('alert_channels.create')
   } catch (err) { next(err); }
 });
 
-router.put('/notification-channels/:id', requirePermission('alert_channels.update'), validate(channelSchemas.updateChannel), async (req, res, next) => {
+router.put('/notification-channels/:id', requirePermission('alert_channels.update'), validate(channelSchemas.updateChannel, { strip: false }), async (req, res, next) => {
   try {
     const fields = [];
     const params = [];
@@ -418,7 +418,7 @@ router.get('/suppression-rules', requirePermission('alert_suppression.view'), as
   } catch (err) { next(err); }
 });
 
-router.post('/suppression-rules', requirePermission('alert_suppression.create'), validate(suppressionSchemas.createRule), async (req, res, next) => {
+router.post('/suppression-rules', requirePermission('alert_suppression.create'), validate(suppressionSchemas.createRule, { strip: false }), async (req, res, next) => {
   try {
     const [result] = await db.query(
       'INSERT INTO alert_suppression_rules (organization_id, name, upstream_device_id, downstream_device_id, suppress_duration_minutes, is_enabled) VALUES (?, ?, ?, ?, ?, ?)',
@@ -430,7 +430,7 @@ router.post('/suppression-rules', requirePermission('alert_suppression.create'),
   } catch (err) { next(err); }
 });
 
-router.put('/suppression-rules/:id', requirePermission('alert_suppression.update'), validate(suppressionSchemas.updateRule), async (req, res, next) => {
+router.put('/suppression-rules/:id', requirePermission('alert_suppression.update'), validate(suppressionSchemas.updateRule, { strip: false }), async (req, res, next) => {
   try {
     const allowed = ['name', 'upstream_device_id', 'downstream_device_id', 'suppress_duration_minutes', 'is_enabled'];
     const fields = [];

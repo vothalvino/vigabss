@@ -92,7 +92,7 @@ router.get(
 router.post(
   '/connections',
   requirePermission('integration_connections.create'),
-  validate(createConnectionSchema),
+  validate(createConnectionSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const connection = await integrationService.createConnection(
@@ -129,7 +129,7 @@ router.get(
 router.put(
   '/connections/:id',
   requirePermission('integration_connections.update'),
-  validate(updateConnectionSchema),
+  validate(updateConnectionSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const connection = await integrationService.updateConnection(

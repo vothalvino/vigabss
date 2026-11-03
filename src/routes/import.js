@@ -51,11 +51,11 @@ function uploadImportFile(req, res, next) {
 // ---------------------------------------------------------------------------
 // JSON body routes (CSV string in request body — backward compatible)
 // ---------------------------------------------------------------------------
-router.post('/clients', requirePermission('clients.create'), validate(importSchemas.importCsv), importController.importClients);
-router.post('/devices', requirePermission('devices.create'), validate(importSchemas.importCsv), importController.importDevices);
-router.post('/contracts', requirePermission('contracts.create'), validate(importSchemas.importCsv), importController.importContracts);
-router.post('/invoices', requirePermission('invoices.create'), validate(importSchemas.importCsv), importController.importInvoices);
-router.post('/payments', requirePermission('payments.create'), validate(importSchemas.importCsv), importController.importPayments);
+router.post('/clients', requirePermission('clients.create'), validate(importSchemas.importCsv, { strip: false }), importController.importClients);
+router.post('/devices', requirePermission('devices.create'), validate(importSchemas.importCsv, { strip: false }), importController.importDevices);
+router.post('/contracts', requirePermission('contracts.create'), validate(importSchemas.importCsv, { strip: false }), importController.importContracts);
+router.post('/invoices', requirePermission('invoices.create'), validate(importSchemas.importCsv, { strip: false }), importController.importInvoices);
+router.post('/payments', requirePermission('payments.create'), validate(importSchemas.importCsv, { strip: false }), importController.importPayments);
 
 // ---------------------------------------------------------------------------
 // File upload routes (multipart/form-data, field "file", .csv only)

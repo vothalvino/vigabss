@@ -25,7 +25,7 @@ router.get('/', requirePermission('chargebacks.view'), ctrl.list);
 router.get('/:id', requirePermission('chargebacks.view'), ctrl.get);
 
 // Manual create
-router.post('/', requirePermission('chargebacks.create'), validate(createChargebackSchema), async (req, res, next) => {
+router.post('/', requirePermission('chargebacks.create'), validate(createChargebackSchema, { strip: false }), async (req, res, next) => {
   try {
     // Default to the organization's currency (not a hardcoded 'USD') when the
     // caller omits one — an explicitly-set currency always wins.
@@ -48,7 +48,7 @@ router.post('/', requirePermission('chargebacks.create'), validate(createChargeb
 });
 
 // Update status/outcome
-router.put('/:id', requirePermission('chargebacks.update'), validate(updateChargebackSchema), async (req, res, next) => {
+router.put('/:id', requirePermission('chargebacks.update'), validate(updateChargebackSchema, { strip: false }), async (req, res, next) => {
   try {
     const updated = await Chargeback.update(req.params.id, req.body, req.orgId);
     res.json({ data: updated });

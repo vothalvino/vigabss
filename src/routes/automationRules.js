@@ -73,7 +73,7 @@ router.get('/:id', requirePermission('automation_rules.view'), async (req, res, 
 });
 
 // POST /automation-rules
-router.post('/', requirePermission('automation_rules.create'), validate(createAutomationRule), async (req, res, next) => {
+router.post('/', requirePermission('automation_rules.create'), validate(createAutomationRule, { strip: false }), async (req, res, next) => {
   try {
     const { name, description, trigger_event, trigger_conditions, action_type, action_config, is_enabled, priority } = req.body;
     const [result] = await db.query(
@@ -95,7 +95,7 @@ router.post('/', requirePermission('automation_rules.create'), validate(createAu
 });
 
 // PUT /automation-rules/:id
-router.put('/:id', requirePermission('automation_rules.update'), validate(updateAutomationRule), async (req, res, next) => {
+router.put('/:id', requirePermission('automation_rules.update'), validate(updateAutomationRule, { strip: false }), async (req, res, next) => {
   try {
     const [existing] = await db.query(
       'SELECT id FROM automation_rules WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',

@@ -128,7 +128,7 @@ router.get('/', requirePermission('payments.view'), ctrl.list);
 router.get('/:id', requirePermission('payments.view'), ctrl.get);
 
 // Create a payment and optionally allocate + reconnect
-router.post('/', requirePermission('payments.create'), validate(createPayment), async (req, res, next) => {
+router.post('/', requirePermission('payments.create'), validate(createPayment, { strip: false }), async (req, res, next) => {
   try {
     req.body.organization_id = req.orgId;
     // The cash reconciliation session of the staff member who records the
@@ -159,8 +159,8 @@ router.post('/', requirePermission('payments.create'), validate(createPayment), 
   }
 });
 
-router.put('/:id', requirePermission('payments.update'), validate(updatePayment), ctrl.update);
-router.patch('/:id', requirePermission('payments.update'), validate(patchPayment), ctrl.partialUpdate);
+router.put('/:id', requirePermission('payments.update'), validate(updatePayment, { strip: false }), ctrl.update);
+router.patch('/:id', requirePermission('payments.update'), validate(patchPayment, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('payments.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('payments.update'), ctrl.restore);
 
@@ -171,7 +171,7 @@ router.post('/:id/restore', requirePermission('payments.update'), ctrl.restore);
 // which read the sums without locks, so two concurrent allocations could both
 // pass. The amount must also fit what the payment has left and what the
 // invoice still owes (after payments and credit notes).
-router.post('/:id/allocate', requirePermission('payments.create'), validate(allocatePayment), async (req, res, next) => {
+router.post('/:id/allocate', requirePermission('payments.create'), validate(allocatePayment, { strip: false }), async (req, res, next) => {
   const conn = await db.getConnection();
   const exec = conn.execute.bind(conn);
   let committed = false;
@@ -283,7 +283,7 @@ router.post('/:id/allocate', requirePermission('payments.create'), validate(allo
 //
 // Any leftover after the last invoice is covered stays as unallocated credit
 // on the payment (today's existing model — nothing new to build there).
-router.post('/:id/allocate-auto', requirePermission('payments.create'), validate(allocateAuto), async (req, res, next) => {
+router.post('/:id/allocate-auto', requirePermission('payments.create'), validate(allocateAuto, { strip: false }), async (req, res, next) => {
   const conn = await db.getConnection();
   let connReleased = false;
   try {

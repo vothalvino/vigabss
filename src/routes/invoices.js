@@ -368,7 +368,7 @@ router.get('/:id', requirePermission('invoices.view'), async (req, res, next) =>
 // "successful" create produced an invoice with ZERO line items, which is
 // fiscally dangerous: a later CFDI conversion builds its conceptos FROM
 // those items.
-router.post('/', requirePermission('invoices.create'), validate(createInvoice), async (req, res, next) => {
+router.post('/', requirePermission('invoices.create'), validate(createInvoice, { strip: false }), async (req, res, next) => {
   try {
     // Nested array fields bypass validate() (it does not recurse) — validate
     // each item by hand against the same rules as POST /:id/items.
@@ -547,9 +547,9 @@ function rejectManualCancelled(req, _res, next) {
   return next();
 }
 
-router.put('/:id', requirePermission('invoices.update'), validate(updateInvoice), rejectManualCancelled,
+router.put('/:id', requirePermission('invoices.update'), validate(updateInvoice, { strip: false }), rejectManualCancelled,
   (req, res, next) => (req.body.status === 'void' ? voidInvoice(req, res, next) : ctrl.update(req, res, next)));
-router.patch('/:id', requirePermission('invoices.update'), validate(patchInvoice), rejectManualCancelled,
+router.patch('/:id', requirePermission('invoices.update'), validate(patchInvoice, { strip: false }), rejectManualCancelled,
   (req, res, next) => (req.body.status === 'void' ? voidInvoice(req, res, next) : ctrl.partialUpdate(req, res, next)));
 router.delete('/:id', requirePermission('invoices.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('invoices.update'), ctrl.restore);
@@ -558,7 +558,7 @@ router.post('/:id/restore', requirePermission('invoices.update'), ctrl.restore);
 // org's PAC. MX-locale orgs only; permission mirrors direct CFDI creation.
 // The service enforces every fiscal precondition (org+client MX profiles,
 // stampable status, single-CFDI-per-invoice) with actionable 4xx errors.
-router.post('/:id/stamp', requireMxLocale, requirePermission('cfdi_documents.create'), validate(stampInvoice), async (req, res, next) => {
+router.post('/:id/stamp', requireMxLocale, requirePermission('cfdi_documents.create'), validate(stampInvoice, { strip: false }), async (req, res, next) => {
   try {
     const result = await invoiceCfdiService.stampInvoice(req.params.id, req.orgId, {
       uso_cfdi: req.body.uso_cfdi,
@@ -659,7 +659,7 @@ async function refreshPaidStatusBestEffort(invoiceId) {
   }
 }
 
-router.post('/:id/items', requirePermission('invoices.update'), validate(addInvoiceItem), async (req, res, next) => {
+router.post('/:id/items', requirePermission('invoices.update'), validate(addInvoiceItem, { strip: false }), async (req, res, next) => {
   try {
     assertAmountMatchesLine(req.body);
 

@@ -22,7 +22,7 @@ router.use(orgScope);
 router.get('/', requirePermission('rate_limit_templates.view'), ctrl.list);
 router.get('/:id', requirePermission('rate_limit_templates.view'), ctrl.get);
 
-router.post('/', requirePermission('rate_limit_templates.create'), validate(createRateLimitTemplate), async (req, res, next) => {
+router.post('/', requirePermission('rate_limit_templates.create'), validate(createRateLimitTemplate, { strip: false }), async (req, res, next) => {
   try {
     // Compute and persist rendered rate_string on create
     const rateString = buildRateString({ radius_vendor: 'mikrotik', ...req.body });
@@ -49,7 +49,7 @@ router.post('/', requirePermission('rate_limit_templates.create'), validate(crea
   }
 });
 
-router.put('/:id', requirePermission('rate_limit_templates.update'), validate(updateRateLimitTemplate), async (req, res, next) => {
+router.put('/:id', requirePermission('rate_limit_templates.update'), validate(updateRateLimitTemplate, { strip: false }), async (req, res, next) => {
   try {
     const existing = await RateLimitTemplate.findById(req.params.id, req.orgId);
     if (!existing) return res.status(404).json({ error: 'Rate limit template not found' });

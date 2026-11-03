@@ -38,9 +38,9 @@ router.use(orgScope);
 
 router.get('/', requirePermission('clients.view'), ctrl.list);
 router.get('/:id', requirePermission('clients.view'), ctrl.get);
-router.post('/', requirePermission('clients.create'), validate(createClientGroup), ctrl.create);
-router.put('/:id', requirePermission('clients.update'), validate(updateClientGroup), ctrl.update);
-router.patch('/:id', requirePermission('clients.update'), validate(updateClientGroup), ctrl.partialUpdate);
+router.post('/', requirePermission('clients.create'), validate(createClientGroup, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('clients.update'), validate(updateClientGroup, { strip: false }), ctrl.update);
+router.patch('/:id', requirePermission('clients.update'), validate(updateClientGroup, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('clients.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('clients.update'), ctrl.restore);
 
@@ -102,7 +102,7 @@ router.get('/:id/billing', requirePermission('payments.view'), async (req, res, 
 });
 
 // Shared-billing: the primary pays the group's balance (payments.create).
-router.post('/:id/pay', requirePermission('payments.create'), validate(payClientGroup), async (req, res, next) => {
+router.post('/:id/pay', requirePermission('payments.create'), validate(payClientGroup, { strip: false }), async (req, res, next) => {
   try {
     const result = await groupBillingService.payGroup(req.orgId, req.params.id, {
       amount: req.body.amount,

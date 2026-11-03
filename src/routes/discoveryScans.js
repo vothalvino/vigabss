@@ -39,7 +39,7 @@ const ctrl = crudController(DiscoveryScan, { serialize: redactDiscoveryScan });
 
 router.get('/',    requirePermission('discovery_scans.view'),   ctrl.list);
 router.get('/:id', requirePermission('discovery_scans.view'),   ctrl.get);
-router.post('/',   requirePermission('discovery_scans.create'), validate(createDiscoveryScan), sealSnmpV3Keys, sealSnmpCommunity, async (req, res, next) => {
+router.post('/',   requirePermission('discovery_scans.create'), validate(createDiscoveryScan, { strip: false }), sealSnmpV3Keys, sealSnmpCommunity, async (req, res, next) => {
   try {
     req.body.organization_id = req.orgId;
     req.body.created_by = req.user.id;
@@ -52,7 +52,7 @@ router.post('/',   requirePermission('discovery_scans.create'), validate(createD
     res.status(201).json({ data: redactDiscoveryScan(created) });
   } catch (err) { next(err); }
 });
-router.put('/:id',  requirePermission('discovery_scans.update'), validate(updateDiscoveryScan), sealSnmpV3Keys, sealSnmpCommunity, ctrl.update);
+router.put('/:id',  requirePermission('discovery_scans.update'), validate(updateDiscoveryScan, { strip: false }), sealSnmpV3Keys, sealSnmpCommunity, ctrl.update);
 router.delete('/:id', requirePermission('discovery_scans.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('discovery_scans.update'), ctrl.restore);
 

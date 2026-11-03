@@ -81,7 +81,7 @@ router.get('/:id/items', requirePermission('batch_jobs.view'), async (req, res, 
 });
 
 // POST /batch-jobs
-router.post('/', requirePermission('batch_jobs.create'), validate(createBatchJob), async (req, res, next) => {
+router.post('/', requirePermission('batch_jobs.create'), validate(createBatchJob, { strip: false }), async (req, res, next) => {
   try {
     const job = await automationService.createBatchJob(req.orgId, {
       ...req.body,

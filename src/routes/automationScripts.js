@@ -66,7 +66,7 @@ router.get('/:id', requirePermission('automation_scripts.view'), async (req, res
 });
 
 // POST /automation-scripts — admin only (enforced by permission)
-router.post('/', requirePermission('automation_scripts.create'), validate(createScriptSchema), async (req, res, next) => {
+router.post('/', requirePermission('automation_scripts.create'), validate(createScriptSchema, { strip: false }), async (req, res, next) => {
   try {
     const script = await scriptingService.createScript(req.orgId, req.body, req.user.id);
     res.status(201).json({ data: script });
@@ -74,7 +74,7 @@ router.post('/', requirePermission('automation_scripts.create'), validate(create
 });
 
 // PUT /automation-scripts/:id
-router.put('/:id', requirePermission('automation_scripts.update'), validate(updateScriptSchema), async (req, res, next) => {
+router.put('/:id', requirePermission('automation_scripts.update'), validate(updateScriptSchema, { strip: false }), async (req, res, next) => {
   try {
     // Only the install operator may edit installation-managed community
     // scripts (organization_id IS NULL); everyone else edits their own only.
@@ -104,7 +104,7 @@ router.delete('/:id', requirePermission('automation_scripts.delete'), async (req
 // POST /automation-scripts/:id/execute
 // Script execution requires a sandboxed executor (SCRIPT_EXECUTION_ENABLED=true).
 // Returns 501 when the execution engine is not enabled.
-router.post('/:id/execute', requirePermission('automation_scripts.execute'), validate(executeScriptSchema), async (req, res, next) => {
+router.post('/:id/execute', requirePermission('automation_scripts.execute'), validate(executeScriptSchema, { strip: false }), async (req, res, next) => {
   try {
     const execution = await scriptingService.executeScript(req.params.id, req.orgId, {
       input_params: req.body.input_params,

@@ -119,7 +119,7 @@ templatesRouter.get('/', requirePermission('document_templates.view'), async (re
   } catch (err) { next(err); }
 });
 
-templatesRouter.post('/', requirePermission('document_templates.create'), validate(createDocumentTemplate), async (req, res, next) => {
+templatesRouter.post('/', requirePermission('document_templates.create'), validate(createDocumentTemplate, { strip: false }), async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -162,7 +162,7 @@ templatesRouter.post('/', requirePermission('document_templates.create'), valida
   }
 });
 
-templatesRouter.put('/:id', requirePermission('document_templates.update'), validate(updateDocumentTemplate), async (req, res, next) => {
+templatesRouter.put('/:id', requirePermission('document_templates.update'), validate(updateDocumentTemplate, { strip: false }), async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -348,7 +348,7 @@ documentsRouter.get('/:id', requirePermission('signed_documents.view'), async (r
   } catch (err) { next(err); }
 });
 
-documentsRouter.post('/:id/sign', requirePermission('signed_documents.sign'), validate(signDocument), async (req, res, next) => {
+documentsRouter.post('/:id/sign', requirePermission('signed_documents.sign'), validate(signDocument, { strip: false }), async (req, res, next) => {
   try {
     const doc = await legalDocumentService.sign(req.params.id, {
       orgId: req.orgId,
@@ -393,7 +393,7 @@ documentsRouter.post('/:id/cancel', requirePermission('signed_documents.create')
 // Generate on demand for an order that predates the templates (or was started
 // before a template was activated). Skips types that already have a live
 // (pending or signed) instance for the order so re-clicks never duplicate.
-documentsRouter.post('/generate', requirePermission('signed_documents.create'), validate(generateDocuments), async (req, res, next) => {
+documentsRouter.post('/generate', requirePermission('signed_documents.create'), validate(generateDocuments, { strip: false }), async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();

@@ -144,8 +144,8 @@ const sealPacCredentials = sealSecretFields({
   token: 'token_encrypted',
 });
 
-router.post('/', requirePermission('pac_providers.create'), validate(createPacProvider), guardApiUrl, sealPacCredentials, ctrl.create);
-router.put('/:id', requirePermission('pac_providers.update'), validate(updatePacProvider), guardApiUrl, sealPacCredentials, ctrl.update);
+router.post('/', requirePermission('pac_providers.create'), validate(createPacProvider, { strip: false }), guardApiUrl, sealPacCredentials, ctrl.create);
+router.put('/:id', requirePermission('pac_providers.update'), validate(updatePacProvider, { strip: false }), guardApiUrl, sealPacCredentials, ctrl.update);
 router.delete('/:id', requirePermission('pac_providers.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('pac_providers.update'), ctrl.restore);
 

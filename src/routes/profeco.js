@@ -88,7 +88,7 @@ router.get('/export', requirePermission('tickets.view'), async (req, res, next) 
 router.get('/',       requirePermission('tickets.view'),   ctrl.list);
 router.get('/:id',    requirePermission('tickets.view'),   ctrl.get);
 router.post('/',      requirePermission('tickets.create'),
-  validate(createProfecoComplaint),
+  validate(createProfecoComplaint, { strip: false }),
   async (req, res, next) => {
     // Automatically stamp submitted_by from the authenticated user
     req.body.submitted_by = req.user.id;
@@ -96,8 +96,8 @@ router.post('/',      requirePermission('tickets.create'),
   },
   ctrl.create,
 );
-router.put('/:id',    requirePermission('tickets.update'), validate(updateProfecoComplaint),  ctrl.update);
-router.patch('/:id',  requirePermission('tickets.update'), validate(patchProfecoComplaint),   ctrl.partialUpdate);
+router.put('/:id',    requirePermission('tickets.update'), validate(updateProfecoComplaint, { strip: false }),  ctrl.update);
+router.patch('/:id',  requirePermission('tickets.update'), validate(patchProfecoComplaint, { strip: false }),   ctrl.partialUpdate);
 router.delete('/:id', requirePermission('tickets.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('tickets.update'), ctrl.restore);
 

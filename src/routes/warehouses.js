@@ -20,8 +20,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('inventory.view'), ctrl.list);
 router.get('/:id', requirePermission('inventory.view'), ctrl.get);
-router.post('/', requirePermission('inventory.create'), validate(createWarehouse), ctrl.create);
-router.put('/:id', requirePermission('inventory.update'), validate(updateWarehouse), ctrl.update);
+router.post('/', requirePermission('inventory.create'), validate(createWarehouse, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('inventory.update'), validate(updateWarehouse, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('inventory.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('inventory.update'), ctrl.restore);
 

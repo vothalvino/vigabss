@@ -110,7 +110,7 @@ router.get('/consent', requirePermission('subscriber_consents.view'), async (req
   }
 });
 
-router.post('/consent', requirePermission('subscriber_consents.create'), validate(createConsent), async (req, res, next) => {
+router.post('/consent', requirePermission('subscriber_consents.create'), validate(createConsent, { strip: false }), async (req, res, next) => {
   let conn;
   try {
     const {
@@ -326,7 +326,7 @@ router.get('/dsar-requests', requirePermission('dsar_requests.view'), async (req
   }
 });
 
-router.post('/dsar-requests', requirePermission('dsar_requests.create'), validate(createDsarRequest), async (req, res, next) => {
+router.post('/dsar-requests', requirePermission('dsar_requests.create'), validate(createDsarRequest, { strip: false }), async (req, res, next) => {
   try {
     const { client_id, request_type, notes } = req.body;
 
@@ -366,7 +366,7 @@ router.get('/dsar-requests/:id', requirePermission('dsar_requests.view'), async 
   }
 });
 
-router.put('/dsar-requests/:id/fulfill', requirePermission('dsar_requests.manage'), validate(resolveDsarRequest), async (req, res, next) => {
+router.put('/dsar-requests/:id/fulfill', requirePermission('dsar_requests.manage'), validate(resolveDsarRequest, { strip: false }), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { notes } = req.body;
@@ -382,7 +382,7 @@ router.put('/dsar-requests/:id/fulfill', requirePermission('dsar_requests.manage
   }
 });
 
-router.put('/dsar-requests/:id/reject', requirePermission('dsar_requests.manage'), validate(resolveDsarRequest), async (req, res, next) => {
+router.put('/dsar-requests/:id/reject', requirePermission('dsar_requests.manage'), validate(resolveDsarRequest, { strip: false }), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { notes } = req.body;

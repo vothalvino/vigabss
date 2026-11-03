@@ -226,7 +226,7 @@ router.get('/:orgId/saml/config', ...adminGuard, async (req, res, next) => {
 
 // PUT /sso/:orgId/saml/config
 router.put('/:orgId/saml/config', ...adminGuard,
-  validate(ssoSchemas.samlConfig),
+  validate(ssoSchemas.samlConfig, { strip: false }),
   async (req, res, next) => {
     try {
       const orgId = parseOrgId(req, res);
@@ -254,7 +254,7 @@ router.get('/:orgId/oidc/config', ...adminGuard, async (req, res, next) => {
 
 // PUT /sso/:orgId/oidc/config
 router.put('/:orgId/oidc/config', ...adminGuard,
-  validate(ssoSchemas.oidcConfig),
+  validate(ssoSchemas.oidcConfig, { strip: false }),
   async (req, res, next) => {
     try {
       const orgId = parseOrgId(req, res);
@@ -283,7 +283,7 @@ router.get('/:orgId/saml/group-mappings', ...adminGuard, async (req, res, next) 
 
 // PUT /sso/:orgId/saml/group-mappings
 router.put('/:orgId/saml/group-mappings', ...adminGuard,
-  validate(ssoSchemas.groupMappings),
+  validate(ssoSchemas.groupMappings, { strip: false }),
   async (req, res, next) => {
     try {
       const orgId = parseOrgId(req, res);
@@ -314,7 +314,7 @@ router.get('/:orgId/oidc/group-mappings', ...adminGuard, async (req, res, next) 
 
 // PUT /sso/:orgId/oidc/group-mappings
 router.put('/:orgId/oidc/group-mappings', ...adminGuard,
-  validate(ssoSchemas.groupMappings),
+  validate(ssoSchemas.groupMappings, { strip: false }),
   async (req, res, next) => {
     try {
       const orgId = parseOrgId(req, res);

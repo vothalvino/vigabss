@@ -21,8 +21,8 @@ const ctrl = crudController(DeviceGroup);
 
 router.get('/',     requirePermission('device_groups.view'),   ctrl.list);
 router.get('/:id',  requirePermission('device_groups.view'),   ctrl.get);
-router.post('/',    requirePermission('device_groups.create'),  validate(createDeviceGroup), ctrl.create);
-router.put('/:id',  requirePermission('device_groups.update'),  validate(updateDeviceGroup), ctrl.update);
+router.post('/',    requirePermission('device_groups.create'),  validate(createDeviceGroup, { strip: false }), ctrl.create);
+router.put('/:id',  requirePermission('device_groups.update'),  validate(updateDeviceGroup, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('device_groups.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('device_groups.update'), ctrl.restore);
 
@@ -36,7 +36,7 @@ router.get('/:id/members', requirePermission('device_groups.view'), async (req, 
   } catch (err) { next(err); }
 });
 
-router.post('/:id/members', requirePermission('device_groups.update'), validate(addGroupMembers), async (req, res, next) => {
+router.post('/:id/members', requirePermission('device_groups.update'), validate(addGroupMembers, { strip: false }), async (req, res, next) => {
   try {
     await DeviceGroup.findByIdOrFail(req.params.id, req.orgId);
     const ids = [...new Set((req.body.device_ids || []).map(Number))];

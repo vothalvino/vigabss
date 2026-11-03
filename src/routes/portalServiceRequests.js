@@ -255,7 +255,7 @@ router.get('/:id', requirePermission('portal_service_requests.view'), async (req
 router.post(
   '/:id/approve',
   requirePermission('portal_service_requests.update'),
-  validate(approveSchema),
+  validate(approveSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await portalServiceRequestService.approveRequest(
@@ -306,7 +306,7 @@ router.post(
 router.post(
   '/:id/reject',
   requirePermission('portal_service_requests.update'),
-  validate(rejectSchema),
+  validate(rejectSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await portalServiceRequestService.rejectRequest(
