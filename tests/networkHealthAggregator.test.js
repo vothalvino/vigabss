@@ -190,7 +190,8 @@ describe('scoping and defaults', () => {
     // `d.organization_id = NULL` would match nothing and silently produce zero
     // snapshots on exactly the installs most likely to be single-tenant.
     await agg.aggregateDay(null, '2026-07-30');
-    expect(aggregateSql()).toMatch(/\? IS NULL OR d\.organization_id = \?/);
+    expect(aggregateSql()).not.toMatch(/d\.organization_id = \?/);
+    expect(aggregateSql()).toMatch(/WHERE TRUE\s+GROUP BY d\.id/);
   });
 
   it('defaults to YESTERDAY, not today', async () => {
@@ -221,14 +222,15 @@ describe('the task no longer lies about doing nothing', () => {
   );
 
   it('populate_network_health_snapshots actually aggregates', () => {
-    expect(src()).toMatch(/case 'populate_network_health_snapshots':\s*\n\s*return networkHealthAggregator\.aggregateDay/);
+    // Once per database: the primary, then each isolated tenant.
+    expect(src()).toMatch(/case 'populate_network_health_snapshots':\s*\n\s*return inEveryDatabase\(taskName, organizationId, orgId => networkHealthAggregator\.aggregateDay\(orgId\)\)/);
   });
 
   it('populate_revenue_summary does real work too', () => {
     // Implemented in the sibling PR. It briefly threw "not implemented" — an
     // honest interim state — and now aggregates.
     const s = src();
-    expect(s).toMatch(/return revenueSummaryAggregator\.populate\(organizationId\)/);
+    expect(s).toMatch(/revenueSummaryAggregator\.populate\(orgId\)/);
     expect(s).not.toMatch(/Revenue summary is populated by MySQL scheduled event/);
   });
 

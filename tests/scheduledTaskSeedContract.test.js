@@ -35,27 +35,17 @@ const ORGANIZATION_SCOPED = new Set(
     .match(/'([a-z0-9_]+)'/g).map(s => s.slice(1, -1)),
 );
 
-// Install-wide (organization_id NULL) rows of org-bound tasks whose service
-// reads a null organization as "every organization" (checked by reading each).
-// Most of them drop the filter by hand, so they cover the primary database
-// only and do not use orgScopeFilter (ARCHITECTURE.md "Scheduled and
-// asynchronous work"); moving them to forEachDatabaseScope is open work.
-const SWEEPS_WHEN_NULL = {
-  radius_sync: 'syncAllAccounts / syncFreeradiusTables drop the org filter',
-  populate_revenue_summary: 'revenueSummaryAggregator fans out',
-  populate_network_health_snapshots: 'aggregateDay(null) groups by organization',
-  alert_evaluation: 'runAlertEvaluation lists active organizations',
-  apply_speed_windows: 'drops the org filter',
-  check_certificate_expiry: 'drops the org filter',
-  kick_duplicate_sessions: 'drops the org filter and groups by organization',
-  nas_health_check: 'drops the org filter',
-  scan_auth_failures: 'scans every database scope',
-  rollover_balance_accrue: '(c.organization_id = ? OR ? IS NULL)',
-  inventory_low_stock_check: '(? IS NULL OR i.organization_id = ?)',
-  data_retention_compliance_check: 'drops the org filter',
-  maintenance_window_expiry: 'drops the org filter',
-  poll_pppoe_events: 'collectPppoeEvents(null) sweeps every organization',
-  reconcile_gateway_payments: 'lists active organizations',
+// Install-wide (organization_id NULL) rows of org-bound tasks must fan out in
+// the dispatcher (perOrganization / inEveryDatabase), so isolated tenants run
+// in their own database and their stale primary rows are skipped. These
+// handlers do that themselves; tests/installWideTaskScopes.test.js and their
+// own tests cover them. A service that drops the filter by hand for NULL is
+// not a fan-out.
+const FANS_OUT_ITSELF = {
+  alert_evaluation: 'runAlertEvaluation enters each active organization',
+  scan_auth_failures: 'scanAuthFailures scans the primary, then each isolated database',
+  poll_pppoe_events: 'collectPppoeEvents runs the primary, then each isolated database',
+  reconcile_gateway_payments: 'reconcileOutstandingTransactions enters each active organization',
 };
 
 const seeds = migratedSeeds();
@@ -87,9 +77,9 @@ test('an install-wide row of an org-bound task covers every organization', () =>
     .filter(r => r.organization_id === null && ORGANIZATION_SCOPED.has(r.task_name))
     .filter(r => !/perOrganization|inEveryDatabase|forEachActiveOrganization|forEachDatabaseScope/.test(cases.get(r.task_name)))
     .map(r => r.task_name)
-    .filter(name => !SWEEPS_WHEN_NULL[name]);
+    .filter(name => !FANS_OUT_ITSELF[name]);
   expect(unscoped).toEqual([]);
-  const stale = Object.keys(SWEEPS_WHEN_NULL).filter(name => !scheduled.some(r => r.task_name === name));
+  const stale = Object.keys(FANS_OUT_ITSELF).filter(name => !scheduled.some(r => r.task_name === name));
   expect(stale).toEqual([]);
 });
 

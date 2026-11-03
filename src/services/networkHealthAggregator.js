@@ -46,6 +46,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { orgScopeFilter } = require('./organizationFanOut');
 const logger = require('../utils/logger').child({ service: 'networkHealthAggregator' });
 
 const MINUTES_PER_DAY = 1440;
@@ -64,6 +65,7 @@ const MAX_PLAUSIBLE_MBPS = 400000; // 400 Gbps — far above any ISP access devi
  */
 async function aggregateDay(organizationId = null, day = null) {
   const snapshotDate = day || yesterday();
+  const deviceScope = orgScopeFilter('d.organization_id', organizationId);
 
   const [rows] = await db.query(
     `
@@ -108,10 +110,10 @@ async function aggregateDay(organizationId = null, day = null) {
       ) per_hour
     ) h
     JOIN devices d ON d.id = h.device_id AND d.deleted_at IS NULL
-    WHERE (? IS NULL OR d.organization_id = ?)
+    WHERE TRUE${deviceScope.sql}
     GROUP BY d.id, d.organization_id
     `,
-    [MAX_PLAUSIBLE_MBPS, MAX_PLAUSIBLE_MBPS, snapshotDate, snapshotDate, organizationId, organizationId],
+    [MAX_PLAUSIBLE_MBPS, MAX_PLAUSIBLE_MBPS, snapshotDate, snapshotDate, ...deviceScope.params],
   );
 
   const downtime = await downtimeMinutesByDevice(organizationId, snapshotDate);
@@ -169,6 +171,10 @@ async function aggregateDay(organizationId = null, day = null) {
  * unresolved outage runs to the end of the day, or to now for today.
  */
 async function downtimeMinutesByDevice(organizationId, snapshotDate) {
+  // An outage with no organization counts for every organization's devices.
+  const outageScope = organizationId === null || organizationId === undefined
+    ? orgScopeFilter('o.organization_id', null)
+    : { sql: ' AND (o.organization_id = ? OR o.organization_id IS NULL)', params: [organizationId] };
   const [rows] = await db.query(
     `SELECT o.device_id,
             SUM(
@@ -183,9 +189,9 @@ async function downtimeMinutesByDevice(organizationId, snapshotDate) {
         AND o.deleted_at IS NULL
         AND o.started_at < DATE_ADD(?, INTERVAL 1 DAY)
         AND COALESCE(o.resolved_at, NOW()) >= ?
-        AND (? IS NULL OR o.organization_id = ? OR o.organization_id IS NULL)
+        ${outageScope.sql}
       GROUP BY o.device_id`,
-    [snapshotDate, snapshotDate, snapshotDate, snapshotDate, organizationId, organizationId],
+    [snapshotDate, snapshotDate, snapshotDate, snapshotDate, ...outageScope.params],
   );
   return new Map(rows.map(r => [r.device_id, Number(r.minutes_down) || 0]));
 }

@@ -334,9 +334,10 @@ describe('taskRunner', () => {
     test('populate_revenue_summary fans out when scheduled install-wide', async () => {
       // The seeded task carries organization_id NULL. Requiring one would make
       // it fail nightly on every install.
+      // It runs per active organization, each in its own database context.
       db.query.mockResolvedValue([[]]);
       const result = await taskRunner.runTask('populate_revenue_summary');
-      expect(result).toHaveProperty('organizations');
+      expect(result).toHaveProperty('organizations_total');
     });
 
     test('populate_revenue_summary aggregates when given one', async () => {
@@ -482,6 +483,7 @@ describe('taskRunner', () => {
       rolloverService.accrueRollover.mockResolvedValue({ accrued: 0 });
       await taskRunner.runTask('rollover_balance_accrue', 42);
       expect(rolloverService.accrueRollover).toHaveBeenCalledWith(42);
+      db.query.mockResolvedValue([[]]); // no isolated tenants: one primary pass
       await taskRunner.runTask('rollover_balance_accrue');
       expect(rolloverService.accrueRollover).toHaveBeenLastCalledWith(null);
     });
@@ -497,6 +499,7 @@ describe('taskRunner', () => {
       speedWindowService.applySpeedWindows.mockResolvedValue({ plans_checked: 0, transitions: 0 });
       await taskRunner.runTask('apply_speed_windows', 42);
       expect(speedWindowService.applySpeedWindows).toHaveBeenCalledWith(42);
+      db.query.mockResolvedValue([[]]); // no isolated tenants: one primary pass
       await taskRunner.runTask('apply_speed_windows');
       expect(speedWindowService.applySpeedWindows).toHaveBeenLastCalledWith(null);
     });
@@ -743,6 +746,7 @@ describe('taskRunner', () => {
   describe('handleDataRetentionComplianceCheck', () => {
     it('dispatches data_retention_compliance_check', async () => {
       db.query
+        .mockResolvedValueOnce([[]]) // isolated tenants: none
         .mockResolvedValueOnce([[{ id: 1, organization_id: 10, client_id: 5, request_type: 'access', due_at: '2026-01-01' }]])
         .mockResolvedValueOnce([[]]); // stale gov_data_requests
       const result = await taskRunner.runTask('data_retention_compliance_check', null);

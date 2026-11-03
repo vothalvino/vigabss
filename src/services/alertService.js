@@ -6,6 +6,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { orgScopeFilter } = require('./organizationFanOut');
 const eventBus = require('./eventBus');
 const logger = require('../utils/logger');
 
@@ -556,8 +557,7 @@ async function isInMaintenanceWindow(organizationId, deviceId) {
  * new windows.
  */
 async function expireMaintenanceWindows(organizationId = null) {
-  const orgFilter = organizationId ? 'AND organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('organization_id', organizationId);
   const [result] = await db.query(
     `UPDATE maintenance_windows
      SET status = 'completed'
