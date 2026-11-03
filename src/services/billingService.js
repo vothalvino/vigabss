@@ -637,11 +637,25 @@ async function generateBillingPeriod(contract) {
   const scheduledAt = new Date(periodStart);
   scheduledAt.setDate(contract.billing_day || 1);
 
-  const [result] = await db.query(
-    `INSERT INTO billing_periods (contract_id, period_start, period_end, status, scheduled_at)
-     VALUES (?, ?, ?, 'pending', ?)`,
-    [contract.id, periodStart, periodEnd, scheduledAt],
-  );
+  let result;
+  try {
+    [result] = await db.query(
+      `INSERT INTO billing_periods (contract_id, period_start, period_end, status, scheduled_at)
+       VALUES (?, ?, ?, 'pending', ?)`,
+      [contract.id, periodStart, periodEnd, scheduledAt],
+    );
+  } catch (err) {
+    // A concurrent run created this period between the read above and this
+    // INSERT (uq_billing_periods_contract_period): use its row rather than
+    // failing the run (OPS-20).
+    if (err.code !== 'ER_DUP_ENTRY' && err.errno !== 1062) throw err;
+    const [raced] = await db.query(
+      'SELECT * FROM billing_periods WHERE contract_id = ? AND period_start = ? LIMIT 1',
+      [contract.id, periodStart],
+    );
+    if (!raced[0]) throw err;
+    return raced[0];
+  }
 
   const [rows] = await db.query('SELECT * FROM billing_periods WHERE id = ?', [result.insertId]);
   logger.info({ contractId: contract.id, periodId: result.insertId }, 'Billing period created');

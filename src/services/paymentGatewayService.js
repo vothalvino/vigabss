@@ -1023,11 +1023,24 @@ async function processWebhookEvent({ provider, providerEventId, eventType, paylo
   } else {
     // Insert the event record — organization_id set at insert for gateway events
     // (NULL for the global route → org_dedup 0). org_dedup is a generated column.
-    const [insertResult] = await db.query(
-      `INSERT INTO webhook_events (organization_id, provider, provider_event_id, event_type, payload, status)
-       VALUES (?, ?, ?, ?, ?, 'processing')`,
-      [orgKey, provider, providerEventId, eventType, JSON.stringify(payload)],
-    );
+    let insertResult;
+    try {
+      [insertResult] = await db.query(
+        `INSERT INTO webhook_events (organization_id, provider, provider_event_id, event_type, payload, status)
+         VALUES (?, ?, ?, ?, ?, 'processing')`,
+        [orgKey, provider, providerEventId, eventType, JSON.stringify(payload)],
+      );
+    } catch (err) {
+      // A concurrent delivery of the same event inserted it between the
+      // SELECT above and this INSERT: that delivery owns it, so this one is a
+      // duplicate, not a 500 that makes the provider retry (OPS-20).
+      if (err.code !== 'ER_DUP_ENTRY' && err.errno !== 1062) throw err;
+      const [winner] = await db.query(
+        'SELECT id FROM webhook_events WHERE provider = ? AND provider_event_id = ? AND org_dedup = ?',
+        [provider, providerEventId, orgDedup],
+      );
+      return { status: 'duplicate', webhookEventId: winner[0]?.id ?? null };
+    }
     webhookEventId = insertResult.insertId;
   }
 
