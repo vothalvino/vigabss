@@ -11,6 +11,7 @@ const cfdiSealService = require('./cfdiSealService');
 const encryption = require('../utils/encryption');
 const db = require('../config/database');
 const { formatMoney, formatQuantity, formatUnitValue, anexo20Violations } = require('../utils/cfdiAmounts');
+const money = require('../utils/money');
 const auditLog = require('./auditLog');
 const logger = require('../utils/logger').child({ service: 'cfdi' });
 const { CfdiStampingError, CfdiCancellationError, AppError } = require('../utils/errors');
@@ -2032,9 +2033,11 @@ async function enrichRelatedDocumentsWithTaxes(relatedDocuments, organizationId)
     }
     // Proportional breakdown of this parcialidad's payment (guía de llenado):
     // base = pagado net of IVA at the invoice's rate, importe = the remainder.
-    const pagado = Number(rd.imp_pagado);
-    const base = Math.round((pagado / (1 + rate)) * 100) / 100;
-    const importe = Math.round((pagado - base) * 100) / 100;
+    // Integer cents (BIL-31); importe is the remainder, so base + importe
+    // is always exactly the parcialidad.
+    const pagado = rd.imp_pagado;
+    const base = money.div(pagado, 1 + rate);
+    const importe = money.sub(pagado, base);
     out.push({
       ...rd,
       objeto_imp_dr: '02',

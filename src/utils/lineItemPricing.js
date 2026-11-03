@@ -3,6 +3,7 @@
 // =============================================================================
 
 const { ValidationError } = require('./errors');
+const money = require('./money');
 
 /**
  * Resolve a product/custom line's pricing from a request item, for the
@@ -26,14 +27,12 @@ const { ValidationError } = require('./errors');
  * @returns {{qty:number, unitPrice:number, amount:number}}
  * @throws {ValidationError}
  */
-const round2 = n => Math.round(n * 100) / 100;
-
 function resolveLineItemPricing(item) {
   // Quantity and price are stored as DECIMAL(10,2): round them FIRST, so the
   // amount is exactly the stored quantity × unit_price (a 1.333 quantity was
   // stored as 1.33 while the amount used 1.333 — the CFDI Importe then failed
   // Cantidad × ValorUnitario, CFD-03).
-  const qty = Math.max(round2(parseFloat(item.quantity) || 1), 0.01);
+  const qty = Math.max(money.round(parseFloat(item.quantity) || 1), 0.01);
   const hasUnitPrice = item.unit_price !== undefined && item.unit_price !== null;
   const hasAmount = item.amount !== undefined && item.amount !== null;
   if (!hasUnitPrice && !hasAmount) {
@@ -44,9 +43,9 @@ function resolveLineItemPricing(item) {
   }
   let unitPrice;
   if (hasUnitPrice) {
-    unitPrice = Math.max(round2(parseFloat(item.unit_price) || 0), 0);
+    unitPrice = Math.max(money.round(parseFloat(item.unit_price) || 0), 0);
     if (hasAmount) {
-      const expected = Math.round(qty * unitPrice * 100) / 100;
+      const expected = money.mul(qty, unitPrice);
       const amt = parseFloat(item.amount) || 0;
       if (Math.abs(amt - expected) > 0.01) {
         throw new ValidationError(
@@ -56,9 +55,10 @@ function resolveLineItemPricing(item) {
       }
     }
   } else {
-    unitPrice = Math.round((Math.max(parseFloat(item.amount) || 0, 0) / qty) * 100) / 100;
+    unitPrice = money.div(Math.max(parseFloat(item.amount) || 0, 0), qty);
   }
-  return { qty, unitPrice, amount: Math.round(qty * unitPrice * 100) / 100 };
+  // Exact product, half up (BIL-31): 2.01 × 0.50 is 1.01, not the float's 1.00.
+  return { qty, unitPrice, amount: money.mul(qty, unitPrice) };
 }
 
 module.exports = { resolveLineItemPricing };
