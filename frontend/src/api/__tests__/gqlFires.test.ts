@@ -40,4 +40,26 @@ describe('gql()', () => {
     expect(init.credentials).toBe('include');
     clearCsrf();
   });
+
+  // GQL-07: one failing field used to throw the whole response away, so a
+  // client page with an invoices error showed "Client not found".
+  it('returns the data a response carried alongside field errors', async () => {
+    tokenStore.setAccess('tok');
+    const body = { data: { client: { id: '1', name: 'Acme', invoices: null } }, errors: [{ message: 'Required permission: invoices.view', path: ['client', 'invoices'] }] };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }),
+    ));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(gql('query { client(id: 1) { id name invoices { id } } }')).resolves.toEqual(body.data);
+  });
+
+  it('still throws when the response has no data at all', async () => {
+    tokenStore.setAccess('tok');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: null, errors: [{ message: 'Client not found' }] }), { status: 200, headers: { 'content-type': 'application/json' } }),
+    ));
+
+    await expect(gql('query { client(id: 1) { id } }')).rejects.toThrow('Client not found');
+  });
 });
