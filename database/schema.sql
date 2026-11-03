@@ -853,6 +853,7 @@ CREATE TABLE IF NOT EXISTS devices (
     firmware      VARCHAR(100)    NULL,
     snmp_enabled  BOOLEAN         NOT NULL DEFAULT FALSE COMMENT 'Enable SNMP polling for this device',
     snmp_community VARCHAR(255)   NULL COMMENT 'SNMP community string (v1/v2c) — store encrypted; decrypt at application layer',
+    snmp_trap_community VARCHAR(512) NULL COMMENT 'SNMP v1/v2c trap community when it differs from snmp_community; sealed at the application layer (migration 516)',
     snmp_version  ENUM('v1','v2c','v3') NULL DEFAULT 'v2c' COMMENT 'SNMP protocol version',
     snmp_port     SMALLINT UNSIGNED NULL DEFAULT 161 COMMENT 'SNMP UDP port',
     snmp_profile_id BIGINT UNSIGNED NULL

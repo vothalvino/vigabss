@@ -65190,6 +65190,10 @@
             "type": "string",
             "maximum": 96
           },
+          "snmp_trap_community": {
+            "type": "string",
+            "maximum": 96
+          },
           "snmp_version": {
             "type": "string",
             "enum": [
@@ -65344,6 +65348,10 @@
             "type": "string",
             "maximum": 96
           },
+          "snmp_trap_community": {
+            "type": "string",
+            "maximum": 96
+          },
           "snmp_version": {
             "type": "string",
             "enum": [
@@ -65491,6 +65499,10 @@
             "type": "boolean"
           },
           "snmp_community": {
+            "type": "string",
+            "maximum": 96
+          },
+          "snmp_trap_community": {
             "type": "string",
             "maximum": 96
           },

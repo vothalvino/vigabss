@@ -1,5 +1,8 @@
 {
   "deviceForm": {
+    "trapCommunity": "Comunidad de traps",
+    "trapCommunityHint": "Solo si el equipo envía traps con otra comunidad. Los traps deben traer esta comunidad (o la de arriba); los demás se descartan.",
+    "trapCommunityKeep": "Déjalo vacío para conservar la comunidad de traps guardada",
     "snmpV3": {
       "securityName": "Usuario SNMPv3 (nombre de seguridad)",
       "authProtocol": "Protocolo de autenticación",

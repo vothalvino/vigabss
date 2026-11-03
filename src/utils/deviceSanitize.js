@@ -18,14 +18,17 @@ const { redactSecretColumns } = require('./secretRedaction');
 const { sealSecret, sealSecretFields } = require('./sealSecrets');
 
 /**
- * Encrypt a plaintext `snmp_community` in a create/update body; a blank one is
- * dropped so an edit keeps the stored community. snmpPoller decrypts it.
+ * Encrypt a plaintext `snmp_community` / `snmp_trap_community` in a
+ * create/update body; a blank one is dropped so an edit keeps the stored
+ * value. snmpPoller and snmpTrapReceiver decrypt them.
  */
 function sealSnmpCommunity(req, _res, next) {
   try {
-    const value = req.body ? req.body.snmp_community : undefined;
-    if (value === '' || value === null) delete req.body.snmp_community;
-    else if (typeof value === 'string') req.body.snmp_community = sealSecret(value);
+    for (const field of ['snmp_community', 'snmp_trap_community']) {
+      const value = req.body ? req.body[field] : undefined;
+      if (value === '' || value === null) delete req.body[field];
+      else if (typeof value === 'string') req.body[field] = sealSecret(value);
+    }
     next();
   } catch (err) {
     next(err);
@@ -42,8 +45,9 @@ function sealSnmpCommunity(req, _res, next) {
  */
 function redactDevice(row) {
   if (!row || typeof row !== 'object') return row;
-  // The v1/v2c community is a credential too (NET-10): has_snmp_community.
-  const rest = redactSecretColumns(row, ['snmp_community']);
+  // The v1/v2c communities are credentials too (NET-10): has_snmp_community,
+  // has_snmp_trap_community.
+  const rest = redactSecretColumns(row, ['snmp_community', 'snmp_trap_community']);
   const hasAuthKey = Boolean(rest.snmp_v3_auth_key_encrypted);
   const hasPrivKey = Boolean(rest.snmp_v3_priv_key_encrypted);
   delete rest.snmp_v3_auth_key_encrypted;

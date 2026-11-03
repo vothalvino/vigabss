@@ -1,5 +1,8 @@
 {
   "deviceForm": {
+    "trapCommunity": "Trap community",
+    "trapCommunityHint": "Only if the device sends traps with a different community. Traps must carry this community (or the community above); others are dropped.",
+    "trapCommunityKeep": "Leave blank to keep the stored trap community",
     "snmpV3": {
       "securityName": "SNMPv3 user (security name)",
       "authProtocol": "Auth protocol",

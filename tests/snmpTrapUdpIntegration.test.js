@@ -26,7 +26,7 @@ const snmp = require('net-snmp');
 const db = require('../src/config/database');
 const eventBus = require('../src/services/eventBus');
 const trapForwardingService = require('../src/services/trapForwardingService');
-const { handleTrap } = require('../src/services/snmpTrapReceiver');
+const { handleTrap, receiverOptions, applyTrapCredentials } = require('../src/services/snmpTrapReceiver');
 
 async function unusedUdpPort() {
   const socket = dgram.createSocket('udp4');
@@ -56,7 +56,7 @@ describe('SNMP trap UDP receiver contract', () => {
     const port = await unusedUdpPort();
     db.query
       .mockResolvedValueOnce([[
-        { id: 9, organization_id: 4, name: 'Loopback integration router' },
+        { id: 9, organization_id: 4, name: 'Loopback integration router', snmp_community: 'integration-community' },
       ]])
       .mockResolvedValueOnce([{ insertId: 88 }]);
 
@@ -66,12 +66,7 @@ describe('SNMP trap UDP receiver contract', () => {
       settleReceived = resolve;
       rejectReceived = reject;
     });
-    const receiver = snmp.createReceiver({
-      port,
-      address: '127.0.0.1',
-      transport: 'udp4',
-      disableAuthorization: true,
-    }, (error, notification) => {
+    const receiver = snmp.createReceiver(receiverOptions(port, '127.0.0.1'), (error, notification) => {
       Promise.resolve(handleTrap(error, notification))
         .then(() => settleReceived(notification))
         .catch(rejectReceived);
@@ -86,6 +81,7 @@ describe('SNMP trap UDP receiver contract', () => {
 
     try {
       await waitForReceiver(receiver);
+      applyTrapCredentials(receiver, { communities: ['integration-community'], users: [] });
       await new Promise((resolve, reject) => {
         session.trap('1.3.6.1.6.3.1.1.5.3', error => (error ? reject(error) : resolve()));
       });
