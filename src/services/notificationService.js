@@ -1,13 +1,11 @@
 // =============================================================================
-// VigaBSS 5.0 — Notification Service
+// VigaBSS 5.0 — Notification helpers
 // =============================================================================
-// Sends notifications (email, SMS, WhatsApp) and logs them.
-// Supports Twilio for SMS and WhatsApp delivery.
+// Email goes through emailTransport.sendEmail, SMS and WhatsApp through
+// smsTransport.queueSms. sendNotification, a template sender with no callers
+// that read message_templates without an organization predicate, was removed
+// (ASY-33).
 // =============================================================================
-
-const db = require('../config/database');
-const emailTransport = require('./emailTransport');
-const smsTransport = require('./smsTransport');
 
 /**
  * HTML-escape a value for interpolation into an HTML email body/subject.
@@ -33,70 +31,4 @@ function escapeHtmlForTemplate(val) {
     .replace(/'/g, '&#x27;');
 }
 
-/**
- * Send a notification using a message template.
- */
-async function sendNotification({
-  organizationId,
-  clientId,
-  channel,
-  templateId,
-  recipientEmail,
-  recipientPhone,
-  variables,
-  messageClass,
-}) {
-  // Load template if provided
-  let subject = '', body = '';
-  if (templateId) {
-    const [templates] = await db.query(
-      'SELECT * FROM message_templates WHERE id = ?',
-      [templateId],
-    );
-    if (templates[0]) {
-      subject = templates[0].subject || '';
-      body = templates[0].body || '';
-      // Replace template variables
-      if (variables) {
-        for (const [key, val] of Object.entries(variables)) {
-          const placeholder = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-          const substituted = channel === 'email' ? escapeHtmlForTemplate(val) : val;
-          subject = subject.replace(placeholder, substituted);
-          body = body.replace(placeholder, substituted);
-        }
-      }
-    }
-  }
-
-  if (channel === 'email') {
-    await emailTransport.sendEmail({
-      organizationId,
-      clientId,
-      messageClass,
-      to: recipientEmail,
-      subject,
-      html: body,
-      text: body,
-    });
-  } else if (channel === 'sms' || channel === 'whatsapp') {
-    await smsTransport.queueSms({
-      organizationId,
-      clientId,
-      messageClass,
-      templateId,
-      to: recipientPhone,
-      body,
-      channel,
-    });
-  }
-
-  // In-app notifications are STAFF-facing: `notifications.user_id` is NOT NULL and
-  // the table has neither an `organization_id` nor a `status` column
-  // (database/schema.sql). This function notifies a *client* over email/SMS —
-  // there is no staff recipient to address — so it no longer writes a row that
-  // could never be inserted. Delivery is already recorded in email_logs/sms_logs;
-  // per-user in-app notifications are created by the callers that have a user id.
-  return { subject, body, channel };
-}
-
-module.exports = { sendNotification, escapeHtmlForTemplate };
+module.exports = { escapeHtmlForTemplate };

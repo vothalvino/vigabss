@@ -95,9 +95,9 @@ async function recordSignedChoices(run, {
            (organization_id, client_id, consent_version, purpose, given_at,
             ip_address, channel, document_hash, notes, communication_channel,
             source_context, service_order_id, work_order_id, signed_document_id,
-            captured_by, communication_contact_epoch)
+            captured_by, privacy_notice_version_id, communication_contact_epoch)
          VALUES (?, ?, ?, 'marketing', NOW(), ?, 'app', ?, ?, ?,
-                 'installation_signature', ?, ?, ?, ?, ?)`,
+                 'installation_signature', ?, ?, ?, ?, ?, ?)`,
         [
           organizationId,
           clientId,
@@ -110,6 +110,7 @@ async function recordSignedChoices(run, {
           workOrderId || null,
           signedDocumentId,
           capturedBy || null,
+          notice.versionId ?? null,
           channel === 'email' ? client.email_contact_epoch : client.phone_contact_epoch,
         ],
       );

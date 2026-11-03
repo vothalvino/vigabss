@@ -1184,14 +1184,16 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null, { userId =
     );
   }
 
-  // All active PACs FOR THE ORG'S CURRENT FISCAL ENVIRONMENT, in priority order.
-  // Unlike stamping, SAT cancellation is IDEMPOTENT (re-cancelling a UUID is
-  // harmless — SAT reports it already cancelled), so cancel MAY fail over across
-  // providers, and any active PAC in this environment (both SW and Finkok cancel
-  // with the cer/key sent inline — no vaulted CSD) can cancel any of the org's
-  // CFDIs — including one a now-down backup stamped. Environment-scoped for the
-  // same reason as stamping: a production CFDI is cancelled by a production PAC.
-  const pacEnv = await orgPacEnvironment(doc.organization_id);
+  // All active PACs IN THE ENVIRONMENT THAT STAMPED THIS CFDI, in priority
+  // order. Unlike stamping, SAT cancellation is IDEMPOTENT (re-cancelling a
+  // UUID is harmless — SAT reports it already cancelled), so cancel MAY fail
+  // over across providers, and any active PAC in this environment (both SW and
+  // Finkok cancel with the cer/key sent inline — no vaulted CSD) can cancel any
+  // of the org's CFDIs — including one a now-down backup stamped. The
+  // document's own environment, not the org's current switch (CFD-13): a
+  // sandbox CFDI stamped before going live is still cancelled by a sandbox
+  // PAC, and a production CFDI never goes to a sandbox endpoint.
+  const pacEnv = doc.pac_environment || await orgPacEnvironment(doc.organization_id);
   const [pacs] = await db.query(
     'SELECT * FROM pac_providers WHERE organization_id = ? AND status = \'active\' AND environment = ? AND deleted_at IS NULL ORDER BY priority ASC, id DESC',
     [doc.organization_id, pacEnv],
@@ -1200,7 +1202,7 @@ async function cancel(cfdiDocumentId, reason, replacementUuid = null, { userId =
     // Misconfiguration, not an outage: retrying changes nothing until someone
     // activates a PAC, so it must not read as a transient gateway error.
     throw new AppError(
-      `No active PAC provider configured for this organization in ${pacEnv} mode — activate a ${pacEnv} PAC, or change the fiscal environment under Organization → Fiscal (SAT).`,
+      `No active PAC provider in ${pacEnv}, the environment that stamped this CFDI — activate a ${pacEnv} PAC under PAC Providers to cancel it.`,
       422, 'CFDI_NO_ACTIVE_PAC',
     );
   }
@@ -1455,7 +1457,7 @@ async function callPacCancel(pac, uuid, reason, replacementUuid, doc) {
     if (!String(uuid).startsWith('SIMULADO-')) {
       throw new Error(
         'The simulator can only cancel simulator-stamped CFDIs (SIMULADO- UUIDs). '
-        + 'This UUID was stamped by a real PAC — switch the fiscal environment to the one that stamped it and cancel through that PAC.',
+        + 'This UUID was stamped by a real PAC — cancel it through an active PAC of that provider in the same environment.',
       );
     }
     logger.warn({ provider: 'simulator' }, 'SIMULATED cancellation — not a real SAT cancellation');

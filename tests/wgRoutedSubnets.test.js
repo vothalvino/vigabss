@@ -112,7 +112,7 @@ describe('confirmRoutes', () => {
 
 describe('PUT /nas/:id/wg/routes', () => {
   const request = require('supertest');
-  const jwt = require('jsonwebtoken');
+  const jwt = require('./helpers/staffJwt');
   const app = require('../src/app');
   const Nas = require('../src/models/Nas');
   const User = require('../src/models/User');

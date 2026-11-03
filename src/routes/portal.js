@@ -1593,6 +1593,7 @@ router.get('/privacy-notice', async (req, res, next) => {
     res.json({
       data: {
         version: notice.version,
+        hash: notice.hash,
         content: notice.content,
         accepted: rows.length > 0,
         accepted_at: rows[0]?.given_at ?? null,
@@ -1604,18 +1605,31 @@ router.get('/privacy-notice', async (req, res, next) => {
 });
 
 // POST /portal/privacy-notice/accept — record acceptance (idempotent per version)
+// Body: { version, hash } of the notice the subscriber read. Acceptance binds
+// to that text: if the notice changed after it was displayed, nothing is
+// recorded and the portal shows the current one (REG-11).
 router.post('/privacy-notice/accept', async (req, res, next) => {
   try {
+    const { version, hash } = req.body || {};
+    if (typeof version !== 'string' || typeof hash !== 'string') {
+      throw new ValidationError('version and hash of the displayed privacy notice are required');
+    }
     const notice = await privacyNoticeService.getNotice(req.client.organizationId);
+    if (version !== notice.version || hash !== notice.hash) {
+      return res.status(409).json({
+        error: { code: 'PRIVACY_NOTICE_CHANGED', message: 'The privacy notice changed since it was displayed; review the current notice.' },
+      });
+    }
     const [existing] = await db.query(CONSENT_LOOKUP_SQL, [req.client.id, req.client.organizationId, notice.version, notice.hash]);
     if (existing.length > 0) {
       return res.json({ data: { accepted: true, accepted_at: existing[0].given_at } });
     }
     await db.query(
       `INSERT INTO subscriber_consents
-         (organization_id, client_id, consent_version, purpose, channel, ip_address, document_hash, given_at)
-       VALUES (?, ?, ?, 'service_delivery', 'web', ?, ?, NOW())`,
-      [req.client.organizationId, req.client.id, notice.version, req.ip || null, notice.hash],
+         (organization_id, client_id, consent_version, purpose, channel, ip_address, document_hash,
+          privacy_notice_version_id, given_at)
+       VALUES (?, ?, ?, 'service_delivery', 'web', ?, ?, ?, NOW())`,
+      [req.client.organizationId, req.client.id, notice.version, req.ip || null, notice.hash, notice.versionId ?? null],
     );
     const [rows] = await db.query(CONSENT_LOOKUP_SQL, [req.client.id, req.client.organizationId, notice.version, notice.hash]);
     res.status(201).json({ data: { accepted: true, accepted_at: rows[0]?.given_at ?? null } });

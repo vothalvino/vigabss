@@ -80,8 +80,20 @@ router.get('/environment', requirePermission('pac_providers.view'), async (req, 
       'SELECT pac_environment FROM organization_mx_profiles WHERE organization_id = ? AND deleted_at IS NULL',
       [req.orgId],
     );
+    // Sandbox CFDIs still marked vigente stay sandbox after going live; the
+    // switch warns about them (CFD-13).
+    const [[sandbox]] = await db.query(
+      `SELECT COUNT(*) AS n FROM cfdi_documents
+        WHERE organization_id = ? AND pac_environment = 'sandbox' AND sat_status IN ('vigente', 'cancel_pending')`,
+      [req.orgId],
+    );
     // No fiscal profile yet → the effective environment is the column default.
-    res.json({ data: { pac_environment: rows[0]?.pac_environment || 'sandbox' } });
+    res.json({
+      data: {
+        pac_environment: rows[0]?.pac_environment || 'sandbox',
+        sandbox_vigente_count: Number(sandbox?.n || 0),
+      },
+    });
   } catch (err) {
     next(err);
   }

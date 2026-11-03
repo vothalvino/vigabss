@@ -21,7 +21,7 @@ jest.mock('../src/models/User');
 jest.mock('../src/services/auditLog', () => ({ log: jest.fn().mockResolvedValue(undefined) }));
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const PaymentGateway = require('../src/models/PaymentGateway');

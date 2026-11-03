@@ -8,7 +8,7 @@ jest.mock('net-snmp', () => ({}), { virtual: true });
 
 const crypto = require('node:crypto');
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const db = require('../src/config/database');
 const config = require('../src/config');
 const app = require('../src/app');

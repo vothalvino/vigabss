@@ -25,7 +25,7 @@ jest.mock('../src/middleware/rbac', () => ({ userHasPermission: jest.fn(async ()
 
 const http = require('http');
 const WebSocket = require('ws');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 
 // Use a fixed secret that matches the mocked config below
 const TEST_SECRET = 'test-jwt-secret-for-wshub';

@@ -411,7 +411,7 @@ describe('Payment Webhooks & Idempotency', () => {
         if (/FROM payment_transactions WHERE id = \? FOR UPDATE/.test(sql)) return [[linkedTx]];
         if (/FROM client_balance_ledger/.test(sql)) return [[]];
         if (/FROM payment_gateways/.test(sql)) return [[{ provider: 'stripe' }]];
-        if (/FROM invoices i/.test(sql)) return [[{ id: 77, status: 'issued', total: '500.00', balance_due: '500.00' }]];
+        if (/FROM invoices i/.test(sql)) return [[{ id: 77, status: 'issued', client_id: linkedTx.client_id, total: '500.00', balance_due: '500.00' }]];
         if (/SUM\(amount\) AS total_allocated/.test(sql)) return [[{ total_allocated: '500.00' }]];
         if (/^\s*INSERT/.test(sql)) return [{ insertId: 901 }];
         return [{ affectedRows: 1 }];
@@ -825,7 +825,10 @@ describe('Payment Webhooks & Idempotency', () => {
         if (/FROM payment_transactions WHERE id = \? FOR UPDATE/.test(sql)) return [tx ? [tx] : []];
         if (/FROM client_balance_ledger/.test(sql)) return [legacy];
         if (/FROM payment_gateways/.test(sql)) return [[{ provider: 'stripe' }]];
-        if (/FROM invoices i/.test(sql)) return [invoices];
+        // As getInvoicesWithBalance returns them: the client's payable invoices.
+        if (/FROM invoices i/.test(sql)) {
+          return [invoices.map((i) => ({ status: 'issued', client_id: tx.client_id, organization_id: tx.organization_id, currency: tx.currency, ...i }))];
+        }
         if (/INSERT INTO payment_allocations/.test(sql)) {
           allocated[params[1]] = (allocated[params[1]] || 0) + params[2];
           return [{ insertId: ++nextId }];

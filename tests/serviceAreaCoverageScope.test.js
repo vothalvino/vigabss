@@ -15,7 +15,7 @@
 // =============================================================================
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 
 jest.mock('../src/config/database', () => ({
   query: jest.fn(), queryReplica: jest.fn(), execute: jest.fn(),

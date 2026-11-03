@@ -5741,6 +5741,7 @@
     "pendingPrompt": "Leia o aviso abaixo e aceite ao terminar.",
     "acceptButton": "Aceito o aviso de privacidade",
     "acceptError": "Não foi possível salvar sua aceitação. Tente novamente.",
+    "noticeChanged": "O aviso foi atualizado enquanto você o lia. Revise a versão atual abaixo e aceite-a.",
     "versionLabel": "Versão do aviso: {{version}}"
   },
   "dataImport": {

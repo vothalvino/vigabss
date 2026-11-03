@@ -37,7 +37,7 @@ describe('communicationConsentService', () => {
       signedDocumentId: 77,
       capturedBy: 5,
       ipAddress: '203.0.113.9',
-      notice: { version: 'default-1', hash: 'a'.repeat(64) },
+      notice: { version: 'default-1', hash: 'a'.repeat(64), versionId: 31 },
       choices: { email: true, sms: false, whatsapp: true },
     });
 
@@ -45,6 +45,7 @@ describe('communicationConsentService', () => {
     expect(consentInserts).toHaveLength(2);
     expect(consentInserts.map(call => call.params[6])).toEqual(['email', 'whatsapp']);
     expect(consentInserts.map(call => call.params.at(-1))).toEqual([7, 11]);
+    expect(consentInserts.map(call => call.params.at(-2))).toEqual([31, 31]); // archived notice text
     expect(consentInserts[0].params).toEqual(expect.arrayContaining([
       42, 9, 'default-1', '203.0.113.9', 'a'.repeat(64), 16, 13, 77, 5,
     ]));

@@ -1020,6 +1020,95 @@
         }
       }
     },
+    "/auth/sessions": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "List the signed-in user's live sessions (one per sign-in); `current` marks the one whose refresh cookie came with the request",
+        "operationId": "listAuthSessions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "AuthSession[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sessions/{id}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "End one of your own sessions (the whole sign-in it belongs to)",
+        "operationId": "revokeAuthSession",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such session for this user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/switch-organization": {
       "post": {
         "tags": [
@@ -10714,7 +10803,7 @@
         "tags": [
           "PAC Providers"
         ],
-        "summary": "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp/cancel",
+        "summary": "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp; a CFDI is cancelled in the environment that stamped it",
         "operationId": "getPacEnvironment",
         "security": [
           {
@@ -10723,7 +10812,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{ pac_environment }",
+            "description": "{ pac_environment, sandbox_vigente_count }",
             "content": {
               "application/json": {
                 "schema": {
@@ -45425,7 +45514,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{ version, content, accepted, accepted_at }",
+            "description": "{ version, hash, content, accepted, accepted_at }",
             "content": {
               "application/json": {
                 "schema": {
@@ -45442,13 +45531,38 @@
         "tags": [
           "Portal"
         ],
-        "summary": "Record acceptance of the current privacy notice (idempotent per version)",
+        "summary": "Record acceptance of the displayed privacy notice (idempotent per version); the consent points at the archived text",
         "operationId": "portalAcceptPrivacyNotice",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "requestBody": {
+          "description": "The version and hash GET /portal/privacy-notice returned",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "version",
+                  "hash"
+                ],
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "hash": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Already accepted",
@@ -45466,6 +45580,60 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PRIVACY_NOTICE_CHANGED: the notice changed since it was displayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "version and hash are required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }

@@ -4,7 +4,6 @@
 
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const config = require('../config');
 const User = require('../models/User');
 const { revokeUserSessions } = require('./sessionRevocation');
@@ -17,6 +16,7 @@ const { hasGlobalOrganizationAccessUser } = require('./globalOrganizationAccess'
 const emailTemplates = require('../views/emailTemplates');
 const logger = require('../utils/logger');
 const {
+  signStaffAccessToken,
   signMfaChallengeToken,
   verifyMfaChallengeToken,
   passwordFingerprint,
@@ -79,9 +79,10 @@ function generateRefreshToken() {
  * Atomically consume a session row and insert its rotated successor.
  *
  * One transaction, two guarantees:
- *  - The DELETE is the claim: of N concurrent redeems of the same one-shot
- *    refresh token, exactly one sees affectedRows 1; the rest get 401 instead
- *    of minting extra live session pairs (token-reuse hardening).
+ *  - Stamping consumed_at is the claim: of N concurrent redeems of the same
+ *    one-shot refresh token, exactly one sees affectedRows 1; the rest get 401
+ *    instead of minting extra live session pairs. The consumed row is kept
+ *    until it expires, so a later replay is recognised as reuse (SEC-23).
  *  - Rollback on a failed INSERT restores the old session row, so a DB blip
  *    mid-rotation degrades to "retry works" instead of "user force-logged-out
  *    with zero valid refresh tokens".
@@ -93,7 +94,10 @@ async function consumeAndReplaceSession(sessionId, insertParams) {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
-    const [claim] = await conn.execute('DELETE FROM user_sessions WHERE id = ?', [sessionId]);
+    const [claim] = await conn.execute(
+      'UPDATE user_sessions SET consumed_at = NOW() WHERE id = ? AND consumed_at IS NULL',
+      [sessionId],
+    );
     if (!claim || claim.affectedRows === 0) {
       throw new UnauthorizedError('Invalid or expired refresh token');
     }
@@ -102,6 +106,11 @@ async function consumeAndReplaceSession(sessionId, insertParams) {
        VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
       insertParams,
     );
+    // Consumed rows are kept only until they expire.
+    await conn.execute(
+      'DELETE FROM user_sessions WHERE token_family = ? AND consumed_at IS NOT NULL AND expires_at <= NOW()',
+      [insertParams[2]],
+    );
     await conn.commit();
   } catch (err) {
     try { await conn.rollback(); } catch { /* connection already unusable */ }
@@ -109,6 +118,21 @@ async function consumeAndReplaceSession(sessionId, insertParams) {
   } finally {
     conn.release();
   }
+}
+
+/**
+ * A refresh token that was already rotated has been presented again: either
+ * the legitimate client or a thief holds a copy. End the whole family (every
+ * session descended from the same sign-in) so neither copy stays usable.
+ */
+async function revokeReusedFamily(session) {
+  if (session.token_family) {
+    await db.query('DELETE FROM user_sessions WHERE token_family = ?', [session.token_family]);
+  } else {
+    await db.query('DELETE FROM user_sessions WHERE id = ?', [session.id]);
+  }
+  logger.warn({ userId: session.user_id, sessionId: session.id }, 'Refresh token reuse detected; session family revoked');
+  throw new UnauthorizedError('Invalid or expired refresh token');
 }
 
 /**
@@ -229,17 +253,13 @@ function isLocked(user) {
  * last_login_at).
  */
 async function issueSession(user, orgs, activeOrgId) {
-  const accessToken = jwt.sign(
-    {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      orgId: activeOrgId,
-      tv: Number(user.token_version ?? 0),
-    },
-    config.jwt.secret,
-    { expiresIn: config.jwt.accessExpiresIn, algorithm: config.jwt.algorithm },
-  );
+  const accessToken = signStaffAccessToken({
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+    orgId: activeOrgId,
+    tv: Number(user.token_version ?? 0),
+  });
 
   // Issue opaque refresh token + assign a token family for reuse detection
   const refreshTokenValue = generateRefreshToken();
@@ -442,7 +462,7 @@ async function resolveActiveOrg(userId, userRole, requestedOrgId) {
 /**
  * Refresh an access token using a valid refresh token.
  * Implements rotation: the old refresh token is consumed and a new pair is issued.
- * Detects token reuse (previously rotated token) and revokes the entire family.
+ * A token that was already rotated is reuse: the entire family is revoked.
  *
  * `requestedActiveOrgId` (from the `fireisp_active_org` cookie) preserves the active
  * organization across refreshes/reloads; it is re-validated, never trusted blindly.
@@ -457,12 +477,11 @@ async function refreshToken(currentRefreshToken, requestedActiveOrgId = null) {
   );
 
   if (sessions.length === 0) {
-    // Token not found: either invalid, already consumed (rotated), or expired and cleaned up.
-    // True reuse detection requires keeping revoked sessions, which is a future enhancement.
     throw new UnauthorizedError('Invalid or expired refresh token');
   }
 
   const session = sessions[0];
+  if (session.consumed_at) await revokeReusedFamily(session);
 
   // Check expiry
   if (new Date(session.expires_at) <= new Date()) {
@@ -497,17 +516,13 @@ async function refreshToken(currentRefreshToken, requestedActiveOrgId = null) {
   }
 
   // Issue new access token bound to the active organization
-  const newAccessToken = jwt.sign(
-    {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      orgId: activeOrgId,
-      tv: Number(user.token_version ?? 0),
-    },
-    config.jwt.secret,
-    { expiresIn: config.jwt.accessExpiresIn, algorithm: config.jwt.algorithm },
-  );
+  const newAccessToken = signStaffAccessToken({
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+    orgId: activeOrgId,
+    tv: Number(user.token_version ?? 0),
+  });
 
   // Issue new refresh token (rotation)
   const newRefreshValue = generateRefreshToken();
@@ -538,13 +553,53 @@ async function refreshToken(currentRefreshToken, requestedActiveOrgId = null) {
  */
 async function logout(refreshTokenValue) {
   const sessionHash = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');
-  await db.query(
-    'DELETE FROM user_sessions WHERE token_hash = ?',
-    [sessionHash],
-  );
+  // End the sign-in, including the consumed rows rotation kept for reuse
+  // detection.
+  const [rows] = await db.query('SELECT id, token_family FROM user_sessions WHERE token_hash = ?', [sessionHash]);
+  const session = rows[0];
+  if (!session) return;
+  if (session.token_family) {
+    await db.query('DELETE FROM user_sessions WHERE token_family = ?', [session.token_family]);
+  } else {
+    await db.query('DELETE FROM user_sessions WHERE id = ?', [session.id]);
+  }
 }
 
 /**
+ * The user's live sessions, one row per sign-in (SEC-23). Consumed rows are
+ * the history rotation keeps for reuse detection and are not listed.
+ */
+async function listSessions(userId, currentRefreshToken = null) {
+  const currentHash = currentRefreshToken
+    ? crypto.createHash('sha256').update(currentRefreshToken).digest('hex')
+    : null;
+  const [rows] = await db.query(
+    `SELECT id, token_hash, ip_address, user_agent, created_at, last_active_at, expires_at
+       FROM user_sessions
+      WHERE user_id = ? AND consumed_at IS NULL AND expires_at > NOW()
+      ORDER BY created_at DESC`,
+    [userId],
+  );
+  return rows.map(({ token_hash: hash, ...row }) => ({ ...row, current: hash === currentHash }));
+}
+
+/** End one of the user's own sessions, with every row of its sign-in. */
+async function revokeSession(userId, sessionId) {
+  const [rows] = await db.query(
+    'SELECT id, token_family FROM user_sessions WHERE id = ? AND user_id = ? AND consumed_at IS NULL',
+    [sessionId, userId],
+  );
+  const session = rows[0];
+  if (!session) throw new NotFoundError('Session not found');
+  if (session.token_family) {
+    await db.query('DELETE FROM user_sessions WHERE token_family = ? AND user_id = ?', [session.token_family, userId]);
+  } else {
+    await db.query('DELETE FROM user_sessions WHERE id = ?', [session.id]);
+  }
+}
+
+/**
+ * Request a password reset./**
  * Request a password reset. Generates a random token valid for 1 hour.
  * Returns the token (caller is responsible for emailing it).
  */
@@ -727,23 +782,20 @@ async function switchOrganization(userId, organizationId, currentRefreshToken) {
     throw new UnauthorizedError('Invalid or expired refresh token');
   }
   const session = sessions[0];
+  if (session.consumed_at) await revokeReusedFamily(session);
   if (new Date(session.expires_at) <= new Date()) {
     await db.query('DELETE FROM user_sessions WHERE id = ?', [session.id]);
     throw new UnauthorizedError('Refresh token expired');
   }
 
   // Mint new access token bound to the requested organization.
-  const newAccessToken = jwt.sign(
-    {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      orgId: membership.org_id,
-      tv: Number(user.token_version ?? 0),
-    },
-    config.jwt.secret,
-    { expiresIn: config.jwt.accessExpiresIn, algorithm: config.jwt.algorithm },
-  );
+  const newAccessToken = signStaffAccessToken({
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+    orgId: membership.org_id,
+    tv: Number(user.token_version ?? 0),
+  });
 
   // Rotate refresh token within the same family. As in refreshToken(): the
   // DELETE is the atomic claim (a concurrent redeem loses instead of minting
@@ -819,7 +871,7 @@ async function resendVerificationEmail(userId) {
 }
 
 module.exports = {
-  register, login, completeMfaLogin, createSsoMfaChallenge, requiresSecondFactor, logout, refreshToken, switchOrganization,
+  register, login, completeMfaLogin, createSsoMfaChallenge, requiresSecondFactor, logout, listSessions, revokeSession, refreshToken, switchOrganization,
   requestPasswordReset, resetPassword, changePassword,
   verifyEmail, generateEmailVerificationToken, resendVerificationEmail,
   // Exported for cookie maxAge calculations in auth routes

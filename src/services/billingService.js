@@ -1239,8 +1239,13 @@ async function voidInvoiceById(invoiceId, orgId, userId) {
   // 'draft' counts too: a draft CFDI (stamp-later conversion whose PAC call
   // failed) could otherwise be stamped AFTER the void, registering a live
   // CFDI at SAT for a void invoice. Delete the draft first, then void.
+  // A sandbox CFDI was never registered at SAT, so it does not block (CFD-13).
   const [live] = await db.query(
-    "SELECT id, sat_status FROM cfdi_documents WHERE invoice_id = ? AND organization_id = ? AND sat_status IN ('draft', 'vigente', 'cancel_pending') LIMIT 1",
+    `SELECT id, sat_status FROM cfdi_documents
+      WHERE invoice_id = ? AND organization_id = ?
+        AND (sat_status = 'draft'
+             OR (sat_status IN ('vigente', 'cancel_pending') AND NOT (pac_environment <=> 'sandbox')))
+      LIMIT 1`,
     [invoiceId, orgId],
   );
   if (live.length > 0) {

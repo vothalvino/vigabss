@@ -30,10 +30,24 @@ const mockGetInvoices = jest.fn();
 const mockFinalize = jest.fn(async () => false);
 const mockReconnect = jest.fn(async () => {});
 const mockLockInvoices = jest.fn(async () => {});
+// applyAllocation stands in for the shared writer: it inserts through the
+// transaction, maps the guard trigger as the real one does, and reports
+// becamePaid from mockFinalize.
+const mockApply = jest.fn(async (exec, { payment, invoice, amount }) => {
+  let result;
+  try {
+    [result] = await exec('INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)', [payment.id, invoice.id, amount]);
+  } catch (err) {
+    if (err.sqlState === '45000') throw Object.assign(new Error('over'), { code: 'OVER_ALLOCATION', statusCode: 422 });
+    throw err;
+  }
+  return { id: result.insertId, becamePaid: await mockFinalize(exec, invoice) };
+});
 jest.mock('../src/services/paymentAllocationService', () => ({
   lockInvoicesForAllocation: (...a) => mockLockInvoices(...a),
   getInvoicesWithBalance: (...a) => mockGetInvoices(...a),
   finalizeIfFullyPaid: (...a) => mockFinalize(...a),
+  applyAllocation: (...a) => mockApply(...a),
   reconnectIfSuspended: (...a) => mockReconnect(...a),
 }));
 
@@ -185,6 +199,10 @@ describe('payGroup', () => {
     // FIFO order: 201(50) → 301(30) → 101(100)
     expect(conn.allocations.map((a) => a.invoice_id)).toEqual([201, 301, 101]);
     expect(conn.allocations.map((a) => a.amount)).toEqual([50, 30, 100]);
+    // Through the shared writer, paid by the primary on members' invoices.
+    for (const [, args] of mockApply.mock.calls) {
+      expect(args).toMatchObject({ payment: { id: 900, organization_id: 10, client_id: 1, currency: 'MXN' }, anyClient: true });
+    }
     expect(res.settled_invoices).toHaveLength(3);
     // Ledger credits are allocation-aware: one 'credit' per member for the
     // amount applied to THEIR invoices (not the full amount lumped on primary).

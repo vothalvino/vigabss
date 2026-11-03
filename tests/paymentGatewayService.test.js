@@ -1063,7 +1063,10 @@ describe('paymentGatewayService', () => {
           if (/FROM payment_transactions WHERE id = \? FOR UPDATE/.test(sql)) return [tx ? [tx] : []];
           if (/FROM client_balance_ledger/.test(sql)) return [[]];
           if (/FROM payment_gateways/.test(sql)) return [[{ provider: 'stripe' }]];
-          if (/FROM invoices i/.test(sql)) return [invoices];
+          // As getInvoicesWithBalance returns them: the client's payable invoices.
+          if (/FROM invoices i/.test(sql)) {
+            return [invoices.map((i) => ({ status: 'issued', client_id: tx.client_id, organization_id: tx.organization_id, currency: tx.currency, ...i }))];
+          }
           if (/INSERT INTO payment_allocations/.test(sql)) {
             allocated[params[1]] = (allocated[params[1]] || 0) + params[2];
             return [{ insertId: ++nextId }];

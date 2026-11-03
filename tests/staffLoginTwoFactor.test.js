@@ -27,7 +27,7 @@ jest.mock('../src/services/emailTransport', () => ({
   sendEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
 
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const db = require('../src/config/database');
 const bcrypt = require('bcryptjs');
 const config = require('../src/config');

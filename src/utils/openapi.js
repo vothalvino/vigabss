@@ -217,6 +217,8 @@ function generateSpec() {
       '/auth/verify-email': { post: { tags: ['Auth'], summary: 'Verify email with token', operationId: 'verifyEmail', requestBody: jsonBody('token'), responses: r200('Message') } },
       '/auth/verify-email/resend': { post: { tags: ['Auth'], summary: 'Resend the email verification link (authenticated); no-op if already verified', operationId: 'resendVerificationEmail', security: [{ bearerAuth: [] }], responses: r200('Message') } },
       '/auth/refresh': { post: { tags: ['Auth'], summary: 'Rotate access token using refresh token', operationId: 'refreshToken', requestBody: jsonBody('auth_refreshToken'), responses: r200('Token pair') } },
+      '/auth/sessions': { get: { tags: ['Auth'], summary: "List the signed-in user's live sessions (one per sign-in); `current` marks the one whose refresh cookie came with the request", operationId: 'listAuthSessions', security: [{ bearerAuth: [] }], responses: r200('AuthSession[]') } },
+      '/auth/sessions/{id}': { delete: { tags: ['Auth'], summary: 'End one of your own sessions (the whole sign-in it belongs to)', operationId: 'revokeAuthSession', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('Message'), 404: errorResponse('No such session for this user') } } },
       '/auth/switch-organization': { post: { tags: ['Auth'], summary: 'Switch the active organization for a multi-tenant user', operationId: 'switchOrganization', security: [{ bearerAuth: [] }], requestBody: jsonBody('auth_switchOrganization'), responses: { 200: { description: 'New token pair bound to the requested organization', content: { 'application/json': { schema: { type: 'object' } } } }, 403: { description: 'User is not a member of the requested organization' } } } },
 
       // ---- Organizations ----
@@ -688,7 +690,7 @@ function generateSpec() {
 
       // ---- PAC Providers ----
       '/pac-providers/environment': {
-        get: { tags: ['PAC Providers'], summary: "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp/cancel", operationId: 'getPacEnvironment', security: [{ bearerAuth: [] }], responses: r200('{ pac_environment }') },
+        get: { tags: ['PAC Providers'], summary: "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp; a CFDI is cancelled in the environment that stamped it", operationId: 'getPacEnvironment', security: [{ bearerAuth: [] }], responses: r200('{ pac_environment, sandbox_vigente_count }') },
         put: { tags: ['PAC Providers'], summary: "Set the org's active fiscal environment (sandbox|production)", operationId: 'setPacEnvironment', security: [{ bearerAuth: [] }], requestBody: jsonBody('pac_environment: sandbox|production'), responses: r200('{ pac_environment }') },
       },
       ...crudPaths('pac-providers', 'PAC Providers', 'PacProvider'),
@@ -2413,10 +2415,10 @@ function generateSpec() {
 
       // ---- Portal Privacy Notice (LFPDPPP §16) ----
       '/portal/privacy-notice': {
-        get: { tags: ['Portal'], summary: 'Privacy notice text + whether the current version is accepted', operationId: 'portalGetPrivacyNotice', security: [{ bearerAuth: [] }], responses: r200('{ version, content, accepted, accepted_at }') },
+        get: { tags: ['Portal'], summary: 'Privacy notice text + whether the current version is accepted', operationId: 'portalGetPrivacyNotice', security: [{ bearerAuth: [] }], responses: r200('{ version, hash, content, accepted, accepted_at }') },
       },
       '/portal/privacy-notice/accept': {
-        post: { tags: ['Portal'], summary: 'Record acceptance of the current privacy notice (idempotent per version)', operationId: 'portalAcceptPrivacyNotice', security: [{ bearerAuth: [] }], responses: { ...r201('{ accepted, accepted_at }'), ...r200('Already accepted') } },
+        post: { tags: ['Portal'], summary: 'Record acceptance of the displayed privacy notice (idempotent per version); the consent points at the archived text', operationId: 'portalAcceptPrivacyNotice', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', required: ['version', 'hash'], properties: { version: { type: 'string', maxLength: 20 }, hash: { type: 'string', maxLength: 64 } } }, 'The version and hash GET /portal/privacy-notice returned'), responses: { ...r201('{ accepted, accepted_at }'), ...r200('Already accepted'), 409: errorResponse('PRIVACY_NOTICE_CHANGED: the notice changed since it was displayed'), 422: errorResponse('version and hash are required') } },
       },
 
       // ---- Portal Auth §11 ----

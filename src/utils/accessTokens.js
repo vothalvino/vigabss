@@ -3,7 +3,10 @@
 // =============================================================================
 // Staff and subscriber-portal access JWTs must never be interchangeable.
 //
-// - Staff tokens are signed with JWT_SECRET.
+// - Staff tokens are signed with JWT_SECRET and carry `type: 'staff'`,
+//   `aud: vigabss-staff`, `iss: vigabss` and a `jti` (SEC-23). Verification
+//   requires all of them, so nothing else ever signed with JWT_SECRET (or a
+//   hand-built token without a type) authenticates a staff request.
 // - Portal tokens are signed with a key derived from JWT_SECRET (HKDF, distinct
 //   label) and carry `aud: vigabss-portal` plus `type: 'portal'`, so a portal
 //   token cannot verify on a staff surface and vice versa.
@@ -18,6 +21,8 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 
+const STAFF_AUDIENCE = 'vigabss-staff';
+const TOKEN_ISSUER = 'vigabss';
 const PORTAL_AUDIENCE = 'vigabss-portal';
 const PORTAL_KEY_INFO = 'vigabss portal access token v1';
 const MFA_AUDIENCE = 'vigabss-mfa';
@@ -47,13 +52,32 @@ function isPortalPayload(payload) {
 }
 
 /**
- * Verify a staff access JWT. Throws on an invalid signature, expiry, or a
- * subscriber-portal token.
+ * Sign a staff access JWT.
+ * @param {{ sub: number, email?: string, role?: string, orgId?: number|null, tv?: number }} claims
+ */
+function signStaffAccessToken(claims) {
+  return jwt.sign({ ...claims, type: 'staff' }, config.jwt.secret, {
+    expiresIn: config.jwt.accessExpiresIn,
+    algorithm: config.jwt.algorithm,
+    audience: STAFF_AUDIENCE,
+    issuer: TOKEN_ISSUER,
+    jwtid: crypto.randomUUID(),
+  });
+}
+
+/**
+ * Verify a staff access JWT. Throws on an invalid signature, expiry, or any
+ * token that is not a staff token (wrong type, audience or issuer).
  */
 function verifyStaffAccessToken(token) {
-  const payload = jwt.verify(token, config.jwt.secret, { algorithms: [config.jwt.algorithm] });
+  const payload = jwt.verify(token, config.jwt.secret, {
+    algorithms: [config.jwt.algorithm],
+    audience: STAFF_AUDIENCE,
+    issuer: TOKEN_ISSUER,
+  });
   if (isPortalPayload(payload)) throw new Error('Portal tokens are not valid staff credentials');
   if (isMfaPayload(payload)) throw new Error('Two-factor challenge tokens are not valid staff credentials');
+  if (payload.type !== 'staff') throw new Error('Invalid token type');
   return payload;
 }
 
@@ -118,9 +142,12 @@ function verifyPortalAccessToken(token) {
 }
 
 module.exports = {
+  STAFF_AUDIENCE,
+  TOKEN_ISSUER,
   PORTAL_AUDIENCE,
   MFA_AUDIENCE,
   MFA_CHALLENGE_SECONDS,
+  signStaffAccessToken,
   verifyStaffAccessToken,
   signMfaChallengeToken,
   verifyMfaChallengeToken,

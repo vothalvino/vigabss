@@ -15,7 +15,7 @@ jest.mock('../src/services/lifecycleService', () => ({
 }));
 
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
+const jwt = require('./helpers/staffJwt');
 const config = require('../src/config');
 const db = require('../src/config/database');
 const lifecycleService = require('../src/services/lifecycleService');

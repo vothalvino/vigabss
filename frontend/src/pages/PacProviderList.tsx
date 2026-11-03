@@ -294,7 +294,8 @@ function FiscalEnvironmentBar() {
     queryFn: async () => {
       const res = await api.GET('/pac-providers/environment' as never);
       if ((res as { error?: unknown }).error) throw new Error('load failed');
-      return ((res as { data: { data: { pac_environment: string } } }).data?.data?.pac_environment) ?? 'sandbox';
+      const data = (res as { data: { data: { pac_environment: string; sandbox_vigente_count?: number } } }).data?.data;
+      return { env: data?.pac_environment ?? 'sandbox', sandboxVigente: Number(data?.sandbox_vigente_count ?? 0) };
     },
   });
 
@@ -308,15 +309,21 @@ function FiscalEnvironmentBar() {
     onError: (e: unknown) => setErr(e instanceof Error ? e.message : 'Could not change the fiscal environment.'),
   });
 
-  const env = envQ.data ?? 'sandbox';
+  const env = envQ.data?.env ?? 'sandbox';
+  const sandboxVigente = envQ.data?.sandboxVigente ?? 0;
   const isProd = env === 'production';
 
   function onSelect(value: string) {
     if (value === env) return;
     // Guard the jump to live SAT stamping behind an explicit confirmation.
+    // Sandbox CFDIs stamped so far stay sandbox: say how many (CFD-13).
     if (value === 'production' && !window.confirm(
       'Switch to PRODUCTION? CFDIs will be stamped against the real SAT with legal validity. '
-      + 'Make sure your production PAC entries have real credentials and your active CSD is a real (non-test) certificate.',
+      + 'Make sure your production PAC entries have real credentials and your active CSD is a real (non-test) certificate.'
+      + (sandboxVigente > 0
+        ? `\n\n${sandboxVigente} sandbox CFDI(s) still show as vigente. They were never registered at SAT: they stay marked sandbox, `
+          + 'are left out of tax reports, do not block voiding their invoice, and are cancelled through a sandbox PAC.'
+        : ''),
     )) return;
     setEnv.mutate(value);
   }

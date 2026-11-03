@@ -13,12 +13,12 @@
 // =============================================================================
 
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
 const config = require('../config');
 const db = require('../config/database');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { UnauthorizedError, NotFoundError, ForbiddenError, ValidationError } = require('../utils/errors');
 const { assertSafeOutboundUrl } = require('../utils/safeOutboundUrl');
+const { signStaffAccessToken } = require('../utils/accessTokens');
 const { hasGlobalOrganizationAccessUser } = require('./globalOrganizationAccess');
 
 /**
@@ -827,17 +827,13 @@ async function findOrCreateSsoUser(orgId, profile, cfg, mappings) {
  * @returns {{ accessToken, refreshToken, expiresIn, user, organizations }}
  */
 async function mintTokens(user, orgId) {
-  const accessToken = jwt.sign(
-    {
-      sub:   user.id,
-      email: user.email,
-      role:  user.role,
-      orgId,
-      tv:    Number(user.token_version ?? 0),
-    },
-    config.jwt.secret,
-    { expiresIn: config.jwt.accessExpiresIn, algorithm: config.jwt.algorithm },
-  );
+  const accessToken = signStaffAccessToken({
+    sub:   user.id,
+    email: user.email,
+    role:  user.role,
+    orgId,
+    tv:    Number(user.token_version ?? 0),
+  });
 
   const refreshTokenValue = crypto.randomBytes(32).toString('hex');
   const refreshHash       = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');

@@ -223,15 +223,9 @@ async function payInstallment(planId, sequence, paymentId, orgId) {
       // Never more than the invoice still owes (it may have been paid down
       // outside the plan); the rest of the installment stays client credit.
       allocated = invoice ? Math.min(due, Math.round(Number(invoice.balance_due) * 100) / 100) : 0;
-      if (allocated > 0.005) {
-        await exec(
-          'INSERT INTO payment_allocations (payment_id, invoice_id, amount) VALUES (?, ?, ?)',
-          [paymentId, invoice.id, allocated],
-        );
-      }
     }
     const becamePaid = invoice && allocated > 0.005
-      ? await paymentAllocationService.finalizeIfFullyPaid(exec, invoice)
+      ? (await paymentAllocationService.applyAllocation(exec, { payment, invoice, amount: allocated })).becamePaid
       : false;
 
     await exec(
