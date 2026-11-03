@@ -19,6 +19,8 @@ import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { Pagination } from '@/components/Pagination';
 import { ClientPicker } from '@/components/ClientPicker';
 import { useClientNames } from '@/api/clientNames';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -267,6 +269,7 @@ function NewTicketModal({ users, onClose, onCreated }: NewTicketModalProps) {
 
 export function TicketList() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -317,7 +320,10 @@ export function TicketList() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.4rem' }}>🎫 {t('ticketList.title')}</h1>
-        <button style={btnPrimary} onClick={() => setShowNew(true)}>{t('ticketList.newTicket')}</button>
+        {/* Shown only to who may create one (FE-06): the API refuses the rest. */}
+        {can(user, 'tickets.create') && (
+          <button style={btnPrimary} onClick={() => setShowNew(true)}>{t('ticketList.newTicket')}</button>
+        )}
       </div>
 
       {/* Filters */}

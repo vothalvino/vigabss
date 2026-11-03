@@ -54,10 +54,13 @@ services:
       # seed.js generates a random admin password when unset; the smoke suite
       # logs in as this user, so both sides must agree on the value.
       ADMIN_PASSWORD: e2e-admin-password-not-for-production
+      # Personas, a portal login and a second organization (FE-06).
+      E2E_PERSONA_PASSWORD: e2e-persona-password-not-for-production
+      E2E_PORTAL_PASSWORD: e2e-portal-password-not-for-production
     # Run migrations and seed before starting the server so Playwright
     # can immediately find the admin user and reference data.
     command: >
-      sh -c "node src/scripts/migrate.js && node src/scripts/seed.js && node src/server.js"
+      sh -c "node src/scripts/migrate.js && node src/scripts/seed.js && node src/scripts/seed-e2e.js && node src/server.js"
     ports:
       - '3000:3000'
     healthcheck:
@@ -86,6 +89,8 @@ services:
       # Must match the app service's ADMIN_PASSWORD above — the seed creates the
       # admin with that value and the smoke suite logs in as it.
       ADMIN_PASSWORD: e2e-admin-password-not-for-production
+      E2E_PERSONA_PASSWORD: e2e-persona-password-not-for-production
+      E2E_PORTAL_PASSWORD: e2e-portal-password-not-for-production
     command: >
       sh -c "corepack enable && corepack prepare pnpm@10.33.2 --activate && pnpm install --frozen-lockfile && pnpm --filter vigabss-e2e exec playwright install --with-deps chromium && pnpm --filter vigabss-e2e test"
 

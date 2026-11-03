@@ -10,6 +10,7 @@
     "migrate:smoke-test": "node src/scripts/migrate.js && node src/scripts/migration-smoke-test.js",
     "rollback": "node src/scripts/rollback.js",
     "seed": "node src/scripts/seed.js",
+    "seed:e2e": "node src/scripts/seed-e2e.js",
     "loadtest:seed": "node src/scripts/loadtest-seed.js",
     "loadtest": "node src/scripts/loadtest.js",
     "loadtest:soak": "node src/scripts/loadtest-soak.js",
