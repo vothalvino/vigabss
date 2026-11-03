@@ -44,11 +44,65 @@ test('restoring nginx.conf keeps its inode, so a bind-mounted container sees the
   }
 });
 
-test('a failed bootstrap removes the nginx container it started', () => {
+// SUP-14: the exit trap is executed, with a PATH-stubbed docker, instead of
+// matched as text.
+function runBootstrapExit({ startedNginx, fail }) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-tls-exit-'));
+  const bin = path.join(dir, 'bin');
+  const calls = path.join(dir, 'docker.log');
+  const conf = path.join(dir, 'nginx.conf');
+  const backup = path.join(dir, '.nginx.conf.bootstrap-backup');
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'docker'), `#!/usr/bin/env bash\necho "$*" >> "${calls}"\n`, { mode: 0o755 });
+  fs.writeFileSync(conf, 'bootstrap: acme only\n');
+  fs.writeFileSync(backup, 'production config\n');
+  const src = read('nginx/init-letsencrypt.sh');
+  try {
+    let status = 0;
+    try {
+      execFileSync('bash', ['-c', [
+        'set -euo pipefail',
+        'log() { :; }',
+        'DOCKER_COMPOSE_CMD="docker compose -f compose.yml"',
+        'BOOTSTRAP_NGINX_STARTED=0',
+        extractFunction(src, 'restore_nginx_conf'),
+        extractFunction(src, 'on_bootstrap_exit'),
+        'trap on_bootstrap_exit EXIT',
+        startedNginx ? 'BOOTSTRAP_NGINX_STARTED=1' : ':',
+        // A failed certbot run, as under set -e in the real script.
+        fail ? 'false' : 'true',
+      ].join('\n')], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, NGINX_CONF: conf, NGINX_CONF_BACKUP: backup }, stdio: 'pipe' });
+    } catch (err) {
+      status = err.status;
+    }
+    return {
+      status,
+      docker: fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8') : '',
+      conf: fs.readFileSync(conf, 'utf8'),
+      backupLeft: fs.existsSync(backup),
+    };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('a failed bootstrap restores the production config and removes the nginx container it started', () => {
   const src = read('nginx/init-letsencrypt.sh');
   expect(src).toMatch(/trap on_bootstrap_exit EXIT/);
-  expect(extractFunction(src, 'on_bootstrap_exit')).toMatch(/code != 0 && BOOTSTRAP_NGINX_STARTED[\s\S]*\$DOCKER_COMPOSE_CMD rm -sf nginx/);
   expect(src.indexOf('BOOTSTRAP_NGINX_STARTED=1')).toBeLessThan(src.indexOf('$DOCKER_COMPOSE_CMD up --no-deps -d --force-recreate nginx'));
+
+  const failed = runBootstrapExit({ startedNginx: true, fail: true });
+  expect(failed.status).toBe(1); // the failure still reaches install.sh
+  expect(failed.docker).toBe('compose -f compose.yml rm -sf nginx\n');
+  expect(failed.conf).toBe('production config\n');
+  expect(failed.backupLeft).toBe(false);
+});
+
+test('a successful bootstrap, or a failure before nginx started, leaves the container alone', () => {
+  for (const run of [runBootstrapExit({ startedNginx: true, fail: false }), runBootstrapExit({ startedNginx: false, fail: true })]) {
+    expect(run.docker).toBe('');
+    expect(run.conf).toBe('production config\n');
+  }
 });
 
 test('the installer cleans up with --env-file, recreates nginx, and probes HTTPS before reporting success', () => {

@@ -1011,6 +1011,7 @@ jobs:
       - database-tests
       - migration-runner-tests
       - mariadb-compatibility
+      - shell-scripts
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -1193,6 +1194,43 @@ jobs:
   # Helm chart lint + release
   # Lint runs on every push/PR; release (chart-releaser) runs only on v* tags.
   # ---------------------------------------------------------------------------
+  shell-scripts:
+    # SUP-14: install.sh, redeploy.sh, the deploy agent and the TLS scripts
+    # decide whether an install or an update works at all, and their failure
+    # branches only run on a real host. shellcheck is not a dev dependency, so
+    # this job is an exception to the local-first policy above and runs on
+    # pull requests too: it lints every tracked script and runs the tests
+    # that execute those branches with PATH-stubbed commands.
+    name: Shell scripts
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: shellcheck
+        run: |
+          command -v shellcheck >/dev/null || { sudo apt-get update && sudo apt-get install -y shellcheck; }
+          shellcheck --version
+          git ls-files -z '*.sh' | xargs -0 shellcheck --severity=warning --external-sources
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Executed shell-script tests
+        run: pnpm exec jest --ci --testPathPatterns 'tests/(installReloadCron|tlsBootstrapRecovery|tlsRenewalConfig|redeployTopology|redeployEnvSync|redeployVerifiesSignature|deployRequest|deployPullsImage|hostNginxScope|productionBootstrap|releaseChannel|setupScriptHardening|setupSecrets|secretsInArgv|shellScriptsCi)\.test\.js$'
+
   helm-lint:
     # Lint and render run everywhere with a read-only token. Releasing needs
     # contents: write, which this job held on every push and PR (OPS-08), so
