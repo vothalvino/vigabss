@@ -45514,7 +45514,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{ version, content, accepted, accepted_at }",
+            "description": "{ version, hash, content, accepted, accepted_at }",
             "content": {
               "application/json": {
                 "schema": {
@@ -45531,13 +45531,38 @@
         "tags": [
           "Portal"
         ],
-        "summary": "Record acceptance of the current privacy notice (idempotent per version)",
+        "summary": "Record acceptance of the displayed privacy notice (idempotent per version); the consent points at the archived text",
         "operationId": "portalAcceptPrivacyNotice",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "requestBody": {
+          "description": "The version and hash GET /portal/privacy-notice returned",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "version",
+                  "hash"
+                ],
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "hash": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Already accepted",
@@ -45555,6 +45580,60 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PRIVACY_NOTICE_CHANGED: the notice changed since it was displayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "version and hash are required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }

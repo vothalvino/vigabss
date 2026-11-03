@@ -758,6 +758,7 @@ async function sign(documentId, {
           confirmed: true,
           privacy_notice_version: notice.version,
           privacy_notice_hash: notice.hash,
+          privacy_notice_version_id: notice.versionId ?? null,
         });
       }
     }

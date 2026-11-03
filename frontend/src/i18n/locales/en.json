@@ -5741,6 +5741,7 @@
     "pendingPrompt": "Please read the notice below and accept it.",
     "acceptButton": "I accept the privacy notice",
     "acceptError": "Your acceptance could not be saved. Please try again.",
+    "noticeChanged": "The notice was updated while you were reading it. Please review the current version below and accept it.",
     "versionLabel": "Notice version: {{version}}"
   },
   "dataImport": {

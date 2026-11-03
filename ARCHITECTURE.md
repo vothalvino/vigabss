@@ -516,6 +516,15 @@ generated columns. Dynamic SQL is reported as skipped. The exception lists in
 the checker are a ratchet: shrink them when fixing a gap and never add an entry
 without a specific explanation.
 
+`privacyNoticeService.getNotice` archives each distinct notice text the first
+time it is served in `privacy_notice_versions` (one row per organization and
+SHA-256; never updated) and returns its `versionId`. Portal and signed-handoff
+consents store that id with the version and hash, and the portal accept
+endpoint takes the displayed `version` and `hash` and answers 409
+`PRIVACY_NOTICE_CHANGED` when they are no longer what is served (REG-11). An
+organization that edits its own notice text must change
+`privacy_notice_version` in the same update.
+
 ### Scheduled and asynchronous work
 
 The scheduler reads `scheduled_tasks`, but executable task names must also be

@@ -29,6 +29,7 @@ function mockApi(state: NoticeState) {
       json: async () => ({
         data: {
           version: 'default-1',
+          hash: 'a'.repeat(64),
           content: '# Aviso de Privacidad\n\nTexto del aviso.',
           accepted: state.accepted,
           accepted_at: state.accepted_at,
@@ -69,11 +70,36 @@ describe('PortalPrivacy page', () => {
     fireEvent.click(screen.getByRole('button', { name: /accept/i }));
 
     await waitFor(() => expect(screen.getByText(/you accepted this privacy notice/i)).toBeInTheDocument());
+    // Acceptance names the exact text that was displayed (REG-11).
     expect(fetchSpy).toHaveBeenCalledWith(
       '/api/v1/portal/privacy-notice/accept',
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ version: 'default-1', hash: 'a'.repeat(64) }) }),
     );
     expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument();
+  });
+
+  it('when the notice changed meanwhile, says so and reloads the current text', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, opts) => {
+      if (String(url).endsWith('/privacy-notice/accept') && opts?.method === 'POST') {
+        return {
+          ok: false, status: 409,
+          json: async () => ({ error: { code: 'PRIVACY_NOTICE_CHANGED', message: 'changed' } }),
+        } as Response;
+      }
+      return {
+        ok: true, status: 200,
+        json: async () => ({ data: { version: 'default-1', hash: 'a'.repeat(64), content: '# Aviso', accepted: false, accepted_at: null } }),
+      } as Response;
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByRole('button', { name: /accept/i })).toBeInTheDocument());
+    const loads = () => fetchSpy.mock.calls.filter(([url]) => String(url).endsWith('/privacy-notice')).length;
+    const before = loads();
+
+    fireEvent.click(screen.getByRole('button', { name: /accept/i }));
+
+    await waitFor(() => expect(screen.getByText(/updated while you were reading/i)).toBeInTheDocument());
+    await waitFor(() => expect(loads()).toBeGreaterThan(before));
   });
 
   it('shows no accept button when the current version is already accepted', async () => {

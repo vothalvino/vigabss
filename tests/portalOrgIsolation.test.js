@@ -278,7 +278,8 @@ describe('autopay and consent are bound to the subscriber\'s organization', () =
     expect(res.status).toBe(200);
     expect(res.body.data.accepted).toBe(false);
 
-    const accept = await portal('post', '/api/v1/portal/privacy-notice/accept');
+    const accept = await portal('post', '/api/v1/portal/privacy-notice/accept')
+      .send({ version: res.body.data.version, hash: res.body.data.hash });
     expect(accept.status).toBe(201);
     const [insert] = writesTo('subscriber_consents');
     expect(insert.params.slice(0, 2)).toEqual([ORG_A, 10]);

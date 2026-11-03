@@ -2415,10 +2415,10 @@ function generateSpec() {
 
       // ---- Portal Privacy Notice (LFPDPPP §16) ----
       '/portal/privacy-notice': {
-        get: { tags: ['Portal'], summary: 'Privacy notice text + whether the current version is accepted', operationId: 'portalGetPrivacyNotice', security: [{ bearerAuth: [] }], responses: r200('{ version, content, accepted, accepted_at }') },
+        get: { tags: ['Portal'], summary: 'Privacy notice text + whether the current version is accepted', operationId: 'portalGetPrivacyNotice', security: [{ bearerAuth: [] }], responses: r200('{ version, hash, content, accepted, accepted_at }') },
       },
       '/portal/privacy-notice/accept': {
-        post: { tags: ['Portal'], summary: 'Record acceptance of the current privacy notice (idempotent per version)', operationId: 'portalAcceptPrivacyNotice', security: [{ bearerAuth: [] }], responses: { ...r201('{ accepted, accepted_at }'), ...r200('Already accepted') } },
+        post: { tags: ['Portal'], summary: 'Record acceptance of the displayed privacy notice (idempotent per version); the consent points at the archived text', operationId: 'portalAcceptPrivacyNotice', security: [{ bearerAuth: [] }], requestBody: typedJsonBody({ type: 'object', required: ['version', 'hash'], properties: { version: { type: 'string', maxLength: 20 }, hash: { type: 'string', maxLength: 64 } } }, 'The version and hash GET /portal/privacy-notice returned'), responses: { ...r201('{ accepted, accepted_at }'), ...r200('Already accepted'), 409: errorResponse('PRIVACY_NOTICE_CHANGED: the notice changed since it was displayed'), 422: errorResponse('version and hash are required') } },
       },
 
       // ---- Portal Auth §11 ----

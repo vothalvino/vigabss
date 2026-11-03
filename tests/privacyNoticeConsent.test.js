@@ -34,7 +34,7 @@ const staffToken = () => jwt.sign({ sub: 1, email: 'a@b.c', role: 'admin', orgId
 const ADMIN = { id: 1, email: 'a@b.c', role: 'admin', status: 'active', organization_id: 1 };
 
 const MX_ORG = {
-  name: 'Fibra Norte', legal_name: 'Fibra Norte SA de CV', email: 'privacidad@fibranorte.mx',
+  id: 5, name: 'Fibra Norte', legal_name: 'Fibra Norte SA de CV', email: 'privacidad@fibranorte.mx',
   phone: '6641234567', address: 'Av. Revolución 100', city: 'Tijuana', state: 'BC',
   zip_code: '22000', country: 'MX', locale: 'MX', privacy_notice: null, privacy_notice_version: null,
 };
@@ -56,6 +56,7 @@ function wirePortal({ org = MX_ORG, consents = [] } = {}) {
     if (/FROM organizations WHERE id = \?/.test(sql)) return [[org]];
     if (/FROM subscriber_consents/.test(sql)) return [consents];
     if (/INSERT INTO subscriber_consents/.test(sql)) return [{ insertId: 77 }];
+    if (/FROM privacy_notice_versions/.test(sql)) return [[{ id: 31 }]]; // the archived text
     return [[]];
   });
 }
@@ -63,9 +64,14 @@ function wirePortal({ org = MX_ORG, consents = [] } = {}) {
 const getNotice = () => request(app)
   .get('/api/v1/portal/privacy-notice')
   .set('Authorization', `Bearer ${portalToken()}`);
-const accept = () => request(app)
-  .post('/api/v1/portal/privacy-notice/accept')
-  .set('Authorization', `Bearer ${portalToken()}`);
+// Accept what the portal displayed: the version and hash GET served.
+const accept = async (shown) => {
+  const notice = shown || (await getNotice()).body.data;
+  return request(app)
+    .post('/api/v1/portal/privacy-notice/accept')
+    .set('Authorization', `Bearer ${portalToken()}`)
+    .send({ version: notice.version, hash: notice.hash });
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -173,6 +179,26 @@ describe('POST /portal/privacy-notice/accept', () => {
     expect(params.some(p => typeof p === 'string' && /^[0-9a-f]{64}$/.test(p))).toBe(true);
     expect(insertOf()[0]).toMatch(/'web'/);
     expect(insertOf()[0]).toMatch(/'service_delivery'/);
+    // ...and the archived text it accepted (REG-11).
+    expect(insertOf()[0]).toMatch(/privacy_notice_version_id/);
+    expect(params).toContain(31);
+  });
+
+  it('refuses an acceptance of a notice that is no longer the one served', async () => {
+    wirePortal({ org: MX_ORG });
+    const res = await accept({ version: 'default-1', hash: '0'.repeat(64) });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('PRIVACY_NOTICE_CHANGED');
+    expect(insertOf()).toBeUndefined();
+  });
+
+  it('requires the displayed version and hash', async () => {
+    wirePortal({ org: MX_ORG });
+    const res = await request(app)
+      .post('/api/v1/portal/privacy-notice/accept')
+      .set('Authorization', `Bearer ${portalToken()}`);
+    expect(res.status).toBe(422);
+    expect(insertOf()).toBeUndefined();
   });
 
   it('is idempotent: an existing acceptance short-circuits with no INSERT', async () => {
