@@ -570,6 +570,14 @@ documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;
 do not replace those with process-local state.
 
+With `REDIS_URL` set, more than one app replica may run (SEC-24): the per-IP
+rate limiters count in Redis (`CacheStore`, prefix `rl_ip_<name>:`), and SSE,
+browser WebSocket and GraphQL subscription events go through
+`src/services/realtimeBus.js`, which delivers locally and relays over the
+`vigabss:realtime` Redis channel to every other process, the worker included.
+Publish through `events.broadcast` or `pubsub.publish`, never to a local client
+set directly. FireRelay agent tunnels remain per process.
+
 Outgoing messages go through `src/services/messageOutbox.js` (ASY-33):
 `enqueue()` writes a `message_outbox` row (optionally inside the caller's
 transaction), and the `message_outbox` task, or with Redis a `message-outbox`

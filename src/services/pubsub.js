@@ -3,8 +3,17 @@
 // =============================================================================
 
 const { createPubSub } = require('graphql-yoga');
+const realtimeBus = require('./realtimeBus');
 
-const pubsub = createPubSub();
+// Subscriptions listen on this process's pub/sub; publish goes through the
+// realtime bus so a subscriber on another replica hears it too (SEC-24).
+const local = createPubSub();
+realtimeBus.on('graphql', ({ topic, payload }) => local.publish(topic, payload));
+
+const pubsub = {
+  subscribe: (...args) => local.subscribe(...args),
+  publish: (topic, payload) => realtimeBus.publish('graphql', { topic, payload }),
+};
 
 /**
  * A comment was added to a ticket. Every writer calls this — staff, portal

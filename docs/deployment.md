@@ -1634,7 +1634,7 @@ server {
 
 ### Sticky Sessions
 
-Sticky sessions (session affinity) are **not required**. VigaBSS uses stateless JWT authentication — any backend instance can handle any request. Use `least_conn` or `round_robin` balancing for even distribution.
+Sticky sessions (session affinity) are **not required** for the API. VigaBSS uses stateless JWT authentication, so any backend instance can handle an API request; the exception is FireRelay agent commands (see [Horizontal Scaling](#horizontal-scaling)). Use `least_conn` or `round_robin` balancing for even distribution.
 
 ### WebSocket / SSE Considerations
 
@@ -1774,25 +1774,17 @@ Run these checks against the Green environment before switching traffic:
 
 ### Horizontal Scaling
 
-VigaBSS 0.1.0-alpha.1 is designed as a **stateless application** — any instance can serve any request. Scale horizontally by adding more app server instances behind a load balancer.
+More than one app replica needs `REDIS_URL`. With it, the replicas share:
 
-Requirements for horizontal scaling:
+- **Rate limits:** every per-IP and per-tenant limit is counted in Redis, so N replicas still allow the configured budget, not N times it. If Redis becomes unreachable, the general limits let requests through; the login, password-reset, verification and bulk-email limits refuse them.
+- **Live events:** SSE, browser WebSocket and GraphQL subscription events are relayed between processes over one Redis pub/sub channel (`vigabss:realtime`), including events produced by the worker process. Delivery is best effort: an event published while Redis is down reaches only the clients of the process that produced it.
+- **Job queues and caches** (BullMQ and the shared cache).
 
-- **Shared database:** All instances connect to the same MySQL primary.
-- **Shared Redis:** All instances connect to the same Redis for cache, rate limiting, and job queues.
-- **Shared storage:** The `storage/` directory must be accessible from all instances (use NFS, cloud file storage, or S3-compatible object storage).
+All replicas also need the same MySQL primary and a shared `storage/` directory (NFS, cloud file storage or S3-compatible object storage).
 
-### FireRelay Mode
+Without `REDIS_URL`, run exactly one replica: limits and live events are then process-local. The Helm chart and `k8s/` manifests default to one replica with the HPA capped at one for this reason.
 
-For multi-node deployments, enable **FireRelay** to synchronize real-time events across instances:
-
-```env
-FIRERELAY_ENABLED=true
-FIRERELAY_TRANSPORT=redis
-REDIS_URL=redis://redis.example.com:6379
-```
-
-FireRelay uses Redis Pub/Sub to broadcast events (e.g., client disconnections, CoA pushes) to all connected instances, ensuring SSE clients on any node receive updates.
+**Still per process:** a FireRelay agent's tunnel terminates on the replica it connected to, and a command for that agent fails with "Agent … is not connected" when the request lands on another replica. Run FireRelay-managed installs on one replica, or pin `/ws/firerelay` and the FireRelay command routes to one replica at the load balancer.
 
 ### Database Connection Pool Sizing
 

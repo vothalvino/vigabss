@@ -26,172 +26,6 @@ const RATE_LIMITED_BODY = (msg) => ({
   },
 });
 
-const makeLimiter = (max, msg, extra = {}) => rateLimit({
-  windowMs: rl.windowMs,
-  max,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: RATE_LIMITED_BODY(msg),
-  ...extra,
-});
-
-// Session-keepalive endpoints — staff SPA and subscriber portal. These are
-// what keeps a logged-in user logged in: the SPAs re-bootstrap via /me +
-// /refresh on every reload and silently refresh when the access token
-// expires. They are carved OUT of the general API bucket (see `skip` below)
-// and given their own per-IP budget — otherwise a chatty dashboard exhausts
-// the shared budget and the resulting 429 on /auth/refresh bounces an active
-// user to the login screen.
-const SESSION_PATH_RE = /^\/api(?:\/v1)?\/(?:auth|portal\/auth)\/(?:me|refresh|logout|switch-organization)\/?$/;
-const isSessionPath = (req) => SESSION_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
-const COLLECTOR_PATH_RE = /^\/api(?:\/v1)?\/(?:radius\/accounting(?:\/tenant)?|connection-logs\/cgnat-attribution\/bindings\/ingest|pppoe\/events(?:\/tenant)?)\/?$/;
-// Collectors only POST. GET /pppoe/events is the staff event list and stays
-// in the general API bucket.
-const isCollectorPath = req => (req.method || 'POST').toUpperCase() === 'POST'
-  && COLLECTOR_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
-// Signed provider callbacks have their own limiter (webhookLimiter below).
-const WEBHOOK_PATH_RE = /^\/api(?:\/v1)?\/(?:payment-webhooks|whatsapp\/webhook)(?:\/|$)/;
-const isWebhookPath = req => WEBHOOK_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
-
-/**
- * Run a limiter at most once per request (SEC-13). A request can pass several
- * mounts that apply the same limiter — app.use('/api/') plus a router mounted
- * at '/', and every '/'-mounted router's own orgScope — and express-rate-limit
- * counts each pass, so one request spent up to four units of the budget.
- */
-function oncePerRequest(limiter, flag) {
-  const once = (req, res, next) => {
-    if (req[flag]) return next();
-    req[flag] = true;
-    return limiter(req, res, next);
-  };
-  if (typeof limiter.resetKey === 'function') once.resetKey = limiter.resetKey.bind(limiter);
-  return once;
-}
-
-/** General API rate limiter — configurable via RATE_LIMIT_API (default 1000). */
-const apiLimiter = oncePerRequest(
-  makeLimiter(rl.api, undefined, { skip: req => isSessionPath(req) || isCollectorPath(req) || isWebhookPath(req) }),
-  '_apiLimited',
-);
-
-/**
- * Session-keepalive endpoints — configurable via RATE_LIMIT_SESSION (default 240).
- *
- * skipSuccessfulRequests: successful keepalives (2xx) don't count against the
- * budget, so ANY number of legitimate users behind one office NAT / CGNAT IP
- * can stay logged in — only FAILURES count (401s from token guessing, broken
- * clients, etc.), which is exactly the abuse this limiter exists to cap.
- */
-const sessionLimiter = makeLimiter(rl.session, 'Too many session requests, please try again later', {
-  skipSuccessfulRequests: true,
-});
-
-/**
- * The subscriber portal's session endpoints: same budget, separate instance.
- * Sharing sessionLimiter let the staff SPA's failed boot probes (four per
- * portal page load) spend the budget CGNAT'd subscribers need to stay signed
- * in (FE-17).
- */
-const portalSessionLimiter = makeLimiter(rl.session, 'Too many session requests, please try again later', {
-  skipSuccessfulRequests: true,
-});
-
-/** Auth endpoints — configurable via RATE_LIMIT_AUTH (default 20). */
-const authLimiter = makeLimiter(rl.auth, 'Too many authentication attempts, please try again later');
-
-/**
- * The subscriber portal's credential endpoints. A separate instance from
- * authLimiter (same RATE_LIMIT_AUTH budget), so portal and staff logins from
- * one address no longer drain each other's allowance (SEC-11).
- */
-const portalAuthLimiter = makeLimiter(rl.auth, 'Too many authentication attempts, please try again later');
-
-/**
- * POST /auth/password-reset/request only — configurable via
- * RATE_LIMIT_PASSWORD_RESET (default 5). Stacks ON TOP of the shared
- * authLimiter above (which already covers this route by prefix): this one is
- * deliberately tighter and scoped to a single route, since sending real email
- * makes it a mail-bombing / enumeration-timing target distinct from
- * login/register, which share the looser budget.
- */
-const passwordResetLimiter = makeLimiter(rl.passwordReset, 'Too many password reset requests, please try again later');
-
-/**
- * POST /auth/verify-email/resend only — reuses the same modest budget as
- * passwordResetLimiter (RATE_LIMIT_PASSWORD_RESET, default 5), since this is
- * the same class of "sends real email, can be used to mail-bomb an address"
- * endpoint. Deliberately a SEPARATE limiter instance rather than the same
- * object mounted twice: express-rate-limit's default in-memory store keys
- * solely by IP (not by route), so sharing one instance across two routes
- * would silently merge their budgets into a single combined counter — an
- * attacker exhausting one endpoint would also lock the other out for
- * legitimate use.
- */
-const verifyEmailResendLimiter = makeLimiter(rl.passwordReset, 'Too many verification email requests, please try again later');
-
-/**
- * POST /bulk/email only — configurable via RATE_LIMIT_BULK_EMAIL (default
- * 10). Same rationale as passwordResetLimiter/verifyEmailResendLimiter: a
- * mass-send action reaching real client inboxes needs its own tighter budget
- * stacked on top of the shared apiLimiter/tenantApiLimiter, which only cap
- * request count — not the up-to-1000 recipients a single request can fan out
- * to (see checkBulkEmailDailyBudget below for the recipient-count layer).
- * A separate makeLimiter() instance (not a shared reference), same reason as
- * verifyEmailResendLimiter: express-rate-limit's default store keys by IP
- * only, so sharing an instance would merge budgets across routes.
- */
-const bulkEmailLimiter = makeLimiter(rl.bulkEmail, 'Too many bulk email requests, please try again later');
-/**
- * POST /portal/auth/password-reset/request only — reuses the same modest
- * budget as passwordResetLimiter (RATE_LIMIT_PASSWORD_RESET, default 5),
- * since this is the same class of "sends real email" endpoint. Deliberately
- * a SEPARATE limiter instance from the staff-side passwordResetLimiter (same
- * reasoning as verifyEmailResendLimiter above): express-rate-limit's default
- * in-memory store keys solely by IP, so sharing one instance across the
- * staff and portal routes would silently merge their budgets — an attacker
- * flooding one endpoint would also lock out legitimate use of the other.
- * This is especially relevant here since portal subscribers are far more
- * likely than office staff to share a CGNAT/NAT IP with unrelated
- * households (see sessionLimiter's skipSuccessfulRequests comment above for
- * the same concern in a different context).
- */
-const portalPasswordResetLimiter = makeLimiter(rl.passwordReset, 'Too many password reset requests, please try again later');
-
-/** Public endpoints — configurable via RATE_LIMIT_PUBLIC (default 60). */
-const publicLimiter = makeLimiter(rl.public);
-
-/** Upload endpoints — configurable via RATE_LIMIT_UPLOAD (default 30). */
-const uploadLimiter = makeLimiter(rl.upload, 'Too many upload requests, please try again later');
-
-/** Export endpoints — configurable via RATE_LIMIT_EXPORT (default 20). */
-const exportLimiter = makeLimiter(rl.export, 'Too many export requests, please try again later');
-
-/** SSE endpoints — configurable via RATE_LIMIT_SSE (default 10). */
-const sseLimiter = makeLimiter(rl.sse, 'Too many SSE connections, please try again later');
-
-/**
- * Payment and WhatsApp webhook endpoints — configurable via RATE_LIMIT_WEBHOOK
- * (default 100).
- *
- * Only failed deliveries count (WHK-07). A provider posts from a small pool of
- * published IPs, so every event of the install shares one IP's budget: an
- * autopay batch or a campaign's status callbacks went past 100 in 15 minutes,
- * and the rest got 429 and waited hours on the provider's backoff. A delivery
- * whose signature verifies answers 2xx and is free; bad signatures, junk and
- * errors still count, which is the abuse this limiter caps.
- */
-const webhookLimiter = makeLimiter(rl.webhook, 'Too many webhook requests, please try again later', {
-  skipSuccessfulRequests: true,
-});
-
-/** TR-069 ACS endpoint, per source IP — configurable via RATE_LIMIT_ACS (default 3000). */
-const acsLimiter = makeLimiter(rl.acs, 'Too many ACS requests, please try again later');
-
-// =============================================================================
-// Per-tenant rate limiting
-// =============================================================================
-
 /**
  * express-rate-limit store backed by cacheService (Redis or in-memory LRU).
  * Stores per-key hit counts and fixed-window reset times. Redis increments are
@@ -242,6 +76,186 @@ class CacheStore {
     // abstraction. Keys expire naturally via their TTL.
   }
 }
+
+/**
+ * The per-IP limiters (SEC-24). With REDIS_URL set, the counts live in Redis
+ * under a prefix of their own, so every replica spends one budget; before,
+ * each replica kept its own count and N replicas allowed N times the limit.
+ * Without Redis the default in-memory store stays, which suits one replica.
+ *
+ * A Redis outage lets requests through (passOnStoreError) so the whole API
+ * does not fail with it, except for the credential and outbound-email
+ * limiters (failClosed), where an unlimited window is the abuse they exist
+ * to stop.
+ */
+const sharedStores = () => Boolean(process.env.REDIS_URL);
+
+const makeLimiter = (name, max, msg, { failClosed = false, ...extra } = {}) => rateLimit({
+  windowMs: rl.windowMs,
+  max,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: RATE_LIMITED_BODY(msg),
+  ...(sharedStores() ? { store: new CacheStore(`rl_ip_${name}:`), passOnStoreError: !failClosed } : {}),
+  ...extra,
+});
+
+// Session-keepalive endpoints — staff SPA and subscriber portal. These are
+// what keeps a logged-in user logged in: the SPAs re-bootstrap via /me +
+// /refresh on every reload and silently refresh when the access token
+// expires. They are carved OUT of the general API bucket (see `skip` below)
+// and given their own per-IP budget — otherwise a chatty dashboard exhausts
+// the shared budget and the resulting 429 on /auth/refresh bounces an active
+// user to the login screen.
+const SESSION_PATH_RE = /^\/api(?:\/v1)?\/(?:auth|portal\/auth)\/(?:me|refresh|logout|switch-organization)\/?$/;
+const isSessionPath = (req) => SESSION_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
+const COLLECTOR_PATH_RE = /^\/api(?:\/v1)?\/(?:radius\/accounting(?:\/tenant)?|connection-logs\/cgnat-attribution\/bindings\/ingest|pppoe\/events(?:\/tenant)?)\/?$/;
+// Collectors only POST. GET /pppoe/events is the staff event list and stays
+// in the general API bucket.
+const isCollectorPath = req => (req.method || 'POST').toUpperCase() === 'POST'
+  && COLLECTOR_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
+// Signed provider callbacks have their own limiter (webhookLimiter below).
+const WEBHOOK_PATH_RE = /^\/api(?:\/v1)?\/(?:payment-webhooks|whatsapp\/webhook)(?:\/|$)/;
+const isWebhookPath = req => WEBHOOK_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
+
+/**
+ * Run a limiter at most once per request (SEC-13). A request can pass several
+ * mounts that apply the same limiter — app.use('/api/') plus a router mounted
+ * at '/', and every '/'-mounted router's own orgScope — and express-rate-limit
+ * counts each pass, so one request spent up to four units of the budget.
+ */
+function oncePerRequest(limiter, flag) {
+  const once = (req, res, next) => {
+    if (req[flag]) return next();
+    req[flag] = true;
+    return limiter(req, res, next);
+  };
+  if (typeof limiter.resetKey === 'function') once.resetKey = limiter.resetKey.bind(limiter);
+  return once;
+}
+
+/** General API rate limiter — configurable via RATE_LIMIT_API (default 1000). */
+const apiLimiter = oncePerRequest(
+  makeLimiter('api', rl.api, undefined, { skip: req => isSessionPath(req) || isCollectorPath(req) || isWebhookPath(req) }),
+  '_apiLimited',
+);
+
+/**
+ * Session-keepalive endpoints — configurable via RATE_LIMIT_SESSION (default 240).
+ *
+ * skipSuccessfulRequests: successful keepalives (2xx) don't count against the
+ * budget, so ANY number of legitimate users behind one office NAT / CGNAT IP
+ * can stay logged in — only FAILURES count (401s from token guessing, broken
+ * clients, etc.), which is exactly the abuse this limiter exists to cap.
+ */
+const sessionLimiter = makeLimiter('session', rl.session, 'Too many session requests, please try again later', {
+  skipSuccessfulRequests: true,
+});
+
+/**
+ * The subscriber portal's session endpoints: same budget, separate instance.
+ * Sharing sessionLimiter let the staff SPA's failed boot probes (four per
+ * portal page load) spend the budget CGNAT'd subscribers need to stay signed
+ * in (FE-17).
+ */
+const portalSessionLimiter = makeLimiter('portal_session', rl.session, 'Too many session requests, please try again later', {
+  skipSuccessfulRequests: true,
+});
+
+/** Auth endpoints — configurable via RATE_LIMIT_AUTH (default 20). */
+const authLimiter = makeLimiter('auth', rl.auth, 'Too many authentication attempts, please try again later', { failClosed: true });
+
+/**
+ * The subscriber portal's credential endpoints. A separate instance from
+ * authLimiter (same RATE_LIMIT_AUTH budget), so portal and staff logins from
+ * one address no longer drain each other's allowance (SEC-11).
+ */
+const portalAuthLimiter = makeLimiter('portal_auth', rl.auth, 'Too many authentication attempts, please try again later', { failClosed: true });
+
+/**
+ * POST /auth/password-reset/request only — configurable via
+ * RATE_LIMIT_PASSWORD_RESET (default 5). Stacks ON TOP of the shared
+ * authLimiter above (which already covers this route by prefix): this one is
+ * deliberately tighter and scoped to a single route, since sending real email
+ * makes it a mail-bombing / enumeration-timing target distinct from
+ * login/register, which share the looser budget.
+ */
+const passwordResetLimiter = makeLimiter('password_reset', rl.passwordReset, 'Too many password reset requests, please try again later', { failClosed: true });
+
+/**
+ * POST /auth/verify-email/resend only — reuses the same modest budget as
+ * passwordResetLimiter (RATE_LIMIT_PASSWORD_RESET, default 5), since this is
+ * the same class of "sends real email, can be used to mail-bomb an address"
+ * endpoint. Deliberately a SEPARATE limiter instance rather than the same
+ * object mounted twice: express-rate-limit's default in-memory store keys
+ * solely by IP (not by route), so sharing one instance across two routes
+ * would silently merge their budgets into a single combined counter — an
+ * attacker exhausting one endpoint would also lock the other out for
+ * legitimate use.
+ */
+const verifyEmailResendLimiter = makeLimiter('verify_email_resend', rl.passwordReset, 'Too many verification email requests, please try again later', { failClosed: true });
+
+/**
+ * POST /bulk/email only — configurable via RATE_LIMIT_BULK_EMAIL (default
+ * 10). Same rationale as passwordResetLimiter/verifyEmailResendLimiter: a
+ * mass-send action reaching real client inboxes needs its own tighter budget
+ * stacked on top of the shared apiLimiter/tenantApiLimiter, which only cap
+ * request count — not the up-to-1000 recipients a single request can fan out
+ * to (see checkBulkEmailDailyBudget below for the recipient-count layer).
+ * A separate makeLimiter() instance (not a shared reference), same reason as
+ * verifyEmailResendLimiter: express-rate-limit's default store keys by IP
+ * only, so sharing an instance would merge budgets across routes.
+ */
+const bulkEmailLimiter = makeLimiter('bulk_email', rl.bulkEmail, 'Too many bulk email requests, please try again later', { failClosed: true });
+/**
+ * POST /portal/auth/password-reset/request only — reuses the same modest
+ * budget as passwordResetLimiter (RATE_LIMIT_PASSWORD_RESET, default 5),
+ * since this is the same class of "sends real email" endpoint. Deliberately
+ * a SEPARATE limiter instance from the staff-side passwordResetLimiter (same
+ * reasoning as verifyEmailResendLimiter above): express-rate-limit's default
+ * in-memory store keys solely by IP, so sharing one instance across the
+ * staff and portal routes would silently merge their budgets — an attacker
+ * flooding one endpoint would also lock out legitimate use of the other.
+ * This is especially relevant here since portal subscribers are far more
+ * likely than office staff to share a CGNAT/NAT IP with unrelated
+ * households (see sessionLimiter's skipSuccessfulRequests comment above for
+ * the same concern in a different context).
+ */
+const portalPasswordResetLimiter = makeLimiter('portal_password_reset', rl.passwordReset, 'Too many password reset requests, please try again later', { failClosed: true });
+
+/** Public endpoints — configurable via RATE_LIMIT_PUBLIC (default 60). */
+const publicLimiter = makeLimiter('public', rl.public);
+
+/** Upload endpoints — configurable via RATE_LIMIT_UPLOAD (default 30). */
+const uploadLimiter = makeLimiter('upload', rl.upload, 'Too many upload requests, please try again later');
+
+/** Export endpoints — configurable via RATE_LIMIT_EXPORT (default 20). */
+const exportLimiter = makeLimiter('export', rl.export, 'Too many export requests, please try again later');
+
+/** SSE endpoints — configurable via RATE_LIMIT_SSE (default 10). */
+const sseLimiter = makeLimiter('sse', rl.sse, 'Too many SSE connections, please try again later');
+
+/**
+ * Payment and WhatsApp webhook endpoints — configurable via RATE_LIMIT_WEBHOOK
+ * (default 100).
+ *
+ * Only failed deliveries count (WHK-07). A provider posts from a small pool of
+ * published IPs, so every event of the install shares one IP's budget: an
+ * autopay batch or a campaign's status callbacks went past 100 in 15 minutes,
+ * and the rest got 429 and waited hours on the provider's backoff. A delivery
+ * whose signature verifies answers 2xx and is free; bad signatures, junk and
+ * errors still count, which is the abuse this limiter caps.
+ */
+const webhookLimiter = makeLimiter('webhook', rl.webhook, 'Too many webhook requests, please try again later', {
+  skipSuccessfulRequests: true,
+});
+
+/** TR-069 ACS endpoint, per source IP — configurable via RATE_LIMIT_ACS (default 3000). */
+const acsLimiter = makeLimiter('acs', rl.acs, 'Too many ACS requests, please try again later');
+
+// =============================================================================
+// Per-tenant rate limiting
+// =============================================================================
 
 // POST /trap-forwarding-rules/:id/test only. Separate Redis-backed instance so
 // its budget is neither merged with other outbound-email endpoints nor reset

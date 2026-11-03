@@ -154,7 +154,7 @@ async function start() {
       require('./utils/mapTileOrigins').stopMapTileOriginRefresh();
       await trapDrain;
     },
-    closeQueues: () => jobQueue.close(),
+    closeQueues: () => Promise.all([jobQueue.close(), require('./services/realtimeBus').close()]),
     closeDb: () => db.close(),
     logger,
     drainMs: parseInt(process.env.SHUTDOWN_DRAIN_MS || '5000', 10),

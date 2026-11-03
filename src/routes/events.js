@@ -20,6 +20,7 @@ const { tagGuard } = require('../middleware/routeGuard');
 const realtimeAccess = require('../services/realtimeAccess');
 const { streamGuard } = require('../middleware/streamGuard');
 const logger = require('../utils/logger');
+const realtimeBus = require('../services/realtimeBus');
 // Lazy-required to avoid circular-module issues at startup
 let _wsHub;
 function getWsHub() {
@@ -28,6 +29,8 @@ function getWsHub() {
 }
 
 const router = Router();
+
+realtimeBus.on('sse', ({ channel, event, data }) => broadcastLocal(channel, event, data));
 
 // ---------------------------------------------------------------------------
 // SSE Client Registry
@@ -47,12 +50,18 @@ function getChannel(name) {
 }
 
 /**
- * Broadcast an event to all clients subscribed to a channel.
+ * Broadcast an event to every client subscribed to a channel, on every
+ * replica (SEC-24): the realtime bus carries it to the other processes.
  * @param {string} channel - Channel name (e.g. 'org:1:notifications')
  * @param {string} event   - SSE event name
  * @param {object} data    - Payload (serialized to JSON)
  */
 function broadcast(channel, event, data) {
+  realtimeBus.publish('sse', { channel, event, data });
+}
+
+/** Push to this process's SSE and WebSocket clients. */
+function broadcastLocal(channel, event, data) {
   const clients = channels.get(channel);
   if (clients && clients.size > 0) {
     const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
