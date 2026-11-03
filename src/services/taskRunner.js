@@ -220,8 +220,6 @@ async function dispatchTask(taskName, organizationId) {
         }
       }
       return { message: 'SNMP trap receiver started' };
-    case 'email_send':
-      return emailTransport.processQueue(organizationId);
     case 'sms_send':
       return smsTransport.processQueue(organizationId);
     case 'webhook_delivery':

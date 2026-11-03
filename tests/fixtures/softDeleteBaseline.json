@@ -94,7 +94,6 @@
   "src/services/nasHealthService.js": 1,
   "src/services/nocAiService.js": 5,
   "src/services/notificationHooks.js": 1,
-  "src/services/notificationService.js": 1,
   "src/services/paymentAllocationService.js": 1,
   "src/services/paymentGatewayService.js": 4,
   "src/services/paymentPlanService.js": 2,
