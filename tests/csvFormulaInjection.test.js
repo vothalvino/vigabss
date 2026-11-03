@@ -15,7 +15,7 @@ const exportController = require('../src/controllers/exportController');
 const scheduledReportService = require('../src/services/scheduledReportService');
 const profecoService = require('../src/services/profecoService');
 
-const res = () => ({ set: jest.fn(), send: jest.fn() });
+const { csvRes: res } = require('./helpers/csvExport');
 
 describe('csvCell', () => {
   test.each(['=HYPERLINK("http://x","y")', '+cmd|calc', '-2+3', '@SUM(A1)', '\t=1', '\r=1', ' =1'])('%j is written as text', (v) => {
@@ -50,7 +50,7 @@ describe('every spreadsheet CSV writer neutralizes formulas', () => {
 });
 
 describe('/export', () => {
-  beforeEach(() => { jest.clearAllMocks(); db.query.mockResolvedValue([[]]); });
+  beforeEach(() => { jest.clearAllMocks(); db.query.mockImplementation(require('./helpers/csvExport').exportQueries([])); });
 
   test.each([
     ['exportInvoices', 'i.deleted_at IS NULL', 'invoices'],
@@ -59,7 +59,8 @@ describe('/export', () => {
     ['exportPayments', 'p.deleted_at IS NULL', 'payments'],
   ])('%s leaves out soft-deleted rows and records the export', async (fn, clause, entity) => {
     await exportController[fn]({ orgId: 7, query: {}, user: { id: 3 }, ip: '10.0.0.1', get: () => 'jest' }, res(), jest.fn());
-    expect(db.query.mock.calls[0][0]).toContain(clause);
+    // The count and every batch carry the clause.
+    for (const [sql] of db.query.mock.calls.filter(([q]) => !/INSERT/.test(q))) expect(sql).toContain(clause);
     const log = db.query.mock.calls.find(([sql]) => /INSERT INTO report_access_logs/.test(sql));
     expect(log[1]).toEqual(expect.arrayContaining([7, 3, entity]));
   });
@@ -67,5 +68,12 @@ describe('/export', () => {
   test('?include_deleted=true opts back in', async () => {
     await exportController.exportClients({ orgId: 7, query: { include_deleted: 'true' }, user: { id: 3 } }, res(), jest.fn());
     expect(db.query.mock.calls[0][0]).not.toContain('deleted_at IS NULL');
+  });
+
+  test('a streamed row is neutralized too', async () => {
+    db.query.mockImplementation(require('./helpers/csvExport').exportQueries([{ id: 1, name: '=cmd|calc' }]));
+    const out = res();
+    await exportController.exportClients({ orgId: 7, query: {}, user: { id: 3 } }, out, jest.fn());
+    expect(out.body().split('\n')[1]).toMatch(/^1,'=cmd\|calc,/);
   });
 });
