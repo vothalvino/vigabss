@@ -7648,7 +7648,7 @@ CREATE TABLE IF NOT EXISTS message_outbox (
     body_text             MEDIUMTEXT       NULL,
     body_html             MEDIUMTEXT       NULL,
     payload               JSON             NULL     COMMENT 'Push event and fields, email attachments, template id',
-    sensitive             TINYINT(1)       NOT NULL DEFAULT 0 COMMENT '1 = carries a secret (reset link, code): body hidden from the API, cleared once final, not retryable',
+    is_sensitive          TINYINT(1)       NOT NULL DEFAULT 0 COMMENT '1 = carries a secret (reset link, code): body hidden from the API, cleared once final, not retryable',
     source_type           VARCHAR(40)      NULL     COMMENT 'What produced it, e.g. campaign_message, invoice, password_reset',
     source_id             BIGINT UNSIGNED  NULL,
     dedupe_key            VARCHAR(191)     NULL     COMMENT 'Producer idempotency key; a second enqueue with it is ignored',

@@ -32,7 +32,7 @@ interface OutboxMessage {
   sent_at: string | null;
   last_error_code: string | null;
   last_error: string | null;
-  sensitive: number;
+  is_sensitive: number;
   created_at: string;
 }
 
@@ -221,7 +221,7 @@ export function MessageOutbox() {
                     <td style={{ ...styles.td, maxWidth: 280, whiteSpace: 'normal' }}>{m.last_error ?? '—'}</td>
                     {canManage && (
                       <td style={styles.td}>
-                        {RETRYABLE.includes(m.status) && !m.sensitive && (
+                        {RETRYABLE.includes(m.status) && !m.is_sensitive && (
                           <button type="button" style={styles.actionBtn} disabled={retry.isPending} onClick={() => onRetry(m)}>
                             {t('messageOutbox.retry')}
                           </button>

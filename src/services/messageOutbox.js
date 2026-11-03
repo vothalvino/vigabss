@@ -182,7 +182,7 @@ async function enqueue(message, { exec = null, deliverByJob = true } = {}) {
     `INSERT IGNORE INTO message_outbox
        (organization_id, organization_epoch, client_id, client_contact_epoch, channel, message_class,
         priority, email_function, recipient, subject, body_text, body_html, payload,
-        source_type, source_id, dedupe_key, status, max_attempts, last_error_code, last_error, sensitive)
+        source_type, source_id, dedupe_key, status, max_attempts, last_error_code, last_error, is_sensitive)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       organizationId, owner.epoch || 0, clientId, contactEpoch, channel, messageClass,
@@ -338,7 +338,7 @@ async function finish(row, result) {
     ],
   );
   if (update.affectedRows !== 1) return { status: 'lost' };
-  if (status !== 'queued' && Number(row.sensitive)) await clearSensitive(row.id);
+  if (status !== 'queued' && Number(row.is_sensitive)) await clearSensitive(row.id);
   noteOutboxMessage(row.channel, status === 'queued' ? 'retried' : status);
   if (status !== 'queued') {
     await notifyOutcome(row, { status, providerMessageId: result.providerMessageId || null, code: result.code || null, error: result.error || null });
@@ -352,7 +352,7 @@ async function finish(row, result) {
 /** A secret-bearing message keeps no body once it is final. */
 async function clearSensitive(id) {
   await db.query(
-    'UPDATE message_outbox SET body_text = NULL, body_html = NULL, payload = NULL WHERE id = ? AND sensitive = 1',
+    'UPDATE message_outbox SET body_text = NULL, body_html = NULL, payload = NULL WHERE id = ? AND is_sensitive = 1',
     [id],
   );
 }
@@ -608,7 +608,7 @@ async function deliverNow(id, organizationId = null) {
 // Staff view: /message-outbox
 // ---------------------------------------------------------------------------
 
-const LIST_COLUMNS = `id, organization_id, client_id, channel, message_class, recipient, subject, sensitive,
+const LIST_COLUMNS = `id, organization_id, client_id, channel, message_class, recipient, subject, is_sensitive,
   source_type, source_id, status, attempts, max_attempts, next_attempt_at, sent_at,
   provider_message_id, last_error_code, last_error, created_at, updated_at`;
 
@@ -647,9 +647,9 @@ async function get(id, orgId) {
   );
   const row = rows[0];
   if (!row) throw new NotFoundError('Message');
-  if (Number(row.sensitive)) {
+  if (Number(row.is_sensitive)) {
     // A reset link or code must not be readable by staff.
-    return { ...row, body_text: null, body_html: null, payload: {}, sensitive: 1 };
+    return { ...row, body_text: null, body_html: null, payload: {}, is_sensitive: 1 };
   }
   // Attachment bytes stay out of the API: names and sizes only.
   const payload = parsePayload(row.payload);
@@ -671,7 +671,7 @@ async function retry(id, orgId, { confirmPossibleDuplicate = false } = {}) {
   if (!RETRYABLE_FROM.includes(row.status)) {
     throw new AppError(`A ${row.status} message cannot be retried.`, 409, 'OUTBOX_NOT_RETRYABLE');
   }
-  if (Number(row.sensitive)) {
+  if (Number(row.is_sensitive)) {
     throw new AppError('This message carried a secret that is no longer kept; the recipient requests a new one.', 409, 'OUTBOX_NOT_RETRYABLE');
   }
   if (row.status === 'outcome_unknown' && !confirmPossibleDuplicate) {

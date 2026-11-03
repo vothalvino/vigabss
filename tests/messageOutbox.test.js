@@ -34,7 +34,7 @@ let rows;
 let nextId;
 const COLUMNS = ['organization_id', 'organization_epoch', 'client_id', 'client_contact_epoch', 'channel', 'message_class',
   'priority', 'email_function', 'recipient', 'subject', 'body_text', 'body_html', 'payload',
-  'source_type', 'source_id', 'dedupe_key', 'status', 'max_attempts', 'last_error_code', 'last_error', 'sensitive'];
+  'source_type', 'source_id', 'dedupe_key', 'status', 'max_attempts', 'last_error_code', 'last_error', 'is_sensitive'];
 
 function fakeQuery(sql, params = []) {
   const s = sql.replace(/\s+/g, ' ').trim();
@@ -119,7 +119,7 @@ function fakeQuery(sql, params = []) {
     return [{ affectedRows: r ? 1 : 0 }];
   }
   if (s.startsWith('UPDATE message_outbox SET body_text = NULL, body_html = NULL, payload = NULL')) {
-    const r = rows.find(x => x.id === params[0] && x.sensitive === 1);
+    const r = rows.find(x => x.id === params[0] && x.is_sensitive === 1);
     if (r) Object.assign(r, { body_text: null, body_html: null, payload: null });
     return [{ affectedRows: r ? 1 : 0 }];
   }

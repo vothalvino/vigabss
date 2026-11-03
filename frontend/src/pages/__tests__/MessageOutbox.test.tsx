@@ -15,7 +15,7 @@ vi.mock('@/auth/AuthContext', () => ({
 const row = (over: Record<string, unknown>) => ({
   id: 1, client_id: 9, channel: 'email', recipient: 'ana@example.com', subject: 'Factura', source_type: 'invoice',
   status: 'failed', attempts: 5, max_attempts: 5, next_attempt_at: '2026-11-02T10:00:00Z', sent_at: null,
-  last_error_code: 'EMAIL_DELIVERY_FAILED', last_error: 'Email delivery failed.', sensitive: 0, created_at: '2026-11-02T09:00:00Z',
+  last_error_code: 'EMAIL_DELIVERY_FAILED', last_error: 'Email delivery failed.', is_sensitive: 0, created_at: '2026-11-02T09:00:00Z',
   ...over,
 });
 
@@ -36,7 +36,7 @@ describe('MessageOutbox', () => {
         data: [
           row({}),
           row({ id: 2, channel: 'sms', recipient: '+5215555555555', subject: null, status: 'outcome_unknown', attempts: 1, last_error: 'Maybe' }),
-          row({ id: 3, recipient: 'staff@isp.mx', client_id: null, subject: 'Reset', status: 'failed', sensitive: 1 }),
+          row({ id: 3, recipient: 'staff@isp.mx', client_id: null, subject: 'Reset', status: 'failed', is_sensitive: 1 }),
         ],
         meta: { page: 1, limit: 50, total: 3, totalPages: 1 },
       } }));
