@@ -58,7 +58,7 @@ router.get('/:id', requirePermission('dhcp_servers.view'), async (req, res, next
   } catch (err) { next(err); }
 });
 
-router.post('/', requirePermission('dhcp_servers.create'), validate(createDhcpServer), async (req, res, next) => {
+router.post('/', requirePermission('dhcp_servers.create'), validate(createDhcpServer, { strip: false }), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createDhcpServer, 'organization_id'));
@@ -71,7 +71,7 @@ router.post('/', requirePermission('dhcp_servers.create'), validate(createDhcpSe
   } catch (err) { next(err); }
 });
 
-router.put('/:id', requirePermission('dhcp_servers.update'), validate(updateDhcpServer), async (req, res, next) => {
+router.put('/:id', requirePermission('dhcp_servers.update'), validate(updateDhcpServer, { strip: false }), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM dhcp_servers WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
@@ -135,7 +135,7 @@ router.get('/:id/reservations', requirePermission('dhcp_reservations.view'), asy
   } catch (err) { next(err); }
 });
 
-router.post('/:id/reservations', requirePermission('dhcp_reservations.create'), validate(createDhcpReservation), async (req, res, next) => {
+router.post('/:id/reservations', requirePermission('dhcp_reservations.create'), validate(createDhcpReservation, { strip: false }), async (req, res, next) => {
   try {
     // Verify parent server belongs to org
     const [serverRows] = await db.query(
@@ -159,7 +159,7 @@ router.post('/:id/reservations', requirePermission('dhcp_reservations.create'), 
 // Reservations direct  /reservations/:rid
 // ---------------------------------------------------------------------------
 
-router.put('/reservations/:rid', requirePermission('dhcp_reservations.update'), validate(updateDhcpReservation), async (req, res, next) => {
+router.put('/reservations/:rid', requirePermission('dhcp_reservations.update'), validate(updateDhcpReservation, { strip: false }), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM dhcp_static_reservations WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',

@@ -49,6 +49,7 @@ class Webhook extends BaseModel {
   static get hasOrgScope() { return true; }
 
   static get softDelete() { return true; }
+  static get deactivateOnDelete() { return { is_active: 0 }; }
 
   /**
    * Normalize an incoming create/update payload onto the real webhooks columns:
@@ -78,7 +79,7 @@ class Webhook extends BaseModel {
     return super.create(this.normalizeInput(data));
   }
 
-  static async update(id, data, orgId = null) {
+  static async update(id, data, orgId) {
     return super.update(id, this.normalizeInput(data), orgId);
   }
 

@@ -48,8 +48,8 @@ async function assertOwnedDevice(req, _res, next) {
 
 router.get('/',     requirePermission('polling_configs.view'),   ctrl.list);
 router.get('/:id',  requirePermission('polling_configs.view'),   ctrl.get);
-router.post('/',    requirePermission('polling_configs.create'),  validate(createDevicePollingConfig), assertOwnedDevice, ctrl.create);
-router.put('/:id',  requirePermission('polling_configs.update'),  validate(updateDevicePollingConfig), assertOwnedDevice, ctrl.update);
+router.post('/',    requirePermission('polling_configs.create'),  validate(createDevicePollingConfig, { strip: false }), assertOwnedDevice, ctrl.create);
+router.put('/:id',  requirePermission('polling_configs.update'),  validate(updateDevicePollingConfig, { strip: false }), assertOwnedDevice, ctrl.update);
 router.delete('/:id', requirePermission('polling_configs.delete'), ctrl.destroy);
 
 module.exports = router;

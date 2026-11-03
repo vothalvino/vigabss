@@ -94,13 +94,13 @@ router.get('/due', requirePermission('follow_ups.view'), async (req, res, next) 
 });
 
 router.get('/:id', requirePermission('follow_ups.view'), ctrl.get);
-router.post('/', requirePermission('follow_ups.create'), validate(createFollowUp), (req, res, next) => {
+router.post('/', requirePermission('follow_ups.create'), validate(createFollowUp, { strip: false }), (req, res, next) => {
   // Default the assignee to the logged-in staff member.
   if (req.body.assigned_to === undefined && req.user?.id) req.body.assigned_to = req.user.id;
   return ctrl.create(req, res, next);
 });
-router.put('/:id', requirePermission('follow_ups.update'), validate(updateFollowUp), ctrl.update);
-router.patch('/:id', requirePermission('follow_ups.update'), validate(patchFollowUp), ctrl.partialUpdate);
+router.put('/:id', requirePermission('follow_ups.update'), validate(updateFollowUp, { strip: false }), ctrl.update);
+router.patch('/:id', requirePermission('follow_ups.update'), validate(patchFollowUp, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('follow_ups.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('follow_ups.update'), ctrl.restore);
 

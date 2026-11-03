@@ -79,7 +79,7 @@ router.delete('/:id', requirePermission('billing_disputes.update'), ctrl.destroy
 
 const RESOLVED_STATUSES = ['resolved_favor_client', 'resolved_favor_company'];
 
-router.post('/:id/transition', requirePermission('billing_disputes.update'), validate(transitionBillingDisputeSchema), async (req, res, next) => {
+router.post('/:id/transition', requirePermission('billing_disputes.update'), validate(transitionBillingDisputeSchema, { strip: false }), async (req, res, next) => {
   try {
     const dispute = await BillingDispute.findByIdOrFail(req.params.id, req.orgId);
 

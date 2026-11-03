@@ -132,7 +132,7 @@ router.get('/admin-ip-allowlist', requirePermission('admin_ip_allowlist.view'), 
 
 // POST /admin-ip-allowlist — add entry
 // Accepts `cidr` (new schema name) or legacy `ip_address` for backward compat.
-router.post('/admin-ip-allowlist', requirePermission('admin_ip_allowlist.create'), validate(createAdminIpAllowlist), async (req, res, next) => {
+router.post('/admin-ip-allowlist', requirePermission('admin_ip_allowlist.create'), validate(createAdminIpAllowlist, { strip: false }), async (req, res, next) => {
   try {
     const { cidr, ip_address, description, is_active } = req.body;
     const rawCidr = cidr ?? ip_address;
@@ -240,7 +240,7 @@ const POLICY_INTEGERS = ['min_length', 'history_count', 'lockout_attempts', 'loc
 // PUT /password-policy — update org password policy (upsert by org). Only the
 // fields sent change; the rest keep their stored or default value. Enforced
 // by passwordPolicyService on every password set and sign-in (SEC-17).
-router.put('/password-policy', requirePermission('password_policy.update'), validate(updatePasswordPolicy), async (req, res, next) => {
+router.put('/password-policy', requirePermission('password_policy.update'), validate(updatePasswordPolicy, { strip: false }), async (req, res, next) => {
   try {
     const body = { ...req.body };
     // Accept legacy require_symbols as alias for require_special_chars

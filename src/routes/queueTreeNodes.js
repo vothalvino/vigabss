@@ -20,8 +20,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('queue_tree_nodes.view'), ctrl.list);
 router.get('/:id', requirePermission('queue_tree_nodes.view'), ctrl.get);
-router.post('/', requirePermission('queue_tree_nodes.create'), validate(createQueueTreeNode), ctrl.create);
-router.put('/:id', requirePermission('queue_tree_nodes.update'), validate(updateQueueTreeNode), ctrl.update);
+router.post('/', requirePermission('queue_tree_nodes.create'), validate(createQueueTreeNode, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('queue_tree_nodes.update'), validate(updateQueueTreeNode, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('queue_tree_nodes.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('queue_tree_nodes.update'), ctrl.restore);
 

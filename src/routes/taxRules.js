@@ -60,8 +60,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('tax_rules.view'), ctrl.list);
 router.get('/:id', requirePermission('tax_rules.view'), ctrl.get);
-router.post('/', requirePermission('tax_rules.create'), validate(createTaxRule), ctrl.create);
-router.put('/:id', requirePermission('tax_rules.update'), validate(updateTaxRule), ctrl.update);
+router.post('/', requirePermission('tax_rules.create'), validate(createTaxRule, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('tax_rules.update'), validate(updateTaxRule, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('tax_rules.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('tax_rules.update'), ctrl.restore);
 

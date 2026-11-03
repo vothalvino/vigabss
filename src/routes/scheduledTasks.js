@@ -167,8 +167,8 @@ router.get('/:id', requirePermission('scheduled_tasks.view'), async (req, res, n
   } catch (err) { next(err); }
 });
 
-router.post('/', requirePermission('scheduled_tasks.create'), requireInstallOperator, quotaCheck('scheduled_tasks'), validate(createScheduledTask), ctrl.create);
-router.put('/:id', requirePermission('scheduled_tasks.update'), requireInstallOperator, blockGlobalTaskWrites, rejectOrgReassignment, validate(updateScheduledTask), ctrl.update);
+router.post('/', requirePermission('scheduled_tasks.create'), requireInstallOperator, quotaCheck('scheduled_tasks'), validate(createScheduledTask, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('scheduled_tasks.update'), requireInstallOperator, blockGlobalTaskWrites, rejectOrgReassignment, validate(updateScheduledTask, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('scheduled_tasks.delete'), requireInstallOperator, blockGlobalTaskWrites, ctrl.destroy);
 
 // Manually trigger a task

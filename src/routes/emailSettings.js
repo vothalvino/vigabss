@@ -49,7 +49,7 @@ router.get('/',
 
 router.put('/',
   requirePermission('email_settings.update'),
-  validate(updateEmailSettings),
+  validate(updateEmailSettings, { strip: false }),
   async (req, res, next) => {
     try {
       const settings = await emailSettingsService.saveEmailSettings(req.orgId, 'general', req.body);
@@ -71,7 +71,7 @@ router.put('/',
 router.post('/test',
   emailSettingsTestLimiter,
   requirePermission('email_settings.update'),
-  validate(testEmailSettings),
+  validate(testEmailSettings, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await emailSettingsService.testEmailSettings(req.orgId, 'general', req.body.to);

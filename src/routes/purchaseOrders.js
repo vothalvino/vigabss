@@ -41,8 +41,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('purchase_orders.view'), ctrl.list);
 router.get('/:id', requirePermission('purchase_orders.view'), ctrl.get);
-router.post('/', requirePermission('purchase_orders.create'), validate(createPurchaseOrder), ctrl.create);
-router.put('/:id', requirePermission('purchase_orders.update'), validate(updatePurchaseOrder), ctrl.update);
+router.post('/', requirePermission('purchase_orders.create'), validate(createPurchaseOrder, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('purchase_orders.update'), validate(updatePurchaseOrder, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('purchase_orders.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('purchase_orders.update'), ctrl.restore);
 
@@ -61,7 +61,7 @@ router.get('/:id/items', requirePermission('purchase_orders.view'), async (req, 
 });
 
 // POST /purchase-orders/:id/items
-router.post('/:id/items', requirePermission('purchase_orders.update'), validate(createPoItem), ownedReferences(PO_ITEM_REFS), async (req, res, next) => {
+router.post('/:id/items', requirePermission('purchase_orders.update'), validate(createPoItem, { strip: false }), ownedReferences(PO_ITEM_REFS), async (req, res, next) => {
   try {
     const po = await PurchaseOrder.findById(parseInt(req.params.id, 10), req.orgId);
     if (!po) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Purchase order not found' } });
@@ -77,7 +77,7 @@ router.post('/:id/items', requirePermission('purchase_orders.update'), validate(
 });
 
 // PUT /purchase-orders/:id/items/:itemId
-router.put('/:id/items/:itemId', requirePermission('purchase_orders.update'), validate(updatePoItem), ownedReferences(PO_ITEM_REFS), async (req, res, next) => {
+router.put('/:id/items/:itemId', requirePermission('purchase_orders.update'), validate(updatePoItem, { strip: false }), ownedReferences(PO_ITEM_REFS), async (req, res, next) => {
   try {
     const po = await PurchaseOrder.findById(parseInt(req.params.id, 10), req.orgId);
     if (!po) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Purchase order not found' } });
@@ -146,7 +146,7 @@ router.delete('/:id/items/:itemId', requirePermission('purchase_orders.update'),
 // quantity, writes an inventory_transactions row (type 'receive', reference =
 // the PO number) so PO-driven stock increases show up in the stock-movement
 // ledger exactly like a manual receive does.
-router.post('/:id/receive', requirePermission('purchase_orders.receive'), validate(receivePo), async (req, res, next) => {
+router.post('/:id/receive', requirePermission('purchase_orders.receive'), validate(receivePo, { strip: false }), async (req, res, next) => {
   try {
     const po = await PurchaseOrder.findById(parseInt(req.params.id, 10), req.orgId);
     if (!po) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Purchase order not found' } });

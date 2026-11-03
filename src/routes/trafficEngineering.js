@@ -198,8 +198,8 @@ const iqpCtrl = teController('interface_qos_policies');
 
 router.get('/interface-qos-policies',         requirePermission('interface_qos_policies.view'),   iqpCtrl.list);
 router.get('/interface-qos-policies/:id',      requirePermission('interface_qos_policies.view'),   iqpCtrl.get);
-router.post('/interface-qos-policies',         requirePermission('interface_qos_policies.create'), validate(createInterfaceQosPolicy), iqpCtrl.create);
-router.put('/interface-qos-policies/:id',      requirePermission('interface_qos_policies.update'), validate(updateInterfaceQosPolicy), iqpCtrl.update);
+router.post('/interface-qos-policies',         requirePermission('interface_qos_policies.create'), validate(createInterfaceQosPolicy, { strip: false }), iqpCtrl.create);
+router.put('/interface-qos-policies/:id',      requirePermission('interface_qos_policies.update'), validate(updateInterfaceQosPolicy, { strip: false }), iqpCtrl.update);
 router.delete('/interface-qos-policies/:id',   requirePermission('interface_qos_policies.delete'), iqpCtrl.destroy);
 router.post('/interface-qos-policies/:id/restore', requirePermission('interface_qos_policies.update'), iqpCtrl.restore);
 
@@ -211,8 +211,8 @@ const mplsCtrl = teController('mpls_vlan_prioritization_rules');
 
 router.get('/mpls-vlan-prioritization',         requirePermission('mpls_vlan_prioritization.view'),   mplsCtrl.list);
 router.get('/mpls-vlan-prioritization/:id',      requirePermission('mpls_vlan_prioritization.view'),   mplsCtrl.get);
-router.post('/mpls-vlan-prioritization',         requirePermission('mpls_vlan_prioritization.create'), validate(createMplsVlanRule), mplsCtrl.create);
-router.put('/mpls-vlan-prioritization/:id',      requirePermission('mpls_vlan_prioritization.update'), validate(updateMplsVlanRule), mplsCtrl.update);
+router.post('/mpls-vlan-prioritization',         requirePermission('mpls_vlan_prioritization.create'), validate(createMplsVlanRule, { strip: false }), mplsCtrl.create);
+router.put('/mpls-vlan-prioritization/:id',      requirePermission('mpls_vlan_prioritization.update'), validate(updateMplsVlanRule, { strip: false }), mplsCtrl.update);
 router.delete('/mpls-vlan-prioritization/:id',   requirePermission('mpls_vlan_prioritization.delete'), mplsCtrl.destroy);
 router.post('/mpls-vlan-prioritization/:id/restore', requirePermission('mpls_vlan_prioritization.update'), mplsCtrl.restore);
 
@@ -239,8 +239,8 @@ router.get('/dscp-marking-policies/export/config', requirePermission('dscp_marki
 
 router.get('/dscp-marking-policies',         requirePermission('dscp_marking_policies.view'),   dscpCtrl.list);
 router.get('/dscp-marking-policies/:id',      requirePermission('dscp_marking_policies.view'),   dscpCtrl.get);
-router.post('/dscp-marking-policies',         requirePermission('dscp_marking_policies.create'), validate(createDscpMarkingPolicy), dscpCtrl.create);
-router.put('/dscp-marking-policies/:id',      requirePermission('dscp_marking_policies.update'), validate(updateDscpMarkingPolicy), dscpCtrl.update);
+router.post('/dscp-marking-policies',         requirePermission('dscp_marking_policies.create'), validate(createDscpMarkingPolicy, { strip: false }), dscpCtrl.create);
+router.put('/dscp-marking-policies/:id',      requirePermission('dscp_marking_policies.update'), validate(updateDscpMarkingPolicy, { strip: false }), dscpCtrl.update);
 router.delete('/dscp-marking-policies/:id',   requirePermission('dscp_marking_policies.delete'), dscpCtrl.destroy);
 router.post('/dscp-marking-policies/:id/restore', requirePermission('dscp_marking_policies.update'), dscpCtrl.restore);
 

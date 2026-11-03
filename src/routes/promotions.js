@@ -19,8 +19,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('promotions.view'), ctrl.list);
 router.get('/:id', requirePermission('promotions.view'), ctrl.get);
-router.post('/', requirePermission('promotions.create'), validate(createPromotion), ctrl.create);
-router.put('/:id', requirePermission('promotions.update'), validate(updatePromotion), ctrl.update);
+router.post('/', requirePermission('promotions.create'), validate(createPromotion, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('promotions.update'), validate(updatePromotion, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('promotions.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('promotions.update'), ctrl.restore);
 

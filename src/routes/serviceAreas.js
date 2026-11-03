@@ -20,8 +20,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('service_areas.view'), ctrl.list);
 router.get('/:id', requirePermission('service_areas.view'), ctrl.get);
-router.post('/', requirePermission('service_areas.create'), validate(createServiceArea), ctrl.create);
-router.put('/:id', requirePermission('service_areas.update'), validate(updateServiceArea), ctrl.update);
+router.post('/', requirePermission('service_areas.create'), validate(createServiceArea, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('service_areas.update'), validate(updateServiceArea, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('service_areas.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('service_areas.update'), ctrl.restore);
 

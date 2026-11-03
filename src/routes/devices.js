@@ -26,6 +26,8 @@ const router = Router();
 
 const ctrl = crudController(Device, {
   cacheResource: 'devices',
+  // assertDeviceClientFk checks client_id itself.
+  ownedRefs: { client_id: null },
   beforeUpdate: (_old, req) => assertDeviceClientFk(req.body, req.orgId),
   afterCreate: invalidateDeviceRoutingCache,
   afterUpdate: invalidateDeviceRoutingCache,
@@ -41,7 +43,7 @@ router.post(
   '/',
   requirePermission('devices.create'),
   quotaCheck('devices'),
-  validate(createDevice),
+  validate(createDevice, { strip: false }),
   sealSnmpCommunity,
   sealSnmpV3Keys,
   async (req, res, next) => {
@@ -53,7 +55,7 @@ router.post(
     return ctrl.create(req, res, next);
   },
 );
-router.put('/:id', requirePermission('devices.update'), validate(updateDevice), sealSnmpCommunity, sealSnmpV3Keys, async (req, res, next) => {
+router.put('/:id', requirePermission('devices.update'), validate(updateDevice, { strip: false }), sealSnmpCommunity, sealSnmpV3Keys, async (req, res, next) => {
   try {
     const old = await Device.findByIdOrFail(req.params.id, req.orgId);
     await assertDeviceClientFk(req.body, req.orgId);
@@ -77,7 +79,7 @@ router.put('/:id', requirePermission('devices.update'), validate(updateDevice), 
     res.json({ data: redactDevice(record) });
   } catch (err) { next(err); }
 });
-router.patch('/:id', requirePermission('devices.update'), validate(patchDevice), sealSnmpCommunity, sealSnmpV3Keys, ctrl.partialUpdate);
+router.patch('/:id', requirePermission('devices.update'), validate(patchDevice, { strip: false }), sealSnmpCommunity, sealSnmpV3Keys, ctrl.partialUpdate);
 
 // POST /:id/reboot — reboot a device via its real driver/type mechanism.
 // Refuses honestly (422) when the device type has no supported reboot path.

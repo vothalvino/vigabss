@@ -75,7 +75,7 @@ router.get('/:id', requirePermission('remediation_rules.view'), async (req, res,
 });
 
 // POST /remediation-rules
-router.post('/', requirePermission('remediation_rules.create'), validate(createRemediationRule), async (req, res, next) => {
+router.post('/', requirePermission('remediation_rules.create'), validate(createRemediationRule, { strip: false }), async (req, res, next) => {
   try {
     const { name, description, condition_metric, condition_operator, condition_threshold,
       condition_duration_minutes, action_type, action_config, cooldown_minutes, is_enabled } = req.body;
@@ -97,7 +97,7 @@ router.post('/', requirePermission('remediation_rules.create'), validate(createR
 });
 
 // PUT /remediation-rules/:id
-router.put('/:id', requirePermission('remediation_rules.update'), validate(updateRemediationRule), async (req, res, next) => {
+router.put('/:id', requirePermission('remediation_rules.update'), validate(updateRemediationRule, { strip: false }), async (req, res, next) => {
   try {
     const [existing] = await db.query(
       'SELECT id FROM remediation_rules WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',

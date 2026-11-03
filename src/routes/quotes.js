@@ -70,6 +70,8 @@ function stripQuoteStatus(req, _res, next) {
 }
 
 const ctrl = crudController(Quote, {
+  // assertQuoteFks checks client_id and contract_id itself.
+  ownedRefs: { client_id: null, contract_id: null },
   beforeUpdate: (old, req) => assertQuoteFks(req.body, req.orgId, old),
 });
 
@@ -92,7 +94,7 @@ router.get('/:id', requirePermission('quotes.view'), ctrl.get);
 //
 // When an explicit quote_number IS supplied there's no sequence to protect,
 // so the plain crudController path (ctrl.create) is used unchanged.
-router.post('/', requirePermission('quotes.create'), stripQuoteStatus, validate(createQuote), async (req, res, next) => {
+router.post('/', requirePermission('quotes.create'), stripQuoteStatus, validate(createQuote, { strip: false }), async (req, res, next) => {
   try {
     // Both branches below write client_id/contract_id straight from the body.
     await assertQuoteFks(req.body, req.orgId);
@@ -125,7 +127,7 @@ router.post('/', requirePermission('quotes.create'), stripQuoteStatus, validate(
 
       await conn.commit();
 
-      const record = await Quote.findByIdIncludingDeleted(result.insertId);
+      const record = await Quote.findByIdIncludingDeleted(result.insertId, req.orgId);
 
       await auditLog.log({
         userId: req.user?.id,
@@ -147,7 +149,7 @@ router.post('/', requirePermission('quotes.create'), stripQuoteStatus, validate(
     next(err);
   }
 });
-router.put('/:id', requirePermission('quotes.update'), stripQuoteStatus, validate(updateQuote), ctrl.update);
+router.put('/:id', requirePermission('quotes.update'), stripQuoteStatus, validate(updateQuote, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('quotes.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('quotes.update'), ctrl.restore);
 
@@ -167,7 +169,7 @@ router.get('/:id/items', requirePermission('quotes.view'), async (req, res, next
 // when a quote converts to an invoice — see POST /:id/convert-to-invoice
 // below), so this stays a plain, non-transactional insert; the only new
 // behavior for Inventory Phase 2 is accepting + org-verifying inventory_item_id.
-router.post('/:id/items', requirePermission('quotes.update'), validate(createQuoteItem), async (req, res, next) => {
+router.post('/:id/items', requirePermission('quotes.update'), validate(createQuoteItem, { strip: false }), async (req, res, next) => {
   try {
     if (req.body.inventory_item_id) {
       // Integer-quantity guard: quote_items.quantity is DECIMAL(10,2) but
@@ -604,7 +606,7 @@ router.post('/:id/convert-to-invoice', requirePermission('quotes.create'), requi
       }
 
       await conn.commit();
-      const invoice = await Invoice.findById(invoiceId);
+      const invoice = await Invoice.findById(invoiceId, req.orgId);
       await businessEvents.emitInvoiceCreated(req.orgId, invoice);
       res.status(201).json({ data: invoice });
     } catch (txErr) {

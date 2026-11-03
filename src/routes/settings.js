@@ -83,7 +83,7 @@ router.get('/', requirePermission('settings.view'), async (req, res, next) => {
 // Update a single setting by key — org keys for the caller's org, install
 // keys for the operator only. Anything else is refused: an unknown key would
 // silently become a dead row (the pre-443 failure mode).
-router.put('/:key', requirePermission('settings.update'), validate(updateSetting), async (req, res, next) => {
+router.put('/:key', requirePermission('settings.update'), validate(updateSetting, { strip: false }), async (req, res, next) => {
   try {
     const { key } = req.params;
     const { value } = req.body;

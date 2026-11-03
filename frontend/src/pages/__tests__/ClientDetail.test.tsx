@@ -67,6 +67,19 @@ describe('ClientDetail page', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Acme Corp' })).toBeInTheDocument());
   });
 
+  // GQL-07: for a support or technician user the server returns the guarded
+  // nested fields empty or null; the page must still show the client.
+  it.each(['support', 'technician', 'readonly'])('renders for %s with guarded fields empty or null', async (role) => {
+    mockRole = role;
+    mockGql.mockResolvedValue({ client: {
+      ...client, invoices: [], payments: [], contracts: [], devices: [],
+      balance: null, balanceCurrency: null, balances: [], mixedCurrency: false, ledger: null,
+    } });
+    renderDetail();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Acme Corp' })).toBeInTheDocument());
+    expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
+  });
+
   // GQL-10: an MXN debt and a USD credit are shown apart, never summed.
   it('shows one amount per currency when the balance is mixed', async () => {
     mockGql.mockResolvedValue({ client: {

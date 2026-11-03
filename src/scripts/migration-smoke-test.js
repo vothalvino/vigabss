@@ -102,7 +102,7 @@ function extractSchemaColumns(sqlContent) {
     // like "comment TEXT NULL ..." is a column actually named comment and
     // must NOT be skipped.
     if (/^[)'"]/.test(trimmed)) continue;
-    if (/^(COMMENT\s+'|NOT\s+NULL|NULL\b|DEFAULT\s|REFERENCES\s|AFTER\s|ON\s+DELETE|ON\s+UPDATE|COLLATE\s)/i.test(trimmed)) continue;
+    if (/^(COMMENT\s+'|NOT\s+NULL|NULL\b|DEFAULT\s|REFERENCES\s|AFTER\s|ON\s+DELETE|ON\s+UPDATE|COLLATE\s|GENERATED\s+ALWAYS|AS\s*\(|VIRTUAL\b|STORED\b)/i.test(trimmed)) continue;
 
     // First identifier on the line is the column name.
     const colM = trimmed.match(/^`?(\w+)`?/);
@@ -247,13 +247,15 @@ async function runSmokeTest() {
     }
   }
 
+  // Fatal (DB-20): a fresh install from schema.sql and a migrated install must
+  // have the same columns. This was a warning, so schema.sql could drift ahead
+  // of the migrations unnoticed.
   if (colsMissingFromDb.length > 0) {
-    logger.warn(
+    logger.error(
       { columns: colsMissingFromDb },
-      'Columns declared in schema.sql but missing from migrated DB — a migration may be needed',
+      'Columns declared in schema.sql but missing from migrated DB — add the migration',
     );
-    // Warning only: schema.sql may declare columns that are intentionally
-    // added via ALTER TABLE migrations that haven't run yet in some setups.
+    passed = false;
   }
 
   const totalDbCols = [...dbCols.values()].reduce((s, c) => s + c.size, 0);

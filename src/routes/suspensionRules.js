@@ -54,8 +54,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('suspension_rules.view'), ctrl.list);
 router.get('/:id', requirePermission('suspension_rules.view'), ctrl.get);
-router.post('/', requirePermission('suspension_rules.create'), validate(createSuspensionRule), normalizePlanScope, ctrl.create);
-router.put('/:id', requirePermission('suspension_rules.update'), validate(updateSuspensionRule), normalizePlanScope, ctrl.update);
+router.post('/', requirePermission('suspension_rules.create'), validate(createSuspensionRule, { strip: false }), normalizePlanScope, ctrl.create);
+router.put('/:id', requirePermission('suspension_rules.update'), validate(updateSuspensionRule, { strip: false }), normalizePlanScope, ctrl.update);
 router.delete('/:id', requirePermission('suspension_rules.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('suspension_rules.update'), ctrl.restore);
 

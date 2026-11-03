@@ -24,7 +24,7 @@ router.use(orgScope);
 
 router.get('/', requirePermission('network_links.view'), ctrl.list);
 router.get('/:id', requirePermission('network_links.view'), ctrl.get);
-router.post('/', requirePermission('network_links.create'), validate(createNetworkLink), ownedReferences(LINK_REFS), async (req, res, next) => {
+router.post('/', requirePermission('network_links.create'), validate(createNetworkLink, { strip: false }), ownedReferences(LINK_REFS), async (req, res, next) => {
   try {
     if (NetworkLink.hasOrgScope && req.orgId) req.body.organization_id = req.orgId;
     const record = await NetworkLink.create(req.body);
@@ -33,7 +33,7 @@ router.post('/', requirePermission('network_links.create'), validate(createNetwo
     res.status(201).json({ data: record });
   } catch (err) { next(err); }
 });
-router.put('/:id', requirePermission('network_links.update'), validate(updateNetworkLink), ownedReferences(LINK_REFS), async (req, res, next) => {
+router.put('/:id', requirePermission('network_links.update'), validate(updateNetworkLink, { strip: false }), ownedReferences(LINK_REFS), async (req, res, next) => {
   try {
     const record = await NetworkLink.update(req.params.id, req.body, req.orgId);
     topologyContextService.invalidate(record.id, 'link')

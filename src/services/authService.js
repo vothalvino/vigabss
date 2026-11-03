@@ -364,7 +364,7 @@ async function completeMfaLogin({ mfaToken, code }) {
     throw new UnauthorizedError('Invalid or expired two-factor challenge. Sign in again.');
   }
 
-  const user = await User.findById(challenge.sub);
+  const user = await User.findById(challenge.sub, User.UNSCOPED);
   if (!user || user.status !== 'active') {
     throw new UnauthorizedError('Invalid or expired two-factor challenge. Sign in again.');
   }
@@ -425,7 +425,7 @@ async function completeMfaLogin({ mfaToken, code }) {
  */
 async function resolveActiveOrg(userId, userRole, requestedOrgId) {
   if (!requestedOrgId) return null;
-  const user = await User.findById(userId);
+  const user = await User.findById(userId, User.UNSCOPED);
   if (!user || user.status !== 'active' || user.role !== userRole) return null;
   const principal = await resolveOrgPrincipal(user, requestedOrgId);
   if (!principal) return null;
@@ -472,7 +472,7 @@ async function refreshToken(currentRefreshToken, requestedActiveOrgId = null) {
   }
 
   // User must still be active
-  const user = await User.findById(session.user_id);
+  const user = await User.findById(session.user_id, User.UNSCOPED);
   if (!user || user.status !== 'active') {
     throw new UnauthorizedError('User not found or inactive');
   }
@@ -631,7 +631,7 @@ async function changePassword(userId, currentPassword, newPassword) {
     throw new ValidationError('The new password must differ from the current one');
   }
 
-  const user = await User.findById(userId);
+  const user = await User.findById(userId, User.UNSCOPED);
   if (!user) {
     throw new NotFoundError('User');
   }
@@ -698,7 +698,7 @@ async function switchOrganization(userId, organizationId, currentRefreshToken) {
   }
 
   // User must still be active.
-  const user = await User.findById(userId);
+  const user = await User.findById(userId, User.UNSCOPED);
   if (!user || user.status !== 'active') {
     throw new UnauthorizedError('User not found or inactive');
   }
@@ -787,7 +787,7 @@ async function generateEmailVerificationToken(userId) {
  * confirmed inbox.
  */
 async function resendVerificationEmail(userId) {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId, User.UNSCOPED);
   if (!user) {
     throw new NotFoundError('User');
   }

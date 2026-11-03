@@ -117,7 +117,7 @@ router.get('/profiles/:id', requirePermission('onu_profiles.view'), async (req, 
   } catch (err) { next(err); }
 });
 
-router.post('/profiles', requirePermission('onu_profiles.create'), validate(createOnuProfile), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
+router.post('/profiles', requirePermission('onu_profiles.create'), validate(createOnuProfile, { strip: false }), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
     const fields = declaredFields(req.body, createOnuProfile);
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOnuProfile, 'organization_id'));
@@ -130,7 +130,7 @@ router.post('/profiles', requirePermission('onu_profiles.create'), validate(crea
   } catch (err) { next(err); }
 });
 
-router.put('/profiles/:id', requirePermission('onu_profiles.update'), validate(updateOnuProfile), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
+router.put('/profiles/:id', requirePermission('onu_profiles.update'), validate(updateOnuProfile, { strip: false }), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'onu_profiles', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuProfile);
@@ -142,7 +142,7 @@ router.put('/profiles/:id', requirePermission('onu_profiles.update'), validate(u
   } catch (err) { next(err); }
 });
 
-router.patch('/profiles/:id', requirePermission('onu_profiles.update'), validate(patchOnuProfile), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
+router.patch('/profiles/:id', requirePermission('onu_profiles.update'), validate(patchOnuProfile, { strip: false }), ownsReferences({ plan_id: 'plans' }), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'onu_profiles', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, patchOnuProfile);
@@ -219,7 +219,7 @@ router.get('/details/:id', requirePermission('onu_management.view'), async (req,
   } catch (err) { next(err); }
 });
 
-router.post('/details', requirePermission('onu_management.create'), validate(createOnuDetail), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
+router.post('/details', requirePermission('onu_management.create'), validate(createOnuDetail, { strip: false }), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
   try {
     const fields = declaredFields(req.body, createOnuDetail, ['loid_password_encrypted']);
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOnuDetail, 'organization_id', 'loid_password_encrypted'));
@@ -232,7 +232,7 @@ router.post('/details', requirePermission('onu_management.create'), validate(cre
   } catch (err) { next(err); }
 });
 
-router.put('/details/:id', requirePermission('onu_management.update'), validate(updateOnuDetail), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
+router.put('/details/:id', requirePermission('onu_management.update'), validate(updateOnuDetail, { strip: false }), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
   try {
     if (!await writableRow(res, 'onu_details', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuDetail, ['loid_password_encrypted']);
@@ -244,7 +244,7 @@ router.put('/details/:id', requirePermission('onu_management.update'), validate(
   } catch (err) { next(err); }
 });
 
-router.patch('/details/:id', requirePermission('onu_management.update'), validate(patchOnuDetail), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
+router.patch('/details/:id', requirePermission('onu_management.update'), validate(patchOnuDetail, { strip: false }), ownsReferences(DEVICE_REFS), sealLoidPassword, async (req, res, next) => {
   try {
     if (!await writableRow(res, 'onu_details', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, patchOnuDetail, ['loid_password_encrypted']);
@@ -357,7 +357,7 @@ router.get('/whitelist/:id', requirePermission('onu_whitelist.view'), async (req
   } catch (err) { next(err); }
 });
 
-router.post('/whitelist', requirePermission('onu_whitelist.create'), validate(createOnuWhitelistEntry), ownsReferences(DEVICE_REFS), async (req, res, next) => {
+router.post('/whitelist', requirePermission('onu_whitelist.create'), validate(createOnuWhitelistEntry, { strip: false }), ownsReferences(DEVICE_REFS), async (req, res, next) => {
   try {
     const fields = declaredFields(req.body, createOnuWhitelistEntry);
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOnuWhitelistEntry, 'organization_id'));
@@ -370,7 +370,7 @@ router.post('/whitelist', requirePermission('onu_whitelist.create'), validate(cr
   } catch (err) { next(err); }
 });
 
-router.put('/whitelist/:id', requirePermission('onu_whitelist.update'), validate(updateOnuWhitelistEntry), ownsReferences(DEVICE_REFS), async (req, res, next) => {
+router.put('/whitelist/:id', requirePermission('onu_whitelist.update'), validate(updateOnuWhitelistEntry, { strip: false }), ownsReferences(DEVICE_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'onu_whitelist', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuWhitelistEntry);
@@ -428,7 +428,7 @@ router.get('/omci-configs/:id', requirePermission('onu_omci_configs.view'), asyn
   } catch (err) { next(err); }
 });
 
-router.post('/omci-configs', requirePermission('onu_omci_configs.create'), validate(createOnuOmciConfig), ownsReferences(DEVICE_REFS), sealWifiPassword, async (req, res, next) => {
+router.post('/omci-configs', requirePermission('onu_omci_configs.create'), validate(createOnuOmciConfig, { strip: false }), ownsReferences(DEVICE_REFS), sealWifiPassword, async (req, res, next) => {
   try {
     const fields = declaredFields(req.body, createOnuOmciConfig, ['wifi_password_encrypted']);
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, apply_status: 'pending', ...fields }, columnsOf(createOnuOmciConfig, 'organization_id', 'apply_status', 'wifi_password_encrypted'));
@@ -441,7 +441,7 @@ router.post('/omci-configs', requirePermission('onu_omci_configs.create'), valid
   } catch (err) { next(err); }
 });
 
-router.put('/omci-configs/:id', requirePermission('onu_omci_configs.update'), validate(updateOnuOmciConfig), ownsReferences(DEVICE_REFS), sealWifiPassword, async (req, res, next) => {
+router.put('/omci-configs/:id', requirePermission('onu_omci_configs.update'), validate(updateOnuOmciConfig, { strip: false }), ownsReferences(DEVICE_REFS), sealWifiPassword, async (req, res, next) => {
   try {
     if (!await writableRow(res, 'onu_omci_configs', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuOmciConfig, ['wifi_password_encrypted']);
@@ -499,7 +499,7 @@ router.get('/firmware-jobs/:id', requirePermission('onu_firmware_jobs.view'), as
   } catch (err) { next(err); }
 });
 
-router.post('/firmware-jobs', requirePermission('onu_firmware_jobs.create'), validate(createOnuFirmwareJob), ownsReferences({ ...DEVICE_REFS, onu_device_id: 'devices' }), async (req, res, next) => {
+router.post('/firmware-jobs', requirePermission('onu_firmware_jobs.create'), validate(createOnuFirmwareJob, { strip: false }), ownsReferences({ ...DEVICE_REFS, onu_device_id: 'devices' }), async (req, res, next) => {
   try {
     const job = await ftthService.scheduleFirmwareUpgrade({
       scope: req.body.scope,
@@ -516,7 +516,7 @@ router.post('/firmware-jobs', requirePermission('onu_firmware_jobs.create'), val
   } catch (err) { next(err); }
 });
 
-router.put('/firmware-jobs/:id', requirePermission('onu_firmware_jobs.update'), validate(updateOnuFirmwareJob), async (req, res, next) => {
+router.put('/firmware-jobs/:id', requirePermission('onu_firmware_jobs.update'), validate(updateOnuFirmwareJob, { strip: false }), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'onu_firmware_jobs', req.params.id, req.orgId)) return;
     const updateData = declaredFields(req.body, updateOnuFirmwareJob);

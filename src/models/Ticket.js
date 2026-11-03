@@ -21,11 +21,14 @@ class Ticket extends BaseModel {
 
   static get softDelete() { return true; }
 
-  static async getComments(ticketId) {
+  static async getComments(ticketId, orgId) {
     const db = require('../config/database');
+    // The ticket must belong to the organization (TNB-34).
     const [rows] = await db.query(
-      'SELECT * FROM ticket_comments WHERE ticket_id = ? AND deleted_at IS NULL ORDER BY created_at ASC',
-      [ticketId],
+      `SELECT * FROM ticket_comments WHERE ticket_id = ? AND deleted_at IS NULL
+          AND EXISTS (SELECT 1 FROM tickets owner WHERE owner.id = ? AND owner.organization_id = ?)
+        ORDER BY created_at ASC`,
+      [ticketId, ticketId, this.scopedOrg(orgId, 'getComments')],
     );
     return rows;
   }

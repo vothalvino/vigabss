@@ -37,6 +37,7 @@ const {
 } = require('../middleware/schemas/ai');
 
 const AiPolicy         = require('../models/AiPolicy');
+const aiBudget = require('../services/aiBudgetService');
 const AiProvider       = require('../models/AiProvider');
 const AiReplyLog       = require('../models/AiReplyLog');
 const phraseLibraryService = require('../services/phraseLibraryService');
@@ -66,7 +67,8 @@ router.use(orgScope);
 router.get('/policy', requirePermission('ai.policy.read'), async (req, res, next) => {
   try {
     const policy = await AiPolicy.findByOrgId(req.orgId);
-    res.json({ data: policy });
+    // Month-to-date spend against monthly_budget_usd (ASY-34).
+    res.json({ data: { ...policy, budget: await aiBudget.status(req.orgId) } });
   } catch (err) { next(err); }
 });
 
@@ -78,7 +80,7 @@ router.get('/policy', requirePermission('ai.policy.read'), async (req, res, next
  *   • select per-channel toggles (enabled_channels)
  *   • change mode / tone / locale / PII-redaction
  */
-router.put('/policy', requirePermission('ai.policy.write'), validate(updateAiPolicy), async (req, res, next) => {
+router.put('/policy', requirePermission('ai.policy.write'), validate(updateAiPolicy, { strip: false }), async (req, res, next) => {
   try {
     // The active provider must be one of this org's own enabled providers.
     // The FK only proves the id exists; without this an org could point its
@@ -297,7 +299,7 @@ router.get('/providers', requirePermission('ai.providers.read'), async (req, res
  * Register a new LLM provider.  If api_key is present it is encrypted with
  * AES-256-GCM before storage; the raw key is never persisted.
  */
-router.post('/providers', requirePermission('ai.providers.write'), validate(createAiProvider), async (req, res, next) => {
+router.post('/providers', requirePermission('ai.providers.write'), validate(createAiProvider, { strip: false }), async (req, res, next) => {
   try {
     const { api_key, ...rest } = req.body;
 
@@ -332,7 +334,7 @@ router.post('/providers', requirePermission('ai.providers.write'), validate(crea
  * PUT /api/v1/ai/providers/:id
  * Edit provider settings.  Re-encrypts api_key if supplied.
  */
-router.put('/providers/:id', requirePermission('ai.providers.write'), validate(updateAiProvider), async (req, res, next) => {
+router.put('/providers/:id', requirePermission('ai.providers.write'), validate(updateAiProvider, { strip: false }), async (req, res, next) => {
   try {
     const provider = await AiProvider.findById(req.params.id, req.orgId);
     if (!provider) return next(new NotFoundError('AI provider'));
@@ -360,7 +362,7 @@ router.put('/providers/:id', requirePermission('ai.providers.write'), validate(u
     await _assertEndpointAllowed(effectiveKind,
       updates.endpoint_url !== undefined ? updates.endpoint_url : provider.endpoint_url);
 
-    await AiProvider.update(provider.id, updates);
+    await AiProvider.update(provider.id, updates, req.orgId);
     const updated = await AiProvider.findById(provider.id, req.orgId);
     const { api_key_encrypted: _k, ...safe } = updated;
 
@@ -378,7 +380,7 @@ router.delete('/providers/:id', requirePermission('ai.providers.write'), async (
     const provider = await AiProvider.findById(req.params.id, req.orgId);
     if (!provider) return next(new NotFoundError('AI provider'));
 
-    await AiProvider.delete(provider.id);
+    await AiProvider.delete(provider.id, req.orgId);
     logger.info({ orgId: req.orgId, providerId: provider.id }, 'AI provider soft-deleted');
     res.status(204).end();
   } catch (err) { next(err); }
@@ -423,7 +425,7 @@ router.get('/phrases', requirePermission('ai.phrases.read'), async (req, res, ne
  * POST /api/v1/ai/phrases
  * Create a new phrase.
  */
-router.post('/phrases', requirePermission('ai.phrases.write'), validate(createAiPhrase), async (req, res, next) => {
+router.post('/phrases', requirePermission('ai.phrases.write'), validate(createAiPhrase, { strip: false }), async (req, res, next) => {
   try {
     const phrase = await phraseLibraryService.createPhrase(req.orgId, req.body);
     res.status(201).json({ data: phrase });
@@ -434,7 +436,7 @@ router.post('/phrases', requirePermission('ai.phrases.write'), validate(createAi
  * PUT /api/v1/ai/phrases/:id
  * Update an existing phrase.
  */
-router.put('/phrases/:id', requirePermission('ai.phrases.write'), validate(updateAiPhrase), async (req, res, next) => {
+router.put('/phrases/:id', requirePermission('ai.phrases.write'), validate(updateAiPhrase, { strip: false }), async (req, res, next) => {
   try {
     const phrase = await phraseLibraryService.updatePhrase(req.orgId, req.params.id, req.body);
     res.json({ data: phrase });
@@ -476,7 +478,7 @@ router.get('/forbidden-terms', requirePermission('ai.phrases.read'), async (req,
  * POST /api/v1/ai/forbidden-terms
  * Add a new forbidden term.
  */
-router.post('/forbidden-terms', requirePermission('ai.phrases.write'), validate(createForbiddenTerm), async (req, res, next) => {
+router.post('/forbidden-terms', requirePermission('ai.phrases.write'), validate(createForbiddenTerm, { strip: false }), async (req, res, next) => {
   try {
     const term = await phraseLibraryService.createForbiddenTerm(req.orgId, req.body);
     res.status(201).json({ data: term });
@@ -504,7 +506,7 @@ router.delete('/forbidden-terms/:id', requirePermission('ai.phrases.write'), asy
  * the staff ticket detail UI).  Overrides the policy mode to 'draft_only' so
  * the result is always returned to the caller rather than auto-sent.
  */
-router.post('/reply/draft', requirePermission('ai.reply.draft'), validate(replyDraft), async (req, res, next) => {
+router.post('/reply/draft', requirePermission('ai.reply.draft'), validate(replyDraft, { strip: false }), async (req, res, next) => {
   try {
     const { ticket_id, channel = 'portal', inbound_text, contract_id } = req.body;
 
@@ -553,7 +555,7 @@ router.post('/reply/draft', requirePermission('ai.reply.draft'), validate(replyD
  * ('sent' | 'edited' | 'discarded'), persist the final_text, and — when action
  * is 'sent' or 'edited' — post the text as a new ticket comment.
  */
-router.post('/reply/send', requirePermission('ai.reply.send'), validate(replySend), async (req, res, next) => {
+router.post('/reply/send', requirePermission('ai.reply.send'), validate(replySend, { strip: false }), async (req, res, next) => {
   try {
     const { log_id, final_text, action } = req.body;
 
@@ -566,7 +568,7 @@ router.post('/reply/send', requirePermission('ai.reply.send'), validate(replySen
       final_text,
       action,
       reviewer_user_id: req.user?.id || null,
-    });
+    }, req.orgId);
 
     // Post as a ticket comment when the reply is actually being sent/edited
     if (action === 'sent' || action === 'edited') {

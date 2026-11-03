@@ -103,8 +103,8 @@ async function rejectSystemProfile(req, res, next) {
 const rejectMove = rejectOrgReassignment('SNMP profile');
 const adopt = adoptUnattributed('snmp_profiles', 'SNMP profile');
 
-router.post('/', requirePermission('snmp_profiles.create'), validate(createSnmpProfile), ctrl.create);
-router.put('/:id', requirePermission('snmp_profiles.update'), rejectSystemProfile, rejectMove, validate(updateSnmpProfile), adopt, ctrl.update);
+router.post('/', requirePermission('snmp_profiles.create'), validate(createSnmpProfile, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('snmp_profiles.update'), rejectSystemProfile, rejectMove, validate(updateSnmpProfile, { strip: false }), adopt, ctrl.update);
 router.delete('/:id', requirePermission('snmp_profiles.delete'), rejectSystemProfile, adopt, ctrl.destroy);
 router.post('/:id/restore', requirePermission('snmp_profiles.update'), rejectSystemProfile, adopt, ctrl.restore);
 
@@ -145,7 +145,7 @@ router.get('/:id/oids', requirePermission('snmp_profiles.view'), requireVisibleP
   }
 });
 
-router.post('/:id/oids', requirePermission('snmp_profiles.update'), requireVisibleProfile, rejectSystemProfile, validate(createSnmpProfileOid), async (req, res, next) => {
+router.post('/:id/oids', requirePermission('snmp_profiles.update'), requireVisibleProfile, rejectSystemProfile, validate(createSnmpProfileOid, { strip: false }), async (req, res, next) => {
   try {
     const oid = await SnmpProfile.addOid({ profile_id: req.params.id, ...req.body });
     res.status(201).json({ data: oid });

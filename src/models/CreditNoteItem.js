@@ -9,7 +9,7 @@ class CreditNoteItem extends BaseModel {
 
   static get fillable() {
     return [
-      'credit_note_id', 'description', 'quantity', 'unit_price', 'amount',
+      'credit_note_id', 'description', 'quantity', 'unit_price', 'tax_rate_id',
     ];
   }
 

@@ -54,7 +54,7 @@ class ConcessionTitle extends BaseModel {
 
   static async create(data) { return super.create(this.normalizeInput(data)); }
 
-  static async update(id, data, orgId = null) { return super.update(id, this.normalizeInput(data), orgId); }
+  static async update(id, data, orgId) { return super.update(id, this.normalizeInput(data), orgId); }
 }
 
 module.exports = ConcessionTitle;

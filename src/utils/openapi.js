@@ -1348,7 +1348,7 @@ function generateSpec() {
 
       // ---- AI Assistant ----
       '/ai/policy': {
-        get:  { tags: ['AI Assistant'], summary: 'Get AI reply policy', operationId: 'getAiPolicy', security: [{ bearerAuth: [] }], responses: r200('AiPolicy') },
+        get:  { tags: ['AI Assistant'], summary: 'Get AI reply policy, with month-to-date spend against monthly_budget_usd', operationId: 'getAiPolicy', security: [{ bearerAuth: [] }], responses: r200('AiPolicy') },
         put:  { tags: ['AI Assistant'], summary: 'Upsert AI reply policy', operationId: 'upsertAiPolicy', security: [{ bearerAuth: [] }], requestBody: jsonBody('ai_updateAiPolicy'), responses: r200('AiPolicy') },
       },
       '/ai/providers/catalog': {

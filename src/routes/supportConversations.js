@@ -125,7 +125,7 @@ router.get(
 router.put(
   '/channels/:channel',
   requirePermission('support.channels.manage'),
-  validate(updateChannelSchema),
+  validate(updateChannelSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const { channel } = req.params;
@@ -212,7 +212,7 @@ router.get(
 router.post(
   '/kb',
   requirePermission('support.kb.manage'),
-  validate(createKbSchema),
+  validate(createKbSchema, { strip: false }),
   async (req, res, next) => {
     try {
       // The UI sends is_published (snake_case). category is NOT NULL in the DB,
@@ -268,7 +268,7 @@ router.post(
 router.post(
   '/kb/:id/feedback',
   requirePermission('support.kb.feedback'),
-  validate(kbFeedbackSchema),
+  validate(kbFeedbackSchema, { strip: false }),
   async (req, res, next) => {
     try {
       // kb_feedback has no organization column: the article lookup is the
@@ -304,7 +304,7 @@ router.get(
 router.put(
   '/kb/:id',
   requirePermission('support.kb.manage'),
-  validate(updateKbSchema),
+  validate(updateKbSchema, { strip: false }),
   async (req, res, next) => {
     try {
       // updateArticle returns { affected }, which is always truthy, so a
@@ -343,7 +343,7 @@ router.delete(
 router.post(
   '/conversations',
   requirePermission('support.conversations.create'),
-  validate(startConvSchema),
+  validate(startConvSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const { clientId, channel = 'web', message } = req.body;
@@ -390,7 +390,7 @@ router.get(
 router.post(
   '/conversations/:id/messages',
   requirePermission('support.conversations.respond'),
-  validate(sendMsgSchema),
+  validate(sendMsgSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const conv = await supportConversationService.getConversation(req.params.id, req.orgId);
@@ -413,7 +413,7 @@ router.post(
 router.post(
   '/conversations/:id/escalate',
   requirePermission('support.conversations.escalate'),
-  validate(escalateSchema),
+  validate(escalateSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const conv = await supportConversationService.getConversation(req.params.id, req.orgId);

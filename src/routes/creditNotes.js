@@ -327,7 +327,7 @@ router.get('/', requirePermission('credit_notes.view'), (req, res, next) => {
   return ctrl.list(req, res, next);
 });
 router.get('/:id', requirePermission('credit_notes.view'), ctrl.get);
-router.post('/', requirePermission('credit_notes.create'), validate(createCreditNote), async (req, res, next) => {
+router.post('/', requirePermission('credit_notes.create'), validate(createCreditNote, { strip: false }), async (req, res, next) => {
   try {
     assertTotalsConsistent(req.body);
     await assertCreditNoteFks(req.body, req.orgId);
@@ -376,7 +376,7 @@ router.post('/', requirePermission('credit_notes.create'), validate(createCredit
     next(err);
   }
 });
-router.put('/:id', requirePermission('credit_notes.update'), validate(updateCreditNote), ctrl.update);
+router.put('/:id', requirePermission('credit_notes.update'), validate(updateCreditNote, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('credit_notes.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('credit_notes.update'), ctrl.restore);
 
@@ -386,7 +386,7 @@ router.post('/:id/restore', requirePermission('credit_notes.update'), ctrl.resto
 // service enforces every fiscal precondition (org+client MX profiles, stampable
 // status, a vigente related ingreso, single-CFDI-per-credit-note) with
 // actionable 4xx errors.
-router.post('/:id/stamp', requireMxLocale, requirePermission('cfdi_documents.create'), validate(stampCreditNote), async (req, res, next) => {
+router.post('/:id/stamp', requireMxLocale, requirePermission('cfdi_documents.create'), validate(stampCreditNote, { strip: false }), async (req, res, next) => {
   try {
     const result = await creditNoteCfdiService.stampCreditNote(req.params.id, req.orgId, {
       uso_cfdi: req.body.uso_cfdi,
@@ -415,7 +415,7 @@ router.get('/:id/items', requirePermission('credit_notes.view'), async (req, res
   }
 });
 
-router.post('/:id/items', requirePermission('credit_notes.update'), validate(createCreditNoteItem), async (req, res, next) => {
+router.post('/:id/items', requirePermission('credit_notes.update'), validate(createCreditNoteItem, { strip: false }), async (req, res, next) => {
   try {
     const conn = await db.getConnection();
     let item;

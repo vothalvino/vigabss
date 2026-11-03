@@ -123,7 +123,7 @@ router.get('/bandwidth-test-servers/:id', requirePermission('bandwidth_test_serv
 });
 
 // POST /bandwidth-test-servers
-router.post('/bandwidth-test-servers', requirePermission('bandwidth_test_servers.create'), validate(createBandwidthTestServer), sealAuthToken, async (req, res, next) => {
+router.post('/bandwidth-test-servers', requirePermission('bandwidth_test_servers.create'), validate(createBandwidthTestServer, { strip: false }), sealAuthToken, async (req, res, next) => {
   try {
     const { name, description, host, port = 5201, protocol = 'iperf3', region, site_id, is_active = true, auth_token, max_bandwidth_mbps } = req.body;
     await assertServerFks(req.body, req.orgId);
@@ -142,7 +142,7 @@ router.post('/bandwidth-test-servers', requirePermission('bandwidth_test_servers
 });
 
 // PUT /bandwidth-test-servers/:id
-router.put('/bandwidth-test-servers/:id', requirePermission('bandwidth_test_servers.update'), validate(updateBandwidthTestServer), sealAuthToken, async (req, res, next) => {
+router.put('/bandwidth-test-servers/:id', requirePermission('bandwidth_test_servers.update'), validate(updateBandwidthTestServer, { strip: false }), sealAuthToken, async (req, res, next) => {
   try {
     const allowed = ['name','description','host','port','protocol','region','site_id','is_active','auth_token','max_bandwidth_mbps'];
     const fields = [];
@@ -245,7 +245,7 @@ router.get('/subscriber-speed-test-jobs/:id', requirePermission('subscriber_spee
 });
 
 // POST /subscriber-speed-test-jobs
-router.post('/subscriber-speed-test-jobs', requirePermission('subscriber_speed_tests.create'), validate(createSpeedTestJob), async (req, res, next) => {
+router.post('/subscriber-speed-test-jobs', requirePermission('subscriber_speed_tests.create'), validate(createSpeedTestJob, { strip: false }), async (req, res, next) => {
   try {
     const { contract_id, test_server_id, scheduled_at, notes } = req.body;
     await assertSpeedTestJobFks(req.body, req.orgId);

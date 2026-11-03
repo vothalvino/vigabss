@@ -25,16 +25,30 @@ function getClient(): GraphQLClient {
   return new GraphQLClient(endpoint, {
     credentials: 'include',
     fetch: authedFetch,
+    // GQL-07: with the default 'none', any error in a 200 response threw, so
+    // one failing nested field (invoices on a client page) blanked the whole
+    // page as "not found". 'all' keeps the data the server did return.
+    errorPolicy: 'all',
   });
 }
 
 /**
  * Execute a GraphQL document against the VigaBSS API.
  * Automatically attaches the current access token.
+ *
+ * Returns the data even when some fields failed (they come back null or
+ * empty); throws only when the response carries no data at all.
  */
 export async function gql<T = unknown>(
   document: string,
   variables?: Record<string, unknown>,
 ): Promise<T> {
-  return getClient().request<T>(document, variables);
+  const { data, errors } = await getClient().rawRequest<T>(document, variables);
+  if (data === null || data === undefined) {
+    throw new Error(errors?.[0]?.message || 'GraphQL request returned no data');
+  }
+  if (errors?.length) {
+    console.warn('GraphQL returned partial data:', errors.map(e => e.message).join('; '));
+  }
+  return data;
 }

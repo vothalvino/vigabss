@@ -77,7 +77,9 @@ function withAddDeadline(promise, name) {
 // ---------------------------------------------------------------------------
 // Well-known queue names — used for stats even before any jobs are added
 // ---------------------------------------------------------------------------
-const QUEUE_NAMES = ['scheduled-task', 'webhook-delivery', 'trap-forwarding-delivery', 'sms-send', 'cfdi-stamp', 'config-backup', 'ai-triage', 'ai-backfill-embeddings', 'ai-cost-rollup'];
+// Only queues something enqueues (ASY-34): cfdi-stamp, config-backup,
+// ai-backfill-embeddings and ai-cost-rollup had handlers but no producer.
+const QUEUE_NAMES = ['scheduled-task', 'webhook-delivery', 'trap-forwarding-delivery', 'sms-send', 'ai-triage'];
 
 // ---------------------------------------------------------------------------
 // In-process queue (fallback when BullMQ is not available)

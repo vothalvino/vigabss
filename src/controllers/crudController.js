@@ -10,6 +10,7 @@ const auditLog = require('../services/auditLog');
 const { bustCache } = require('../middleware/httpCache');
 const { AppError } = require('../utils/errors');
 const { assertOwnedReferences } = require('../utils/ownedReferences');
+const OWNED_FOREIGN_KEYS = require('../models/ownedForeignKeys.json');
 const logger = require('../utils/logger').child({ service: 'crudController' });
 
 /**
@@ -141,7 +142,20 @@ function crudController(Model, _options = {}) {
   // *_id from the body — another tenant's client, gateway, NAS, device —
   // was stored and later joined or acted on (TNB-28). Checked on create,
   // update and partialUpdate, before the write.
-  const ownedRefs = _options.ownedRefs || null;
+  const ownedRefs = Object.fromEntries(Object.entries(_options.ownedRefs || {}).filter(([, spec]) => spec !== null));
+  const hasOwnedRefs = Object.keys(ownedRefs).length > 0;
+  // TNA-38: every other foreign key a create or update writes is checked too,
+  // from the FOREIGN KEY constraints in schema.sql
+  // (src/models/ownedForeignKeys.json). It runs after the route's own hooks,
+  // so a route's more specific check and error code come first, and on the
+  // transaction when there is one. A null ownedRefs entry turns a default off.
+  const defaultRefs = Object.fromEntries(Object.entries(OWNED_FOREIGN_KEYS[Model.tableName] || {})
+    .filter(([column]) => (Model.fillable || []).includes(column)
+      && !Object.prototype.hasOwnProperty.call(_options.ownedRefs || {}, column)));
+  const hasDefaultRefs = Object.keys(defaultRefs).length > 0;
+  const assertDefaultRefs = (req, exec) => (hasDefaultRefs
+    ? assertOwnedReferences(req.body, req.orgId ?? null, defaultRefs, exec ? { exec } : {})
+    : null);
   // Optional pre-delete guard — called with the EXISTING record (and req) right
   // after it is fetched and BEFORE the delete is applied. Like beforeUpdate it
   // MAY throw to reject. Reuses the existing fetch, so it costs no extra query.
@@ -222,7 +236,7 @@ function crudController(Model, _options = {}) {
   }
 
   async function applyUpdate(req) {
-    if (ownedRefs) await assertOwnedReferences(req.body, req.orgId ?? null, ownedRefs);
+    if (hasOwnedRefs) await assertOwnedReferences(req.body, req.orgId ?? null, ownedRefs);
     // A record can never be moved between tenants through generic CRUD.
     //
     // This is not defence in depth — it closed a live cross-tenant WRITE.
@@ -257,6 +271,7 @@ function crudController(Model, _options = {}) {
     if (!transactionalWrites) {
       const old = await Model.findByIdOrFail(req.params.id, req.orgId);
       if (beforeUpdateHook) await beforeUpdateHook(old, req, db.query);
+      await assertDefaultRefs(req);
       const record = await Model.update(req.params.id, req.body, req.orgId);
       return { old, record };
     }
@@ -270,6 +285,7 @@ function crudController(Model, _options = {}) {
       const exec = conn.execute.bind(conn);
       const old = await Model.findByIdOrFail(req.params.id, req.orgId, { exec, forUpdate: true });
       if (beforeUpdateHook) await beforeUpdateHook(old, req, exec);
+      await assertDefaultRefs(req, exec);
       const record = await Model.update(req.params.id, req.body, req.orgId, { exec });
       if (transactionalAfterHooks && afterUpdateHook) {
         await afterUpdateHook(record, req, exec);
@@ -372,10 +388,11 @@ function crudController(Model, _options = {}) {
           req.body.organization_id = req.orgId;
         }
 
-        if (ownedRefs) await assertOwnedReferences(req.body, req.orgId ?? null, ownedRefs);
+        if (hasOwnedRefs) await assertOwnedReferences(req.body, req.orgId ?? null, ownedRefs);
         // After the org injection, so a hook reconciling per-org state sees the
         // org it will actually be written with.
         if (beforeCreateHook) await beforeCreateHook(req);
+        await assertDefaultRefs(req);
 
         const record = await createFn(req.body);
 

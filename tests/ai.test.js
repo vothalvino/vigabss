@@ -8,6 +8,13 @@ const request = require('supertest');
 // Database mock
 // ---------------------------------------------------------------------------
 const mockQuery = jest.fn();
+// The monthly AI budget is covered by tests/aiBudget.test.js.
+jest.mock('../src/services/aiBudgetService', () => ({
+  assertWithinBudget: jest.fn().mockResolvedValue(undefined),
+  recordUsage: jest.fn().mockResolvedValue(undefined),
+  overBudget: jest.fn().mockResolvedValue(false),
+  status: jest.fn().mockResolvedValue({ budget_usd: null, spent_usd: 0, remaining_usd: null }),
+}));
 jest.mock('../src/config/database', () => ({
   query:         mockQuery,
   queryReplica:  jest.fn(),
@@ -179,6 +186,7 @@ describe('GET /api/v1/ai/policy', () => {
     const res = await request(app).get('/api/v1/ai/policy');
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({ enabled: 0, mode: 'draft_only' });
+    expect(res.body.data.budget).toEqual({ budget_usd: null, spent_usd: 0, remaining_usd: null });
     expect(mockAiPolicyFindByOrgId).toHaveBeenCalledWith(1);
   });
 });
@@ -322,7 +330,7 @@ describe('DELETE /api/v1/ai/providers/:id', () => {
   it('returns 204 No Content', async () => {
     const res = await request(app).delete('/api/v1/ai/providers/1');
     expect(res.status).toBe(204);
-    expect(mockAiProviderDelete).toHaveBeenCalledWith(1);
+    expect(mockAiProviderDelete).toHaveBeenCalledWith(1, 1);
   });
 
   it('returns 404 when provider not found', async () => {

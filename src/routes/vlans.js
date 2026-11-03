@@ -19,8 +19,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('vlans.view'), ctrl.list);
 router.get('/:id', requirePermission('vlans.view'), ctrl.get);
-router.post('/', requirePermission('vlans.create'), validate(createVlan), ctrl.create);
-router.put('/:id', requirePermission('vlans.update'), validate(updateVlan), ctrl.update);
+router.post('/', requirePermission('vlans.create'), validate(createVlan, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('vlans.update'), validate(updateVlan, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('vlans.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('vlans.update'), ctrl.restore);
 

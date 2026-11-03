@@ -36,7 +36,7 @@ router.get('/', requirePermission('config_templates.view'), async (req, res, nex
 });
 
 // POST / — create
-router.post('/', requirePermission('config_templates.create'), validate(createTemplate), async (req, res, next) => {
+router.post('/', requirePermission('config_templates.create'), validate(createTemplate, { strip: false }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { name, description, device_type, manufacturer, template_content, variables_schema, status } = req.body;
@@ -74,7 +74,7 @@ router.post('/:id/deploy', requirePermission('config_deployments.create'), async
 });
 
 // PUT /:id — update
-router.put('/:id', requirePermission('config_templates.update'), validate(updateTemplate), async (req, res, next) => {
+router.put('/:id', requirePermission('config_templates.update'), validate(updateTemplate, { strip: false }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { id } = req.params;

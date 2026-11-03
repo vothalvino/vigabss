@@ -181,7 +181,7 @@ const kbRateSchema = {
 // ---------------------------------------------------------------------------
 
 // POST /portal/auth/login
-router.post('/auth/login', authLimiter, validate(portalLoginSchema), async (req, res, next) => {
+router.post('/auth/login', authLimiter, validate(portalLoginSchema, { strip: false }), async (req, res, next) => {
   try {
     const result = await portalAuthService.login(req.body);
     setPortalRefreshCookie(res, result.refreshToken);
@@ -196,7 +196,7 @@ router.post('/auth/login', authLimiter, validate(portalLoginSchema), async (req,
 // access token in memory and re-exchanges the (cookie) refresh token on every
 // page load, so the strict 20/window limiter would 429 a frequently-reloaded session
 // and bounce the customer to the login screen. /auth/login stays on authLimiter.
-router.post('/auth/refresh', validate(portalRefreshSchema), async (req, res, next) => {
+router.post('/auth/refresh', validate(portalRefreshSchema, { strip: false }), async (req, res, next) => {
   try {
     const cookieToken = req.cookies?.[PORTAL_REFRESH_COOKIE];
     const tokenValue = cookieToken || req.body?.refreshToken;
@@ -225,7 +225,7 @@ router.post('/auth/logout', async (req, res, next) => {
 
 // POST /portal/auth/password-reset/request
 router.post('/auth/password-reset/request', authLimiter, portalPasswordResetLimiter,
-  validate(portalRequestPasswordResetSchema), async (req, res, next) => {
+  validate(portalRequestPasswordResetSchema, { strip: false }), async (req, res, next) => {
     try {
       const result = await portalAuthService.requestPasswordReset(req.body.email);
 
@@ -275,7 +275,7 @@ router.post('/auth/password-reset/request', authLimiter, portalPasswordResetLimi
   });
 
 // POST /portal/auth/password-reset
-router.post('/auth/password-reset', authLimiter, validate(portalResetPasswordSchema), async (req, res, next) => {
+router.post('/auth/password-reset', authLimiter, validate(portalResetPasswordSchema, { strip: false }), async (req, res, next) => {
   try {
     const result = await portalAuthService.resetPassword(req.body.token, req.body.password);
     res.json(result);
@@ -295,7 +295,7 @@ router.get('/auth/me', (req, res) => {
 });
 
 // PUT /portal/auth/password — update portal password
-router.put('/auth/password', validate(portalPasswordSchema), async (req, res, next) => {
+router.put('/auth/password', validate(portalPasswordSchema, { strip: false }), async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -669,7 +669,7 @@ router.get('/tickets', async (req, res, next) => {
 });
 
 // POST /portal/tickets — open a new ticket
-router.post('/tickets', validate(createTicketSchema), async (req, res, next) => {
+router.post('/tickets', validate(createTicketSchema, { strip: false }), async (req, res, next) => {
   try {
     const { subject, description, priority, category } = req.body;
     const [result] = await db.query(
@@ -724,7 +724,7 @@ router.get('/tickets/:id', async (req, res, next) => {
 });
 
 // POST /portal/tickets/:id/comments — add a comment
-router.post('/tickets/:id/comments', validate(createCommentSchema), async (req, res, next) => {
+router.post('/tickets/:id/comments', validate(createCommentSchema, { strip: false }), async (req, res, next) => {
   try {
     const [ticketRows] = await db.query(
       'SELECT id, contract_id FROM tickets WHERE id = ? AND client_id = ? AND organization_id <=> ? AND deleted_at IS NULL',
@@ -1192,7 +1192,7 @@ router.get('/service-requests', async (req, res, next) => {
 });
 
 // POST /portal/service-requests — create a new request
-router.post('/service-requests', validate(createServiceRequestSchema), async (req, res, next) => {
+router.post('/service-requests', validate(createServiceRequestSchema, { strip: false }), async (req, res, next) => {
   try {
     const { request_type, payload } = req.body;
     const request = await portalServiceRequestService.createRequest({
@@ -1259,7 +1259,7 @@ router.get('/kb/:slugOrId', async (req, res, next) => {
 });
 
 // POST /portal/kb/:slugOrId/rate — rate a KB article
-router.post('/kb/:slugOrId/rate', validate(kbRateSchema), async (req, res, next) => {
+router.post('/kb/:slugOrId/rate', validate(kbRateSchema, { strip: false }), async (req, res, next) => {
   try {
     const result = await portalServiceRequestService.rateKbArticle(
       req.client.organizationId,
@@ -1378,7 +1378,7 @@ router.post('/chat/start', async (req, res, next) => {
 });
 
 // POST /portal/chat/:token/message — send a chat message, get AI reply
-router.post('/chat/:token/message', validate(chatMessageSchema), async (req, res, next) => {
+router.post('/chat/:token/message', validate(chatMessageSchema, { strip: false }), async (req, res, next) => {
   try {
     const { token } = req.params;
     const { message } = req.body;
@@ -1437,8 +1437,20 @@ router.post('/chat/:token/message', validate(chatMessageSchema), async (req, res
     const HOLDING_REPLY = 'Thanks — a member of our support team will reply on your ticket shortly.';
     let aiText = HOLDING_REPLY;
     let handedToStaff = true;
+    // Spend caps (ASY-34): a session gets PORTAL_CHAT_MAX_TURNS AI turns and a
+    // client PORTAL_CHAT_CLIENT_DAILY_TURNS across sessions per day. Past
+    // either, the chat goes to staff without a provider call.
+    const maxTurns = Number.parseInt(process.env.PORTAL_CHAT_MAX_TURNS, 10) || 20;
+    const dailyTurns = Number.parseInt(process.env.PORTAL_CHAT_CLIENT_DAILY_TURNS, 10) || 60;
+    const [[recent]] = await db.query(
+      `SELECT COALESCE(SUM(turn_count), 0) AS turns FROM portal_chat_sessions
+        WHERE client_id = ? AND organization_id <=> ? AND updated_at >= NOW() - INTERVAL 1 DAY`,
+      [req.client.id, req.client.organizationId],
+    );
+    const capped = (session.turn_count || 0) >= maxTurns || Number(recent?.turns || 0) >= dailyTurns;
+    if (capped) logger.info({ ticketId, sessionId: session.id }, 'Portal chat AI turn cap reached; handing the chat to staff');
     try {
-      const aiResult = await aiReplyService.generate({
+      const aiResult = capped ? { skipped: true, reason: 'turn_limit' } : await aiReplyService.generate({
         orgId: req.client.organizationId,
         ticketId,
         channel: 'portal',
@@ -1519,7 +1531,7 @@ router.post('/callback-request', async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // POST /portal/push/subscribe — register / update Web Push subscription
-router.post('/push/subscribe', validate(pushSubscribeSchema), async (req, res, next) => {
+router.post('/push/subscribe', validate(pushSubscribeSchema, { strip: false }), async (req, res, next) => {
   try {
     const { endpoint, p256dh, auth, notify_outage, notify_billing, notify_ticket } = req.body;
     if (!require('../services/portalPushService').isAllowedPushEndpoint(endpoint)) {

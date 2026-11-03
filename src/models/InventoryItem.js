@@ -57,13 +57,13 @@ class InventoryItem extends BaseModel {
    * this method only ever serves InventoryItem — see Plan.getAddons for the
    * same aggregation pattern (this table's Phase 2 sibling).
    */
-  static async findAllWithStock({ where = {}, orderBy = 'id', order = 'ASC', limit = 50, offset = 0, orgId = null, withDeleted = false, onlyDeleted = false } = {}) {
+  static async findAllWithStock({ where = {}, orderBy = 'id', order = 'ASC', limit = 50, offset = 0, orgId, withDeleted = false, onlyDeleted = false } = {}) {
     if (onlyDeleted && !this.softDelete) return [];
 
     const conditions = [];
     const params = [];
 
-    if (orgId !== null && this.hasOrgScope) {
+    if (this.scopedOrg(orgId, 'findAllWithStock') !== null) {
       conditions.push('i.organization_id = ?');
       params.push(orgId);
     }

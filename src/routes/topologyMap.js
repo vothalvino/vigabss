@@ -125,7 +125,7 @@ router.get('/geofences', requirePermission('geofences.view'), async (req, res, n
 });
 
 // POST /topology/geofences
-router.post('/geofences', requirePermission('geofences.manage'), validate(createGeofence), async (req, res, next) => {
+router.post('/geofences', requirePermission('geofences.manage'), validate(createGeofence, { strip: false }), async (req, res, next) => {
   try {
     const row = await svc.createGeofence(req.orgId, req.body, req.user?.id);
     res.status(201).json({ data: row });
@@ -142,7 +142,7 @@ router.get('/geofences/:id', requirePermission('geofences.view'), async (req, re
 });
 
 // PUT /topology/geofences/:id
-router.put('/geofences/:id', requirePermission('geofences.manage'), validate(updateGeofence), async (req, res, next) => {
+router.put('/geofences/:id', requirePermission('geofences.manage'), validate(updateGeofence, { strip: false }), async (req, res, next) => {
   try {
     const row = await svc.updateGeofence(req.orgId, parseInt(req.params.id, 10), req.body);
     if (!row) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Geofence not found' } });
@@ -172,7 +172,7 @@ router.get('/infrastructure', requirePermission('mapping.infrastructure'), async
 });
 
 // POST /topology/infrastructure
-router.post('/infrastructure', requirePermission('mapping.infrastructure_manage'), validate(createInfrastructure), async (req, res, next) => {
+router.post('/infrastructure', requirePermission('mapping.infrastructure_manage'), validate(createInfrastructure, { strip: false }), async (req, res, next) => {
   try {
     const row = await svc.createInfrastructurePoint(req.orgId, req.body);
     res.status(201).json({ data: row });
@@ -189,7 +189,7 @@ router.get('/infrastructure/:id', requirePermission('mapping.infrastructure'), a
 });
 
 // PUT /topology/infrastructure/:id
-router.put('/infrastructure/:id', requirePermission('mapping.infrastructure_manage'), validate(updateInfrastructure), async (req, res, next) => {
+router.put('/infrastructure/:id', requirePermission('mapping.infrastructure_manage'), validate(updateInfrastructure, { strip: false }), async (req, res, next) => {
   try {
     const row = await svc.updateInfrastructurePoint(req.orgId, parseInt(req.params.id, 10), req.body);
     if (!row) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Infrastructure point not found' } });
@@ -219,7 +219,7 @@ router.get('/dependencies/:deviceId', requirePermission('topology.view'), async 
 });
 
 // POST /topology/dependencies
-router.post('/dependencies', requirePermission('topology.dependency_manage'), validate(createDependencyEdge), ownedReferences({ parent_device_id: 'devices', child_device_id: 'devices' }), async (req, res, next) => {
+router.post('/dependencies', requirePermission('topology.dependency_manage'), validate(createDependencyEdge, { strip: false }), ownedReferences({ parent_device_id: 'devices', child_device_id: 'devices' }), async (req, res, next) => {
   try {
     const row = await svc.createDependencyEdge(req.orgId, req.body);
     res.status(201).json({ data: row });

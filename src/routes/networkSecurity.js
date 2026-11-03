@@ -47,7 +47,7 @@ router.get('/firewall-rules', requirePermission('firewall_rules.view'), async (r
 });
 
 // POST /firewall-rules
-router.post('/firewall-rules', requirePermission('firewall_rules.create'), validate(createFirewallRule), async (req, res, next) => {
+router.post('/firewall-rules', requirePermission('firewall_rules.create'), validate(createFirewallRule, { strip: false }), async (req, res, next) => {
   try {
     const { name, description, action, protocol, src_ip, src_port, dst_ip, dst_port, priority, direction } = req.body;
     const [result] = await db.query(
@@ -142,7 +142,7 @@ router.get('/ddos-protection', requirePermission('ddos_protection.view'), async 
 });
 
 // POST /ddos-protection
-router.post('/ddos-protection', requirePermission('ddos_protection.create'), validate(createDdosRule), async (req, res, next) => {
+router.post('/ddos-protection', requirePermission('ddos_protection.create'), validate(createDdosRule, { strip: false }), async (req, res, next) => {
   try {
     const {
       name, rule_type, target_prefix, action, pps_threshold,
@@ -264,7 +264,7 @@ router.get('/blackhole-routes', requirePermission('blackhole_routes.view'), asyn
 // POST /blackhole-routes — create/trigger
 // Accepts `prefix` (new schema name) or legacy `target_prefix` for backward compat.
 // Schema has no next_hop column; that field is silently ignored if sent.
-router.post('/blackhole-routes', requirePermission('blackhole_routes.create'), validate(createBlackholeRoute), async (req, res, next) => {
+router.post('/blackhole-routes', requirePermission('blackhole_routes.create'), validate(createBlackholeRoute, { strip: false }), async (req, res, next) => {
   try {
     const { prefix, target_prefix, reason, notes } = req.body;
     const prefixValue = prefix ?? target_prefix;
@@ -330,7 +330,7 @@ router.get('/dns-blocklists', requirePermission('dns_blocklists.view'), async (r
 
 // POST /dns-blocklists
 // Accepts entry_type (new) or legacy source/reason for backward compat.
-router.post('/dns-blocklists', requirePermission('dns_blocklists.create'), validate(createDnsBlocklist), async (req, res, next) => {
+router.post('/dns-blocklists', requirePermission('dns_blocklists.create'), validate(createDnsBlocklist, { strip: false }), async (req, res, next) => {
   try {
     const { domain, category, entry_type, threat_feed_source, source, is_active } = req.body;
     // Map legacy `source` to threat_feed_source; default entry_type to 'manual'
@@ -412,7 +412,7 @@ router.get('/cpe-security-scans', requirePermission('cpe_security_scans.view'), 
 // POST /cpe-security-scans — trigger scan. Nothing runs scans yet: a created
 // row stayed 'pending' for ever and read as a scan in progress (TNB-37), so
 // the request is refused with 501 and nothing is recorded.
-router.post('/cpe-security-scans', requirePermission('cpe_security_scans.create'), validate(triggerCpeScan), ownedReferences({ device_id: 'devices', cpe_device_id: 'cpe_devices' }), async (req, res, next) => {
+router.post('/cpe-security-scans', requirePermission('cpe_security_scans.create'), validate(triggerCpeScan, { strip: false }), ownedReferences({ device_id: 'devices', cpe_device_id: 'cpe_devices' }), async (req, res, next) => {
   try {
     const { device_id, cpe_device_id } = req.body;
 

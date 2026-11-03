@@ -19,13 +19,13 @@ router.use(orgScope);
 
 router.post('/generate-period',
   requirePermission('invoices.create'),
-  validate(billingSchemas.generatePeriod),
+  validate(billingSchemas.generatePeriod, { strip: false }),
   billingController.generatePeriod,
 );
 
 router.post('/generate-invoice',
   requirePermission('invoices.create'),
-  validate(billingSchemas.generateInvoice),
+  validate(billingSchemas.generateInvoice, { strip: false }),
   billingController.generateInvoice,
 );
 

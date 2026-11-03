@@ -19,8 +19,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('pppoe_service_profiles.view'), ctrl.list);
 router.get('/:id', requirePermission('pppoe_service_profiles.view'), ctrl.get);
-router.post('/', requirePermission('pppoe_service_profiles.create'), validate(createPppoeServiceProfile), ctrl.create);
-router.put('/:id', requirePermission('pppoe_service_profiles.update'), validate(updatePppoeServiceProfile), ctrl.update);
+router.post('/', requirePermission('pppoe_service_profiles.create'), validate(createPppoeServiceProfile, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('pppoe_service_profiles.update'), validate(updatePppoeServiceProfile, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('pppoe_service_profiles.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('pppoe_service_profiles.update'), ctrl.restore);
 

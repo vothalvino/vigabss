@@ -32,8 +32,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('rma.view'), ctrl.list);
 router.get('/:id', requirePermission('rma.view'), ctrl.get);
-router.post('/', requirePermission('rma.create'), validate(createRmaRequest), ctrl.create);
-router.put('/:id', requirePermission('rma.update'), validate(updateRmaRequest), ctrl.update);
+router.post('/', requirePermission('rma.create'), validate(createRmaRequest, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('rma.update'), validate(updateRmaRequest, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('rma.close'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('rma.update'), ctrl.restore);
 
@@ -42,7 +42,7 @@ router.post('/:id/restore', requirePermission('rma.update'), ctrl.restore);
 // ---------------------------------------------------------------------------
 
 // POST /rma-requests/:id/ship
-router.post('/:id/ship', requirePermission('rma.update'), validate(shipRma), async (req, res, next) => {
+router.post('/:id/ship', requirePermission('rma.update'), validate(shipRma, { strip: false }), async (req, res, next) => {
   try {
     const rma = await RmaRequest.findById(parseInt(req.params.id, 10), req.orgId);
     if (!rma) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'RMA request not found' } });
@@ -65,7 +65,7 @@ router.post('/:id/ship', requirePermission('rma.update'), validate(shipRma), asy
 });
 
 // POST /rma-requests/:id/receive
-router.post('/:id/receive', requirePermission('rma.update'), validate(receiveRma), async (req, res, next) => {
+router.post('/:id/receive', requirePermission('rma.update'), validate(receiveRma, { strip: false }), async (req, res, next) => {
   try {
     const rma = await RmaRequest.findById(parseInt(req.params.id, 10), req.orgId);
     if (!rma) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'RMA request not found' } });
@@ -80,7 +80,7 @@ router.post('/:id/receive', requirePermission('rma.update'), validate(receiveRma
 });
 
 // POST /rma-requests/:id/close
-router.post('/:id/close', requirePermission('rma.close'), validate(closeRma), ownedReferences({ replacement_asset_id: 'assets' }), async (req, res, next) => {
+router.post('/:id/close', requirePermission('rma.close'), validate(closeRma, { strip: false }), ownedReferences({ replacement_asset_id: 'assets' }), async (req, res, next) => {
   try {
     const rma = await RmaRequest.findById(parseInt(req.params.id, 10), req.orgId);
     if (!rma) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'RMA request not found' } });

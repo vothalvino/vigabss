@@ -532,7 +532,7 @@ router.get('/:id', requirePermission('work_orders.view'), async (req, res, next)
 });
 
 // POST /work-orders
-router.post('/', requirePermission('work_orders.create'), validate(createWorkOrder), ownedReferences(WORK_ORDER_REFS), async (req, res, next) => {
+router.post('/', requirePermission('work_orders.create'), validate(createWorkOrder, { strip: false }), ownedReferences(WORK_ORDER_REFS), async (req, res, next) => {
   try {
     const { ticket_id, assigned_to, title, description, status, priority, scheduled_at, latitude, longitude, address, notes,
       client_id, site_id, device_id, contract_id, service_order_id, work_type } = req.body;
@@ -565,7 +565,7 @@ router.post('/', requirePermission('work_orders.create'), validate(createWorkOrd
 });
 
 // PUT /work-orders/:id
-router.put('/:id', requirePermission('work_orders.update'), validate(updateWorkOrder), ownedReferences(WORK_ORDER_REFS), async (req, res, next) => {
+router.put('/:id', requirePermission('work_orders.update'), validate(updateWorkOrder, { strip: false }), ownedReferences(WORK_ORDER_REFS), async (req, res, next) => {
   try {
     const { ticket_id, assigned_to, title, description, status, priority, scheduled_at, started_at, completed_at, latitude, longitude, address, notes,
       client_id, site_id, device_id, contract_id, service_order_id, work_type } = req.body;
@@ -630,7 +630,7 @@ router.put('/:id', requirePermission('work_orders.update'), validate(updateWorkO
 });
 
 // PATCH /work-orders/:id
-router.patch('/:id', requirePermission('work_orders.update'), validate(patchWorkOrder), ownedReferences(WORK_ORDER_REFS), async (req, res, next) => {
+router.patch('/:id', requirePermission('work_orders.update'), validate(patchWorkOrder, { strip: false }), ownedReferences(WORK_ORDER_REFS), async (req, res, next) => {
   try {
     const allowed = ['ticket_id','assigned_to','title','description','status','priority','scheduled_at','started_at','completed_at','latitude','longitude','address','notes','client_id','site_id','device_id','contract_id','service_order_id','work_type',
       'acceptance_signal_dbm','acceptance_link_mbps','acceptance_rx_dbm','acceptance_waived','acceptance_notes'];
@@ -934,7 +934,7 @@ router.get('/:id/pickup-items', requirePermission('work_orders.view'), async (re
 // (returned -> back in stock +1, ledger 'return'; rma -> no stock change).
 // The work order auto-completes once every outstanding rented unit on its
 // contract has been resolved.
-router.post('/:id/pickup-items', requirePermission('work_orders.update'), validate(pickupDisposition), async (req, res, next) => {
+router.post('/:id/pickup-items', requirePermission('work_orders.update'), validate(pickupDisposition, { strip: false }), async (req, res, next) => {
   try {
     const device = await inventorySerialService.completePickupUnit({
       workOrderId: parseInt(req.params.id, 10),

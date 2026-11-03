@@ -62,7 +62,7 @@ router.get('/:id/ports', requirePermission('olt_ports.view'), async (req, res, n
 /**
  * POST /:id/ports — create a port record for an OLT
  */
-router.post('/:id/ports', requirePermission('olt_ports.create'), validate(createOltPort), async (req, res, next) => {
+router.post('/:id/ports', requirePermission('olt_ports.create'), validate(createOltPort, { strip: false }), async (req, res, next) => {
   try {
     // Verify the device exists and belongs to org
     const [devRows] = await db.query(
@@ -177,7 +177,7 @@ router.get('/ports/:portId', requirePermission('olt_ports.view'), async (req, re
 /**
  * PUT /ports/:portId — update OLT port
  */
-router.put('/ports/:portId', requirePermission('olt_ports.update'), validate(updateOltPort), async (req, res, next) => {
+router.put('/ports/:portId', requirePermission('olt_ports.update'), validate(updateOltPort, { strip: false }), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'olt_ports', req.params.portId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, olt_device_id: _____, ...updateData } = req.body;
@@ -192,7 +192,7 @@ router.put('/ports/:portId', requirePermission('olt_ports.update'), validate(upd
 /**
  * PATCH /ports/:portId — partial update OLT port
  */
-router.patch('/ports/:portId', requirePermission('olt_ports.update'), validate(patchOltPort), async (req, res, next) => {
+router.patch('/ports/:portId', requirePermission('olt_ports.update'), validate(patchOltPort, { strip: false }), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'olt_ports', req.params.portId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, olt_device_id: _____, ...updateData } = req.body;
@@ -261,7 +261,7 @@ router.get('/splitters/:splitterId', requirePermission('olt_splitters.view'), as
 /**
  * POST /splitters — create splitter
  */
-router.post('/splitters', requirePermission('olt_splitters.create'), validate(createOltSplitter), async (req, res, next) => {
+router.post('/splitters', requirePermission('olt_splitters.create'), validate(createOltSplitter, { strip: false }), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOltSplitter, 'organization_id'));
@@ -277,7 +277,7 @@ router.post('/splitters', requirePermission('olt_splitters.create'), validate(cr
 /**
  * PUT /splitters/:splitterId — full update
  */
-router.put('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(updateOltSplitter), async (req, res, next) => {
+router.put('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(updateOltSplitter, { strip: false }), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'olt_splitters', req.params.splitterId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -292,7 +292,7 @@ router.put('/splitters/:splitterId', requirePermission('olt_splitters.update'), 
 /**
  * PATCH /splitters/:splitterId — partial update
  */
-router.patch('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(patchOltSplitter), async (req, res, next) => {
+router.patch('/splitters/:splitterId', requirePermission('olt_splitters.update'), validate(patchOltSplitter, { strip: false }), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'olt_splitters', req.params.splitterId, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -466,7 +466,7 @@ router.get('/onu-migrations/:jobId', requirePermission('onu_migration_jobs.view'
 /**
  * POST /onu-migrations — create an ONU port migration job
  */
-router.post('/onu-migrations', requirePermission('onu_migration_jobs.create'), validate(createOnuMigrationJob), async (req, res, next) => {
+router.post('/onu-migrations', requirePermission('onu_migration_jobs.create'), validate(createOnuMigrationJob, { strip: false }), async (req, res, next) => {
   try {
     const job = await ftthService.createOnuMigrationJob({
       onuDeviceId: req.body.onu_device_id,
@@ -490,7 +490,7 @@ router.post('/onu-migrations', requirePermission('onu_migration_jobs.create'), v
 /**
  * PATCH /onu-migrations/:jobId — cancel or update a migration job
  */
-router.patch('/onu-migrations/:jobId', requirePermission('onu_migration_jobs.update'), validate(patchOnuMigrationJob), async (req, res, next) => {
+router.patch('/onu-migrations/:jobId', requirePermission('onu_migration_jobs.update'), validate(patchOnuMigrationJob, { strip: false }), async (req, res, next) => {
   try {
     const job = await writableRow(res, 'onu_migration_jobs', req.params.jobId, req.orgId, 'id, status');
     if (!job) return;

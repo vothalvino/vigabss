@@ -50,11 +50,14 @@ class Client extends BaseModel {
   /**
    * Get MX profile for this client (if locale = 'MX').
    */
-  static async getMxProfile(clientId) {
+  // The child-table helpers take the organization and check the parent client
+  // belongs to it in the same statement (TNB-34): a caller that forgot its own
+  // findByIdOrFail no longer reads or writes another tenant's rows.
+  static async getMxProfile(clientId, orgId) {
     const db = require('../config/database');
     const [rows] = await db.query(
-      'SELECT * FROM client_mx_profiles WHERE client_id = ? AND deleted_at IS NULL',
-      [clientId],
+      'SELECT * FROM client_mx_profiles WHERE client_id = ? AND deleted_at IS NULL AND EXISTS (SELECT 1 FROM clients owner WHERE owner.id = ? AND owner.organization_id = ?)',
+      [clientId, clientId, this.scopedOrg(orgId, 'getMxProfile')],
     );
     return rows[0] || null;
   }
@@ -62,11 +65,11 @@ class Client extends BaseModel {
   /**
    * Get all custom fields (key/value) for this client.
    */
-  static async getCustomFields(clientId) {
+  static async getCustomFields(clientId, orgId) {
     const db = require('../config/database');
     const [rows] = await db.query(
-      'SELECT id, field_key, field_value, created_at, updated_at FROM client_custom_fields WHERE client_id = ? AND deleted_at IS NULL ORDER BY field_key',
-      [clientId],
+      'SELECT id, field_key, field_value, created_at, updated_at FROM client_custom_fields WHERE client_id = ? AND deleted_at IS NULL AND EXISTS (SELECT 1 FROM clients owner WHERE owner.id = ? AND owner.organization_id = ?) ORDER BY field_key',
+      [clientId, clientId, this.scopedOrg(orgId, 'getCustomFields')],
     );
     return rows;
   }
@@ -74,17 +77,21 @@ class Client extends BaseModel {
   /**
    * Create or update a custom field for this client (upsert on field_key).
    */
-  static async setCustomField(clientId, key, value) {
+  static async setCustomField(clientId, key, value, orgId) {
     const db = require('../config/database');
+    const owner = this.scopedOrg(orgId, 'setCustomField');
+    // INSERT ... SELECT from the owning client: a foreign client inserts nothing.
     await db.query(
       `INSERT INTO client_custom_fields (client_id, field_key, field_value)
-       VALUES (?, ?, ?)
+       SELECT owner.id, ?, ? FROM clients owner WHERE owner.id = ? AND owner.organization_id = ?
        ON DUPLICATE KEY UPDATE field_value = VALUES(field_value), deleted_at = NULL`,
-      [clientId, key, value ?? null],
+      [key, value ?? null, clientId, owner],
     );
     const [rows] = await db.query(
-      'SELECT id, field_key, field_value, created_at, updated_at FROM client_custom_fields WHERE client_id = ? AND field_key = ? AND deleted_at IS NULL',
-      [clientId, key],
+      `SELECT id, field_key, field_value, created_at, updated_at FROM client_custom_fields
+        WHERE client_id = ? AND field_key = ? AND deleted_at IS NULL
+          AND EXISTS (SELECT 1 FROM clients owner WHERE owner.id = ? AND owner.organization_id = ?)`,
+      [clientId, key, clientId, owner],
     );
     return rows[0] || null;
   }
@@ -92,11 +99,11 @@ class Client extends BaseModel {
   /**
    * Soft-delete a custom field by key.
    */
-  static async deleteCustomField(clientId, key) {
+  static async deleteCustomField(clientId, key, orgId) {
     const db = require('../config/database');
     const [result] = await db.query(
-      'UPDATE client_custom_fields SET deleted_at = NOW() WHERE client_id = ? AND field_key = ? AND deleted_at IS NULL',
-      [clientId, key],
+      'UPDATE client_custom_fields SET deleted_at = NOW() WHERE client_id = ? AND field_key = ? AND deleted_at IS NULL AND EXISTS (SELECT 1 FROM clients owner WHERE owner.id = ? AND owner.organization_id = ?)',
+      [clientId, key, clientId, this.scopedOrg(orgId, 'deleteCustomField')],
     );
     return result.affectedRows > 0;
   }
@@ -104,14 +111,15 @@ class Client extends BaseModel {
   /**
    * Get uploaded documents (ID, photo, etc.) for this client from the files table.
    */
-  static async getDocuments(clientId) {
+  static async getDocuments(clientId, orgId) {
     const db = require('../config/database');
     const [rows] = await db.query(
       `SELECT id, category, file_name, file_path, file_size, mime_type, uploaded_by, notes, created_at
          FROM files
         WHERE entity_type = 'client' AND entity_id = ? AND deleted_at IS NULL
+          AND EXISTS (SELECT 1 FROM clients owner WHERE owner.id = ? AND owner.organization_id = ?)
         ORDER BY created_at DESC`,
-      [clientId],
+      [clientId, clientId, this.scopedOrg(orgId, 'getDocuments')],
     );
     return rows;
   }
@@ -121,7 +129,7 @@ class Client extends BaseModel {
    * email, phone, or tax_id. When `excludeId` is set that client is omitted
    * (used when checking duplicates for an existing record).
    */
-  static async findDuplicates({ email, phone, tax_id, excludeId = null, orgId = null } = {}) {
+  static async findDuplicates({ email, phone, tax_id, excludeId = null, orgId } = {}) {
     const db = require('../config/database');
     const matchClauses = [];
     const params = [];
@@ -136,7 +144,7 @@ class Client extends BaseModel {
                  FROM clients
                 WHERE deleted_at IS NULL AND (${matchClauses.join(' OR ')})`;
 
-    if (orgId !== null) { sql += ' AND organization_id = ?'; params.push(orgId); }
+    if (this.scopedOrg(orgId, 'findDuplicates') !== null) { sql += ' AND organization_id = ?'; params.push(orgId); }
     if (excludeId !== null) { sql += ' AND id <> ?'; params.push(excludeId); }
 
     sql += ' ORDER BY id LIMIT 50';
@@ -152,7 +160,7 @@ class Client extends BaseModel {
    *
    * @returns {Promise<{ moved: Record<string, number> }>} per-table row counts moved
    */
-  static async merge(sourceId, targetId, orgId = null) {
+  static async merge(sourceId, targetId, orgId) {
     const db = require('../config/database');
     const { ValidationError, NotFoundError } = require('../utils/errors');
 

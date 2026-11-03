@@ -141,7 +141,7 @@ router.post('/:id/assign-next', requirePermission('ip_pools.assign'), async (req
 });
 
 // POST / — create pool with overlap detection
-router.post('/', requirePermission('ip_pools.create'), validate(createIpPool), async (req, res, next) => {
+router.post('/', requirePermission('ip_pools.create'), validate(createIpPool, { strip: false }), async (req, res, next) => {
   try {
     const body = { ...req.body, organization_id: req.orgId };
     await poolAssignmentService.assertNoOverlap(body);
@@ -154,7 +154,7 @@ router.post('/', requirePermission('ip_pools.create'), validate(createIpPool), a
 });
 
 // PUT /:id — update pool with overlap detection
-router.put('/:id', requirePermission('ip_pools.update'), validate(updateIpPool), async (req, res, next) => {
+router.put('/:id', requirePermission('ip_pools.update'), validate(updateIpPool, { strip: false }), async (req, res, next) => {
   try {
     // Fetch current record to merge org_id and ip_version for overlap check
     const existing = await IpPool.findByIdOrFail(req.params.id, req.orgId);

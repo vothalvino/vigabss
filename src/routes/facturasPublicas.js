@@ -76,7 +76,7 @@ router.get('/:id', requirePermission('facturas_publicas.view'), async (req, res,
 });
 
 // Create a factura pública
-router.post('/', requirePermission('facturas_publicas.create'), validate(createFacturaPublica), async (req, res, next) => {
+router.post('/', requirePermission('facturas_publicas.create'), validate(createFacturaPublica, { strip: false }), async (req, res, next) => {
   try {
     const safe = Object.fromEntries(
       Object.entries(req.body).filter(([k]) => ALLOWED_COLUMNS.includes(k)),
@@ -97,7 +97,7 @@ router.post('/', requirePermission('facturas_publicas.create'), validate(createF
 });
 
 // Update a factura pública
-router.put('/:id', requirePermission('facturas_publicas.update'), validate(updateFacturaPublica), async (req, res, next) => {
+router.put('/:id', requirePermission('facturas_publicas.update'), validate(updateFacturaPublica, { strip: false }), async (req, res, next) => {
   try {
     const safe = Object.fromEntries(
       Object.entries(req.body).filter(([k]) => ALLOWED_COLUMNS.includes(k)),
@@ -179,7 +179,7 @@ router.get('/:id/items', requirePermission('facturas_publicas.view'), async (req
 });
 
 // Link an invoice to a factura pública
-router.post('/:id/items', requirePermission('facturas_publicas.update'), validate(addFacturaPublicaItem), async (req, res, next) => {
+router.post('/:id/items', requirePermission('facturas_publicas.update'), validate(addFacturaPublicaItem, { strip: false }), async (req, res, next) => {
   try {
     const conn = await db.getConnection();
     let row;

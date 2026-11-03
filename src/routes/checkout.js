@@ -15,7 +15,7 @@ router.use(authenticate);
 router.use(orgScope);
 
 // POST /api/checkout/session — Create a checkout session for an invoice
-router.post('/session', requirePermission('payments.create'), validate(checkoutSchemas.createSession), async (req, res, next) => {
+router.post('/session', requirePermission('payments.create'), validate(checkoutSchemas.createSession, { strip: false }), async (req, res, next) => {
   try {
     const data = await checkoutService.createCheckoutSession({
       organizationId: req.orgId,
@@ -28,7 +28,7 @@ router.post('/session', requirePermission('payments.create'), validate(checkoutS
 });
 
 // POST /api/checkout/payment-link — Generate a payment link
-router.post('/payment-link', requirePermission('payments.create'), validate(checkoutSchemas.createPaymentLink), async (req, res, next) => {
+router.post('/payment-link', requirePermission('payments.create'), validate(checkoutSchemas.createPaymentLink, { strip: false }), async (req, res, next) => {
   try {
     const data = await checkoutService.generatePaymentLink({
       organizationId: req.orgId,

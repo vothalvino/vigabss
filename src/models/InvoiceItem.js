@@ -10,7 +10,7 @@ class InvoiceItem extends BaseModel {
   static get fillable() {
     return [
       'invoice_id', 'description', 'quantity', 'unit_price', 'amount',
-      'tax_rate', 'tax_amount',
+      'tax_rate_id', 
     ];
   }
 

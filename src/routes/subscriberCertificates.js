@@ -56,8 +56,8 @@ async function assertCertificateRefs(req, _res, next) {
 
 router.get('/', requirePermission('subscriber_certificates.view'), ctrl.list);
 router.get('/:id', requirePermission('subscriber_certificates.view'), ctrl.get);
-router.post('/', requirePermission('subscriber_certificates.create'), validate(createSubscriberCertificate), assertCertificateRefs, ctrl.create);
-router.put('/:id', requirePermission('subscriber_certificates.update'), validate(updateSubscriberCertificate), assertCertificateRefs, ctrl.update);
+router.post('/', requirePermission('subscriber_certificates.create'), validate(createSubscriberCertificate, { strip: false }), assertCertificateRefs, ctrl.create);
+router.put('/:id', requirePermission('subscriber_certificates.update'), validate(updateSubscriberCertificate, { strip: false }), assertCertificateRefs, ctrl.update);
 router.delete('/:id', requirePermission('subscriber_certificates.revoke'), ctrl.destroy);
 
 // List certificates for a specific RADIUS account
@@ -85,7 +85,7 @@ router.get('/client/:clientId', requirePermission('subscriber_certificates.view'
 });
 
 // Revoke a certificate
-router.post('/:id/revoke', requirePermission('subscriber_certificates.revoke'), validate(revokeSubscriberCertificate), async (req, res, next) => {
+router.post('/:id/revoke', requirePermission('subscriber_certificates.revoke'), validate(revokeSubscriberCertificate, { strip: false }), async (req, res, next) => {
   try {
     const cert = await SubscriberCertificate.findByIdOrFail(req.params.id, req.orgId);
     if (cert.status === 'revoked') {

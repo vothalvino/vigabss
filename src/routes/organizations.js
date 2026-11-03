@@ -148,7 +148,7 @@ router.get('/:id', orgScope, requirePermission('organizations.view'), assertCall
 // 2026-08-02): membership is required to ENTER an org (j66/j67), and create
 // grants the creator no membership — so a tenant admin could only ever mint
 // orgs they can never enter. Orgs are the operator's inventory, both ends.
-router.post('/', requirePermission('organizations.create'), requireInstallOperator, validate(createOrganization), ctrl.create);
+router.post('/', requirePermission('organizations.create'), requireInstallOperator, validate(createOrganization, { strip: false }), ctrl.create);
 /**
  * The ownership guard for every :id route on this router.
  *
@@ -183,8 +183,8 @@ async function assertCallerOwnsTargetOrg(req, res, next) {
   } catch (err) { return next(err); }
 }
 
-router.put('/:id', orgScope, requirePermission('organizations.update'), assertCallerOwnsTargetOrg, validate(updateOrganization), localeAwareUpdate('update'));
-router.patch('/:id', orgScope, requirePermission('organizations.update'), assertCallerOwnsTargetOrg, validate(patchOrganization), localeAwareUpdate('partialUpdate'));
+router.put('/:id', orgScope, requirePermission('organizations.update'), assertCallerOwnsTargetOrg, validate(updateOrganization, { strip: false }), localeAwareUpdate('update'));
+router.patch('/:id', orgScope, requirePermission('organizations.update'), assertCallerOwnsTargetOrg, validate(patchOrganization, { strip: false }), localeAwareUpdate('partialUpdate'));
 // Delete and restore had NO ownership guard at all, and Organization declares
 // hasOrgScope=false — so BaseModel omitted the org filter entirely (the j36
 // trap, on the organizations table itself) and any tenant admin could
@@ -241,7 +241,7 @@ router.get('/:id/settings', orgScope, requirePermission('settings.view'), assert
   }
 });
 
-router.put('/:id/settings/:key', orgScope, requirePermission('settings.update'), assertCallerOwnsTargetOrg, validate(updateSetting), async (req, res, next) => {
+router.put('/:id/settings/:key', orgScope, requirePermission('settings.update'), assertCallerOwnsTargetOrg, validate(updateSetting, { strip: false }), async (req, res, next) => {
   try {
     // Object.hasOwn, not a bare lookup — 'constructor' is truthy on any plain
     // object and would 500 on def.validate instead of 422ing.
@@ -314,7 +314,7 @@ router.get('/:id/email-settings', orgScope, requirePermission('email_settings.vi
   }
 });
 
-router.put('/:id/email-settings/:function', orgScope, requirePermission('email_settings.update'), assertCallerOwnsTargetOrg, validate(updateEmailSettings), async (req, res, next) => {
+router.put('/:id/email-settings/:function', orgScope, requirePermission('email_settings.update'), assertCallerOwnsTargetOrg, validate(updateEmailSettings, { strip: false }), async (req, res, next) => {
   try {
     res.set('Cache-Control', 'private, no-store');
     const data = await emailSettingsService.saveEmailSettings(req.params.id, req.params.function, req.body);
@@ -331,7 +331,7 @@ router.put('/:id/email-settings/:function', orgScope, requirePermission('email_s
   }
 });
 
-router.post('/:id/email-settings/:function/test', orgScope, requirePermission('email_settings.update'), assertCallerOwnsTargetOrg, emailSettingsTestLimiter, validate(testEmailSettingsSchema), async (req, res, next) => {
+router.post('/:id/email-settings/:function/test', orgScope, requirePermission('email_settings.update'), assertCallerOwnsTargetOrg, emailSettingsTestLimiter, validate(testEmailSettingsSchema, { strip: false }), async (req, res, next) => {
   try {
     res.set('Cache-Control', 'private, no-store');
     const data = await emailSettingsService.testEmailSettings(req.params.id, req.params.function, req.body.to);
@@ -435,7 +435,7 @@ router.get('/:id/mx-profile', orgScope, requirePermission('organizations.view'),
   }
 });
 
-router.put('/:id/mx-profile', orgScope, requirePermission('organizations.update'), validate(updateOrgMxProfile), async (req, res, next) => {
+router.put('/:id/mx-profile', orgScope, requirePermission('organizations.update'), validate(updateOrgMxProfile, { strip: false }), async (req, res, next) => {
   let profileConnection = null;
   try {
     assertCallerCanManageOrgFiscal(req);
