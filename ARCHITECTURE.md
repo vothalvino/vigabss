@@ -570,6 +570,42 @@ documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;
 do not replace those with process-local state.
 
+Retention keeps connection logs, accounting events, daily usage, CGNAT
+bindings and binding events covered by an active `preservation_holds` row
+(REG-06, `src/services/preservationHoldService.js`): same organization, a
+matching client, contract, username or IP, and an overlapping UTC range. A hold
+belongs to one government request or one DSAR (whose legal hold places one).
+`tests/test_preservation_holds.sql` runs the connection-log predicate in MySQL.
+
+Calendar days are business days (BIL-34): `src/utils/businessDate.js` gives
+the day in `BUSINESS_TIMEZONE` (default `America/Mexico_City`). Containers and
+MySQL sessions run in UTC, so never write `CURDATE()`, `CURRENT_DATE`, a
+`NOW()` comparison against a DATE, or `new Date().toISOString().slice(0, 10)`
+for a business date: pass `businessToday()` as a parameter, or inline
+`sqlBusinessToday()`. Models list their today-defaulted DATE columns in
+`businessDateColumns`, which `BaseModel.create` fills. Cron expressions run in
+the business zone. Timestamps, usage and accounting days, and the analytics
+snapshot windows stay UTC.
+
+With `REDIS_URL` set, more than one app replica may run (SEC-24): the per-IP
+rate limiters count in Redis (`CacheStore`, prefix `rl_ip_<name>:`), and SSE,
+browser WebSocket and GraphQL subscription events go through
+`src/services/realtimeBus.js`, which delivers locally and relays over the
+`vigabss:realtime` Redis channel to every other process, the worker included.
+Publish through `events.broadcast` or `pubsub.publish`, never to a local client
+set directly. FireRelay agent tunnels remain per process.
+
+Every scheduled task run goes through `taskRunner.executeScheduledTask(task,
+via)` (ASY-28), from the inline cron path (`via = 'cron'`), the BullMQ
+`scheduled-task` worker (`'worker'`) and a manual run (`'manual'`). It records
+the row's `last_status`, `last_error` and `last_duration_ms`, a
+`scheduled_task_runs` history row and the `scheduled_task_runs_total` and
+`scheduled_task_duration_seconds` metrics, a throw included. Both the inline
+path and the worker hold the task's MySQL advisory lock
+(`scheduler.runExclusive`) for the whole run, so a run never overlaps the
+previous one; the worker records a refused overlap as skipped. On shutdown the
+app waits for inline runs (`scheduler.drain`) before closing the database.
+
 Outgoing messages go through `src/services/messageOutbox.js` (ASY-33):
 `enqueue()` writes a `message_outbox` row (optionally inside the caller's
 transaction), and the `message_outbox` task, or with Redis a `message-outbox`

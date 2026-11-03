@@ -331,14 +331,22 @@ Operators must:
      -H "X-Org-Id: <org_id>"
    ```
 
-   The current endpoint includes selected client, contact, MX-profile, contract,
-   invoice, payment, ticket, connection-log, IP-assignment and AI-reply rows,
-   with implementation caps on some collections. It is **not a complete ARCO
-   fulfillment by itself**. Supplement it with every responsive page/record,
-   including identifiable `radius_accounting_events`,
-   `cgnat_attribution_bindings`, `cgnat_binding_events` and appropriately
-   restricted `ip_attribution_case_evidence`,
-   prompt/context data, audit data, integrations, exports and other storage.
+   The endpoint streams every row, without caps, of: the client, contacts,
+   MX profiles, contracts, invoices, payments, tickets and their comments
+   (internal notes flagged `is_internal`), connection logs, RADIUS accounting
+   events and daily usage, CGNAT bindings and events, IP assignments, AI reply
+   drafts, support conversations and messages, portal chat sessions, inbound
+   WhatsApp messages, SMS and email logs, outgoing messages (`message_outbox`,
+   with the body of reset links and codes withheld), campaign messages,
+   undeliverable-address reports, consents, communication preferences, churn
+   scores (automated profiling) and payment-gateway transactions and saved
+   payment profiles (tokens masked to their last four characters; the
+   gateways' raw request and response bodies are not exported).
+
+   It is **not a complete ARCO fulfillment by itself**: `meta.scope.allStorageSystemsCovered`
+   stays `false`. Supplement it with appropriately restricted
+   `ip_attribution_case_evidence`, AI prompt/context snapshots, the audit log,
+   integrations, files in `storage/`, past exports and backups.
 
 4. Deliver the JSON export to the data subject (encrypted email or secure download).
 
@@ -417,7 +425,9 @@ expires, record the action in `dsar_requests`, and communicate the result.
 | Operator audit logs | Operator accountability/prescription policy | End of documented purpose/hold |
 | 2FA secrets | Active account only | Account deactivation |
 | Backups | Operator-configured by target. The local default is file-count based (seven files), while remote retention depends on the bucket/provider lifecycle | Verified local cleanup plus remote provider lifecycle; reconcile legal holds and deletion propagation |
-| AI reply log draft/final text | Purpose-based operator policy | End of documented support purpose |
+| AI reply logs and diagnostic runs | 730 days by default (`RETENTION_AI_REPLY_LOGS_DAYS`, `RETENTION_AI_DIAGNOSTIC_RUNS_DAYS`) | Rolling period from creation |
+| Portal chat sessions, support conversations and their messages | 730 days by default (`RETENTION_PORTAL_CHAT_SESSIONS_DAYS`, `RETENTION_SUPPORT_CONVERSATIONS_DAYS`) | Rolling period from the last activity of a finished session or closed conversation |
+| Churn scores (automated profiling) | 365 days by default (`RETENTION_CHURN_SCORES_DAYS`) | Rolling period from scoring |
 
 ---
 

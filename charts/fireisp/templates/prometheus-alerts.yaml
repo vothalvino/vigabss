@@ -345,6 +345,20 @@ spec:
               a rate limit (OUTBOX_RATE_<CHANNEL>_PER_MINUTE) is too low.
             runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
+        - alert: VigaBSS_ScheduledTaskFailures
+          expr: |
+            sum by (task) (increase(scheduled_task_runs_total{status="failed"}[1h])) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "A VigaBSS scheduled task failed in the last hour"
+            description: >
+              A scheduled task threw. The task label names it; its last error
+              is on the task at /scheduled-tasks and every run is in
+              scheduled_task_runs. A task that keeps failing stops doing its
+              work (billing, suspension, polling) until it is fixed.
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
+
         - alert: VigaBSS_PaymentWebhookFailures
           expr: |
             sum by (provider) (increase(payment_webhook_events_total{status="failed"}[15m])) > 0

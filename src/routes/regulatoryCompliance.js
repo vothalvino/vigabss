@@ -8,7 +8,8 @@ const { Router } = require('express');
 const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
-const { requirePermission } = require('../middleware/rbac');
+const { requirePermission, userHasPermission } = require('../middleware/rbac');
+const preservationHolds = require('../services/preservationHoldService');
 const { validate } = require('../middleware/validate');
 const { ownedReferences } = require('../utils/ownedReferences');
 const { createConsent, createDsarRequest, resolveDsarRequest } = require('../middleware/schemas/regulatoryCompliance');
@@ -398,17 +399,83 @@ router.put('/dsar-requests/:id/reject', requirePermission('dsar_requests.manage'
   }
 });
 
+// A legal hold now preserves the client's data: it places an open-ended
+// preservation hold the retention purge honours, in the same transaction as
+// the status change (REG-06). It used to change the status only.
 router.put('/dsar-requests/:id/legal-hold', requirePermission('dsar_requests.manage'), async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { legal_hold_reason } = req.body;
+    const id = positiveId(Number(req.params.id), 'id', { nullable: false });
+    const reason = req.body?.legal_hold_reason ? String(req.body.legal_hold_reason).slice(0, 500) : null;
+    const conn = await db.getConnection();
+    let holdId;
+    try {
+      await conn.beginTransaction();
+      const exec = conn.execute.bind(conn);
+      const [rows] = await exec(
+        'SELECT id, client_id, status FROM dsar_requests WHERE id = ? AND organization_id = ? LIMIT 1 FOR UPDATE',
+        [id, req.orgId],
+      );
+      if (!rows.length) throw new NotFoundError('DSAR request');
+      if (!preservationHolds.DSAR_OPEN.includes(rows[0].status)) {
+        throw new ConflictError(`A ${rows[0].status} request is closed; it cannot be put on legal hold`);
+      }
+      await exec(
+        'UPDATE dsar_requests SET status = \'legal_hold\', legal_hold = 1, legal_hold_reason = ? WHERE id = ? AND organization_id = ?',
+        [reason, id, req.orgId],
+      );
+      holdId = await preservationHolds.holdForDsar(exec, req.orgId, rows[0], reason, req.user?.id);
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback().catch(() => {});
+      throw err;
+    } finally {
+      conn.release();
+    }
+    await auditLog.log({ userId: req.user?.id, organizationId: req.orgId,
+      action: 'legal_hold', tableName: 'dsar_requests', recordId: id,
+      newValues: { status: 'legal_hold', preservation_hold_id: holdId } });
+    res.json({ success: true, preservation_hold_id: holdId });
+  } catch (err) {
+    next(err);
+  }
+});
 
-    await db.query(
-      'UPDATE dsar_requests SET status = \'legal_hold\', legal_hold = 1, legal_hold_reason = ? WHERE id = ? AND organization_id = ?',
-      [legal_hold_reason || null, id, req.orgId],
-    );
+router.put('/dsar-requests/:id/release-legal-hold', requirePermission('dsar_requests.manage'), async (req, res, next) => {
+  try {
+    const id = positiveId(Number(req.params.id), 'id', { nullable: false });
+    const reason = nonblank(req.body?.reason, 'reason', 500);
+    const conn = await db.getConnection();
+    let released;
+    try {
+      await conn.beginTransaction();
+      const exec = conn.execute.bind(conn);
+      const [updated] = await exec(
+        `UPDATE dsar_requests SET status = 'in_review', legal_hold = 0
+          WHERE id = ? AND organization_id = ? AND legal_hold = 1`,
+        [id, req.orgId],
+      );
+      if (Number(updated.affectedRows) !== 1) throw new ConflictError('This DSAR request is not on legal hold');
+      released = await preservationHolds.releaseForDsar(exec, req.orgId, id, reason, req.user?.id);
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback().catch(() => {});
+      throw err;
+    } finally {
+      conn.release();
+    }
+    await auditLog.log({ userId: req.user?.id, organizationId: req.orgId,
+      action: 'release_legal_hold', tableName: 'dsar_requests', recordId: id,
+      newValues: { status: 'in_review', released_preservation_holds: released, reason } });
+    res.json({ success: true, released_preservation_holds: released });
+  } catch (err) {
+    next(err);
+  }
+});
 
-    res.json({ success: true });
+router.get('/dsar-requests/:id/preservation-holds', requirePermission('dsar_requests.view'), async (req, res, next) => {
+  try {
+    const id = positiveId(Number(req.params.id), 'id', { nullable: false });
+    res.json({ data: await preservationHolds.listForCase(req.orgId, { dsarRequestId: id }) });
   } catch (err) {
     next(err);
   }
@@ -785,5 +852,40 @@ router.put('/gov-data-requests/:id/release-evidence-hold', requireInteractiveUse
       res.json({ success: true, released_evidence_rows: Number(result.affectedRows) });
     } catch (err) { next(err); }
   });
+
+// =============================================================================
+// Preservation holds — case-scoped retention holds (REG-06)
+// =============================================================================
+// A government request can be held as soon as it exists, including after an
+// ambiguous or unavailable IP lookup, which pins no evidence of its own. The
+// subject and range default to the request's client, contract, IP address and
+// date_from..date_to (or its observed instant).
+
+router.get('/gov-data-requests/:id/preservation-holds', requirePermission('gov_data_requests.view'), async (req, res, next) => {
+  try {
+    const id = positiveId(Number(req.params.id), 'id', { nullable: false });
+    res.json({ data: await preservationHolds.listForCase(req.orgId, { govDataRequestId: id }) });
+  } catch (err) { next(err); }
+});
+
+router.post('/gov-data-requests/:id/preservation-holds', requireInteractiveUser,
+  requirePermission('gov_data_requests.manage'), async (req, res, next) => {
+    try {
+      const id = positiveId(Number(req.params.id), 'id', { nullable: false });
+      const hold = await preservationHolds.holdForGovRequest(req.orgId, id, req.body || {}, req.user.id);
+      res.status(201).json({ data: hold });
+    } catch (err) { next(err); }
+  });
+
+router.put('/preservation-holds/:id/release', requireInteractiveUser, async (req, res, next) => {
+  try {
+    const id = positiveId(Number(req.params.id), 'id', { nullable: false });
+    const hold = await preservationHolds.get(req.orgId, id);
+    // Released by whoever may manage the case it belongs to.
+    const permission = hold.gov_data_request_id !== null ? 'gov_data_requests.manage' : 'dsar_requests.manage';
+    if (!await userHasPermission(req, permission)) throw new ForbiddenError(`Releasing this hold requires ${permission}`);
+    res.json({ data: await preservationHolds.release(req.orgId, id, req.body?.reason, req.user.id) });
+  } catch (err) { next(err); }
+});
 
 module.exports = router;

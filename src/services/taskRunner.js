@@ -1033,6 +1033,65 @@ async function markTaskRun(taskName, result = null, options = {}) {
   );
 }
 
+const RUN_HOST = `${require('os').hostname()}:${process.pid}`;
+
+/**
+ * Record one run of a scheduled_tasks row (ASY-28): the row's last status,
+ * error and duration, a scheduled_task_runs history row, and the run and
+ * duration metrics. Every path records here, the cron path, the BullMQ
+ * worker and a manual run; the worker used to record nothing when a task
+ * threw, so the row kept its previous 'success'.
+ *
+ * `updateTask: false` records history and metrics only, for a run that never
+ * started (an overlapping job), so the running one's row is left alone.
+ */
+async function recordTaskRun(task, { status, startedAt, durationMs, error = null, via, updateTask = true }) {
+  require('../utils/opsMetrics').noteTaskRun(task.task_name, status, updateTask ? durationMs : null);
+  const message = error ? String(error.message || error).slice(0, 1000) : null;
+  const write = async () => {
+    if (updateTask) {
+      // retry_count is the consecutive-failure count; its CHECK caps it at max_retries.
+      await db.query(
+        `UPDATE scheduled_tasks
+            SET last_run_at = NOW(), last_status = ?, last_error = ?, last_duration_ms = ?,
+                retry_count = IF(? = 'failed', LEAST(retry_count + 1, max_retries), 0)
+          WHERE id = ?`,
+        [status, message, Math.round(durationMs), status, task.id],
+      );
+    }
+    await db.query(
+      `INSERT INTO scheduled_task_runs
+         (scheduled_task_id, organization_id, task_name, trigger_source, status,
+          started_at, finished_at, duration_ms, error_message, host)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [task.id, task.organization_id ?? null, task.task_name, via, status,
+        startedAt, new Date(startedAt.getTime() + durationMs), Math.round(durationMs), message, RUN_HOST],
+    );
+  };
+  await (typeof db.withPrimaryContext === 'function' ? db.withPrimaryContext(write) : write());
+}
+
+/**
+ * Run a scheduled_tasks row and record the outcome, including a throw.
+ * @param {{ id: number, task_name: string, organization_id: number|null }} task
+ * @param {'cron'|'worker'|'manual'} via
+ */
+async function executeScheduledTask(task, via) {
+  const startedAt = new Date();
+  let result = null;
+  let error = null;
+  try {
+    result = await runTask(task.task_name, task.organization_id ?? null);
+  } catch (err) {
+    error = err;
+  }
+  const status = error ? 'failed' : completionStatus(result);
+  await recordTaskRun(task, { status, startedAt, durationMs: Date.now() - startedAt.getTime(), error, via })
+    .catch(err => logger.error({ err, taskName: task.task_name, taskId: task.id }, 'Could not record the scheduled task run'));
+  if (error) throw error;
+  return result;
+}
+
 /**
  * Check for SLA events that have passed their target_deadline without resolution.
  * Marks them as breached (is_breached = 1).
@@ -1139,5 +1198,5 @@ async function handleDataRetentionComplianceCheck(organizationId) {
   };
 }
 
-module.exports = { listTasks, runTask, markTaskRun,
+module.exports = { listTasks, runTask, markTaskRun, recordTaskRun, executeScheduledTask,
   completionStatus, runAutoInvoice, runAutoSuspend, runSuspensionWarnings, runBillingCycle, runCsdExpiryCheck, handleSlaBreachCheck, handleInventoryLowStockCheck, handleDataRetentionComplianceCheck, runFtthOpticalMetricsCleanup, ORGANIZATION_SCOPED_TASK_NAMES };

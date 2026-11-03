@@ -604,7 +604,10 @@ describe('Export Routes — /api/export', () => {
   describe('GET /api/export/clients', () => {
     test('returns CSV content', async () => {
       mockAuthUser();
-      db.query.mockResolvedValueOnce([[
+      db.query
+        .mockResolvedValueOnce([[{ total: 1 }]])
+        .mockResolvedValueOnce([{ insertId: 1 }])
+        .mockResolvedValueOnce([[
         { id: 1, name: 'John Doe', email: 'john@test.com', phone: '555-1234', status: 'active', locale: 'global', country: 'US', city: 'Austin', state: 'TX', created_at: '2025-01-01' },
       ]]);
 
@@ -622,7 +625,10 @@ describe('Export Routes — /api/export', () => {
   describe('GET /api/export/invoices', () => {
     test('returns CSV content', async () => {
       mockAuthUser();
-      db.query.mockResolvedValueOnce([[
+      db.query
+        .mockResolvedValueOnce([[{ total: 1 }]])
+        .mockResolvedValueOnce([{ insertId: 1 }])
+        .mockResolvedValueOnce([[
         { id: 1, invoice_number: 'INV-000001', client_id: 1, name: 'John Doe', email: 'john@test.com', subtotal: 499, tax_amount: 79.84, total: 578.84, currency: 'MXN', status: 'issued', due_date: '2025-02-15', created_at: '2025-01-01' },
       ]]);
 

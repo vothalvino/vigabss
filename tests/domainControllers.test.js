@@ -324,17 +324,17 @@ describe('Domain Controllers', () => {
 
     test('exportInvoices sends CSV', async () => {
       const req = mockReq();
-      const res = mockRes();
+      const res = require('./helpers/csvExport').csvRes();
       const next = jest.fn();
 
-      db.query.mockResolvedValueOnce([[
+      db.query.mockImplementation(require('./helpers/csvExport').exportQueries([
         { id: 1, invoice_number: 'INV-001', total: 500, status: 'paid' },
-      ]]);
+      ]));
 
       await exportController.exportInvoices(req, res, next);
 
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'text/csv');
-      expect(res.send).toHaveBeenCalled();
+      expect(res.body()).toContain('INV-001');
     });
   });
 

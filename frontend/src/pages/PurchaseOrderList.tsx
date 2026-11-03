@@ -25,6 +25,7 @@ import { api } from '@/api/client';
 import { extractApiError } from '@/components/ClientFormModal';
 import { styles, modalStyles, fmtMoney, fmtDate, capitalize, RequiredMark } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
+import { localToday } from '@/lib/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -147,7 +148,7 @@ function NewPoModal({ onClose, onCreated }: NewPoModalProps) {
   const [poNumber, setPoNumber] = useState(defaultPoNumber());
   const [vendorId, setVendorId] = useState('');
   const [warehouseId, setWarehouseId] = useState('');
-  const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
+  const [orderDate, setOrderDate] = useState(localToday());
   const [expectedDate, setExpectedDate] = useState('');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');

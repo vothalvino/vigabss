@@ -103,8 +103,9 @@ describe('the refund amount is split at the ORIGINAL invoice rate', () => {
     wireDb({ refund: { ...APPROVED, amount: '100.00' } });
     await process();
     const p = cnInsert()[1];
-    const subtotal = p[4];
-    const tax = p[6];
+    // [org, client, invoice, number, issue_date (BIL-34), subtotal, rate, tax, ...]
+    const subtotal = p[5];
+    const tax = p[7];
     expect(Number((subtotal + tax).toFixed(2))).toBe(100);
     expect(tax).toBe(13.79);
     expect(subtotal).toBe(86.21);

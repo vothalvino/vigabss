@@ -12,6 +12,7 @@ const { validate } = require('../middleware/validate');
 const { createScheduledTask, updateScheduledTask } = require('../middleware/schemas/scheduledTasks');
 const { quotaCheck } = require('../middleware/checkQuota');
 const taskRunner = require('../services/taskRunner');
+const { businessTimezone } = require('../utils/businessDate');
 const db = require('../config/database');
 const { isInstallOperator, OPERATOR_ONLY_MESSAGE } = require('../services/installOperator');
 
@@ -148,7 +149,8 @@ router.get('/', requirePermission('scheduled_tasks.view'), async (req, res, next
     const [[{ total }]] = await db.query(
       `SELECT COUNT(*) AS total FROM scheduled_tasks ${where}`, params,
     );
-    res.json({ data: rows, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
+    // Cron times are in the business time zone (BIL-34).
+    res.json({ data: rows, meta: { total, page, limit, totalPages: Math.ceil(total / limit), business_timezone: businessTimezone() } });
   } catch (err) { next(err); }
 });
 
@@ -203,21 +205,12 @@ router.post('/:id/run', requirePermission('scheduled_tasks.update'), async (req,
         'UPDATE scheduled_tasks SET last_status = ?, last_run_at = NOW() WHERE id = ?',
         ['running', selectedTask.id],
       );
-      try {
-        const result = await taskRunner.runTask(selectedTask.task_name, organizationId);
-        const completionStatus = taskRunner.completionStatus(result);
-        await db.query(
-          'UPDATE scheduled_tasks SET last_status = ?, last_run_at = NOW() WHERE id = ?',
-          [completionStatus, selectedTask.id],
-        );
-        res.json({ data: { task_name: selectedTask.task_name, result } });
-      } catch (err) {
-        await db.query(
-          'UPDATE scheduled_tasks SET last_status = ? WHERE id = ?',
-          ['failed', selectedTask.id],
-        ).catch(() => {});
-        throw err;
-      }
+      // Records the outcome and history, a failure included (ASY-28).
+      const result = await taskRunner.executeScheduledTask(
+        { id: selectedTask.id, task_name: selectedTask.task_name, organization_id: organizationId },
+        'manual',
+      );
+      res.json({ data: { task_name: selectedTask.task_name, result } });
     };
 
     return await execute(task);

@@ -36,7 +36,7 @@ interface ScheduledTask {
 
 interface TasksResponse {
   data: ScheduledTask[];
-  meta: { total: number; page: number; limit: number; totalPages: number };
+  meta: { total: number; page: number; limit: number; totalPages: number; business_timezone?: string };
 }
 
 interface CreateTaskBody {
@@ -466,6 +466,11 @@ export function ScheduledTaskList() {
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>⏰ Scheduled Tasks</h1>
         {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta?.business_timezone && (
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            {t('scheduledTasksPage.timezoneNote', { zone: meta.business_timezone })}
+          </span>
+        )}
         {canCreate && (
           <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
             + New Task

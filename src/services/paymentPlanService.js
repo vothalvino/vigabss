@@ -3,6 +3,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { sqlBusinessToday } = require('../utils/businessDate');
 const repService = require('./repService');
 const logger = require('../utils/logger').child({ service: 'paymentPlan' });
 const { NotFoundError, ValidationError } = require('../utils/errors');
@@ -282,7 +283,7 @@ async function checkInstallmentsDue() {
     const [result] = await db.query(
       `UPDATE payment_plan_installments
          SET status = 'overdue'
-       WHERE status = 'pending' AND due_date < CURDATE()`,
+       WHERE status = 'pending' AND due_date < ${sqlBusinessToday()}`,
     );
 
     const affectedCount = result.affectedRows;
@@ -295,7 +296,7 @@ async function checkInstallmentsDue() {
       `SELECT ppi.*, pp.organization_id, pp.client_id
        FROM payment_plan_installments ppi
        JOIN payment_plans pp ON pp.id = ppi.plan_id
-       WHERE ppi.status = 'overdue' AND ppi.due_date < CURDATE()
+       WHERE ppi.status = 'overdue' AND ppi.due_date < ${sqlBusinessToday()}
        LIMIT 500`,
     );
 

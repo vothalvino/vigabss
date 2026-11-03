@@ -109,6 +109,9 @@ describe('deferred scheduled tasks', () => {
 
   test('the manual Run uses the same rule', () => {
     const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'routes', 'scheduledTasks.js'), 'utf8');
-    expect(src).toMatch(/const completionStatus = taskRunner\.completionStatus\(result\);/);
+    // It runs through executeScheduledTask, which records completionStatus (ASY-28).
+    expect(src).toMatch(/taskRunner\.executeScheduledTask\(/);
+    const runner = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'services', 'taskRunner.js'), 'utf8');
+    expect(runner).toMatch(/const status = error \? 'failed' : completionStatus\(result\);/);
   });
 });

@@ -19,6 +19,34 @@ const DELETE_BATCH_SIZE = 1000;
 // every DELETE, so the purge failed on it each night, and a purge would also
 // break the audit hash chain (migration 505). Audit rows are kept; archiving
 // them is an operator procedure (docs/privacy.md).
+/**
+ * Rows an active preservation hold covers stay (REG-06): same organization,
+ * a matching client, contract, RADIUS username or IP address, and a time
+ * range that overlaps the hold's. `t` is the purged table's name.
+ */
+function notUnderPreservationHold(t, { from, to = from, ips = [], username = true }) {
+  const subject = [
+    `(ph.client_id IS NOT NULL AND ph.client_id = ${t}.client_id)`,
+    `(ph.contract_id IS NOT NULL AND ph.contract_id = ${t}.contract_id)`,
+    ...(username ? [`(ph.username IS NOT NULL AND ph.username = ${t}.username)`] : []),
+    ...(ips.length ? [`(ph.ip_address IS NOT NULL AND ph.ip_address IN (${ips.map(c => `${t}.${c}`).join(', ')}))`] : []),
+  ].join('\n           OR ');
+  return `NOT EXISTS (
+      SELECT 1 FROM preservation_holds ph
+       WHERE ph.organization_id = ${t}.organization_id
+         AND ph.released_at IS NULL
+         AND ph.held_from <= ${to}
+         AND (ph.held_to IS NULL OR ph.held_to >= ${from})
+         AND (${subject})
+    )`;
+}
+
+const BINDING_HOLD = {
+  from: 'cgnat_attribution_bindings.allocated_at',
+  to: 'COALESCE(cgnat_attribution_bindings.released_at, cgnat_attribution_bindings.allocated_at)',
+  ips: ['public_ipv4', 'private_ipv4'],
+};
+
 const POLICY_CONFIG = Object.freeze({
   alert_events: {
     defaultDays: 90,
@@ -68,6 +96,43 @@ const POLICY_CONFIG = Object.freeze({
     dateColumn: 'created_at',
     tenantWhere: '`organization_id` = ?',
   },
+  // Scheduled task run history (ASY-28). Install-wide task rows have no
+  // organization, so a tenant purge removes only that organization's runs.
+  scheduled_task_runs: {
+    defaultDays: 30,
+    dateColumn: 'started_at',
+    tenantWhere: '`organization_id` = ?',
+  },
+  // AI, chat and profiling data (ASY-31): personal data kept only as long as
+  // the support or analytics purpose needs it. RETENTION_<TABLE>_DAYS.
+  ai_reply_logs: {
+    defaultDays: 730,
+    dateColumn: 'created_at',
+    tenantWhere: '`organization_id` = ?',
+  },
+  ai_diagnostic_runs: {
+    defaultDays: 730,
+    dateColumn: 'created_at',
+    tenantWhere: '`organization_id` = ?',
+  },
+  portal_chat_sessions: {
+    defaultDays: 730,
+    dateColumn: 'updated_at',
+    tenantWhere: '`organization_id` = ?',
+    extraWhere: "`status` <> 'active'",
+  },
+  // support_messages go with their conversation (ON DELETE CASCADE).
+  support_conversations: {
+    defaultDays: 730,
+    dateColumn: 'updated_at',
+    tenantWhere: '`organization_id` = ?',
+    extraWhere: "`status` = 'closed'",
+  },
+  churn_scores: {
+    defaultDays: 365,
+    dateColumn: 'scored_at',
+    tenantWhere: '`organization_id` = ?',
+  },
   idempotency_keys: {
     defaultDays: 7,
     dateColumn: 'expires_at',
@@ -98,7 +163,11 @@ const POLICY_CONFIG = Object.freeze({
       SELECT 1 FROM cgnat_attribution_bindings binding
        WHERE binding.organization_id = connection_logs.organization_id
          AND binding.connection_log_id = connection_logs.id
-    )`,
+    ) AND ${notUnderPreservationHold('connection_logs', {
+    from: 'connection_logs.event_at',
+    to: 'COALESCE(connection_logs.last_accounting_at, connection_logs.event_at)',
+    ips: ['framed_ip', 'ip_address'],
+  })}`,
   },
   radius_accounting_events: {
     defaultDays: 730,
@@ -126,7 +195,9 @@ const POLICY_CONFIG = Object.freeze({
          AND (owning.id = radius_accounting_events.connection_log_id
               OR (radius_accounting_events.session_instance_id IS NOT NULL
                   AND owning.session_instance_id = radius_accounting_events.session_instance_id))
-    )`,
+    ) AND ${notUnderPreservationHold('radius_accounting_events', {
+    from: 'radius_accounting_events.event_at', ips: ['framed_ip'],
+  })}`,
   },
   radius_accounting_usage_daily: {
     defaultDays: 730,
@@ -134,6 +205,10 @@ const POLICY_CONFIG = Object.freeze({
     monthsEnv: 'RADIUS_ACCOUNTING_RETENTION_MONTHS',
     dateColumn: 'usage_date',
     tenantWhere: '`organization_id` = ?',
+    extraWhere: notUnderPreservationHold('radius_accounting_usage_daily', {
+      from: 'TIMESTAMP(radius_accounting_usage_daily.usage_date)',
+      to: 'TIMESTAMP(radius_accounting_usage_daily.usage_date, \'23:59:59.999\')',
+    }),
   },
   collector_ingest_receipts: {
     defaultDays: 90,
@@ -162,6 +237,12 @@ const POLICY_CONFIG = Object.freeze({
        WHERE held.organization_id = cgnat_binding_events.organization_id
          AND held.binding_id = cgnat_binding_events.binding_id
          AND held.hold_released_at IS NULL
+    ) AND NOT EXISTS (
+      -- The event's binding is under a preservation hold (REG-06).
+      SELECT 1 FROM cgnat_attribution_bindings cgnat_attribution_bindings
+       WHERE cgnat_attribution_bindings.organization_id = cgnat_binding_events.organization_id
+         AND cgnat_attribution_bindings.id = cgnat_binding_events.binding_id
+         AND NOT (${notUnderPreservationHold('cgnat_attribution_bindings', BINDING_HOLD)})
     )`,
   },
   cgnat_attribution_bindings: {
@@ -177,7 +258,7 @@ const POLICY_CONFIG = Object.freeze({
        WHERE held.organization_id = cgnat_attribution_bindings.organization_id
          AND held.binding_id = cgnat_attribution_bindings.id
          AND held.hold_released_at IS NULL
-    )`,
+    ) AND ${notUnderPreservationHold('cgnat_attribution_bindings', BINDING_HOLD)}`,
   },
   ip_attribution_case_evidence: {
     defaultDays: 730,

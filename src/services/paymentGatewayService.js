@@ -7,6 +7,7 @@
 // =============================================================================
 
 const crypto = require('crypto');
+const { businessToday } = require('../utils/businessDate');
 const { notePaymentWebhook, noteReconcileFailure } = require('../utils/opsMetrics');
 const db = require('../config/database');
 const { creditAppliedSql } = require('../utils/invoiceBalance');
@@ -1450,11 +1451,11 @@ async function reconcilePayment(transactionId) {
     const [payResult] = await exec(
       `INSERT INTO payments
          (organization_id, client_id, invoice_id, amount, currency, payment_method,
-          sat_forma_pago, reference_number, notes, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')`,
+          sat_forma_pago, reference_number, notes, status, payment_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?)`,
       [orgId, tx.client_id, linkedInvoice ? linkedInvoice.id : null, tx.amount, tx.currency,
         paymentMethod, FORMA_PAGO_BY_METHOD[paymentMethod] || null, reference,
-        `Online payment via ${provider || 'payment gateway'} (gateway transaction #${tx.id})`],
+        `Online payment via ${provider || 'payment gateway'} (gateway transaction #${tx.id})`, businessToday()],
     );
     const paymentId = payResult.insertId;
 
@@ -1584,10 +1585,10 @@ async function reverseRefund(transactionId) {
       if (!payment.deleted_at) {
         await exec(
           `INSERT INTO client_balance_ledger
-             (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-           VALUES (?, ?, 'debit', ?, ?, 'payment', ?, ?)`,
+             (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+           VALUES (?, ?, 'debit', ?, ?, 'payment', ?, ?, ?)`,
           [payment.client_id, payment.organization_id, payment.amount, payment.currency, payment.id,
-            `Refund of gateway payment ${payment.reference_number || payment.id}`],
+            `Refund of gateway payment ${payment.reference_number || payment.id}`, businessToday()],
         );
       }
       await conn.commit();
@@ -1621,10 +1622,10 @@ async function reverseRefund(transactionId) {
     }
     await exec(
       `INSERT INTO client_balance_ledger
-         (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-       VALUES (?, ?, 'debit', ?, ?, 'payment_transaction', ?, ?)`,
+         (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+       VALUES (?, ?, 'debit', ?, ?, 'payment_transaction', ?, ?, ?)`,
       [tx.client_id, tx.organization_id, tx.amount, tx.currency, tx.id,
-        `Refund reversal of gateway payment ${tx.gateway_reference_id}`],
+        `Refund reversal of gateway payment ${tx.gateway_reference_id}`, businessToday()],
     );
     await conn.commit();
     logger.info({ transactionId, invoiceId: tx.settled_invoice_id ?? null }, 'Refund reversed the settled invoice + ledger');

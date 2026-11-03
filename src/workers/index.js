@@ -38,9 +38,31 @@ function registerWorkers() {
         return { skipped: true, reason: 'task disabled or deleted' };
       }
     }
-    logger.info({ taskId, taskName, organizationId }, 'Worker: running scheduled task');
-    const result = await taskRunner.runTask(taskName, organizationId);
-    await taskRunner.markTaskRun(taskName, result, { taskId, organizationId }).catch(() => {});
+    if (!taskId) {
+      logger.info({ taskName, organizationId }, 'Worker: running scheduled task');
+      const result = await taskRunner.runTask(taskName, organizationId);
+      await taskRunner.markTaskRun(taskName, result, { organizationId }).catch(() => {});
+      return result;
+    }
+    // One job per cron minute, but a run that outlasts its interval would
+    // overlap the next one across the worker's concurrency. The task's
+    // advisory lock (shared with the inline path) refuses the overlap, which
+    // is recorded as skipped. A throw is recorded as failed (ASY-28).
+    const task = { id: taskId, task_name: taskName, organization_id: organizationId };
+    const scheduler = require('../services/scheduler');
+    let result;
+    const startedAt = new Date();
+    const ran = await scheduler.runExclusive(task, async () => {
+      logger.info({ taskId, taskName, organizationId }, 'Worker: running scheduled task');
+      result = await taskRunner.executeScheduledTask(task, 'worker');
+    });
+    if (!ran) {
+      logger.warn({ taskId, taskName }, 'Worker: previous run still in progress; skipping this one');
+      await taskRunner.recordTaskRun(task, {
+        status: 'skipped', startedAt, durationMs: 0, error: 'Previous run still in progress', via: 'worker', updateTask: false,
+      }).catch(() => {});
+      return { skipped: true, reason: 'already_running' };
+    }
     return result;
   });
 

@@ -2867,7 +2867,13 @@ function generateSpec() {
         put: { tags: ['Regulatory Compliance MX'], summary: 'Reject DSAR request', operationId: 'rejectDsarRequest', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Updated') },
       },
       '/regulatory-compliance/dsar-requests/{id}/legal-hold': {
-        put: { tags: ['Regulatory Compliance MX'], summary: 'Set legal hold on DSAR request', operationId: 'legalHoldDsarRequest', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Updated') },
+        put: { tags: ['Regulatory Compliance MX'], summary: 'Set legal hold on DSAR request', description: 'Also places an open-ended preservation hold on the client\'s connection, accounting, usage and CGNAT data, which retention then keeps (REG-06).', operationId: 'legalHoldDsarRequest', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Updated') },
+      },
+      '/regulatory-compliance/dsar-requests/{id}/release-legal-hold': {
+        put: { tags: ['Regulatory Compliance MX'], summary: 'Release a DSAR legal hold', description: 'Releases the request\'s preservation holds and returns it to in_review.', operationId: 'releaseDsarLegalHold', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', additionalProperties: false, required: ['reason'], properties: { reason: { type: 'string', minLength: 1, maxLength: 500 } } }, 'Reviewed hold-release reason'), responses: r200('Updated') },
+      },
+      '/regulatory-compliance/dsar-requests/{id}/preservation-holds': {
+        get: { tags: ['Regulatory Compliance MX'], summary: 'List a DSAR request\'s preservation holds', operationId: 'listDsarPreservationHolds', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Preservation holds') },
       },
       '/regulatory-compliance/identity-verification': {
         get: { tags: ['Regulatory Compliance MX'], summary: 'List identity verifications', operationId: 'listIdentityVerifications', security: [{ bearerAuth: [] }], responses: r200('Verification list') },
@@ -2897,6 +2903,13 @@ function generateSpec() {
       },
       '/regulatory-compliance/gov-data-requests/{id}/process': {
         put: { tags: ['Regulatory Compliance MX'], summary: 'Approve legal review and enter processing', description: 'Interactive manage permission. Validates official reference, legal basis, tenant subject ownership, and exact IP scope before authorization.', operationId: 'processGovDataRequest', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Updated') },
+      },
+      '/regulatory-compliance/gov-data-requests/{id}/preservation-holds': {
+        get: { tags: ['Regulatory Compliance MX'], summary: 'List a government request\'s preservation holds', operationId: 'listGovDataRequestPreservationHolds', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Preservation holds') },
+        post: { tags: ['Regulatory Compliance MX'], summary: 'Place a preservation hold for a government request', description: 'Interactive manage permission, while the request is received, pending legal review or processing (including after an ambiguous or unavailable lookup). Keeps every matching connection log, accounting event, daily usage row and CGNAT binding out of the retention purge until released. Subject and UTC range default to the request\'s client, contract, IP address and date_from..date_to, else its observed instant.', operationId: 'createGovDataRequestPreservationHold', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', additionalProperties: false, properties: { client_id: { type: 'integer', minimum: 1 }, contract_id: { type: 'integer', minimum: 1 }, username: { type: 'string', maxLength: 253 }, ip_address: { type: 'string', maxLength: 45 }, held_from: { type: 'string', format: 'date-time' }, held_to: { type: 'string', format: 'date-time' }, reason: { type: 'string', maxLength: 500 } } }, 'Optional subject, UTC range and reason'), responses: r201('Preservation hold') },
+      },
+      '/regulatory-compliance/preservation-holds/{id}/release': {
+        put: { tags: ['Regulatory Compliance MX'], summary: 'Release a preservation hold', description: 'Requires the manage permission of the hold\'s case. Held rows resume their original retention clock.', operationId: 'releasePreservationHold', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', additionalProperties: false, required: ['reason'], properties: { reason: { type: 'string', minLength: 1, maxLength: 500 } } }, 'Reviewed hold-release reason'), responses: r200('Released hold') },
       },
       '/regulatory-compliance/gov-data-requests/{id}/release-evidence-hold': {
         put: { tags: ['Regulatory Compliance MX'], summary: 'Release preserved attribution evidence after terminal-case review', description: 'Interactive manage permission. Does not happen automatically on fulfillment/rejection; released evidence resumes its original retention clock.', operationId: 'releaseGovDataRequestEvidenceHold', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', additionalProperties: false, required: ['reason'], properties: { reason: { type: 'string', minLength: 1, maxLength: 500 } } }, 'Reviewed hold-release reason'), responses: r200('Updated') },

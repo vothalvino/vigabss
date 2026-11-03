@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { MxRegisteredContractSourceField } from '@/components/MxRegisteredContractSourceField';
+import { localToday } from '@/lib/dates';
 import {
   overlay, modalBox, errorBox, labelStyle, inputStyle, submitBtn, cancelBtn,
   extractApiError,
@@ -52,7 +53,7 @@ export interface NewContractModalProps {
 export function NewContractModal({ lockedClientId, lockedClientName, onClose, onCreated }: NewContractModalProps) {
   const { user } = useAuth();
   const isMxOrg = user?.organization_locale === 'MX';
-  const TODAY = new Date().toISOString().split('T')[0];
+  const TODAY = localToday();
   const [form, setForm] = useState({
     plan_id: '', connection_type: 'pppoe', start_date: TODAY,
     billing_day: '1', ip_address: '', price_override: '', facturar: false,

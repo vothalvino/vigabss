@@ -8,6 +8,8 @@ const { requireOrgId } = require('../utils/requireOrgId');
 class Invoice extends BaseModel {
   static get tableName() { return 'invoices'; }
 
+  static get businessDateColumns() { return ['issue_date']; }
+
   static get fillable() {
     return [
       'organization_id', 'client_id', 'contract_id', 'invoice_number',

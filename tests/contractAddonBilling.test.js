@@ -140,7 +140,7 @@ describe('PATCH and cancel /contracts/:id/addons/:addonId', () => {
     const res = await request(app).post('/api/v1/contracts/2001/addons/900/cancel');
     expect(res.status).toBe(200);
     const upd = db.query.mock.calls.find(([sql]) => /SET status = 'cancelled'/.test(sql));
-    expect(upd[0]).toMatch(/end_date = LEAST\(COALESCE\(end_date, CURDATE\(\)\), CURDATE\(\)\)/);
+    expect(upd[0]).toMatch(/end_date = LEAST\(COALESCE\(end_date, DATE\('\d{4}-\d{2}-\d{2}'\)\), DATE\('\d{4}-\d{2}-\d{2}'\)\)/);
     expect(upd[1]).toEqual([900]);
   });
 
