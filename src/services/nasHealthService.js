@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 const dgram = require('dgram');
 const db = require('../config/database');
+const { orgScopeFilter } = require('./organizationFanOut');
 const logger = require('../utils/logger').child({ service: 'nasHealth' });
 
 const PROBE_CONCURRENCY = 10;
@@ -193,18 +194,12 @@ function emitEvent(event, payload) {
  * @returns {Promise<{checked: number, up: number, down: number, transitions: Array<{id:number,from:string,to:string}>}>}
  */
 async function runHealthChecks(organizationId = null) {
-  const conditions = ["status = 'active'"];
-  const params = [];
-
-  if (organizationId !== null) {
-    conditions.push('organization_id = ?');
-    params.push(organizationId);
-  }
+  const { sql: orgFilter, params } = orgScopeFilter('organization_id', organizationId);
 
   const [nasDevices] = await db.query(
     `SELECT id, ip_address, coa_port, secret, health_status, organization_id
      FROM nas
-     WHERE ${conditions.join(' AND ')}`,
+     WHERE status = 'active'${orgFilter}`,
     params,
   );
 

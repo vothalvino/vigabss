@@ -16,6 +16,7 @@ const { serializeLoginTime } = require('./radiusLoginTimeService');
 // applySpeedWindows), so this top-level require is cycle-free.
 const speedWindowService = require('./speedWindowService');
 const { ValidationError } = require('../utils/errors');
+const { orgScopeFilter } = require('./organizationFanOut');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
 const {
   WALLED_GARDEN_REASON_PREFIX,
@@ -103,8 +104,7 @@ async function syncAccount(contractId) {
  * Bulk sync all RADIUS accounts for an organization.
  */
 async function syncAllAccounts(organizationId) {
-  const orgFilter = organizationId ? 'AND c.organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('c.organization_id', organizationId);
 
   const [contracts] = await db.query(`
     SELECT c.id FROM contracts c
@@ -571,10 +571,11 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
   // resolves through their contract's org below.
   const mabModeByOrg = new Map();
   {
+    const scope = orgScopeFilter('organization_id', organizationId);
     const [settingRows] = await db.query(
       `SELECT organization_id, setting_value FROM organization_settings
-        WHERE setting_key = 'mab_password_mode'${organizationId ? ' AND organization_id = ?' : ''}`,
-      organizationId ? [organizationId] : [],
+        WHERE setting_key = 'mab_password_mode'${scope.sql}`,
+      scope.params,
     );
     for (const row of settingRows) mabModeByOrg.set(row.organization_id, row.setting_value);
   }
@@ -584,10 +585,11 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
   // Scope by the contract's organization — the radius table has neither an
   // organization_id column (Radius.hasOrgScope === false) nor a password_hash
   // column (migration 189 renamed password_hash → password).
-  const orgFilter = (organizationId ? 'AND c.organization_id = ?' : '')
+  const subscriberScope = orgScopeFilter('c.organization_id', organizationId);
+  const orgFilter = subscriberScope.sql
     + (contractId !== null ? ' AND r.contract_id = ?' : '');
   const orgParams = [
-    ...(organizationId ? [organizationId] : []),
+    ...subscriberScope.params,
     ...(contractId !== null ? [contractId] : []),
   ];
 
@@ -644,6 +646,7 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
   );
 
   // 3. Load active subscriber certificates for EAP-TLS
+  const certScope = orgScopeFilter('sc.organization_id', organizationId);
   const [certRows] = await db.query(
     `SELECT sc.radius_account_id, sc.serial_number
      FROM subscriber_certificates sc
@@ -652,8 +655,8 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
        AND sc.valid_until > NOW()
        AND r.auth_method = 'eap_tls'
        AND r.deleted_at IS NULL
-       ${organizationId ? 'AND sc.organization_id = ?' : ''}`,
-    organizationId ? [organizationId] : [],
+       ${certScope.sql}`,
+    certScope.params,
   );
 
   // Build a map: radius_account_id → serial_number
@@ -1090,12 +1093,13 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
     const eligible = c => `(${c}.id IS NULL OR ${c}.status = 'active' OR (
         ${c}.status = 'pending' AND ${c}.test_window_cleanup_pending = 0
         AND ${c}.test_window_expires_at > NOW()))`;
+    const staleScope = orgScopeFilter('COALESCE(r.organization_id, c.organization_id)', organizationId);
     const [stale] = await db.query(
       `SELECT DISTINCT r.username
          FROM radius r
          LEFT JOIN contracts c ON c.id = r.contract_id
         WHERE (r.status <> 'active' OR r.deleted_at IS NOT NULL OR NOT ${eligible('c')})
-          ${organizationId ? 'AND COALESCE(r.organization_id, c.organization_id) = ?' : ''}
+          ${staleScope.sql}
           AND EXISTS (SELECT 1 FROM radcheck rc WHERE rc.username = r.username)
           AND NOT EXISTS (
             SELECT 1 FROM radius r2
@@ -1103,7 +1107,7 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
              WHERE r2.username = r.username AND r2.status = 'active'
                AND r2.deleted_at IS NULL AND ${eligible('c2')}
           )`,
-      organizationId ? [organizationId] : [],
+      staleScope.params,
     );
     for (const { username } of stale) {
       try {
@@ -1303,7 +1307,7 @@ async function kickDuplicateSessions(organizationId) {
   logger.info({ organizationId }, 'Checking for subscriptions with more than one session');
   // Scope by the account's own org, falling back to its contract's
   // (radius.contract_id is nullable).
-  const orgFilter = organizationId ? 'AND COALESCE(r.organization_id, c.organization_id) = ?' : '';
+  const { sql: orgFilter, params: orgParams } = orgScopeFilter('COALESCE(r.organization_id, c.organization_id)', organizationId);
   const [accounts] = await db.query(
     `SELECT r.id AS radius_id, r.username, r.contract_id,
             COALESCE(r.organization_id, c.organization_id) AS organization_id
@@ -1312,7 +1316,7 @@ async function kickDuplicateSessions(organizationId) {
      WHERE r.status = 'active'
        AND r.deleted_at IS NULL
        ${orgFilter}`,
-    organizationId ? [organizationId] : [],
+    orgParams,
   );
 
   const livenessMinutes = sessionLivenessMinutes();
@@ -1462,8 +1466,7 @@ async function walledGardenReconnect(contractId, _userId) {
  * @param {number|null} organizationId
  */
 async function checkCertificateExpiry(organizationId) {
-  const orgFilter = organizationId ? 'AND organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('organization_id', organizationId);
 
   const [expiring] = await db.query(
     `SELECT id, common_name, serial_number, valid_until, status, organization_id

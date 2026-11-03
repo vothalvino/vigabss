@@ -494,8 +494,10 @@ through matches nothing and records a successful no-op.
 
 Handlers that already cover every organization of one database when given
 `organizationId = null` (invoicing, suspension, autopay, payment retries,
-ticket automation, CSD/SLA checks, scheduled reports, SNMP polling) run through
-`forEachDatabaseScope` instead: once on the primary, where `orgScopeFilter()`
+ticket automation, CSD/SLA checks, scheduled reports, SNMP polling, RADIUS
+sync, NAS health, speed windows, duplicate-session kicks, certificate and
+maintenance-window expiry, rollover, low stock, retention checks, network
+health snapshots) run through `forEachDatabaseScope` instead: once on the primary, where `orgScopeFilter()`
 excludes the stale primary rows of isolated organizations, then once inside each
 isolated organization's database. Use `orgScopeFilter(column, organizationId)`
 for the organization predicate in such handlers; a hand-written

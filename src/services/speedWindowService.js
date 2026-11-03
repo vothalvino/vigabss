@@ -18,6 +18,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { orgScopeFilter } = require('./organizationFanOut');
 const logger = require('../utils/logger').child({ service: 'speedWindow' });
 const { generateAttributes } = require('./radiusAttributeService');
 
@@ -127,8 +128,7 @@ async function applySpeedWindows(organizationId) {
   // window-aware sync overlay — a top-level require back would be a cycle.
   const radiusService = require('./radiusService');
 
-  const orgFilter = organizationId ? 'AND p.organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('p.organization_id', organizationId);
 
   // Only plans that HAVE speed windows participate; all other plans' RADIUS
   // state is never touched by this task.

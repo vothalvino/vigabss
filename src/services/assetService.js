@@ -3,6 +3,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { orgScopeFilter } = require('./organizationFanOut');
 
 /**
  * Generate a barcode payload for an asset.
@@ -81,18 +82,19 @@ function calculateDepreciation(asset) {
  * Find assets below their reorder level (via inventory_items.reorder_level).
  */
 async function getLowStockItems(orgId) {
+  const scope = orgScopeFilter('i.organization_id', orgId);
   const [rows] = await db.query(
     `SELECT i.id AS item_id, i.name, i.sku, i.reorder_level,
             COALESCE(SUM(s.quantity), 0) AS total_stock
      FROM inventory_items i
      LEFT JOIN inventory_stock s ON s.item_id = i.id
      WHERE i.deleted_at IS NULL
-       AND (? IS NULL OR i.organization_id = ?)
+       ${scope.sql}
        AND i.reorder_level > 0
      GROUP BY i.id, i.name, i.sku, i.reorder_level
      HAVING total_stock < i.reorder_level
      ORDER BY (i.reorder_level - total_stock) DESC`,
-    [orgId, orgId],
+    scope.params,
   );
   return rows;
 }

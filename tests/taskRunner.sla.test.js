@@ -124,6 +124,7 @@ describe('taskRunner — inventory_low_stock_check', () => {
 
   it('passes null organizationId through to getLowStockItems for the global seeded task', async () => {
     assetService.getLowStockItems.mockResolvedValueOnce([]);
+    mockQuery.mockResolvedValueOnce([[]]); // isolated tenants: none, so one primary pass
 
     await runTask('inventory_low_stock_check', null);
 
