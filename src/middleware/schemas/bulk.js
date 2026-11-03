@@ -2,11 +2,6 @@
 // VigaBSS 5.0 — Bulk Operations Validation Schemas
 // =============================================================================
 
-// POST /bulk/invoices/generate — contract_ids validated manually in route
-const generateInvoices = {
-  // No additional non-array fields to validate (contract_ids is an array)
-};
-
 // POST /bulk/invoices/void — invoice_ids validated manually in route
 const voidInvoices = {
   // No additional non-array fields to validate (invoice_ids is an array)
@@ -23,4 +18,4 @@ const email = {
   body: { type: 'string', required: true, min: 1, max: 50000 },
 };
 
-module.exports = { generateInvoices, voidInvoices, suspend, email };
+module.exports = { voidInvoices, suspend, email };

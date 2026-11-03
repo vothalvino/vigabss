@@ -13,7 +13,6 @@ const { validate } = require('../middleware/validate');
 const { bulkEmailLimiter, checkBulkEmailDailyBudget } = require('../middleware/rateLimit');
 const bulkSchemas = require('../middleware/schemas/bulk');
 const logger = require('../utils/logger');
-const eventBus = require('../services/eventBus');
 const billingService = require('../services/billingService');
 const suspensionService = require('../services/suspensionService');
 const emailTransport = require('../services/emailTransport');
@@ -60,82 +59,6 @@ router.post('/invoices/void', requirePermission('invoices.update'), validate(bul
     }
 
     logger.info({ orgId, ...results }, 'Bulk invoice void completed');
-    res.json({ data: results });
-  } catch (err) { next(err); }
-});
-
-// ---------------------------------------------------------------------------
-// POST /bulk/invoices/generate — Mass-generate invoices
-// ---------------------------------------------------------------------------
-router.post('/invoices/generate', requirePermission('invoices.create'), validate(bulkSchemas.generateInvoices, { strip: false }), async (req, res, next) => {
-  try {
-    const orgId = req.orgId;
-    const { contract_ids } = req.body;
-
-    if (!Array.isArray(contract_ids) || contract_ids.length === 0) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'contract_ids array is required' } });
-    }
-
-    if (contract_ids.length > 500) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Maximum 500 contracts per batch' } });
-    }
-
-    // Each contract goes through the SAME path as the billing_cycle task
-    // (taskRunner.runAutoInvoice): generateBillingPeriod, then generateInvoice
-    // only when that pending period is due. This route used to INSERT a
-    // calendar-month billing_periods row for ANY contract id in the body —
-    // billing_periods has no organization_id, so another tenant's contract was
-    // accepted and later invoiced by the nightly task — and counted success
-    // even when its NOT EXISTS guard inserted nothing (TNA-12). Now a contract
-    // must be a live, active contract of the caller's org, and `success`
-    // counts only invoices actually created; everything else is `skipped`
-    // with a reason.
-    const results = { success: 0, failed: 0, skipped: 0, invoice_ids: [], errors: [] };
-    const skip = (contractId, code, error) => {
-      results.skipped++;
-      results.errors.push({ contract_id: contractId, code, error });
-    };
-
-    for (const contractId of contract_ids) {
-      try {
-        const [contracts] = await db.query(
-          `SELECT c.*, p.name AS plan_name, p.price AS plan_price, p.currency AS plan_currency
-             FROM contracts c
-             JOIN plans p ON p.id = c.plan_id
-            WHERE c.id = ? AND c.organization_id = ? AND c.status = 'active' AND c.deleted_at IS NULL`,
-          [contractId, orgId],
-        );
-        const contract = contracts[0];
-        if (!contract) {
-          skip(contractId, 'CONTRACT_NOT_FOUND', 'No active contract with this id in this organization.');
-          continue;
-        }
-        const period = await billingService.generateBillingPeriod(contract);
-        if (!period || period.status !== 'pending') {
-          skip(contractId, 'NO_PENDING_PERIOD', 'No billable period for this contract (e.g. in trial).');
-          continue;
-        }
-        if (period.scheduled_at && new Date(period.scheduled_at) > new Date()) {
-          skip(contractId, 'PERIOD_NOT_DUE', 'The next billing period is not due yet.');
-          continue;
-        }
-        const plan = { name: contract.plan_name, price: contract.plan_price, currency: contract.plan_currency };
-        const invoice = await billingService.generateInvoice(period, contract, plan, orgId);
-        if (!invoice) {
-          skip(contractId, 'NOT_INVOICED', 'No invoice was created for this contract.');
-          continue;
-        }
-        results.success++;
-        results.invoice_ids.push(invoice.id);
-      } catch (err) {
-        results.failed++;
-        results.errors.push({ contract_id: contractId, error: err.message });
-      }
-    }
-
-    logger.info({ orgId, ...results }, 'Bulk invoice generation completed');
-    eventBus.emit('bulk.invoices.generated', { organizationId: orgId, ...results });
-
     res.json({ data: results });
   } catch (err) { next(err); }
 });

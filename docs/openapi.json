@@ -9052,32 +9052,6 @@
         }
       }
     },
-    "/billing/bulk-generate": {
-      "post": {
-        "tags": [
-          "Billing"
-        ],
-        "summary": "Bulk generate invoices for all active contracts",
-        "operationId": "bulkGenerate",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Results",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/billing/tax-reports": {
       "get": {
         "tags": [
@@ -9168,42 +9142,6 @@
         ],
         "requestBody": {
           "description": "invoice_ids",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Results",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/bulk/invoices/generate": {
-      "post": {
-        "tags": [
-          "Bulk"
-        ],
-        "summary": "Mass-generate invoices",
-        "operationId": "bulkGenerateInvoices",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "description": "contract_ids",
           "content": {
             "application/json": {
               "schema": {
@@ -61563,10 +61501,6 @@
         "required": [
           "status"
         ]
-      },
-      "bulk_generateInvoices": {
-        "type": "object",
-        "properties": {}
       },
       "bulk_voidInvoices": {
         "type": "object",

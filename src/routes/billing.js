@@ -32,11 +32,9 @@ router.post('/generate-invoice',
 // Payment allocation lives only in /payments/:id/allocate (and allocate-auto),
 // which bind organization, client, invoice state, currency and amount. The
 // legacy POST /billing/allocate-payment did none of that and was removed.
-
-router.post('/bulk-generate',
-  requirePermission('invoices.create'),
-  billingController.bulkGenerate,
-);
+// Invoicing every due contract is the billing_cycle task's job; the legacy
+// POST /billing/bulk-generate and /bulk/invoices/generate duplicated it and
+// were removed too (BIL-28).
 
 // ---------------------------------------------------------------------------
 // Tax Report Export — GET /billing/tax-reports
