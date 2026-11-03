@@ -458,6 +458,14 @@ inserts the note) post at creation. A posted note cannot return to draft,
 Egreso is refused until the CFDI is cancelled. `billing_adjustments` is an
 audit record and feeds no balance.
 
+The organization's switch (`organization_mx_profiles.pac_environment`) picks
+the PAC rows that stamp; each CFDI records the environment that stamped it in
+`cfdi_documents.pac_environment`, and cancellation uses PAC rows of that
+environment, not the current switch (CFD-13). A sandbox CFDI was never
+registered at SAT: it does not block voiding its invoice and its UUID stays
+out of `/billing/tax-reports`. `GET /pac-providers/environment` reports
+`sandbox_vigente_count` so the switch to production can warn about them.
+
 A succeeded gateway capture is money like any other payment:
 `paymentGatewayService.reconcilePayment` posts one `completed` `payments` row,
 links it through `payment_transactions.payment_id` (set in the same transaction,

@@ -10803,7 +10803,7 @@
         "tags": [
           "PAC Providers"
         ],
-        "summary": "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp/cancel",
+        "summary": "Get the org's active fiscal environment (sandbox|production) — selects which PAC rows stamp; a CFDI is cancelled in the environment that stamped it",
         "operationId": "getPacEnvironment",
         "security": [
           {
@@ -10812,7 +10812,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{ pac_environment }",
+            "description": "{ pac_environment, sandbox_vigente_count }",
             "content": {
               "application/json": {
                 "schema": {
