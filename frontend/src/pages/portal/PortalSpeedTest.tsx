@@ -1,13 +1,13 @@
 // =============================================================================
 // VigaBSS 5.0 — Portal Speed Test (§11.4)
 // =============================================================================
-// Queue a speed test job and view past results.
+// View past speed-test results. Running a new test is not available yet: no
+// speed-test runner exists, so the API refuses to queue one (TNA-40).
 // =============================================================================
 
-import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMutation } from '@/api/useMutation';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Badge } from '@/components/ui';
 import { portalAuthedFetch } from '@/auth/PortalAuthContext';
 
 const API_BASE = '/api/v1/portal';
@@ -43,29 +43,11 @@ async function portalFetch<T>(path: string, opts: RequestInit = {}): Promise<T> 
 
 export function PortalSpeedTest() {
   const { t } = useTranslation();
-  const qc = useQueryClient();
-  const [queued, setQueued] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['portal-speed-test-results'],
     queryFn: () => portalFetch<{ data: SpeedTestJob[] }>('/speed-test/results?limit=20'),
     staleTime: 30_000,
-  });
-
-  const queueMutation = useMutation({
-    mutationFn: () => portalFetch('/speed-test', { method: 'POST' }),
-    onSuccess: () => {
-      setErrorMsg(null);
-      setQueued(true);
-      setTimeout(() => {
-        setQueued(false);
-        qc.invalidateQueries({ queryKey: ['portal-speed-test-results'] });
-      }, 5000);
-    },
-    onError: (e: Error) => {
-      setErrorMsg(e.message || t('portalSpeedTest.queueFailed'));
-    },
   });
 
   const results = data?.data ?? [];
@@ -77,22 +59,10 @@ export function PortalSpeedTest() {
       <p style={styles.sub}>{t('portalSpeedTest.subtitle')}</p>
 
       <section style={styles.card}>
-        {errorMsg && (
-          <div style={styles.errorMsg}>{errorMsg}</div>
-        )}
-        {queued ? (
-          <div style={styles.queuedMsg}>
-            {t('portalSpeedTest.queued')}
-          </div>
-        ) : (
-          <button
-            style={styles.runBtn}
-            onClick={() => queueMutation.mutate()}
-            disabled={queueMutation.isPending}
-          >
-            {queueMutation.isPending ? t('portalSpeedTest.queuing') : t('portalSpeedTest.run')}
-          </button>
-        )}
+        <div role="note" style={styles.unavailable}>
+          <Badge tone="warning">{t('portalSpeedTest.unavailableBadge')}</Badge>
+          <span>{t('portalSpeedTest.unavailable')}</span>
+        </div>
 
         {latest && (
           <div style={styles.latestResult}>
@@ -179,9 +149,7 @@ const styles: Record<string, React.CSSProperties> = {
   muted: { color: 'var(--text-muted)', fontSize: '0.9rem' },
   card: { background: 'var(--bg-card)', borderRadius: 8, padding: '1.25rem', boxShadow: '0 0 0 1px var(--border)' },
   sectionTitle: { margin: 0, fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 600 },
-  runBtn: { padding: '0.6rem 1.5rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '1rem', fontWeight: 600 },
-  queuedMsg: { padding: '0.75rem 1rem', background: '#d1fae5', color: '#065f46', borderRadius: 4, fontSize: '0.9rem' },
-  errorMsg: { padding: '0.75rem 1rem', background: '#fee2e2', color: '#991b1b', borderRadius: 4, fontSize: '0.9rem', marginBottom: '0.75rem' },
+  unavailable: { display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', fontSize: '0.9rem' },
   latestResult: { marginTop: '1.25rem' },
   latestTitle: { margin: '0 0 0.75rem', fontSize: '0.95rem', color: 'var(--text-muted)' },
   speedGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', maxWidth: 360 },

@@ -1,5 +1,103 @@
 {
+  "cfdiAutoStamp": {
+    "label": "Stamp generated invoices automatically",
+    "hint": "When on, the scheduled billing run stamps each invoice it generates, in the fiscal environment above. An invoice that cannot be stamped (an incomplete client fiscal profile, a PAC error) stays unstamped or as a draft CFDI to retry from CFDI Management.",
+    "saveFailed": "Could not change automatic stamping."
+  },
+  "cfdiSubstitution": {
+    "button": "Substitute",
+    "buttonTitle": "Stamp a corrected CFDI for the same invoice and cancel this one (motivo 01)",
+    "confirm": "Substitute CFDI {{uuid}}? A new CFDI is stamped for the same invoice from what the invoice says now, and this one is then cancelled at SAT with motivo 01 (errors, with a replacement). The invoice stays open.",
+    "notStamped": "The replacement was not stamped ({{error}}); CFDI {{uuid}} is still vigente. Retry the replacement draft from this list.",
+    "cancelFailed": "Replacement {{replacement}} stamped, but cancelling {{uuid}} failed: {{error}}. Cancel it with motivo 01 and the replacement UUID.",
+    "done": "Replacement {{replacement}} stamped; cancellation of {{uuid}}: {{status}}.",
+    "failed": "Failed to substitute the CFDI"
+  },
+  "portalDataPacks": {
+    "title": "Data packs",
+    "subtitle": "Your data allowance this period, and extra data you can add.",
+    "allowance": "Your allowance",
+    "allowanceParts": {
+      "plan": "Plan",
+      "packs": "Data packs",
+      "rollover": "Rollover",
+      "total": "Total"
+    },
+    "unlimited": "Unlimited",
+    "noContract": "You have no active service.",
+    "available": "Available packs",
+    "noPacks": "No data packs are offered right now.",
+    "pack": "Pack",
+    "data": "Data",
+    "validity": "Valid for",
+    "price": "Price",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "buy": "Buy",
+    "confirm": "An invoice for {{price}} will be issued.",
+    "confirmBuy": "Confirm purchase",
+    "buying": "Buying…",
+    "cancel": "Cancel",
+    "bought": "{{name}} was added to your allowance.",
+    "purchases": "Your purchases",
+    "noPurchases": "No purchases yet.",
+    "purchased": "Purchased",
+    "expires": "Expires",
+    "status": "Status",
+    "statuses": {
+      "pending": "Pending",
+      "active": "Active",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    }
+  },
+  "portalPayments": {
+    "title": "Payments",
+    "subtitle": "Payments recorded on your account.",
+    "loadError": "Your payments could not be loaded.",
+    "none": "No payments yet.",
+    "date": "Date",
+    "amount": "Amount",
+    "method": "Method",
+    "reference": "Reference",
+    "status": "Status",
+    "statuses": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "failed": "Failed",
+      "refunded": "Refunded",
+      "cancelled": "Cancelled"
+    }
+  },
+  "portalSecurity": {
+    "title": "Security",
+    "subtitle": "Change the password you use to sign in to this portal.",
+    "changePassword": "Change password",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "hint": "At least {{min}} characters.",
+    "tooShort": "The new password must have at least {{min}} characters.",
+    "mismatch": "The new passwords do not match.",
+    "save": "Change password",
+    "saving": "Saving…",
+    "changed": "Your password has been changed."
+  },
+  "notApplied": {
+    "badge": "Not applied yet",
+    "backupSchedules": "Schedules are recorded but not applied yet: the nightly configuration backup runs for every eligible device, whatever is set here.",
+    "dataMasking": "Masking rules are recorded but not enforced yet: screens, API responses and exports show these fields unmasked.",
+    "billingAdjustments": "Adjustments are notes: recording one does not change an invoice, a payment or the client balance. Use a credit note or a payment to change what is owed."
+  },
+  "alertRulesTab": {
+    "escalationChain": "Escalation chain",
+    "noEscalation": "No escalation",
+    "escalationHint": "While the alert stays unacknowledged, each step of the chain notifies its contact after its delay."
+  },
   "deviceForm": {
+    "trapCommunity": "Trap community",
+    "trapCommunityHint": "Only if the device sends traps with a different community. Traps must carry this community (or the community above); others are dropped.",
+    "trapCommunityKeep": "Leave blank to keep the stored trap community",
     "snmpV3": {
       "securityName": "SNMPv3 user (security name)",
       "authProtocol": "Auth protocol",
@@ -386,6 +484,10 @@
     "switchOrgFailed": "Failed to switch organization"
   },
   "portalLayout": {
+    "navPayments": "💳 Payments",
+    "navDataPacks": "📶 Data packs",
+    "navChat": "💬 Chat",
+    "navSecurity": "🔒 Security",
     "brandName": "VigaBSS Alpha — My Account",
     "navHome": "🏠 Home",
     "navInvoices": "🧾 Invoices",
@@ -3974,6 +4076,8 @@
     }
   },
   "ticketDetail": {
+    "authorClient": "{{name}} (client)",
+    "authorSystem": "System",
     "aiTriage": "AI Triage Suggestions",
     "aiTriageCategory": "Suggested Category",
     "aiTriagePriority": "Suggested Priority",
@@ -6629,12 +6733,10 @@
     "stats": "{{views}} views · {{helpful}} found helpful"
   },
   "portalSpeedTest": {
-    "queueFailed": "Failed to queue speed test. Please try again.",
     "title": "Speed Test",
-    "subtitle": "Test your connection speed and view history",
-    "queued": "Speed test queued! Results will appear below once complete (usually within 30 seconds).",
-    "queuing": "Queuing…",
-    "run": "Run Speed Test",
+    "unavailableBadge": "Not available yet",
+    "unavailable": "Running a speed test from the portal is not available yet. Contact support if your connection seems slow.",
+    "subtitle": "Your connection speed test history",
     "latest": "Latest Result",
     "mbpsDown": "Mbps Down",
     "mbpsUp": "Mbps Up",
@@ -6642,7 +6744,7 @@
     "tested": "Tested: {{date}}",
     "history": "Test History",
     "refresh": "Refresh",
-    "none": "No speed tests yet. Run your first test above.",
+    "none": "No speed tests yet.",
     "date": "Date",
     "status": "Status",
     "down": "Down",
@@ -6657,6 +6759,10 @@
     }
   },
   "portalTicketDetail": {
+    "authorYou": "You",
+    "authorStaff": "Support team",
+    "authorStaffNamed": "{{name}} (support)",
+    "authorSystem": "System",
     "replyFailed": "Your reply could not be sent. Please try again.",
     "notFound": "Ticket not found.",
     "back": "Back to tickets",

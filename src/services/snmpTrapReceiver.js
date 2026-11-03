@@ -12,6 +12,16 @@
 //                   -p udp --dport 162 -j REDIRECT --to-port 1620
 //   SNMP_TRAP_BIND_IP IPv4 address to bind (default: 127.0.0.1). Use
 //                   0.0.0.0 only behind a trusted network ACL.
+//   SNMP_TRAP_CREDENTIAL_REFRESH_MS How often the known communities and
+//                   SNMPv3 users are reloaded from devices (default: 60000).
+//
+// Trust model (NET-24): a network ACL in front of the listener, plus the
+// device's own credentials. A v1/v2c trap must carry the community of the
+// device its source address resolves to (snmp_trap_community, else
+// snmp_community); an SNMPv3 trap must be authenticated (authNoPriv or
+// authPriv) as that device's USM user. Source address alone attributes
+// nothing; mismatches are dropped before persistence and counted in
+// snmp_trap_dropped_auth_total.
 //
 // Standard trap-type OIDs (IETF RFC 3418 / SNMPv2-MIB):
 //   coldStart            1.3.6.1.6.3.1.1.5.1
@@ -24,8 +34,11 @@
 
 const snmp = require('net-snmp');
 const net = require('net');
+const crypto = require('crypto');
 const config = require('../config');
 const db = require('../config/database');
+const { decrypt } = require('../utils/encryption');
+const opsMetrics = require('../utils/opsMetrics');
 const logger = require('../utils/logger').child({ service: 'snmpTrapReceiver' });
 const eventBus = require('./eventBus');
 const { normalizeIpAddress } = require('../utils/ipAddress');
@@ -75,6 +88,7 @@ const SOURCE_RATE_PER_MINUTE = boundedEnvInt('SNMP_TRAP_SOURCE_RATE_PER_MINUTE',
 const SOURCE_RATE_BURST = boundedEnvInt('SNMP_TRAP_SOURCE_RATE_BURST', 20, 1, 1200);
 const SOURCE_RATE_BUCKETS = 256;
 const DRAIN_TIMEOUT_MS = boundedEnvInt('SNMP_TRAP_DRAIN_TIMEOUT_MS', 10000, 1000, 60000);
+const CREDENTIAL_REFRESH_MS = boundedEnvInt('SNMP_TRAP_CREDENTIAL_REFRESH_MS', 60000, 5000, 3600000);
 const MAX_VARBIND_COUNT = 64;
 const MAX_VARBIND_VALUE_BYTES = 512;
 const MAX_VARBINDS_JSON_BYTES = 8 * 1024;
@@ -161,6 +175,7 @@ const receiverStatus = {
   dropped_rate_total: 0,
   dropped_source_rate_total: 0,
   dropped_unattributed_total: 0,
+  dropped_auth_total: 0,
   dropped_daily_quota_total: 0,
   metadata_only_daily_quota_total: 0,
   forwarding_skipped_daily_quota_total: 0,
@@ -197,7 +212,9 @@ async function lookupDevice(sourceIp) {
   }
 
   const [rows] = await db.query(
-    `SELECT d.id, d.organization_id, d.name
+    `SELECT d.id, d.organization_id, d.name,
+            d.snmp_version, d.snmp_community, d.snmp_trap_community,
+            d.snmp_v3_security_name, d.snmp_v3_auth_key_encrypted
        FROM devices d
        JOIN organizations o
          ON o.id = d.organization_id
@@ -215,6 +232,188 @@ async function lookupDevice(sourceIp) {
     return null;
   }
   return rows[0];
+}
+
+
+// ---------------------------------------------------------------------------
+// Trap authentication (NET-24)
+// ---------------------------------------------------------------------------
+// net-snmp checks a v1/v2c community against the communities of all known
+// devices, and verifies SNMPv3 digests and privacy for the registered USM
+// users, before handleTrap runs. handleTrap then requires that the credential
+// belongs to the device the source address resolved to.
+
+const TRAP_CREDENTIAL_COLUMNS = [
+  'snmp_version', 'snmp_community', 'snmp_trap_community',
+  'snmp_v3_security_name', 'snmp_v3_auth_key_encrypted',
+];
+
+const V3_AUTH_PROTOCOLS = { md5: 'md5', sha: 'sha', sha256: 'sha256', sha512: 'sha512' };
+// The same mapping as snmpPoller's createSnmpSession.
+const V3_PRIV_PROTOCOLS = { des: 'des', aes128: 'aes', aes256: 'aes256b' };
+
+let credentialRefreshTimer = null;
+
+function noteDroppedAuth(reason) {
+  receiverStatus.dropped_auth_total += 1;
+  opsMetrics.noteSnmpTrapAuthDrop(reason);
+  sampledOverloadWarning(
+    receiverStatus.dropped_auth_total,
+    'SNMP trap failed authentication; datagram discarded without persistence',
+  );
+}
+
+function sameSecret(a, b) {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+/** The community a device's v1/v2c traps must carry, or null. */
+function deviceTrapCommunity(device) {
+  return decrypt(device.snmp_trap_community) || decrypt(device.snmp_community) || null;
+}
+
+/**
+ * Why `notification` is not from `device`, or null when its credential is
+ * the device's. net-snmp (includeAuthentication) puts the v1/v2c community in
+ * pdu.community and the authenticated SNMPv3 user name in pdu.user.
+ */
+function trapAuthFailure(device, notification) {
+  const pdu = notification?.pdu || {};
+  if (pdu.user !== undefined) {
+    // An unauthenticated v3 message arrives with the empty user name; a named
+    // user reaches here only after net-snmp verified its digest.
+    if (!device.snmp_v3_security_name || !device.snmp_v3_auth_key_encrypted) return 'no_credentials';
+    return pdu.user === device.snmp_v3_security_name ? null : 'user_mismatch';
+  }
+  const expected = deviceTrapCommunity(device);
+  if (!expected) return 'no_credentials';
+  if (typeof pdu.community !== 'string' || !sameSecret(pdu.community, expected)) return 'community_mismatch';
+  return null;
+}
+
+function withoutTrapCredentials(device) {
+  if (!device) return device;
+  const rest = { ...device };
+  for (const column of TRAP_CREDENTIAL_COLUMNS) delete rest[column];
+  return rest;
+}
+
+/** Authentication failures raised by net-snmp before the callback runs. */
+function receiverAuthFailure(error) {
+  const message = String(error?.message || '');
+  if (error?.name === 'RequestFailedError') {
+    if (/^Local community not found/.test(message)) return 'unknown_community';
+    if (/^Local user not found/.test(message)) return 'unknown_user';
+    if (/requires (authentication|privacy)/.test(message)) return 'security_level';
+  }
+  if (error?.name === 'ResponseInvalidError') {
+    if (error.code === snmp.ResponseInvalidCode?.EAuthFailure) return 'bad_digest';
+    if (error.code === snmp.ResponseInvalidCode?.ECouldNotDecrypt) return 'decrypt_failed';
+  }
+  return null;
+}
+
+/**
+ * Communities and SNMPv3 users of every live device of an active
+ * organization. A USM user name configured with different keys on two
+ * devices is left out: net-snmp keys users by name, so either device's keys
+ * would authenticate the other's traps.
+ */
+async function loadTrapCredentials() {
+  const [rows] = await db.query(
+    `SELECT d.snmp_community, d.snmp_trap_community, d.snmp_v3_security_name,
+            d.snmp_v3_auth_protocol, d.snmp_v3_auth_key_encrypted,
+            d.snmp_v3_priv_protocol, d.snmp_v3_priv_key_encrypted
+       FROM devices d
+       JOIN organizations o
+         ON o.id = d.organization_id
+        AND o.status = 'active' AND o.deleted_at IS NULL
+      WHERE d.deleted_at IS NULL
+        AND (d.snmp_community IS NOT NULL OR d.snmp_trap_community IS NOT NULL
+             OR d.snmp_v3_auth_key_encrypted IS NOT NULL)`,
+  );
+  const communities = new Set();
+  const users = new Map();
+  const conflicting = new Set();
+  for (const row of rows) {
+    const community = deviceTrapCommunity(row);
+    if (community) communities.add(community);
+    if (row.snmp_trap_community && row.snmp_community) {
+      const polling = decrypt(row.snmp_community);
+      if (polling) communities.add(polling);
+    }
+    const name = row.snmp_v3_security_name;
+    const authKey = row.snmp_v3_auth_key_encrypted ? decrypt(row.snmp_v3_auth_key_encrypted) : '';
+    const authProtocol = V3_AUTH_PROTOCOLS[row.snmp_v3_auth_protocol || 'sha'];
+    if (!name || !authKey || !authProtocol) continue;
+    const privKey = row.snmp_v3_priv_key_encrypted ? decrypt(row.snmp_v3_priv_key_encrypted) : '';
+    const privProtocol = V3_PRIV_PROTOCOLS[row.snmp_v3_priv_protocol || 'aes128'];
+    const user = privKey && privProtocol
+      ? { name, level: snmp.SecurityLevel.authPriv, authProtocol: snmp.AuthProtocols[authProtocol], authKey, privProtocol: snmp.PrivProtocols[privProtocol], privKey }
+      : { name, level: snmp.SecurityLevel.authNoPriv, authProtocol: snmp.AuthProtocols[authProtocol], authKey };
+    const existing = users.get(name);
+    if (existing && JSON.stringify(existing) !== JSON.stringify(user)) conflicting.add(name);
+    else users.set(name, user);
+  }
+  for (const name of conflicting) users.delete(name);
+  if (conflicting.size) {
+    logger.warn({ users: conflicting.size }, 'SNMPv3 trap users configured with different keys on several devices are not accepted');
+  }
+  return { communities: [...communities], users: [...users.values()] };
+}
+
+/**
+ * net-snmp receiver options: it rejects unknown communities and users and
+ * verifies SNMPv3 digests, and hands the community or user to handleTrap.
+ */
+function receiverOptions(port, address) {
+  return { port, address, transport: 'udp4', disableAuthorization: false, includeAuthentication: true };
+}
+
+/** Replace the receiver's known communities and users. */
+function applyTrapCredentials(instance, { communities, users }) {
+  const authorizer = typeof instance?.getAuthorizer === 'function' ? instance.getAuthorizer() : null;
+  if (!authorizer) return;
+  for (const community of [...authorizer.getCommunities()]) authorizer.deleteCommunity(community);
+  for (const user of [...authorizer.getUsers()]) authorizer.deleteUser(user.name);
+  for (const community of communities) authorizer.addCommunity(community);
+  for (const user of users) authorizer.addUser(user);
+}
+
+async function refreshTrapCredentials(instance = receiver || bindingReceiver) {
+  if (!instance) return;
+  try {
+    const credentials = typeof db.withPrimaryContext === 'function'
+      ? await db.withPrimaryContext(() => loadTrapCredentials())
+      : await loadTrapCredentials();
+    applyTrapCredentials(instance, credentials);
+  } catch (err) {
+    // Keep the last loaded set: an outage must not open the listener up.
+    logger.error({ err: err.message }, 'SNMP trap credentials could not be reloaded');
+  }
+}
+
+let stopRoutingListener = null;
+
+// Reload on a timer (devices edited through another replica) and right after
+// a device is created, edited or deleted here.
+function scheduleCredentialRefresh() {
+  cancelCredentialRefresh();
+  credentialRefreshTimer = setInterval(() => { refreshTrapCredentials(); }, CREDENTIAL_REFRESH_MS);
+  if (typeof credentialRefreshTimer.unref === 'function') credentialRefreshTimer.unref();
+  const { onDeviceRoutingChange } = require('./tenantDeviceResolverService');
+  if (typeof onDeviceRoutingChange === 'function') {
+    stopRoutingListener = onDeviceRoutingChange(() => { refreshTrapCredentials(); });
+  }
+}
+
+function cancelCredentialRefresh() {
+  if (credentialRefreshTimer) clearInterval(credentialRefreshTimer);
+  credentialRefreshTimer = null;
+  if (stopRoutingListener) stopRoutingListener();
+  stopRoutingListener = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -629,6 +828,11 @@ function extractTrapInfo(notification) {
  */
 async function handleTrap(error, notification) {
   if (error) {
+    const authReason = receiverAuthFailure(error);
+    if (authReason) {
+      noteDroppedAuth(authReason);
+      return;
+    }
     logger.error(safeReceiverError(error), 'SNMP trap receiver rejected a datagram');
     return;
   }
@@ -666,8 +870,8 @@ async function handleTrap(error, notification) {
       return;
     }
 
-    const initialDevice = await lookupDevice(normalizedIp);
-    if (!initialDevice) {
+    const resolvedDevice = await lookupDevice(normalizedIp);
+    if (!resolvedDevice) {
       receiverStatus.dropped_unattributed_total += 1;
       sampledOverloadWarning(
         receiverStatus.dropped_unattributed_total,
@@ -675,6 +879,12 @@ async function handleTrap(error, notification) {
       );
       return;
     }
+    const authReason = trapAuthFailure(resolvedDevice, notification);
+    if (authReason) {
+      noteDroppedAuth(authReason);
+      return;
+    }
+    const initialDevice = withoutTrapCredentials(resolvedDevice);
 
     const persistAndDispatch = async () => {
       const receivedAt = new Date().toISOString();
@@ -701,7 +911,7 @@ async function handleTrap(error, notification) {
               device = null;
               orgId = null;
             } else {
-              device = locked.device;
+              device = withoutTrapCredentials(locked.device);
               orgId = locked.device.organization_id;
             }
           }
@@ -1089,12 +1299,10 @@ async function startInternal(generation) {
   }
 
   try {
-    const instance = snmp.createReceiver(
-      { port, address: bindIp, transport: 'udp4', disableAuthorization: true },
-      acceptInboundTrap,
-    );
+    const instance = snmp.createReceiver(receiverOptions(port, bindIp), acceptInboundTrap);
     bindingReceiver = instance;
     await waitForListenerBind(instance);
+    if (typeof db.withPrimaryContext === 'function') await refreshTrapCredentials(instance);
     if (generation !== lifecycleGeneration) {
       try { instance.close(); } catch (_) { /* stop won the lifecycle race */ }
       return getStatus();
@@ -1111,6 +1319,7 @@ async function startInternal(generation) {
       return getStatus();
     }
     accepting = true;
+    if (typeof db.withPrimaryContext === 'function') scheduleCredentialRefresh();
     receiverStatus.state = 'listening';
     receiverStatus.listening = true;
     receiverStatus.ready = true;
@@ -1153,6 +1362,7 @@ function start() {
 async function stopInternal() {
   const generation = ++lifecycleGeneration;
   accepting = false;
+  cancelCredentialRefresh();
   receiverStatus.state = 'stopping';
   receiverStatus.ready = false;
   receiverStatus.reason = 'stopping';
@@ -1223,6 +1433,11 @@ module.exports = {
   acceptInboundTrap,
   handleTrap,
   lookupDevice,
+  trapAuthFailure,
+  receiverOptions,
+  loadTrapCredentials,
+  applyTrapCredentials,
+  refreshTrapCredentials,
   storeTrap,
   reserveTrapIngestUsage,
   reserveTrapForwardingUsage,

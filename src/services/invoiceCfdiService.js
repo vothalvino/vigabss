@@ -97,9 +97,23 @@ async function resolveStampInputs(exec, invoiceId, orgId, opts) {
   // One CFDI per invoice — fast-path check with the actionable draft-vs-live
   // message. NOT authoritative: the same guard re-runs inside the transaction
   // under a row lock (below) to close the concurrent-stamp race.
+  // A substitution (BIL-33) stamps the replacement while the CFDI it
+  // replaces is still vigente: that one, and only that one, is allowed.
+  const substitutes = opts.substitutes || null;
+  if (substitutes) {
+    const [original] = await exec(
+      "SELECT id FROM cfdi_documents WHERE id = ? AND invoice_id = ? AND organization_id = ? AND sat_status = 'vigente'",
+      [substitutes.id, invoiceId, orgId],
+    );
+    if (!original[0]) {
+      throw new AppError('The CFDI to substitute is no longer vigente for this invoice.', 409, 'CFDI_NOT_VIGENTE');
+    }
+  }
   const [existing] = await exec(
-    "SELECT id, sat_status FROM cfdi_documents WHERE invoice_id = ? AND organization_id = ? AND sat_status IN ('draft', 'vigente', 'cancel_pending') LIMIT 1",
-    [invoiceId, orgId],
+    `SELECT id, sat_status FROM cfdi_documents
+      WHERE invoice_id = ? AND organization_id = ? AND sat_status IN ('draft', 'vigente', 'cancel_pending')${substitutes ? ' AND id <> ?' : ''}
+      LIMIT 1`,
+    substitutes ? [invoiceId, orgId, substitutes.id] : [invoiceId, orgId],
   );
   if (existing[0]) {
     throw new AppError(
@@ -315,6 +329,14 @@ async function stampInvoice(invoiceId, orgId, opts = {}) {
     );
     docId = docResult.insertId;
 
+    // The replacement names the CFDI it substitutes (TipoRelacion 04).
+    if (opts.substitutes) {
+      await conn.execute(
+        "INSERT INTO cfdi_related_documents (cfdi_document_id, related_uuid, relationship_type) VALUES (?, ?, '04')",
+        [docId, opts.substitutes.uuid],
+      );
+    }
+
     // Conceptos + per-line IVA. The traslado importes sum exactly to the
     // invoice's stored tax_amount — never recompute invoice totals (they are
     // the billing source of truth). The split gives each line the floor or
@@ -431,4 +453,96 @@ async function rebuildDraft(cfdiDocumentId, orgId, opts = {}) {
   return stampInvoice(doc.invoice_id, orgId, opts);
 }
 
-module.exports = { stampInvoice, rebuildDraft, nextCfdiFolio, STAMPABLE_STATUSES };
+/**
+ * Substitute an invoice's vigente CFDI (BIL-33): stamp a replacement for the
+ * same invoice, relating the original with TipoRelacion 04, then cancel the
+ * original with motivo 01 naming the replacement. The invoice is not settled
+ * to cancelled: syncInvoiceCancelled sees the live replacement. When the
+ * replacement does not stamp, the original is left vigente; when the
+ * cancellation fails, the replacement stands and the original can be
+ * cancelled from its page with motivo 01.
+ *
+ * @param {number} cfdiDocumentId the vigente CFDI de ingreso to replace
+ * @param {number} orgId
+ * @param {{ userId?: number|null, uso_cfdi?: string, forma_pago?: string }} [opts]
+ */
+async function substituteInvoiceCfdi(cfdiDocumentId, orgId, opts = {}) {
+  const [rows] = await db.query(
+    'SELECT id, invoice_id, tipo_comprobante, sat_status, uuid FROM cfdi_documents WHERE id = ? AND organization_id = ?',
+    [cfdiDocumentId, orgId],
+  );
+  const original = rows[0];
+  if (!original) throw new AppError('CFDI document not found', 404, 'CFDI_NOT_FOUND');
+  if (original.tipo_comprobante !== 'I' || !original.invoice_id) {
+    throw new AppError('Only an invoice (ingreso) CFDI can be substituted from its invoice.', 422, 'CFDI_NOT_SUBSTITUTABLE');
+  }
+  if (original.sat_status !== 'vigente' || !original.uuid) {
+    throw new AppError(`Only a vigente CFDI can be substituted — this one is ${original.sat_status}.`, 409, 'CFDI_NOT_VIGENTE');
+  }
+  // SAT refuses to cancel a CFDI a live REP still cites; refuse before a
+  // replacement is filed that could then not take over.
+  const [liveReps] = await db.query(
+    `SELECT d.uuid
+       FROM cfdi_payment_complement_items pci
+       JOIN cfdi_payment_complements pc ON pc.id = pci.complement_id
+       JOIN cfdi_documents d ON d.id = pc.cfdi_document_id
+      WHERE pci.related_cfdi_uuid = ? AND d.organization_id = ? AND d.sat_status IN ('vigente', 'cancel_pending')
+      LIMIT 1`,
+    [original.uuid, orgId],
+  );
+  if (liveReps[0]) {
+    throw new AppError(
+      `This CFDI has a payment complement (REP ${liveReps[0].uuid}) that is still valid at SAT — cancel the REP first, then substitute.`,
+      422, 'CFDI_HAS_LIVE_REP',
+    );
+  }
+
+  const replacement = await stampInvoice(original.invoice_id, orgId, {
+    ...opts, substitutes: { id: original.id, uuid: original.uuid },
+  });
+  if (!replacement.stamped) return { ...replacement, substituted_cfdi_document_id: original.id, original_cancellation: null };
+
+  try {
+    const cancellation = await cfdiService.cancel(original.id, '01', replacement.uuid, { userId: opts.userId ?? null });
+    return { ...replacement, substituted_cfdi_document_id: original.id, original_cancellation: cancellation };
+  } catch (err) {
+    logger.warn({ cfdiDocumentId, replacementUuid: replacement.uuid, err: err.message },
+      'Replacement CFDI stamped but the original could not be cancelled — cancel it with motivo 01');
+    return {
+      ...replacement, substituted_cfdi_document_id: original.id, original_cancellation: null,
+      cancel_error: err.message,
+    };
+  }
+}
+
+/**
+ * Stamp an invoice the billing run just generated, when the organization
+ * opted in (organization_mx_profiles.cfdi_auto_stamp, BIL-33). Best effort:
+ * a refusal or PAC failure is returned, never thrown, so it cannot undo the
+ * invoice. One CFDI per invoice still holds (CFDI_EXISTS), so a rerun does
+ * not stamp twice.
+ *
+ * @returns {Promise<{ attempted: boolean, stamped?: boolean, cfdi_document_id?: number, error?: string }>}
+ */
+async function autoStampInvoice(invoiceId, orgId) {
+  const [rows] = await db.query(
+    'SELECT cfdi_auto_stamp FROM organization_mx_profiles WHERE organization_id = ? AND deleted_at IS NULL',
+    [orgId],
+  );
+  if (!rows[0] || !Number(rows[0].cfdi_auto_stamp)) return { attempted: false };
+  try {
+    const result = await stampInvoice(invoiceId, orgId, { userId: null });
+    return {
+      attempted: true, stamped: result.stamped, cfdi_document_id: result.cfdi_document_id,
+      ...(result.stamped ? {} : { error: result.stamp_error }),
+    };
+  } catch (err) {
+    if (err.code === 'CFDI_EXISTS') return { attempted: true, stamped: false, already: true };
+    logger.warn({ invoiceId, orgId, code: err.code, err: err.message }, 'Automatic CFDI stamping refused');
+    return { attempted: true, stamped: false, error: err.message };
+  }
+}
+
+module.exports = {
+  stampInvoice, rebuildDraft, substituteInvoiceCfdi, autoStampInvoice, nextCfdiFolio, STAMPABLE_STATUSES,
+};

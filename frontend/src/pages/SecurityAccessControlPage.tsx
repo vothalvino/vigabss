@@ -12,6 +12,7 @@
 
 import { useState, useEffect, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { NotAppliedNotice } from '@/components/NotAppliedNotice';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/api/apiFetch';
 
@@ -770,6 +771,7 @@ function DataSecurityTab() {
       }
 
       <h2>{t('securityAccessControl.dataSecurity.dataMasking')}</h2>
+      <NotAppliedNotice detail={t('notApplied.dataMasking')} />
       {maskingRules.length === 0
         ? <p>{t('securityAccessControl.dataSecurity.noMaskingRules')}</p>
         : (

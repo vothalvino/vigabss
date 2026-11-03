@@ -18,6 +18,8 @@ const createDevice = {
   longitude: { type: 'number', min: -180, max: 180 },
   snmp_enabled: { type: 'boolean' },
   snmp_community: { type: 'string', max: 96 },
+  // Trap community when the device sends traps with a different one (NET-24).
+  snmp_trap_community: { type: 'string', max: 96 },
   snmp_version: { type: 'string', enum: ['v1', 'v2c', 'v3'] },
   snmp_port: { type: 'number', min: 1, max: 65535 },
   snmp_profile_id: { type: 'number', min: 1 },
@@ -49,6 +51,8 @@ const updateDevice = {
   longitude: { type: 'number', min: -180, max: 180 },
   snmp_enabled: { type: 'boolean' },
   snmp_community: { type: 'string', max: 96 },
+  // Trap community when the device sends traps with a different one (NET-24).
+  snmp_trap_community: { type: 'string', max: 96 },
   snmp_version: { type: 'string', enum: ['v1', 'v2c', 'v3'] },
   snmp_port: { type: 'number', min: 1, max: 65535 },
   snmp_profile_id: { type: 'number', min: 1 },

@@ -62,6 +62,7 @@ export interface Device {
   snmp_enabled: boolean | number;
   /** Write-only: the API returns has_snmp_community instead of the value. */
   has_snmp_community?: boolean;
+  has_snmp_trap_community?: boolean;
   snmp_version?: string | null;
   snmp_v3_security_name?: string | null;
   snmp_v3_auth_protocol?: string | null;
@@ -509,6 +510,7 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
     ip_address: device?.ip_address ?? '',
     snmp_enabled: Boolean(device?.snmp_enabled),
     snmp_community: '',
+    snmp_trap_community: '',
     snmp_version: device?.snmp_version ?? 'v2c',
     snmp_v3_security_name: device?.snmp_v3_security_name ?? '',
     snmp_v3_auth_protocol: device?.snmp_v3_auth_protocol ?? 'sha',
@@ -567,6 +569,7 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
     if (form.snmp_enabled) {
       body.snmp_version = form.snmp_version;
       if (form.snmp_community.trim()) body.snmp_community = form.snmp_community.trim();
+      if (form.snmp_trap_community.trim()) body.snmp_trap_community = form.snmp_trap_community.trim();
       if (form.snmp_version === 'v3') {
         // Keys are write-only: blank keeps the stored (encrypted) key.
         const v3 = body as Record<string, unknown>;
@@ -687,6 +690,9 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
                 </div>
                 <label style={labelStyle}>Community</label>
                 <input style={inputStyle} type="password" autoComplete="new-password" value={form.snmp_community} onChange={set('snmp_community')} maxLength={96} placeholder={device?.has_snmp_community ? 'Leave blank to keep the current community' : 'public'} />
+                <label style={labelStyle} htmlFor="device-trap-community">{t('deviceForm.trapCommunity')}</label>
+                <input id="device-trap-community" style={inputStyle} type="password" autoComplete="new-password" value={form.snmp_trap_community} onChange={set('snmp_trap_community')} maxLength={96} placeholder={device?.has_snmp_trap_community ? t('deviceForm.trapCommunityKeep') : ''} aria-describedby="device-trap-community-hint" />
+                <div id="device-trap-community-hint" style={{ fontSize: 12, opacity: 0.75, marginBottom: 8 }}>{t('deviceForm.trapCommunityHint')}</div>
                 {form.snmp_version === 'v3' && (
                   <div>
                     <label style={labelStyle} htmlFor="device-v3-user">{t('deviceForm.snmpV3.securityName')}</label>

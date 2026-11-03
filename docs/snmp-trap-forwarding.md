@@ -91,9 +91,35 @@ of 1024 or higher. An alternative is to redirect host UDP 162 to 1620.
 
 Only permit trusted device-management networks through the host firewall.
 Avoid publishing on `0.0.0.0` unless that firewall has been verified. The
-receiver is an ingest listener, not an Internet-facing API. It attributes
-senders by source IP and does not authenticate inbound traps with an SNMP
-community, so a non-loopback deployment must enforce that network ACL.
+receiver is an ingest listener, not an Internet-facing API.
+
+### Trust model
+
+A trap is accepted only when both of these hold:
+
+1. **Network ACL.** The host firewall admits only the device-management
+   networks, and the source address resolves to exactly one device.
+2. **The device's own credential.**
+   - A v1/v2c trap must carry that device's community. That is the device's
+     *trap community* when one is set, otherwise its polling community.
+   - An SNMPv3 trap must be authenticated, at authNoPriv or authPriv, as that
+     device's USM user, with the device's stored auth (and privacy) keys.
+
+A trap that carries no credential, a wrong one, or another device's credential
+is dropped before anything is stored or forwarded. Each drop is counted in
+`snmp_trap_dropped_auth_total{reason}`.
+
+- A device with neither a community nor an SNMPv3 user accepts no traps.
+- If two devices use the same SNMPv3 user name with different keys, that user
+  is refused for both devices.
+
+The receiver reloads the known communities and users when a device is saved,
+and every `SNMP_TRAP_CREDENTIAL_REFRESH_MS` (default 60000), so that changes
+made through another replica are picked up.
+
+Source address alone never attributes a trap, but v1/v2c communities travel in
+clear text. Keep the network ACL in place even when communities are set, and
+prefer SNMPv3 with privacy on networks you do not fully trust.
 
 The listener also has a fixed-memory overload boundary. It accepts at most 16
 in-flight traps and permits a short burst of 100 at up to 50 tokens per second.

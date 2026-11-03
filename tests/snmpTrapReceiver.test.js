@@ -855,7 +855,7 @@ describe('handleTrap()', () => {
   test('emits device.trap event when device is found', async () => {
     const notification = makeTrapV2('1.3.6.1.6.3.1.1.5.3');
     db.query
-      .mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01' }]])
+      .mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01', snmp_community: 'public' }]])
       .mockResolvedValueOnce([{ insertId: 20 }]);
 
     await handleTrap(null, notification);
@@ -881,7 +881,7 @@ describe('handleTrap()', () => {
   test('does not copy explicit forwarding destinations into the generic in-app event', async () => {
     const notification = makeTrapV2('1.3.6.1.6.3.1.1.5.3');
     db.query
-      .mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01' }]])
+      .mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01', snmp_community: 'public' }]])
       .mockResolvedValueOnce([{ insertId: 23 }]);
     trapForwardingService.forwardTrap.mockResolvedValueOnce({
       matched_rules: 1,
@@ -952,7 +952,7 @@ describe('handleTrap()', () => {
 
   test('atomically stores the trap and every outbox row, then queues only after commit', async () => {
     const notification = makeTrapV2('1.3.6.1.6.3.1.1.5.3');
-    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01' }]]);
+    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01', snmp_community: 'public' }]]);
     const connection = {
       beginTransaction: jest.fn().mockResolvedValue(undefined),
       execute: jest.fn(async sql => {
@@ -1021,7 +1021,7 @@ describe('handleTrap()', () => {
 
   test('daily row exhaustion commits only the drop accounting and never forwards without a persisted trap', async () => {
     const notification = makeTrapV2('1.3.6.1.6.3.1.1.5.3');
-    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01' }]]);
+    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01', snmp_community: 'public' }]]);
     const connection = {
       beginTransaction: jest.fn().mockResolvedValue(undefined),
       execute: jest.fn(async sql => {
@@ -1051,7 +1051,7 @@ describe('handleTrap()', () => {
     const notification = makeTrapV2('1.3.6.1.6.3.1.1.5.3', [
       { oid: '1.3.6.1.4.1.9.9', type: 4, value: 'private-varbind-value' },
     ]);
-    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01' }]]);
+    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01', snmp_community: 'public' }]]);
     const connection = {
       beginTransaction: jest.fn().mockResolvedValue(undefined),
       execute: jest.fn(async (sql, params) => {
@@ -1099,6 +1099,7 @@ describe('handleTrap()', () => {
       name: 'Initially unique',
       ip_address: '10.0.0.1',
       database_scope: 'primary',
+      snmp_community: 'public',
     };
     tenantDeviceResolver.resolveDeviceByIp.mockResolvedValueOnce({
       device: initialDevice,
@@ -1143,7 +1144,7 @@ describe('handleTrap()', () => {
 
   test('commits the trap and valid outbox rows when one matching rule fails inside its savepoint', async () => {
     const notification = makeTrapV2('1.3.6.1.6.3.1.1.5.3');
-    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01' }]]);
+    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01', snmp_community: 'public' }]]);
     const connection = {
       beginTransaction: jest.fn().mockResolvedValue(undefined),
       execute: jest.fn(async sql => {
@@ -1184,7 +1185,7 @@ describe('handleTrap()', () => {
 
   test('rolls back quota reservation, trap, and outbox together when work crashes after reservation', async () => {
     const notification = makeTrapV2('1.3.6.1.6.3.1.1.5.3');
-    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01' }]]);
+    db.query.mockResolvedValueOnce([[{ id: 3, organization_id: 2, name: 'sw-01', snmp_community: 'public' }]]);
     const connection = {
       beginTransaction: jest.fn().mockResolvedValue(undefined),
       execute: jest.fn(async sql => {
@@ -1331,7 +1332,9 @@ describe('start() / stop()', () => {
           port: expect.any(Number),
           address: '127.0.0.1',
           transport: 'udp4',
-          disableAuthorization: true,
+          // net-snmp checks communities and SNMPv3 digests (NET-24).
+          disableAuthorization: false,
+          includeAuthentication: true,
         },
         expect.any(Function),
       );
@@ -1349,7 +1352,7 @@ describe('start() / stop()', () => {
       return { close: jest.fn() };
     });
     db.query
-      .mockResolvedValueOnce([[{ id: 9, organization_id: 4, name: 'Real UDP peer' }]])
+      .mockResolvedValueOnce([[{ id: 9, organization_id: 4, name: 'Real UDP peer', snmp_community: 'public' }]])
       .mockResolvedValueOnce([{ insertId: 88 }]);
 
     await mod.start();
@@ -1520,7 +1523,7 @@ describe('start() / stop()', () => {
       db.query.mockImplementation((sql, params = []) => {
         if (/FROM devices/.test(sql)) {
           return Promise.resolve(params[0] === knownSource
-            ? [[{ id: 303, organization_id: 44, name: 'known-edge' }]]
+            ? [[{ id: 303, organization_id: 44, name: 'known-edge', snmp_community: 'public' }]]
             : [[]]);
         }
         if (/INSERT INTO snmp_traps/.test(sql)) return Promise.resolve([{ insertId: 92 }]);

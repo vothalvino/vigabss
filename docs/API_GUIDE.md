@@ -630,6 +630,12 @@ VigaBSS supports Mexican fiscal compliance with CFDI 4.0 electronic invoicing.
 2. **Stamp CFDI** — `POST /api/v1/cfdi/stamp` with the invoice ID
 3. **Download XML/PDF** — `GET /api/v1/pdf/cfdi/:id` or `GET /api/v1/cfdi-documents/:id`
 4. **Cancel CFDI** — `POST /api/v1/cfdi/cancel` with motivo and optional folio_sustitucion
+5. **Substitute an invoice CFDI issued with errors** — `POST /api/v1/cfdi-documents/:id/substitute`
+   stamps a replacement for the same invoice (CfdiRelacionados TipoRelacion 04), then cancels the
+   original with motivo 01 naming it. The invoice stays open under the replacement.
+6. **Stamp generated invoices automatically** — `PUT /api/v1/pac-providers/auto-stamp`
+   `{ "cfdi_auto_stamp": true }`; the scheduled billing run then stamps each invoice it generates.
+   Off by default. Cancellations waiting for the receptor are polled hourly (`poll_cfdi_cancellations`).
 
 ### SAT Catalogs
 

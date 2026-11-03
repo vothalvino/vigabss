@@ -47,7 +47,7 @@
   "src/routes/suspension.js": 5,
   "src/routes/taxRates.js": 3,
   "src/routes/technicianTracking.js": 2,
-  "src/routes/tickets.js": 10,
+  "src/routes/tickets.js": 9,
   "src/routes/warehouses.js": 1,
   "src/routes/wgPeers.js": 5,
   "src/routes/workOrders.js": 8,

@@ -170,3 +170,28 @@ describe('a cancelled CFDI de Egreso cancels its credit note', () => {
     expect(conn.commit).not.toHaveBeenCalled();
   });
 });
+
+// BIL-33: a substitution cancels the original with motivo 01 naming a live
+// replacement for the same invoice; the invoice continues under it.
+test('a substituted CFDI\'s cancellation leaves its invoice open', async () => {
+  const base = db.query.getMockImplementation();
+  db.query.mockImplementation((sql, params) => {
+    if (/FROM cfdi_cancellations c\s+JOIN cfdi_documents r/.test(sql)) {
+      // The replacement must be of the same invoice and organization.
+      expect(params).toEqual([55, 1, 7]);
+      return Promise.resolve([[{ id: 8 }]]);
+    }
+    return base(sql, params);
+  });
+
+  const res = await cfdiService.cancel(7, '01', 'UUID-REPLACEMENT');
+
+  expect(res.status).toBe('cancelado');
+  expect(billingService.cancelInvoiceForSat).not.toHaveBeenCalled();
+});
+
+test('motivo 01 without a live replacement of the same invoice still settles it', async () => {
+  const res = await cfdiService.cancel(7, '01', 'UUID-OF-SOMETHING-ELSE');
+  expect(res.status).toBe('cancelado');
+  expect(billingService.cancelInvoiceForSat).toHaveBeenCalledWith(55, 1, null);
+});

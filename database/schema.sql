@@ -853,6 +853,7 @@ CREATE TABLE IF NOT EXISTS devices (
     firmware      VARCHAR(100)    NULL,
     snmp_enabled  BOOLEAN         NOT NULL DEFAULT FALSE COMMENT 'Enable SNMP polling for this device',
     snmp_community VARCHAR(255)   NULL COMMENT 'SNMP community string (v1/v2c) — store encrypted; decrypt at application layer',
+    snmp_trap_community VARCHAR(512) NULL COMMENT 'SNMP v1/v2c trap community when it differs from snmp_community; sealed at the application layer (migration 516)',
     snmp_version  ENUM('v1','v2c','v3') NULL DEFAULT 'v2c' COMMENT 'SNMP protocol version',
     snmp_port     SMALLINT UNSIGNED NULL DEFAULT 161 COMMENT 'SNMP UDP port',
     snmp_profile_id BIGINT UNSIGNED NULL
@@ -1568,6 +1569,8 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
     id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     ticket_id  BIGINT UNSIGNED NOT NULL,
     user_id    BIGINT UNSIGNED NULL     COMMENT 'Staff member who posted the comment; NULL for system messages',
+    author_type ENUM('staff','client','system') NOT NULL DEFAULT 'system' COMMENT 'Who wrote it: staff (user_id), client (client_id) or system (migration 517)',
+    client_id  BIGINT UNSIGNED NULL     COMMENT 'Client who wrote it from the portal or chat (migration 517)',
     body       TEXT            NOT NULL,
     is_internal TINYINT(1)     NOT NULL DEFAULT 0 COMMENT '1 = internal note visible only to staff',
     created_at TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1577,11 +1580,14 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
     PRIMARY KEY (id),
     KEY idx_ticket_comments_ticket_id (ticket_id),
     KEY idx_ticket_comments_user_id (user_id),
+    KEY idx_ticket_comments_client_id (client_id),
     KEY idx_ticket_comments_deleted_at (deleted_at),
     CONSTRAINT fk_ticket_comments_ticket FOREIGN KEY (ticket_id)
         REFERENCES tickets (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_ticket_comments_user FOREIGN KEY (user_id)
-        REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
+        REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_ticket_comments_client FOREIGN KEY (client_id)
+        REFERENCES clients (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
@@ -5005,6 +5011,8 @@ CREATE TABLE IF NOT EXISTS organization_mx_profiles (
                                 COMMENT 'PAC API password encrypted at rest — app handles encryption',
     pac_environment         ENUM('sandbox', 'production') NOT NULL DEFAULT 'sandbox'
                                 COMMENT 'sandbox = PAC test environment; production = live stamping',
+    cfdi_auto_stamp         TINYINT(1)      NOT NULL DEFAULT 0
+                                COMMENT '1 = the scheduled invoice run stamps each invoice it generates (migration 518)',
 
     -- CFDI series & folio auto-numbering
     cfdi_serie_ingreso      VARCHAR(10)     NOT NULL DEFAULT 'A'

@@ -446,12 +446,54 @@ describe('the agent script keeps the invariant', () => {
     }
   });
 
-  it('marks its claimed request failed if it is stopped before writing a result', () => {
-    const s = src();
-    expect(s).toMatch(/trap on_exit EXIT/);
-    expect(s).toMatch(/trap 'exit 143' TERM/);
-    expect(s).toMatch(/if \[\[ "\$REQUEST_ID" =~ \^\[0-9\]\+\$ \]\] && \(\( ! WROTE_RESULT \)\); then[\s\S]*?WHERE id = \$\{REQUEST_ID\} AND status = 'running'/);
-  });
+  it('marks its claimed request failed if it is stopped before writing a result', async () => {
+    // SUP-14: executed rather than matched as text. A stubbed docker hands the
+    // agent request 42; the stubbed redeploy.sh signals that it started and
+    // hangs; the test then sends TERM to the process group, as systemd's
+    // TimeoutStartSec does. The exit trap must record the request failed.
+    const fs = require('node:fs');
+    const os = require('node:os');
+    const path = require('node:path');
+    const { spawn } = require('node:child_process');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vigabss-agent-term-'));
+    const bin = path.join(dir, 'bin');
+    const log = path.join(dir, 'sql.log');
+    const started = path.join(dir, 'redeploy.started');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(dir, '.env.prod'), 'DB_PASSWORD=x\n');
+    fs.writeFileSync(path.join(dir, 'docker-compose.prod.yml'), 'services: {}\n');
+    fs.writeFileSync(path.join(bin, 'docker'), [
+      '#!/usr/bin/env bash',
+      'stmt="$(cat)"',
+      `printf '%s\\n---\\n' "$stmt" >> "${log}"`,
+      'case "$stmt" in',
+      "  *\"WHERE status = 'pending'\"*) echo 42 ;;",
+      "  *'SELECT id FROM deploy_requests WHERE id = 42'*) echo 42 ;;",
+      'esac',
+      'exit 0',
+    ].join('\n'), { mode: 0o755 });
+    fs.writeFileSync(path.join(dir, 'redeploy.sh'), `#!/usr/bin/env bash\ntouch "${started}"\nexec sleep 30\n`, { mode: 0o755 });
+    const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, VIGABSS_DIR: dir, VIGABSS_DEPLOY_LOCK_FILE: path.join(dir, 'lock') };
+    delete env.VIGABSS_DEPLOY_AGENT;
+    delete env.FIREISP_DEPLOY_AGENT;
+    const agent = spawn('bash', [path.join(__dirname, '../deploy-agent.sh')], { env, detached: true, stdio: 'ignore' });
+    try {
+      const deadline = Date.now() + 10000;
+      while (!fs.existsSync(started)) {
+        if (Date.now() > deadline) throw new Error('redeploy.sh never started');
+        await new Promise(r => setTimeout(r, 50));
+      }
+      const exited = new Promise(resolve => agent.on('exit', (code, signal) => resolve({ code, signal })));
+      process.kill(-agent.pid, 'SIGTERM');
+      expect(await exited).toEqual({ code: 143, signal: null });
+      const statements = fs.readFileSync(log, 'utf8').split('---\n');
+      const failed = statements.filter(q => /SET status = 'failed'[\s\S]*stopped before the deploy reported a result[\s\S]*WHERE id = 42 AND status = 'running'/.test(q));
+      expect(failed).toHaveLength(1);
+    } finally {
+      try { process.kill(-agent.pid, 'SIGKILL'); } catch (_) { /* already gone */ }
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 20000);
 });
 
 

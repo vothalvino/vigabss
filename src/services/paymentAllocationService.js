@@ -19,6 +19,7 @@ const suspensionService = require('./suspensionService');
 const { requireOrgId } = require('../utils/requireOrgId');
 const { creditAppliedSql } = require('../utils/invoiceBalance');
 const { AppError } = require('../utils/errors');
+const money = require('../utils/money');
 
 // Invoices in these statuses can receive a payment allocation. Mirrors the
 // frontend's NON_PAYABLE_STATUSES set (frontend/src/pages/payments/
@@ -262,16 +263,17 @@ async function applyAllocation(exec, { payment, invoice, amount, anyClient = fal
  * @returns {Promise<{allocations: object[], justPaidInvoices: object[], remainder: number}>}
  */
 async function allocateAcrossInvoices(exec, { payment, amount, invoices }) {
-  let remainder = Math.round(Number(amount) * 100) / 100;
+  // Whole cents (BIL-31): the remainder is carried exactly, never as a float.
+  let remainder = money.round(amount);
   const allocations = [];
   const justPaidInvoices = [];
   for (const invoice of invoices) {
     if (remainder <= 0) break;
 
-    const balanceDue = Math.max(0, Math.round(Number(invoice.balance_due) * 100) / 100);
+    const balanceDue = Math.max(0, money.round(invoice.balance_due));
     if (balanceDue <= 0) continue; // already fully covered — skip, don't insert a zero row
 
-    const applyAmount = Math.round(Math.min(remainder, balanceDue) * 100) / 100;
+    const applyAmount = Math.min(remainder, balanceDue);
     if (applyAmount <= 0) continue;
 
     let applied;
@@ -288,7 +290,7 @@ async function allocateAcrossInvoices(exec, { payment, amount, invoices }) {
       id: applied.id, payment_id: payment.id, invoice_id: invoice.id,
       invoice_number: invoice.invoice_number, amount: applyAmount,
     });
-    remainder = Math.round((remainder - applyAmount) * 100) / 100;
+    remainder = money.sub(remainder, applyAmount);
     if (applied.becamePaid) justPaidInvoices.push(invoice);
   }
   return { allocations, justPaidInvoices, remainder };

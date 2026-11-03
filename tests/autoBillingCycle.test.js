@@ -37,6 +37,11 @@ jest.mock('../src/services/suspensionService', () => {
   };
 });
 
+// CFDI auto-stamping (BIL-33) is off for these organizations; its own tests
+// are in tests/cfdiAutomation.test.js.
+jest.mock('../src/services/invoiceCfdiService', () => ({
+  autoStampInvoice: jest.fn(async () => ({ attempted: false })),
+}));
 jest.mock('../src/services/emailTransport', () => ({
   sendEmail: jest.fn(),
   processQueue: jest.fn(),
@@ -53,6 +58,7 @@ jest.mock('../src/services/paymentRetryService', () => ({ processPendingRetries:
 
 const db = require('../src/config/database');
 const billingService = require('../src/services/billingService');
+const invoiceCfdiService = require('../src/services/invoiceCfdiService');
 const suspensionService = require('../src/services/suspensionService');
 const emailTransport = require('../src/services/emailTransport');
 const taskRunner = require('../src/services/taskRunner');
@@ -265,6 +271,27 @@ describe('runAutoInvoice — email notification after generation', () => {
     expect(result.invoices_generated).toBe(2);
     expect(result.emails_sent).toBe(2);
     expect(emailTransport.sendEmail).toHaveBeenCalledTimes(2);
+    // Each generated invoice is offered to the opt-in CFDI stamping (BIL-33).
+    expect(invoiceCfdiService.autoStampInvoice.mock.calls).toEqual([[201, contract1.organization_id], [202, contract2.organization_id]]);
+  });
+
+  test('counts automatic CFDI stamping without failing the run', async () => {
+    const contract1 = makeContract({ id: 1, client_id: 10 });
+    const contract2 = makeContract({ id: 2, client_id: 11 });
+    db.query
+      .mockResolvedValueOnce([[contract1, contract2]])
+      .mockResolvedValue([[]]);
+    billingService.generateBillingPeriod.mockResolvedValue({ id: 100, status: 'pending' });
+    billingService.generateInvoice
+      .mockResolvedValueOnce(makeInvoice({ id: 201 }))
+      .mockResolvedValueOnce(makeInvoice({ id: 202 }));
+    invoiceCfdiService.autoStampInvoice
+      .mockResolvedValueOnce({ attempted: true, stamped: true, cfdi_document_id: 9 })
+      .mockResolvedValueOnce({ attempted: true, stamped: false, error: 'PAC down' });
+
+    const result = await taskRunner.runAutoInvoice(42);
+
+    expect(result).toMatchObject({ invoices_generated: 2, contracts_failed: 0, cfdi_stamped: 1, cfdi_stamp_failed: 1 });
   });
 
   test('returns emails_sent in result object', async () => {
@@ -525,6 +552,8 @@ describe('runBillingCycle — full billing engine orchestration', () => {
       emails_failed: 0,
       contracts_checked: 0,
       contracts_failed: 0,
+      cfdi_stamped: 0,
+      cfdi_stamp_failed: 0,
       errors: [],
       contracts_suspended: 0,
       warnings_sent: 0,
