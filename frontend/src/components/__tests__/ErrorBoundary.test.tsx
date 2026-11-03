@@ -39,6 +39,7 @@ describe('ErrorBoundary', () => {
 
   it.each(['Layout.tsx', 'PortalLayout.tsx'])('%s wraps its routed outlet in a boundary keyed by path', (file) => {
     const src = readFileSync(join(__dirname, '..', file), 'utf8');
-    expect(src).toMatch(/<ErrorBoundary key=\{location\.pathname\}>\s*<Outlet \/>\s*<\/ErrorBoundary>/);
+    // The page's chunk loads inside the boundary (FE-21), so a failed chunk load is caught too.
+    expect(src).toMatch(/<ErrorBoundary key=\{location\.pathname\}>\s*<Suspense fallback=\{<LoadingState \/>\}>\s*<Outlet \/>\s*<\/Suspense>\s*<\/ErrorBoundary>/);
   });
 });

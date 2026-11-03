@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-sourcemaps/
 src/api/schema.d.ts
 *.local
 .env

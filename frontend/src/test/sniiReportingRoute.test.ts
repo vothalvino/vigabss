@@ -16,8 +16,9 @@ const route = ROUTES.find(item => item.path === '/snii-infrastructure');
 
 describe('SNII App and navigation registration', () => {
   it('registers one App route backed by the SNII preparation page', () => {
+    // Routes load their page lazily (FE-21).
     expect(appSource).toContain(
-      "import { SniiInfrastructureReportingPage } from '@/pages/SniiInfrastructureReportingPage';",
+      "const SniiInfrastructureReportingPage = lazy(() => import('@/pages/SniiInfrastructureReportingPage').then((m) => ({ default: m.SniiInfrastructureReportingPage })));",
     );
     expect(appSource.match(/<Route path="snii-infrastructure" element={<SniiInfrastructureReportingPage \/>} \/>/g))
       .toHaveLength(1);
