@@ -8,7 +8,39 @@
 const db = require('../config/database');
 const { NotFoundError, AppError } = require('../utils/errors');
 
+// TNB-34: the organization argument of the org-scoped methods used to default
+// to null, and null silently dropped the tenant predicate, so a call that left
+// the argument out read or wrote every organization's rows. On a model with
+// hasOrgScope a missing organization now throws; an install-wide caller
+// passes UNSCOPED explicitly.
+const UNSCOPED = Symbol.for('vigabss.BaseModel.UNSCOPED');
+
 class BaseModel {
+  static get UNSCOPED() {
+    return UNSCOPED;
+  }
+
+  /**
+   * The organization to bind for an org-scoped statement, or null when none is
+   * bound (an unscoped model, or an explicit UNSCOPED).
+   */
+  static scopedOrg(orgId, method) {
+    if (!this.hasOrgScope) return null;
+    return this.requiredOrg(orgId, method);
+  }
+
+  /**
+   * Same rule for a model scoped through a join rather than its own column
+   * (Radius, through clients): the organization, or null for UNSCOPED.
+   */
+  static requiredOrg(orgId, method) {
+    if (orgId === UNSCOPED) return null;
+    if (orgId === null || orgId === undefined) {
+      throw new Error(`${this.name}.${method}() needs an organization id; pass BaseModel.UNSCOPED for install-wide access`);
+    }
+    return orgId;
+  }
+
   /** @returns {string} The database table name */
   static get tableName() {
     throw new Error('Subclass must define tableName');
@@ -40,10 +72,10 @@ class BaseModel {
    * reimplementing org scoping, soft-delete and fillable filtering by hand —
    * duplicating those inline is how they drift apart.
    */
-  static async findById(id, orgId = null, opts = {}) {
+  static async findById(id, orgId, opts = {}) {
     let sql = `SELECT * FROM \`${this.tableName}\` WHERE id = ?`;
     const params = [id];
-    if (orgId !== null && this.hasOrgScope) {
+    if (this.scopedOrg(orgId, 'findById') !== null) {
       sql += ' AND organization_id = ?';
       params.push(orgId);
     }
@@ -60,7 +92,7 @@ class BaseModel {
   /**
    * Find a record by ID or throw NotFoundError.
    */
-  static async findByIdOrFail(id, orgId = null, opts = {}) {
+  static async findByIdOrFail(id, orgId, opts = {}) {
     const record = await this.findById(id, orgId, opts);
     if (!record) throw new NotFoundError(this.tableName);
     return record;
@@ -69,10 +101,10 @@ class BaseModel {
   /**
    * Find a record by ID including soft-deleted records.
    */
-  static async findByIdIncludingDeleted(id, orgId = null) {
+  static async findByIdIncludingDeleted(id, orgId) {
     let sql = `SELECT * FROM \`${this.tableName}\` WHERE id = ?`;
     const params = [id];
-    if (orgId !== null && this.hasOrgScope) {
+    if (this.scopedOrg(orgId, 'findByIdIncludingDeleted') !== null) {
       sql += ' AND organization_id = ?';
       params.push(orgId);
     }
@@ -103,7 +135,7 @@ class BaseModel {
    *   archived-records view, e.g. the Users page's Archived tab). Wins over
    *   withDeleted.
    */
-  static async findAll({ where = {}, orderBy = 'id', order = 'ASC', limit = 50, offset = 0, orgId = null, withDeleted = false, onlyDeleted = false } = {}) {
+  static async findAll({ where = {}, orderBy = 'id', order = 'ASC', limit = 50, offset = 0, orgId, withDeleted = false, onlyDeleted = false } = {}) {
     // An archived-records view of a hard-delete model is by definition empty.
     // Without this, onlyDeleted would silently no-op and present the full
     // ACTIVE list as "archived" — inverted semantics, worse than an error.
@@ -112,7 +144,7 @@ class BaseModel {
     const conditions = [];
     const params = [];
 
-    if (orgId !== null && this.hasOrgScope) {
+    if (this.scopedOrg(orgId, 'findAll') !== null) {
       conditions.push('organization_id = ?');
       params.push(orgId);
     }
@@ -153,13 +185,13 @@ class BaseModel {
    * @param {boolean} [options.withDeleted=false] Include soft-deleted records
    * @param {boolean} [options.onlyDeleted=false] ONLY soft-deleted records (wins over withDeleted)
    */
-  static async count({ where = {}, orgId = null, withDeleted = false, onlyDeleted = false } = {}) {
+  static async count({ where = {}, orgId, withDeleted = false, onlyDeleted = false } = {}) {
     if (onlyDeleted && !this.softDelete) return 0;
 
     const conditions = [];
     const params = [];
 
-    if (orgId !== null && this.hasOrgScope) {
+    if (this.scopedOrg(orgId, 'count') !== null) {
       conditions.push('organization_id = ?');
       params.push(orgId);
     }
@@ -199,7 +231,8 @@ class BaseModel {
     const sql = `INSERT INTO \`${this.tableName}\` (${cols.map(c => `\`${c}\``).join(', ')}) VALUES (${placeholders})`;
     const [result] = await db.query(sql, Object.values(filtered));
 
-    return this.findByIdIncludingDeleted(result.insertId);
+    // The row just inserted; its organization is whatever data carried.
+    return this.findByIdIncludingDeleted(result.insertId, UNSCOPED);
   }
 
   /**
@@ -229,7 +262,7 @@ class BaseModel {
    * should be an explicit, separately-audited method — not a flag on the
    * generic path that every route already uses.
    */
-  static async update(id, data, orgId = null, opts = {}) {
+  static async update(id, data, orgId, opts = {}) {
     if (this.hasOrgScope && data && Object.prototype.hasOwnProperty.call(data, 'organization_id')) {
       throw new AppError(
         'A record cannot be moved to another organization.',
@@ -253,7 +286,7 @@ class BaseModel {
     let sql = `UPDATE \`${this.tableName}\` SET ${setClauses} WHERE id = ?`;
     const params = [...Object.values(filtered), id];
 
-    if (orgId !== null && this.hasOrgScope) {
+    if (this.scopedOrg(orgId, 'update') !== null) {
       sql += ' AND organization_id = ?';
       params.push(orgId);
     }
@@ -274,12 +307,12 @@ class BaseModel {
    * Delete a record by ID. Uses soft-delete (sets deleted_at) when the model
    * has softDelete enabled; otherwise performs a hard DELETE.
    */
-  static async delete(id, orgId = null, opts = {}) {
+  static async delete(id, orgId, opts = {}) {
     if (this.softDelete) {
       let sql = `UPDATE \`${this.tableName}\` SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL`;
       const params = [id];
 
-      if (orgId !== null && this.hasOrgScope) {
+      if (this.scopedOrg(orgId, 'delete') !== null) {
         sql += ' AND organization_id = ?';
         params.push(orgId);
       }
@@ -292,7 +325,7 @@ class BaseModel {
     let sql = `DELETE FROM \`${this.tableName}\` WHERE id = ?`;
     const params = [id];
 
-    if (orgId !== null && this.hasOrgScope) {
+    if (this.scopedOrg(orgId, 'delete') !== null) {
       sql += ' AND organization_id = ?';
       params.push(orgId);
     }
@@ -305,11 +338,11 @@ class BaseModel {
   /**
    * Permanently delete a record, bypassing soft-delete.
    */
-  static async forceDelete(id, orgId = null) {
+  static async forceDelete(id, orgId) {
     let sql = `DELETE FROM \`${this.tableName}\` WHERE id = ?`;
     const params = [id];
 
-    if (orgId !== null && this.hasOrgScope) {
+    if (this.scopedOrg(orgId, 'forceDelete') !== null) {
       sql += ' AND organization_id = ?';
       params.push(orgId);
     }
@@ -322,7 +355,7 @@ class BaseModel {
   /**
    * Restore a soft-deleted record by clearing its deleted_at timestamp.
    */
-  static async restore(id, orgId = null, opts = {}) {
+  static async restore(id, orgId, opts = {}) {
     if (!this.softDelete) {
       throw new Error(`${this.tableName} does not support soft-delete`);
     }
@@ -330,7 +363,7 @@ class BaseModel {
     let sql = `UPDATE \`${this.tableName}\` SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL`;
     const params = [id];
 
-    if (orgId !== null && this.hasOrgScope) {
+    if (this.scopedOrg(orgId, 'restore') !== null) {
       sql += ' AND organization_id = ?';
       params.push(orgId);
     }
@@ -359,3 +392,4 @@ class BaseModel {
 }
 
 module.exports = BaseModel;
+module.exports.UNSCOPED = UNSCOPED;

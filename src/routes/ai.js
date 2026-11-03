@@ -360,7 +360,7 @@ router.put('/providers/:id', requirePermission('ai.providers.write'), validate(u
     await _assertEndpointAllowed(effectiveKind,
       updates.endpoint_url !== undefined ? updates.endpoint_url : provider.endpoint_url);
 
-    await AiProvider.update(provider.id, updates);
+    await AiProvider.update(provider.id, updates, req.orgId);
     const updated = await AiProvider.findById(provider.id, req.orgId);
     const { api_key_encrypted: _k, ...safe } = updated;
 
@@ -378,7 +378,7 @@ router.delete('/providers/:id', requirePermission('ai.providers.write'), async (
     const provider = await AiProvider.findById(req.params.id, req.orgId);
     if (!provider) return next(new NotFoundError('AI provider'));
 
-    await AiProvider.delete(provider.id);
+    await AiProvider.delete(provider.id, req.orgId);
     logger.info({ orgId: req.orgId, providerId: provider.id }, 'AI provider soft-deleted');
     res.status(204).end();
   } catch (err) { next(err); }
@@ -566,7 +566,7 @@ router.post('/reply/send', requirePermission('ai.reply.send'), validate(replySen
       final_text,
       action,
       reviewer_user_id: req.user?.id || null,
-    });
+    }, req.orgId);
 
     // Post as a ticket comment when the reply is actually being sent/edited
     if (action === 'sent' || action === 'edited') {

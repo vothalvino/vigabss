@@ -589,7 +589,8 @@ function _parseExtraConfig(raw) {
  * Callers that derive the provider id from tenant data must pass it.
  */
 async function _loadProvider(providerId, orgId) {
-  if (orgId === undefined) return AiProvider.findById(providerId);
+  // Internal callers that resolved the provider themselves (no orgId).
+  if (orgId === undefined) return AiProvider.findById(providerId, AiProvider.UNSCOPED);
   if (orgId === null) return null;
   return AiProvider.findById(providerId, orgId);
 }

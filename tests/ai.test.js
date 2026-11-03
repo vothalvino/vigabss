@@ -322,7 +322,7 @@ describe('DELETE /api/v1/ai/providers/:id', () => {
   it('returns 204 No Content', async () => {
     const res = await request(app).delete('/api/v1/ai/providers/1');
     expect(res.status).toBe(204);
-    expect(mockAiProviderDelete).toHaveBeenCalledWith(1);
+    expect(mockAiProviderDelete).toHaveBeenCalledWith(1, 1);
   });
 
   it('returns 404 when provider not found', async () => {

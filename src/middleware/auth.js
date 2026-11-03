@@ -160,7 +160,9 @@ async function authenticate(req, _res, next) {
       throw new UnauthorizedError('Invalid or expired token');
     }
 
-    const user = await User.findById(payload.sub);
+    // The signed-in identity is install-wide; resolveOrgPrincipal checks the
+    // membership of the organization the token selects.
+    const user = await User.findById(payload.sub, User.UNSCOPED);
     if (!user || user.status !== 'active') {
       throw new UnauthorizedError('User not found or inactive');
     }

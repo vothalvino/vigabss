@@ -377,7 +377,12 @@ that inevitably fail, but they never replace server-side authorization.
 Most models extend `src/models/BaseModel.js`:
 
 - `fillable` is an allowlist for insert/update and silently omits unknown keys.
-- `hasOrgScope` adds `organization_id` predicates when an org ID is supplied.
+- `hasOrgScope` adds the `organization_id` predicate to every generic method,
+  and an omitted or `null` organization throws instead of dropping it
+  (TNB-34). An install-wide caller passes `BaseModel.UNSCOPED` explicitly
+  (staff identities in `User`, for instance). A model's own helpers on an
+  org-scoped model take `orgId` too; `tests/modelHelperOrgScope.test.js`
+  lists the reviewed exceptions.
 - `softDelete` adds `deleted_at` behavior.
 - generic list filters and sort fields are allowlisted.
 - generic updates reject `organization_id`; tenant re-homing requires a

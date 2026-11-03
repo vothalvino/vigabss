@@ -30,11 +30,11 @@ class Lead extends BaseModel {
    * Aggregate counts grouped by pipeline stage for an organization.
    * Returns an object keyed by status, e.g. { new: 4, contacted: 2, ... }.
    */
-  static async pipelineCounts(orgId = null) {
+  static async pipelineCounts(orgId) {
     const db = require('../config/database');
     let sql = 'SELECT status, COUNT(*) AS count FROM leads WHERE deleted_at IS NULL';
     const params = [];
-    if (orgId !== null) { sql += ' AND organization_id = ?'; params.push(orgId); }
+    if (this.scopedOrg(orgId, 'pipelineCounts') !== null) { sql += ' AND organization_id = ?'; params.push(orgId); }
     sql += ' GROUP BY status';
     const [rows] = await db.query(sql, params);
     const counts = {};

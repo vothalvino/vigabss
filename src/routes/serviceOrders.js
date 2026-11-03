@@ -351,7 +351,7 @@ router.post('/:id/cancel', requirePermission('service_orders.update'), async (re
 router.get('/:id/tasks', requirePermission('service_orders.view'), async (req, res, next) => {
   try {
     await ServiceOrder.findByIdOrFail(req.params.id, req.orgId);
-    const tasks = await ServiceOrder.getTasks(req.params.id);
+    const tasks = await ServiceOrder.getTasks(req.params.id, req.orgId);
     res.json({ data: tasks });
   } catch (err) { next(err); }
 });

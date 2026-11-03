@@ -66,25 +66,25 @@ describe('interactionService (§1.3)', () => {
 
     test('rejects an out-of-range NPS score', async () => {
       mockSurvey({ id: 1, survey_type: 'nps', status: 'sent', client_id: 5 });
-      await expect(interactionService.respondSurvey(1, null, { score: 11 }))
+      await expect(interactionService.respondSurvey(1, 42, { score: 11 }))
         .rejects.toThrow(ValidationError);
     });
 
     test('rejects an out-of-range CSAT score', async () => {
       mockSurvey({ id: 1, survey_type: 'csat', status: 'sent', client_id: 5 });
-      await expect(interactionService.respondSurvey(1, null, { score: 0 }))
+      await expect(interactionService.respondSurvey(1, 42, { score: 0 }))
         .rejects.toThrow(ValidationError);
     });
 
     test('rejects responding twice', async () => {
       mockSurvey({ id: 1, survey_type: 'csat', status: 'responded', score: 5, client_id: 5 });
-      await expect(interactionService.respondSurvey(1, null, { score: 4 }))
+      await expect(interactionService.respondSurvey(1, 42, { score: 4 }))
         .rejects.toThrow('already been responded');
     });
 
     test('accepts a valid CSAT score and marks the survey responded', async () => {
       mockSurvey({ id: 1, survey_type: 'csat', status: 'sent', client_id: 5 });
-      await interactionService.respondSurvey(1, null, { score: 5, comment: 'Excellent' });
+      await interactionService.respondSurvey(1, 42, { score: 5, comment: 'Excellent' });
       const updateCall = db.query.mock.calls.find(([sql]) => sql.startsWith('UPDATE'));
       expect(updateCall[0]).toContain('`status` = ?');
       expect(updateCall[1]).toEqual(expect.arrayContaining([5, 'Excellent', 'responded']));
@@ -92,7 +92,7 @@ describe('interactionService (§1.3)', () => {
 
     test('throws NotFoundError for a missing survey', async () => {
       db.query.mockResolvedValue([[]]);
-      await expect(interactionService.respondSurvey(99, null, { score: 5 }))
+      await expect(interactionService.respondSurvey(99, 42, { score: 5 }))
         .rejects.toThrow(NotFoundError);
     });
   });
@@ -171,14 +171,14 @@ describe('interactionService (§1.3)', () => {
 
     test('allows open → acknowledged', async () => {
       mockEscalation({ id: 1, status: 'open' });
-      await interactionService.transitionEscalation(1, null, { status: 'acknowledged' });
+      await interactionService.transitionEscalation(1, 42, { status: 'acknowledged' });
       const updateCall = db.query.mock.calls.find(([sql]) => sql.startsWith('UPDATE'));
       expect(updateCall[0]).toContain('`acknowledged_at` = ?');
     });
 
     test('rejects resolved → acknowledged', async () => {
       mockEscalation({ id: 1, status: 'resolved' });
-      await expect(interactionService.transitionEscalation(1, null, { status: 'acknowledged' }))
+      await expect(interactionService.transitionEscalation(1, 42, { status: 'acknowledged' }))
         .rejects.toThrow(ValidationError);
     });
   });

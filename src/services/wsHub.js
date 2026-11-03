@@ -315,7 +315,7 @@ class WsHub {
     // member of the organization — and the event slugs it holds.
     const User = require('../models/User');
     const { resolveOrgPrincipal } = require('./orgPrincipalService');
-    const user = await User.findById(payload.sub);
+    const user = await User.findById(payload.sub, User.UNSCOPED);
     const principal = user && user.status === 'active' && !tokenVersionStale(payload.tv, user.token_version)
       ? await resolveOrgPrincipal(user, orgId)
       : null;

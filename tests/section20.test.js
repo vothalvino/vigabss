@@ -27,6 +27,9 @@ jest.mock('../src/middleware/rbac', () => ({
 
 jest.mock('../src/middleware/orgScope', () => ({
   orgScope: (req, _res, next) => {
+    // The real middleware sets req.orgId; with only organizationId the routes
+    // ran with no tenant at all, which BaseModel used to allow (TNB-34).
+    req.orgId = 1;
     req.organizationId = 1;
     next();
   },

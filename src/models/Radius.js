@@ -86,11 +86,11 @@ class Radius extends BaseModel {
    * `serialize: Radius.sanitize` separately to strip it before it reaches
    * an HTTP response.
    */
-  static async findById(id, orgId = null) {
+  static async findById(id, orgId) {
     const db = require('../config/database');
     let sql = 'SELECT r.* FROM `radius` r JOIN clients cl ON cl.id = r.client_id WHERE r.id = ?';
     const params = [id];
-    if (orgId !== null) {
+    if (this.requiredOrg(orgId, 'findById') !== null) {
       sql += ' AND cl.organization_id = ?';
       params.push(orgId);
     }
@@ -110,14 +110,14 @@ class Radius extends BaseModel {
    * allowlist (fillable + id/status) so query-string filtering keeps
    * working; only the FROM/JOIN and the org condition differ.
    */
-  static async findAll({ where = {}, orderBy = 'id', order = 'ASC', limit = 50, offset = 0, orgId = null, withDeleted = false, onlyDeleted = false } = {}) {
+  static async findAll({ where = {}, orderBy = 'id', order = 'ASC', limit = 50, offset = 0, orgId, withDeleted = false, onlyDeleted = false } = {}) {
     if (onlyDeleted && !this.softDelete) return [];
 
     const db = require('../config/database');
     const conditions = [];
     const params = [];
 
-    if (orgId !== null) {
+    if (this.requiredOrg(orgId, 'findAll') !== null) {
       conditions.push('cl.organization_id = ?');
       params.push(orgId);
     }
@@ -153,14 +153,14 @@ class Radius extends BaseModel {
    * rows, leaking the existence/volume of other orgs' RADIUS accounts even
    * though the row data itself was already fixed by findAll.
    */
-  static async count({ where = {}, orgId = null, withDeleted = false, onlyDeleted = false } = {}) {
+  static async count({ where = {}, orgId, withDeleted = false, onlyDeleted = false } = {}) {
     if (onlyDeleted && !this.softDelete) return 0;
 
     const db = require('../config/database');
     const conditions = [];
     const params = [];
 
-    if (orgId !== null) {
+    if (this.requiredOrg(orgId, 'count') !== null) {
       conditions.push('cl.organization_id = ?');
       params.push(orgId);
     }

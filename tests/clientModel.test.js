@@ -53,23 +53,38 @@ describe('client id is permanently reserved (never reusable by another client)',
 });
 
 describe('Client.setCustomField / deleteCustomField', () => {
+  test.each([
+    ['getMxProfile', () => Client.getMxProfile(7)],
+    ['getCustomFields', () => Client.getCustomFields(7)],
+    ['setCustomField', () => Client.setCustomField(7, 'k', 'v')],
+    ['deleteCustomField', () => Client.deleteCustomField(7, 'k')],
+    ['getDocuments', () => Client.getDocuments(7)],
+  ])('%s needs the organization', async (_name, call) => {
+    await expect(call()).rejects.toThrow(/needs an organization id/);
+  });
+
   test('upserts a custom field and returns the stored row', async () => {
     db.query
       .mockResolvedValueOnce([{ insertId: 1 }]) // INSERT ... ON DUPLICATE KEY UPDATE
       .mockResolvedValueOnce([[{ id: 1, field_key: 'gate_code', field_value: '1234' }]]); // SELECT
-    const row = await Client.setCustomField(7, 'gate_code', '1234');
+    const row = await Client.setCustomField(7, 'gate_code', '1234', 42);
     expect(row).toEqual({ id: 1, field_key: 'gate_code', field_value: '1234' });
     expect(db.query.mock.calls[0][0]).toMatch(/INSERT INTO client_custom_fields/);
+    // Only into a client of the caller's organization (TNB-34).
+    expect(db.query.mock.calls[0][0]).toMatch(/FROM clients owner WHERE owner\.id = \? AND owner\.organization_id = \?/);
+    expect(db.query.mock.calls[0][1]).toEqual(['gate_code', '1234', 7, 42]);
+    expect(db.query.mock.calls[1][1]).toEqual([7, 'gate_code', 7, 42]);
   });
 
   test('deleteCustomField returns true when a row is removed', async () => {
     db.query.mockResolvedValue([{ affectedRows: 1 }]);
-    await expect(Client.deleteCustomField(7, 'gate_code')).resolves.toBe(true);
+    await expect(Client.deleteCustomField(7, 'gate_code', 42)).resolves.toBe(true);
+    expect(db.query.mock.calls[0][1]).toEqual([7, 'gate_code', 7, 42]);
   });
 
   test('deleteCustomField returns false when nothing matched', async () => {
     db.query.mockResolvedValue([{ affectedRows: 0 }]);
-    await expect(Client.deleteCustomField(7, 'missing')).resolves.toBe(false);
+    await expect(Client.deleteCustomField(7, 'missing', 42)).resolves.toBe(false);
   });
 });
 

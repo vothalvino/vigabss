@@ -78,7 +78,7 @@ class Webhook extends BaseModel {
     return super.create(this.normalizeInput(data));
   }
 
-  static async update(id, data, orgId = null) {
+  static async update(id, data, orgId) {
     return super.update(id, this.normalizeInput(data), orgId);
   }
 

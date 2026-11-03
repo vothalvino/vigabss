@@ -125,7 +125,7 @@ router.post('/', requirePermission('quotes.create'), stripQuoteStatus, validate(
 
       await conn.commit();
 
-      const record = await Quote.findByIdIncludingDeleted(result.insertId);
+      const record = await Quote.findByIdIncludingDeleted(result.insertId, req.orgId);
 
       await auditLog.log({
         userId: req.user?.id,
@@ -604,7 +604,7 @@ router.post('/:id/convert-to-invoice', requirePermission('quotes.create'), requi
       }
 
       await conn.commit();
-      const invoice = await Invoice.findById(invoiceId);
+      const invoice = await Invoice.findById(invoiceId, req.orgId);
       await businessEvents.emitInvoiceCreated(req.orgId, invoice);
       res.status(201).json({ data: invoice });
     } catch (txErr) {

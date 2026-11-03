@@ -1005,7 +1005,7 @@ router.post('/generate', requirePermission('invoices.create'), async (req, res, 
       );
 
       await conn.commit();
-      const invoice = await Invoice.findById(invoiceId);
+      const invoice = await Invoice.findById(invoiceId, req.orgId);
       await businessEvents.emitInvoiceCreated(req.orgId, invoice);
       return res.status(201).json({ data: invoice });
     } catch (err) {

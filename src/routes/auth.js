@@ -262,7 +262,7 @@ router.post('/logout', validate(authSchemas.refreshToken), async (req, res, next
 // GET /api/auth/me
 router.get('/me', authenticate, async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id, User.UNSCOPED);
     const safeUser = sanitizeUser(user);
     const organizations = await User.getOrganizations(req.user.id);
     // Report the ACTIVE organization (from the access-token `orgId` claim), not the

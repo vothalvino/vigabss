@@ -49,7 +49,7 @@ class Organization extends BaseModel {
           `INSERT INTO organizations (id, ${cols.map(c => `\`${c}\``).join(', ')}) VALUES (1, ${placeholders})`,
           Object.values(filtered),
         );
-        return this.findByIdIncludingDeleted(1);
+        return this.findByIdIncludingDeleted(1, this.UNSCOPED);
       } catch (err) {
         if (err?.code !== 'ER_DUP_ENTRY') throw err;
       }

@@ -475,6 +475,7 @@ describe('aiReplyService.generate — auto_send mode (above threshold)', () => {
     expect(mockReplyLogUpdate).toHaveBeenCalledWith(
       101,
       expect.objectContaining({ action: 'auto_sent' }),
+      1,
     );
   });
 

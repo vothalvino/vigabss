@@ -89,12 +89,13 @@ describe('the formerly-unscoped models now scope by organization', () => {
   );
 });
 
-describe('BaseModel still omits the predicate silently — the reason this is easy to get wrong', () => {
-  it('adds the org condition only when hasOrgScope is set', () => {
-    // Pinning the trap itself. If this ever becomes a throw instead, the whole
-    // class becomes loud and these per-model guards matter far less.
+describe('BaseModel no longer omits the predicate silently (TNB-34)', () => {
+  it('a missing organization throws instead of dropping the tenant filter', () => {
+    // The trap these per-model guards existed for: a null orgId used to skip
+    // the condition. It is now a throw, unless the caller passes UNSCOPED.
     const src = read('src/models/BaseModel.js');
-    expect(src).toMatch(/if\s*\(orgId !== null && this\.hasOrgScope\)/);
+    expect(src).not.toMatch(/orgId = null/);
+    expect(src).toMatch(/if \(orgId === null \|\| orgId === undefined\) \{\s*throw new Error/);
   });
 });
 

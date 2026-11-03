@@ -309,7 +309,7 @@ router.delete('/:id/contacts/:contactId', requirePermission('clients.update'), a
 router.get('/:id/mx-profile', requirePermission('clients.view'), async (req, res, next) => {
   try {
     await Client.findByIdOrFail(req.params.id, req.orgId);
-    const profile = await Client.getMxProfile(req.params.id);
+    const profile = await Client.getMxProfile(req.params.id, req.orgId);
     res.json({ data: profile });
   } catch (err) {
     next(err);
@@ -322,7 +322,7 @@ router.put('/:id/mx-profile', requirePermission('clients.update'), validate(upda
     // curp is optional — an absent key destructures to undefined, and mysql2
     // rejects undefined bind params outright (500). Normalize to NULL.
     const { rfc, curp = null, razon_social, regimen_fiscal, codigo_postal_fiscal } = req.body;
-    const existing = await Client.getMxProfile(req.params.id);
+    const existing = await Client.getMxProfile(req.params.id, req.orgId);
 
     if (existing) {
       await db.query(
@@ -338,7 +338,7 @@ router.put('/:id/mx-profile', requirePermission('clients.update'), validate(upda
       );
     }
 
-    const profile = await Client.getMxProfile(req.params.id);
+    const profile = await Client.getMxProfile(req.params.id, req.orgId);
     res.json({ data: profile });
   } catch (err) {
     next(err);
@@ -465,7 +465,7 @@ router.put('/:id/portal-password', requirePermission('clients.update'), async (r
 router.get('/:id/custom-fields', requirePermission('clients.view'), async (req, res, next) => {
   try {
     await Client.findByIdOrFail(req.params.id, req.orgId);
-    const fields = await Client.getCustomFields(req.params.id);
+    const fields = await Client.getCustomFields(req.params.id, req.orgId);
     res.json({ data: fields });
   } catch (err) { next(err); }
 });
@@ -473,7 +473,7 @@ router.get('/:id/custom-fields', requirePermission('clients.view'), async (req, 
 router.put('/:id/custom-fields', requirePermission('clients.update'), validate(setCustomField), async (req, res, next) => {
   try {
     await Client.findByIdOrFail(req.params.id, req.orgId);
-    const field = await Client.setCustomField(req.params.id, req.body.field_key, req.body.field_value ?? null);
+    const field = await Client.setCustomField(req.params.id, req.body.field_key, req.body.field_value ?? null, req.orgId);
     await bustCache(req.orgId, 'clients');
     res.json({ data: field });
   } catch (err) { next(err); }
@@ -482,7 +482,7 @@ router.put('/:id/custom-fields', requirePermission('clients.update'), validate(s
 router.delete('/:id/custom-fields/:key', requirePermission('clients.update'), async (req, res, next) => {
   try {
     await Client.findByIdOrFail(req.params.id, req.orgId);
-    const removed = await Client.deleteCustomField(req.params.id, req.params.key);
+    const removed = await Client.deleteCustomField(req.params.id, req.params.key, req.orgId);
     if (!removed) throw new NotFoundError('Custom field');
     await bustCache(req.orgId, 'clients');
     res.status(204).send();
@@ -495,7 +495,7 @@ router.delete('/:id/custom-fields/:key', requirePermission('clients.update'), as
 router.get('/:id/documents', requirePermission('clients.view'), async (req, res, next) => {
   try {
     await Client.findByIdOrFail(req.params.id, req.orgId);
-    const docs = await Client.getDocuments(req.params.id);
+    const docs = await Client.getDocuments(req.params.id, req.orgId);
     res.json({ data: docs });
   } catch (err) { next(err); }
 });

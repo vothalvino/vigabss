@@ -73,7 +73,7 @@ async function restrictRoleAssignment(req, _res, next) {
       targetUserResolved = true;
       const targetId = Number(req.params?.id);
       targetUser = Number.isInteger(targetId)
-        ? await User.findByIdIncludingDeleted(targetId)
+        ? await User.findByIdIncludingDeleted(targetId, User.UNSCOPED)
         : null;
     }
     return targetUser;

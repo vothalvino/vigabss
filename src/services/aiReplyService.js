@@ -475,7 +475,7 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
   const [phrasesByCategory, forbiddenTerms, rawHistory, ragChunks] = await Promise.all([
     phraseLibraryService.getPhrasesByCategory(orgId, locale),
     phraseLibraryService.getTermsByLocale(orgId, locale),
-    Ticket.getComments(ticketId),
+    Ticket.getComments(ticketId, orgId),
     phraseLibraryService.search(orgId, locale, workingInbound, 5),
   ]);
   // Ticket history is redacted like the inbound text. Staff-only notes stay
@@ -637,7 +637,7 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
         body:        finalText,
         is_internal: false,
       }));
-      await AiReplyLog.update(logEntry.id, { action: 'auto_sent', final_text: finalText });
+      await AiReplyLog.update(logEntry.id, { action: 'auto_sent', final_text: finalText }, orgId);
       // Channel dispatch (WhatsApp, email, SMS) is handled by channel adapters
       // that consume this service's return value / events. We log the intent here.
       logger.info({ orgId, ticketId, channel, logId: logEntry.id }, 'aiReplyService: auto_sent via channel');
