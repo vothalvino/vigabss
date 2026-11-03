@@ -6,6 +6,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { ScheduledTaskList } from '../ScheduledTaskList';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const mockApiGet = vi.fn();
 const mockApiPost = vi.fn();
@@ -158,5 +160,18 @@ describe('ScheduledTaskList page', () => {
     const runButton = await screen.findByRole('button', { name: /Run now/i });
     expect(runButton).toHaveStyle({ minHeight: '40px' });
     expect(runButton.parentElement).toHaveStyle({ flexWrap: 'wrap' });
+  });
+
+  // FE2-13: the form offered five task types the scheduled_tasks.task_type
+  // ENUM does not have, and creating one failed in MySQL with a 500.
+  it('offers exactly the task types the database column accepts', () => {
+    const page = readFileSync(resolve(__dirname, '../ScheduledTaskList.tsx'), 'utf8');
+    const offered = [...(page.match(/const TASK_TYPES = \[([\s\S]*?)\];/)?.[1] ?? '').matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
+    const schema = readFileSync(resolve(__dirname, '../../../../database/schema.sql'), 'utf8');
+    const table = schema.slice(schema.indexOf('CREATE TABLE IF NOT EXISTS scheduled_tasks ('));
+    const column = table.match(/task_type\s+ENUM\(([^)]*)\)/)?.[1] ?? '';
+    const accepted = [...column.matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
+    expect(accepted.length).toBeGreaterThan(5);
+    expect(offered).toEqual(accepted);
   });
 });

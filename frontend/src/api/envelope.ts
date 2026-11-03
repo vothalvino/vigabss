@@ -30,6 +30,18 @@ export function unwrapData<T>(body: unknown): T {
   return body as T;
 }
 
+/**
+ * The rows of a list response: `{ data: [...] }` or a bare array. Anything
+ * else (an object payload, an error body, null) is no rows rather than a
+ * TypeError at `.map` (FE2-13).
+ */
+export function unwrapList<T>(body: unknown): T[] {
+  const rows = body && typeof body === 'object' && !Array.isArray(body) && 'data' in body
+    ? (body as { data: unknown }).data
+    : body;
+  return Array.isArray(rows) ? (rows as T[]) : [];
+}
+
 /** A number (or numeric string) with fixed decimals; '—' when missing. */
 export function fmtFixed(value: unknown, digits: number): string {
   if (value === null || value === undefined || value === '') return '—';

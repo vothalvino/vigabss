@@ -72,10 +72,11 @@ type RunOutcome =
 // ---------------------------------------------------------------------------
 
 const DEFAULT_PAGE_SIZE = 25;
+// scheduled_tasks.task_type ENUM; the others this offered were refused by the
+// database (FE2-13).
 const TASK_TYPES = [
-  'auto_suspend', 'generate_invoice', 'radius_sync', 'populate_revenue_summary',
-  'populate_network_health_snapshots', 'csd_expiry_monitor', 'snmp_poll',
-  'webhook_delivery', 'email_send',
+  'auto_suspend', 'generate_invoice', 'radius_sync', 'snmp_poll', 'usage_rollup', 'cleanup',
+  'notification', 'backup', 'maintenance', 'webhook_retry', 'other',
 ];
 const PRIORITIES = ['low', 'normal', 'high', 'critical'];
 

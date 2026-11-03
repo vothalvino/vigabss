@@ -12,7 +12,8 @@ const createSpeedTestJob = {
 };
 
 const updateSpeedTestJob = {
-  status:          { type: 'string', enum: ['pending', 'running', 'completed', 'failed', 'cancelled'] },
+  // The column's values (FE2-13): 'pending' is not one of them.
+  status:          { type: 'string', enum: ['queued', 'running', 'completed', 'failed', 'cancelled'] },
   download_mbps:   { type: 'number', min: 0 },
   upload_mbps:     { type: 'number', min: 0 },
   latency_ms:      { type: 'number', min: 0 },

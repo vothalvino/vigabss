@@ -28,7 +28,7 @@ const createSnmpProfileOid = {
   oid: { type: 'string', required: true, min: 1, max: 255 },
   label: { type: 'string', required: true, min: 1, max: 255 },
   oid_type: { type: 'string', enum: ['gauge', 'counter', 'counter64', 'string', 'timeticks'] },
-  description: { type: 'string', max: 500 },
+  // No description: snmp_profile_oids has no such column, and it was dropped (FE2-13).
   status: { type: 'string', enum: ['active', 'inactive'] },
   metric_column: { type: 'string', required: true, min: 1, max: 64 },
   is_per_interface: { type: 'boolean' },
