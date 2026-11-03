@@ -20,7 +20,6 @@ const ALLOWED = {
   'services/smsTransport.js': 'defines sendSms',
   'services/emailSettingsService.js': 'the SMTP settings test send reports the connection result itself',
   'services/trapForwardingService.js': 'SNMP trap forwarding has its own durable, retried delivery queue',
-  'services/campaignService.js': 'campaign delivery moves to the outbox in the next commit',
 };
 
 function files(dir) {

@@ -29,6 +29,37 @@ messageOutbox.onOutcome('service_modification_notice', async (row, outcome) => {
   ));
 });
 
+// A campaign message handed to the outbox (campaignService.handOff) gets its
+// final state and the campaign its counters. outcome_unknown keeps the
+// marker that blocks a redispatch from sending a duplicate.
+messageOutbox.onOutcome('campaign_message', async (row, outcome) => {
+  const { HANDED_OFF, DELIVERY_OUTCOME_UNKNOWN } = require('./campaignService');
+  await withTenant(row.organization_id, async () => {
+    const sent = outcome.status === 'sent';
+    const [update] = await db.query(
+      `UPDATE campaign_messages
+          SET status = ?, sent_at = ${sent ? 'NOW()' : 'sent_at'}, provider_message_id = ?, error_message = ?
+        WHERE id = ? AND organization_id <=> ? AND status = 'failed' AND error_message = ?`,
+      [
+        sent ? 'sent' : 'failed',
+        outcome.providerMessageId,
+        sent ? null : (outcome.status === 'outcome_unknown'
+          ? DELIVERY_OUTCOME_UNKNOWN
+          : String(outcome.error || outcome.code || outcome.status).slice(0, 1000)),
+        row.source_id, row.organization_id, HANDED_OFF,
+      ],
+    );
+    if (update.affectedRows !== 1) return;
+    await db.query(
+      `UPDATE communication_campaigns cc
+         JOIN campaign_messages cm ON cm.campaign_id = cc.id AND cm.organization_id <=> cc.organization_id
+          SET cc.${sent ? 'sent_count = cc.sent_count' : 'failed_count = cc.failed_count'} + 1
+        WHERE cm.id = ? AND cm.organization_id <=> ?`,
+      [row.source_id, row.organization_id],
+    );
+  });
+});
+
 // Billing emails (BIL-32) count their real outcome: billing_emails_total
 // alerts on undelivered invoices and suspension notices, not on queueing.
 const BILLING_KINDS = { invoice_email: 'invoice', suspension_warning: 'suspension_warning', suspension_notice: 'suspension_notice' };

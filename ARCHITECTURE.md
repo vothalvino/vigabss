@@ -590,7 +590,13 @@ the outbox loads in whichever process delivers. Send through the outbox
 a retryable failure stays queued). A message that carries a secret (reset
 link, code, password) is `sensitive`: its body is hidden from the API, cleared
 once final, and not retryable by staff. `emailTransport.sendEmail` and
-`smsTransport.sendSms` are the outbox's adapters; `tests/outboxOnlySender.test.js`
+`smsTransport.sendSms` are the outbox's adapters. Campaigns keep their own
+ledger: `campaign_send` claims each `campaign_messages` row and enqueues it in
+one transaction (`failed` + "Queued in the message outbox" is the in-flight
+state), the outbox outcome sets its final state and the campaign counters, an
+unknown outcome keeps the marker that blocks a duplicate redispatch, and
+cancelling or deleting a campaign withdraws its still-queued messages
+(`cancelQueuedBySource`). `tests/outboxOnlySender.test.js`
 lists the only other direct callers (the SMTP settings test send and SNMP trap
 forwarding, which has its own durable queue).
 

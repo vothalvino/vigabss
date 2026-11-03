@@ -101,7 +101,7 @@ function fakeQuery(sql, params = []) {
     Object.assign(r, { status: 'queued', attempts: 0, next_attempt_at: 0, last_error_code: null, last_error: null });
     return [{ affectedRows: 1 }];
   }
-  if (s.startsWith("UPDATE message_outbox SET status = 'cancelled'")) {
+  if (s.startsWith("UPDATE message_outbox SET status = 'cancelled', claimed_at = NULL WHERE id = ? AND organization_id = ?")) {
     const [id, org, from] = params;
     const r = rows.find(x => x.id === id && x.organization_id === org && x.status === from);
     if (!r) return [{ affectedRows: 0 }];
@@ -109,6 +109,15 @@ function fakeQuery(sql, params = []) {
     return [{ affectedRows: 1 }];
   }
   if (s.startsWith('UPDATE service_modification_notices')) return [{ affectedRows: 1 }];
+  if (s.startsWith("SELECT * FROM message_outbox WHERE organization_id = ? AND source_type = ? AND status = 'queued'")) {
+    const [org, type, ...ids] = params;
+    return [rows.filter(r => r.organization_id === org && r.source_type === type && r.status === 'queued' && ids.includes(r.source_id)).map(r => ({ ...r }))];
+  }
+  if (s.startsWith("UPDATE message_outbox SET status = 'cancelled' WHERE id = ? AND status = 'queued'")) {
+    const r = rows.find(x => x.id === params[0] && x.status === 'queued');
+    if (r) r.status = 'cancelled';
+    return [{ affectedRows: r ? 1 : 0 }];
+  }
   if (s.startsWith('UPDATE message_outbox SET body_text = NULL, body_html = NULL, payload = NULL')) {
     const r = rows.find(x => x.id === params[0] && x.sensitive === 1);
     if (r) Object.assign(r, { body_text: null, body_html: null, payload: null });
@@ -350,6 +359,20 @@ test('a billing email counts its real outcome in billing_emails_total, not its q
 
   expect(count('sent')).toBe(before.sent + 1);
   expect(count('failed')).toBe(before.failed + 1);
+});
+
+test('a producer can withdraw its still-queued messages; one being delivered is left alone', async () => {
+  const handler = jest.fn();
+  outbox.onOutcome('campaign_message', handler);
+  await outbox.enqueue(clientEmail({ messageClass: 'marketing', sourceType: 'campaign_message', sourceId: 1 }));
+  await outbox.enqueue(clientEmail({ messageClass: 'marketing', sourceType: 'campaign_message', sourceId: 2 }));
+  row(2).status = 'sending';
+
+  await expect(outbox.cancelQueuedBySource(5, 'campaign_message', [1, 2])).resolves.toBe(1);
+
+  expect(row(1).status).toBe('cancelled');
+  expect(row(2).status).toBe('sending');
+  expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), expect.objectContaining({ status: 'cancelled' }));
 });
 
 describe('crash and concurrency safety', () => {

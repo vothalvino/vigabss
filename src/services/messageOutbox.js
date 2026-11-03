@@ -707,6 +707,36 @@ async function cancel(id, orgId) {
   return cancelled;
 }
 
+/**
+ * Cancel the still-queued messages a producer sent for these sources (a
+ * cancelled campaign). Messages already being delivered are left alone.
+ * @returns {Promise<number>} how many were cancelled
+ */
+async function cancelQueuedBySource(orgId, sourceType, sourceIds) {
+  const ids = [...new Set((sourceIds || []).map(Number).filter(Number.isSafeInteger))];
+  if (ids.length === 0) return 0;
+  return withTenant(orgId, async () => {
+    const [rows] = await db.query(
+      `SELECT * FROM message_outbox
+        WHERE organization_id = ? AND source_type = ? AND status = 'queued'
+          AND source_id IN (${ids.map(() => '?').join(',')})`,
+      [orgId, sourceType, ...ids],
+    );
+    let cancelled = 0;
+    for (const row of rows) {
+      const [update] = await db.query(
+        "UPDATE message_outbox SET status = 'cancelled' WHERE id = ? AND status = 'queued'",
+        [row.id],
+      );
+      if (update.affectedRows !== 1) continue;
+      cancelled++;
+      await clearSensitive(row.id);
+      await notifyOutcome(row, { status: 'cancelled', providerMessageId: null, code: 'CANCELLED', error: 'The producer cancelled it.' });
+    }
+    return cancelled;
+  });
+}
+
 module.exports = {
   CHANNELS,
   BACKOFF_MINUTES,
@@ -722,5 +752,6 @@ module.exports = {
   get,
   retry,
   cancel,
+  cancelQueuedBySource,
   _adapters: ADAPTERS,
 };
