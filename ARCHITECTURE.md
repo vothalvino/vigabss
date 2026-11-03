@@ -902,6 +902,11 @@ before completion:
 | Compose/infra | Parse every changed Compose overlay with `docker compose ... config`; run relevant image/Helm/deploy checks |
 
 Plain backend Jest uses a mocked database and does not prove MySQL behavior.
+`tests/integration/db` is the exception: it runs only with `DB_INTEGRATION=1`
+against a migrated, disposable database (CI's `db-integration` job, on every
+PR), seeds two organizations, sweeps every `/api/v1` GET route as one with the
+other's ids, and races the numbering, billing-period, allocation and webhook
+paths. Point it only at a throwaway database: it writes freely.
 `test:db` and migration smoke tests require a real local MySQL/MariaDB; the
 Compose services are the documented setup. Playwright requires the full E2E
 stack. If an environment-dependent command cannot run, report exactly what was

@@ -303,6 +303,71 @@ jobs:
           done
           echo "All SQL tests passed on the migrated database"
 
+  db-integration:
+    # Jest against a migrated MySQL with two organizations (TNA-37, OPS-20).
+    # Every other Jest suite mocks the database; these run the app's SQL:
+    # a GET sweep of every /api/v1 route as organization A with B's ids, and
+    # numbering, billing-period, allocation and webhook races. Runs on PRs.
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4.9
+        env:
+          MYSQL_ROOT_PASSWORD: fireisp_test
+          MYSQL_DATABASE: fireisp_integration
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      DB_INTEGRATION: '1'
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: fireisp_test
+      DB_NAME: fireisp_integration
+      JWT_SECRET: db-integration-ci-jwt-secret-for-github-actions-only
+      ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      LOG_LEVEL: warn
+      DB_INTEGRATION_REPORT: db-isolation-report.json
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migrations
+        run: pnpm run migrate
+
+      - name: Run the real-database Jest suites
+        run: pnpm exec jest tests/integration/db --ci --runInBand --forceExit
+
+      - name: Upload the isolation sweep report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: db-isolation-report
+          path: db-isolation-report.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   vector-store-tests:
     # The vector-store client against the pinned ChromaDB image. The unit
     # tests mock fetch, which is how a client still on Chroma's removed v1 API
@@ -1009,6 +1074,7 @@ jobs:
       - frontend-test
       - e2e
       - database-tests
+      - db-integration
       - migration-runner-tests
       - mariadb-compatibility
       - shell-scripts

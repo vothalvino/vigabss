@@ -25,7 +25,7 @@ function softDeleteTables() {
 }
 
 // SQL-looking string literals ('...', "...", `...`).
-function sqlLiterals(src) {
+function sqlLiterals(src, { keepDeletedRows = false } = {}) {
   const out = [];
   const re = /(`(?:[^`\\]|\\.)*`|'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")/g;
   let m;
@@ -33,8 +33,8 @@ function sqlLiterals(src) {
     const text = m[1].slice(1, -1);
     // A reviewed read that wants deleted rows says so in the SQL itself:
     // /* includes deleted rows: <reason> */
-    if (/includes deleted rows:/i.test(text)) continue;
-    if (/\b(SELECT|UPDATE|DELETE)\b/i.test(text) && /\b(FROM|JOIN)\b/i.test(text)) out.push(text);
+    if (!keepDeletedRows && /includes deleted rows:/i.test(text)) continue;
+    if (/\b(SELECT|UPDATE|DELETE)\b/i.test(text) && /\b(FROM|JOIN|UPDATE)\b/i.test(text)) out.push(text);
   }
   return out;
 }
@@ -77,4 +77,4 @@ function scan() {
   return counts;
 }
 
-module.exports = { scan, unfilteredReads, softDeleteTables };
+module.exports = { scan, unfilteredReads, softDeleteTables, sqlLiterals };
