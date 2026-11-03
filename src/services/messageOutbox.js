@@ -151,6 +151,7 @@ async function enqueue(message, { exec = null, deliverByJob = true } = {}) {
     channel, organizationId = null, clientId = null, messageClass = null, recipient = null,
     subject = null, bodyText = null, bodyHtml = null, emailFunction = null, attachments = null,
     payload = null, sourceType = null, sourceId = null, dedupeKey = null, maxAttempts = null,
+    sensitive = false,
   } = message;
   const run = exec || ((sql, params) => withTenant(organizationId, () => db.query(sql, params)));
 
@@ -181,8 +182,8 @@ async function enqueue(message, { exec = null, deliverByJob = true } = {}) {
     `INSERT IGNORE INTO message_outbox
        (organization_id, organization_epoch, client_id, client_contact_epoch, channel, message_class,
         priority, email_function, recipient, subject, body_text, body_html, payload,
-        source_type, source_id, dedupe_key, status, max_attempts, last_error_code, last_error)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        source_type, source_id, dedupe_key, status, max_attempts, last_error_code, last_error, sensitive)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       organizationId, owner.epoch || 0, clientId, contactEpoch, channel, messageClass,
       messageClass ? PRIORITY[messageClass] : OPERATIONAL_PRIORITY,
@@ -190,6 +191,7 @@ async function enqueue(message, { exec = null, deliverByJob = true } = {}) {
       Object.keys(fullPayload).length ? JSON.stringify(fullPayload) : null,
       sourceType, sourceId, dedupeKey, status, maxAttempts || BACKOFF_MINUTES.length,
       code, code ? 'Blocked at enqueue by the organization state or the client\'s communication preferences.' : null,
+      sensitive ? 1 : 0,
     ],
   );
 
@@ -336,6 +338,7 @@ async function finish(row, result) {
     ],
   );
   if (update.affectedRows !== 1) return { status: 'lost' };
+  if (status !== 'queued' && Number(row.sensitive)) await clearSensitive(row.id);
   noteOutboxMessage(row.channel, status === 'queued' ? 'retried' : status);
   if (status !== 'queued') {
     await notifyOutcome(row, { status, providerMessageId: result.providerMessageId || null, code: result.code || null, error: result.error || null });
@@ -344,6 +347,14 @@ async function finish(row, result) {
     logger.warn({ outboxId: row.id, channel: row.channel, status, code: result.code }, 'Outbox message needs attention');
   }
   return { status };
+}
+
+/** A secret-bearing message keeps no body once it is final. */
+async function clearSensitive(id) {
+  await db.query(
+    'UPDATE message_outbox SET body_text = NULL, body_html = NULL, payload = NULL WHERE id = ? AND sensitive = 1',
+    [id],
+  );
 }
 
 /** Claim and deliver one queued row of the current database. */
@@ -516,6 +527,37 @@ async function processQueue(organizationId = null) {
 }
 
 /**
+ * enqueue() for email, with emailTransport.sendEmail's option names, so a
+ * sender moves to the outbox by changing the function it calls.
+ * @param {object} opts  to, subject, html, text, attachments, organizationId, clientId,
+ *   messageClass, emailFunction, operationalRecipient, sensitive, dedupeKey, sourceType,
+ *   sourceId, maxAttempts
+ */
+function emailMessage({
+  to, subject = null, html = null, text = null, attachments = null, organizationId = null, clientId = null,
+  messageClass = null, emailFunction = null, operationalRecipient = false, sensitive = false,
+  dedupeKey = null, sourceType = null, sourceId = null, maxAttempts = null,
+}) {
+  const hasClient = clientId !== null && clientId !== undefined;
+  if (!hasClient && !operationalRecipient) {
+    throw new ValidationError('An email without a client must be marked operationalRecipient');
+  }
+  return {
+    channel: 'email', organizationId, clientId: hasClient ? clientId : null, messageClass: hasClient ? messageClass : null,
+    recipient: to, subject, bodyText: text, bodyHtml: html, attachments, emailFunction, sensitive,
+    dedupeKey, sourceType, sourceId, maxAttempts,
+  };
+}
+
+function queueEmail(opts, enqueueOpts) {
+  return enqueue(emailMessage(opts), enqueueOpts);
+}
+
+function sendEmailNow(opts) {
+  return sendNow(emailMessage(opts));
+}
+
+/**
  * Queue a message and deliver it in this request, for a caller that must
  * tell a person what happened (a staff "send now", a legal notice). The row
  * follows every outbox rule: a retryable failure stays queued and the sweep
@@ -566,7 +608,7 @@ async function deliverNow(id, organizationId = null) {
 // Staff view: /message-outbox
 // ---------------------------------------------------------------------------
 
-const LIST_COLUMNS = `id, organization_id, client_id, channel, message_class, recipient, subject,
+const LIST_COLUMNS = `id, organization_id, client_id, channel, message_class, recipient, subject, sensitive,
   source_type, source_id, status, attempts, max_attempts, next_attempt_at, sent_at,
   provider_message_id, last_error_code, last_error, created_at, updated_at`;
 
@@ -605,6 +647,10 @@ async function get(id, orgId) {
   );
   const row = rows[0];
   if (!row) throw new NotFoundError('Message');
+  if (Number(row.sensitive)) {
+    // A reset link or code must not be readable by staff.
+    return { ...row, body_text: null, body_html: null, payload: {}, sensitive: 1 };
+  }
   // Attachment bytes stay out of the API: names and sizes only.
   const payload = parsePayload(row.payload);
   if (Array.isArray(payload.attachments)) {
@@ -624,6 +670,9 @@ async function retry(id, orgId, { confirmPossibleDuplicate = false } = {}) {
   const row = await get(id, orgId);
   if (!RETRYABLE_FROM.includes(row.status)) {
     throw new AppError(`A ${row.status} message cannot be retried.`, 409, 'OUTBOX_NOT_RETRYABLE');
+  }
+  if (Number(row.sensitive)) {
+    throw new AppError('This message carried a secret that is no longer kept; the recipient requests a new one.', 409, 'OUTBOX_NOT_RETRYABLE');
   }
   if (row.status === 'outcome_unknown' && !confirmPossibleDuplicate) {
     throw new AppError(
@@ -652,6 +701,7 @@ async function cancel(id, orgId) {
     [id, orgId, row.status],
   );
   if (update.affectedRows !== 1) throw new AppError('The message changed; reload it.', 409, 'OUTBOX_CHANGED');
+  await clearSensitive(id);
   const cancelled = await get(id, orgId);
   await notifyOutcome(cancelled, { status: 'cancelled', providerMessageId: null, code: 'CANCELLED', error: 'Cancelled by staff.' });
   return cancelled;
@@ -661,6 +711,8 @@ module.exports = {
   CHANNELS,
   BACKOFF_MINUTES,
   enqueue,
+  queueEmail,
+  sendEmailNow,
   sendNow,
   processQueue,
   deliverNow,

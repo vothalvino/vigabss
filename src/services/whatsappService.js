@@ -331,7 +331,8 @@ async function notifyOwnerOfBinding({ organizationId, clientId, phone }) {
     if (!client?.email) return;
     const last4 = String(phone).slice(-4);
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
-    await require('./emailTransport').sendEmail({
+    await require('./messageOutbox').queueEmail({
+      sourceType: 'whatsapp_binding_notice',
       organizationId,
       clientId,
       messageClass: 'security',

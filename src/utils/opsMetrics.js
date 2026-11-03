@@ -76,7 +76,7 @@ const billingInvoices = registry.counter({
 });
 const billingEmails = registry.counter({
   name: 'billing_emails_total',
-  help: 'Billing emails to clients (kind: invoice, suspension_warning, suspension_notice; result: sent, failed)',
+  help: 'Billing emails to clients by final outcome (kind: invoice, suspension_warning, suspension_notice; result: sent, skipped, failed)',
   labelNames: ['kind', 'result'],
 });
 const autopayCharges = registry.counter({

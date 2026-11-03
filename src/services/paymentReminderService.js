@@ -7,7 +7,7 @@
 // =============================================================================
 
 const db = require('../config/database');
-const emailTransport = require('./emailTransport');
+const messageOutbox = require('./messageOutbox');
 const smsTransport = require('./smsTransport');
 const logger = require('../utils/logger');
 // invoice.client_name (below) is free-text DB data interpolated raw into the
@@ -191,7 +191,8 @@ async function sendPaymentReminders(organizationId) {
               + '</p>'
               + '<p>If you have already paid, please disregard this message.</p>';
 
-            await emailTransport.sendEmail({
+            // Outbox (ASY-33): one per invoice, stage and channel.
+            const queued = await messageOutbox.queueEmail({
               organizationId,
               clientId: invoice.client_id,
               messageClass: 'transactional',
@@ -199,10 +200,16 @@ async function sendPaymentReminders(organizationId) {
               to: invoice.client_email,
               subject,
               html,
+              sourceType: 'payment_reminder',
+              sourceId: invoice.id,
+              dedupeKey: `payment_reminder:${organizationId}:${invoice.id}:${stage}:email`,
             });
 
-            await logReminder(invoice.id, organizationId, stage, 'email');
-            remindersSent++;
+            // A reminder the client's preferences block is not "sent".
+            if (queued.queued) {
+              await logReminder(invoice.id, organizationId, stage, 'email');
+              remindersSent++;
+            }
           } catch (err) {
             logger.error({ err, invoiceId: invoice.id, stage }, 'paymentReminderService: email send error');
           }

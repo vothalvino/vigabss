@@ -11,6 +11,8 @@
 const fs = require('fs');
 const path = require('path');
 
+// Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
+jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassThrough'));
 jest.mock('../src/config/database', () => ({
   query: jest.fn(), execute: jest.fn(), getConnection: jest.fn(), close: jest.fn(), pool: { end: jest.fn() },
 }));
@@ -72,8 +74,19 @@ test('two rules whose windows hold the contract send one warning per run', async
   expect(emailTransport.sendEmail).toHaveBeenCalledTimes(1);
 });
 
-test('a failed send is retried on the next run', async () => {
+// The warning is queued in the outbox (ASY-33), which retries a failed send
+// itself; the next run must not queue a second warning.
+test('a failed send is retried by the outbox, not queued again by the next run', async () => {
   emailTransport.sendEmail.mockResolvedValueOnce({ success: false, error: 'SMTP down' });
+  expect((await taskRunner.runSuspensionWarnings(42)).warnings_sent).toBe(1);
+  expect((await taskRunner.runSuspensionWarnings(42)).warnings_sent).toBe(0);
+  expect(emailTransport.sendEmail).toHaveBeenCalledTimes(1);
+});
+
+// A warning the client's preferences block was not sent: the claim is
+// released so a later run can warn once the block is lifted.
+test('a blocked warning is tried again on the next run', async () => {
+  emailTransport.sendEmail.mockResolvedValueOnce({ success: false, skipped: true, code: 'CLIENT_COMMUNICATION_OPTED_OUT' });
   expect((await taskRunner.runSuspensionWarnings(42)).warnings_sent).toBe(0);
   expect((await taskRunner.runSuspensionWarnings(42)).warnings_sent).toBe(1);
   expect(emailTransport.sendEmail).toHaveBeenCalledTimes(2);

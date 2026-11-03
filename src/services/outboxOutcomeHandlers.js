@@ -7,6 +7,7 @@
 
 const db = require('../config/database');
 const messageOutbox = require('./messageOutbox');
+const { noteBillingEmail } = require('../utils/opsMetrics');
 
 function withTenant(organizationId, callback) {
   return organizationId === null || organizationId === undefined || typeof db.withTenantContext !== 'function'
@@ -27,5 +28,15 @@ messageOutbox.onOutcome('service_modification_notice', async (row, outcome) => {
     [note, row.source_id, row.organization_id],
   ));
 });
+
+// Billing emails (BIL-32) count their real outcome: billing_emails_total
+// alerts on undelivered invoices and suspension notices, not on queueing.
+const BILLING_KINDS = { invoice_email: 'invoice', suspension_warning: 'suspension_warning', suspension_notice: 'suspension_notice' };
+const BILLING_RESULT = { sent: 'sent', skipped: 'skipped', failed: 'failed', outcome_unknown: 'failed', cancelled: 'skipped' };
+for (const [sourceType, kind] of Object.entries(BILLING_KINDS)) {
+  messageOutbox.onOutcome(sourceType, async (_row, outcome) => {
+    noteBillingEmail(kind, BILLING_RESULT[outcome.status] || 'failed');
+  });
+}
 
 module.exports = {};

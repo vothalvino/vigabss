@@ -34,7 +34,7 @@ let rows;
 let nextId;
 const COLUMNS = ['organization_id', 'organization_epoch', 'client_id', 'client_contact_epoch', 'channel', 'message_class',
   'priority', 'email_function', 'recipient', 'subject', 'body_text', 'body_html', 'payload',
-  'source_type', 'source_id', 'dedupe_key', 'status', 'max_attempts', 'last_error_code', 'last_error'];
+  'source_type', 'source_id', 'dedupe_key', 'status', 'max_attempts', 'last_error_code', 'last_error', 'sensitive'];
 
 function fakeQuery(sql, params = []) {
   const s = sql.replace(/\s+/g, ' ').trim();
@@ -109,6 +109,11 @@ function fakeQuery(sql, params = []) {
     return [{ affectedRows: 1 }];
   }
   if (s.startsWith('UPDATE service_modification_notices')) return [{ affectedRows: 1 }];
+  if (s.startsWith('UPDATE message_outbox SET body_text = NULL, body_html = NULL, payload = NULL')) {
+    const r = rows.find(x => x.id === params[0] && x.sensitive === 1);
+    if (r) Object.assign(r, { body_text: null, body_html: null, payload: null });
+    return [{ affectedRows: r ? 1 : 0 }];
+  }
   throw new Error(`Unexpected SQL in the fake: ${s.slice(0, 120)}`);
 }
 
@@ -300,6 +305,51 @@ test('a service-modification notice delivered on a later retry is marked sent th
   await outbox.processQueue();
   expect(marks()).toHaveLength(1);
   expect(marks()[0][1]).toEqual(['Sent by email (<n9@isp>)', 9, 5]);
+});
+
+describe('a message that carries a secret', () => {
+  const reset = { channel: 'email', operationalRecipient: true, to: 'staff@isp.mx', subject: 'Reset', html: '<a href="https://x/reset?token=s3cret">reset</a>', sensitive: true };
+
+  test('keeps no body once delivered, and the API never shows it', async () => {
+    emailTransport.sendEmail.mockResolvedValue({ success: true });
+    await outbox.queueEmail({ ...reset, organizationId: 5 });
+    expect((await outbox.get(1, 5)).body_html).toBeNull(); // hidden while queued too
+
+    await outbox.processQueue();
+
+    expect(emailTransport.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ html: reset.html, operationalRecipient: true }));
+    expect(row(1)).toMatchObject({ status: 'sent', body_html: null, body_text: null });
+  });
+
+  test('is not retried by staff once it failed', async () => {
+    emailTransport.sendEmail.mockResolvedValue({ success: false, code: 'UNSAFE_HOST' });
+    await outbox.queueEmail({ ...reset, organizationId: 5 });
+    await outbox.processQueue();
+
+    expect(row(1)).toMatchObject({ status: 'failed', body_html: null });
+    await expect(outbox.retry(1, 5)).rejects.toMatchObject({ code: 'OUTBOX_NOT_RETRYABLE' });
+  });
+});
+
+test('a billing email counts its real outcome in billing_emails_total, not its queueing', async () => {
+  const { registry } = require('../src/utils/metricsRegistry');
+  const count = (result) => {
+    const line = registry.render().split('\n').find(l => l.startsWith(`billing_emails_total{kind="invoice",result="${result}"}`));
+    return line ? Number(line.split(' ').pop()) : 0;
+  };
+  const before = { sent: count('sent'), failed: count('failed') };
+  emailTransport.sendEmail
+    .mockResolvedValueOnce({ success: true })
+    .mockResolvedValueOnce({ success: false, code: 'UNSAFE_HOST' });
+  await outbox.queueEmail({ ...clientEmail(), to: 'ana@example.com', html: '<p>x</p>', sourceType: 'invoice_email', sourceId: 1 });
+  expect(count('sent')).toBe(before.sent);
+
+  await outbox.processQueue();
+  await outbox.queueEmail({ ...clientEmail(), to: 'ana@example.com', html: '<p>x</p>', sourceType: 'invoice_email', sourceId: 2 });
+  await outbox.processQueue();
+
+  expect(count('sent')).toBe(before.sent + 1);
+  expect(count('failed')).toBe(before.failed + 1);
 });
 
 describe('crash and concurrency safety', () => {

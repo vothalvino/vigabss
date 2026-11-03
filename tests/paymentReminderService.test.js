@@ -2,6 +2,8 @@
 // Tests: Payment Reminder Service
 // =============================================================================
 
+// Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
+jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassThrough'));
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/services/emailTransport', () => ({ sendEmail: jest.fn().mockResolvedValue(true) }));
 jest.mock('../src/services/smsTransport', () => ({ queueSms: jest.fn().mockResolvedValue(true) }));

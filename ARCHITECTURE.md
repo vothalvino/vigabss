@@ -583,9 +583,16 @@ checked at enqueue and again by the transport before the call; a block is
 (`OUTBOX_RATE_<CHANNEL>_PER_MINUTE`). Staff see and retry or cancel messages at
 `/message-outbox`; retrying `outcome_unknown` needs
 `confirm_possible_duplicate`. A producer with its own ledger registers
-`onOutcome(source_type, fn)`. Send through the outbox, not the transports;
-`emailTransport.sendEmail` and `smsTransport.sendSms` are the outbox's
-adapters.
+`onOutcome(source_type, fn)` in `src/services/outboxOutcomeHandlers.js`, which
+the outbox loads in whichever process delivers. Send through the outbox
+(`enqueue`, `queueEmail`, `smsTransport.queueSms`), or `sendNow` /
+`sendEmailNow` when a person waits for the result (it delivers in the request;
+a retryable failure stays queued). A message that carries a secret (reset
+link, code, password) is `sensitive`: its body is hidden from the API, cleared
+once final, and not retryable by staff. `emailTransport.sendEmail` and
+`smsTransport.sendSms` are the outbox's adapters; `tests/outboxOnlySender.test.js`
+lists the only other direct callers (the SMTP settings test send and SNMP trap
+forwarding, which has its own durable queue).
 
 Business events (`invoice.created`, `payment.received`, `contract.suspended` /
 `.restored`, `suspension.warning`, `ticket.created`, `maintenance.scheduled`)

@@ -6,6 +6,8 @@
 // firerelay, pdf, quotes, payments, invoices, twoFactor, clients (sub-routes)
 // =============================================================================
 
+// Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
+jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassThrough'));
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   execute: jest.fn(),
@@ -40,6 +42,7 @@ jest.mock('../src/views/emailTemplates', () => ({
   suspensionWarningEmail: jest.fn().mockReturnValue({ subject: 'Warning', html: '<p>warning</p>' }),
   serviceSuspendedEmail: jest.fn().mockReturnValue({ subject: 'Suspended', html: '<p>suspended</p>' }),
   outageNotificationEmail: jest.fn().mockReturnValue({ subject: 'Outage', html: '<p>outage</p>' }),
+  customMessageEmail: jest.fn().mockReturnValue('<p>custom</p>'),
 }));
 jest.mock('../src/services/eventBus', () => ({
   emit: jest.fn(),
