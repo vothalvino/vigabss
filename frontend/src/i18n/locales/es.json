@@ -247,6 +247,7 @@
     "iftStatisticalReports": "Reportes IFT",
     "facturasPublicas": "Facturas Públicas",
     "communicationCampaigns": "Campañas",
+    "messageOutbox": "Bandeja de salida",
     "messageTemplates": "Plantillas de Mensajes",
     "queueStats": "Estado de Colas",
     "analyticsDashboard": "Panel de Analíticas",
@@ -5733,6 +5734,51 @@
       "minutesAgo": "hace {{count}}m",
       "hoursAgo": "hace {{count}}h",
       "daysAgo": "hace {{count}}d"
+    }
+  },
+  "messageOutbox": {
+    "title": "Bandeja de salida de mensajes",
+    "description": "Cada correo, SMS, WhatsApp y notificación push, y si llegó. Los fallidos agotaron sus reintentos; los \"Quizá enviados\" se detuvieron a mitad del envío y pueden haber llegado al destinatario.",
+    "total": "{{count}} mensajes",
+    "filterStatus": "Estado",
+    "filterChannel": "Canal",
+    "all": "Todos",
+    "loadError": "No se pudieron cargar los mensajes.",
+    "empty": "Ningún mensaje coincide con estos filtros.",
+    "actionFailed": "No se pudo completar la acción.",
+    "confirmPossibleDuplicate": "Este mensaje quizá ya se entregó. ¿Enviarlo de nuevo de todos modos? El destinatario podría recibirlo dos veces.",
+    "confirmCancel": "¿Cancelar este mensaje? No se enviará.",
+    "retry": "Reintentar",
+    "cancel": "Cancelar",
+    "prev": "← Anterior",
+    "next": "Siguiente →",
+    "pageOf": "Página {{page}} de {{total}}",
+    "clientDevices": "Dispositivos del cliente #{{id}}",
+    "col": {
+      "created": "Creado",
+      "channel": "Canal",
+      "recipient": "Destinatario",
+      "subject": "Asunto",
+      "status": "Estado",
+      "attempts": "Intentos",
+      "error": "Último error",
+      "actions": "Acciones"
+    },
+    "status": {
+      "queued": "En espera",
+      "claimed": "Enviando",
+      "sending": "Enviando",
+      "sent": "Enviado",
+      "skipped": "Bloqueado por preferencias",
+      "failed": "Fallido",
+      "outcome_unknown": "Quizá enviado",
+      "cancelled": "Cancelado"
+    },
+    "channel": {
+      "email": "Correo",
+      "sms": "SMS",
+      "whatsapp": "WhatsApp",
+      "push": "Push"
     }
   },
   "portalPrivacy": {

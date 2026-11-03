@@ -78,6 +78,7 @@ import { NasList } from '@/pages/NasList';
 import { NasDetail } from '@/pages/NasDetail';
 import { DeviceDetail } from '@/pages/DeviceDetail';
 import { MacMoveEvents } from '@/pages/MacMoveEvents';
+import { MessageOutbox } from '@/pages/MessageOutbox';
 import { PppoeServiceProfileList } from '@/pages/PppoeServiceProfileList';
 import { PppoeDiagnostics } from '@/pages/PppoeDiagnostics';
 import { DhcpServerList } from '@/pages/DhcpServerList';
@@ -246,6 +247,7 @@ export function App() {
                 <Route path="tickets" element={<TicketList />} />
                 <Route path="tickets/:id" element={<TicketDetail />} />
                 <Route path="communication-campaigns" element={<CommunicationCampaignList />} />
+                <Route path="message-outbox" element={<MessageOutbox />} />
                 <Route path="follow-up-reminders" element={<FollowUpReminderList />} />
                 <Route path="satisfaction-surveys" element={<SatisfactionSurveyList />} />
                 <Route path="escalations" element={<EscalationList />} />

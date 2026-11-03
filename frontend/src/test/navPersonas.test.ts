@@ -144,6 +144,7 @@ describe('billing', () => {
       '/escalations',
       '/follow-up-reminders',
       '/communication-campaigns',
+      '/message-outbox',
       '/satisfaction-surveys',
     ]);
   });
@@ -164,6 +165,7 @@ describe('support', () => {
       '/escalations',
       '/follow-up-reminders',
       '/communication-campaigns',
+      '/message-outbox',
       '/satisfaction-surveys',
     ]);
   });
