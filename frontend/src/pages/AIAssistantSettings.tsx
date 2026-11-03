@@ -15,7 +15,7 @@ import type { FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { authedFetch } from '@/api/client';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -115,28 +115,6 @@ const LOG_ACTIONS = ['proposed', 'edited', 'sent', 'auto_sent', 'discarded', 'fa
 // API helpers
 // ---------------------------------------------------------------------------
 
-async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await authedFetch(url, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers as Record<string, string> | undefined) },
-  });
-  if (!res.ok) {
-    // The API's error envelope is `{ error: { code, message } }`, an OBJECT.
-    // This used to be typed as a string, so `new Error(body.error)` stringified
-    // it and every failure on this page read "[object Object]" — no code, no
-    // message, nothing to act on. Both shapes are accepted because a few older
-    // handlers still return a bare string.
-    const body = (await res.json().catch(() => ({}))) as {
-      error?: string | { code?: string; message?: string };
-      message?: string;
-    };
-    const detail = typeof body.error === 'string'
-      ? body.error
-      : body.error?.message ?? body.message;
-    throw new Error(detail ?? `HTTP ${res.status}`);
-  }
-  return res.json() as Promise<T>;
-}
 
 // ---------------------------------------------------------------------------
 // Shared modal shell

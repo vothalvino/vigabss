@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { api, tokenStore } from '@/api/client';
+import { api, tokenStore, authedFetch } from '@/api/client';
 import { readCsrfCookie } from '@/api/csrf';
 import { extractApiError } from '@/components/ClientFormModal';
 import { ClientPicker } from '@/components/ClientPicker';
@@ -105,7 +105,7 @@ export function fmtAmount(amount: string | null | undefined, currency: string): 
 
 export async function fetchAllocations(paymentId: number): Promise<PaymentAllocation[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/payments/${paymentId}/allocations`, {
+  const res = await authedFetch(`${API_BASE}/payments/${paymentId}/allocations`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -116,7 +116,7 @@ export async function fetchAllocations(paymentId: number): Promise<PaymentAlloca
 export async function fetchOpenInvoices(clientId: number): Promise<Invoice[]> {
   const token = tokenStore.getAccess();
   const params = new URLSearchParams({ client_id: String(clientId), limit: '100', order_by: 'id', order: 'DESC' });
-  const res = await fetch(`${API_BASE}/invoices?${params}`, {
+  const res = await authedFetch(`${API_BASE}/invoices?${params}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -127,7 +127,7 @@ export async function fetchOpenInvoices(clientId: number): Promise<Invoice[]> {
 export async function fetchAllInvoicesForClient(clientId: number): Promise<Invoice[]> {
   const token = tokenStore.getAccess();
   const params = new URLSearchParams({ client_id: String(clientId), limit: '100', order_by: 'id', order: 'DESC' });
-  const res = await fetch(`${API_BASE}/invoices?${params}`, {
+  const res = await authedFetch(`${API_BASE}/invoices?${params}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -166,7 +166,7 @@ export async function reallocatePayment(
   const csrf = readCsrfCookie();
   const body: Record<string, unknown> = { from_invoice_id: fromInvoiceId, to_invoice_id: toInvoiceId };
   if (amount != null) body.amount = amount;
-  const res = await fetch(`${API_BASE}/payments/${id}/reallocate`, {
+  const res = await authedFetch(`${API_BASE}/payments/${id}/reallocate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -185,7 +185,7 @@ export async function reallocatePayment(
 export async function reassignPayment(id: number, newClientId: number): Promise<void> {
   const token = tokenStore.getAccess();
   const csrf = readCsrfCookie();
-  const res = await fetch(`${API_BASE}/payments/${id}/reassign`, {
+  const res = await authedFetch(`${API_BASE}/payments/${id}/reassign`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -204,7 +204,7 @@ export async function reassignPayment(id: number, newClientId: number): Promise<
 export async function unapplyPayment(id: number, invoiceId: number): Promise<void> {
   const token = tokenStore.getAccess();
   const csrf = readCsrfCookie();
-  const res = await fetch(`${API_BASE}/payments/${id}/unapply`, {
+  const res = await authedFetch(`${API_BASE}/payments/${id}/unapply`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -223,7 +223,7 @@ export async function unapplyPayment(id: number, invoiceId: number): Promise<voi
 export async function sendReceipt(paymentId: number): Promise<{ to: string }> {
   const token = tokenStore.getAccess();
   const csrf = readCsrfCookie();
-  const res = await fetch(`${API_BASE}/payments/${paymentId}/send-receipt`, {
+  const res = await authedFetch(`${API_BASE}/payments/${paymentId}/send-receipt`, {
     method: 'POST',
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -237,7 +237,7 @@ export async function sendReceipt(paymentId: number): Promise<{ to: string }> {
 
 export async function downloadReceipt(paymentId: number): Promise<void> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/pdf/payments/${paymentId}`, {
+  const res = await authedFetch(`${API_BASE}/pdf/payments/${paymentId}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`Failed to download receipt (${res.status})`);

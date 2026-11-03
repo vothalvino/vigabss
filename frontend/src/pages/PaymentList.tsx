@@ -14,7 +14,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { api, tokenStore } from '@/api/client';
+import { api, tokenStore, authedFetch } from '@/api/client';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { Pagination } from '@/components/Pagination';
 import { RecordPaymentModal } from '@/components/RecordPaymentModal';
@@ -76,7 +76,7 @@ async function fetchGatewayTransactions(paymentId: number): Promise<GatewayTrans
   // Filter by the payment itself: the first 50 of the client's transactions
   // could leave out the ones this payment produced.
   const params = new URLSearchParams({ payment_id: String(paymentId), limit: '50' });
-  const res = await fetch(`${API_BASE}/payment-transactions?${params}`, {
+  const res = await authedFetch(`${API_BASE}/payment-transactions?${params}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];

@@ -64,7 +64,7 @@ function fmt(dateStr: string | null | undefined): string {
 }
 
 async function fetchMyPeers(): Promise<PeersResponse> {
-  const res = await fetch(`${API_BASE}/wg-peers`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/wg-peers`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load peers');
   return res.json() as Promise<PeersResponse>;
 }
@@ -90,7 +90,7 @@ async function deletePeer(id: number): Promise<void> {
 
 async function fetchPeerConfig(id: number, format: 'conf' | 'qr'): Promise<string> {
   const params = format === 'conf' ? 'format=conf&download=1' : 'format=qr';
-  const res = await fetch(`${API_BASE}/wg-peers/${id}/config?${params}`, {
+  const res = await authedFetch(`${API_BASE}/wg-peers/${id}/config?${params}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch config');

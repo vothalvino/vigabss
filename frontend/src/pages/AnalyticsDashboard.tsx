@@ -9,7 +9,7 @@
 import type { CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { tokenStore } from '@/api/client';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,21 +56,6 @@ interface CapacityForecastData {
 // API helper
 // ---------------------------------------------------------------------------
 
-function authHeaders(): Record<string, string> {
-  const token = tokenStore.getAccess();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`/api/v1${path}`, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { message?: string }).message ?? `${res.status} ${res.statusText}`);
-  }
-  return res.json() as Promise<T>;
-}
 
 function currency(n: number, code = 'MXN') {
   return new Intl.NumberFormat('es-MX', {

@@ -10,9 +10,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { readCsrfCookie } from '@/api/csrf';
-import { parseApiError } from '@/api/errors';
 import { localToday } from '@/lib/dates';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,30 +75,6 @@ interface NocInsight {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getOrgId(): string {
-  return localStorage.getItem('orgId') ?? '';
-}
-function getToken(): string {
-  return localStorage.getItem('token') ?? '';
-}
-
-async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`/api/v1${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Org-Id': getOrgId(),
-      Authorization: `Bearer ${getToken()}`,
-      ...(readCsrfCookie() ? { 'X-CSRF-Token': readCsrfCookie()! } : {}),
-      ...(init.headers as Record<string, string> | undefined),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(parseApiError(body, res.statusText));
-  }
-  return res.json() as Promise<T>;
-}
 
 // ---------------------------------------------------------------------------
 // Shared sub-components

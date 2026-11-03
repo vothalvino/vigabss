@@ -80,7 +80,7 @@ async function fetchTicket(id: string): Promise<Ticket> {
 
 async function fetchComments(ticketId: string): Promise<TicketComment[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/tickets/${ticketId}/comments`, {
+  const res = await authedFetch(`${API_BASE}/tickets/${ticketId}/comments`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -633,7 +633,7 @@ interface AiReplyLog {
 
 async function fetchAiPolicy(): Promise<AiPolicy | null> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/ai/policy`, {
+  const res = await authedFetch(`${API_BASE}/ai/policy`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return null;
@@ -643,7 +643,7 @@ async function fetchAiPolicy(): Promise<AiPolicy | null> {
 
 async function fetchLatestAiLog(ticketId: number): Promise<AiReplyLog | null> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/ai/logs?ticket_id=${ticketId}&limit=1`, {
+  const res = await authedFetch(`${API_BASE}/ai/logs?ticket_id=${ticketId}&limit=1`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return null;
@@ -1045,7 +1045,7 @@ export function parseKbArticleIds(raw: AiTriageData['kb_article_ids']): number[]
 
 async function fetchAiTriage(ticketId: number): Promise<AiTriageData | null> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/tickets/${ticketId}/ai-triage`, {
+  const res = await authedFetch(`${API_BASE}/tickets/${ticketId}/ai-triage`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return null;
@@ -1174,7 +1174,7 @@ interface TicketRelation {
 
 async function fetchRelations(ticketId: number): Promise<TicketRelation[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/tickets/${ticketId}/relations`, {
+  const res = await authedFetch(`${API_BASE}/tickets/${ticketId}/relations`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -1320,7 +1320,7 @@ interface TimeLog {
 
 async function fetchTimeLogs(ticketId: number): Promise<TimeLog[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/tickets/${ticketId}/time-logs`, {
+  const res = await authedFetch(`${API_BASE}/tickets/${ticketId}/time-logs`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -1442,7 +1442,7 @@ const WORK_TYPES_LIST = ['installation', 'maintenance', 'repair', 'survey', 'oth
 
 async function fetchWorkOrdersByTicket(ticketId: number): Promise<WorkOrderRow[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/work-orders?ticket_id=${ticketId}&limit=50`, {
+  const res = await authedFetch(`${API_BASE}/work-orders?ticket_id=${ticketId}&limit=50`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -1590,7 +1590,7 @@ interface EscalationRow {
 
 async function fetchEscalationsByTicket(ticketId: number): Promise<EscalationRow[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/escalations?ticket_id=${ticketId}&limit=50`, {
+  const res = await authedFetch(`${API_BASE}/escalations?ticket_id=${ticketId}&limit=50`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -1708,7 +1708,7 @@ interface FollowUp {
 
 async function fetchFollowUps(ticketId: number): Promise<FollowUp[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/follow-up-reminders?ticket_id=${ticketId}&limit=100`, {
+  const res = await authedFetch(`${API_BASE}/follow-up-reminders?ticket_id=${ticketId}&limit=100`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -1816,7 +1816,7 @@ interface TicketAttachment {
 
 async function fetchAttachments(ticketId: number): Promise<TicketAttachment[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/tickets/${ticketId}/attachments`, {
+  const res = await authedFetch(`${API_BASE}/tickets/${ticketId}/attachments`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];

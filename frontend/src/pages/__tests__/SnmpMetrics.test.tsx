@@ -9,6 +9,8 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { SnmpMetrics } from '../SnmpMetrics';
 
 vi.mock('@/api/client', () => ({
+  // Pages reach the API through authedFetch (FE-20); pass it to the stubbed fetch.
+  authedFetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init),
   tokenStore: {
     getAccess: () => 'test-token',
     setAccess: vi.fn(),

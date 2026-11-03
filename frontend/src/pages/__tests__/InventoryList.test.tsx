@@ -57,7 +57,13 @@ beforeEach(() => {
       return jsonResponse({ data: [warehouse1], meta: { total: 1 } });
     return jsonResponse({ data: [] });
   });
-  mockAuthedFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ data: {} }) });
+  // Reads and writes both go through authedFetch (FE-20): reads are answered
+  // by the list fixtures above, writes by an empty success.
+  mockAuthedFetch.mockImplementation((url: string, init?: RequestInit) => (
+    !init?.method || init.method === 'GET'
+      ? mockFetch(url, init)
+      : Promise.resolve({ ok: true, json: () => Promise.resolve({ data: {} }) })
+  ));
 });
 
 describe('InventoryList — Record Transaction modal (first-time stock)', () => {
@@ -98,7 +104,7 @@ describe('InventoryList — Record Transaction modal (first-time stock)', () => 
     fireEvent.click(screen.getByRole('button', { name: 'Record Transaction' }));
 
     expect(await screen.findByText(/has no stock at that warehouse yet/)).toBeInTheDocument();
-    expect(mockAuthedFetch).not.toHaveBeenCalled();
+    expect(mockAuthedFetch.mock.calls.filter(c => (c[1] as RequestInit | undefined)?.method === 'POST')).toEqual([]);
   });
 });
 
@@ -124,7 +130,8 @@ describe('InventoryList — New Item modal serial_required toggle', () => {
       expect.stringContaining('/inventory/items'),
       expect.objectContaining({ method: 'POST' }),
     ));
-    const call = mockAuthedFetch.mock.calls.find(c => typeof c[0] === 'string' && c[0].includes('/inventory/items'));
+    const call = mockAuthedFetch.mock.calls.find(c => typeof c[0] === 'string' && c[0].includes('/inventory/items')
+      && (c[1] as RequestInit | undefined)?.method === 'POST');
     const body = JSON.parse((call?.[1] as { body: string }).body);
     expect(body.serial_required).toBe(true);
   });

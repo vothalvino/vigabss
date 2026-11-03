@@ -11,6 +11,8 @@ const mockApiGet = vi.fn();
 const mockApiPut = vi.fn();
 const mockApiPost = vi.fn();
 vi.mock('@/api/client', () => ({
+  // Pages reach the API through authedFetch (FE-20); pass it to the stubbed fetch.
+  authedFetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init),
   api: {
     GET: (...args: unknown[]) => mockApiGet(...args),
     PUT: (...args: unknown[]) => mockApiPut(...args),
@@ -231,9 +233,9 @@ describe('BackupSettings page', () => {
     fireEvent.click(btn);
 
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
-    const [url, init] = fetchSpy.mock.calls[0];
+    const [url] = fetchSpy.mock.calls[0];
+    // authedFetch attaches the token and refreshes on 401 (FE-20; its own tests).
     expect(url).toBe('/api/v1/backup-settings/download/fireisp_2026-07-17.sql.gz');
-    expect((init as { headers: Record<string, string> }).headers.Authorization).toBe('Bearer tok');
     await waitFor(() => expect(clickSpy).toHaveBeenCalled());
 
     clickSpy.mockRestore();

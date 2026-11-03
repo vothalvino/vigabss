@@ -18,7 +18,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { api, tokenStore } from '@/api/client';
+import { api, tokenStore, authedFetch } from '@/api/client';
 import { readCsrfCookie } from '@/api/csrf';
 import { Pagination } from '@/components/Pagination';
 import { useAuth } from '@/auth/AuthContext';
@@ -179,7 +179,7 @@ async function fetchOrders(page: number, pageSize: number): Promise<OrdersRespon
 
 async function fetchWorkOrdersBySO(serviceOrderId: number): Promise<WorkOrderForSO[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}/work-orders?service_order_id=${serviceOrderId}&limit=50`, {
+  const res = await authedFetch(`${API_BASE}/work-orders?service_order_id=${serviceOrderId}&limit=50`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) return [];
@@ -495,7 +495,7 @@ function WorkOrdersModal({ order, onClose, onCreated, canCreate }: { order: Serv
       if (order.client_id) body.client_id = order.client_id;
       if (scheduledAt) body.scheduled_at = scheduledAt;
       const csrf = readCsrfCookie();
-      const res = await fetch(`${API_BASE}/work-orders`, {
+      const res = await authedFetch(`${API_BASE}/work-orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
         body: JSON.stringify(body),
@@ -789,7 +789,7 @@ function CreateContractModal({ order, onClose, onLinked }: { order: ServiceOrder
       if (form.price_override) body['price_override'] = Number(form.price_override);
 
       // 1. Create contract
-      const createRes = await fetch(`${API_BASE}/contracts`, {
+      const createRes = await authedFetch(`${API_BASE}/contracts`, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
@@ -801,7 +801,7 @@ function CreateContractModal({ order, onClose, onLinked }: { order: ServiceOrder
       const { data: newContract } = await createRes.json() as { data: { id: number } };
 
       // 2. Link contract back to the service order
-      const linkRes = await fetch(`${API_BASE}/service-orders/${order.id}`, {
+      const linkRes = await authedFetch(`${API_BASE}/service-orders/${order.id}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ contract_id: newContract.id }),

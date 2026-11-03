@@ -69,13 +69,13 @@ function authHeaders(): Record<string, string> {
 async function fetchWarehouses(page: number, statusFilter: string): Promise<WarehouseListResponse> {
   const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
   if (statusFilter) params.set('status', statusFilter);
-  const res = await fetch(`${API_BASE}/warehouses?${params}`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/warehouses?${params}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load warehouses');
   return res.json() as Promise<WarehouseListResponse>;
 }
 
 async function fetchWarehouseStock(warehouseId: number): Promise<WarehouseStockResponse> {
-  const res = await fetch(`${API_BASE}/warehouses/${warehouseId}/stock`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/warehouses/${warehouseId}/stock`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load warehouse stock');
   return res.json() as Promise<WarehouseStockResponse>;
 }

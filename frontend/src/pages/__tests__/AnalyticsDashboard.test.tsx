@@ -12,6 +12,8 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@/api/client', () => ({
+  // Pages reach the API through authedFetch (FE-20); pass it to the stubbed fetch.
+  authedFetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init),
   api: {
     GET: vi.fn(),
     POST: vi.fn(),

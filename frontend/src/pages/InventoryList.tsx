@@ -108,19 +108,19 @@ async function fetchItems(
   const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
   if (categoryFilter) params.set('category', categoryFilter);
   if (statusFilter) params.set('status', statusFilter);
-  const res = await fetch(`${API_BASE}/inventory/items?${params}`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/inventory/items?${params}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load inventory items');
   return res.json() as Promise<InventoryListResponse>;
 }
 
 async function fetchItemStock(itemId: number): Promise<StockResponse> {
-  const res = await fetch(`${API_BASE}/inventory/items/${itemId}/stock`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/inventory/items/${itemId}/stock`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load stock');
   return res.json() as Promise<StockResponse>;
 }
 
 async function fetchWarehouses(): Promise<WarehouseListResponse> {
-  const res = await fetch(`${API_BASE}/warehouses?limit=200`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/warehouses?limit=200`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load warehouses');
   return res.json() as Promise<WarehouseListResponse>;
 }

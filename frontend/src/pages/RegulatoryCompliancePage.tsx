@@ -21,7 +21,6 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { readCsrfCookie } from '@/api/csrf';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import {
@@ -30,6 +29,7 @@ import {
   type MxContractSourceStatus,
 } from '@/components/MxContractEnvironment';
 import { LEGAL_DOCUMENT_PLACEHOLDER_HELP } from '@/legalDocumentPlaceholders';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -151,25 +151,6 @@ interface ReportAccessLog {
 // Simple fetch helper — mirrors Reports.tsx apiFetch pattern
 // ---------------------------------------------------------------------------
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token');
-  const orgId = localStorage.getItem('orgId');
-  const res = await fetch(`/api/v1${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...(orgId && { 'X-Org-Id': orgId }),
-      ...(readCsrfCookie() ? { 'X-CSRF-Token': readCsrfCookie()! } : {}),
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    const payload = await res.json().catch(() => null) as { error?: { message?: string } } | null;
-    throw new Error(payload?.error?.message || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
 
 // ---------------------------------------------------------------------------
 // Main page
@@ -1772,6 +1753,7 @@ function AuditTab() {
   const canExport = can(user, 'audit_export.view');
   const [logs, setLogs] = useState<ReportAccessLog[]>([]);
   const [loading, setLoading] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!canViewAccessLogs) return;
@@ -1782,17 +1764,12 @@ function AuditTab() {
       .finally(() => setLoading(false));
   }, [canViewAccessLogs]);
 
+  // A failed export used to be saved as audit-export.json holding the error
+  // body, with nothing shown (FE-20). Only a 2xx response is saved now.
   const handleExport = () => {
-    const token = localStorage.getItem('token');
-    const orgId = localStorage.getItem('orgId');
-    const url = '/api/v1/audit-logs/export';
-    const headers = new Headers({
-      Authorization: `Bearer ${token || ''}`,
-      'X-Org-Id': orgId || '',
-    });
-    fetch(url, { headers })
-      .then(r => r.json())
-      .then((data: unknown) => {
+    setExportError(null);
+    apiFetch<unknown>('/audit-logs/export')
+      .then((data) => {
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -1800,8 +1777,8 @@ function AuditTab() {
         a.click();
         URL.revokeObjectURL(a.href);
       })
-      .catch(() => {
-        // ignore download errors
+      .catch((err: unknown) => {
+        setExportError(err instanceof Error && err.message ? err.message : t('regulatoryCompliance.audit.exportFailed'));
       });
   };
 
@@ -1816,6 +1793,7 @@ function AuditTab() {
           {t('regulatoryCompliance.audit.exportLogs')}
         </button>
       )}
+      {exportError && <p role="alert" style={{ color: 'var(--danger, #dc2626)' }}>{exportError}</p>}
       {canViewAccessLogs && <h3>{t('regulatoryCompliance.audit.reportAccessLogs')}</h3>}
       {canViewAccessLogs && (loading ? (
         <p>{t('common.loading')}</p>

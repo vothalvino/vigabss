@@ -13,7 +13,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { readCsrfCookie } from '@/api/csrf';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -153,31 +153,6 @@ interface TlsConfig {
 // Simple fetch helper
 // ---------------------------------------------------------------------------
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token');
-  const orgId = localStorage.getItem('orgId');
-  const res = await fetch(`/api/v1${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...(orgId && { 'X-Org-Id': orgId }),
-      ...(readCsrfCookie() ? { 'X-CSRF-Token': readCsrfCookie()! } : {}),
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    let message = `HTTP ${res.status}`;
-    try {
-      const body = await res.json() as { error?: { message?: string } };
-      if (body.error?.message) message = body.error.message;
-    } catch {
-      // Keep the status-only fallback when a proxy returns a non-JSON error.
-    }
-    throw new Error(message);
-  }
-  return res.json();
-}
 
 // ---------------------------------------------------------------------------
 // Main page

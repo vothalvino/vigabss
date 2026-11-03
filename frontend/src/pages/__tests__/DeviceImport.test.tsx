@@ -56,7 +56,7 @@ describe('DeviceImport', () => {
     const init = fetchSpy.mock.calls[0][1] as RequestInit;
     expect(init.method).toBe('POST');
     expect(init.body).toBeInstanceOf(FormData);
-    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-token');
+    expect(new Headers(init.headers).get('X-CSRF-Token')).toBe('csrf-token');
   });
 
   it('refuses to submit with no file, without calling the API', () => {

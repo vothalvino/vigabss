@@ -12,9 +12,9 @@ import type { FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { authedFetch } from '@/api/client';
 import { styles } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,22 +58,6 @@ const EMPTY_FORM: FormState = {
 // API helpers
 // ---------------------------------------------------------------------------
 
-const API = '/api/v1';
-
-async function apiFetch(path: string, opts: RequestInit = {}): Promise<unknown> {
-  const res = await authedFetch(`${API}${path}`, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...((opts.headers as Record<string, string>) || {}),
-    },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: { message?: string } }).error?.message || res.statusText);
-  }
-  return res.status === 204 ? null : res.json();
-}
 
 async function fetchRules(page: number, pageSize: number): Promise<RulesResponse> {
   const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
