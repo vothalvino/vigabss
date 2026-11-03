@@ -75,6 +75,36 @@ const POLICY_CONFIG = Object.freeze({
     dateColumn: 'started_at',
     tenantWhere: '`organization_id` = ?',
   },
+  // AI, chat and profiling data (ASY-31): personal data kept only as long as
+  // the support or analytics purpose needs it. RETENTION_<TABLE>_DAYS.
+  ai_reply_logs: {
+    defaultDays: 730,
+    dateColumn: 'created_at',
+    tenantWhere: '`organization_id` = ?',
+  },
+  ai_diagnostic_runs: {
+    defaultDays: 730,
+    dateColumn: 'created_at',
+    tenantWhere: '`organization_id` = ?',
+  },
+  portal_chat_sessions: {
+    defaultDays: 730,
+    dateColumn: 'updated_at',
+    tenantWhere: '`organization_id` = ?',
+    extraWhere: "`status` <> 'active'",
+  },
+  // support_messages go with their conversation (ON DELETE CASCADE).
+  support_conversations: {
+    defaultDays: 730,
+    dateColumn: 'updated_at',
+    tenantWhere: '`organization_id` = ?',
+    extraWhere: "`status` = 'closed'",
+  },
+  churn_scores: {
+    defaultDays: 365,
+    dateColumn: 'scored_at',
+    tenantWhere: '`organization_id` = ?',
+  },
   idempotency_keys: {
     defaultDays: 7,
     dateColumn: 'expires_at',
