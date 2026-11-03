@@ -234,12 +234,12 @@ async function dispatchTask(taskName, organizationId) {
         trap_forwarding: trapForwarding,
       }));
     case 'radius_sync':
-      return Promise.all([
-        radiusService.syncAllAccounts(organizationId),
-        radiusService.syncFreeradiusTables(organizationId),
-      ]).then(([accounts, tables]) => ({ ...accounts, freeradius: tables }));
+      return inEveryDatabase(taskName, organizationId, orgId => Promise.all([
+        radiusService.syncAllAccounts(orgId),
+        radiusService.syncFreeradiusTables(orgId),
+      ]).then(([accounts, tables]) => ({ ...accounts, freeradius: tables })));
     case 'check_certificate_expiry':
-      return radiusService.checkCertificateExpiry(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => radiusService.checkCertificateExpiry(orgId));
     // Both of these used to return the string "populated by MySQL scheduled
     // event" for an event that was never written, so they reported SUCCESS
     // nightly while doing nothing — and the pages they feed had been empty
@@ -249,9 +249,9 @@ async function dispatchTask(taskName, organizationId) {
     case 'populate_revenue_summary':
       // null organizationId fans out across every active organisation — the
       // seeded task (migration 123) carries NULL, meaning the whole install.
-      return revenueSummaryAggregator.populate(organizationId);
+      return perOrganization(taskName, organizationId, orgId => revenueSummaryAggregator.populate(orgId));
     case 'populate_network_health_snapshots':
-      return networkHealthAggregator.aggregateDay(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => networkHealthAggregator.aggregateDay(orgId));
     case 'tls_expiry_monitor':
       // The server's own TLS certificate — the one customers actually hit.
       // check_certificate_expiry covers subscriber_certificates (RADIUS) and
@@ -273,7 +273,7 @@ async function dispatchTask(taskName, organizationId) {
     // every org is swept in one pass — expireMaintenanceWindows() itself
     // makes the org filter optional, same shape as handleSlaBreachCheck below.
     case 'maintenance_window_expiry':
-      return alertService.expireMaintenanceWindows(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => alertService.expireMaintenanceWindows(orgId));
     case 'process_recurring_charges':
       return inEveryDatabase(taskName, organizationId, orgId => checkoutService.processRecurringCharges(orgId));
     case 'retry_failed_charges':
@@ -325,14 +325,14 @@ async function dispatchTask(taskName, organizationId) {
     }
     case 'nas_health_check': {
       const nasHealthService = require('./nasHealthService');
-      return nasHealthService.runHealthChecks(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => nasHealthService.runHealthChecks(orgId));
     }
     case 'refresh_voip_ranges': {
       const voipRangesService = require('./voipRangesService');
       return voipRangesService.refreshAllNas(organizationId);
     }
     case 'kick_duplicate_sessions':
-      return radiusService.kickDuplicateSessions(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => radiusService.kickDuplicateSessions(orgId));
     case 'check_pool_utilization': {
       const poolUtilizationService = require('./poolUtilizationService');
       return poolUtilizationService.checkAllPoolUtilization();
@@ -350,11 +350,11 @@ async function dispatchTask(taskName, organizationId) {
       return perOrganization(taskName, organizationId, orgId => geoFenceService.evaluateAll(orgId));
     }
     case 'inventory_low_stock_check':
-      return handleInventoryLowStockCheck(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => handleInventoryLowStockCheck(orgId));
     case 'generate_scheduled_reports':
       return inEveryDatabase(taskName, organizationId, () => scheduledReportService.processScheduledReports());
     case 'data_retention_compliance_check':
-      return handleDataRetentionComplianceCheck(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => handleDataRetentionComplianceCheck(orgId));
     // §18 Automation & Scripting tasks
     case 'anomaly_detection':
       return perOrganization(taskName, organizationId, orgId => analyticsService.detectAnomalies(orgId));
@@ -420,7 +420,7 @@ async function dispatchTask(taskName, organizationId) {
     // Seeded by migration 290 (monthly): accrues unused data-cap GB into
     // rollover balances; org-optional (NULL sweeps all orgs).
     case 'rollover_balance_accrue':
-      return rolloverService.accrueRollover(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => rolloverService.accrueRollover(orgId));
     // Seeded by migration 277: hard-deletes cpe_session_logs older than 90 days.
     case 'cpe_session_log_cleanup':
       return cpeSessionLogService.cleanupOldLogs();
@@ -429,7 +429,7 @@ async function dispatchTask(taskName, organizationId) {
     // TRANSITIONS (radgroupreply is the persisted applied state), and
     // restores plan speeds when a window ends. See speedWindowService.
     case 'apply_speed_windows':
-      return speedWindowService.applySpeedWindows(organizationId);
+      return inEveryDatabase(taskName, organizationId, orgId => speedWindowService.applySpeedWindows(orgId));
     // check_fup_thresholds (migration 290): fupService.applyFupThrottle() sends
     // a CoA and inserts a plan_throttle_logs row with NO idempotency guard — a
     // */15 cron would re-throttle every over-cap contract every tick.
@@ -1109,8 +1109,7 @@ async function runFtthOpticalMetricsCleanup() {
  * Surfaces them as a compliance report for operators to action.
  */
 async function handleDataRetentionComplianceCheck(organizationId) {
-  const orgFilter = organizationId ? 'AND organization_id = ?' : '';
-  const params = organizationId ? [organizationId] : [];
+  const { sql: orgFilter, params } = orgScopeFilter('organization_id', organizationId);
 
   const [overdue] = await db.query(
     `SELECT id, organization_id, client_id, request_type, due_at

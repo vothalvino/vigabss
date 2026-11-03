@@ -8,6 +8,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { orgScopeFilter } = require('./organizationFanOut');
 const { buildUnverifiableSessionOverlap } = require('../utils/accountingUsageCompleteness');
 
 /**
@@ -31,6 +32,7 @@ async function accrueRollover(organizationId) {
   const prevStart = fmt(prevStartDate);
   const prevEnd = fmt(prevEndDate);
 
+  const scope = orgScopeFilter('c.organization_id', organizationId);
   const [contracts] = await db.query(
     `SELECT c.id, c.organization_id, p.data_cap_gb
      FROM contracts c
@@ -38,9 +40,9 @@ async function accrueRollover(organizationId) {
      WHERE c.status = 'active'
        AND p.data_cap_gb IS NOT NULL
        AND p.data_cap_gb > 0
-       AND (c.organization_id = ? OR ? IS NULL)
+       ${scope.sql}
        AND c.deleted_at IS NULL`,
-    [organizationId, organizationId],
+    scope.params,
   );
 
   let processed = 0;

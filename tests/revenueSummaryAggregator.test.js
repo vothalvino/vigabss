@@ -216,13 +216,14 @@ describe('the task dispatches it', () => {
   );
 
   it('populate_revenue_summary calls the aggregator', () => {
-    expect(src()).toMatch(/return revenueSummaryAggregator\.populate\(organizationId\)/);
+    expect(src()).toMatch(/revenueSummaryAggregator\.populate\(orgId\)/);
   });
 
-  it('passes the organisation straight through, null included', () => {
-    // null means "the whole install" and the service fans out; the task must
-    // not second-guess that by refusing.
-    expect(src()).toMatch(/return revenueSummaryAggregator\.populate\(organizationId\)/);
+  it('runs once per organization, in its own database, when scheduled install-wide', () => {
+    // null means "the whole install": the dispatcher fans out per active
+    // organization (isolated tenants inside their own database) instead of
+    // the service looping over organizations on the primary.
+    expect(src()).toMatch(/return perOrganization\(taskName, organizationId, orgId => revenueSummaryAggregator\.populate\(orgId\)\)/);
     expect(src()).not.toMatch(/requires an organization_id/);
   });
 
