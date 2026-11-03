@@ -570,6 +570,42 @@ documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;
 do not replace those with process-local state.
 
+Outgoing messages go through `src/services/messageOutbox.js` (ASY-33):
+`enqueue()` writes a `message_outbox` row (optionally inside the caller's
+transaction), and the `message_outbox` task, or with Redis a `message-outbox`
+job, delivers it. A row is claimed before any I/O and set to `sending` just
+before the provider call; a stale claim is requeued, a stale `sending` becomes
+`outcome_unknown`. Failures that provably sent nothing retry with backoff
+(1, 5, 15, 60, 240 minutes) up to `max_attempts`; email also retries after a
+timeout, SMS and WhatsApp do not. Consent and the organization state are
+checked at enqueue and again by the transport before the call; a block is
+`skipped`. Each organization has a per-minute budget per channel
+(`OUTBOX_RATE_<CHANNEL>_PER_MINUTE`). Staff see and retry or cancel messages at
+`/message-outbox`; retrying `outcome_unknown` needs
+`confirm_possible_duplicate`. A producer with its own ledger registers
+`onOutcome(source_type, fn)` in `src/services/outboxOutcomeHandlers.js`, which
+the outbox loads in whichever process delivers. Send through the outbox
+(`enqueue`, `queueEmail`, `smsTransport.queueSms`), or `sendNow` /
+`sendEmailNow` when a person waits for the result (it delivers in the request;
+a retryable failure stays queued). A message that carries a secret (reset
+link, code, password) is `sensitive`: its body is hidden from the API, cleared
+once final, and not retryable by staff. `emailTransport.sendEmail` and
+`smsTransport.sendSms` are the outbox's adapters. Campaigns keep their own
+ledger: `campaign_send` claims each `campaign_messages` row and enqueues it in
+one transaction (`failed` + "Queued in the message outbox" is the in-flight
+state), the outbox outcome sets its final state and the campaign counters, an
+unknown outcome keeps the marker that blocks a duplicate redispatch, and
+cancelling or deleting a campaign withdraws its still-queued messages
+(`cancelQueuedBySource`). Provider reports reach the client through
+`POST /communication/delivery-webhook` and `deliveryFeedbackService`
+(migration 512): a hard bounce adds a `client_contact_suppressions` row for
+the contact epoch the message went to, which the communication check refuses
+for every class until the address changes; a complaint withdraws marketing
+consent for the channel; an SMS STOP is a do-not-contact opt-out.
+`tests/outboxOnlySender.test.js`
+lists the only other direct callers (the SMTP settings test send and SNMP trap
+forwarding, which has its own durable queue).
+
 Business events (`invoice.created`, `payment.received`, `contract.suspended` /
 `.restored`, `suspension.warning`, `ticket.created`, `maintenance.scheduled`)
 are emitted through `src/services/businessEvents.js` once the write commits;

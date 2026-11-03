@@ -2,6 +2,8 @@
 // VigaBSS 5.0 — WhatsApp bot (binding state machine) tests
 // =============================================================================
 
+// Producers queue through the outbox (ASY-33); hand each message to the mocked transports.
+jest.mock('../src/services/messageOutbox', () => require('./helpers/outboxPassThrough'));
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/services/whatsappService');
 jest.mock('../src/services/whatsappCapabilityService');

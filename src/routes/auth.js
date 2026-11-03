@@ -314,9 +314,9 @@ router.post('/password-reset/request',
 
       // Respond BEFORE ever touching email. Timing — not just response body —
       // is part of the anti-enumeration property the generic message exists
-      // for: emailTransport.sendEmail() is a real SMTP round-trip (nodemailer
-      // defaults to a ~2-minute connection timeout), and only the known-email
-      // branch above reaches it. Awaiting it here would make a registered
+      // for: sending is real I/O (now an outbox insert; formerly an SMTP
+      // round-trip with a ~2-minute connection timeout), and only the
+      // known-email branch above reaches it. Awaiting it here would make a registered
       // address respond measurably slower than an unregistered one — up to
       // that full timeout if the mail server is unreachable — defeating the
       // whole point of returning an identical body. The one asymmetry that
@@ -333,7 +333,7 @@ router.post('/password-reset/request',
       // can only ever become a server-side log line.
       if (result.token) {
         try {
-          const emailTransport = require('../services/emailTransport');
+          const messageOutbox = require('../services/messageOutbox');
           const templates = require('../views/emailTemplates');
           const resetUrl = `${config.appUrl}/reset-password?token=${result.token}`;
           const template = templates.passwordResetEmail({
@@ -341,15 +341,20 @@ router.post('/password-reset/request',
             resetUrl,
             expiresIn: '1 hour',
           });
-          emailTransport.sendEmail({
+          // Through the outbox (ASY-33): retried if the mail server is down.
+          // sensitive: the link is a credential, so staff cannot read it and
+          // the body is dropped once the message is final.
+          messageOutbox.queueEmail({
             operationalRecipient: true,
             to: result.email,
             subject: template.subject,
             html: template.html,
+            sensitive: true,
+            sourceType: 'password_reset',
           })
-            .then((sendResult) => {
-              if (!sendResult || !sendResult.success) {
-                logger.warn(`Password reset email failed to send to ${result.email}: ${sendResult && sendResult.error}`);
+            .then((queued) => {
+              if (!queued || !queued.queued) {
+                logger.warn(`Password reset email could not be queued for ${result.email}: ${queued && queued.code}`);
               }
             })
             .catch((emailErr) => {

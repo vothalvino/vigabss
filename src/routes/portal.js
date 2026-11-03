@@ -238,7 +238,7 @@ router.post('/auth/password-reset/request', authLimiter, portalPasswordResetLimi
       // One email per account at the address (WHK-10).
       for (const reset of result.resets || []) {
         try {
-          const emailTransport = require('../services/emailTransport');
+          const messageOutbox = require('../services/messageOutbox');
           const templates = require('../views/emailTemplates');
           const config = require('../config');
           const resetUrl = `${config.appUrl}/portal/reset-password?token=${reset.token}`;
@@ -247,17 +247,20 @@ router.post('/auth/password-reset/request', authLimiter, portalPasswordResetLimi
             resetUrl,
             expiresIn: '1 hour',
           });
-          emailTransport.sendEmail({
+          // Through the outbox (ASY-33), as sensitive: the link is a credential.
+          messageOutbox.queueEmail({
             organizationId: reset.organizationId,
             clientId: reset.clientId,
             messageClass: 'security',
             to: reset.email,
             subject: template.subject,
             html: template.html,
+            sensitive: true,
+            sourceType: 'portal_password_reset',
           })
-            .then((sendResult) => {
-              if (!sendResult || !sendResult.success) {
-                logger.warn(`Portal password reset email failed to send to ${reset.email}: ${sendResult && sendResult.error}`);
+            .then((queued) => {
+              if (!queued || !queued.queued) {
+                logger.warn(`Portal password reset email could not be queued for ${reset.email}: ${queued && queued.code}`);
               }
             })
             .catch((emailErr) => {

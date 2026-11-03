@@ -130,14 +130,15 @@ async function maybeSendEmailOtp({ phone, email }) {
       length: wa.EMAIL_CODE_LENGTH,
     });
 
-    const emailTransport = require('./emailTransport');
+    const messageOutbox = require('./messageOutbox');
     const templates = require('../views/emailTemplates');
     const tpl = templates.whatsappLinkCodeEmail({
       userName: client.name,
       code,
       expiresIn: `${config.whatsapp.linkCodeTtlMinutes} minutes`,
     });
-    emailTransport.sendEmail({
+    // Outbox (ASY-33), sensitive: the code is a credential.
+    messageOutbox.queueEmail({
       to: client.email,
       subject: tpl.subject,
       html: tpl.html,
@@ -145,8 +146,10 @@ async function maybeSendEmailOtp({ phone, email }) {
       clientId: client.id,
       messageClass: 'security',
       emailFunction: 'general',
+      sensitive: true,
+      sourceType: 'whatsapp_link_code',
     })
-      .then((r) => { if (!r || !r.success) logger.warn('whatsapp: link-code email failed to send'); })
+      .then((r) => { if (!r || !r.queued) logger.warn('whatsapp: link-code email could not be queued'); })
       .catch((e) => logger.error({ err: e }, 'whatsapp: link-code email threw'));
   } catch (err) {
     logger.error({ err }, 'whatsapp: maybeSendEmailOtp failed');

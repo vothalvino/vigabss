@@ -30,22 +30,30 @@ async function deliverThresholdNotice(contract, threshold, usedGb, allowanceGb) 
     ? 'Alcanzaste el 100% de tus datos del mes'
     : `Llevas el ${threshold}% de tus datos del mes`;
   const text = `${subject}: ${usedGb.toFixed(1)} GB de ${allowanceGb.toFixed(1)} GB.`;
-  const base = { organizationId: contract.organization_id, clientId: contract.client_id, messageClass: 'transactional' };
+  // Through the outbox, delivered now (ASY-33). One attempt per channel
+  // (maxAttempts 1): a channel that fails falls back to the next instead of
+  // also being retried later, which would deliver the notice twice.
+  const outbox = require('./messageOutbox');
+  const base = {
+    organizationId: contract.organization_id, clientId: contract.client_id, messageClass: 'transactional',
+    maxAttempts: 1, sourceType: 'fup_threshold', sourceId: contract.id,
+  };
+  const delivered = r => r && r.status === 'sent';
 
   if (contract.client_email) {
-    const result = await require('./emailTransport').sendEmail({
-      ...base, to: contract.client_email, subject, text, html: `<p>${text}</p>`,
+    const result = await outbox.sendNow({
+      ...base, channel: 'email', recipient: contract.client_email, subject, bodyText: text, bodyHtml: `<p>${text}</p>`,
     }).catch(() => null);
-    if (result && result.success) return 'email';
+    if (delivered(result)) return 'email';
   }
   if (contract.client_phone) {
-    const result = await require('./smsTransport').sendSms({ ...base, to: contract.client_phone, body: text }).catch(() => null);
-    if (result && result.success) return 'sms';
+    const result = await outbox.sendNow({ ...base, channel: 'sms', recipient: contract.client_phone, bodyText: text }).catch(() => null);
+    if (delivered(result)) return 'sms';
   }
-  const pushed = await require('./portalPushService').dispatch({
-    clientId: contract.client_id, eventType: 'billing', payload: { title: subject, body: text, url: '/portal/dashboard' },
+  const pushed = await outbox.sendNow({
+    ...base, channel: 'push', payload: { event_type: 'billing', title: subject, body: text, url: '/portal/dashboard' },
   }).catch(() => null);
-  if (pushed && pushed.sent > 0) return 'push';
+  if (delivered(pushed)) return 'push';
   return null;
 }
 

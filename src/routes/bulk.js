@@ -13,10 +13,9 @@ const { validate } = require('../middleware/validate');
 const { bulkEmailLimiter, checkBulkEmailDailyBudget } = require('../middleware/rateLimit');
 const bulkSchemas = require('../middleware/schemas/bulk');
 const logger = require('../utils/logger');
-const eventBus = require('../services/eventBus');
 const billingService = require('../services/billingService');
 const suspensionService = require('../services/suspensionService');
-const emailTransport = require('../services/emailTransport');
+const messageOutbox = require('../services/messageOutbox');
 const { customMessageEmail } = require('../views/emailTemplates');
 
 const router = Router();
@@ -60,82 +59,6 @@ router.post('/invoices/void', requirePermission('invoices.update'), validate(bul
     }
 
     logger.info({ orgId, ...results }, 'Bulk invoice void completed');
-    res.json({ data: results });
-  } catch (err) { next(err); }
-});
-
-// ---------------------------------------------------------------------------
-// POST /bulk/invoices/generate — Mass-generate invoices
-// ---------------------------------------------------------------------------
-router.post('/invoices/generate', requirePermission('invoices.create'), validate(bulkSchemas.generateInvoices, { strip: false }), async (req, res, next) => {
-  try {
-    const orgId = req.orgId;
-    const { contract_ids } = req.body;
-
-    if (!Array.isArray(contract_ids) || contract_ids.length === 0) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'contract_ids array is required' } });
-    }
-
-    if (contract_ids.length > 500) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Maximum 500 contracts per batch' } });
-    }
-
-    // Each contract goes through the SAME path as the billing_cycle task
-    // (taskRunner.runAutoInvoice): generateBillingPeriod, then generateInvoice
-    // only when that pending period is due. This route used to INSERT a
-    // calendar-month billing_periods row for ANY contract id in the body —
-    // billing_periods has no organization_id, so another tenant's contract was
-    // accepted and later invoiced by the nightly task — and counted success
-    // even when its NOT EXISTS guard inserted nothing (TNA-12). Now a contract
-    // must be a live, active contract of the caller's org, and `success`
-    // counts only invoices actually created; everything else is `skipped`
-    // with a reason.
-    const results = { success: 0, failed: 0, skipped: 0, invoice_ids: [], errors: [] };
-    const skip = (contractId, code, error) => {
-      results.skipped++;
-      results.errors.push({ contract_id: contractId, code, error });
-    };
-
-    for (const contractId of contract_ids) {
-      try {
-        const [contracts] = await db.query(
-          `SELECT c.*, p.name AS plan_name, p.price AS plan_price, p.currency AS plan_currency
-             FROM contracts c
-             JOIN plans p ON p.id = c.plan_id
-            WHERE c.id = ? AND c.organization_id = ? AND c.status = 'active' AND c.deleted_at IS NULL`,
-          [contractId, orgId],
-        );
-        const contract = contracts[0];
-        if (!contract) {
-          skip(contractId, 'CONTRACT_NOT_FOUND', 'No active contract with this id in this organization.');
-          continue;
-        }
-        const period = await billingService.generateBillingPeriod(contract);
-        if (!period || period.status !== 'pending') {
-          skip(contractId, 'NO_PENDING_PERIOD', 'No billable period for this contract (e.g. in trial).');
-          continue;
-        }
-        if (period.scheduled_at && new Date(period.scheduled_at) > new Date()) {
-          skip(contractId, 'PERIOD_NOT_DUE', 'The next billing period is not due yet.');
-          continue;
-        }
-        const plan = { name: contract.plan_name, price: contract.plan_price, currency: contract.plan_currency };
-        const invoice = await billingService.generateInvoice(period, contract, plan, orgId);
-        if (!invoice) {
-          skip(contractId, 'NOT_INVOICED', 'No invoice was created for this contract.');
-          continue;
-        }
-        results.success++;
-        results.invoice_ids.push(invoice.id);
-      } catch (err) {
-        results.failed++;
-        results.errors.push({ contract_id: contractId, error: err.message });
-      }
-    }
-
-    logger.info({ orgId, ...results }, 'Bulk invoice generation completed');
-    eventBus.emit('bulk.invoices.generated', { organizationId: orgId, ...results });
-
     res.json({ data: results });
   } catch (err) { next(err); }
 });
@@ -250,7 +173,7 @@ router.post('/email', bulkEmailLimiter, requirePermission('campaigns.create'), v
 
     // Bulk messages are promotional client communication. Snapshot only
     // current, affirmatively-consented email destinations that are not
-    // suppressed; emailTransport repeats the same check immediately before
+    // suppressed; the outbox and emailTransport repeat the same check before
     // SMTP I/O so a concurrent opt-out still wins.
     const placeholders = client_ids.map(() => '?').join(',');
     const [clients] = await db.query(
@@ -291,49 +214,40 @@ router.post('/email', bulkEmailLimiter, requirePermission('campaigns.create'), v
       }
     }
 
+    // Queued in the message outbox before answering (ASY-33): a restart no
+    // longer drops the rest of a batch, the organization's email rate limit
+    // paces it, and failures are retried and visible at /message-outbox.
+    // The outbox repeats the consent check at enqueue and again before SMTP.
+    let queued = 0;
+    let skipped = 0;
+    const html = (name) => customMessageEmail({ recipientName: name, bodyText: body });
+    for (let i = 0; i < clients.length; i += 10) {
+      const batch = await Promise.all(clients.slice(i, i + 10).map(client => messageOutbox.queueEmail({
+        organizationId: orgId,
+        clientId: client.id,
+        to: client.email,
+        subject,
+        html: html(client.name),
+        text: body,
+        messageClass: 'marketing',
+        sourceType: 'bulk_email',
+      }).catch((err) => {
+        logger.error({ orgId, clientId: client.id, err: err.message }, 'Bulk email could not be queued');
+        return { queued: false };
+      })));
+      for (const r of batch) if (r.queued) queued++; else skipped++;
+    }
+
     const results = {
-      queued: clients.length,
+      queued,
       // Kept for API compatibility; this count now also includes clients
       // skipped because affirmative email consent is absent or DND blocks it.
       not_found: client_ids.length - clients.length,
-      not_found_or_not_eligible: client_ids.length - clients.length,
+      not_found_or_not_eligible: client_ids.length - clients.length + skipped,
     };
 
-    logger.info({ orgId, ...results }, 'Bulk email accepted');
+    logger.info({ orgId, ...results }, 'Bulk email queued');
     res.json({ data: results });
-
-    // Detached — do NOT await. Sends with bounded concurrency so up to 1000
-    // recipients never sit on the request/response path (mirrors auth.js's
-    // fire-and-forget password-reset email). Per-recipient failures are
-    // logged, never thrown — one bad address must not abort the batch.
-    // KNOWN LIMITATION: a server restart mid-batch drops any not-yet-sent
-    // recipients with no automatic retry — acceptable for a first cut (an
-    // admin can re-run the same/failed subset).
-    const CONCURRENCY = 5;
-    let idx = 0;
-    async function worker() {
-      while (idx < clients.length) {
-        const client = clients[idx++];
-        try {
-          await emailTransport.sendEmail({
-            organizationId: orgId,
-            clientId: client.id,
-            to: client.email,
-            subject,
-            html: customMessageEmail({ recipientName: client.name, bodyText: body }),
-            text: body,
-            messageClass: 'marketing',
-          });
-        } catch (err) {
-          logger.error({ orgId, clientId: client.id, err: err.message }, 'Bulk email send failed');
-        }
-      }
-    }
-    Promise.all(
-      Array.from({ length: Math.min(CONCURRENCY, clients.length) }, worker),
-    ).catch((err) => {
-      logger.error({ orgId, err: err.message }, 'Bulk email detached send loop failed');
-    });
   } catch (err) { next(err); }
 });
 

@@ -80,8 +80,8 @@ describe('REG-12 — create and edit', () => {
 });
 
 describe('ASY-25 — sending a notice delivers it', () => {
-  const emailTransport = require('../src/services/emailTransport');
-  const smsTransport = require('../src/services/smsTransport');
+  // Delivery goes through the outbox's sendNow (ASY-33).
+  const messageOutbox = require('../src/services/messageOutbox');
   const future = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
 
   function wireSend(row, client = { id: 5, name: 'Ana', email: 'ana@x.mx', phone: '+525512345678' }) {
@@ -99,18 +99,30 @@ describe('ASY-25 — sending a notice delivers it', () => {
 
   test('an email notice to a client is emailed and only then marked sent', async () => {
     wireSend({ ...base, client_id: 5, channel: 'email' });
-    const spy = jest.spyOn(emailTransport, 'sendEmail').mockResolvedValue({ success: true, messageId: 'm-1' });
+    const spy = jest.spyOn(messageOutbox, 'sendNow').mockResolvedValue({ id: 1, status: 'sent', providerMessageId: 'm-1' });
     const res = await request(app).put('/consumer-protection/service-modifications/9/send');
     expect(res.status).toBe(200);
-    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ clientId: 5, messageClass: 'transactional', to: 'ana@x.mx' }));
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({
+      channel: 'email', clientId: 5, messageClass: 'transactional', recipient: 'ana@x.mx',
+      sourceType: 'service_modification_notice', sourceId: 9, dedupeKey: 'service_modification_notice:3:9',
+    }));
     expect(marked()).toBeDefined();
   });
 
   test('a failed delivery leaves the notice pending', async () => {
     wireSend({ ...base, client_id: 5, channel: 'sms' });
-    jest.spyOn(smsTransport, 'sendSms').mockResolvedValue({ success: false, error: 'no provider' });
+    jest.spyOn(messageOutbox, 'sendNow').mockResolvedValue({ id: 1, status: 'failed', error: 'no provider' });
     const res = await request(app).put('/consumer-protection/service-modifications/9/send');
     expect(res.status).toBe(502);
+    expect(marked()).toBeUndefined();
+  });
+
+  test('a notice the provider cannot take yet stays pending and is answered as queued', async () => {
+    wireSend({ ...base, client_id: 5, channel: 'sms' });
+    jest.spyOn(messageOutbox, 'sendNow').mockResolvedValue({ id: 4, status: 'queued' });
+    const res = await request(app).put('/consumer-protection/service-modifications/9/send');
+    expect(res.status).toBe(202);
+    expect(res.body.data).toMatchObject({ delivered: false, queued: true, outbox_id: 4 });
     expect(marked()).toBeUndefined();
   });
 

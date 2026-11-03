@@ -9,6 +9,7 @@
 const crypto = require('crypto');
 const { Router } = require('express');
 const campaignService = require('../services/campaignService');
+const deliveryFeedback = require('../services/deliveryFeedbackService');
 const logger = require('../utils/logger');
 const { verifyTwilioSignature } = require('../services/whatsappWebhookService');
 
@@ -42,6 +43,26 @@ const TWILIO_STATUS_MAP = {
   read:        'opened',
 };
 
+// Twilio error codes that are about the recipient, not the attempt (ASY-33):
+// a STOP reply, or a number that can never receive SMS.
+const TWILIO_UNSUBSCRIBED = new Set(['21610']);
+const TWILIO_UNDELIVERABLE = new Set(['21211', '21614', '30005', '30006']);
+
+// What a report means for the recipient: bounce, complaint, unsubscribe or
+// nothing. A generic 'bounced' is a hard bounce unless permanent is false.
+function feedbackEvent(body) {
+  if (body.MessageSid) {
+    const code = String(body.ErrorCode || '');
+    if (TWILIO_UNSUBSCRIBED.has(code)) return 'unsubscribe';
+    if (TWILIO_UNDELIVERABLE.has(code)) return 'bounce';
+    return null;
+  }
+  if (body.status === 'bounced' && body.permanent !== false) return 'bounce';
+  if (body.status === 'complained') return 'complaint';
+  if (body.status === 'unsubscribed') return 'unsubscribe';
+  return null;
+}
+
 /**
  * @openapi
  * /communication/delivery-webhook:
@@ -63,7 +84,13 @@ const TWILIO_STATUS_MAP = {
  *                 type: string
  *               status:
  *                 type: string
- *                 enum: [delivered, bounced, opened, failed]
+ *                 enum: [delivered, bounced, opened, failed, complained, unsubscribed]
+ *                 description: >
+ *                   bounced (a hard bounce unless permanent is false) stops sends to
+ *                   that address until it changes; complained withdraws marketing
+ *                   consent; unsubscribed opts the client out of that channel.
+ *               permanent:
+ *                 type: boolean
  *               timestamp:
  *                 type: string
  *         application/x-www-form-urlencoded:
@@ -74,6 +101,9 @@ const TWILIO_STATUS_MAP = {
  *                 type: string
  *               MessageStatus:
  *                 type: string
+ *               ErrorCode:
+ *                 type: string
+ *                 description: 21610 (STOP) unsubscribes; 21211, 21614, 30005, 30006 mark the number undeliverable
  *     responses:
  *       200:
  *         description: Callback processed
@@ -107,12 +137,22 @@ router.post('/delivery-webhook', async (req, res) => {
       newStatus = body.status;
     }
 
-    if (!providerMessageId || !newStatus) {
+    const event = feedbackEvent(body);
+    if (!providerMessageId || (!newStatus && !event)) {
       return res.status(200).json({ updated: false, reason: 'missing fields' });
     }
 
-    const result = await campaignService.handleDeliveryCallback(providerMessageId, newStatus, body);
-    res.status(200).json(result);
+    // A campaign message's own delivery state, then what the report means
+    // for the recipient (suppress a dead address, honour STOP or a spam
+    // complaint) for any message the outbox sent.
+    const campaignStatus = ['delivered', 'bounced', 'opened', 'failed'].includes(newStatus) ? newStatus : null;
+    const result = campaignStatus
+      ? await campaignService.handleDeliveryCallback(providerMessageId, campaignStatus, body)
+      : { updated: false };
+    const feedback = event
+      ? await deliveryFeedback.recordProviderEvent({ providerMessageId, event })
+      : { applied: false };
+    res.status(200).json({ ...result, feedback });
   } catch (err) {
     logger.error({ err }, 'Delivery webhook processing error');
     // Return 200 to avoid provider retry storms; never echo internals.

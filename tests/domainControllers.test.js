@@ -128,28 +128,6 @@ describe('Domain Controllers', () => {
       expect(res.json).toHaveBeenCalledWith({ data: { id: 50, total: 580 } });
     });
 
-    test('bulkGenerate processes all active contracts', async () => {
-      const req = mockReq();
-      const res = mockRes();
-      const next = jest.fn();
-
-      db.query.mockResolvedValueOnce([[
-        { id: 1, plan_name: 'A', plan_price: 100, plan_currency: 'MXN', organization_id: 42 },
-        { id: 2, plan_name: 'B', plan_price: 200, plan_currency: 'MXN', organization_id: 42 },
-      ]]);
-      billingService.generateBillingPeriod
-        .mockResolvedValueOnce({ status: 'pending' })
-        .mockResolvedValueOnce({ status: 'pending' });
-      billingService.generateInvoice
-        .mockResolvedValueOnce({ id: 50 })
-        .mockResolvedValueOnce({ id: 51 });
-
-      await billingController.bulkGenerate(req, res, next);
-
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ generated: 2, total_contracts: 2 }),
-      }));
-    });
   });
 
   // =========================================================================

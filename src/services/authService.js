@@ -9,7 +9,7 @@ const User = require('../models/User');
 const { revokeUserSessions } = require('./sessionRevocation');
 const { sanitizeUser } = require('../utils/userSanitize');
 const db = require('../config/database');
-const emailTransport = require('./emailTransport');
+const messageOutbox = require('./messageOutbox');
 const { resolveOrgPrincipal } = require('./orgPrincipalService');
 const passwordPolicy = require('./passwordPolicyService');
 const { hasGlobalOrganizationAccessUser } = require('./globalOrganizationAccess');
@@ -183,19 +183,22 @@ async function register({ firstName, lastName, email, password, organizationId, 
     const verifyUrl = `${config.appUrl}/verify-email?token=${token}`;
     const userName = [firstName, lastName].filter(Boolean).join(' ') || undefined;
     const template = emailTemplates.emailVerificationEmail({ userName, verifyUrl });
-    emailTransport.sendEmail({ operationalRecipient: true, to: email, subject: template.subject, html: template.html })
-      .then((sendResult) => {
-        if (!sendResult || !sendResult.success) {
-          logger.warn(`Verification email failed to send to ${email}: ${sendResult && sendResult.error}`);
+    // Outbox (ASY-33), sensitive: the link is a credential.
+    messageOutbox.queueEmail({
+      operationalRecipient: true, to: email, subject: template.subject, html: template.html,
+      sensitive: true, sourceType: 'email_verification',
+    })
+      .then((queued) => {
+        if (!queued || !queued.queued) {
+          logger.warn(`Verification email could not be queued for ${email}: ${queued && queued.code}`);
         }
       })
       .catch((err) => {
         logger.error(`Verification email send threw for new user ${user.id}: ${err.message}`);
       });
   } catch (err) {
-    // Only the token-generation UPDATE can land here — sendEmail() above
-    // never throws synchronously (it's an async function; failures reach
-    // the .catch chained onto it instead).
+    // Only the token-generation UPDATE can land here — queueEmail() above
+    // is async, so its failures reach the .catch chained onto it instead.
     logger.error(`Verification email send threw for new user ${user.id}: ${err.message}`);
   }
 
@@ -853,14 +856,16 @@ async function resendVerificationEmail(userId) {
   const userName = [user.first_name, user.last_name].filter(Boolean).join(' ') || undefined;
   const template = emailTemplates.emailVerificationEmail({ userName, verifyUrl });
 
-  // Detached — see register() above: the SMTP round-trip must never sit on
-  // the response critical path (nodemailer's connection timeout defaults to
-  // ~2 minutes). sendEmail() is an async function, so a failure can only
-  // ever surface via this .catch, never as an unhandled rejection.
-  emailTransport.sendEmail({ operationalRecipient: true, to: user.email, subject: template.subject, html: template.html })
-    .then((sendResult) => {
-      if (!sendResult || !sendResult.success) {
-        logger.warn(`Verification email resend failed for ${user.email}: ${sendResult && sendResult.error}`);
+  // Detached — see register() above: the outbox delivers it, so the
+  // response never waits on SMTP. queueEmail() is async, so a failure can
+  // only surface via this .catch, never as an unhandled rejection.
+  messageOutbox.queueEmail({
+    operationalRecipient: true, to: user.email, subject: template.subject, html: template.html,
+    sensitive: true, sourceType: 'email_verification',
+  })
+    .then((queued) => {
+      if (!queued || !queued.queued) {
+        logger.warn(`Verification email resend could not be queued for ${user.email}: ${queued && queued.code}`);
       }
     })
     .catch((err) => {

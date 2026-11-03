@@ -46,5 +46,7 @@ test('dispatch skips a stored endpoint on an unknown host and passes a timeout',
 test('the outage hook alerts staff before it starts on subscriber pushes', () => {
   const src = require('fs').readFileSync(require('path').join(__dirname, '../src/services/notificationHooks.js'), 'utf8');
   const hook = src.slice(src.indexOf("eventBus.on('outage.reported'"));
-  expect(hook.indexOf('resolveStaffRecipients(organizationId')).toBeLessThan(hook.indexOf('portalPushService.dispatch('));
+  // Subscriber pushes are queued in the outbox (ASY-33) after the staff alerts.
+  expect(hook.indexOf("channel: 'push'")).toBeGreaterThan(-1);
+  expect(hook.indexOf('resolveStaffRecipients(organizationId')).toBeLessThan(hook.indexOf("channel: 'push'"));
 });

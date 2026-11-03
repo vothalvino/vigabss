@@ -318,6 +318,33 @@ spec:
               organization's email settings and the email log.
             runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
 
+        - alert: VigaBSS_MessageDeliveryFailures
+          expr: |
+            sum by (channel) (increase(outbox_messages_total{result=~"failed|outcome_unknown"}[30m])) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "VigaBSS could not deliver some outgoing messages"
+            description: >
+              Messages ran out of retries (failed) or stopped mid-delivery
+              (outcome_unknown) on the alerting channel. They are listed at
+              /message-outbox, where staff can retry or cancel them.
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
+
+        - alert: VigaBSS_MessageQueueStalled
+          expr: |
+            max(outbox_oldest_queued_seconds) > 1800
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "VigaBSS outgoing messages have waited more than 30 minutes"
+            description: >
+              The oldest queued message is older than 30 minutes: the
+              message_outbox task is not running, a provider keeps failing, or
+              a rate limit (OUTBOX_RATE_<CHANNEL>_PER_MINUTE) is too low.
+            runbook: "https://github.com/vothalvino/vigabss/blob/main/docs/runbook.md"
+
         - alert: VigaBSS_PaymentWebhookFailures
           expr: |
             sum by (provider) (increase(payment_webhook_events_total{status="failed"}[15m])) > 0

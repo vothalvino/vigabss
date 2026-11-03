@@ -53,6 +53,9 @@
   "client_balance_ledger": {
     "client_id": "clients"
   },
+  "client_contact_suppressions": {
+    "client_id": "clients"
+  },
   "client_custom_fields": {
     "client_id": "clients"
   },
@@ -243,6 +246,9 @@
   },
   "map_infrastructure_points": {
     "site_id": "sites"
+  },
+  "message_outbox": {
+    "client_id": "clients"
   },
   "nas": {
     "secondary_nas_id": "nas",

@@ -8,13 +8,23 @@ const mockExtraAllowance = jest.fn(async () => ({ pack_gb: 0, rollover_gb: 0, to
 jest.mock('../src/services/dataPackService', () => ({
   extraAllowanceGb: (...a) => mockExtraAllowance(...a),
 }));
-// Delivery (SUP-07): email by default; tests switch it to fail or fall back.
+// Delivery (SUP-07) goes through the outbox's sendNow (ASY-33): email by
+// default; tests switch it to fail or fall back. The stand-in answers per
+// channel the way the outbox reports a delivered, or undelivered, message.
 const mockSendEmail = jest.fn(async () => ({ success: true }));
 const mockSendSms = jest.fn(async () => ({ success: true }));
 const mockPush = jest.fn(async () => ({ sent: 0, failed: 0 }));
-jest.mock('../src/services/emailTransport', () => ({ sendEmail: (...a) => mockSendEmail(...a) }));
-jest.mock('../src/services/smsTransport', () => ({ sendSms: (...a) => mockSendSms(...a) }));
-jest.mock('../src/services/portalPushService', () => ({ dispatch: (...a) => mockPush(...a) }));
+const mockSendNow = jest.fn(async (m) => {
+  if (m.channel === 'push') {
+    const r = await mockPush({ clientId: m.clientId, eventType: m.payload.event_type, payload: m.payload });
+    return { status: r.sent > 0 ? 'sent' : 'failed' };
+  }
+  const r = m.channel === 'email'
+    ? await mockSendEmail({ ...m, to: m.recipient })
+    : await mockSendSms({ ...m, to: m.recipient });
+  return { status: r.success ? 'sent' : 'failed' };
+});
+jest.mock('../src/services/messageOutbox', () => ({ sendNow: (...a) => mockSendNow(...a) }));
 const fupNotificationService = require('../src/services/fupNotificationService');
 
 describe('fupNotificationService', () => {
@@ -53,6 +63,8 @@ describe('fupNotificationService', () => {
     expect(result.notified).toBe(1);
     expect(result.checked).toBe(1);
     expect(mockSendEmail).toHaveBeenCalledWith(expect.objectContaining({ clientId: 5, messageClass: 'transactional', to: 'ana@x.mx' }));
+    // One attempt per channel: a failed one falls back instead of retrying later.
+    expect(mockSendNow).toHaveBeenCalledWith(expect.objectContaining({ channel: 'email', maxAttempts: 1, sourceType: 'fup_threshold' }));
     const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO fup_usage_notifications/.test(sql));
     expect(insert[1][4]).toBe('email');
   });

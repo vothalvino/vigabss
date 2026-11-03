@@ -61,43 +61,4 @@ async function generateInvoice(req, res, next) {
   }
 }
 
-/**
- * POST /api/billing/bulk-generate
- * Generate invoices for all active contracts in the organization.
- */
-async function bulkGenerate(req, res, next) {
-  try {
-    const [contracts] = await db.query(
-      `SELECT c.*
-       FROM contracts c
-       JOIN clients cl ON cl.id = c.client_id AND cl.deleted_at IS NULL
-       WHERE c.status = 'active' AND c.organization_id = ? AND c.deleted_at IS NULL`,
-      [req.orgId],
-    );
-
-    let generated = 0;
-    const errors = [];
-
-    for (const contract of contracts) {
-      try {
-        const period = await billingService.generateBillingPeriod(contract);
-        // Same rule as the scheduled run: only a period whose billing day has
-        // arrived is invoiced (generateBillingPeriod may pre-create the next one).
-        const periodDue = !period?.scheduled_at || new Date(period.scheduled_at) <= new Date();
-        if (period && period.status === 'pending' && periodDue) {
-          // generateInvoice loads the full plan row (trial pricing, overage).
-          await billingService.generateInvoice(period, contract, null, req.orgId);
-          generated++;
-        }
-      } catch (err) {
-        errors.push({ contract_id: contract.id, error: err.message });
-      }
-    }
-
-    res.json({ data: { generated, total_contracts: contracts.length, errors } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-module.exports = { generatePeriod, generateInvoice, bulkGenerate };
+module.exports = { generatePeriod, generateInvoice };

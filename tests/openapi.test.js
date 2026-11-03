@@ -36,7 +36,7 @@ describe('OpenAPI spec generation', () => {
     expect(spec.paths['/billing/generate-invoice']).toBeDefined();
     // The unscoped legacy allocator was removed; allocation is /payments/{id}/allocate.
     expect(spec.paths['/billing/allocate-payment']).toBeUndefined();
-    expect(spec.paths['/billing/bulk-generate']).toBeDefined();
+    expect(spec.paths['/billing/generate-invoice']).toBeDefined();
   });
 
   test('includes CFDI endpoints', () => {

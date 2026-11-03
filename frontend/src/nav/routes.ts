@@ -186,6 +186,8 @@ export const ROUTES: RouteDef[] = [
   { path: '/self-service-requests', keywords: ['solicitudes', 'portal', 'autoservicio'], labelKey: 'nav.portalServiceRequests', section: 'support', guard: 'any', rail: true, roles: ['technician'], viewPermissions: ['portal_service_requests.view'] },
   { path: '/follow-up-reminders', labelKey: 'nav.followUps', section: 'support', guard: 'any', rail: true, roles: ['technician', 'support', 'billing'], viewPermissions: ['follow_ups.view'] },
   { path: '/communication-campaigns', labelKey: 'nav.communicationCampaigns', section: 'support', guard: 'any', rail: true, roles: ['technician', 'support', 'billing'], viewPermissions: ['campaigns.view'] },
+  // message_outbox.view: admin, support, billing, noc_operator, auditor (511)
+  { path: '/message-outbox', keywords: ['correo', 'envios', 'mensajes', 'rebotes'], labelKey: 'nav.messageOutbox', section: 'support', guard: 'any', rail: true, roles: ['support', 'billing'], viewPermissions: ['message_outbox.view'] },
   { path: '/satisfaction-surveys', labelKey: 'nav.surveys', section: 'support', guard: 'any', rail: true, roles: ['support', 'billing'], viewPermissions: ['surveys.view'] },
 
   // --- Field Ops -----------------------------------------------------------------

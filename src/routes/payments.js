@@ -775,7 +775,7 @@ router.post('/:id/send-receipt', requirePermission('payments.update'), async (re
   try {
     const paymentId = parseInt(req.params.id, 10);
     const pdfService = require('../services/pdfService');
-    const emailTransport = require('../services/emailTransport');
+    const messageOutbox = require('../services/messageOutbox');
 
     // Fetch payment with client info
     const [rows] = await db.query(
@@ -808,7 +808,8 @@ router.post('/:id/send-receipt', requirePermission('payments.update'), async (re
         : undefined,
     });
 
-    const result = await emailTransport.sendEmail({
+    // Through the outbox, delivered now (ASY-33); 202 when it will be retried.
+    const result = await messageOutbox.sendEmailNow({
       organizationId: req.orgId,
       clientId: payment.client_id,
       messageClass: 'transactional',
@@ -817,8 +818,12 @@ router.post('/:id/send-receipt', requirePermission('payments.update'), async (re
       subject: template.subject,
       html: template.html,
       attachments: [{ filename: `receipt-${paymentId}.pdf`, content: buffer }],
+      sourceType: 'payment_receipt', sourceId: Number(paymentId),
     });
-    if (!result.success) {
+    if (result.status === 'queued') {
+      return res.status(202).json({ message: 'Receipt queued; delivery will be retried', to: payment.client_email, outbox_id: result.id });
+    }
+    if (result.status !== 'sent') {
       return res.status(502).json({ error: result.error || 'Failed to send receipt' });
     }
 
