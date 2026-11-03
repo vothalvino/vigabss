@@ -57,6 +57,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { sqlBusinessToday } = require('../utils/businessDate');
 const { portalAuthenticate } = require('../middleware/portalAuth');
 const { validate } = require('../middleware/validate');
 // authLimiter guards the credential endpoint (/auth/login) only. Route-level
@@ -465,8 +466,9 @@ router.delete('/autopay', async (req, res, next) => {
 // GET /portal/invoices — list own invoices (paginated)
 // An issued or sent invoice past its due date shows (and filters) as overdue,
 // the same derivation as the staff invoice list (FE-14).
-const PORTAL_PAST_DUE_SQL = "(i.status IN ('issued', 'sent', 'overdue') AND i.due_date < CURDATE())";
-const PORTAL_STATUS_SQL = `CASE WHEN ${PORTAL_PAST_DUE_SQL} THEN 'overdue' ELSE i.status END AS status`;
+// Past due from the business day, not the database's UTC CURDATE() (BIL-34).
+const portalPastDueSql = () => `(i.status IN ('issued', 'sent', 'overdue') AND i.due_date < ${sqlBusinessToday()})`;
+const portalStatusSql = () => `CASE WHEN ${portalPastDueSql()} THEN 'overdue' ELSE i.status END AS status`;
 
 router.get('/invoices', async (req, res, next) => {
   try {
@@ -490,9 +492,9 @@ router.get('/invoices', async (req, res, next) => {
     // 'overdue' is derived, never stored (see routes/invoices.js): filtering
     // on the column returned nothing and past-due invoices read ISSUED (FE-14).
     if (status === 'overdue') {
-      whereClause += ` AND ${PORTAL_PAST_DUE_SQL}`;
+      whereClause += ` AND ${portalPastDueSql()}`;
     } else if (status === 'issued' || status === 'sent') {
-      whereClause += ` AND i.status = ? AND NOT ${PORTAL_PAST_DUE_SQL}`;
+      whereClause += ` AND i.status = ? AND NOT ${portalPastDueSql()}`;
       params.push(status);
     } else if (status) {
       whereClause += ' AND i.status = ?';
@@ -509,7 +511,7 @@ router.get('/invoices', async (req, res, next) => {
     // joining, so list and count are always consistent.
     const [rows] = await db.query(
       `SELECT i.id, i.invoice_number, i.subtotal, i.tax_amount, i.total,
-              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, ${PORTAL_STATUS_SQL}, i.created_at
+              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, ${portalStatusSql()}, i.created_at
        FROM invoices i
        LEFT JOIN (
          SELECT invoice_id, period_start, period_end,
@@ -546,7 +548,7 @@ router.get('/invoices/:id', async (req, res, next) => {
     // no UNIQUE constraint of its own).
     const [rows] = await db.query(
       `SELECT i.id, i.invoice_number, i.subtotal, i.tax_amount, i.total,
-              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, ${PORTAL_STATUS_SQL}, i.notes, i.created_at,
+              i.currency, bp.period_start, bp.period_end, i.due_date, i.paid_at, ${portalStatusSql()}, i.notes, i.created_at,
               (i.total - COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
                                     WHERE pa.invoice_id = i.id AND pa.deleted_at IS NULL), 0)
                        - ${creditAppliedSql('i')}) AS balance_due,

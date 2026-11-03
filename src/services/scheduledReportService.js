@@ -5,6 +5,7 @@
 // =============================================================================
 
 const { toCsv: sharedToCsv } = require('../utils/csv');
+const { businessToday } = require('../utils/businessDate');
 const db = require('../config/database');
 const reportService = require('./reportService');
 const messageOutbox = require('./messageOutbox');
@@ -195,7 +196,7 @@ async function runSchedule(schedule) {
           html: `<p>Your scheduled report <strong>${esc(schedule.report_def_name)}</strong> is attached.</p>
                  <p>Generated: ${new Date().toLocaleString()}</p>`,
           attachments: [{
-            filename: `${schedule.report_def_name}-${new Date().toISOString().slice(0, 10)}.${extension}`,
+            filename: `${schedule.report_def_name}-${businessToday()}.${extension}`,
             content: buffer,
             contentType,
           }],
@@ -389,7 +390,7 @@ async function runOnDemand({ organizationId, reportDefName, format = 'csv', para
       html: `<p>The report <strong>${esc(reportDefName)}</strong> you requested is attached.</p>
              <p>Generated: ${new Date().toLocaleString()}</p>`,
       attachments: [{
-        filename: `${reportDefName}-${new Date().toISOString().slice(0, 10)}.${extension}`,
+        filename: `${reportDefName}-${businessToday()}.${extension}`,
         content: buffer,
         contentType,
       }],

@@ -28,6 +28,7 @@
 // =============================================================================
 
 const crypto = require('crypto');
+const { businessToday } = require('../utils/businessDate');
 
 // Official IFT document used when the org has not configured its own copy.
 const CARTA_DERECHOS_DEFAULT_URL = 'https://www.ift.org.mx/usuarios-y-audiencias/carta-de-derechos-minimos-de-los-usuarios';
@@ -258,9 +259,8 @@ async function buildContext(run, { orgId, clientId, contractId, orderId }) {
     );
   }
 
-  const now = new Date();
   return {
-    date: now.toISOString().slice(0, 10),
+    date: businessToday(),
     client: {
       name: client?.name ?? null, email: client?.email ?? null, phone: client?.phone ?? null,
       address: [client?.address, client?.city, client?.state, client?.zip_code].filter(Boolean).join(', '),

@@ -315,6 +315,174 @@ function clientCollectionDescriptors(clientId, orgId) {
                ai_reply.draft_text, ai_reply.final_text,
                ai_reply.created_at`,
     },
+    // ---- Communications, chat, consent and profiling (ASY-31) ------------
+    {
+      key: 'ticketComments',
+      alias: 'ticket_comment',
+      from: `ticket_comments ticket_comment
+             JOIN tickets subject_ticket ON subject_ticket.id = ticket_comment.ticket_id`,
+      where: 'subject_ticket.client_id = ? AND subject_ticket.organization_id = ?',
+      params: [clientId, orgId],
+      // Staff-only notes about the subject are personal data held about
+      // them; is_internal marks which ones the subscriber never saw.
+      select: `ticket_comment.id, ticket_comment.ticket_id, ticket_comment.user_id AS staff_user_id,
+               ticket_comment.body, ticket_comment.is_internal,
+               ticket_comment.created_at, ticket_comment.updated_at, ticket_comment.deleted_at`,
+    },
+    {
+      key: 'supportConversations',
+      alias: 'conversation',
+      from: 'support_conversations conversation',
+      where: 'conversation.client_id = ? AND conversation.organization_id = ?',
+      params: [clientId, orgId],
+      select: `conversation.id, conversation.channel, conversation.status, conversation.intent,
+               conversation.confidence, conversation.escalation_reason, conversation.escalated_at,
+               conversation.ticket_id, conversation.created_at, conversation.updated_at`,
+    },
+    {
+      key: 'supportMessages',
+      alias: 'support_message',
+      from: `support_messages support_message
+             JOIN support_conversations conversation ON conversation.id = support_message.conversation_id`,
+      where: 'conversation.client_id = ? AND conversation.organization_id = ?',
+      params: [clientId, orgId],
+      // data_sources is the assistant's internal retrieval trace.
+      select: `support_message.id, support_message.conversation_id, support_message.role,
+               support_message.content, support_message.intent, support_message.confidence,
+               support_message.created_at`,
+    },
+    {
+      key: 'portalChatSessions',
+      alias: 'chat_session',
+      from: 'portal_chat_sessions chat_session',
+      where: 'chat_session.client_id = ? AND chat_session.organization_id = ?',
+      params: [clientId, orgId],
+      // session_token is a credential and is left out.
+      select: `chat_session.id, chat_session.status, chat_session.messages, chat_session.ticket_id,
+               chat_session.turn_count, chat_session.created_at, chat_session.updated_at`,
+    },
+    {
+      key: 'whatsappInboundMessages',
+      alias: 'wa_inbound',
+      from: 'whatsapp_inbound_messages wa_inbound',
+      where: 'wa_inbound.client_id = ? AND wa_inbound.organization_id = ?',
+      params: [clientId, orgId],
+      select: `wa_inbound.id, wa_inbound.provider, wa_inbound.to_number, wa_inbound.body,
+               wa_inbound.received_at`,
+    },
+    {
+      key: 'smsLogs',
+      alias: 'sms_log',
+      from: 'sms_logs sms_log',
+      where: 'sms_log.client_id = ? AND sms_log.organization_id = ?',
+      params: [clientId, orgId],
+      select: `sms_log.id, sms_log.phone_number, sms_log.channel, sms_log.direction,
+               sms_log.message_class, sms_log.message_body, sms_log.provider, sms_log.status,
+               sms_log.error_message, sms_log.sent_at, sms_log.delivered_at, sms_log.created_at`,
+    },
+    {
+      key: 'emailLogs',
+      alias: 'email_log',
+      from: 'email_logs email_log',
+      where: 'email_log.client_id = ? AND email_log.organization_id = ?',
+      params: [clientId, orgId],
+      select: `email_log.id, email_log.channel, email_log.recipient, email_log.subject, email_log.body,
+               email_log.message_class, email_log.reference_type, email_log.reference_id,
+               email_log.status, email_log.error_message, email_log.sent_at, email_log.opened_at,
+               email_log.created_at`,
+    },
+    {
+      key: 'outboxMessages',
+      alias: 'outbox',
+      from: 'message_outbox outbox',
+      where: 'outbox.client_id = ? AND outbox.organization_id = ?',
+      params: [clientId, orgId],
+      // A sensitive message (reset link, code) keeps no readable body.
+      select: `outbox.id, outbox.channel, outbox.message_class, outbox.recipient, outbox.subject,
+               CASE WHEN outbox.is_sensitive = 1 THEN NULL ELSE outbox.body_text END AS body_text,
+               outbox.is_sensitive, outbox.source_type, outbox.status, outbox.attempts,
+               outbox.sent_at, outbox.last_error, outbox.created_at`,
+    },
+    {
+      key: 'campaignMessages',
+      alias: 'campaign_message',
+      from: 'campaign_messages campaign_message',
+      where: 'campaign_message.client_id = ? AND campaign_message.organization_id = ?',
+      params: [clientId, orgId],
+      select: `campaign_message.id, campaign_message.campaign_id, campaign_message.recipient,
+               campaign_message.channel, campaign_message.status, campaign_message.error_message,
+               campaign_message.queued_at, campaign_message.sent_at, campaign_message.delivered_at,
+               campaign_message.opened_at, campaign_message.bounced_at, campaign_message.created_at`,
+    },
+    {
+      key: 'contactSuppressions',
+      alias: 'suppression',
+      from: 'client_contact_suppressions suppression',
+      where: 'suppression.client_id = ? AND suppression.organization_id = ?',
+      params: [clientId, orgId],
+      select: `suppression.id, suppression.channel, suppression.destination, suppression.reason,
+               suppression.created_at`,
+    },
+    {
+      key: 'consents',
+      alias: 'consent',
+      from: 'subscriber_consents consent',
+      where: 'consent.client_id = ? AND consent.organization_id = ?',
+      params: [clientId, orgId],
+      select: `consent.id, consent.consent_version, consent.purpose, consent.given_at,
+               consent.withdrawn_at, consent.ip_address, consent.channel,
+               consent.communication_channel, consent.source_context,
+               consent.privacy_notice_version_id, consent.document_hash, consent.notes,
+               consent.created_at`,
+    },
+    {
+      key: 'communicationPreferences',
+      alias: 'dnd',
+      from: 'client_dnd_preferences dnd',
+      where: 'dnd.client_id = ? AND dnd.organization_id = ?',
+      params: [clientId, orgId],
+      select: `dnd.id, dnd.channel, dnd.opt_out, dnd.quiet_hours_start, dnd.quiet_hours_end,
+               dnd.reason, dnd.created_at, dnd.updated_at`,
+    },
+    {
+      key: 'churnScores',
+      alias: 'churn',
+      from: 'churn_scores churn',
+      where: 'churn.client_id = ? AND churn.organization_id = ?',
+      params: [clientId, orgId],
+      // Automated profiling: the score, its band and the factors behind it.
+      select: `churn.id, churn.score, churn.risk_band, churn.tenure_months, churn.overdue_invoices,
+               churn.open_tickets, churn.factors, churn.scored_at`,
+    },
+    {
+      key: 'paymentTransactions',
+      alias: 'payment_tx',
+      from: 'payment_transactions payment_tx',
+      where: 'payment_tx.client_id = ? AND payment_tx.organization_id = ?',
+      params: [clientId, orgId],
+      // The provider's raw request, response and webhook bodies can carry
+      // gateway credentials and are not exported; the outcome is.
+      select: `payment_tx.id, payment_tx.payment_id, payment_tx.invoice_id, payment_tx.amount,
+               payment_tx.currency, payment_tx.gateway_reference_id, payment_tx.gateway_status,
+               payment_tx.gateway_response_code, payment_tx.gateway_response_message,
+               payment_tx.created_at, payment_tx.updated_at`,
+    },
+    {
+      key: 'recurringPaymentProfiles',
+      alias: 'payment_profile',
+      from: 'recurring_payment_profiles payment_profile',
+      where: 'payment_profile.client_id = ? AND payment_profile.organization_id = ?',
+      params: [clientId, orgId],
+      // Gateway tokens are masked to their last four characters.
+      select: `payment_profile.id, payment_profile.payment_gateway_id,
+               CONCAT('…', RIGHT(payment_profile.token_reference, 4)) AS token_reference_masked,
+               CASE WHEN payment_profile.stripe_customer_id IS NULL THEN NULL
+                    ELSE CONCAT('…', RIGHT(payment_profile.stripe_customer_id, 4)) END AS stripe_customer_id_masked,
+               payment_profile.card_brand, payment_profile.card_last_four,
+               payment_profile.card_exp_month, payment_profile.card_exp_year,
+               payment_profile.is_default, payment_profile.status,
+               payment_profile.created_at, payment_profile.updated_at, payment_profile.deleted_at`,
+    },
   ];
 }
 
@@ -568,3 +736,5 @@ router.get('/requests', requirePermission('dsar_requests.view'), async (req, res
 });
 
 module.exports = router;
+// For the schema check in tests/dsarCompleteness.test.js.
+module.exports.clientCollectionDescriptors = clientCollectionDescriptors;

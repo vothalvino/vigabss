@@ -8,6 +8,8 @@ const { requireOrgId } = require('../utils/requireOrgId');
 class Quote extends BaseModel {
   static get tableName() { return 'quotes'; }
 
+  static get businessDateColumns() { return ['issue_date']; }
+
   static get fillable() {
     return [
       'organization_id', 'client_id', 'contract_id', 'quote_number',

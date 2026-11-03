@@ -9,6 +9,8 @@ const { NotFoundError } = require('../utils/errors');
 class CreditNote extends BaseModel {
   static get tableName() { return 'credit_notes'; }
 
+  static get businessDateColumns() { return ['issue_date']; }
+
   static get fillable() {
     return [
       'organization_id', 'client_id', 'invoice_id', 'payment_id',

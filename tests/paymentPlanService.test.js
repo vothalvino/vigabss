@@ -442,7 +442,7 @@ describe('invoices under an active plan', () => {
       .mockResolvedValueOnce([[{ id: 1, organization_id: 1, is_active: 1, days_after_due: 1, fee_type: 'fixed', fee_amount: '10.00' }]])
       .mockResolvedValue([[]]);
     await lateFeeService.applyLateFees(1).catch(() => {});
-    const overdue = db.query.mock.calls.find(([sql]) => /DATEDIFF\(NOW\(\), i\.due_date\) AS days_overdue/.test(sql));
+    const overdue = db.query.mock.calls.find(([sql]) => /DATEDIFF\(DATE\('\d{4}-\d{2}-\d{2}'\), i\.due_date\) AS days_overdue/.test(sql));
     expect(overdue[0]).toMatch(planClause);
   });
 });

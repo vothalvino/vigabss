@@ -178,7 +178,7 @@ describe('late fees are bounded once they run for real', () => {
     db.getConnection.mockResolvedValue(conn);
     db.query.mockImplementation(async (sql) => {
       if (/FROM late_fee_rules/.test(sql)) return [[rule]];
-      if (/DATEDIFF\(NOW\(\), i\.due_date\)/.test(sql)) return [[{ ...invoice }]];
+      if (/DATEDIFF\(DATE\('\d{4}-\d{2}-\d{2}'\), i\.due_date\)/.test(sql)) return [[{ ...invoice }]];
       if (/COUNT\(\*\) AS cnt/.test(sql)) return [[{ cnt: thisPeriod, this_period: thisPeriod }]];
       if (/SUM\(amount\), 0\) AS fees/.test(sql)) return [[{ fees: priorFees }]];
       return [[]];

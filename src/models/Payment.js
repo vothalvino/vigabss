@@ -8,6 +8,8 @@ const { requireOrgId } = require('../utils/requireOrgId');
 class Payment extends BaseModel {
   static get tableName() { return 'payments'; }
 
+  static get businessDateColumns() { return ['payment_date']; }
+
   static get fillable() {
     return [
       'organization_id', 'client_id', 'amount', 'currency',

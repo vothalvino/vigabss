@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { readCsrfCookie } from '@/api/csrf';
 import { parseApiError } from '@/api/errors';
+import { localToday } from '@/lib/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -609,7 +610,7 @@ function MetricsTab() {
     d.setDate(d.getDate() - 30);
     return d.toISOString().slice(0, 10);
   });
-  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [to, setTo] = useState(() => localToday());
 
   const load = useCallback(async () => {
     setLoading(true);

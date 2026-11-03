@@ -11,6 +11,7 @@
 // =============================================================================
 
 const crypto = require('crypto');
+const { businessToday } = require('../utils/businessDate');
 const db = require('../config/database');
 const billingService = require('./billingService');
 const creditNoteLedgerService = require('./creditNoteLedgerService');
@@ -618,8 +619,8 @@ async function issueProrationCreditNote(exec, req, organizationId, amount, descr
     `INSERT INTO credit_notes
        (organization_id, client_id, contract_id, credit_note_number, issue_date, reason,
         subtotal, tax_rate, tax_amount, total, currency, tax_rate_id, notes, status, created_by)
-     VALUES (?, ?, ?, ?, CURDATE(), 'other', ?, ?, ?, ?, ?, ?, ?, 'issued', ?)`,
-    [organizationId, req.client_id, req.contract_id || null, number, subtotal, tax.rate, taxAmount,
+     VALUES (?, ?, ?, ?, ?, 'other', ?, ?, ?, ?, ?, ?, ?, 'issued', ?)`,
+    [organizationId, req.client_id, req.contract_id || null, number, businessToday(), subtotal, tax.rate, taxAmount,
       total, currency, tax.taxRateId || null, description, createdBy || null],
   );
   await creditNoteLedgerService.syncCreditNoteLedger(exec, {

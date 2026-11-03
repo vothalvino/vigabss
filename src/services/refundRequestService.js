@@ -6,6 +6,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { businessToday } = require('../utils/businessDate');
 const RefundRequest = require('../models/RefundRequest');
 const eventBus = require('./eventBus');
 const billingAdjustmentService = require('./billingAdjustmentService');
@@ -357,13 +358,14 @@ async function completeProcessing(orgId, existing, { refund_method, gateway_refu
       `INSERT INTO client_balance_ledger
          (organization_id, client_id, balance_type, entry_type, credit, debit, running_balance,
           reference_id, description, entry_date, created_by)
-       VALUES (?, ?, 'postpaid', 'adjustment', ?, 0, 0, ?, ?, CURDATE(), ?)`,
+       VALUES (?, ?, 'postpaid', 'adjustment', ?, 0, 0, ?, ?, ?, ?)`,
       [
         orgId || null,
         existing.client_id,
         existing.amount,
         existing.id,
         `Refund for request #${existing.id}`,
+        businessToday(),
         processedByUserId || null,
       ],
     );
@@ -413,12 +415,13 @@ async function completeProcessing(orgId, existing, { refund_method, gateway_refu
         `INSERT INTO credit_notes
            (organization_id, client_id, invoice_id, credit_note_number, issue_date, reason,
             subtotal, tax_rate, tax_amount, total, currency, status, created_by)
-         VALUES (?, ?, ?, ?, CURDATE(), 'other', ?, ?, ?, ?, ?, 'issued', ?)`,
+         VALUES (?, ?, ?, ?, ?, 'other', ?, ?, ?, ?, ?, 'issued', ?)`,
         [
           orgId || null,
           existing.client_id,
           existing.invoice_id || null,
           cnNumber,
+          businessToday(),
           subtotal,
           taxRate,
           taxAmount,

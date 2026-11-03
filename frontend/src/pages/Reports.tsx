@@ -29,6 +29,7 @@ import { useTranslation } from 'react-i18next';
 import { api, authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { parseApiError } from '@/api/errors';
+import { localToday } from '@/lib/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -276,7 +277,7 @@ function LineChart({ labels, series, width = 520, height = 180 }: LineChartProps
 // ---------------------------------------------------------------------------
 
 function RevenueTab() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const firstOfMonth = today.slice(0, 7) + '-01';
   const [from, setFrom] = useState(firstOfMonth);
   const [to, setTo] = useState(today);
@@ -742,7 +743,7 @@ function IftTab() {
 // ---------------------------------------------------------------------------
 
 function TechnicianTab() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const firstOfMonth = today.slice(0, 7) + '-01';
   const [from, setFrom] = useState(firstOfMonth);
   const [to, setTo] = useState(today);

@@ -46,6 +46,7 @@ const mockRes = () => {
 };
 
 const mockNext = jest.fn();
+const { csvRes, exportQueries } = require('./helpers/csvExport');
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -371,14 +372,14 @@ describe('exportController — deep', () => {
   // exportInvoices
   // -------------------------------------------------------------------------
   describe('exportInvoices', () => {
-    test('sends empty CSV when no invoices exist', async () => {
-      db.query.mockResolvedValueOnce([[]]);
-      const res = mockRes();
+    test('sends only the header when no invoices exist', async () => {
+      db.query.mockImplementation(exportQueries([]));
+      const res = csvRes();
 
       await exportController.exportInvoices(mockReq(), res, mockNext);
 
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'text/csv');
-      expect(res.send).toHaveBeenCalledWith('');
+      expect(res.body()).toBe('id,invoice_number,client_id,name,email,subtotal,tax_amount,total,currency,status,due_date,created_at');
     });
 
     test('calls next on DB error', async () => {
@@ -396,24 +397,24 @@ describe('exportController — deep', () => {
   // -------------------------------------------------------------------------
   describe('exportClients', () => {
     test('CSV escapes commas and quotes in client data', async () => {
-      db.query.mockResolvedValueOnce([[
+      db.query.mockImplementation(exportQueries([
         { id: 1, name: 'O\'Brien, Jr "He said hi"', email: 'a@b.com' },
-      ]]);
-      const res = mockRes();
+      ]));
+      const res = csvRes();
 
       await exportController.exportClients(mockReq(), res, mockNext);
 
-      const csvOutput = res.send.mock.calls[0][0];
+      const csvOutput = res.body();
       expect(csvOutput).toContain('"O\'Brien, Jr ""He said hi"""');
     });
 
-    test('sends empty CSV for empty client list', async () => {
-      db.query.mockResolvedValueOnce([[]]);
-      const res = mockRes();
+    test('sends only the header for an empty client list', async () => {
+      db.query.mockImplementation(exportQueries([]));
+      const res = csvRes();
 
       await exportController.exportClients(mockReq(), res, mockNext);
 
-      expect(res.send).toHaveBeenCalledWith('');
+      expect(res.body()).toBe('id,name,email,phone,status,locale,country,city,state,created_at');
     });
   });
 });

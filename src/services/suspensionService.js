@@ -6,6 +6,7 @@
 // =============================================================================
 
 const crypto = require('crypto');
+const { sqlBusinessToday } = require('../utils/businessDate');
 const dgram = require('dgram');
 const db = require('../config/database');
 const { creditAppliedSql, notUnderActivePlanSql } = require('../utils/invoiceBalance');
@@ -67,10 +68,10 @@ function ruleThresholdDays(rule) {
  */
 async function findOverdueContracts(organizationId, { minDays, maxDays = null, planIds = null }) {
   const planFilter = planIds ? `AND c.plan_id IN (${planIds.map(() => '?').join(', ')})` : '';
-  const maxFilter = maxDays === null ? '' : 'AND DATEDIFF(NOW(), i.due_date) < ?';
+  const maxFilter = maxDays === null ? '' : `AND DATEDIFF(${sqlBusinessToday()}, i.due_date) < ?`;
   const [rows] = await db.query(`
     SELECT c.*, i.id AS invoice_id, i.invoice_number, i.due_date, i.total, i.currency,
-           DATEDIFF(NOW(), i.due_date) AS days_overdue
+           DATEDIFF(${sqlBusinessToday()}, i.due_date) AS days_overdue
     FROM contracts c
     JOIN clients cl ON cl.id = c.client_id AND cl.deleted_at IS NULL
     JOIN invoices i ON i.id = (
@@ -86,7 +87,7 @@ async function findOverdueContracts(organizationId, { minDays, maxDays = null, p
       AND c.status = 'active'
       AND c.deleted_at IS NULL
       AND COALESCE(cl.suspension_exempt, 0) = 0
-      AND DATEDIFF(NOW(), i.due_date) >= ?
+      AND DATEDIFF(${sqlBusinessToday()}, i.due_date) >= ?
       ${maxFilter}
       ${planFilter}
   `, [
@@ -276,7 +277,7 @@ async function suspendContract(contractId, ruleId, userId, invoiceId) {
         `SELECT i.id FROM invoices i
           WHERE i.contract_id = ? AND i.deleted_at IS NULL
             AND i.status IN ('issued', 'sent', 'overdue')
-            AND i.due_date < CURDATE()
+            AND i.due_date < ${sqlBusinessToday()}
             AND ${OPEN_BALANCE_SQL}
             AND ${notUnderActivePlanSql('i')}
           LIMIT 1`,

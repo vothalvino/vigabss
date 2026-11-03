@@ -136,8 +136,20 @@ retention for CGNAT attribution records; they must not be treated as mandatory
 merely because an organization is marked `MX`. Valid preservation orders or
 legal holds can require a specifically identified record set to remain beyond
 its ordinary deletion date. A `gov_data_requests` case does not itself suspend
-rolling deletion: the approved hold must be activated before responsive records
-expire and released or reviewed when its authority ends.
+rolling deletion: place a preservation hold on it
+(`POST /regulatory-compliance/gov-data-requests/:id/preservation-holds`) before
+responsive records expire, and release it
+(`PUT /regulatory-compliance/preservation-holds/:id/release`) when its
+authority ends. A hold can be placed while the request is received, under
+legal review or processing, including after an ambiguous or unavailable IP
+lookup. It names a client, contract, RADIUS username and/or IP address and a
+UTC range (by default the request's own subject and `date_from`..`date_to`),
+and keeps every matching connection log, accounting event, daily usage row,
+CGNAT binding and binding event out of the purge while it is active. A DSAR
+legal hold (`PUT /regulatory-compliance/dsar-requests/:id/legal-hold`) places
+an open-ended hold on the client's records and
+`PUT .../release-legal-hold` releases it. Released rows resume their original
+retention clock.
 
 The product retention variable is installation-wide, not an organization-level
 setting. One shared VigaBSS installation may enable collection only when that

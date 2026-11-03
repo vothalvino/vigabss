@@ -10,14 +10,27 @@ jest.mock('../src/utils/logger', () => ({
   child: jest.fn().mockReturnThis(),
 }));
 
+// The scheduled-task worker takes the task's advisory lock (ASY-28).
+const mockLock = { acquired: 1 };
+const mockLockConnection = {
+  query: jest.fn(async (sql) => {
+    if (/GET_LOCK/.test(sql)) return [[{ acquired: mockLock.acquired }]];
+    return [[{ released: 1 }]];
+  }),
+  release: jest.fn(),
+  destroy: jest.fn(),
+};
 jest.mock('../src/config/database', () => ({
   query: jest.fn(),
   withTenantContext: jest.fn((_organizationId, callback) => callback()),
   withPrimaryContext: jest.fn(callback => callback()),
+  getLockConnection: jest.fn(async () => mockLockConnection),
 }));
 jest.mock('../src/services/taskRunner', () => ({
   runTask: jest.fn(),
   markTaskRun: jest.fn(),
+  executeScheduledTask: jest.fn(),
+  recordTaskRun: jest.fn(),
 }));
 jest.mock('../src/services/trapForwardingService', () => ({
   attemptDelivery: jest.fn(),
@@ -226,29 +239,57 @@ describe('workers/index.js — registerWorkers()', () => {
     }
   });
 
-  test('scheduled-task worker preserves overlap as skipped on the exact row', async () => {
+  test('scheduled-task worker runs the exact row under its lock and returns the result', async () => {
     const processSpy = jest.spyOn(jobQueue, 'process');
     workers.registerWorkers();
     const handler = processSpy.mock.calls.find(([name]) => name === 'scheduled-task')[1];
-    const skipped = { skipped: true, reason: 'already_running' };
-    taskRunner.runTask.mockResolvedValueOnce(skipped);
-    taskRunner.markTaskRun.mockResolvedValueOnce(undefined);
+    mockLock.acquired = 1;
+    taskRunner.executeScheduledTask.mockResolvedValueOnce({ processed: 3 });
     db.query.mockResolvedValueOnce([[{ is_enabled: 1 }]]); // the task row is still enabled
 
-    const result = await handler({
-      data: {
-        taskId: 455,
-        taskName: 'poll_pppoe_events',
-        organizationId: null,
-      },
-    });
+    const result = await handler({ data: { taskId: 455, taskName: 'poll_pppoe_events', organizationId: null } });
 
-    expect(result).toEqual(skipped);
-    expect(taskRunner.markTaskRun).toHaveBeenCalledWith(
-      'poll_pppoe_events',
-      skipped,
-      { taskId: 455, organizationId: null },
+    expect(result).toEqual({ processed: 3 });
+    expect(taskRunner.executeScheduledTask).toHaveBeenCalledWith(
+      { id: 455, task_name: 'poll_pppoe_events', organization_id: null },
+      'worker',
     );
+    expect(mockLockConnection.query).toHaveBeenCalledWith('SELECT GET_LOCK(?, 0) AS acquired', [expect.stringContaining(':scheduled-task:455')]);
+  });
+
+  test('scheduled-task worker skips a job whose previous run still holds the lock (ASY-28)', async () => {
+    const processSpy = jest.spyOn(jobQueue, 'process');
+    workers.registerWorkers();
+    const handler = processSpy.mock.calls.find(([name]) => name === 'scheduled-task')[1];
+    mockLock.acquired = 0;
+    taskRunner.recordTaskRun.mockResolvedValueOnce(undefined);
+    db.query.mockResolvedValueOnce([[{ is_enabled: 1 }]]);
+
+    try {
+      const result = await handler({ data: { taskId: 455, taskName: 'poll_pppoe_events', organizationId: null } });
+
+      expect(result).toEqual({ skipped: true, reason: 'already_running' });
+      expect(taskRunner.executeScheduledTask).not.toHaveBeenCalled();
+      // Recorded in history and metrics, leaving the running row's status alone.
+      expect(taskRunner.recordTaskRun).toHaveBeenCalledWith(
+        { id: 455, task_name: 'poll_pppoe_events', organization_id: null },
+        expect.objectContaining({ status: 'skipped', via: 'worker', updateTask: false }),
+      );
+    } finally {
+      mockLock.acquired = 1;
+    }
+  });
+
+  test('scheduled-task worker lets a failure reach BullMQ after it is recorded', async () => {
+    const processSpy = jest.spyOn(jobQueue, 'process');
+    workers.registerWorkers();
+    const handler = processSpy.mock.calls.find(([name]) => name === 'scheduled-task')[1];
+    taskRunner.executeScheduledTask.mockRejectedValueOnce(new Error('gateway down'));
+    db.query.mockResolvedValueOnce([[{ is_enabled: 1 }]]);
+
+    await expect(handler({ data: { taskId: 9, taskName: 'process_recurring_charges', organizationId: 1 } }))
+      .rejects.toThrow('gateway down');
+    expect(mockLockConnection.release).toHaveBeenCalled();
   });
 });
 

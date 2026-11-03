@@ -37,6 +37,7 @@ import {
   cancelBtn,
 } from '@/components/ClientFormModal';
 import { parseApiError } from '@/api/errors';
+import { localToday } from '@/lib/dates';
 
 const API_BASE = '/api/v1';
 
@@ -119,7 +120,7 @@ interface InStockUnit {
 
 interface InventoryItemOptionSO { id: number; name: string; sku: string | null }
 
-const TODAY_SO = new Date().toISOString().split('T')[0];
+const TODAY_SO = localToday();
 
 const ORDER_TYPES = ['new_install', 'upgrade', 'downgrade', 'relocation', 'reconnect'];
 const WORK_TYPES_SO = ['installation', 'maintenance', 'repair', 'survey', 'other'];

@@ -57,8 +57,8 @@ describe('evaluateRules', () => {
     expect(results).toHaveLength(1);
     const [sql, params] = db.query.mock.calls.find(([q]) => /FROM contracts c/.test(q));
     expect(params.slice(0, 3)).toEqual([1, 1, 30]);
-    expect(sql).toContain('DATEDIFF(NOW(), i.due_date) >= ?');
-    expect(sql).not.toMatch(/DATEDIFF\(NOW\(\), i\.due_date\) < \?/);
+    expect(sql).toMatch(/DATEDIFF\(DATE\('\d{4}-\d{2}-\d{2}'\), i\.due_date\) >= \?/);
+    expect(sql).not.toMatch(/DATEDIFF\(DATE\('\d{4}-\d{2}-\d{2}'\), i\.due_date\) < \?/);
   });
 
   test('grace_period_days is extra waiting time added to days_past_due', async () => {

@@ -15,6 +15,7 @@ import { api } from '@/api/client';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
+import { localToday } from '@/lib/dates';
 import {
   styles,
   modalStyles,
@@ -63,7 +64,7 @@ interface ExpenseBody {
 const DEFAULT_PAGE_SIZE = 25;
 const STATUSES = ['pending', 'approved', 'rejected'];
 const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
-const TODAY = new Date().toISOString().split('T')[0];
+const TODAY = localToday();
 
 // ---------------------------------------------------------------------------
 // Fetch / mutate helpers

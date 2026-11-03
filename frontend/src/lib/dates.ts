@@ -56,3 +56,14 @@ export function calendarDay(value: string | number | Date | null | undefined): s
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+/**
+ * Today's calendar date in the browser's zone, YYYY-MM-DD (BIL-34). The
+ * `new Date().toISOString().slice(0, 10)` default it replaces is the UTC day,
+ * which in Mexico is tomorrow from 18:00, so an evening payment defaulted to
+ * the next day.
+ */
+export function localToday(now: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+}

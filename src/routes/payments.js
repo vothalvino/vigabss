@@ -3,6 +3,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { businessToday } = require('../utils/businessDate');
 const Payment = require('../models/Payment');
 const Organization = require('../models/Organization');
 const { crudController } = require('../controllers/crudController');
@@ -678,12 +679,12 @@ router.post('/:id/reassign', requirePermission('payments.update'), async (req, r
     const ledgerCurrency = payment.currency || await Organization.getCurrency(req.orgId);
     await conn.execute(
       `INSERT INTO client_balance_ledger
-         (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-       VALUES (?, ?, 'credit', ?, ?, 'payment', ?, ?)`,
+         (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+       VALUES (?, ?, 'credit', ?, ?, 'payment', ?, ?, ?)`,
       [
         new_client_id, req.orgId,
         payment.amount, ledgerCurrency,
-        paymentId, 'Payment ' + (payment.reference_number || paymentId),
+        paymentId, 'Payment ' + (payment.reference_number || paymentId), businessToday(),
       ],
     );
 

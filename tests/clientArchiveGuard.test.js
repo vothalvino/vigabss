@@ -97,7 +97,7 @@ describe('billing jobs skip archived clients', () => {
       .mockResolvedValueOnce([[{ id: 1, organization_id: 1, is_active: 1 }]])
       .mockResolvedValue([[]]);
     await lateFeeService.applyLateFees(1);
-    const sql = db.query.mock.calls.map(c => c[0]).find(s => /DATEDIFF\(NOW\(\), i\.due_date\)/.test(s));
+    const sql = db.query.mock.calls.map(c => c[0]).find(s => /DATEDIFF\(DATE\('\d{4}-\d{2}-\d{2}'\), i\.due_date\)/.test(s));
     expect(sql).toContain('cl.deleted_at IS NULL');
   });
 

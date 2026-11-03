@@ -5,6 +5,7 @@
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 
 const db = require('../src/config/database');
+const { csvRes, exportQueries } = require('./helpers/csvExport');
 const {
   toCsv,
   exportInvoices,
@@ -15,18 +16,13 @@ const {
 
 function mockReqRes(overrides = {}) {
   const req = { orgId: 1, body: {}, ...overrides };
-  const res = {
-    set: jest.fn().mockReturnThis(),
-    send: jest.fn(),
-    status: jest.fn().mockReturnThis(),
-    json: jest.fn(),
-  };
+  const res = csvRes();
   const next = jest.fn();
   return { req, res, next };
 }
 
 describe('exportController', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => jest.resetAllMocks());
 
   // ---------------------------------------------------------------------------
   // toCsv
@@ -75,21 +71,22 @@ describe('exportController', () => {
   // ---------------------------------------------------------------------------
   describe('exportInvoices', () => {
     test('calls db.query with orgId', async () => {
-      db.query.mockResolvedValueOnce([[{ id: 1 }]]);
+      db.query.mockImplementation(exportQueries([{ id: 1 }]));
       const { req, res, next } = mockReqRes({ orgId: 7 });
       await exportInvoices(req, res, next);
-      expect(db.query).toHaveBeenCalledWith(expect.any(String), [7]);
+      expect(db.query).toHaveBeenCalledWith(expect.stringMatching(/^SELECT i\.id/), [7]);
     });
 
     test('SQL contains organization_id filter', async () => {
-      db.query.mockResolvedValueOnce([[]]);
+      db.query.mockImplementation(exportQueries([]));
       const { req, res, next } = mockReqRes();
       await exportInvoices(req, res, next);
       expect(db.query.mock.calls[0][0]).toContain('organization_id');
+      expect(db.query.mock.calls[2][0]).toContain('organization_id');
     });
 
     test('sets CSV content-type and disposition headers', async () => {
-      db.query.mockResolvedValueOnce([[{ id: 1 }]]);
+      db.query.mockImplementation(exportQueries([{ id: 1 }]));
       const { req, res, next } = mockReqRes();
       await exportInvoices(req, res, next);
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'text/csv');
@@ -110,12 +107,12 @@ describe('exportController', () => {
   // ---------------------------------------------------------------------------
   describe('exportClients', () => {
     test('sets CSV headers and sends data', async () => {
-      db.query.mockResolvedValueOnce([[{ id: 1, name: 'Jane Doe' }]]);
+      db.query.mockImplementation(exportQueries([{ id: 1, name: 'Jane Doe' }]));
       const { req, res, next } = mockReqRes();
       await exportClients(req, res, next);
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'text/csv');
       expect(res.set).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="clients.csv"');
-      expect(res.send).toHaveBeenCalledWith(expect.stringContaining('name'));
+      expect(res.body()).toContain('Jane Doe');
     });
 
     test('calls next(err) on db error', async () => {
@@ -132,7 +129,7 @@ describe('exportController', () => {
   // ---------------------------------------------------------------------------
   describe('exportContracts', () => {
     test('sets CSV headers and sends data', async () => {
-      db.query.mockResolvedValueOnce([[{ id: 1, client_id: 2 }]]);
+      db.query.mockImplementation(exportQueries([{ id: 1, client_id: 2 }]));
       const { req, res, next } = mockReqRes();
       await exportContracts(req, res, next);
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'text/csv');
@@ -153,7 +150,7 @@ describe('exportController', () => {
   // ---------------------------------------------------------------------------
   describe('exportPayments', () => {
     test('sets CSV headers and sends data', async () => {
-      db.query.mockResolvedValueOnce([[{ id: 1, amount: 50 }]]);
+      db.query.mockImplementation(exportQueries([{ id: 1, amount: 50 }]));
       const { req, res, next } = mockReqRes();
       await exportPayments(req, res, next);
       expect(res.set).toHaveBeenCalledWith('Content-Type', 'text/csv');

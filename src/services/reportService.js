@@ -7,6 +7,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { businessToday, sqlBusinessToday } = require('../utils/businessDate');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -19,7 +20,7 @@ function defaultFrom() {
 }
 
 function defaultTo() {
-  return new Date().toISOString().slice(0, 10);
+  return businessToday();
 }
 
 // =============================================================================
@@ -39,12 +40,12 @@ async function agingReport(organizationId, { currency } = {}) {
       i.total,
       i.currency,
       i.due_date,
-      DATEDIFF(NOW(), i.due_date) AS days_overdue,
+      DATEDIFF(${sqlBusinessToday()}, i.due_date) AS days_overdue,
       CASE
-        WHEN DATEDIFF(NOW(), i.due_date) <= 0 THEN 'current'
-        WHEN DATEDIFF(NOW(), i.due_date) BETWEEN 1 AND 30 THEN '1-30'
-        WHEN DATEDIFF(NOW(), i.due_date) BETWEEN 31 AND 60 THEN '31-60'
-        WHEN DATEDIFF(NOW(), i.due_date) BETWEEN 61 AND 90 THEN '61-90'
+        WHEN DATEDIFF(${sqlBusinessToday()}, i.due_date) <= 0 THEN 'current'
+        WHEN DATEDIFF(${sqlBusinessToday()}, i.due_date) BETWEEN 1 AND 30 THEN '1-30'
+        WHEN DATEDIFF(${sqlBusinessToday()}, i.due_date) BETWEEN 31 AND 60 THEN '31-60'
+        WHEN DATEDIFF(${sqlBusinessToday()}, i.due_date) BETWEEN 61 AND 90 THEN '61-90'
         ELSE '90+'
       END AS aging_bucket
     FROM \`invoices\` i

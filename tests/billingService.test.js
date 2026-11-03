@@ -595,7 +595,7 @@ describe('billingService', () => {
       expect(invoiceInsert[0]).toContain('INSERT INTO invoices');
       // 500 subtotal @ 16% -> 80.00 tax, 580.00 total. tax_rate column stores
       // the fraction (0.16), matching what the frontend renders as rate*100.
-      expect(invoiceInsert[1]).toEqual([42, 100, 900, 'INV-000006', 500, 80, 580, 'MXN', 0.16, 1, expect.any(Date)]);
+      expect(invoiceInsert[1]).toEqual([42, 100, 900, 'INV-000006', 500, 80, 580, 'MXN', 0.16, 1, expect.any(Date), expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)]);
 
       const itemInsert = mockConnection.execute.mock.calls.find(([sql]) => /INSERT INTO invoice_items/.test(sql));
       expect(itemInsert[0]).toContain('INSERT INTO invoice_items');
@@ -625,7 +625,7 @@ describe('billingService', () => {
 
       // Non-MX org (getLocale spied 'global') with no default rate → 0% tax, unchanged.
       const invoiceInsert = mockConnection.execute.mock.calls.find(([sql]) => /INSERT INTO invoices/.test(sql));
-      expect(invoiceInsert[1]).toEqual([7, 200, null, 'INV-000001', 500, 0, 500, 'USD', 0, null, expect.any(Date)]);
+      expect(invoiceInsert[1]).toEqual([7, 200, null, 'INV-000001', 500, 0, 500, 'USD', 0, null, expect.any(Date), expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)]);
     });
 
     test('uses the currency override instead of Organization.getCurrency when provided', async () => {
@@ -650,7 +650,7 @@ describe('billingService', () => {
       // client-exemption + tax-rate reads go through conn.execute, not db.query.
       expect(db.query).toHaveBeenCalledTimes(1);
       const invoiceInsert = mockConnection.execute.mock.calls.find(([sql]) => /INSERT INTO invoices/.test(sql));
-      expect(invoiceInsert[1]).toEqual([7, 200, null, 'INV-000001', 100, 16, 116, 'GTQ', 0.16, 1, expect.any(Date)]);
+      expect(invoiceInsert[1]).toEqual([7, 200, null, 'INV-000001', 100, 16, 116, 'GTQ', 0.16, 1, expect.any(Date), expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)]);
     });
 
     test('external-conn mode reuses the caller-owned connection: no begin/commit/release, reads back via the same conn', async () => {

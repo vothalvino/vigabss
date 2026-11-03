@@ -507,6 +507,7 @@
     "noFiles": "No local backup files on disk."
   },
   "scheduledTasksPage": {
+    "timezoneNote": "Times are in {{zone}}",
     "runNow": "▶ Run now",
     "running": "Running…",
     "runTitle": "Run scheduled task",

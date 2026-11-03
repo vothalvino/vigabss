@@ -23,6 +23,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { businessToday } = require('../utils/businessDate');
 const ClientGroup = require('../models/ClientGroup');
 const Organization = require('../models/Organization');
 const { computeClientBalance } = require('./clientBalanceService');
@@ -51,9 +52,9 @@ async function writeGroupLedgerCredits({ orgId, paymentId, currency, settled, pr
   for (const [clientId, amount] of byClient) {
     if (amount <= 0.005) continue;
     await db.query(
-      `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-       VALUES (?, ?, 'credit', ?, ?, 'payment', ?, ?)`,
-      [clientId, orgId, amount, currency, paymentId, `Group payment ${paymentId}`],
+      `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+       VALUES (?, ?, 'credit', ?, ?, 'payment', ?, ?, ?)`,
+      [clientId, orgId, amount, currency, paymentId, `Group payment ${paymentId}`, businessToday()],
     );
   }
 }
@@ -267,10 +268,11 @@ async function payGroup(orgId, groupId, opts = {}) {
     // Create the payment on the PRIMARY, inside the transaction.
     const [payResult] = await conn.execute(
       `INSERT INTO payments (organization_id, client_id, amount, currency, payment_method, payment_date, reference_number, status, notes, recorded_by)
-       VALUES (?, ?, ?, ?, ?, CURDATE(), ?, 'completed', ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?)`,
       [
         orgId, primaryId, amount, currency,
         opts.payment_method || 'other',
+        businessToday(),
         opts.reference_number || null,
         `Group payment for group #${groupId} (settles member balances)`,
         opts.actorUserId ?? null,

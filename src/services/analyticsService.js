@@ -12,6 +12,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { sqlBusinessToday } = require('../utils/businessDate');
 const logger = require('../utils/logger').child({ service: 'analyticsService' });
 
 // Z-score threshold for anomaly detection (|z| > 2.5 = anomaly)
@@ -241,7 +242,7 @@ async function computeChurnScores(organizationId) {
          WHERE co.client_id = cl.id AND co.deleted_at IS NULL) AS tenure_months,
        (SELECT COUNT(*) FROM invoices i
          WHERE i.client_id = cl.id AND i.organization_id = ? AND i.deleted_at IS NULL
-           AND i.status = 'issued' AND i.due_date < NOW()) AS overdue_invoices,
+           AND i.status = 'issued' AND i.due_date < ${sqlBusinessToday()}) AS overdue_invoices,
        COALESCE(
          (SELECT COUNT(*) FROM suspension_logs sl WHERE sl.contract_id IN
            (SELECT id FROM contracts WHERE client_id = cl.id)

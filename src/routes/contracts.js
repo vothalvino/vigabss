@@ -3,6 +3,7 @@
 // =============================================================================
 
 const net = require('net');
+const { sqlBusinessToday } = require('../utils/businessDate');
 const { Router } = require('express');
 const Contract = require('../models/Contract');
 const Client = require('../models/Client');
@@ -1208,7 +1209,7 @@ router.post('/:id/addons/:addonId/cancel', requirePermission('contracts.update')
     if (addon.status === 'active') {
       await db.query(
         `UPDATE contract_addons
-            SET status = 'cancelled', end_date = LEAST(COALESCE(end_date, CURDATE()), CURDATE())
+            SET status = 'cancelled', end_date = LEAST(COALESCE(end_date, ${sqlBusinessToday()}), ${sqlBusinessToday()})
           WHERE id = ? AND status = 'active'`,
         [addon.id],
       );

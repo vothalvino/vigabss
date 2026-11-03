@@ -386,7 +386,7 @@ describe('POST /api/v1/invoices/:id/items — inventory-linked sale drawdown', (
     expect(totalsCall[1]).toEqual([50, 8, 58, 42]);
     // The delta is debited to the balance ledger.
     const ledgerCall = conn.execute.mock.calls.find(([sql]) => sql.includes('client_balance_ledger'));
-    expect(ledgerCall[1]).toEqual([77, 10, 58, 'MXN', 42, 'Invoice INV-000005 — line item added']);
+    expect(ledgerCall[1]).toEqual([77, 10, 58, 'MXN', 42, 'Invoice INV-000005 — line item added', expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)]);
   });
 
   it('returns 422 when quantity is fractional and inventory_item_id is set', async () => {

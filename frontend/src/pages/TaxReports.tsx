@@ -9,6 +9,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authedFetch } from '@/api/client';
+import { localToday } from '@/lib/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -82,7 +83,7 @@ const exportBtn: React.CSSProperties = {
 export function TaxReports() {
   const { t } = useTranslation();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const firstOfYear = `${new Date().getFullYear()}-01-01`;
 
   const [from, setFrom] = useState(firstOfYear);

@@ -19,6 +19,10 @@ jest.mock('node-cron', () => ({
 jest.mock('../src/config/database', () => ({
   query: jest.fn(), getConnection: jest.fn(), close: jest.fn(), pool: { end: jest.fn() },
   withPrimaryContext: (fn) => fn(), withTenantContext: (_id, fn) => fn(),
+  getLockConnection: async () => ({
+    query: async sql => (/GET_LOCK/.test(sql) ? [[{ acquired: 1 }]] : [[{ released: 1 }]]),
+    release: () => {},
+  }),
 }));
 
 const cron = require('node-cron');
@@ -103,8 +107,7 @@ describe('the BullMQ scheduled-task worker', () => {
     const processSpy = jest.spyOn(jobQueue, 'process');
     require('../src/workers').registerWorkers();
     const handler = processSpy.mock.calls.find(([name]) => name === 'scheduled-task')[1];
-    const runSpy = jest.spyOn(taskRunner, 'runTask').mockResolvedValue({ ok: true });
-    jest.spyOn(taskRunner, 'markTaskRun').mockResolvedValue(undefined);
+    const runSpy = jest.spyOn(taskRunner, 'executeScheduledTask').mockResolvedValue({ ok: true });
 
     rows[0].is_enabled = 0;
     await expect(handler({ data: { taskId: 1, taskName: 'billing_cycle' } })).resolves.toMatchObject({ skipped: true });
@@ -112,6 +115,6 @@ describe('the BullMQ scheduled-task worker', () => {
     expect(runSpy).not.toHaveBeenCalled();
 
     await handler({ data: { taskId: 7, taskName: 'radius_sync', organizationId: 3 } });
-    expect(runSpy).toHaveBeenCalledWith('radius_sync', 3);
+    expect(runSpy).toHaveBeenCalledWith({ id: 7, task_name: 'radius_sync', organization_id: 3 }, 'worker');
   });
 });

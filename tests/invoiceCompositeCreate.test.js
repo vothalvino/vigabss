@@ -266,7 +266,7 @@ describe('GET /api/v1/invoices?status=overdue (derived, not a stored status)', (
     // derived WHERE, not a literal status match
     const selectCall = db.query.mock.calls.find(c => /SELECT \* FROM invoices/.test(c[0]));
     expect(selectCall[0]).toMatch(/status IN \('issued', 'sent', 'overdue'\)/);
-    expect(selectCall[0]).toMatch(/due_date < NOW\(\)/);
+    expect(selectCall[0]).toMatch(/due_date < DATE\('\d{4}-\d{2}-\d{2}'\)/);
     // the past-due 'issued' row is presented as overdue
     expect(res.body.data[0].status).toBe('overdue');
     expect(res.body.meta.total).toBe(1);

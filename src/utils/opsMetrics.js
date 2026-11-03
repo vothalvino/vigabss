@@ -58,8 +58,19 @@ registry.collected({
   },
 });
 
-function noteTaskRun(task, status) {
+// ASY-28: how long each run took, so a task creeping toward its interval
+// shows before it starts overlapping.
+const scheduledTaskDuration = registry.histogram({
+  name: 'scheduled_task_duration_seconds',
+  help: 'Scheduled task run duration by task',
+  labelNames: ['task'],
+  buckets: [0.1, 0.5, 1, 5, 15, 60, 300, 900, 3600],
+  maxSeries: 200,
+});
+
+function noteTaskRun(task, status, durationMs = null) {
   scheduledTaskRuns.inc({ task, status });
+  if (durationMs !== null) scheduledTaskDuration.observe({ task }, durationMs / 1000);
 }
 
 function noteAuditWriteFailure() {

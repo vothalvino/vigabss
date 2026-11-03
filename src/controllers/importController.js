@@ -8,6 +8,7 @@
 // =============================================================================
 
 const { sealSecret } = require('../utils/sealSecrets');
+const { businessToday } = require('../utils/businessDate');
 const db = require('../config/database');
 const billingService = require('../services/billingService');
 const Organization = require('../models/Organization');
@@ -271,7 +272,7 @@ async function insertContractRow(row, orgId) {
       organization_id: orgId,
       client_id: row.client_id,
       plan_id: row.plan_id,
-      start_date: row.start_date || new Date().toISOString().slice(0, 10),
+      start_date: row.start_date || businessToday(),
       connection_type: connectionType,
       status: 'pending',
     };

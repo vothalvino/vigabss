@@ -12,6 +12,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { sqlBusinessToday } = require('../utils/businessDate');
 const Organization = require('../models/Organization');
 const { inPlaceholders } = require('../utils/sqlBuild');
 
@@ -98,8 +99,8 @@ async function getResellerDashboard(resellerId, orgId) {
      WHERE client_id IN (${idsIn})
        AND deleted_at IS NULL
        AND status = 'paid'
-       AND YEAR(issue_date) = YEAR(CURDATE())
-       AND MONTH(issue_date) = MONTH(CURDATE())`,
+       AND YEAR(issue_date) = YEAR(${sqlBusinessToday()})
+       AND MONTH(issue_date) = MONTH(${sqlBusinessToday()})`,
     [...clientIds],
   );
   result.total_revenue = parseFloat(revRow.rev) || 0;
