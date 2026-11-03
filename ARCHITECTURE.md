@@ -383,7 +383,12 @@ Most models extend `src/models/BaseModel.js`:
   (staff identities in `User`, for instance). A model's own helpers on an
   org-scoped model take `orgId` too; `tests/modelHelperOrgScope.test.js`
   lists the reviewed exceptions.
-- `softDelete` adds `deleted_at` behavior.
+- `softDelete` adds `deleted_at` behavior. A row the runtime selects by a flag
+  declares `deactivateOnDelete` (`{ is_active: 0 }`, `{ status: 'inactive' }`)
+  so a delete also switches it off (DAL-14). Hand-written SQL on a softDelete
+  table filters `<alias>.deleted_at`, or marks the query
+  `/* includes deleted rows: <reason> */`; `tests/softDeleteRawSql.test.js`
+  ratchets the existing unfiltered reads per file.
 - generic list filters and sort fields are allowlisted.
 - generic updates reject `organization_id`; tenant re-homing requires a
   separate, explicitly reviewed operation.

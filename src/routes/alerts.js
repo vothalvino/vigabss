@@ -110,7 +110,8 @@ router.put('/rules/:id', requirePermission('devices.update'), validate(alertSche
 router.delete('/rules/:id', requirePermission('devices.delete'), async (req, res, next) => {
   try {
     const [result] = await db.query(
-      'UPDATE alert_rules SET deleted_at = NOW() WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      // Disabled too: the evaluators read is_enabled (DAL-14).
+      'UPDATE alert_rules SET deleted_at = NOW(), is_enabled = 0 WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
     if (result.affectedRows === 0) {
@@ -387,7 +388,8 @@ router.put('/notification-channels/:id', requirePermission('alert_channels.updat
 router.delete('/notification-channels/:id', requirePermission('alert_channels.delete'), async (req, res, next) => {
   try {
     const [result] = await db.query(
-      'UPDATE alert_notification_channels SET deleted_at = NOW() WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      // Disabled too: the evaluators read is_enabled (DAL-14).
+      'UPDATE alert_notification_channels SET deleted_at = NOW(), is_enabled = 0 WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: { message: 'Notification channel not found' } });
@@ -448,7 +450,8 @@ router.put('/suppression-rules/:id', requirePermission('alert_suppression.update
 router.delete('/suppression-rules/:id', requirePermission('alert_suppression.delete'), async (req, res, next) => {
   try {
     const [result] = await db.query(
-      'UPDATE alert_suppression_rules SET deleted_at = NOW() WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      // Disabled too: the evaluators read is_enabled (DAL-14).
+      'UPDATE alert_suppression_rules SET deleted_at = NOW(), is_enabled = 0 WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: { message: 'Suppression rule not found' } });

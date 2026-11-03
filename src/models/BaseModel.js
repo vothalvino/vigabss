@@ -57,6 +57,18 @@ class BaseModel {
   }
 
   /**
+   * Columns set in the same UPDATE as deleted_at, e.g. { is_active: 0 } (DAL-14).
+   * A soft-deleted row that a status or is_active flag drives (a webhook, a
+   * suspension rule, a gateway) otherwise kept acting: the code that runs it
+   * reads the flag, not deleted_at. Restore leaves it off; re-enable is an
+   * explicit edit.
+   * @returns {Record<string, string|number>|null}
+   */
+  static get deactivateOnDelete() {
+    return null;
+  }
+
+  /**
    * Find a record by primary key.
    *
    * `opts` is strictly additive — omit it and this behaves exactly as before.
@@ -309,8 +321,10 @@ class BaseModel {
    */
   static async delete(id, orgId, opts = {}) {
     if (this.softDelete) {
-      let sql = `UPDATE \`${this.tableName}\` SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL`;
-      const params = [id];
+      const deactivate = Object.entries(this.deactivateOnDelete || {});
+      const extraSet = deactivate.map(([col]) => `, \`${col}\` = ?`).join('');
+      let sql = `UPDATE \`${this.tableName}\` SET deleted_at = NOW()${extraSet} WHERE id = ? AND deleted_at IS NULL`;
+      const params = [...deactivate.map(([, value]) => value), id];
 
       if (this.scopedOrg(orgId, 'delete') !== null) {
         sql += ' AND organization_id = ?';
