@@ -570,6 +570,23 @@ documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;
 do not replace those with process-local state.
 
+Outgoing messages go through `src/services/messageOutbox.js` (ASY-33):
+`enqueue()` writes a `message_outbox` row (optionally inside the caller's
+transaction), and the `message_outbox` task, or with Redis a `message-outbox`
+job, delivers it. A row is claimed before any I/O and set to `sending` just
+before the provider call; a stale claim is requeued, a stale `sending` becomes
+`outcome_unknown`. Failures that provably sent nothing retry with backoff
+(1, 5, 15, 60, 240 minutes) up to `max_attempts`; email also retries after a
+timeout, SMS and WhatsApp do not. Consent and the organization state are
+checked at enqueue and again by the transport before the call; a block is
+`skipped`. Each organization has a per-minute budget per channel
+(`OUTBOX_RATE_<CHANNEL>_PER_MINUTE`). Staff see and retry or cancel messages at
+`/message-outbox`; retrying `outcome_unknown` needs
+`confirm_possible_duplicate`. A producer with its own ledger registers
+`onOutcome(source_type, fn)`. Send through the outbox, not the transports;
+`emailTransport.sendEmail` and `smsTransport.sendSms` are the outbox's
+adapters.
+
 Business events (`invoice.created`, `payment.received`, `contract.suspended` /
 `.restored`, `suspension.warning`, `ticket.created`, `maintenance.scheduled`)
 are emitted through `src/services/businessEvents.js` once the write commits;

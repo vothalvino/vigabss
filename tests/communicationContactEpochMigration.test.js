@@ -101,7 +101,12 @@ describe('migration 460 client communication-contact epoch', () => {
   });
 
   test('persists a server-owned class without defaulting legacy queue rows', () => {
-    for (const source of [migration, schema]) {
+    // In schema.sql, only the two log tables this migration altered.
+    const logTables = ['email_logs', 'sms_logs'].map((table) => {
+      const start = schema.indexOf(`CREATE TABLE IF NOT EXISTS ${table} (`);
+      return schema.slice(start, schema.indexOf(') ENGINE', start));
+    }).join('\n');
+    for (const source of [migration, logTables]) {
       const normalized = source.replace(/''/g, "'");
       const definitions = normalized.match(
         /message_class\s+ENUM\('marketing','transactional','security','support_reply'\)\s+NULL/g,

@@ -220,6 +220,8 @@ async function dispatchTask(taskName, organizationId) {
         }
       }
       return { message: 'SNMP trap receiver started' };
+    case 'message_outbox':
+      return require('./messageOutbox').processQueue(organizationId);
     case 'sms_send':
       return smsTransport.processQueue(organizationId);
     case 'webhook_delivery':

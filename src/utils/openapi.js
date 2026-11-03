@@ -1477,6 +1477,17 @@ function generateSpec() {
       '/cash-reconciliation/sessions/{id}/approve': { post: { tags: ['Cash Reconciliation'], summary: 'Approve a closed reconciliation session', operationId: 'approveCashReconciliationSession', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CashReconciliationSession') } },
 
       // ---- Communication — §1.4 ----
+      '/message-outbox': { get: { tags: ['Communication'], summary: 'Outgoing messages (email, SMS, WhatsApp, push) with their delivery state; bodies are on GET /message-outbox/{id}', operationId: 'listMessageOutbox', security: [{ bearerAuth: [] }], parameters: [
+        { name: 'status', in: 'query', schema: { type: 'string', enum: ['queued', 'claimed', 'sending', 'sent', 'skipped', 'failed', 'outcome_unknown', 'cancelled'] } },
+        { name: 'channel', in: 'query', schema: { type: 'string', enum: ['email', 'sms', 'whatsapp', 'push'] } },
+        { name: 'client_id', in: 'query', schema: { type: 'integer', minimum: 1 } },
+        { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+        { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 200, default: 50 } },
+      ], responses: r200('OutboxMessage[]') } },
+      '/message-outbox/summary': { get: { tags: ['Communication'], summary: 'Counts by status and channel: everything still open, plus the last day of finished messages', operationId: 'getMessageOutboxSummary', security: [{ bearerAuth: [] }], responses: r200('{ status, channel, count }[]') } },
+      '/message-outbox/{id}': { get: { tags: ['Communication'], summary: 'One outgoing message with its body; attachments as names and sizes only', operationId: 'getMessageOutbox', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('OutboxMessage') } },
+      '/message-outbox/{id}/retry': { post: { tags: ['Communication'], summary: 'Queue a failed, cancelled or outcome-unknown message again (outcome_unknown needs confirm_possible_duplicate)', operationId: 'retryMessageOutbox', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ type: 'object', properties: { confirm_possible_duplicate: { type: 'boolean' } } }, 'Retry options', false), responses: { ...r200('OutboxMessage'), 409: errorResponse('OUTBOX_NOT_RETRYABLE, OUTBOX_POSSIBLE_DUPLICATE or OUTBOX_CHANGED') } } },
+      '/message-outbox/{id}/cancel': { post: { tags: ['Communication'], summary: 'Cancel a queued, failed or outcome-unknown message', operationId: 'cancelMessageOutbox', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('OutboxMessage'), 409: errorResponse('OUTBOX_NOT_CANCELLABLE or OUTBOX_CHANGED') } } },
       ...crudPaths('communication-campaigns', 'Communication', 'CommunicationCampaign'),
       '/communication-campaigns/{id}/restore': { post: { tags: ['Communication'], summary: 'Restore a soft-deleted campaign', operationId: 'restoreCommunicationCampaign', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CommunicationCampaign') } },
       '/communication-campaigns/{id}/dispatch': { post: { tags: ['Communication'], summary: 'Dispatch a campaign — build recipient list and queue messages', operationId: 'dispatchCommunicationCampaign', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DispatchResult') } },

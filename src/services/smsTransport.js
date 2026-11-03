@@ -85,12 +85,16 @@ function sendViaTwilio({ to, body, channel = 'sms' }) {
           if (res.statusCode >= 400) {
             const err = new Error(parsed.message || `Twilio HTTP ${res.statusCode}`);
             err.code = String(parsed.code || res.statusCode);
+            err.httpStatus = res.statusCode;
             reject(err);
           } else {
             resolve({ sid: parsed.sid, status: parsed.status });
           }
         } catch (_parseErr) {
-          reject(new Error(`Twilio response parse error: ${data.slice(0, 200)}`));
+          const err = new Error(`Twilio response parse error: ${data.slice(0, 200)}`);
+          // A non-JSON error page still proves the provider refused the call.
+          if (res.statusCode >= 400) err.httpStatus = res.statusCode;
+          reject(err);
         }
       });
     });
@@ -145,6 +149,7 @@ function sendViaGeneric({ to, body, channel = 'sms' }) {
           if (res.statusCode >= 400) {
             const err = new Error(result.message || result.error || `Provider HTTP ${res.statusCode}`);
             err.code  = String(result.code || res.statusCode);
+            err.httpStatus = res.statusCode;
             reject(err);
           } else {
             resolve({ sid: result.id || result.messageId || null, status: result.status || 'sent' });
@@ -152,7 +157,7 @@ function sendViaGeneric({ to, body, channel = 'sms' }) {
         } catch (_parseErr) {
           // Non-JSON 2xx response — treat as success
           if (res.statusCode < 400) resolve({ sid: null, status: 'sent' });
-          else reject(new Error(`Provider HTTP ${res.statusCode}: ${data.slice(0, 200)}`));
+          else reject(Object.assign(new Error(`Provider HTTP ${res.statusCode}: ${data.slice(0, 200)}`), { httpStatus: res.statusCode }));
         }
       });
     });
@@ -171,7 +176,18 @@ function dispatchViaProvider({ to, body, channel }) {
   const provider = detectProvider();
   if (provider === 'twilio')  return sendViaTwilio({ to, body, channel });
   if (provider === 'generic') return sendViaGeneric({ to, body, channel });
-  throw new Error('No SMS provider configured. Set TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN or SMS_PROVIDER_URL.');
+  throw Object.assign(
+    new Error('No SMS provider configured. Set TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN or SMS_PROVIDER_URL.'),
+    { code: 'SMS_PROVIDER_NOT_CONFIGURED' },
+  );
+}
+
+// Failures that prove the provider never accepted the message: it answered
+// with an error status, the connection was never made, or there is no
+// provider. Anything else (a timeout, a reset mid-request) may have sent it.
+const UNSENT_CONNECTION_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'SMS_PROVIDER_NOT_CONFIGURED']);
+function provablyUnsent(err) {
+  return Boolean(err?.httpStatus) || UNSENT_CONNECTION_CODES.has(err?.code);
 }
 
 // Provider vocabularies are broader than sms_logs.status (Twilio may return
@@ -217,6 +233,8 @@ async function sendSmsCurrent({
   let errorMessage      = null;
   let sentAt            = null;
   let clientContactEpoch = 0;
+  let unsent            = false;
+  let permanent         = false;
 
   try {
     if (!organizationState.active) {
@@ -281,6 +299,10 @@ async function sendSmsCurrent({
     status       = 'failed';
     errorCode    = err.code   || null;
     errorMessage = err.message || String(err);
+    unsent       = Boolean(err.preferenceBlocked) || provablyUnsent(err);
+    // A 4xx (other than rate limiting) is the provider refusing this message
+    // for good, e.g. an invalid number; retrying cannot help.
+    permanent    = err.httpStatus >= 400 && err.httpStatus < 500 && err.httpStatus !== 429;
     if (!err.preferenceBlocked) logger.warn({ err, to, channel }, 'SMS send failed');
   }
 
@@ -308,6 +330,8 @@ async function sendSmsCurrent({
     error: errorMessage,
     ...(errorCode && { code: errorCode }),
     ...(preferenceSkipped && { skipped: true }),
+    ...(unsent && { unsent: true }),
+    ...(permanent && { permanent: true }),
   };
 }
 

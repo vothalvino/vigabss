@@ -79,7 +79,7 @@ function withAddDeadline(promise, name) {
 // ---------------------------------------------------------------------------
 // Only queues something enqueues (ASY-34): cfdi-stamp, config-backup,
 // ai-backfill-embeddings and ai-cost-rollup had handlers but no producer.
-const QUEUE_NAMES = ['scheduled-task', 'webhook-delivery', 'trap-forwarding-delivery', 'sms-send', 'ai-triage'];
+const QUEUE_NAMES = ['scheduled-task', 'webhook-delivery', 'trap-forwarding-delivery', 'sms-send', 'message-outbox', 'ai-triage'];
 
 // ---------------------------------------------------------------------------
 // In-process queue (fallback when BullMQ is not available)

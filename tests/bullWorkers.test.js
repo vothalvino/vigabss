@@ -154,7 +154,7 @@ describe('jobQueueService constants', () => {
 // Worker Registry
 // ============================================================================
 describe('workers/index.js — registerWorkers()', () => {
-  test('registers handlers for all 5 named queues', () => {
+  test('registers handlers for all 6 named queues', () => {
     const processSpy = jest.spyOn(jobQueue, 'process');
     workers.registerWorkers();
     const names = processSpy.mock.calls.map(([name]) => name);
@@ -162,15 +162,16 @@ describe('workers/index.js — registerWorkers()', () => {
     expect(names).toContain('webhook-delivery');
     expect(names).toContain('trap-forwarding-delivery');
     expect(names).toContain('sms-send');
+    expect(names).toContain('message-outbox');
     expect(names).toContain('ai-triage');
-    expect(names).toHaveLength(5);
+    expect(names).toHaveLength(6);
   });
 
   test('registerWorkers() is idempotent — second call is a no-op', () => {
     const processSpy = jest.spyOn(jobQueue, 'process');
     workers.registerWorkers();
     workers.registerWorkers();
-    expect(processSpy).toHaveBeenCalledTimes(5);
+    expect(processSpy).toHaveBeenCalledTimes(6);
   });
 
   test('trap-forwarding worker processes the already-durable delivery id', async () => {
