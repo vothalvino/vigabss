@@ -10,6 +10,12 @@
 const mockProviderFindById  = jest.fn();
 const mockProviderFindAll   = jest.fn();
 
+// Provider behavior only; the budget is covered by tests/aiBudget.test.js.
+jest.mock('../src/services/aiBudgetService', () => ({
+  assertWithinBudget: jest.fn().mockResolvedValue(undefined),
+  recordUsage: jest.fn().mockResolvedValue(undefined),
+  overBudget: jest.fn().mockResolvedValue(false),
+}));
 jest.mock('../src/models/AiProvider', () => ({
   findById: mockProviderFindById,
   findAll:  mockProviderFindAll,

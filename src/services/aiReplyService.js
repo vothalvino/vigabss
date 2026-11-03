@@ -37,6 +37,7 @@ const topologyContextService = require('./topologyContextService');
 const serviceHealthService   = require('./serviceHealthService');
 const phraseLibraryService   = require('./phraseLibraryService');
 const llmProviderService     = require('./llmProviderService');
+const aiBudget = require('./aiBudgetService');
 const kbService              = require('./kbService');
 
 const logger = require('../utils/logger').child({ service: 'aiReplyService' });
@@ -452,6 +453,9 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
     inboundText = await _latestInbound(ticketId);
   }
   if (!String(inboundText || '').trim()) return { skipped: true, reason: 'no_inbound_text' };
+  // Over the monthly AI budget: hand the ticket to staff without a provider
+  // call (classification would spend too) (ASY-34).
+  if (await aiBudget.overBudget(orgId)) return { skipped: true, reason: 'budget_exceeded' };
 
   // ── Step 2: Redact, then classify ───────────────────────────────────────────
   // Classification is an LLM call too: it used to receive the raw text before

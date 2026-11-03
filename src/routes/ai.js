@@ -37,6 +37,7 @@ const {
 } = require('../middleware/schemas/ai');
 
 const AiPolicy         = require('../models/AiPolicy');
+const aiBudget = require('../services/aiBudgetService');
 const AiProvider       = require('../models/AiProvider');
 const AiReplyLog       = require('../models/AiReplyLog');
 const phraseLibraryService = require('../services/phraseLibraryService');
@@ -66,7 +67,8 @@ router.use(orgScope);
 router.get('/policy', requirePermission('ai.policy.read'), async (req, res, next) => {
   try {
     const policy = await AiPolicy.findByOrgId(req.orgId);
-    res.json({ data: policy });
+    // Month-to-date spend against monthly_budget_usd (ASY-34).
+    res.json({ data: { ...policy, budget: await aiBudget.status(req.orgId) } });
   } catch (err) { next(err); }
 });
 

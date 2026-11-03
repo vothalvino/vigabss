@@ -9251,6 +9251,8 @@ CREATE TABLE IF NOT EXISTS ai_policies (
                                               COMMENT 'Strip IP/MAC/phone/email/address before sending to LLM',
     active_provider_id      BIGINT UNSIGNED  NULL
                                               COMMENT 'Currently selected ai_providers.id',
+    monthly_budget_usd      DECIMAL(10,2)    NULL
+                                              COMMENT 'Month-to-date AI spend cap in USD; NULL = no limit (migration 508)',
     created_at              TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -9265,6 +9267,27 @@ CREATE TABLE IF NOT EXISTS ai_policies (
         FOREIGN KEY (active_provider_id) REFERENCES ai_providers (id)
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Table: ai_usage_events (migration 508 — ASY-34)
+-- Cost of each AI provider call, for the monthly budget.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ai_usage_events (
+    id                  BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    organization_id     BIGINT UNSIGNED  NOT NULL,
+    ai_provider_id      BIGINT UNSIGNED  NULL,
+    operation           ENUM('chat','embed') NOT NULL,
+    prompt_tokens       INT UNSIGNED     NULL,
+    completion_tokens   INT UNSIGNED     NULL,
+    cost_usd            DECIMAL(12,6)    NULL COMMENT 'NULL when the provider price is unknown',
+    created_at          TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_ai_usage_events_org_created (organization_id, created_at),
+    CONSTRAINT fk_ai_usage_events_org
+        FOREIGN KEY (organization_id) REFERENCES organizations (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Cost of each AI provider call, for the monthly budget (ASY-34)';
 
 -- ---------------------------------------------------------------------------
 -- Table: ai_phrase_library — curated on-brand reply phrases (migration 169)

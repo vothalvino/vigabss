@@ -21,6 +21,7 @@ class AiPolicy extends BaseModel {
       'tone',
       'redact_pii_before_llm',
       'active_provider_id',
+      'monthly_budget_usd',
     ];
   }
 
@@ -61,6 +62,7 @@ class AiPolicy extends BaseModel {
     const allowed = [
       'enabled', 'enabled_channels', 'mode', 'auto_send_confidence',
       'default_locale', 'tone', 'redact_pii_before_llm', 'active_provider_id',
+      'monthly_budget_usd',
     ];
     const updates = {};
     for (const key of allowed) {

@@ -125,7 +125,7 @@ const DEFAULT_MODELS_PAYLOAD = {
 };
 let modelsPayload: unknown = DEFAULT_MODELS_PAYLOAD;
 
-function setup() {
+function setup(policy: Record<string, unknown> = defaultPolicy) {
   mockFetch.mockImplementation((url: string, init?: RequestInit) => {
     const method = (init?.method ?? 'GET').toUpperCase();
     const path = typeof url === 'string' ? url.replace(/\?.*/, '') : '';
@@ -136,7 +136,7 @@ function setup() {
     if (path.endsWith('/ai/providers/catalog') && method === 'GET')
       return Promise.resolve(makeJsonResponse({ data: providerCatalog }));
     if (path.endsWith('/ai/policy') && method === 'GET')
-      return Promise.resolve(makeJsonResponse({ data: defaultPolicy }));
+      return Promise.resolve(makeJsonResponse({ data: policy }));
     if (path.endsWith('/ai/policy') && method === 'PUT')
       return Promise.resolve(makeJsonResponse({ data: { ...defaultPolicy } }));
     if (path.match(/\/ai\/providers\/\d+\/verify/) && method === 'POST')
@@ -232,6 +232,29 @@ describe('AIAssistantSettings page', () => {
         expect(calls.length).toBeGreaterThan(0);
         const body = JSON.parse(calls[0][1].body as string);
         expect(body.enabled).toBe(false);
+      });
+    });
+
+    it('shows the month-to-date AI spend and saves a budget (ASY-34)', async () => {
+      setup({
+        ...defaultPolicy,
+        monthly_budget_usd: '25.00',
+        budget: { budget_usd: 25, spent_usd: 3.5, remaining_usd: 21.5 },
+      });
+
+      expect(await screen.findByText(/Spent this month: \$3\.50 of \$25\.00/)).toBeInTheDocument();
+      const input = screen.getByRole('spinbutton', { name: /Monthly AI budget/i });
+      await waitFor(() => expect(input).toHaveValue(25));
+      fireEvent.change(input, { target: { value: '' } });
+      fireEvent.click(screen.getByRole('button', { name: /Save Settings/i }));
+
+      await waitFor(() => {
+        const calls = (mockFetch.mock.calls as Array<[string, RequestInit]>).filter(
+          ([url, init]) => url.endsWith('/ai/policy') && (init?.method ?? '').toUpperCase() === 'PUT',
+        );
+        expect(calls.length).toBeGreaterThan(0);
+        // Blank removes the cap.
+        expect(JSON.parse(calls[0][1].body as string).monthly_budget_usd).toBeNull();
       });
     });
 

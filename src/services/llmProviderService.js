@@ -38,6 +38,7 @@
 const AiProvider  = require('../models/AiProvider');
 const { decrypt } = require('../utils/encryption');
 const { AppError } = require('../utils/errors');
+const aiBudget = require('./aiBudgetService');
 const openRouterCatalog = require('./openRouterCatalog');
 const logger = require('../utils/logger').child({ service: 'llmProviderService' });
 const { safeJsonPost } = require('../utils/safeJsonPost');
@@ -624,12 +625,24 @@ async function chat({ providerId, messages, jsonSchema = null, signal = null, or
     throw new AppError(`Provider ${providerId} not found`, 404, 'LLM_PROVIDER_NOT_FOUND');
   }
 
+  // The monthly budget of the organization paying for the call (ASY-34).
+  const billedOrg = orgId ?? primary.organization_id ?? null;
+  if (billedOrg) await aiBudget.assertWithinBudget(billedOrg);
+  const billed = async (provider, result) => {
+    if (billedOrg) {
+      await aiBudget.recordUsage(billedOrg, {
+        providerId: provider.id, operation: 'chat', usage: result.usage, costUsd: result.cost_usd,
+      });
+    }
+    return result;
+  };
+
   const timeoutMs = primary.timeout_ms || 20000;
   const firstAttempt = await _callWithRetry(primary, messages, jsonSchema, timeoutMs, signal);
 
   if (firstAttempt.result) {
     logger.info({ providerId, kind: primary.kind, model: primary.model }, 'llmProviderService: chat success');
-    return firstAttempt.result;
+    return billed(primary, firstAttempt.result);
   }
 
   const primaryError = firstAttempt.error;
@@ -657,7 +670,7 @@ async function chat({ providerId, messages, jsonSchema = null, signal = null, or
     if (attempt.result) {
       logger.info({ fallbackProviderId: fallback.id, kind: fallback.kind },
         'llmProviderService: fallback succeeded');
-      return attempt.result;
+      return billed(fallback, attempt.result);
     }
 
     logger.warn({ fallbackProviderId: fallback.id, err: attempt.error?.message },
@@ -698,6 +711,13 @@ async function embed(text, providerId, { orgId } = {}) {
   const provider = await _loadProvider(providerId, orgId);
   if (!provider) {
     throw new AppError(`Provider ${providerId} not found`, 404, 'LLM_PROVIDER_NOT_FOUND');
+  }
+
+  // Embeddings count against the budget too; their price is not tracked.
+  const billedOrg = orgId ?? provider.organization_id ?? null;
+  if (billedOrg) {
+    await aiBudget.assertWithinBudget(billedOrg);
+    await aiBudget.recordUsage(billedOrg, { providerId: provider.id, operation: 'embed' });
   }
 
   const apiKey = decrypt(provider.api_key_encrypted) || null;

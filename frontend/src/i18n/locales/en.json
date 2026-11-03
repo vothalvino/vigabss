@@ -1307,7 +1307,11 @@
       "saving": "Saving…",
       "saved": "✓ Saved",
       "loading": "Loading policy…",
-      "loadError": "Failed to load AI policy."
+      "loadError": "Failed to load AI policy.",
+      "monthlyBudget": "Monthly AI budget (USD)",
+      "noBudget": "No limit",
+      "spentNoLimit": "Spent this month: ${{spent}} (no limit)",
+      "spentOfBudget": "Spent this month: ${{spent}} of ${{budget}}. AI replies stop when the budget is reached."
     },
     "providers": {
       "sectionTitle": "LLM Providers",

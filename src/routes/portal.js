@@ -1437,8 +1437,20 @@ router.post('/chat/:token/message', validate(chatMessageSchema), async (req, res
     const HOLDING_REPLY = 'Thanks — a member of our support team will reply on your ticket shortly.';
     let aiText = HOLDING_REPLY;
     let handedToStaff = true;
+    // Spend caps (ASY-34): a session gets PORTAL_CHAT_MAX_TURNS AI turns and a
+    // client PORTAL_CHAT_CLIENT_DAILY_TURNS across sessions per day. Past
+    // either, the chat goes to staff without a provider call.
+    const maxTurns = Number.parseInt(process.env.PORTAL_CHAT_MAX_TURNS, 10) || 20;
+    const dailyTurns = Number.parseInt(process.env.PORTAL_CHAT_CLIENT_DAILY_TURNS, 10) || 60;
+    const [[recent]] = await db.query(
+      `SELECT COALESCE(SUM(turn_count), 0) AS turns FROM portal_chat_sessions
+        WHERE client_id = ? AND organization_id <=> ? AND updated_at >= NOW() - INTERVAL 1 DAY`,
+      [req.client.id, req.client.organizationId],
+    );
+    const capped = (session.turn_count || 0) >= maxTurns || Number(recent?.turns || 0) >= dailyTurns;
+    if (capped) logger.info({ ticketId, sessionId: session.id }, 'Portal chat AI turn cap reached; handing the chat to staff');
     try {
-      const aiResult = await aiReplyService.generate({
+      const aiResult = capped ? { skipped: true, reason: 'turn_limit' } : await aiReplyService.generate({
         orgId: req.client.organizationId,
         ticketId,
         channel: 'portal',

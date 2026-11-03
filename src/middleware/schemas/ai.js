@@ -22,6 +22,8 @@ const updateAiPolicy = {
   tone:                     { type: 'string', enum: TONES },
   redact_pii_before_llm:    { type: 'boolean' },
   active_provider_id:       { type: 'number', min: 1 },
+  // Month-to-date AI spend cap in USD; null removes the cap (ASY-34).
+  monthly_budget_usd:       { type: 'number', min: 0, max: 1000000 },
 };
 
 // ---------------------------------------------------------------------------
