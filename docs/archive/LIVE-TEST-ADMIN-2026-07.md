@@ -1,5 +1,9 @@
 # VigaBSS 5.0 — Live Admin Test Report (2026‑07)
 
+> **Archived point-in-time report (July 2026).** Most findings here have since
+> been fixed; it describes that build, not the current one. Do not cite it as
+> the current state.
+
 _Generated from a live black-box + code-trace test of a running VigaBSS demo instance, exercised **as the ISP admin/owner**. Every tab and sub-tab reachable from the admin nav was walked: list → create two → update the one kept → delete the other (evidence/immutable entities were created once and left in place). Each reported failure was re-run and root-caused to a file:line in the repo before inclusion; unconfirmed claims were dropped._
 
 **Run:** 16 domain testers + a log-scavenger against the live API, then per-domain adversarial verification. Where the demo's shared rate limiter throttled an agent, that domain was covered by a code trace and confirmed live afterward with a paced script (billing‑core's email + payment‑method bugs, for example, were reproduced live: `send-email`/`send-receipt` → 500, `payment_method: card/transfer` → 422).

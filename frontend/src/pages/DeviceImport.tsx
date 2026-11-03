@@ -10,7 +10,7 @@
 import { useRef, useState } from 'react';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { readCsrfCookie } from '@/api/csrf';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,33 +46,9 @@ function downloadTemplate(): void {
 }
 
 async function uploadDeviceCsv(file: File): Promise<ImportResult> {
-  const orgId = sessionStorage.getItem('orgId') || localStorage.getItem('orgId') || '';
-  const token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
-
   const formData = new FormData();
   formData.append('file', file);
-
-  const csrf = readCsrfCookie();
-  // Versioned prefix: the unversioned /api mount still forwards to the same
-  // v1 router, but emits a Deprecation header with a 2027-06-01 Sunset
-  // (src/app.js). This was the last unversioned call left in the frontend.
-  const res = await fetch('/api/v1/import/devices/upload', {
-    method: 'POST',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(orgId ? { 'X-Org-Id': orgId } : {}),
-      ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
-    },
-    credentials: 'include',
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: { message?: string } }).error?.message || 'Upload failed');
-  }
-
-  const json = await res.json() as { data: ImportResult };
+  const json = await apiFetch<{ data: ImportResult }>('/import/devices/upload', { method: 'POST', body: formData });
   return json.data;
 }
 

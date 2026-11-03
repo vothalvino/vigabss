@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { readCsrfCookie } from '@/api/csrf';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -117,22 +117,6 @@ interface ApiList<T> { data: T[]; meta: ListMeta }
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const orgId = localStorage.getItem('orgId') ?? '1';
-  const token = localStorage.getItem('token') ?? '';
-  const res = await fetch(`/api${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'X-Org-Id': orgId,
-      ...(readCsrfCookie() ? { 'X-CSRF-Token': readCsrfCookie()! } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json() as Promise<T>;
-}
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -332,7 +316,7 @@ function BatchJobsTab() {
                   <td style={td}>{j.success_items}/{j.total_items} ({j.failed_items} {t('automation.failed')})</td>
                   <td style={td}>{new Date(j.created_at).toLocaleString()}</td>
                   <td style={td}>
-                    {j.status === 'running' && (
+                    {(j.status === 'running' || j.status === 'pending') && (
                       <ActionButton label={t('automation.cancel')} onClick={() => cancelJob(j.id)} variant="danger" />
                     )}
                   </td>

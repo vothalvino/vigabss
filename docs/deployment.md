@@ -854,7 +854,9 @@ version: '3.8'
 
 services:
   app:
-    image: ghcr.io/vothalvino/vigabss:0.1.0-alpha.1
+    # Pin the image you deploy. Until a release is tagged, main publishes
+    # one tag per commit: the full commit SHA (and :latest).
+    image: ghcr.io/vothalvino/vigabss:<commit-sha>
     deploy:
       replicas: 2
       update_config:
@@ -1837,9 +1839,10 @@ When running multiple instances, Redis is required for:
 
 ```env
 REDIS_URL=redis://redis.example.com:6379
-CACHE_DRIVER=redis
-RATE_LIMIT_STORE=redis
 ```
+
+`REDIS_URL` alone switches the cache, rate limits, job queue and realtime
+relay to Redis; there are no separate driver settings.
 
 ### Job Queue (BullMQ)
 
@@ -1857,7 +1860,7 @@ node src/workers/index.js
 Configure concurrency per worker:
 
 ```env
-BULLMQ_CONCURRENCY=5
+JOB_QUEUE_CONCURRENCY=5
 ```
 
 > **Tip:** For large deployments (10,000+ clients), run separate worker processes dedicated to SNMP polling and invoice generation to avoid blocking lighter tasks like email delivery.

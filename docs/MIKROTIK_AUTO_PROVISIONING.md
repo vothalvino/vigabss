@@ -351,7 +351,7 @@ Auto-configure the MikroTik RADIUS client to point to the VigaBSS FreeRADIUS ser
 
 ### Integration with Existing Code
 
-- Read `RADIUS_HOST` and `RADIUS_SECRET` from env (already defined in `.env.example`).
+- Use the NAS row's own shared secret and CoA port (`nas.secret`, `nas.coa_port`), set per NAS in Network → NAS Devices.
 - When a NAS device is created in VigaBSS, call `radiusSetupService.configureRadiusClient()` to auto-configure the MikroTik.
 - Verify connectivity by calling `radtest` equivalent via the MikroTik's built-in RADIUS test or by checking `/radius monitor`.
 

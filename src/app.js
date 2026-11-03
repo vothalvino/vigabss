@@ -891,7 +891,11 @@ mountApiDocs(app);
 // ---------------------------------------------------------------------------
 // Static admin dashboard — served from frontend/dist/ (React build output)
 // ---------------------------------------------------------------------------
-app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
+// Hashed assets are immutable and served precompressed (FE-21).
+const { staticAssets } = require('./middleware/staticAssets');
+const frontendAssets = staticAssets(path.join(__dirname, '..', 'frontend', 'dist'));
+app.use('/assets', frontendAssets.assets);
+app.use(frontendAssets.spa);
 
 // SPA fallback: any non-API GET that doesn't match a file → serve index.html
 app.get(/^\/(?!api|metrics|health)/, (req, res, next) => {

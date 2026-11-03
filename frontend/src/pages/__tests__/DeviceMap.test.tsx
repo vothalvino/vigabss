@@ -13,6 +13,8 @@ import { DeviceMap } from '../DeviceMap';
 
 const mockApiGet = vi.fn();
 vi.mock('@/api/client', () => ({
+  // Pages reach the API through authedFetch (FE-20); pass it to the stubbed fetch.
+  authedFetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init),
   api: { GET: (...a: unknown[]) => mockApiGet(...a), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
   tokenStore: { getAccess: () => 'tok', setAccess: vi.fn(), getRefresh: () => null, setRefresh: vi.fn(), clear: vi.fn() },
 }));

@@ -100,6 +100,17 @@ function registerWorkers() {
     return messageOutbox.deliverNow(id, organizationId);
   });
 
+  // ---- Batch jobs (TNA-41) ------------------------------------------------
+  // The items are durable before the job is queued; an unfinished job is
+  // queued again at the next start (automationService.resumeBatchJobs).
+  jobQueue.process('batch-job', async (job) => {
+    const automationService = require('../services/automationService');
+    const db = require('../config/database');
+    const { jobId, organizationId } = job.data;
+    const run = () => automationService.processBatchJob(jobId, organizationId);
+    return typeof db.withTenantContext === 'function' ? db.withTenantContext(organizationId, run) : run();
+  });
+
   // ---- AI triage ----------------------------------------------------------
   jobQueue.process('ai-triage', async (job) => {
     const aiReplyService = require('../services/aiReplyService');

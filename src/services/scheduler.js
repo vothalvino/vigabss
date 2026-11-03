@@ -26,10 +26,7 @@ let syncTimer = null;
 //      overlaps a previous one still going, in this process or another;
 //   2. a per-minute claim on the task row: only the process whose UPDATE
 //      moves last_run_at into the current minute runs it.
-const crypto = require('crypto');
-
-const lockDatabaseName = db.baseConnectionConfig?.database || process.env.DB_NAME || 'fireisp';
-const lockPrefix = `fireisp:${crypto.createHash('sha256').update(lockDatabaseName).digest('hex').slice(0, 16)}:scheduled-task:`;
+const { withAdvisoryLock } = require('../utils/advisoryLock');
 
 /**
  * Run `fn` while holding the task's advisory lock, so no other run of the
@@ -37,35 +34,8 @@ const lockPrefix = `fireisp:${crypto.createHash('sha256').update(lockDatabaseNam
  * `claim(connection)` may refuse the run after the lock is taken.
  * @returns {Promise<boolean>} whether `fn` ran
  */
-async function runExclusive(task, fn, claim = null) {
-  const connection = await db.getLockConnection();
-  const lockName = `${lockPrefix}${task.id}`;
-  let locked = false;
-  let discardConnection = false;
-  try {
-    const [rows] = await connection.query('SELECT GET_LOCK(?, 0) AS acquired', [lockName]);
-    locked = Number(rows[0]?.acquired) === 1;
-    if (!locked) {
-      logger.debug({ taskName: task.task_name, taskId: task.id }, 'Scheduled task already running elsewhere');
-      return false;
-    }
-    if (claim && !await claim(connection)) return false;
-    await fn();
-    return true;
-  } finally {
-    if (locked) {
-      try {
-        const [rows] = await connection.query('SELECT RELEASE_LOCK(?) AS released', [lockName]);
-        if (Number(rows[0]?.released) !== 1) discardConnection = true;
-      } catch (err) {
-        discardConnection = true;
-        logger.error({ err: err.message, taskName: task.task_name }, 'Could not release the scheduled-task lock');
-      }
-    }
-    // Never return a possibly lock-owning session to the pool.
-    if (discardConnection && typeof connection.destroy === 'function') connection.destroy();
-    else connection.release();
-  }
+function runExclusive(task, fn, claim = null) {
+  return withAdvisoryLock(`scheduled-task:${task.id}`, fn, claim);
 }
 
 /**

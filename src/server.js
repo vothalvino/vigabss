@@ -83,6 +83,10 @@ async function start() {
     logger.warn({ err }, 'Worker registration failed');
   }
 
+  // Batch jobs left pending or running by the last process (TNA-41).
+  require('./services/automationService').resumeBatchJobs()
+    .catch(err => logger.warn({ err }, 'Could not resume unfinished batch jobs'));
+
   // Populate the update-check cache so the first visit to Settings -> Version is
   // served from memory rather than waiting on api.github.com. Deliberately NOT
   // awaited: boot must not depend on a third party being reachable, and a

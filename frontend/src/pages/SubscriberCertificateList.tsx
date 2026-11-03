@@ -17,8 +17,7 @@
 
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { authedFetch } from '@/api/client';
-import { parseApiError } from '@/api/errors';
+import { apiFetch } from '@/api/apiFetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,27 +59,12 @@ interface CreateCertPayload {
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 50;
-const API_BASE = '/api/v1';
 const EXPIRY_WARN_DAYS = 30;
 
 // ---------------------------------------------------------------------------
 // API helpers
 // ---------------------------------------------------------------------------
 
-async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await authedFetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(parseApiError(body, `HTTP ${res.status}`));
-  }
-  return res.json() as Promise<T>;
-}
 
 async function fetchCerts(page: number): Promise<CertListResponse> {
   return apiFetch<CertListResponse>(`/subscriber-certificates?page=${page}&limit=${PAGE_SIZE}`);

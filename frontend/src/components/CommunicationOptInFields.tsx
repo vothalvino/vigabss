@@ -1,5 +1,8 @@
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MarkdownView } from '@/components/MarkdownView';
+
+// The markdown renderer is its own chunk (FE-21).
+const MarkdownView = lazy(() => import('@/components/MarkdownView'));
 
 export interface CommunicationOptIns {
   email: boolean;
@@ -113,7 +116,9 @@ export function CommunicationOptInFields({
               fontSize: '0.8rem',
             }}
           >
-            <MarkdownView markdown={privacyNotice.content} />
+            <Suspense fallback={null}>
+              <MarkdownView markdown={privacyNotice.content} />
+            </Suspense>
           </div>
         </div>
       ) : (

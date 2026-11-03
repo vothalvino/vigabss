@@ -69,8 +69,8 @@ working. New documentation uses the VigaBSS names.
 - Customer management
 - Service plan management
 - Billing, invoicing, and credit notes with multi-currency support (ISO 4217)
-- SAT CFDI 4.0 Mexican e-invoicing — PAC stamping (Finkok, SW Sapien, FacturAPI, etc.), CSD certificate management with expiry monitoring, Complemento de Pago 2.0, cancellation workflow, factura pública aggregation (venta al público en general)
-- Payment gateway integrations (Stripe, Conekta, OpenPay, MercadoPago, PayPal) with recurring autopay profiles and stored card tokens
+- SAT CFDI 4.0 Mexican e-invoicing — PAC stamping (Finkok and SW Sapien), CSD certificate management with expiry monitoring, Complemento de Pago 2.0, cancellation workflow, factura pública aggregation (venta al público en general)
+- Payment gateway integrations (Stripe and Conekta; a manual gateway records offline payments) with recurring autopay profiles and stored card tokens (Stripe)
 - Network device monitoring with SNMP metrics collection
 - Tenant-scoped RADIUS session/usage evidence plus privacy-minimal, case-gated CGNAT source-tuple attribution; these are operator controls, not automatic legal certification
 - Inventory and warehouse management — track spare equipment across multiple storage locations
@@ -79,7 +79,7 @@ working. New documentation uses the VigaBSS names.
 - Audit logging and notifications
 - Email / SMS / WhatsApp send log for auditing and billing disputes
 - Service outage tracking with SLA reporting hooks
-- Scheduled task observability and active session management — fifteen core automation tasks seeded on install (`auto_generate_invoices`, `auto_suspend_overdue`, `radius_sync`, `populate_revenue_summary`, `populate_network_health_snapshots`, `csd_expiry_monitor`, `alert_evaluation`, `process_recurring_charges`, `data_retention`, `payment_retry`, `billing_cycle`, `database_backup`, `config_backup`, `webhook_retry`, `quarterly_dr_drill`)
+- Scheduled tasks with run history, failure alerts and active session management — the automation tasks are seeded on install, among them `auto_generate_invoices`, `auto_suspend_overdue`, `radius_sync`, `csd_expiry_monitor`, `alert_evaluation`, `process_recurring_charges`, `retry_failed_charges`, `billing_cycle`, `data_retention`, `database_backup`, `config_backup_pull`, `webhook_retry`, `message_outbox` and `quarterly_dr_drill` (Settings → Scheduled Tasks lists them all)
 - Monitoring alert rules with configurable thresholds, severity levels, and multi-channel notifications (email, SMS, SSE, webhook)
 - Two-factor authentication (TOTP) with backup codes and brute-force account lockout
 - Single sign-on (SSO) — per-organization SAML 2.0 and OIDC IdP configuration, automatic user provisioning on first login, and IdP group-to-VigaBSS role mappings
@@ -90,7 +90,7 @@ working. New documentation uses the VigaBSS names.
 - Outbound webhooks with HMAC signing, configurable retries, and dead-letter queue for failed deliveries
 - Inbound webhook event deduplication and idempotent payment processing
 - Configurable suspension rules — auto-suspend, auto-disconnect, and notify-only actions with grace periods and plan-scoping
-- Data retention policies with configurable TTL purge (audit logs, alert events, webhook deliveries, email/SMS logs, idempotency keys, RADIUS post-auth events, and PPPoE diagnostics events)
+- Data retention policies with configurable TTL purge (alert events, webhook deliveries, email/SMS logs, idempotency keys, RADIUS post-auth and PPPoE diagnostics events, AI and chat logs, scheduled-task history, and RADIUS/CGNAT evidence outside active preservation holds); the audit log is never purged
 - Circuit breaker pattern for external service resilience (RADIUS, payment gateways, PAC stamping)
 - Geographic service areas and coverage zones with WGS 84 boundary polygons
 - Speed test recording from client portal, technician tools, automated probes, and external services
@@ -99,15 +99,15 @@ working. New documentation uses the VigaBSS names.
 - Customer interaction tracking — unified per-client activity timeline (calls, emails, tickets, payments, visits), manual interaction logging, follow-up reminders with automated due notifications, NPS/CSAT satisfaction surveys (auto-dispatched on ticket resolution) with aggregate metrics, and ticket escalation management with auto-escalation of stale unresolved tickets
 - Internationalization (i18n) — English, Spanish, and Brazilian Portuguese locale support
 - Customer self-service portal (§11) — dashboard with plan overview, live session status, daily usage graph; invoice PDF/CFDI download; online payment (card/OXXO/SPEI/PayPal via checkout session); payment history; self-service requests (plan upgrade with proration, Wi-Fi/PPPoE password change, static IP, cancellation, visit schedule) with admin approval workflow; knowledge-base / FAQ with rating; embedded speed test (queues `subscriber_speed_test_jobs`, results view); AI-powered chatbot with automatic ticket-creation fallback; callback request; Web Push notification subscriptions (outage/billing/ticket events); PWA with offline service worker and web app manifest
-- RESTful API with an OpenAPI 3.1 contract covering 1,001 paths, interactive Swagger UI documentation (`/api/docs`), and a static specification (`docs/openapi.json`)
+- RESTful API with an OpenAPI 3.1 contract covering every route (checked in CI), interactive Swagger UI documentation (`/api/docs`), and a static specification (`docs/openapi.json`)
 - GraphQL gateway (`/api/v1/graphql`) powered by graphql-yoga v5 — single-request multi-entity fetches, real-time subscriptions via SSE (PubSub), and a live ClientDetail query replacing multiple REST round-trips
 - Real-time event hub (WebSocket + SSE dual-broadcast) — live Dashboard device-status indicator, live TicketDetail comment stream, and a useWebSocket React hook for all frontend consumers
-- httpOnly SameSite=Strict cookie authentication — access token in memory, refresh token in httpOnly cookie, Origin-based CSRF guard; eliminates localStorage token exposure
+- httpOnly SameSite=Strict cookie authentication — the access and refresh tokens are httpOnly cookies the page's JavaScript cannot read, with an Origin-based CSRF guard; no token is kept in localStorage
 - Dark mode — CSS custom-property token system, per-user preference persisted in localStorage, toggle in Layout and PortalLayout
 - PROFECO complaint-support workflow — internal intake, lifecycle tracking, staff attribution, and generic export; applicability, protection, official format, submission, and acceptance remain operator responsibilities
 - Spec-driven development — `spec:check` drift scanner detects route/schema gaps against the OpenAPI spec in CI; `spec:gen` scaffolds new route stubs from the spec
 - Schema-truth enforcement — `sql:check` statically verifies that every `INSERT`/`UPDATE` in the backend names columns that actually exist on that table in `database/schema.sql`, and that every literal written to an `ENUM` column is one of its values. The Jest suite mocks the database, so this is the only gate that catches a mistyped column before it becomes a permanent 500 in production
-- OWASP ZAP DAST scan in CI — automated active scan against a live test instance on every push; ZAP HTML report uploaded as a workflow artifact
+- OWASP ZAP DAST baseline (passive) scan in CI against a live test instance on every push; ZAP HTML report uploaded as a workflow artifact
 - Accessibility engineering — jest-axe coverage for selected page/component states plus aria-label fixes; this is not a complete WCAG 2.1 AA conformance audit
 - AI Reply Assistant — topology-aware LLM chatbot that drafts (and optionally auto-sends) professional answers to inbound support tickets; pluggable provider registry (OpenAI, Azure OpenAI, Anthropic, Google Gemini, Ollama, custom); phrase library with forbidden-term guard; PII redaction before prompt dispatch; per-org master on/off switch and per-channel toggles; optional RAG via ChromaDB; full audit log. **Emergency kill switch:** `PUT /api/v1/ai/policy` `{"enabled":false}` or untick the master switch in Settings → AI Assistant → General.
 - In-app changelog panel — paginated, filterable release history surfaced in the admin sidebar for operators who need to track what changed without leaving the UI
@@ -117,7 +117,7 @@ working. New documentation uses the VigaBSS names.
 - IETF draft-7 `RateLimit-*` response headers for API consumers
 - Optimistic concurrency control on critical financial records (invoices, contracts, payments, clients)
 - Default application settings seeded on install (currency, SMTP, SNMP, security, automation flags)
-- Default tax rates seeded on install (Tax Exempt, Standard 8%, IVA 16% MX, GST 5% CA)
+- Default tax rates seeded on install (Tax Exempt, Standard Tax 8%, IVA 16% (Mexico), GST 5%)
 - Payment allocation, inventory stock, PPPoE RADIUS consistency, credit note over-credit cap, audit log immutability, CFDI document immutability, contract status FSM, and outage temporal logic enforced at the database level via guard triggers
 
 ## Project Structure
@@ -126,7 +126,7 @@ working. New documentation uses the VigaBSS names.
 vigabss/
 ├── database/                # Database schema and migrations
 │   ├── schema.sql           # Combined schema (all 374 tables + column additions)
-│   └── migrations/          # Individual numbered migration files (001–514)
+│   └── migrations/          # Individual numbered migration files (001–515)
 ├── src/                     # Express API, services, middleware, scripts, and workers
 │   ├── app.js               # Express app setup
 │   ├── server.js            # HTTP server entry point

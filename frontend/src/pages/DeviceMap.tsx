@@ -16,7 +16,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, tokenStore } from '@/api/client';
+import { api, tokenStore, authedFetch } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import {
@@ -100,7 +100,7 @@ const API_BASE = '/api/v1';
 
 async function fetchAll<T>(path: string, query = ''): Promise<T[]> {
   const token = tokenStore.getAccess();
-  const res = await fetch(`${API_BASE}${path}?limit=1000${query}`, {
+  const res = await authedFetch(`${API_BASE}${path}?limit=1000${query}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`Failed to load ${path}`);

@@ -124,7 +124,13 @@ server, and drains them on shutdown.
   tasks left in_progress for 30 minutes.
 - API documentation is mounted by `src/utils/openapi.js`.
 - The production backend serves `frontend/dist` and falls back to the SPA for
-  non-API routes.
+  non-API routes (`src/middleware/staticAssets.js`): hashed `/assets/*` are
+  immutable and served from the `.gz` beside them, `index.html` is no-cache.
+  Every page but the sign-in and not-found screens is a lazy route, and locale
+  catalogues load on demand (FE-21). `frontend/scripts/postbuild.mjs` fails the
+  build when the initial JavaScript passes its gzipped budget, writes the
+  `.gz` files, and moves the hidden source maps out of `dist/`. Frontend REST
+  calls written by hand use `src/api/apiFetch.ts` (FE-20), never bare `fetch`.
 
 Global middleware establishes request IDs, security headers, CORS, bounded body
 parsing, cookie parsing, output-oriented XSS posture, request logging, metrics,
@@ -594,6 +600,15 @@ browser WebSocket and GraphQL subscription events go through
 `vigabss:realtime` Redis channel to every other process, the worker included.
 Publish through `events.broadcast` or `pubsub.publish`, never to a local client
 set directly. FireRelay agent tunnels remain per process.
+
+Bulk subscriber work runs as a batch job, never inside the request (TNA-41):
+`automationService.createBatchJob` persists one `batch_job_items` row per
+target and queues a `batch-job` job (`POST /batch-jobs` and `/bulk/suspend`
+answer 202). `processBatchJob` holds the job's advisory lock
+(`src/utils/advisoryLock.js`), claims each item as `processing` before its
+operation, and records an item found still `processing` as a failure instead
+of running it twice; `resumeBatchJobs` queues unfinished jobs at startup. CSV
+imports still run in the request.
 
 Every scheduled task run goes through `taskRunner.executeScheduledTask(task,
 via)` (ASY-28), from the inline cron path (`via = 'cron'`), the BullMQ

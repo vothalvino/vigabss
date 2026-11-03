@@ -121,11 +121,13 @@ kubectl rollout restart deployment/fireisp -n fireisp
 | `SMTP_PASS` | SMTP authentication password |
 | `REDIS_PASSWORD` | Redis AUTH password |
 | `MYSQL_REPL_PASSWORD` | MySQL replication credential |
-| `STRIPE_SECRET_KEY` | Stripe payment API key (if used) |
 | `TWILIO_AUTH_TOKEN` | Twilio SMS/WhatsApp token (if used) |
-| `PAC_PASSWORD` | SAT PAC provider password (if CFDI enabled) |
-| `RADIUS_SECRET` | FreeRADIUS shared secret (if RADIUS enabled) |
+| `STRIPE_WEBHOOK_SECRET`, `CONEKTA_WEBHOOK_KEY` | Payment webhook signing secrets (if used) |
 | `BACKUP_S3_SECRET_KEY` | Cloud backup key (if S3/B2 enabled) |
+
+Payment gateway API keys, PAC credentials and NAS shared secrets are not
+environment variables: they are entered in the UI (Payment Gateways, PAC
+Providers, NAS Devices) and stored encrypted with `ENCRYPTION_KEY`.
 
 ---
 

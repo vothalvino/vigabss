@@ -273,37 +273,13 @@ describe('scriptingService.executeScript', () => {
 
 describe('automationService', () => {
   describe('unimplemented batch operations produce failure items', () => {
-    // createBatchJob call order:
-    //   1. resolveBatchTargets SELECT contracts
-    //   2. INSERT batch_job
-    //   3. SELECT batch_jobs status (per target; stops on cancel)
-    //   4. INSERT batch_job_items (per target)
-    //   5. UPDATE batch_jobs processed_items (per target)
-    //   6. final UPDATE batch_jobs
-    //   7. SELECT batch_jobs (return value)
+    // applyBatchOperation refuses them; the background job records each such
+    // item as a failure (tests/batchJobsBackground.test.js, TNA-41).
     test.each(['send_notification', 'apply_tag', 'remove_tag', 'rate_limit', 'send_email', 'send_sms'])(
-      'operation "%s" results in failed batch item',
+      'operation "%s" is refused, never a silent success',
       async (operation) => {
-        db.query
-          .mockResolvedValueOnce(qResult([{ entity_id: 10, entity_type: 'contract' }])) // resolveBatchTargets
-          .mockResolvedValueOnce(insertResult(1))        // INSERT batch_job
-          .mockResolvedValueOnce(qResult([{ status: 'running' }])) // per-item status check
-          .mockResolvedValueOnce(insertResult(1))        // INSERT batch_job_items
-          .mockResolvedValueOnce(updateResult())         // UPDATE batch_jobs processed_items
-          .mockResolvedValueOnce(updateResult())         // final UPDATE batch_jobs
-          .mockResolvedValueOnce(qResult([{ id: 1, operation, status: 'completed', failed_items: 1, success_items: 0 }]));
-
-        const job = await automationService.createBatchJob(1, {
-          name: 'test', operation, filter_criteria: {}, operation_params: {}, created_by: 1,
-        });
-
-        expect(job.failed_items).toBeGreaterThan(0);
-        // Verify the item was inserted with 'failure' status
-        const itemInsert = db.query.mock.calls.find(c =>
-          typeof c[0] === 'string' && c[0].includes('batch_job_items'),
-        );
-        expect(itemInsert).toBeTruthy();
-        expect(itemInsert[1][4]).toBe('failure'); // status is 5th param (index 4)
+        await expect(automationService.applyBatchOperation(1, operation, { entity_id: 10, entity_type: 'contract' }, {}, 1))
+          .rejects.toThrow();
       },
     );
   });

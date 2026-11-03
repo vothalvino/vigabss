@@ -14,7 +14,6 @@ const { bulkEmailLimiter, checkBulkEmailDailyBudget } = require('../middleware/r
 const bulkSchemas = require('../middleware/schemas/bulk');
 const logger = require('../utils/logger');
 const billingService = require('../services/billingService');
-const suspensionService = require('../services/suspensionService');
 const messageOutbox = require('../services/messageOutbox');
 const { customMessageEmail } = require('../views/emailTemplates');
 
@@ -66,9 +65,12 @@ router.post('/invoices/void', requirePermission('invoices.update'), validate(bul
 // ---------------------------------------------------------------------------
 // POST /bulk/suspend — Mass-suspend contracts
 // ---------------------------------------------------------------------------
+// POST /bulk/suspend — runs as a batch job (TNA-41). Suspending sends a CoA
+// per contract (up to 5 s each), so 500 contracts ran far past the request
+// timeout; the answer is now the queued job (202), whose progress and
+// per-contract results are at GET /batch-jobs/:id and /batch-jobs/:id/items.
 router.post('/suspend', requirePermission('contracts.update'), validate(bulkSchemas.suspend, { strip: false }), async (req, res, next) => {
   try {
-    const orgId = req.orgId;
     const { contract_ids } = req.body;
 
     if (!Array.isArray(contract_ids) || contract_ids.length === 0) {
@@ -79,58 +81,17 @@ router.post('/suspend', requirePermission('contracts.update'), validate(bulkSche
       return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Maximum 500 contracts per batch' } });
     }
 
-    const results = { success: 0, failed: 0, errors: [] };
-
-    for (const contractId of contract_ids) {
-      try {
-        const [rows] = await db.query(
-          'SELECT id, status FROM contracts WHERE id = ? AND organization_id = ?',
-          [contractId, orgId],
-        );
-        const contract = rows[0];
-        if (!contract) {
-          results.failed++;
-          results.errors.push({ contract_id: contractId, error: 'Not found' });
-          continue;
-        }
-        // Only an 'active' contract is suspendable — the FSM trigger
-        // (trg_contracts_status_fsm_bu) only permits active -> suspended.
-        // Attempting suspendContract on a pending/cancelled/terminated/
-        // expired/already-suspended row would fail with the trigger's raw
-        // 'Invalid contract status transition' SQLSTATE 45000 error instead
-        // of a clear per-row message, so filter those out here.
-        if (contract.status !== 'active') {
-          results.failed++;
-          results.errors.push({ contract_id: contractId, error: `Cannot suspend a '${contract.status}' contract` });
-          continue;
-        }
-
-        // Route through suspensionService.suspendContract — same as
-        // POST /contracts/:id/suspend — so a bulk suspension gets the same
-        // suspension-exemption check, RADIUS Disconnect-Request, and
-        // radius.status flip (fix/network-authz-hardening, PR #388). The
-        // previous raw UPDATE here silently skipped all three: exempt
-        // clients could be bulk-suspended, no session was kicked, and the
-        // subscriber's PPPoE credentials kept authenticating.
-        const result = await suspensionService.suspendContract(contractId, null, req.user?.id, null);
-        if (result && result.skipped) {
-          results.failed++;
-          results.errors.push({ contract_id: contractId, error: `Suspension-exempt client: ${result.reason || 'exempt'}` });
-          continue;
-        }
-
-        // suspendContract emits contract.suspended itself (ASY-08); this used
-        // to emit a second, malformed one ({ contractId } without contract).
-        results.success++;
-      } catch (err) {
-        results.failed++;
-        results.errors.push({ contract_id: contractId, error: err.message });
-      }
-    }
-
-    logger.info({ orgId, ...results }, 'Bulk suspension completed');
-    res.json({ data: results });
-  } catch (err) { next(err); }
+    const job = await require('../services/automationService').createBatchJob(req.orgId, {
+      name: `Bulk suspend (${contract_ids.length})`,
+      operation: 'suspend',
+      filter_criteria: { contract_ids },
+      operation_params: null,
+      created_by: req.user?.id ?? null,
+    });
+    return res.status(202).json({ data: job });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---------------------------------------------------------------------------

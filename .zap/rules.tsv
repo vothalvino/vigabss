@@ -6,9 +6,10 @@
 # =============================================================================
 
 # 10035 — Strict-Transport-Security Not Set
-# Rationale: HSTS is enforced at the reverse-proxy (Nginx) level; the Express
-# app is never accessed directly by end-users in production.
-10035	IGNORE	(HSTS enforced by Nginx in production)
+# Rationale: the app sends HSTS itself (helmet, src/app.js; nginx does not add
+# it, see docs/tls-setup.md), but ZAP scans the plain-HTTP container, where the
+# header has no effect and browsers ignore it. The TLS edge is what to check.
+10035	IGNORE	(HSTS sent by the app; ignored over the plain-HTTP scan)
 
 # 10063 — Permissions-Policy Header Not Set
 # Rationale: The Permissions-Policy header is an optional hardening header;

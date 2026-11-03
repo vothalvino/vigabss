@@ -5,7 +5,7 @@
 // (dispatch → start → complete/cancel) and materials sub-resource.
 // =============================================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +13,6 @@ import { api, authedFetch } from '@/api/client';
 import { styles, modalStyles } from './crudStyles';
 import { ClientPicker } from '@/components/ClientPicker';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
-import { MarkdownView } from '@/components/MarkdownView';
 import {
   CommunicationOptInFields,
   type CommunicationContacts,
@@ -27,6 +26,9 @@ import {
   type MxContractEnvironment,
 } from '@/components/MxContractEnvironment';
 import { parseApiError } from '@/api/errors';
+
+// The markdown renderer is its own chunk (FE-21).
+const MarkdownView = lazy(() => import('@/components/MarkdownView'));
 
 // ---------------------------------------------------------------------------
 // Types
@@ -636,7 +638,9 @@ function SignDocumentModal({ docId, onClose, onSigned }: {
             <>
               <MxSandboxDocumentBanner environment={docQ.data.mx_contract_environment} />
               <div style={{ border: '1px solid var(--border-color, #e5e7eb)', borderRadius: 8, padding: '0.75rem', background: 'var(--bg-subtle, #f9fafb)' }}>
-                <MarkdownView markdown={docQ.data.rendered_body} />
+                <Suspense fallback={null}>
+                  <MarkdownView markdown={docQ.data.rendered_body} />
+                </Suspense>
               </div>
               {docQ.data.status === 'signed' ? (
                 <p style={{ margin: 0, fontSize: '0.85rem' }}>

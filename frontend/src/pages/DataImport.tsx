@@ -24,7 +24,7 @@
 import { useRef, useState } from 'react';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { readCsrfCookie } from '@/api/csrf';
+import { apiFetch } from '@/api/apiFetch';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 
@@ -94,26 +94,10 @@ function downloadTemplate(spec: EntitySpec): void {
 }
 
 async function uploadCsv(spec: EntitySpec, file: File): Promise<ImportResult> {
-  const token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
   const formData = new FormData();
   formData.append('file', file);
-  const csrf = readCsrfCookie();
-  // The versioned prefix on purpose: /api (unversioned) still works but emits a
-  // Deprecation header with a 2027-06-01 sunset (src/app.js).
-  const res = await fetch(`/api/v1/import/${spec.path}/upload`, {
-    method: 'POST',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
-    },
-    credentials: 'include',
-    body: formData,
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((body as { error?: { message?: string } }).error?.message || `Upload failed (HTTP ${res.status})`);
-  }
-  return (body as { data: ImportResult }).data;
+  const body = await apiFetch<{ data: ImportResult }>(`/import/${spec.path}/upload`, { method: 'POST', body: formData });
+  return body.data;
 }
 
 export function DataImport() {

@@ -625,7 +625,7 @@ function generateSpec() {
 
       // ---- Bulk Operations ----
       '/bulk/invoices/void': { post: { tags: ['Bulk'], summary: 'Mass-void invoices', operationId: 'bulkVoidInvoices', security: [{ bearerAuth: [] }], requestBody: jsonBody('invoice_ids'), responses: r200('Results') } },
-      '/bulk/suspend': { post: { tags: ['Bulk'], summary: 'Mass-suspend contracts', operationId: 'bulkSuspend', security: [{ bearerAuth: [] }], requestBody: jsonBody('contract_ids + reason'), responses: r200('Results') } },
+      '/bulk/suspend': { post: { tags: ['Bulk'], summary: 'Mass-suspend contracts (as a batch job)', description: 'Queues a suspend batch job over up to 500 of the organization\'s contracts and answers 202 with it. Progress and per-contract results: GET /batch-jobs/{id} and /batch-jobs/{id}/items.', operationId: 'bulkSuspend', security: [{ bearerAuth: [] }], requestBody: jsonBody('contract_ids + reason'), responses: r202('Queued batch job') } },
       '/bulk/email': { post: { tags: ['Bulk'], summary: 'Mass-send emails to clients', operationId: 'bulkEmail', security: [{ bearerAuth: [] }], requestBody: jsonBody('client_ids + subject + body'), responses: r200('Results') } },
 
       // ---- CFDI ----
@@ -3137,7 +3137,7 @@ function generateSpec() {
 
       '/batch-jobs': {
         get: { tags: ['Automation'], summary: 'List batch jobs', operationId: 'listBatchJobs', security: [{ bearerAuth: [] }], responses: r200('BatchJob[]') },
-        post: { tags: ['Automation'], summary: 'Create and run a batch subscriber job', operationId: 'createBatchJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('BatchJob'), responses: r201('BatchJob') },
+        post: { tags: ['Automation'], summary: 'Queue a batch subscriber job', description: 'Resolves and persists the targets (at most 10,000; more is refused) and answers 202 with the pending job, which runs in the background and resumes after a restart. An item interrupted mid-operation is recorded as a failure to check by hand, never run twice.', operationId: 'createBatchJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('BatchJob'), responses: r202('Queued batch job') },
       },
       '/batch-jobs/{id}': {
         get: { tags: ['Automation'], summary: 'Get batch job', operationId: 'getBatchJob', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('BatchJob') },

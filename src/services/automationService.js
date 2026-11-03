@@ -150,10 +150,16 @@ async function dispatchAction(actionType, actionConfig, payload, organizationId)
 // Batch Jobs — enqueue and process
 // ---------------------------------------------------------------------------
 
+// A batch job used to run every item inside the HTTP request, which a CoA per
+// contract (up to 5 s each) pushed far past the 30-second request timeout
+// (TNA-41). It now persists one item per target and runs in the background
+// through jobQueueService; the request answers at once with the pending job.
+const MAX_BATCH_TARGETS = 10_000;
+const ITEM_CHUNK = 100;
+
 /**
- * Create and immediately start (stub-process) a batch job.
- * In production a real worker would process items asynchronously.
- * Here we build the item list and mark each as 'success' (stub).
+ * Create a batch job: check its parameters, resolve and persist its targets,
+ * and queue it. Returns the pending job; progress shows on the job row.
  *
  * @param {number} organizationId
  * @param {{ name, operation, filter_criteria, operation_params, created_by }} data
@@ -163,62 +169,149 @@ async function createBatchJob(organizationId, data) {
   // Operation parameters are checked once, before the job exists: a foreign or
   // archived plan, or another tenant's invoice, used to be applied to every
   // target (ASY-15).
-  const params = await checkBatchParams(organizationId, operation, operation_params || {});
+  await checkBatchParams(organizationId, operation, operation_params || {});
 
-  // Resolve matching contracts/clients
-  const targets = await resolveBatchTargets(organizationId, operation, filter_criteria);
+  const targets = await resolveBatchTargets(organizationId, operation, filter_criteria || {});
 
   const [result] = await db.query(
     `INSERT INTO batch_jobs
        (organization_id, name, operation, filter_criteria, operation_params,
-        status, total_items, processed_items, success_items, failed_items,
-        started_at, created_by)
-     VALUES (?, ?, ?, ?, ?, 'running', ?, 0, 0, 0, NOW(), ?)`,
-    [organizationId, name, operation, JSON.stringify(filter_criteria),
+        status, total_items, processed_items, success_items, failed_items, created_by)
+     VALUES (?, ?, ?, ?, ?, 'pending', ?, 0, 0, 0, ?)`,
+    [organizationId, name, operation, JSON.stringify(filter_criteria || {}),
       operation_params ? JSON.stringify(operation_params) : null,
       targets.length, created_by || null],
   );
   const jobId = result.insertId;
 
-  let successCount = 0;
-  let failCount = 0;
-
-  for (const target of targets) {
-    // POST /batch-jobs/:id/cancel flips the status; stop before the next item.
-    const [[current]] = await db.query('SELECT status FROM batch_jobs WHERE id = ?', [jobId]);
-    if (current?.status !== 'running') break;
-    let status = 'success';
-    let msg = `${operation} applied`;
-    try {
-      await applyBatchOperation(organizationId, operation, target, params, created_by || null);
-    } catch (err) {
-      status = 'failure';
-      msg = err.message;
-      failCount++;
-    }
-    if (status === 'success') successCount++;
-
+  for (let i = 0; i < targets.length; i += 500) {
+    const chunk = targets.slice(i, i + 500);
     await db.query(
-      `INSERT INTO batch_job_items
-         (batch_job_id, organization_id, entity_type, entity_id, status, result_message, processed_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [jobId, organizationId, target.entity_type, target.entity_id, status, msg],
-    );
-    await db.query(
-      'UPDATE batch_jobs SET processed_items = processed_items + 1, success_items = ?, failed_items = ? WHERE id = ?',
-      [successCount, failCount, jobId],
+      `INSERT INTO batch_job_items (batch_job_id, organization_id, entity_type, entity_id, status)
+       VALUES ${chunk.map(() => "(?, ?, ?, ?, 'pending')").join(', ')}`,
+      chunk.flatMap(t => [jobId, organizationId, t.entity_type, t.entity_id]),
     );
   }
 
-  // A cancelled job keeps its status; only a job still running completes.
-  await db.query(
-    `UPDATE batch_jobs SET status = 'completed', completed_at = NOW(),
-       success_items = ?, failed_items = ? WHERE id = ? AND status = 'running'`,
-    [successCount, failCount, jobId],
-  );
-
-  const [rows] = await db.query('SELECT * FROM batch_jobs WHERE id = ?', [jobId]);
+  await queueBatchJob(jobId, organizationId);
+  const [rows] = await db.query('SELECT * FROM batch_jobs WHERE id = ? AND organization_id = ?', [jobId, organizationId]);
   return rows[0];
+}
+
+async function queueBatchJob(jobId, organizationId) {
+  const jobQueue = require('./jobQueueService');
+  await jobQueue.add('batch-job', { jobId: Number(jobId), organizationId: Number(organizationId) }, {
+    jobId: `batch-job-${jobId}`,
+    attempts: 1,
+  }).catch((err) => {
+    // The row is durable; resumeBatchJobs picks it up at the next start.
+    logger.warn({ err: err.message, jobId }, 'Could not queue the batch job; it resumes at the next start');
+  });
+}
+
+/**
+ * Run a batch job's remaining items. Holds the job's advisory lock, so a job
+ * queued twice (a resume on two replicas) runs once. An item is claimed as
+ * 'processing' before its operation runs; one found still 'processing' (the
+ * process stopped mid-item) is recorded as a failure to check by hand rather
+ * than run again, because the operation may already have happened.
+ */
+async function processBatchJob(jobId, organizationId) {
+  const { withAdvisoryLock } = require('../utils/advisoryLock');
+  return withAdvisoryLock(`batch-job:${jobId}`, async () => {
+    const [[job]] = await db.query(
+      'SELECT * FROM batch_jobs WHERE id = ? AND organization_id = ?',
+      [jobId, organizationId],
+    );
+    if (!job || !['pending', 'running'].includes(job.status)) return;
+    await db.query(
+      "UPDATE batch_jobs SET status = 'running', started_at = COALESCE(started_at, NOW()) WHERE id = ? AND status IN ('pending','running')",
+      [jobId],
+    );
+    await db.query(
+      `UPDATE batch_job_items SET status = 'failure', processed_at = NOW(),
+              result_message = 'Interrupted while running; check this one by hand'
+        WHERE batch_job_id = ? AND status = 'processing'`,
+      [jobId],
+    );
+    const params = parseJsonColumn(job.operation_params, {}) || {};
+
+    for (;;) {
+      // POST /batch-jobs/:id/cancel flips the status; stop between chunks.
+      const [[current]] = await db.query('SELECT status FROM batch_jobs WHERE id = ?', [jobId]);
+      if (current?.status !== 'running') break;
+      const [items] = await db.query(
+        `SELECT id, entity_type, entity_id FROM batch_job_items
+          WHERE batch_job_id = ? AND status = 'pending' ORDER BY id LIMIT ${ITEM_CHUNK}`,
+        [jobId],
+      );
+      if (items.length === 0) break;
+      for (const item of items) {
+        const [claim] = await db.query(
+          "UPDATE batch_job_items SET status = 'processing' WHERE id = ? AND status = 'pending'",
+          [item.id],
+        );
+        if (Number(claim.affectedRows) !== 1) continue;
+        let status = 'success';
+        let message = `${job.operation} applied`;
+        try {
+          await applyBatchOperation(organizationId, job.operation, item, params, job.created_by || null);
+        } catch (err) {
+          status = 'failure';
+          message = String(err.message).slice(0, 500);
+        }
+        await db.query(
+          'UPDATE batch_job_items SET status = ?, result_message = ?, processed_at = NOW() WHERE id = ?',
+          [status, message, item.id],
+        );
+      }
+      await refreshBatchCounts(jobId);
+    }
+
+    await refreshBatchCounts(jobId);
+    // A cancelled job keeps its status; only a job still running completes.
+    await db.query(
+      "UPDATE batch_jobs SET status = 'completed', completed_at = NOW() WHERE id = ? AND status = 'running'",
+      [jobId],
+    );
+  });
+}
+
+async function refreshBatchCounts(jobId) {
+  await db.query(
+    `UPDATE batch_jobs bj
+        JOIN (SELECT SUM(status IN ('success','failure','skipped')) AS processed,
+                     SUM(status = 'success') AS ok,
+                     SUM(status = 'failure') AS failed
+                FROM batch_job_items WHERE batch_job_id = ?) counts
+        SET bj.processed_items = COALESCE(counts.processed, 0),
+            bj.success_items = COALESCE(counts.ok, 0),
+            bj.failed_items = COALESCE(counts.failed, 0)
+      WHERE bj.id = ?`,
+    [jobId, jobId],
+  );
+}
+
+/**
+ * Queue every unfinished batch job again: the in-process queue (no Redis)
+ * loses its jobs on a restart. Called at startup; the job lock keeps a job
+ * queued by several replicas from running twice.
+ * @returns {Promise<number>} jobs queued
+ */
+async function resumeBatchJobs() {
+  let count = 0;
+  // The primary and every isolated organization's database.
+  await require('./organizationFanOut').forEachDatabaseScope('resume_batch_jobs', async (scopeOrgId) => {
+    const { sql, params } = require('./organizationFanOut').orgScopeFilter('organization_id', scopeOrgId);
+    const [rows] = await db.query(
+      `SELECT id, organization_id FROM batch_jobs WHERE status IN ('pending','running')${sql}`,
+      params,
+    );
+    for (const row of rows) await queueBatchJob(row.id, row.organization_id);
+    count += rows.length;
+  });
+  if (count) logger.info({ count }, 'Resumed unfinished batch jobs');
+  return count;
 }
 
 async function checkBatchParams(organizationId, operation, params) {
@@ -233,6 +326,17 @@ async function checkBatchParams(organizationId, operation, params) {
 }
 
 async function resolveBatchTargets(organizationId, operation, filterCriteria) {
+  // An explicit list (POST /bulk/suspend): one item per id, so an id that is
+  // not this organization's contract is reported on its own item.
+  if (Array.isArray(filterCriteria.contract_ids)) {
+    const ids = [...new Set(filterCriteria.contract_ids.map(Number))];
+    if (ids.length === 0 || ids.some(n => !Number.isSafeInteger(n) || n <= 0)) {
+      throw new ValidationError('contract_ids must be positive contract ids');
+    }
+    if (ids.length > MAX_BATCH_TARGETS) throw new ValidationError(`At most ${MAX_BATCH_TARGETS} contracts per job`);
+    return ids.map(id => ({ entity_id: id, entity_type: 'contract' }));
+  }
+
   // Build a simple contract/client list from filter_criteria
   const conditions = ['c.organization_id = ?'];
   const params = [organizationId];
@@ -250,10 +354,17 @@ async function resolveBatchTargets(organizationId, operation, filterCriteria) {
     params.push(filterCriteria.client_id);
   }
 
+
+  // Every match runs; more than the cap is refused rather than cut short
+  // (the old LIMIT 1000 dropped the rest without a word).
   const [rows] = await db.query(
-    `SELECT id AS entity_id, 'contract' AS entity_type FROM contracts c WHERE ${conditions.join(' AND ')} LIMIT 1000`,
+    `SELECT id AS entity_id, 'contract' AS entity_type FROM contracts c
+      WHERE ${conditions.join(' AND ')} ORDER BY c.id LIMIT ${MAX_BATCH_TARGETS + 1}`,
     params,
   );
+  if (rows.length > MAX_BATCH_TARGETS) {
+    throw new ValidationError(`The filter matches more than ${MAX_BATCH_TARGETS} contracts; narrow it and run several jobs`);
+  }
   return rows;
 }
 
@@ -276,16 +387,26 @@ async function applyBatchOperation(organizationId, operation, target, params, ac
     case 'suspend': {
       // Only suspend contracts belonging to this org
       const [rows] = await db.query(
-        'SELECT id FROM contracts WHERE id = ? AND organization_id = ?',
+        'SELECT id, status FROM contracts WHERE id = ? AND organization_id = ?',
         [contractId, organizationId],
       );
       if (!rows.length) {
         throw new Error(`Contract ${contractId} not found in organization`);
       }
+      // Only an active contract can be suspended (the contract status FSM
+      // trigger allows active -> suspended only); say so instead of passing
+      // on the trigger's raw SQLSTATE 45000.
+      if (rows[0].status !== 'active') {
+        throw new Error(`Cannot suspend a '${rows[0].status}' contract`);
+      }
       const suspSvc = getSuspensionService();
       // An operator batch, not a rule run: the actor is the job's creator, and
       // a body rule_id/user_id only forged the suspension log's attribution.
-      await suspSvc.suspendContract(contractId, null, actorId, params.invoice_id || null);
+      const outcome = await suspSvc.suspendContract(contractId, null, actorId, params.invoice_id || null);
+      // An exempt client is skipped by suspendContract, which is not a success.
+      if (outcome && outcome.skipped) {
+        throw new Error(`Suspension-exempt client: ${outcome.reason || 'exempt'}`);
+      }
       logger.info({ organizationId, contractId, operation }, 'Batch suspend applied');
       return;
     }
@@ -630,6 +751,8 @@ module.exports = {
   dispatchAction,
   applyBatchOperation,
   createBatchJob,
+  processBatchJob,
+  resumeBatchJobs,
   runProvisioningPipeline,
   evaluateRemediationRules,
 };

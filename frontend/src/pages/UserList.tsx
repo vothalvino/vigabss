@@ -112,7 +112,7 @@ async function fetchUsers(page: number, pageSize: number, groupFilter: string, s
   const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
   if (groupFilter) params.set('group_id', groupFilter);
   if (statusFilter) params.set('status', statusFilter);
-  const res = await fetch(`${API_BASE}/users?${params}`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/users?${params}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load users');
   return res.json() as Promise<UsersResponse>;
 }
@@ -121,27 +121,27 @@ async function fetchUsers(page: number, pageSize: number, groupFilter: string, s
 // shape as the normal list; rows carry `deleted_at`.
 async function fetchArchivedUsers(page: number, pageSize: number): Promise<UsersResponse> {
   const params = new URLSearchParams({ page: String(page), limit: String(pageSize), only_deleted: 'true' });
-  const res = await fetch(`${API_BASE}/users?${params}`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/users?${params}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load archived users');
   return res.json() as Promise<UsersResponse>;
 }
 
 async function fetchGroups(): Promise<Group[]> {
-  const res = await fetch(`${API_BASE}/roles?limit=100`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/roles?limit=100`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load groups');
   const json = (await res.json()) as GroupsResponse;
   return json.data;
 }
 
 async function fetchOrganizations(): Promise<Organization[]> {
-  const res = await fetch(`${API_BASE}/organizations?limit=500`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/organizations?limit=500`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load organizations');
   const json = (await res.json()) as OrganizationsResponse;
   return json.data;
 }
 
 async function fetchUserOrganizations(id: number): Promise<UserOrganization[]> {
-  const res = await fetch(`${API_BASE}/users/${id}/organizations`, { headers: authHeaders() });
+  const res = await authedFetch(`${API_BASE}/users/${id}/organizations`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load organization access');
   const json = (await res.json()) as UserOrganizationsResponse;
   return json.data;

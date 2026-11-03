@@ -48,7 +48,11 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
-      sourcemap: true,
+      // Built for debugging but never published: no sourceMappingURL, and
+      // scripts/postbuild.mjs moves the maps out of dist/ (FE-21).
+      sourcemap: 'hidden',
+      // Read by scripts/postbuild.mjs for the initial-bundle budget.
+      manifest: true,
       // The production CSP deliberately keeps font-src at 'self'.  Vite's
       // default 4 KiB threshold turns small @fontsource subsets into data:
       // URLs, which the browser then (correctly) blocks.  Emit every asset as
