@@ -51,7 +51,7 @@ router.get('/:id', requirePermission('csd_certificates.view'), ctrl.get);
 // validates the pair, matches the RFC against the org's fiscal profile, and
 // encrypts the key material at rest. Replaces the old generic create that
 // trusted client-sent certificate fields.
-router.post('/', requirePermission('csd_certificates.create'), validate(uploadCsdCertificate), async (req, res, next) => {
+router.post('/', requirePermission('csd_certificates.create'), validate(uploadCsdCertificate, { strip: false }), async (req, res, next) => {
   try {
     const { cer_b64, key_b64, passphrase } = req.body;
 
@@ -230,7 +230,7 @@ router.post('/:id/activate', requirePermission('csd_certificates.update'), async
   }
 });
 
-router.put('/:id', requirePermission('csd_certificates.update'), validate(updateCsdCertificate), ctrl.update);
+router.put('/:id', requirePermission('csd_certificates.update'), validate(updateCsdCertificate, { strip: false }), ctrl.update);
 
 // Delete clears is_active (a soft-deleted ghost must not hold the active
 // slot) and restore ALWAYS comes back inactive — otherwise delete-active →

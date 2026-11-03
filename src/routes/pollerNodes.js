@@ -52,8 +52,8 @@ async function requireInstallOperator(req, res, next) {
 
 router.get('/',     requirePermission('poller_nodes.view'),   ctrl.list);
 router.get('/:id',  requirePermission('poller_nodes.view'),   ctrl.get);
-router.post('/',    requirePermission('poller_nodes.create'), requireInstallOperator, validate(createPollerNode), ctrl.create);
-router.put('/:id',  requirePermission('poller_nodes.update'), requireInstallOperator, validate(updatePollerNode), ctrl.update);
+router.post('/',    requirePermission('poller_nodes.create'), requireInstallOperator, validate(createPollerNode, { strip: false }), ctrl.create);
+router.put('/:id',  requirePermission('poller_nodes.update'), requireInstallOperator, validate(updatePollerNode, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('poller_nodes.delete'), requireInstallOperator, ctrl.destroy);
 
 // Performance history for a specific poller node

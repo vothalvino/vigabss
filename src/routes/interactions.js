@@ -19,13 +19,13 @@ router.use(orgScope);
 
 router.get('/', requirePermission('interactions.view'), ctrl.list);
 router.get('/:id', requirePermission('interactions.view'), ctrl.get);
-router.post('/', requirePermission('interactions.create'), validate(createInteraction), (req, res, next) => {
+router.post('/', requirePermission('interactions.create'), validate(createInteraction, { strip: false }), (req, res, next) => {
   // Default the author to the logged-in staff member.
   if (req.body.user_id === undefined && req.user?.id) req.body.user_id = req.user.id;
   return ctrl.create(req, res, next);
 });
-router.put('/:id', requirePermission('interactions.update'), validate(updateInteraction), ctrl.update);
-router.patch('/:id', requirePermission('interactions.update'), validate(patchInteraction), ctrl.partialUpdate);
+router.put('/:id', requirePermission('interactions.update'), validate(updateInteraction, { strip: false }), ctrl.update);
+router.patch('/:id', requirePermission('interactions.update'), validate(patchInteraction, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('interactions.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('interactions.update'), ctrl.restore);
 

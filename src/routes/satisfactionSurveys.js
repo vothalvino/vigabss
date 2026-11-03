@@ -70,9 +70,9 @@ router.get('/metrics', requirePermission('surveys.view'), async (req, res, next)
 });
 
 router.get('/:id', requirePermission('surveys.view'), ctrl.get);
-router.post('/', requirePermission('surveys.create'), validate(createSurvey), ctrl.create);
-router.put('/:id', requirePermission('surveys.update'), validate(updateSurvey), ctrl.update);
-router.patch('/:id', requirePermission('surveys.update'), validate(patchSurvey), ctrl.partialUpdate);
+router.post('/', requirePermission('surveys.create'), validate(createSurvey, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('surveys.update'), validate(updateSurvey, { strip: false }), ctrl.update);
+router.patch('/:id', requirePermission('surveys.update'), validate(patchSurvey, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('surveys.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('surveys.update'), ctrl.restore);
 
@@ -85,7 +85,7 @@ router.post('/:id/send', requirePermission('surveys.create'), async (req, res, n
 });
 
 // Record the client's response (NPS: 0-10, CSAT: 1-5)
-router.post('/:id/respond', requirePermission('surveys.update'), validate(respondSurvey), async (req, res, next) => {
+router.post('/:id/respond', requirePermission('surveys.update'), validate(respondSurvey, { strip: false }), async (req, res, next) => {
   try {
     const survey = await interactionService.respondSurvey(req.params.id, req.orgId, {
       score: req.body.score,

@@ -61,11 +61,24 @@ describe('jobQueueService constants', () => {
     expect(QUEUE_NAMES).toContain('webhook-delivery');
     expect(QUEUE_NAMES).toContain('trap-forwarding-delivery');
     expect(QUEUE_NAMES).toContain('sms-send');
-    expect(QUEUE_NAMES).toContain('cfdi-stamp');
-    expect(QUEUE_NAMES).toContain('config-backup');
     expect(QUEUE_NAMES).toContain('ai-triage');
-    expect(QUEUE_NAMES).toContain('ai-backfill-embeddings');
-    expect(QUEUE_NAMES).toContain('ai-cost-rollup');
+  });
+
+  test('every queue has a producer in src (ASY-34: four had a handler and none)', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const { QUEUE_NAMES } = require('../src/services/jobQueueService');
+    const sources = [];
+    const walk = (dir) => {
+      for (const f of fs.readdirSync(dir)) {
+        const p = path.join(dir, f);
+        if (fs.statSync(p).isDirectory()) { if (f !== 'workers') walk(p); } else if (p.endsWith('.js')) sources.push(fs.readFileSync(p, 'utf8'));
+      }
+    };
+    walk(path.join(__dirname, '..', 'src'));
+    const all = sources.join('\n');
+    const unproduced = QUEUE_NAMES.filter(name => !new RegExp(`\\.add\\(\\s*'${name}'`).test(all) && !new RegExp(`queueName\\s*[:=]\\s*'${name}'`).test(all));
+    expect(unproduced).toEqual([]);
   });
 
   test('getStats() returns in-process mode when REDIS_URL is unset', async () => {
@@ -141,7 +154,7 @@ describe('jobQueueService constants', () => {
 // Worker Registry
 // ============================================================================
 describe('workers/index.js — registerWorkers()', () => {
-  test('registers handlers for all 9 named queues', () => {
+  test('registers handlers for all 5 named queues', () => {
     const processSpy = jest.spyOn(jobQueue, 'process');
     workers.registerWorkers();
     const names = processSpy.mock.calls.map(([name]) => name);
@@ -149,19 +162,15 @@ describe('workers/index.js — registerWorkers()', () => {
     expect(names).toContain('webhook-delivery');
     expect(names).toContain('trap-forwarding-delivery');
     expect(names).toContain('sms-send');
-    expect(names).toContain('cfdi-stamp');
-    expect(names).toContain('config-backup');
     expect(names).toContain('ai-triage');
-    expect(names).toContain('ai-backfill-embeddings');
-    expect(names).toContain('ai-cost-rollup');
-    expect(names).toHaveLength(9);
+    expect(names).toHaveLength(5);
   });
 
   test('registerWorkers() is idempotent — second call is a no-op', () => {
     const processSpy = jest.spyOn(jobQueue, 'process');
     workers.registerWorkers();
     workers.registerWorkers();
-    expect(processSpy).toHaveBeenCalledTimes(9);
+    expect(processSpy).toHaveBeenCalledTimes(5);
   });
 
   test('trap-forwarding worker processes the already-durable delivery id', async () => {

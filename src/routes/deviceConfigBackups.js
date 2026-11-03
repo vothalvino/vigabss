@@ -93,8 +93,8 @@ router.get('/compliance-results', requirePermission('config_compliance.view'), a
 // Generic CRUD (parametric routes registered after the static ones above)
 // ---------------------------------------------------------------------------
 router.get('/:id', requirePermission('device_config_backups.view'), ctrl.get);
-router.post('/', requirePermission('device_config_backups.create'), validate(createDeviceConfigBackup), ctrl.create);
-router.put('/:id', requirePermission('device_config_backups.update'), validate(updateDeviceConfigBackup), ctrl.update);
+router.post('/', requirePermission('device_config_backups.create'), validate(createDeviceConfigBackup, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('device_config_backups.update'), validate(updateDeviceConfigBackup, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('device_config_backups.delete'), ctrl.destroy);
 // NO POST /:id/restore. It existed and was a lie: ctrl.restore is
 // BaseModel.restore, which clears deleted_at on the ROW — it does not push any

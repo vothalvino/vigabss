@@ -60,7 +60,7 @@ router.get('/:id', requirePermission('provisioning_pipelines.view'), async (req,
 });
 
 // POST /provisioning-pipelines — trigger a pipeline run
-router.post('/', requirePermission('provisioning_pipelines.create'), validate(createPipelineSchema), async (req, res, next) => {
+router.post('/', requirePermission('provisioning_pipelines.create'), validate(createPipelineSchema, { strip: false }), async (req, res, next) => {
   try {
     const pipeline = await automationService.runProvisioningPipeline(req.orgId, {
       name: req.body.name,

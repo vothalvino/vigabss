@@ -21,8 +21,8 @@ router.use(requireMxLocale);
 
 router.get('/', requirePermission('concession_titles.view'), ctrl.list);
 router.get('/:id', requirePermission('concession_titles.view'), ctrl.get);
-router.post('/', requirePermission('concession_titles.create'), validate(createConcessionTitle), ctrl.create);
-router.put('/:id', requirePermission('concession_titles.update'), validate(updateConcessionTitle), ctrl.update);
+router.post('/', requirePermission('concession_titles.create'), validate(createConcessionTitle, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('concession_titles.update'), validate(updateConcessionTitle, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('concession_titles.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('concession_titles.update'), ctrl.restore);
 

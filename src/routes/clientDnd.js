@@ -250,7 +250,7 @@ router.put('/:clientId/dnd', requirePermission('dnd.update'), async (req, res, n
 router.patch(
   '/:clientId/dnd/:channel',
   requirePermission('dnd.update'),
-  validate(dndPrefSchema),
+  validate(dndPrefSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const clientId = parseInt(req.params.clientId, 10);

@@ -36,7 +36,7 @@ router.get('/data-packs', requirePermission('data_packs.view'), async (req, res,
 });
 
 // POST /data-packs
-router.post('/data-packs', requirePermission('data_packs.create'), validate(createDataPack), async (req, res, next) => {
+router.post('/data-packs', requirePermission('data_packs.create'), validate(createDataPack, { strip: false }), async (req, res, next) => {
   try {
     const pack = await dataPackService.createPack(req.orgId, req.body);
     res.status(201).json({ data: pack });
@@ -46,7 +46,7 @@ router.post('/data-packs', requirePermission('data_packs.create'), validate(crea
 });
 
 // PUT /data-packs/:id
-router.put('/data-packs/:id', requirePermission('data_packs.update'), validate(updateDataPack), async (req, res, next) => {
+router.put('/data-packs/:id', requirePermission('data_packs.update'), validate(updateDataPack, { strip: false }), async (req, res, next) => {
   try {
     const pack = await dataPackService.updatePack(req.params.id, req.orgId, req.body);
     if (!pack) return res.status(404).json({ error: 'Data pack not found' });

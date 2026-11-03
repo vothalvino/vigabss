@@ -38,7 +38,7 @@ router.get('/candidates', requirePermission('escalations.view'), async (req, res
 router.get('/:id', requirePermission('escalations.view'), ctrl.get);
 
 // Escalate a ticket (level auto-increments per ticket)
-router.post('/', requirePermission('escalations.create'), validate(createEscalation), async (req, res, next) => {
+router.post('/', requirePermission('escalations.create'), validate(createEscalation, { strip: false }), async (req, res, next) => {
   try {
     const escalation = await interactionService.escalateTicket(req.body.ticket_id, {
       orgId: req.orgId,
@@ -59,7 +59,7 @@ router.post('/', requirePermission('escalations.create'), validate(createEscalat
 });
 
 // Acknowledge or resolve an escalation
-router.post('/:id/transition', requirePermission('escalations.update'), validate(transitionEscalation), async (req, res, next) => {
+router.post('/:id/transition', requirePermission('escalations.update'), validate(transitionEscalation, { strip: false }), async (req, res, next) => {
   try {
     const escalation = await interactionService.transitionEscalation(req.params.id, req.orgId, {
       status: req.body.status,

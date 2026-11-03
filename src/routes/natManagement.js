@@ -49,7 +49,7 @@ router.get('/:id', requirePermission('nat_pools.view'), async (req, res, next) =
   } catch (err) { next(err); }
 });
 
-router.post('/', requirePermission('nat_pools.create'), validate(createNatPool), async (req, res, next) => {
+router.post('/', requirePermission('nat_pools.create'), validate(createNatPool, { strip: false }), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createNatPool, 'organization_id'));
@@ -62,7 +62,7 @@ router.post('/', requirePermission('nat_pools.create'), validate(createNatPool),
   } catch (err) { next(err); }
 });
 
-router.put('/:id', requirePermission('nat_pools.update'), validate(updateNatPool), async (req, res, next) => {
+router.put('/:id', requirePermission('nat_pools.update'), validate(updateNatPool, { strip: false }), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM nat_pools WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',

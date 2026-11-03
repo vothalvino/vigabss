@@ -26,6 +26,7 @@ class SuspensionRule extends BaseModel {
   static get hasOrgScope() { return true; }
 
   static get softDelete() { return true; }
+  static get deactivateOnDelete() { return { is_active: 0 }; }
 }
 
 module.exports = SuspensionRule;

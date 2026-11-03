@@ -486,7 +486,7 @@ const resolvers = {
     client: (ticket, _args, ctx) =>
       ticket.client_id ? Client.findById(ticket.client_id, ctx.orgId) : null,
 
-    comments: (ticket) => Ticket.getComments(ticket.id),
+    comments: (ticket) => Ticket.getComments(ticket.id, ticket.organization_id),
   },
 
   // ---------------------------------------------------------------------------

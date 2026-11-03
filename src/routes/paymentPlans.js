@@ -40,7 +40,7 @@ router.get('/:id', requirePermission('payment_plans.view'), async (req, res, nex
 });
 
 // Create plan
-router.post('/', requirePermission('payment_plans.create'), validate(createPaymentPlan), ownedReferences({ client_id: 'clients' }), async (req, res, next) => {
+router.post('/', requirePermission('payment_plans.create'), validate(createPaymentPlan, { strip: false }), ownedReferences({ client_id: 'clients' }), async (req, res, next) => {
   try {
     const {
       client_id,
@@ -90,7 +90,7 @@ router.delete('/:id', requirePermission('payment_plans.delete'), ctrl.destroy);
 router.post(
   '/:id/installments/:seq/pay',
   requirePermission('payment_plans.update'),
-  validate(payInstallmentSchema),
+  validate(payInstallmentSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const planId = parseInt(req.params.id, 10);

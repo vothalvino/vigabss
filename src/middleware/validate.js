@@ -14,13 +14,15 @@ const TIMESTAMP_MAX_MS = Date.UTC(2038, 0, 19, 3, 14, 7);
  *
  * @param {object} schema   field rules
  * @param {object} [options]
- * @param {boolean} [options.strip]  when true, delete any req.body key that is
- *   not declared in the schema. This is the mass-assignment guard for sensitive
- *   mutation routes: privileged columns (e.g. role, user_id, organization_id)
- *   can never reach a fillable-filtered model from an untrusted request body.
- *   Off by default so routes that intentionally read undeclared optional fields
- *   are unaffected.
+ * @param {boolean} [options.strip]  delete any req.body key that is not
+ *   declared in the schema: the mass-assignment guard, so privileged columns
+ *   (role, user_id, organization_id) never reach a fillable-filtered model from
+ *   an untrusted body. On by default for POST, PUT and PATCH (TNA-38). The
+ *   routes that existed before pass { strip: false } explicitly;
+ *   tests/validateStripRatchet.test.js keeps that list from growing.
  */
+const STRIP_BY_DEFAULT = new Set(['POST', 'PUT', 'PATCH']);
+
 function validate(schema, options = {}) {
   return (req, _res, next) => {
     const errors = [];
@@ -121,8 +123,9 @@ function validate(schema, options = {}) {
       return next(new ValidationError('Validation failed', errors));
     }
 
-    // Mass-assignment guard (opt-in): strip any key not declared in the schema.
-    if (options.strip && body && typeof body === 'object') {
+    // Mass-assignment guard: strip any key not declared in the schema.
+    const strip = options.strip ?? STRIP_BY_DEFAULT.has(req.method);
+    if (strip && body && typeof body === 'object') {
       for (const key of Object.keys(body)) {
         if (!Object.prototype.hasOwnProperty.call(schema, key)) {
           delete body[key];

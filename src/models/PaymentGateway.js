@@ -18,6 +18,7 @@ class PaymentGateway extends BaseModel {
   static get hasOrgScope() { return true; }
 
   static get softDelete() { return true; }
+  static get deactivateOnDelete() { return { status: 'inactive' }; }
 
   // config_json is a JSON column. The validator accepts a string; make sure
   // whatever reaches the column is valid JSON (stringify an object, or wrap a
@@ -36,7 +37,7 @@ class PaymentGateway extends BaseModel {
 
   static async create(data) { return super.create(this.normalizeInput(data)); }
 
-  static async update(id, data, orgId = null) { return super.update(id, this.normalizeInput(data), orgId); }
+  static async update(id, data, orgId) { return super.update(id, this.normalizeInput(data), orgId); }
 }
 
 module.exports = PaymentGateway;

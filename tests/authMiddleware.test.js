@@ -8,6 +8,7 @@ jest.mock('../src/config/database', () => ({
 }));
 jest.mock('../src/models/User', () => ({
   findById: jest.fn(),
+  UNSCOPED: Symbol.for('vigabss.BaseModel.UNSCOPED'),
 }));
 jest.mock('../src/services/orgPrincipalService', () => ({
   resolveOrgPrincipal: jest.fn(),
@@ -99,7 +100,8 @@ describe('auth middleware', () => {
 
       await authenticate(req, res, next);
 
-      expect(User.findById).toHaveBeenCalledWith(99);
+      // The identity is install-wide; membership is checked separately.
+      expect(User.findById).toHaveBeenCalledWith(99, User.UNSCOPED);
       expect(next).toHaveBeenCalledWith(
         expect.objectContaining({ statusCode: 401 }),
       );

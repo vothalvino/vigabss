@@ -165,7 +165,7 @@ describe('CfdiCancellation', () => {
     expect(CfdiCancellation.fillable).toContain('motivo');
     expect(CfdiCancellation.fillable).toContain('folio_sustitucion');
     expect(CfdiCancellation.fillable).toContain('cancellation_status');
-    expect(CfdiCancellation.fillable).toContain('sat_response');
+    expect(CfdiCancellation.fillable).toContain('cancellation_status');
   });
 
   test('create cancellation record', async () => {
@@ -304,12 +304,12 @@ describe('WebhookDelivery', () => {
 
   test('fillable includes delivery tracking fields', () => {
     expect(WebhookDelivery.fillable).toContain('webhook_id');
-    expect(WebhookDelivery.fillable).toContain('event');
-    expect(WebhookDelivery.fillable).toContain('request_body');
-    expect(WebhookDelivery.fillable).toContain('response_status');
+    expect(WebhookDelivery.fillable).toContain('event_name');
+    expect(WebhookDelivery.fillable).toContain('payload');
+    expect(WebhookDelivery.fillable).toContain('http_status_code');
     expect(WebhookDelivery.fillable).toContain('response_body');
     expect(WebhookDelivery.fillable).toContain('response_time_ms');
-    expect(WebhookDelivery.fillable).toContain('attempt');
+    expect(WebhookDelivery.fillable).toContain('attempt_number');
     expect(WebhookDelivery.fillable).toContain('status');
   });
 

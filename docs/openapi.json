@@ -27269,7 +27269,7 @@
         "tags": [
           "AI Assistant"
         ],
-        "summary": "Get AI reply policy",
+        "summary": "Get AI reply policy, with month-to-date spend against monthly_budget_usd",
         "operationId": "getAiPolicy",
         "security": [
           {
@@ -60023,6 +60023,11 @@
           "active_provider_id": {
             "type": "number",
             "minimum": 1
+          },
+          "monthly_budget_usd": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
           }
         }
       },

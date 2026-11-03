@@ -269,7 +269,7 @@ router.post('/sync-freeradius', requirePermission('radius.sync'), async (req, re
 // With an optional body { acct_session_id, nas_ip_address } the kill is
 // narrowed to that ONE session; an empty body disconnects EVERY session of
 // the account on every NAS (the historical contract, kept for scripts).
-router.post('/:id/disconnect', requirePermission('devices.update'), validate(disconnectRadius), async (req, res, next) => {
+router.post('/:id/disconnect', requirePermission('devices.update'), validate(disconnectRadius, { strip: false }), async (req, res, next) => {
   try {
     // SAME TENANCY ANCHOR AS THE BATCH ROUTE BELOW. This lookup had no
     // organisation filter and never touched req.orgId, so any id resolved —
@@ -538,7 +538,7 @@ router.get('/:id/routes', requirePermission('radius_account_routes.view'), requi
   }
 });
 
-router.post('/:id/routes', requirePermission('radius_account_routes.create'), requireOwnedRadiusAccount, validate(createRoute), async (req, res, next) => {
+router.post('/:id/routes', requirePermission('radius_account_routes.create'), requireOwnedRadiusAccount, validate(createRoute, { strip: false }), async (req, res, next) => {
   try {
     const { destination, gateway, metric } = req.body;
     const [result] = await db.query(
@@ -553,7 +553,7 @@ router.post('/:id/routes', requirePermission('radius_account_routes.create'), re
   }
 });
 
-router.put('/:id/routes/:routeId', requirePermission('radius_account_routes.update'), requireOwnedRadiusAccount, validate(createRoute), async (req, res, next) => {
+router.put('/:id/routes/:routeId', requirePermission('radius_account_routes.update'), requireOwnedRadiusAccount, validate(createRoute, { strip: false }), async (req, res, next) => {
   try {
     const { destination, gateway, metric } = req.body;
     const [result] = await db.query(
@@ -605,7 +605,7 @@ router.get('/walled-garden', requirePermission('walled_garden.view'), async (req
   }
 });
 
-router.put('/walled-garden', requirePermission('walled_garden.update'), validate(updateWalledGarden), async (req, res, next) => {
+router.put('/walled-garden', requirePermission('walled_garden.update'), validate(updateWalledGarden, { strip: false }), async (req, res, next) => {
   try {
     const { enabled, redirect_url, address_list_name, allowed_destinations } = req.body;
     await db.query(
@@ -976,8 +976,8 @@ router.post('/sessions/disconnect-batch', requirePermission('radius.batch_discon
 // strips it unconditionally).
 router.get('/', requirePermission('devices.view', 'radius.credentials.view'), ctrl.list);
 router.get('/:id', requirePermission('devices.view', 'radius.credentials.view'), ctrl.get);
-router.post('/', requirePermission('devices.create'), validate(createRadius), ctrl.create);
-router.put('/:id', requirePermission('devices.update'), validate(updateRadius), ctrl.update);
+router.post('/', requirePermission('devices.create'), validate(createRadius, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('devices.update'), validate(updateRadius, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('devices.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('devices.update'), ctrl.restore);
 

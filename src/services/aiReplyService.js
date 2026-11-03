@@ -37,6 +37,7 @@ const topologyContextService = require('./topologyContextService');
 const serviceHealthService   = require('./serviceHealthService');
 const phraseLibraryService   = require('./phraseLibraryService');
 const llmProviderService     = require('./llmProviderService');
+const aiBudget = require('./aiBudgetService');
 const kbService              = require('./kbService');
 
 const logger = require('../utils/logger').child({ service: 'aiReplyService' });
@@ -452,6 +453,9 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
     inboundText = await _latestInbound(ticketId);
   }
   if (!String(inboundText || '').trim()) return { skipped: true, reason: 'no_inbound_text' };
+  // Over the monthly AI budget: hand the ticket to staff without a provider
+  // call (classification would spend too) (ASY-34).
+  if (await aiBudget.overBudget(orgId)) return { skipped: true, reason: 'budget_exceeded' };
 
   // ── Step 2: Redact, then classify ───────────────────────────────────────────
   // Classification is an LLM call too: it used to receive the raw text before
@@ -475,7 +479,7 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
   const [phrasesByCategory, forbiddenTerms, rawHistory, ragChunks] = await Promise.all([
     phraseLibraryService.getPhrasesByCategory(orgId, locale),
     phraseLibraryService.getTermsByLocale(orgId, locale),
-    Ticket.getComments(ticketId),
+    Ticket.getComments(ticketId, orgId),
     phraseLibraryService.search(orgId, locale, workingInbound, 5),
   ]);
   // Ticket history is redacted like the inbound text. Staff-only notes stay
@@ -637,7 +641,7 @@ async function generate({ orgId, ticketId, channel = 'portal', inboundText, cont
         body:        finalText,
         is_internal: false,
       }));
-      await AiReplyLog.update(logEntry.id, { action: 'auto_sent', final_text: finalText });
+      await AiReplyLog.update(logEntry.id, { action: 'auto_sent', final_text: finalText }, orgId);
       // Channel dispatch (WhatsApp, email, SMS) is handled by channel adapters
       // that consume this service's return value / events. We log the intent here.
       logger.info({ orgId, ticketId, channel, logId: logEntry.id }, 'aiReplyService: auto_sent via channel');

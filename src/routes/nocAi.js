@@ -45,7 +45,7 @@ router.get(
 router.post(
   '/insights/alert-explain',
   requirePermission('noc_ai.analyze'),
-  validate(explainAlertSchema),
+  validate(explainAlertSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await nocAiService.explainAlert(req.orgId, req.body.alertId, req.body.providerId);
@@ -117,7 +117,7 @@ router.post(
 router.post(
   '/insights/runbook',
   requirePermission('noc_ai.analyze'),
-  validate(runbookSchema),
+  validate(runbookSchema, { strip: false }),
   async (req, res, next) => {
     try {
       const result = await nocAiService.runbookSuggestion(req.orgId, req.body.alertType, req.body.providerId);

@@ -160,7 +160,7 @@ router.get('/:id', requirePermission('service_orders.view'), ctrl.get);
 
 // Create a service order: generate an order number and seed the onboarding
 // checklist inside a single transaction.
-router.post('/', requirePermission('service_orders.create'), validate(createServiceOrder), async (req, res, next) => {
+router.post('/', requirePermission('service_orders.create'), validate(createServiceOrder, { strip: false }), async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -216,8 +216,8 @@ router.post('/', requirePermission('service_orders.create'), validate(createServ
   }
 });
 
-router.put('/:id', requirePermission('service_orders.update'), validate(updateServiceOrder), ctrl.update);
-router.patch('/:id', requirePermission('service_orders.update'), validate(patchServiceOrder), ctrl.partialUpdate);
+router.put('/:id', requirePermission('service_orders.update'), validate(updateServiceOrder, { strip: false }), ctrl.update);
+router.patch('/:id', requirePermission('service_orders.update'), validate(patchServiceOrder, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('service_orders.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('service_orders.update'), ctrl.restore);
 
@@ -260,7 +260,7 @@ router.post('/:id/start', requirePermission('service_orders.update'), async (req
 
 // Complete: in_process -> done. Activates the linked contract and either
 // leaves the install as already-paid or raises an installation-fee invoice.
-router.post('/:id/complete', requirePermission('service_orders.update'), validate(completeServiceOrder), async (req, res, next) => {
+router.post('/:id/complete', requirePermission('service_orders.update'), validate(completeServiceOrder, { strip: false }), async (req, res, next) => {
   try {
     const { billing, installation_fee: installationFee, description } = req.body;
     // Ordinary operational orders remain completable with
@@ -351,12 +351,12 @@ router.post('/:id/cancel', requirePermission('service_orders.update'), async (re
 router.get('/:id/tasks', requirePermission('service_orders.view'), async (req, res, next) => {
   try {
     await ServiceOrder.findByIdOrFail(req.params.id, req.orgId);
-    const tasks = await ServiceOrder.getTasks(req.params.id);
+    const tasks = await ServiceOrder.getTasks(req.params.id, req.orgId);
     res.json({ data: tasks });
   } catch (err) { next(err); }
 });
 
-router.post('/:id/tasks', requirePermission('service_orders.update'), validate(createServiceOrderTask), async (req, res, next) => {
+router.post('/:id/tasks', requirePermission('service_orders.update'), validate(createServiceOrderTask, { strip: false }), async (req, res, next) => {
   try {
     await ServiceOrder.findByIdOrFail(req.params.id, req.orgId);
     const { task_key, label, sort_order, notes } = req.body;
@@ -370,7 +370,7 @@ router.post('/:id/tasks', requirePermission('service_orders.update'), validate(c
   } catch (err) { next(err); }
 });
 
-router.patch('/:id/tasks/:taskId', requirePermission('service_orders.update'), validate(updateServiceOrderTask), async (req, res, next) => {
+router.patch('/:id/tasks/:taskId', requirePermission('service_orders.update'), validate(updateServiceOrderTask, { strip: false }), async (req, res, next) => {
   try {
     await ServiceOrder.findByIdOrFail(req.params.id, req.orgId);
     const updates = [];

@@ -34,7 +34,7 @@ router.use(orgScope);
 // ---------------------------------------------------------------------------
 // POST /bulk/invoices/void — Mass-void invoices
 // ---------------------------------------------------------------------------
-router.post('/invoices/void', requirePermission('invoices.update'), validate(bulkSchemas.voidInvoices), async (req, res, next) => {
+router.post('/invoices/void', requirePermission('invoices.update'), validate(bulkSchemas.voidInvoices, { strip: false }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { invoice_ids } = req.body;
@@ -67,7 +67,7 @@ router.post('/invoices/void', requirePermission('invoices.update'), validate(bul
 // ---------------------------------------------------------------------------
 // POST /bulk/invoices/generate — Mass-generate invoices
 // ---------------------------------------------------------------------------
-router.post('/invoices/generate', requirePermission('invoices.create'), validate(bulkSchemas.generateInvoices), async (req, res, next) => {
+router.post('/invoices/generate', requirePermission('invoices.create'), validate(bulkSchemas.generateInvoices, { strip: false }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { contract_ids } = req.body;
@@ -143,7 +143,7 @@ router.post('/invoices/generate', requirePermission('invoices.create'), validate
 // ---------------------------------------------------------------------------
 // POST /bulk/suspend — Mass-suspend contracts
 // ---------------------------------------------------------------------------
-router.post('/suspend', requirePermission('contracts.update'), validate(bulkSchemas.suspend), async (req, res, next) => {
+router.post('/suspend', requirePermission('contracts.update'), validate(bulkSchemas.suspend, { strip: false }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { contract_ids } = req.body;
@@ -235,7 +235,7 @@ router.post('/suspend', requirePermission('contracts.update'), validate(bulkSche
 //      up to 10,000 send-attempts/window at 1000 recipients/request). This
 //      is the layer that actually caps mail-bombing volume; the per-request
 //      hard cap of 1000 clients below is unchanged.
-router.post('/email', bulkEmailLimiter, requirePermission('campaigns.create'), validate(bulkSchemas.email), async (req, res, next) => {
+router.post('/email', bulkEmailLimiter, requirePermission('campaigns.create'), validate(bulkSchemas.email, { strip: false }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { client_ids, subject, body } = req.body;

@@ -98,7 +98,7 @@ router.get('/:id', requirePermission('router_driver_configs.view'), async (req, 
 });
 
 // POST /router-drivers
-router.post('/', requirePermission('router_driver_configs.create'), validate(createDriverSchema), ownedReferences({ device_id: 'devices' }), async (req, res, next) => {
+router.post('/', requirePermission('router_driver_configs.create'), validate(createDriverSchema, { strip: false }), ownedReferences({ device_id: 'devices' }), async (req, res, next) => {
   try {
     const config = await routerDriverService.createDriverConfig(req.orgId, req.body, req.user.id);
     res.status(201).json({ data: config });
@@ -106,7 +106,7 @@ router.post('/', requirePermission('router_driver_configs.create'), validate(cre
 });
 
 // PUT /router-drivers/:id
-router.put('/:id', requirePermission('router_driver_configs.update'), validate(updateDriverSchema), async (req, res, next) => {
+router.put('/:id', requirePermission('router_driver_configs.update'), validate(updateDriverSchema, { strip: false }), async (req, res, next) => {
   try {
     const config = await routerDriverService.updateDriverConfig(req.params.id, req.orgId, req.body);
     if (!config) return res.status(404).json({ error: { message: 'Router driver config not found' } });
@@ -143,7 +143,7 @@ router.post('/:id/test', requirePermission('router_driver_configs.update'), asyn
 });
 
 // POST /router-drivers/:id/dispatch — send a command
-router.post('/:id/dispatch', requirePermission('device_command_executions.execute'), validate(dispatchCommandSchema), async (req, res, next) => {
+router.post('/:id/dispatch', requirePermission('device_command_executions.execute'), validate(dispatchCommandSchema, { strip: false }), async (req, res, next) => {
   try {
     // 'reboot' is a privileged device action gated by devices.reboot — it must
     // NOT be reachable through this generic dispatch route (device_command_

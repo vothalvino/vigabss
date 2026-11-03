@@ -127,7 +127,7 @@ async function requireUsableTemplate(req, _res, next) {
 router.post(
   '/',
   requirePermission('campaigns.create'),
-  validate(createCommunicationCampaign),
+  validate(createCommunicationCampaign, { strip: false }),
   requireUsableTemplate,
   (req, _res, next) => {
     // Default status to 'draft' on creation
@@ -159,7 +159,7 @@ router.post(
 router.put(
   '/:id',
   requirePermission('campaigns.update'),
-  validate(updateCommunicationCampaign),
+  validate(updateCommunicationCampaign, { strip: false }),
   requireUsableTemplate,
   ctrl.update,
 );
@@ -185,7 +185,7 @@ router.put(
 router.patch(
   '/:id',
   requirePermission('campaigns.update'),
-  validate(patchCommunicationCampaign),
+  validate(patchCommunicationCampaign, { strip: false }),
   requireUsableTemplate,
   ctrl.partialUpdate,
 );

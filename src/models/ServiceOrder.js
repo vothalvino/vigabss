@@ -53,14 +53,16 @@ class ServiceOrder extends BaseModel {
   /**
    * Get the onboarding checklist tasks for an order.
    */
-  static async getTasks(orderId) {
+  static async getTasks(orderId, orgId) {
     const db = require('../config/database');
+    // The order must belong to the organization (TNB-34).
     const [rows] = await db.query(
       `SELECT id, task_key, label, is_done, completed_at, completed_by, sort_order, notes, created_at, updated_at
          FROM service_order_tasks
         WHERE service_order_id = ?
+          AND EXISTS (SELECT 1 FROM service_orders owner WHERE owner.id = ? AND owner.organization_id = ?)
         ORDER BY sort_order, id`,
-      [orderId],
+      [orderId, orderId, this.scopedOrg(orgId, 'getTasks')],
     );
     return rows;
   }

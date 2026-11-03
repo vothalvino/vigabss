@@ -21,8 +21,8 @@ router.use(requireMxLocale);
 
 router.get('/', requirePermission('ift_statistical_reports.view'), ctrl.list);
 router.get('/:id', requirePermission('ift_statistical_reports.view'), ctrl.get);
-router.post('/', requirePermission('ift_statistical_reports.create'), validate(createIftStatisticalReport), ctrl.create);
-router.put('/:id', requirePermission('ift_statistical_reports.update'), validate(updateIftStatisticalReport), ctrl.update);
+router.post('/', requirePermission('ift_statistical_reports.create'), validate(createIftStatisticalReport, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('ift_statistical_reports.update'), validate(updateIftStatisticalReport, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('ift_statistical_reports.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('ift_statistical_reports.update'), ctrl.restore);
 

@@ -70,7 +70,7 @@ router.get('/ap-sectors/:id', requirePermission('ap_sectors.view'), async (req, 
 /**
  * POST /wireless/ap-sectors
  */
-router.post('/ap-sectors', requirePermission('ap_sectors.create'), validate(createApSectorConfig), async (req, res, next) => {
+router.post('/ap-sectors', requirePermission('ap_sectors.create'), validate(createApSectorConfig, { strip: false }), async (req, res, next) => {
   try {
     const record = await wirelessService.createApSectorConfig(req.orgId, req.body);
     res.status(201).json({ data: record });
@@ -80,7 +80,7 @@ router.post('/ap-sectors', requirePermission('ap_sectors.create'), validate(crea
 /**
  * PUT /wireless/ap-sectors/:id
  */
-router.put('/ap-sectors/:id', requirePermission('ap_sectors.update'), validate(updateApSectorConfig), async (req, res, next) => {
+router.put('/ap-sectors/:id', requirePermission('ap_sectors.update'), validate(updateApSectorConfig, { strip: false }), async (req, res, next) => {
   try {
     const record = await wirelessService.updateApSectorConfig(req.params.id, req.orgId, req.body);
     res.json({ data: record });
@@ -137,7 +137,7 @@ router.get('/channel-plans/:id', requirePermission('ap_channel_plans.view'), asy
 /**
  * POST /wireless/channel-plans
  */
-router.post('/channel-plans', requirePermission('ap_channel_plans.create'), validate(createApChannelPlan), async (req, res, next) => {
+router.post('/channel-plans', requirePermission('ap_channel_plans.create'), validate(createApChannelPlan, { strip: false }), async (req, res, next) => {
   try {
     const record = await wirelessService.createApChannelPlan(req.orgId, req.body);
     res.status(201).json({ data: record });
@@ -147,7 +147,7 @@ router.post('/channel-plans', requirePermission('ap_channel_plans.create'), vali
 /**
  * PUT /wireless/channel-plans/:id
  */
-router.put('/channel-plans/:id', requirePermission('ap_channel_plans.update'), validate(updateApChannelPlan), async (req, res, next) => {
+router.put('/channel-plans/:id', requirePermission('ap_channel_plans.update'), validate(updateApChannelPlan, { strip: false }), async (req, res, next) => {
   try {
     const record = await wirelessService.updateApChannelPlan(req.params.id, req.orgId, req.body);
     res.json({ data: record });
@@ -284,7 +284,7 @@ router.get('/channel-interference', requirePermission('wireless_channels.view'),
 /**
  * POST /wireless/channel-interference
  */
-router.post('/channel-interference', requirePermission('wireless_channels.manage'), validate(createChannelInterference), async (req, res, next) => {
+router.post('/channel-interference', requirePermission('wireless_channels.manage'), validate(createChannelInterference, { strip: false }), async (req, res, next) => {
   try {
     const record = await wirelessService.createChannelInterference(req.orgId, req.body);
     res.status(201).json({ data: record });
@@ -294,7 +294,7 @@ router.post('/channel-interference', requirePermission('wireless_channels.manage
 /**
  * PUT /wireless/channel-interference/:id
  */
-router.put('/channel-interference/:id', requirePermission('wireless_channels.manage'), validate(updateChannelInterference), async (req, res, next) => {
+router.put('/channel-interference/:id', requirePermission('wireless_channels.manage'), validate(updateChannelInterference, { strip: false }), async (req, res, next) => {
   try {
     const record = await wirelessService.updateChannelInterference(req.params.id, req.orgId, req.body);
     res.json({ data: record });
@@ -346,7 +346,7 @@ router.get('/ap-commands/:id', requirePermission('ap_commands.view'), async (req
 /**
  * POST /wireless/ap-commands
  */
-router.post('/ap-commands', requirePermission('ap_commands.create'), validate(createApCommandJob), async (req, res, next) => {
+router.post('/ap-commands', requirePermission('ap_commands.create'), validate(createApCommandJob, { strip: false }), async (req, res, next) => {
   try {
     const record = await wirelessService.createApCommandJob(req.orgId, req.user && req.user.id, req.body);
     res.status(201).json({ data: record });
@@ -356,7 +356,7 @@ router.post('/ap-commands', requirePermission('ap_commands.create'), validate(cr
 /**
  * PUT /wireless/ap-commands/:id
  */
-router.put('/ap-commands/:id', requirePermission('ap_commands.create'), validate(updateApCommandJob), async (req, res, next) => {
+router.put('/ap-commands/:id', requirePermission('ap_commands.create'), validate(updateApCommandJob, { strip: false }), async (req, res, next) => {
   try {
     logger.warn({ jobId: req.params.id }, 'direct command job update — prefer cancel + recreate');
     const [existing] = await (require('../config/database')).query(

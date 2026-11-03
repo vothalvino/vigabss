@@ -1307,7 +1307,11 @@
       "saving": "Salvando…",
       "saved": "✓ Salvo",
       "loading": "Carregando política…",
-      "loadError": "Falha ao carregar a política de IA."
+      "loadError": "Falha ao carregar a política de IA.",
+      "monthlyBudget": "Orçamento mensal de IA (USD)",
+      "noBudget": "Sem limite",
+      "spentNoLimit": "Gasto este mês: ${{spent}} (sem limite)",
+      "spentOfBudget": "Gasto este mês: ${{spent}} de ${{budget}}. As respostas de IA param quando o orçamento é atingido."
     },
     "providers": {
       "sectionTitle": "Provedores LLM",

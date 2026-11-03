@@ -22,13 +22,13 @@ class ClientGroup extends BaseModel {
   /**
    * Get the member clients belonging to this group.
    */
-  static async getMembers(groupId, orgId = null) {
+  static async getMembers(groupId, orgId) {
     const db = require('../config/database');
     let sql = `SELECT id, name, email, phone, client_type, status
                  FROM clients
                 WHERE client_group_id = ? AND deleted_at IS NULL`;
     const params = [groupId];
-    if (orgId !== null) { sql += ' AND organization_id = ?'; params.push(orgId); }
+    if (this.scopedOrg(orgId, 'getMembers') !== null) { sql += ' AND organization_id = ?'; params.push(orgId); }
     sql += ' ORDER BY id';
     const [rows] = await db.query(sql, params);
     return rows;

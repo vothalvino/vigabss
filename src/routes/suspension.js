@@ -86,13 +86,13 @@ router.post('/evaluate',
 
 router.post('/suspend',
   requirePermission('contracts.update'),
-  validate(suspensionSchemas.suspend),
+  validate(suspensionSchemas.suspend, { strip: false }),
   suspensionController.suspend,
 );
 
 router.post('/reconnect',
   requirePermission('contracts.update'),
-  validate(suspensionSchemas.reconnect),
+  validate(suspensionSchemas.reconnect, { strip: false }),
   suspensionController.reconnect,
 );
 

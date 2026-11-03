@@ -237,7 +237,7 @@ router.post('/from-alert', requirePermission('tickets.create'), async (req, res,
 });
 
 router.get('/:id', requireOwnedTicket('tickets.view'), ctrl.get);
-router.post('/', requirePermission('tickets.create'), validate(createTicket), async (req, res, next) => {
+router.post('/', requirePermission('tickets.create'), validate(createTicket, { strip: false }), async (req, res, next) => {
   try {
     await assertTicketFks(req.body, req.orgId);
     if (Ticket.hasOrgScope && req.orgId) {
@@ -261,8 +261,8 @@ router.post('/', requirePermission('tickets.create'), validate(createTicket), as
     res.status(201).json({ data: record });
   } catch (err) { next(err); }
 });
-router.put('/:id', requireOwnedTicket('tickets.update'), validate(updateTicket), ctrl.update);
-router.patch('/:id', requireOwnedTicket('tickets.update'), validate(patchTicket), ctrl.partialUpdate);
+router.put('/:id', requireOwnedTicket('tickets.update'), validate(updateTicket, { strip: false }), ctrl.update);
+router.patch('/:id', requireOwnedTicket('tickets.update'), validate(patchTicket, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requireOwnedTicket('tickets.delete'), ctrl.destroy);
 router.post('/:id/restore', requireOwnedTicketIncludingDeleted('tickets.update'), ctrl.restore);
 
@@ -279,7 +279,7 @@ router.get('/:id/comments', requireOwnedTicket('tickets.view'), async (req, res,
 
 // Posting a comment needs tickets.comment (granted to technician, migration
 // 483) or tickets.update; editing and deleting comments are unchanged (DB-23).
-router.post('/:id/comments', requireOwnedTicket('tickets.update', 'tickets.comment'), validate(createComment), async (req, res, next) => {
+router.post('/:id/comments', requireOwnedTicket('tickets.update', 'tickets.comment'), validate(createComment, { strip: false }), async (req, res, next) => {
   try {
     const { body, is_internal } = req.body;
     const [result] = await db.query(
@@ -297,7 +297,7 @@ router.post('/:id/comments', requireOwnedTicket('tickets.update', 'tickets.comme
   } catch (err) { next(err); }
 });
 
-router.put('/:id/comments/:commentId', requireOwnedTicket('tickets.update'), validate(updateComment), async (req, res, next) => {
+router.put('/:id/comments/:commentId', requireOwnedTicket('tickets.update'), validate(updateComment, { strip: false }), async (req, res, next) => {
   try {
     const { body, is_internal } = req.body;
     const [result] = await db.query(

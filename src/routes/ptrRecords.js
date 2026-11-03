@@ -49,7 +49,7 @@ router.get('/:id', requirePermission('ptr_records.view'), async (req, res, next)
   } catch (err) { next(err); }
 });
 
-router.post('/', requirePermission('ptr_records.create'), validate(createPtrRecord), async (req, res, next) => {
+router.post('/', requirePermission('ptr_records.create'), validate(createPtrRecord, { strip: false }), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createPtrRecord, 'organization_id'));
@@ -62,7 +62,7 @@ router.post('/', requirePermission('ptr_records.create'), validate(createPtrReco
   } catch (err) { next(err); }
 });
 
-router.put('/:id', requirePermission('ptr_records.update'), validate(updatePtrRecord), async (req, res, next) => {
+router.put('/:id', requirePermission('ptr_records.update'), validate(updatePtrRecord, { strip: false }), async (req, res, next) => {
   try {
     const [check] = await db.query(
       'SELECT id FROM ptr_records WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',

@@ -25,7 +25,7 @@ router.get('/', requirePermission('billing_adjustments.view'), ctrl.list);
 router.get('/:id', requirePermission('billing_adjustments.view'), ctrl.get);
 
 // Manual create — delegates to service so audit log is always written
-router.post('/', requirePermission('billing_adjustments.create'), validate(createBillingAdjustmentSchema), async (req, res, next) => {
+router.post('/', requirePermission('billing_adjustments.create'), validate(createBillingAdjustmentSchema, { strip: false }), async (req, res, next) => {
   try {
     const adjustment = await billingAdjustmentService.record({
       organizationId: req.orgId,

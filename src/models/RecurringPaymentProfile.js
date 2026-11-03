@@ -30,6 +30,7 @@ class RecurringPaymentProfile extends BaseModel {
 
   // Table has a deleted_at column (added by migration 151) — soft-delete enabled.
   static get softDelete() { return true; }
+  static get deactivateOnDelete() { return { status: 'revoked' }; }
 }
 
 module.exports = RecurringPaymentProfile;

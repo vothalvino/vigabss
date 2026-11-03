@@ -159,7 +159,7 @@ router.get('/fiber-routes/onu/:onuDetailId/path', requirePermission('fiber_route
 /**
  * POST /fiber-routes — create a fiber route segment
  */
-router.post('/fiber-routes', requirePermission('fiber_routes.create'), validate(createFiberRoute), ownedReferences(FIBER_ROUTE_REFS), async (req, res, next) => {
+router.post('/fiber-routes', requirePermission('fiber_routes.create'), validate(createFiberRoute, { strip: false }), ownedReferences(FIBER_ROUTE_REFS), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createFiberRoute, 'organization_id'));
@@ -178,7 +178,7 @@ router.post('/fiber-routes', requirePermission('fiber_routes.create'), validate(
 /**
  * PUT /fiber-routes/:id — full update
  */
-router.put('/fiber-routes/:id', requirePermission('fiber_routes.update'), validate(updateFiberRoute), ownedReferences(FIBER_ROUTE_REFS), async (req, res, next) => {
+router.put('/fiber-routes/:id', requirePermission('fiber_routes.update'), validate(updateFiberRoute, { strip: false }), ownedReferences(FIBER_ROUTE_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'fiber_routes', req.params.id, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -193,7 +193,7 @@ router.put('/fiber-routes/:id', requirePermission('fiber_routes.update'), valida
 /**
  * PATCH /fiber-routes/:id — partial update
  */
-router.patch('/fiber-routes/:id', requirePermission('fiber_routes.update'), validate(patchFiberRoute), ownedReferences(FIBER_ROUTE_REFS), async (req, res, next) => {
+router.patch('/fiber-routes/:id', requirePermission('fiber_routes.update'), validate(patchFiberRoute, { strip: false }), ownedReferences(FIBER_ROUTE_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'fiber_routes', req.params.id, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -259,7 +259,7 @@ router.get('/odf/frames/:id', requirePermission('odf_frames.view'), async (req, 
 /**
  * POST /odf/frames — create ODF frame
  */
-router.post('/odf/frames', requirePermission('odf_frames.create'), validate(createOdfFrame), ownedReferences(ODF_FRAME_REFS), async (req, res, next) => {
+router.post('/odf/frames', requirePermission('odf_frames.create'), validate(createOdfFrame, { strip: false }), ownedReferences(ODF_FRAME_REFS), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOdfFrame, 'organization_id'));
@@ -272,7 +272,7 @@ router.post('/odf/frames', requirePermission('odf_frames.create'), validate(crea
 /**
  * PUT /odf/frames/:id — full update
  */
-router.put('/odf/frames/:id', requirePermission('odf_frames.update'), validate(updateOdfFrame), ownedReferences(ODF_FRAME_REFS), async (req, res, next) => {
+router.put('/odf/frames/:id', requirePermission('odf_frames.update'), validate(updateOdfFrame, { strip: false }), ownedReferences(ODF_FRAME_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'odf_frames', req.params.id, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -287,7 +287,7 @@ router.put('/odf/frames/:id', requirePermission('odf_frames.update'), validate(u
 /**
  * PATCH /odf/frames/:id — partial update
  */
-router.patch('/odf/frames/:id', requirePermission('odf_frames.update'), validate(patchOdfFrame), ownedReferences(ODF_FRAME_REFS), async (req, res, next) => {
+router.patch('/odf/frames/:id', requirePermission('odf_frames.update'), validate(patchOdfFrame, { strip: false }), ownedReferences(ODF_FRAME_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'odf_frames', req.params.id, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -356,7 +356,7 @@ router.get('/odf/ports/:id', requirePermission('odf_ports.view'), async (req, re
 /**
  * POST /odf/ports — create ODF port
  */
-router.post('/odf/ports', requirePermission('odf_ports.create'), validate(createOdfPort), ownedReferences(ODF_PORT_REFS), async (req, res, next) => {
+router.post('/odf/ports', requirePermission('odf_ports.create'), validate(createOdfPort, { strip: false }), ownedReferences(ODF_PORT_REFS), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOdfPort, 'organization_id'));
@@ -369,7 +369,7 @@ router.post('/odf/ports', requirePermission('odf_ports.create'), validate(create
 /**
  * PATCH /odf/ports/:id — update ODF port status/label
  */
-router.patch('/odf/ports/:id', requirePermission('odf_ports.update'), validate(patchOdfPort), ownedReferences(ODF_PORT_REFS), async (req, res, next) => {
+router.patch('/odf/ports/:id', requirePermission('odf_ports.update'), validate(patchOdfPort, { strip: false }), ownedReferences(ODF_PORT_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'odf_ports', req.params.id, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, odf_frame_id: _____, ...updateData } = req.body;
@@ -446,7 +446,7 @@ function rejectSamePort(req, res, next) {
   next();
 }
 
-router.post('/odf/cross-connects', requirePermission('odf_cross_connects.create'), validate(createOdfCrossConnect), rejectSamePort, ownedReferences(ODF_CROSS_CONNECT_REFS), async (req, res, next) => {
+router.post('/odf/cross-connects', requirePermission('odf_cross_connects.create'), validate(createOdfCrossConnect, { strip: false }), rejectSamePort, ownedReferences(ODF_CROSS_CONNECT_REFS), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createOdfCrossConnect, 'organization_id'));
@@ -459,7 +459,7 @@ router.post('/odf/cross-connects', requirePermission('odf_cross_connects.create'
 /**
  * PATCH /odf/cross-connects/:id — partial update
  */
-router.patch('/odf/cross-connects/:id', requirePermission('odf_cross_connects.update'), validate(patchOdfCrossConnect), ownedReferences(ODF_CROSS_CONNECT_REFS), async (req, res, next) => {
+router.patch('/odf/cross-connects/:id', requirePermission('odf_cross_connects.update'), validate(patchOdfCrossConnect, { strip: false }), ownedReferences(ODF_CROSS_CONNECT_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'odf_cross_connects', req.params.id, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -529,7 +529,7 @@ router.get('/otdr/tests/:id', requirePermission('otdr_tests.view'), async (req, 
 /**
  * POST /otdr/tests — create/import OTDR test result
  */
-router.post('/otdr/tests', requirePermission('otdr_tests.create'), validate(createOtdrTest), ownedReferences(OTDR_REFS), async (req, res, next) => {
+router.post('/otdr/tests', requirePermission('otdr_tests.create'), validate(createOtdrTest, { strip: false }), ownedReferences(OTDR_REFS), async (req, res, next) => {
   try {
     const result = await fiberPlantService.createOtdrTestResult({
       orgId: req.orgId,
@@ -559,7 +559,7 @@ router.post('/otdr/tests', requirePermission('otdr_tests.create'), validate(crea
 /**
  * PATCH /otdr/tests/:id — update test record (job status, notes, fault info)
  */
-router.patch('/otdr/tests/:id', requirePermission('otdr_tests.update'), validate(patchOtdrTest), ownedReferences(OTDR_REFS), async (req, res, next) => {
+router.patch('/otdr/tests/:id', requirePermission('otdr_tests.update'), validate(patchOtdrTest, { strip: false }), ownedReferences(OTDR_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'otdr_test_results', req.params.id, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -647,7 +647,7 @@ router.get('/sfp/:id/diagnostics', requirePermission('sfp_inventory.view'), asyn
 /**
  * POST /sfp — add SFP module record
  */
-router.post('/sfp', requirePermission('sfp_inventory.create'), validate(createSfpInventory), ownedReferences(SFP_REFS), async (req, res, next) => {
+router.post('/sfp', requirePermission('sfp_inventory.create'), validate(createSfpInventory, { strip: false }), ownedReferences(SFP_REFS), async (req, res, next) => {
   try {
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...fields } = req.body;
     const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createSfpInventory, 'organization_id'));
@@ -660,7 +660,7 @@ router.post('/sfp', requirePermission('sfp_inventory.create'), validate(createSf
 /**
  * PUT /sfp/:id — full update SFP record
  */
-router.put('/sfp/:id', requirePermission('sfp_inventory.update'), validate(updateSfpInventory), ownedReferences(SFP_REFS), async (req, res, next) => {
+router.put('/sfp/:id', requirePermission('sfp_inventory.update'), validate(updateSfpInventory, { strip: false }), ownedReferences(SFP_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'sfp_inventory', req.params.id, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;
@@ -675,7 +675,7 @@ router.put('/sfp/:id', requirePermission('sfp_inventory.update'), validate(updat
 /**
  * PATCH /sfp/:id — partial update (lifecycle, port, device)
  */
-router.patch('/sfp/:id', requirePermission('sfp_inventory.update'), validate(patchSfpInventory), ownedReferences(SFP_REFS), async (req, res, next) => {
+router.patch('/sfp/:id', requirePermission('sfp_inventory.update'), validate(patchSfpInventory, { strip: false }), ownedReferences(SFP_REFS), async (req, res, next) => {
   try {
     if (!await writableRow(res, 'sfp_inventory', req.params.id, req.orgId)) return;
     const { organization_id: _, id: __, created_at: ___, deleted_at: ____, ...updateData } = req.body;

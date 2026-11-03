@@ -67,9 +67,10 @@ class User extends BaseModel {
    */
   static async findAll({
     where = {}, orderBy = 'id', order = 'ASC', limit = 50, offset = 0,
-    orgId = null, withDeleted = false, onlyDeleted = false,
+    orgId, withDeleted = false, onlyDeleted = false,
   } = {}) {
-    if (orgId === null) {
+    // Not one organization's members: BaseModel decides (UNSCOPED, or a throw).
+    if (orgId === null || orgId === undefined || orgId === this.UNSCOPED) {
       return super.findAll({
         where, orderBy, order, limit, offset, orgId, withDeleted, onlyDeleted,
       });
@@ -108,9 +109,10 @@ class User extends BaseModel {
   }
 
   static async count({
-    where = {}, orgId = null, withDeleted = false, onlyDeleted = false,
+    where = {}, orgId, withDeleted = false, onlyDeleted = false,
   } = {}) {
-    if (orgId === null) {
+    // Not one organization's members: BaseModel decides (UNSCOPED, or a throw).
+    if (orgId === null || orgId === undefined || orgId === this.UNSCOPED) {
       return super.count({ where, orgId, withDeleted, onlyDeleted });
     }
 
@@ -219,13 +221,13 @@ class User extends BaseModel {
    * findByEmail/findById exclude soft-deleted rows, and every auth path also
    * checks status === 'active'.
    */
-  static async delete(id, orgId = null) {
+  static async delete(id, orgId) {
     return runInPrimaryContext(async () => {
       const db = require('../config/database');
       const { NotFoundError } = require('../utils/errors');
       let sql = "UPDATE users SET deleted_at = NOW(), status = 'inactive' WHERE id = ? AND deleted_at IS NULL";
       const params = [id];
-      if (orgId !== null && this.hasOrgScope) {
+      if (this.scopedOrg(orgId, 'delete') !== null) {
         sql += ' AND organization_id = ?';
         params.push(orgId);
       }

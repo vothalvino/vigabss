@@ -127,7 +127,7 @@ describe('§17 Models — schema properties', () => {
     expect(SecureDeletionLog.hasOrgScope).toBe(true);
     expect(Array.isArray(SecureDeletionLog.fillable)).toBe(true);
     expect(SecureDeletionLog.fillable).toContain('table_name');
-    expect(SecureDeletionLog.fillable).toContain('records_deleted');
+    expect(SecureDeletionLog.fillable).toContain('record_count');
   });
 });
 

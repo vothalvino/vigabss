@@ -19,8 +19,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('quality_classes.view'), ctrl.list);
 router.get('/:id', requirePermission('quality_classes.view'), ctrl.get);
-router.post('/', requirePermission('quality_classes.create'), validate(createQualityClass), ctrl.create);
-router.put('/:id', requirePermission('quality_classes.update'), validate(updateQualityClass), ctrl.update);
+router.post('/', requirePermission('quality_classes.create'), validate(createQualityClass, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('quality_classes.update'), validate(updateQualityClass, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('quality_classes.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('quality_classes.update'), ctrl.restore);
 

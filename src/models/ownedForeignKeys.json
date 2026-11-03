@@ -1,0 +1,564 @@
+{
+  "ai_diagnostic_runs": {
+    "client_id": "clients"
+  },
+  "ai_reply_logs": {
+    "ticket_id": "tickets"
+  },
+  "alert_suppression_rules": {
+    "downstream_device_id": "devices",
+    "upstream_device_id": "devices"
+  },
+  "ap_channel_plans": {
+    "site_id": "sites"
+  },
+  "ap_command_jobs": {
+    "device_id": "devices"
+  },
+  "ap_sector_configs": {
+    "device_id": "devices"
+  },
+  "asset_assignments": {
+    "asset_id": "assets",
+    "client_id": "clients",
+    "device_id": "devices"
+  },
+  "assets": {
+    "inventory_item_id": "inventory_items",
+    "purchase_order_id": "purchase_orders",
+    "vendor_id": "vendors",
+    "warehouse_id": "warehouses"
+  },
+  "bandwidth_test_servers": {
+    "site_id": "sites"
+  },
+  "billing_periods": {
+    "contract_id": "contracts",
+    "invoice_id": "invoices"
+  },
+  "blackhole_routes": {
+    "subscriber_id": "clients"
+  },
+  "campaign_messages": {
+    "client_id": "clients"
+  },
+  "cfdi_documents": {
+    "client_id": "clients",
+    "invoice_id": "invoices",
+    "payment_id": "payments"
+  },
+  "churn_scores": {
+    "client_id": "clients"
+  },
+  "client_balance_ledger": {
+    "client_id": "clients"
+  },
+  "client_custom_fields": {
+    "client_id": "clients"
+  },
+  "client_dnd_preferences": {
+    "client_id": "clients"
+  },
+  "client_groups": {
+    "primary_client_id": "clients"
+  },
+  "client_interactions": {
+    "client_id": "clients"
+  },
+  "client_mx_profiles": {
+    "client_id": "clients"
+  },
+  "config_backup_schedules": {
+    "device_id": "devices"
+  },
+  "config_compliance_results": {
+    "device_id": "devices"
+  },
+  "config_deployment_records": {
+    "device_id": "devices"
+  },
+  "contacts": {
+    "client_id": "clients"
+  },
+  "contract_addons": {
+    "contract_id": "contracts"
+  },
+  "contract_topology_paths": {
+    "contract_id": "contracts"
+  },
+  "contracts": {
+    "client_id": "clients",
+    "plan_id": "plans",
+    "site_id": "sites"
+  },
+  "cpe_devices": {
+    "contract_id": "contracts",
+    "device_id": "devices",
+    "inventory_item_id": "inventory_items",
+    "sale_invoice_id": "invoices",
+    "subscriber_id": "clients"
+  },
+  "cpe_diagnostics": {
+    "cpe_device_id": "cpe_devices"
+  },
+  "cpe_lifecycle_history": {
+    "cpe_device_id": "cpe_devices"
+  },
+  "cpe_parameters": {
+    "cpe_device_id": "cpe_devices"
+  },
+  "cpe_profiles": {
+    "plan_id": "plans"
+  },
+  "cpe_security_scans": {
+    "cpe_device_id": "cpe_devices",
+    "device_id": "devices"
+  },
+  "cpe_tasks": {
+    "cpe_device_id": "cpe_devices"
+  },
+  "credit_note_applications": {
+    "invoice_id": "invoices"
+  },
+  "credit_notes": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "invoice_id": "invoices",
+    "payment_id": "payments"
+  },
+  "data_pack_purchases": {
+    "contract_id": "contracts",
+    "invoice_id": "invoices"
+  },
+  "data_rollover_balances": {
+    "contract_id": "contracts"
+  },
+  "device_config_backups": {
+    "device_id": "devices"
+  },
+  "device_dependency_edges": {
+    "child_device_id": "devices",
+    "parent_device_id": "devices"
+  },
+  "device_group_members": {
+    "device_id": "devices"
+  },
+  "device_polling_configs": {
+    "device_id": "devices"
+  },
+  "devices": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "site_id": "sites"
+  },
+  "dhcp_static_reservations": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "pool_id": "ip_pools"
+  },
+  "discovery_results": {
+    "device_id": "devices"
+  },
+  "dsar_requests": {
+    "client_id": "clients"
+  },
+  "email_logs": {
+    "client_id": "clients"
+  },
+  "factura_publica_invoice_items": {
+    "invoice_id": "invoices"
+  },
+  "fiber_routes": {
+    "from_device_id": "devices",
+    "from_olt_port_id": "olt_ports",
+    "from_splitter_id": "olt_splitters",
+    "parent_route_id": "fiber_routes",
+    "to_device_id": "devices",
+    "to_onu_detail_id": "onu_details",
+    "to_splitter_id": "olt_splitters"
+  },
+  "firewall_rules": {
+    "pool_id": "ip_pools"
+  },
+  "follow_up_reminders": {
+    "client_id": "clients",
+    "interaction_id": "client_interactions",
+    "ticket_id": "tickets"
+  },
+  "fup_usage_notifications": {
+    "contract_id": "contracts"
+  },
+  "geofence_violations": {
+    "device_id": "devices"
+  },
+  "gov_data_requests": {
+    "client_id": "clients"
+  },
+  "identity_verification_records": {
+    "client_id": "clients"
+  },
+  "interface_qos_policies": {
+    "device_id": "devices"
+  },
+  "inventory_stock": {
+    "item_id": "inventory_items",
+    "warehouse_id": "warehouses"
+  },
+  "inventory_transactions": {
+    "client_id": "clients",
+    "invoice_id": "invoices"
+  },
+  "invoice_items": {
+    "inventory_item_id": "inventory_items",
+    "invoice_id": "invoices"
+  },
+  "invoice_late_fees": {
+    "invoice_id": "invoices"
+  },
+  "invoices": {
+    "client_id": "clients",
+    "contract_id": "contracts"
+  },
+  "ip_assignments": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "device_id": "devices",
+    "pool_id": "ip_pools"
+  },
+  "ip_pools": {
+    "nas_id": "nas",
+    "site_id": "sites"
+  },
+  "leads": {
+    "converted_client_id": "clients",
+    "desired_plan_id": "plans"
+  },
+  "link_planning_calcs": {
+    "site_a_id": "sites",
+    "site_b_id": "sites"
+  },
+  "maintenance_windows": {
+    "device_id": "devices",
+    "site_id": "sites"
+  },
+  "map_infrastructure_points": {
+    "site_id": "sites"
+  },
+  "nas": {
+    "secondary_nas_id": "nas",
+    "site_id": "sites"
+  },
+  "nas_wg_tunnels": {
+    "nas_id": "nas"
+  },
+  "network_health_snapshots": {
+    "device_id": "devices"
+  },
+  "network_links": {
+    "device_a_id": "devices",
+    "device_b_id": "devices"
+  },
+  "number_portability_records": {
+    "client_id": "clients"
+  },
+  "odf_cross_connects": {
+    "port_a_id": "odf_ports",
+    "port_b_id": "odf_ports"
+  },
+  "odf_frames": {
+    "site_id": "sites"
+  },
+  "odf_ports": {
+    "connected_device_id": "devices",
+    "odf_frame_id": "odf_frames",
+    "splitter_id": "olt_splitters"
+  },
+  "olt_ports": {
+    "olt_device_id": "devices"
+  },
+  "olt_splitters": {
+    "olt_port_id": "olt_ports",
+    "site_id": "sites"
+  },
+  "onu_details": {
+    "device_id": "devices",
+    "olt_device_id": "devices",
+    "olt_port_id": "olt_ports",
+    "onu_profile_id": "onu_profiles"
+  },
+  "onu_firmware_jobs": {
+    "olt_device_id": "devices",
+    "olt_port_id": "olt_ports",
+    "onu_device_id": "devices"
+  },
+  "onu_migration_jobs": {
+    "onu_device_id": "devices",
+    "source_olt_device_id": "devices",
+    "source_olt_port_id": "olt_ports",
+    "target_olt_device_id": "devices",
+    "target_olt_port_id": "olt_ports"
+  },
+  "onu_omci_configs": {
+    "device_id": "devices"
+  },
+  "onu_profiles": {
+    "plan_id": "plans"
+  },
+  "onu_whitelist": {
+    "device_id": "devices",
+    "olt_device_id": "devices"
+  },
+  "otdr_test_results": {
+    "fiber_route_id": "fiber_routes",
+    "olt_device_id": "devices",
+    "olt_port_id": "olt_ports"
+  },
+  "outages": {
+    "device_id": "devices",
+    "site_id": "sites"
+  },
+  "payment_allocations": {
+    "invoice_id": "invoices",
+    "payment_id": "payments"
+  },
+  "payment_plan_installments": {
+    "invoice_id": "invoices",
+    "paid_payment_id": "payments"
+  },
+  "payment_plans": {
+    "client_id": "clients"
+  },
+  "payment_reminder_logs": {
+    "invoice_id": "invoices"
+  },
+  "payment_retries": {
+    "client_id": "clients",
+    "invoice_id": "invoices"
+  },
+  "payment_transactions": {
+    "client_id": "clients",
+    "invoice_id": "invoices",
+    "payment_gateway_id": "payment_gateways",
+    "payment_id": "payments",
+    "settled_invoice_id": "invoices"
+  },
+  "payments": {
+    "client_id": "clients",
+    "invoice_id": "invoices"
+  },
+  "phone_number_inventory": {
+    "client_id": "clients",
+    "contract_id": "contracts"
+  },
+  "plan_access_windows": {
+    "plan_id": "plans"
+  },
+  "plan_addons": {
+    "inventory_item_id": "inventory_items"
+  },
+  "plan_speed_windows": {
+    "plan_id": "plans"
+  },
+  "plan_throttle_logs": {
+    "contract_id": "contracts"
+  },
+  "portal_chat_sessions": {
+    "client_id": "clients"
+  },
+  "portal_push_subscriptions": {
+    "client_id": "clients"
+  },
+  "portal_refresh_tokens": {
+    "client_id": "clients"
+  },
+  "portal_service_requests": {
+    "client_id": "clients"
+  },
+  "profeco_complaints": {
+    "client_id": "clients",
+    "ticket_id": "tickets"
+  },
+  "protocol_shaping_rules": {
+    "plan_id": "plans"
+  },
+  "purchase_order_items": {
+    "inventory_item_id": "inventory_items",
+    "po_id": "purchase_orders"
+  },
+  "purchase_orders": {
+    "vendor_id": "vendors",
+    "warehouse_id": "warehouses"
+  },
+  "quote_items": {
+    "inventory_item_id": "inventory_items"
+  },
+  "quotes": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "converted_invoice_id": "invoices"
+  },
+  "ra_guard_policies": {
+    "switch_id": "devices"
+  },
+  "radius": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "ipv4_pool_id": "ip_pools",
+    "ipv6_pool_id": "ip_pools",
+    "nas_id": "nas"
+  },
+  "recurring_payment_profiles": {
+    "client_id": "clients",
+    "payment_gateway_id": "payment_gateways"
+  },
+  "reseller_commissions": {
+    "client_id": "clients",
+    "invoice_id": "invoices"
+  },
+  "reseller_ip_pool_allocations": {
+    "ip_pool_id": "ip_pools"
+  },
+  "reseller_olt_port_assignments": {
+    "olt_port_id": "olt_ports"
+  },
+  "reseller_plan_prices": {
+    "plan_id": "plans"
+  },
+  "rma_requests": {
+    "asset_id": "assets",
+    "replacement_asset_id": "assets",
+    "vendor_id": "vendors"
+  },
+  "satisfaction_surveys": {
+    "client_id": "clients",
+    "interaction_id": "client_interactions",
+    "ticket_id": "tickets"
+  },
+  "service_areas": {
+    "site_id": "sites"
+  },
+  "service_modification_notices": {
+    "client_id": "clients",
+    "contract_id": "contracts"
+  },
+  "service_order_tasks": {
+    "service_order_id": "service_orders"
+  },
+  "service_orders": {
+    "billing_followup_ticket_id": "tickets",
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "plan_id": "plans"
+  },
+  "sfp_inventory": {
+    "installed_device_id": "devices",
+    "inventory_item_id": "inventory_items"
+  },
+  "signed_documents": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "service_order_id": "service_orders"
+  },
+  "sla_definitions": {
+    "plan_id": "plans"
+  },
+  "sms_logs": {
+    "client_id": "clients"
+  },
+  "snmp_metrics_1day": {
+    "device_id": "devices"
+  },
+  "snmp_metrics_1hr": {
+    "device_id": "devices"
+  },
+  "snmp_metrics_1month": {
+    "device_id": "devices"
+  },
+  "snmp_traps": {
+    "device_id": "devices"
+  },
+  "spectrum_scan_results": {
+    "device_id": "devices"
+  },
+  "speed_tests": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "device_id": "devices"
+  },
+  "subscriber_certificates": {
+    "client_id": "clients"
+  },
+  "subscriber_consents": {
+    "client_id": "clients",
+    "service_order_id": "service_orders"
+  },
+  "subscriber_speed_test_jobs": {
+    "contract_id": "contracts"
+  },
+  "support_conversations": {
+    "client_id": "clients",
+    "ticket_id": "tickets"
+  },
+  "suspension_logs": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "related_invoice_id": "invoices"
+  },
+  "suspension_warning_logs": {
+    "contract_id": "contracts",
+    "invoice_id": "invoices"
+  },
+  "ticket_ai_triage": {
+    "ticket_id": "tickets"
+  },
+  "ticket_attachments": {
+    "ticket_id": "tickets"
+  },
+  "ticket_comments": {
+    "ticket_id": "tickets"
+  },
+  "ticket_escalations": {
+    "ticket_id": "tickets"
+  },
+  "ticket_relations": {
+    "ticket_id_a": "tickets",
+    "ticket_id_b": "tickets"
+  },
+  "ticket_sla_events": {
+    "ticket_id": "tickets"
+  },
+  "ticket_time_logs": {
+    "ticket_id": "tickets"
+  },
+  "tickets": {
+    "client_id": "clients",
+    "contract_id": "contracts"
+  },
+  "vlans": {
+    "site_id": "sites"
+  },
+  "whatsapp_conversation_state": {
+    "client_id": "clients"
+  },
+  "whatsapp_links": {
+    "client_id": "clients"
+  },
+  "whatsapp_verifications": {
+    "client_id": "clients"
+  },
+  "wireless_channel_interference": {
+    "site_id": "sites"
+  },
+  "wireless_client_sessions": {
+    "client_device_id": "devices",
+    "device_id": "devices"
+  },
+  "work_orders": {
+    "client_id": "clients",
+    "contract_id": "contracts",
+    "device_id": "devices",
+    "service_order_id": "service_orders",
+    "site_id": "sites",
+    "ticket_id": "tickets"
+  }
+}

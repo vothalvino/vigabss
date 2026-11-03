@@ -34,8 +34,8 @@ router.use(orgScope);
 
 router.get('/', requirePermission('settings.view'), ctrl.list);
 router.get('/:id', requirePermission('settings.view'), ctrl.get);
-router.post('/', requirePermission('settings.update'), validate(createMessageTemplate), ctrl.create);
-router.put('/:id', requirePermission('settings.update'), validate(updateMessageTemplate), ctrl.update);
+router.post('/', requirePermission('settings.update'), validate(createMessageTemplate, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('settings.update'), validate(updateMessageTemplate, { strip: false }), ctrl.update);
 router.delete('/:id', requirePermission('settings.update'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('settings.update'), ctrl.restore);
 

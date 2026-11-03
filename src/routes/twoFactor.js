@@ -32,7 +32,7 @@ router.get('/status', async (req, res, next) => {
 // POST /api/2fa/setup — Generate a TOTP secret (returns QR URI). When 2FA is
 // already enabled this replaces (and so disables) it, which requires a current
 // code or the account password.
-router.post('/setup', validate(twoFactorSchemas.setup), async (req, res, next) => {
+router.post('/setup', validate(twoFactorSchemas.setup, { strip: false }), async (req, res, next) => {
   try {
     const data = await twoFactorService.generateSecret(req.user.id, {
       code: req.body?.code,
@@ -43,7 +43,7 @@ router.post('/setup', validate(twoFactorSchemas.setup), async (req, res, next) =
 });
 
 // POST /api/2fa/verify — Verify code and enable 2FA
-router.post('/verify', validate(twoFactorSchemas.verifyCode), async (req, res, next) => {
+router.post('/verify', validate(twoFactorSchemas.verifyCode, { strip: false }), async (req, res, next) => {
   try {
     const data = await twoFactorService.verifyAndEnable(req.user.id, req.body.code);
     res.json({ data });
@@ -51,7 +51,7 @@ router.post('/verify', validate(twoFactorSchemas.verifyCode), async (req, res, n
 });
 
 // POST /api/2fa/validate — Validate a 2FA code (during login flow)
-router.post('/validate', validate(twoFactorSchemas.verifyCode), async (req, res, next) => {
+router.post('/validate', validate(twoFactorSchemas.verifyCode, { strip: false }), async (req, res, next) => {
   try {
     const data = await twoFactorService.verifyCode(req.user.id, req.body.code);
     res.json({ data });
@@ -59,7 +59,7 @@ router.post('/validate', validate(twoFactorSchemas.verifyCode), async (req, res,
 });
 
 // POST /api/2fa/disable — Disable 2FA
-router.post('/disable', validate(twoFactorSchemas.verifyCode), async (req, res, next) => {
+router.post('/disable', validate(twoFactorSchemas.verifyCode, { strip: false }), async (req, res, next) => {
   try {
     // Require a valid 2FA code to disable
     await twoFactorService.verifyCode(req.user.id, req.body.code);
@@ -69,7 +69,7 @@ router.post('/disable', validate(twoFactorSchemas.verifyCode), async (req, res, 
 });
 
 // POST /api/2fa/backup-codes — Regenerate backup codes
-router.post('/backup-codes', validate(twoFactorSchemas.verifyCode), async (req, res, next) => {
+router.post('/backup-codes', validate(twoFactorSchemas.verifyCode, { strip: false }), async (req, res, next) => {
   try {
     const data = await twoFactorService.regenerateBackupCodes(req.user.id, req.body.code);
     res.json({ data });

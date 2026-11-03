@@ -63,9 +63,9 @@ router.get('/:id/timeline', requirePermission('sites.view'), async (req, res, ne
 });
 
 router.get('/:id', requirePermission('sites.view'), ctrl.get);
-router.post('/', requirePermission('sites.create'), validate(createSite), ctrl.create);
-router.put('/:id', requirePermission('sites.update'), validate(updateSite), ctrl.update);
-router.patch('/:id', requirePermission('sites.update'), validate(patchSite), ctrl.partialUpdate);
+router.post('/', requirePermission('sites.create'), validate(createSite, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('sites.update'), validate(updateSite, { strip: false }), ctrl.update);
+router.patch('/:id', requirePermission('sites.update'), validate(patchSite, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('sites.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('sites.update'), ctrl.restore);
 

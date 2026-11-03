@@ -85,7 +85,7 @@ router.get('/:id/feasibility', requirePermission('leads.view'), async (req, res,
 
 // Geocode the lead's address into coordinates — feasibility's only input.
 // Mirrors POST /clients/:id/geocode (leads carry no country/geocoded_at).
-router.post('/:id/geocode', requirePermission('leads.update'), validate(geocodeLead), async (req, res, next) => {
+router.post('/:id/geocode', requirePermission('leads.update'), validate(geocodeLead, { strip: false }), async (req, res, next) => {
   try {
     const lead = await Lead.findById(req.params.id, req.orgId);
     if (!lead) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Lead not found' } });
@@ -107,14 +107,14 @@ router.post('/:id/geocode', requirePermission('leads.update'), validate(geocodeL
 });
 
 router.get('/:id', requirePermission('leads.view'), ctrl.get);
-router.post('/', requirePermission('leads.create'), validate(createLead), ctrl.create);
+router.post('/', requirePermission('leads.create'), validate(createLead, { strip: false }), ctrl.create);
 router.put('/:id', requirePermission('leads.update'), rejectOrgReassignment, validate(updateLead, { strip: true }), ctrl.update);
 router.patch('/:id', requirePermission('leads.update'), rejectOrgReassignment, validate(patchLead, { strip: true }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('leads.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('leads.update'), ctrl.restore);
 
 // Convert a lead into a client (creates the client, marks the lead won)
-router.post('/:id/convert', requirePermission('clients.create'), validate(convertLead), async (req, res, next) => {
+router.post('/:id/convert', requirePermission('clients.create'), validate(convertLead, { strip: false }), async (req, res, next) => {
   try {
     const result = await lifecycleService.convertLead(req.params.id, req.orgId, req.body || {});
     await auditLog.log({

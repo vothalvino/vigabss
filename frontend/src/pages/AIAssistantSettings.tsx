@@ -40,6 +40,10 @@ interface AiPolicy {
   default_locale: string;
   tone: string;
   redact_pii_before_llm: boolean;
+  /** Month-to-date AI spend cap in USD; null = no limit (ASY-34). */
+  monthly_budget_usd: number | string | null;
+  /** This month's spend, returned with the policy. */
+  budget?: { budget_usd: number | null; spent_usd: number; remaining_usd: number | null };
   updated_at: string;
 }
 
@@ -156,7 +160,9 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 // General tab
 // ---------------------------------------------------------------------------
 
-const EMPTY_POLICY: Partial<AiPolicy> = {
+type PolicyForm = Partial<Omit<AiPolicy, 'monthly_budget_usd'>> & { monthly_budget_usd?: string };
+
+const EMPTY_POLICY: PolicyForm = {
   enabled: false,
   mode: 'draft_only',
   enabled_channels: { portal: true, email: true, whatsapp: false, sms: false },
@@ -164,6 +170,7 @@ const EMPTY_POLICY: Partial<AiPolicy> = {
   default_locale: 'en',
   tone: 'formal',
   redact_pii_before_llm: true,
+  monthly_budget_usd: '',
 };
 
 function GeneralTab() {
@@ -178,7 +185,7 @@ function GeneralTab() {
   });
 
   const policy: AiPolicy = data?.data ?? (EMPTY_POLICY as AiPolicy);
-  const [form, setForm] = useState<typeof EMPTY_POLICY>({});
+  const [form, setForm] = useState<PolicyForm>({});
 
   // Initialise form from fetched policy once on first successful load
   const [initialised, setInitialised] = useState(false);
@@ -194,6 +201,7 @@ function GeneralTab() {
         default_locale: p.default_locale,
         tone: p.tone,
         redact_pii_before_llm: p.redact_pii_before_llm,
+        monthly_budget_usd: p.monthly_budget_usd === null || p.monthly_budget_usd === undefined ? '' : String(p.monthly_budget_usd),
       });
       setInitialised(true);
     }
@@ -233,6 +241,10 @@ function GeneralTab() {
       default_locale: current.default_locale,
       tone: current.tone,
       redact_pii_before_llm: current.redact_pii_before_llm,
+      // Blank removes the cap.
+      monthly_budget_usd: current.monthly_budget_usd === '' || current.monthly_budget_usd === undefined
+        ? null
+        : Number(current.monthly_budget_usd),
     });
   }
 
@@ -356,6 +368,31 @@ function GeneralTab() {
             onChange={e => setForm(f => ({ ...f, redact_pii_before_llm: e.target.checked }))}
           />
         </label>
+
+        {/* Monthly AI budget (ASY-34) */}
+        <label style={sty.label}>
+          {t('aiAssistantSettings.general.monthlyBudget')}
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            style={sty.input}
+            aria-label={t('aiAssistantSettings.general.monthlyBudget')}
+            placeholder={t('aiAssistantSettings.general.noBudget')}
+            value={current.monthly_budget_usd ?? ''}
+            onChange={e => setForm(f => ({ ...f, monthly_budget_usd: e.target.value }))}
+          />
+        </label>
+        {policy.budget && (
+          <p style={sty.muted}>
+            {policy.budget.budget_usd === null
+              ? t('aiAssistantSettings.general.spentNoLimit', { spent: policy.budget.spent_usd.toFixed(2) })
+              : t('aiAssistantSettings.general.spentOfBudget', {
+                spent: policy.budget.spent_usd.toFixed(2),
+                budget: policy.budget.budget_usd.toFixed(2),
+              })}
+          </p>
+        )}
 
         {saveError && <p style={sty.errorText}>{saveError}</p>}
         {saveOk && <p style={sty.successText}>{t('aiAssistantSettings.general.saved')}</p>}

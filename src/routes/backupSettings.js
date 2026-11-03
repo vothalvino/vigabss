@@ -69,7 +69,7 @@ router.get('/',
 
 router.put('/',
   requirePermission('backup_settings.update'),
-  validate(updateBackupSettings),
+  validate(updateBackupSettings, { strip: false }),
   async (req, res, next) => {
     try {
       const settings = await backupSettingsService.saveSettings(req.body);

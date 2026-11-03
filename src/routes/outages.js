@@ -110,8 +110,8 @@ router.get('/:id', requirePermission('outages.view'), async (req, res, next) => 
 const rejectMove = rejectOrgReassignment('outage');
 const adopt = adoptUnattributed('outages', 'outage');
 
-router.post('/', requirePermission('outages.create'), validate(createOutage), ctrl.create);
-router.put('/:id', requirePermission('outages.update'), rejectMove, validate(updateOutage), adopt, ctrl.update);
+router.post('/', requirePermission('outages.create'), validate(createOutage, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('outages.update'), rejectMove, validate(updateOutage, { strip: false }), adopt, ctrl.update);
 router.delete('/:id', requirePermission('outages.delete'), adopt, ctrl.destroy);
 router.post('/:id/restore', requirePermission('outages.update'), adopt, ctrl.restore);
 

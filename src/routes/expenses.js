@@ -31,14 +31,14 @@ function stripApprovalFields(req) {
   for (const f of APPROVAL_FIELDS) delete req.body[f];
 }
 
-router.post('/', requirePermission('expenses.create'), validate(createExpense), (req, res, next) => {
+router.post('/', requirePermission('expenses.create'), validate(createExpense, { strip: false }), (req, res, next) => {
   stripApprovalFields(req);
   // The incurring employee is the logged-in staff member (expenses.user_id is NOT NULL).
   req.body.user_id = req.user.id;
   req.body.status = 'pending';
   return ctrl.create(req, res, next);
 });
-router.put('/:id', requirePermission('expenses.update'), validate(updateExpense), (req, res, next) => {
+router.put('/:id', requirePermission('expenses.update'), validate(updateExpense, { strip: false }), (req, res, next) => {
   stripApprovalFields(req);
   return ctrl.update(req, res, next);
 });

@@ -68,8 +68,8 @@ router.get('/items', requirePermission('inventory.view'), async (req, res, next)
   }
 });
 router.get('/items/:id', requirePermission('inventory.view'), ctrl.get);
-router.post('/items', requirePermission('inventory.create'), validate(createInventoryItem), ctrl.create);
-router.put('/items/:id', requirePermission('inventory.update'), validate(updateInventoryItem), ctrl.update);
+router.post('/items', requirePermission('inventory.create'), validate(createInventoryItem, { strip: false }), ctrl.create);
+router.put('/items/:id', requirePermission('inventory.update'), validate(updateInventoryItem, { strip: false }), ctrl.update);
 router.delete('/items/:id', requirePermission('inventory.delete'), ctrl.destroy);
 router.post('/items/:id/restore', requirePermission('inventory.update'), ctrl.restore);
 
@@ -140,7 +140,7 @@ router.get('/transactions', requirePermission('inventory.view'), async (req, res
 // Other transaction types (assign_to_job, sell_to_client, transfer_out, ...)
 // still require an existing stock_id — there is nothing sensible to "create"
 // when moving stock OUT of a location that never had any.
-router.post('/transactions', requirePermission('inventory.create'), validate(createInventoryTransaction), async (req, res, next) => {
+router.post('/transactions', requirePermission('inventory.create'), validate(createInventoryTransaction, { strip: false }), async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     let { stock_id } = req.body;

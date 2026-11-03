@@ -114,7 +114,7 @@ router.get('/environment', requirePermission('cfdi_documents.view'), async (req,
   } catch (err) { next(err); }
 });
 router.get('/:id', requirePermission('cfdi_documents.view'), ctrl.get);
-router.post('/', requirePermission('cfdi_documents.create'), refuseInvoiceLink, validate(createCfdiDocument), assertGlobalPeriod, assertLinkedRecordsOwned, ctrl.create);
+router.post('/', requirePermission('cfdi_documents.create'), refuseInvoiceLink, validate(createCfdiDocument, { strip: false }), assertGlobalPeriod, assertLinkedRecordsOwned, ctrl.create);
 router.put('/:id', requirePermission('cfdi_documents.update'), validate(updateCfdiDocument, { strip: true }), ctrl.update);
 
 // Discard an unstamped draft (CFD-02). Refused for stamped documents and for
@@ -184,7 +184,7 @@ router.get('/:id/related', requirePermission('cfdi_documents.view'), async (req,
 // sat_status='cancel_pending'; it only becomes 'cancelado' (and cancelled_at
 // gets set) once the PAC/SAT response is processed (immediately if the PAC
 // answers synchronously, or later via GET /cfdi/:id/cancellation-status).
-router.post('/:id/cancel', requirePermission('cfdi_documents.update'), validate(cancelCfdiDocument), async (req, res, next) => {
+router.post('/:id/cancel', requirePermission('cfdi_documents.update'), validate(cancelCfdiDocument, { strip: false }), async (req, res, next) => {
   try {
     const { cancellation_reason, replacement_uuid } = req.body;
 

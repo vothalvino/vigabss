@@ -191,7 +191,7 @@ router.get('/:id/secret', requirePermission('radius.credentials.view'), async (r
     next(err);
   }
 });
-router.post('/', requirePermission('devices.create'), validate(createNas), validateNasIpAddress, preallocateNatedTunnelIp, encryptApiPassword, ctrl.create);
+router.post('/', requirePermission('devices.create'), validate(createNas, { strip: false }), validateNasIpAddress, preallocateNatedTunnelIp, encryptApiPassword, ctrl.create);
 // A changed management address gets the same target check as a new one.
 function validateNasIpUpdate(req, _res, next) {
   const ip = req.body?.ip_address;
@@ -204,7 +204,7 @@ function validateNasIpUpdate(req, _res, next) {
   }
 }
 
-router.put('/:id', requirePermission('devices.update'), keepBlankSecrets(['secret']), validate(updateNas), validateNasIpUpdate, encryptApiPassword, ctrl.update);
+router.put('/:id', requirePermission('devices.update'), keepBlankSecrets(['secret']), validate(updateNas, { strip: false }), validateNasIpUpdate, encryptApiPassword, ctrl.update);
 router.delete('/:id', requirePermission('devices.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('devices.update'), ctrl.restore);
 
@@ -235,7 +235,7 @@ router.post('/:id/test-connection', requirePermission('devices.update'), async (
 // suspended-subscriber walled garden. Idempotent and non-destructive.
 // =============================================================================
 
-router.post('/:id/seed', requirePermission('devices.update'), validate(seedNas), async (req, res, next) => {
+router.post('/:id/seed', requirePermission('devices.update'), validate(seedNas, { strip: false }), async (req, res, next) => {
   try {
     const nas = await Nas.findByIdOrFail(req.params.id, req.orgId);
     // NATed NAS: requires an active WG tunnel before the RouterOS API is reachable.
@@ -254,7 +254,7 @@ router.post('/:id/seed', requirePermission('devices.update'), validate(seedNas),
       }
       res.json({ data: result });
     } catch (e) {
-      // Bad request bodies are already rejected by validate(seedNas) above. Here:
+      // Bad request bodies are already rejected by validate(seedNas, { strip: false }) above. Here:
       // missing API username / RADIUS secret → 422; rejected credentials → 422;
       // unreachable router → 502 (see sendRouterError).
       return sendRouterError(res, next, e);
@@ -393,7 +393,7 @@ router.post('/:id/wg/discover', requirePermission('devices.update'), async (req,
   }
 });
 
-router.put('/:id/wg/routes', requirePermission('devices.update'), validate(confirmWgRoutes), async (req, res, next) => {
+router.put('/:id/wg/routes', requirePermission('devices.update'), validate(confirmWgRoutes, { strip: false }), async (req, res, next) => {
   try {
     const nas = await Nas.findByIdOrFail(req.params.id, req.orgId);
     try {

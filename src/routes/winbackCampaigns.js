@@ -20,9 +20,9 @@ router.use(orgScope);
 
 router.get('/', requirePermission('winback.view'), ctrl.list);
 router.get('/:id', requirePermission('winback.view'), ctrl.get);
-router.post('/', requirePermission('winback.create'), validate(createWinbackCampaign), ctrl.create);
-router.put('/:id', requirePermission('winback.update'), validate(updateWinbackCampaign), ctrl.update);
-router.patch('/:id', requirePermission('winback.update'), validate(patchWinbackCampaign), ctrl.partialUpdate);
+router.post('/', requirePermission('winback.create'), validate(createWinbackCampaign, { strip: false }), ctrl.create);
+router.put('/:id', requirePermission('winback.update'), validate(updateWinbackCampaign, { strip: false }), ctrl.update);
+router.patch('/:id', requirePermission('winback.update'), validate(patchWinbackCampaign, { strip: false }), ctrl.partialUpdate);
 router.delete('/:id', requirePermission('winback.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('winback.update'), ctrl.restore);
 

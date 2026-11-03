@@ -348,8 +348,15 @@ that inevitably fail, but they never replace server-side authorization.
   guards are marked with `tagGuard` from `src/middleware/routeGuard.js` so the test
   can see them.
 - Validation schemas live in `src/middleware/schemas/`. The custom `validate()`
-  middleware validates declared fields but, by default, leaves undeclared fields
-  in the body. Sensitive mutation routes can opt into `{ strip: true }`.
+  middleware validates declared fields and, on POST, PUT and PATCH, strips
+  undeclared ones by default (TNA-38). The routes that predate this pass
+  `{ strip: false }` explicitly; `tests/validateStripRatchet.test.js` keeps
+  that list from growing.
+- `crudController` checks every foreign key a create or update writes against
+  `req.orgId`, from the FOREIGN KEY constraints in `schema.sql`
+  (`src/models/ownedForeignKeys.json`, regenerated with
+  `node src/scripts/generate-owned-fks.js --write`). It runs after the route's
+  own hooks; a route that checks a field itself sets `ownedRefs: { field: null }`.
 - `crudController.js` centralizes common list/get/create/update/delete behavior,
   audit logging, cache invalidation, serializers, hooks, and optional locked
   transactions. Use its extension points before forking a second CRUD pattern.
@@ -377,8 +384,18 @@ that inevitably fail, but they never replace server-side authorization.
 Most models extend `src/models/BaseModel.js`:
 
 - `fillable` is an allowlist for insert/update and silently omits unknown keys.
-- `hasOrgScope` adds `organization_id` predicates when an org ID is supplied.
-- `softDelete` adds `deleted_at` behavior.
+- `hasOrgScope` adds the `organization_id` predicate to every generic method,
+  and an omitted or `null` organization throws instead of dropping it
+  (TNB-34). An install-wide caller passes `BaseModel.UNSCOPED` explicitly
+  (staff identities in `User`, for instance). A model's own helpers on an
+  org-scoped model take `orgId` too; `tests/modelHelperOrgScope.test.js`
+  lists the reviewed exceptions.
+- `softDelete` adds `deleted_at` behavior. A row the runtime selects by a flag
+  declares `deactivateOnDelete` (`{ is_active: 0 }`, `{ status: 'inactive' }`)
+  so a delete also switches it off (DAL-14). Hand-written SQL on a softDelete
+  table filters `<alias>.deleted_at`, or marks the query
+  `/* includes deleted rows: <reason> */`; `tests/softDeleteRawSql.test.js`
+  ratchets the existing unfiltered reads per file.
 - generic list filters and sort fields are allowlisted.
 - generic updates reject `organization_id`; tenant re-homing requires a
   separate, explicitly reviewed operation.

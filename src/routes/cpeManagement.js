@@ -273,7 +273,7 @@ router.get('/devices/:id/tasks', requirePermission('cpe_tasks.view'), async (req
   } catch (err) { next(err); }
 });
 
-router.post('/devices/:id/tasks', requirePermission('cpe_tasks.create'), validate(createCpeTask), async (req, res, next) => {
+router.post('/devices/:id/tasks', requirePermission('cpe_tasks.create'), validate(createCpeTask, { strip: false }), async (req, res, next) => {
   try {
     const params = req.body.parameters;
     if (params !== undefined && params !== null && typeof params !== 'object') {
@@ -364,14 +364,14 @@ router.get('/firmware-versions', requirePermission('cpe_firmware_versions.view')
   } catch (err) { next(err); }
 });
 
-router.post('/firmware-versions', requirePermission('cpe_firmware_versions.create'), validate(createCpeFirmwareVersion), async (req, res, next) => {
+router.post('/firmware-versions', requirePermission('cpe_firmware_versions.create'), validate(createCpeFirmwareVersion, { strip: false }), async (req, res, next) => {
   try {
     const record = await CpeFirmwareVersion.create({ ...req.body, organization_id: req.orgId });
     res.status(201).json({ data: record });
   } catch (err) { next(err); }
 });
 
-router.put('/firmware-versions/:id', requirePermission('cpe_firmware_versions.update'), validate(updateCpeFirmwareVersion), async (req, res, next) => {
+router.put('/firmware-versions/:id', requirePermission('cpe_firmware_versions.update'), validate(updateCpeFirmwareVersion, { strip: false }), async (req, res, next) => {
   try {
     const record = await CpeFirmwareVersion.update(req.params.id, req.body, req.orgId);
     res.json({ data: record });
@@ -419,7 +419,7 @@ router.get('/firmware-campaigns', requirePermission('cpe_firmware_campaigns.view
   } catch (err) { next(err); }
 });
 
-router.post('/firmware-campaigns', requirePermission('cpe_firmware_campaigns.create'), validate(createCpeFirmwareCampaign), async (req, res, next) => {
+router.post('/firmware-campaigns', requirePermission('cpe_firmware_campaigns.create'), validate(createCpeFirmwareCampaign, { strip: false }), async (req, res, next) => {
   try {
     const record = await CpeFirmwareCampaign.create({
       ...req.body,
@@ -430,7 +430,7 @@ router.post('/firmware-campaigns', requirePermission('cpe_firmware_campaigns.cre
   } catch (err) { next(err); }
 });
 
-router.put('/firmware-campaigns/:id', requirePermission('cpe_firmware_campaigns.update'), validate(updateCpeFirmwareCampaign), async (req, res, next) => {
+router.put('/firmware-campaigns/:id', requirePermission('cpe_firmware_campaigns.update'), validate(updateCpeFirmwareCampaign, { strip: false }), async (req, res, next) => {
   try {
     const record = await CpeFirmwareCampaign.update(req.params.id, req.body, req.orgId);
     res.json({ data: record });
@@ -647,7 +647,7 @@ router.get('/devices/:id/depreciation', requirePermission('cpe_inventory.view'),
 // Manual serial registration — CPE Inventory page's "Register" tab: legacy
 // devices or catch-up for stock that predates an item's serial_required
 // toggle. Default (no increment_stock) never touches inventory_stock.
-router.post('/devices/register', requirePermission('cpe_inventory.manage'), validate(registerSerialSchema), async (req, res, next) => {
+router.post('/devices/register', requirePermission('cpe_inventory.manage'), validate(registerSerialSchema, { strip: false }), async (req, res, next) => {
   try {
     const device = await inventorySerialService.registerSerial({
       orgId: req.orgId,
@@ -669,7 +669,7 @@ router.post('/devices/register', requirePermission('cpe_inventory.manage'), vali
 // to 'assigned' on the given contract, and decrements stock exactly once
 // (rent: assign_to_job ledger, no invoice; sold: a real invoice line via
 // billingService.createOneOffInvoice, which itself calls drawdownForSale).
-router.post('/devices/install', requirePermission('cpe_inventory.manage'), validate(installEquipmentSchema), async (req, res, next) => {
+router.post('/devices/install', requirePermission('cpe_inventory.manage'), validate(installEquipmentSchema, { strip: false }), async (req, res, next) => {
   try {
     const result = await inventorySerialService.installEquipment({
       orgId: req.orgId,
@@ -689,7 +689,7 @@ router.post('/devices/install', requirePermission('cpe_inventory.manage'), valid
 // still-live contract: unassigns the unit, restores stock/ledger for a
 // tracked unit, and for a sold unit also voids the (unpaid) sale invoice. See
 // inventorySerialService.uninstallEquipment for the full rule set.
-router.post('/devices/:id/uninstall', requirePermission('cpe_inventory.manage'), validate(uninstallEquipmentSchema), async (req, res, next) => {
+router.post('/devices/:id/uninstall', requirePermission('cpe_inventory.manage'), validate(uninstallEquipmentSchema, { strip: false }), async (req, res, next) => {
   try {
     const result = await inventorySerialService.uninstallEquipment({
       orgId: req.orgId,

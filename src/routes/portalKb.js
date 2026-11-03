@@ -86,7 +86,7 @@ router.get('/', requirePermission('portal_kb.view'), async (req, res, next) => {
 });
 
 // POST /portal-kb — create article
-router.post('/', requirePermission('portal_kb.create'), validate(kbArticleCreateSchema), async (req, res, next) => {
+router.post('/', requirePermission('portal_kb.create'), validate(kbArticleCreateSchema, { strip: false }), async (req, res, next) => {
   try {
     const { category, title, slug, body, is_published } = req.body;
     const orgId = req.orgId;
@@ -121,7 +121,7 @@ router.get('/:id', requirePermission('portal_kb.view'), async (req, res, next) =
 });
 
 // PUT /portal-kb/:id — update article
-router.put('/:id', requirePermission('portal_kb.update'), validate(kbArticleUpdateSchema), async (req, res, next) => {
+router.put('/:id', requirePermission('portal_kb.update'), validate(kbArticleUpdateSchema, { strip: false }), async (req, res, next) => {
   try {
     const ownerOrgId = await loadWritableArticle(req);
 

@@ -97,7 +97,7 @@ router.get('/:id', requirePermission('roles.view'), async (req, res, next) => {
 
 // Create a role (user group). kind is required and 'admin' is rejected by
 // the schema enum (src/middleware/schemas/roles.js) — see the comment there.
-router.post('/', requirePermission('roles.manage'), requireGlobalPrincipal, validate(createRole), async (req, res, next) => {
+router.post('/', requirePermission('roles.manage'), requireGlobalPrincipal, validate(createRole, { strip: false }), async (req, res, next) => {
   try {
     const { name, description, kind } = req.body;
     const [result] = await db.query(
@@ -112,7 +112,7 @@ router.post('/', requirePermission('roles.manage'), requireGlobalPrincipal, vali
 });
 
 // Update a role
-router.put('/:id', requirePermission('roles.manage'), requireGlobalPrincipal, validate(updateRole), async (req, res, next) => {
+router.put('/:id', requirePermission('roles.manage'), requireGlobalPrincipal, validate(updateRole, { strip: false }), async (req, res, next) => {
   try {
     const { name, description, kind } = req.body;
 
@@ -257,7 +257,7 @@ function auditPermissionChange(req, role, oldSlugs, newSlugs) {
 }
 
 // Assign a permission to a role
-router.post('/:id/permissions', requirePermission('roles.manage'), requireGlobalPrincipal, validate(assignPermission), async (req, res, next) => {
+router.post('/:id/permissions', requirePermission('roles.manage'), requireGlobalPrincipal, validate(assignPermission, { strip: false }), async (req, res, next) => {
   try {
     const role = await loadPermissionEditableRole(req);
     if (!role) {
@@ -283,7 +283,7 @@ router.post('/:id/permissions', requirePermission('roles.manage'), requireGlobal
 
 // Bulk-replace a role's entire permission set (used by the group editor UI
 // instead of many single POST/DELETE round-trips).
-router.put('/:id/permissions', requirePermission('roles.manage'), requireGlobalPrincipal, validate(setPermissions), async (req, res, next) => {
+router.put('/:id/permissions', requirePermission('roles.manage'), requireGlobalPrincipal, validate(setPermissions, { strip: false }), async (req, res, next) => {
   try {
     const role = await loadPermissionEditableRole(req);
     if (!role) {

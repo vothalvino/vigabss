@@ -668,7 +668,7 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
     if (lockedPeriods.length > 0 && lockedPeriods[0].status !== 'pending') {
       await conn.rollback();
       conn.release();
-      return Invoice.findById(lockedPeriods[0].invoice_id);
+      return Invoice.findById(lockedPeriods[0].invoice_id, orgId);
     }
 
     // Get the effective price (override or plan price; use trial_price if in trial)
@@ -807,7 +807,7 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
     await conn.commit();
 
     logger.info({ contractId: contract.id, invoiceId, invoiceNumber, total: finalTotal, currency }, 'Invoice generated');
-    const created = await Invoice.findById(invoiceId);
+    const created = await Invoice.findById(invoiceId, orgId);
     await require('./businessEvents').emitInvoiceCreated(orgId, created);
     return created;
   } catch (err) {
@@ -923,7 +923,7 @@ async function createOneOffInvoice({
     let invoice;
     if (ownsTransaction) {
       await conn.commit();
-      invoice = await Invoice.findById(invoiceId);
+      invoice = await Invoice.findById(invoiceId, orgId);
       await require('./businessEvents').emitInvoiceCreated(orgId, invoice);
     } else {
       // The caller emits invoice.created once its transaction commits.

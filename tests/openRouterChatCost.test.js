@@ -18,6 +18,13 @@
 // is the state every real process starts in.
 // =============================================================================
 
+// The monthly AI budget is covered by tests/aiBudget.test.js.
+jest.mock('../src/services/aiBudgetService', () => ({
+  assertWithinBudget: jest.fn().mockResolvedValue(undefined),
+  recordUsage: jest.fn().mockResolvedValue(undefined),
+  overBudget: jest.fn().mockResolvedValue(false),
+  status: jest.fn().mockResolvedValue({ budget_usd: null, spent_usd: 0, remaining_usd: null }),
+}));
 jest.mock('../src/config/database', () => ({
   query: jest.fn(), queryReplica: jest.fn(), execute: jest.fn(),
   getConnection: jest.fn(), close: jest.fn(), pool: { end: jest.fn() },
