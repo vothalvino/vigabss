@@ -407,33 +407,27 @@ function round2(n) {
  * table uses sentinel `0` as its primary key for that bucket (a nullable PK
  * column wouldn't work — MySQL doesn't de-duplicate NULL against itself).
  *
- * Two statements, deliberately NOT collapsed into a single
- * `INSERT ... ON DUPLICATE KEY UPDATE ... LAST_INSERT_ID(...)`:
+ * One upsert, which takes the row's exclusive lock at once (OPS-20):
  *
- *   1. `INSERT IGNORE` guarantees a row exists for this org — a no-op when
- *      one already does (every org that had invoices before migration 381
- *      was seeded; this only actually inserts for a brand-new org's very
- *      first invoice).
- *   2. `UPDATE ... SET next_number = LAST_INSERT_ID(next_number) + 1` is the
- *      documented MySQL idiom for simulating a sequence with a plain
- *      UPDATE (it works without an AUTO_INCREMENT column): `LAST_INSERT_ID(expr)`
- *      evaluates `expr` against the row's PRE-update value and remembers it
- *      as the connection's last-insert-id, and *always* runs — a bare UPDATE
- *      has no conditional branch the way `ON DUPLICATE KEY UPDATE` does, so
- *      `SELECT LAST_INSERT_ID()` afterward reliably reflects this call's
- *      pre-update `next_number` (the number to hand out) every time.
- *      (A single upsert statement can't offer this guarantee: on a fresh,
- *      non-conflicting INSERT into a table with no AUTO_INCREMENT column,
- *      the `ON DUPLICATE KEY UPDATE` clause — and therefore any
- *      `LAST_INSERT_ID(expr)` inside it — never executes, so
- *      `LAST_INSERT_ID()` would return a stale value from whatever this
- *      pooled connection last set it to.)
+ *   INSERT INTO … VALUES (?, LAST_INSERT_ID(1) + 1)
+ *     ON DUPLICATE KEY UPDATE next_number = LAST_INSERT_ID(next_number) + 1
  *
- * The UPDATE takes an exclusive row lock for its duration under InnoDB, so
- * two concurrent callers for the same org serialize on step 2: the second
- * transaction's UPDATE blocks until the first commits (writes always read
- * the latest row, not a snapshot), then increments from the first caller's
- * already-advanced value — distinct, gapless numbers, no race window.
+ * `LAST_INSERT_ID(expr)` returns expr and remembers it as the connection's
+ * last-insert-id. A new org's first call inserts next_number 2 and remembers
+ * 1; every later call hits the key, remembers the row's PRE-update
+ * next_number and advances it. Either way `SELECT LAST_INSERT_ID()` is this
+ * call's number. (The VALUES expression is what makes the fresh-insert case
+ * reliable: the UPDATE clause never runs on a fresh insert.)
+ *
+ * This used to be `INSERT IGNORE` then `UPDATE`. On an existing row INSERT
+ * IGNORE takes a SHARED lock on the duplicate key, so two concurrent
+ * transactions both held it and both waited to upgrade to the exclusive
+ * lock the UPDATE needs: MySQL killed one as a deadlock. The real-database
+ * suite hit it with concurrent invoice generation for one organization.
+ *
+ * Concurrent callers for the same org serialize on that row lock until the
+ * first commits, then increment from its advanced value: distinct, gapless
+ * numbers.
  *
  * @param {object} conn - An active connection/transaction (must expose
  *   `.query`/`.execute`) — this call is meant to run inside the caller's own
@@ -442,20 +436,18 @@ function round2(n) {
  * @param {number|null} orgId
  * @returns {Promise<string>} e.g. "INV-000123"
  */
-async function nextInvoiceNumber(conn, orgId) {
-  const bucket = orgId ?? 0;
+async function nextSequenceNumber(conn, table, orgId) {
   await conn.execute(
-    'INSERT IGNORE INTO organization_invoice_sequences (organization_id, next_number) VALUES (?, 1)',
-    [bucket],
-  );
-  await conn.execute(
-    `UPDATE organization_invoice_sequences
-        SET next_number = LAST_INSERT_ID(next_number) + 1
-      WHERE organization_id = ?`,
-    [bucket],
+    `INSERT INTO ${table} (organization_id, next_number) VALUES (?, LAST_INSERT_ID(1) + 1)
+       ON DUPLICATE KEY UPDATE next_number = LAST_INSERT_ID(next_number) + 1`,
+    [orgId ?? 0],
   );
   const [[{ id }]] = await conn.query('SELECT LAST_INSERT_ID() AS id');
-  const next = Number(id);
+  return Number(id);
+}
+
+async function nextInvoiceNumber(conn, orgId) {
+  const next = await nextSequenceNumber(conn, 'organization_invoice_sequences', orgId);
   return `INV-${String(next).padStart(6, '0')}`;
 }
 
@@ -463,10 +455,7 @@ async function nextInvoiceNumber(conn, orgId) {
  * Atomically allocate the next sequential quote number for an organization,
  * e.g. QUO-000123. Mirrors {@link nextInvoiceNumber} exactly — same
  * `organization_quote_sequences` table shape (migration 389, mirroring
- * migration 381), same INSERT IGNORE + UPDATE ... LAST_INSERT_ID(...) idiom
- * for the same reason (a single `ON DUPLICATE KEY UPDATE` does not reliably
- * run its LAST_INSERT_ID() expression on a fresh insert into a table with no
- * AUTO_INCREMENT column — see nextInvoiceNumber's doc comment above).
+ * migration 381), same single upsert (see nextInvoiceNumber's doc comment).
  *
  * @param {object} conn - An active connection/transaction (must expose
  *   `.query`/`.execute`) — meant to run inside the caller's own transaction
@@ -475,19 +464,7 @@ async function nextInvoiceNumber(conn, orgId) {
  * @returns {Promise<string>} e.g. "QUO-000123"
  */
 async function nextQuoteNumber(conn, orgId) {
-  const bucket = orgId ?? 0;
-  await conn.execute(
-    'INSERT IGNORE INTO organization_quote_sequences (organization_id, next_number) VALUES (?, 1)',
-    [bucket],
-  );
-  await conn.execute(
-    `UPDATE organization_quote_sequences
-        SET next_number = LAST_INSERT_ID(next_number) + 1
-      WHERE organization_id = ?`,
-    [bucket],
-  );
-  const [[{ id }]] = await conn.query('SELECT LAST_INSERT_ID() AS id');
-  const next = Number(id);
+  const next = await nextSequenceNumber(conn, 'organization_quote_sequences', orgId);
   return `QUO-${String(next).padStart(6, '0')}`;
 }
 
@@ -637,11 +614,25 @@ async function generateBillingPeriod(contract) {
   const scheduledAt = new Date(periodStart);
   scheduledAt.setDate(contract.billing_day || 1);
 
-  const [result] = await db.query(
-    `INSERT INTO billing_periods (contract_id, period_start, period_end, status, scheduled_at)
-     VALUES (?, ?, ?, 'pending', ?)`,
-    [contract.id, periodStart, periodEnd, scheduledAt],
-  );
+  let result;
+  try {
+    [result] = await db.query(
+      `INSERT INTO billing_periods (contract_id, period_start, period_end, status, scheduled_at)
+       VALUES (?, ?, ?, 'pending', ?)`,
+      [contract.id, periodStart, periodEnd, scheduledAt],
+    );
+  } catch (err) {
+    // A concurrent run created this period between the read above and this
+    // INSERT (uq_billing_periods_contract_period): use its row rather than
+    // failing the run (OPS-20).
+    if (err.code !== 'ER_DUP_ENTRY' && err.errno !== 1062) throw err;
+    const [raced] = await db.query(
+      'SELECT * FROM billing_periods WHERE contract_id = ? AND period_start = ? LIMIT 1',
+      [contract.id, periodStart],
+    );
+    if (!raced[0]) throw err;
+    return raced[0];
+  }
 
   const [rows] = await db.query('SELECT * FROM billing_periods WHERE id = ?', [result.insertId]);
   logger.info({ contractId: contract.id, periodId: result.insertId }, 'Billing period created');

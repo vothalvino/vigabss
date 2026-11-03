@@ -505,9 +505,8 @@ describe('Billing Routes — /api/billing', () => {
         // tax_rates query — a 0% default rate (resolver finds it, so the
         // Organization.getLocale fallback is never reached)
         .mockResolvedValueOnce([[{ id: 1, rate: '0.0000', is_default: true }]])
-        // nextInvoiceNumber: INSERT IGNORE + UPDATE next_number
+        // nextInvoiceNumber: the sequence upsert
         .mockResolvedValueOnce([{ affectedRows: 0 }])
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
         // insert invoice
         .mockResolvedValueOnce([{ insertId: 200 }])
         // insert line item (plan)

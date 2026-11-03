@@ -183,7 +183,10 @@ describe('nextOrderNumber', () => {
     expect(conn.execute).toHaveBeenCalledTimes(2);
 
     const insertIgnoreCall = conn.execute.mock.calls[0];
-    expect(insertIgnoreCall[0]).toContain('INSERT IGNORE INTO organization_order_sequences');
+    // The seed takes the exclusive lock (an upsert): INSERT IGNORE took a
+    // shared one and deadlocked concurrent creates (OPS-20).
+    expect(insertIgnoreCall[0]).toMatch(/INSERT INTO organization_order_sequences [\s\S]*ON DUPLICATE KEY UPDATE next_number = next_number/);
+    expect(insertIgnoreCall[0]).not.toMatch(/INSERT IGNORE/);
     expect(insertIgnoreCall[1]).toEqual([7]);
 
     const updateCall = conn.execute.mock.calls[1];
