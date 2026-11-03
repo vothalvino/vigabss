@@ -6,6 +6,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { businessToday } = require('../utils/businessDate');
 const { creditAppliedSql } = require('../utils/invoiceBalance');
 const Invoice = require('../models/Invoice');
 const Organization = require('../models/Organization');
@@ -702,11 +703,11 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
     // Create invoice
     const [invResult] = await conn.execute(
       `INSERT INTO invoices (organization_id, client_id, contract_id, invoice_number,
-       subtotal, tax_amount, total, currency, tax_rate, tax_rate_id, due_date, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued')`,
+       subtotal, tax_amount, total, currency, tax_rate, tax_rate_id, due_date, status, issue_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?)`,
       [orgId, contract.client_id, contract.id, invoiceNumber,
         subtotal, taxAmount, total, currency, taxPct,
-        taxRateId, dueDate],
+        taxRateId, dueDate, businessToday()],
     );
     const invoiceId = invResult.insertId;
 
@@ -799,9 +800,9 @@ async function generateInvoice(billingPeriod, contract, plan, orgId) {
     // Debit client balance ledger — the FINAL total (incl. overage/add-ons),
     // not the base plan figure.
     await conn.execute(
-      `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-       VALUES (?, ?, 'debit', ?, ?, 'invoice', ?, ?)`,
-      [contract.client_id, orgId, finalTotal, currency, invoiceId, `Invoice ${invoiceNumber}`],
+      `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+       VALUES (?, ?, 'debit', ?, ?, 'invoice', ?, ?, ?)`,
+      [contract.client_id, orgId, finalTotal, currency, invoiceId, `Invoice ${invoiceNumber}`, businessToday()],
     );
 
     await conn.commit();
@@ -888,10 +889,10 @@ async function createOneOffInvoice({
 
     const [invResult] = await conn.execute(
       `INSERT INTO invoices (organization_id, client_id, contract_id, invoice_number,
-       subtotal, tax_amount, total, currency, tax_rate, tax_rate_id, due_date, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued')`,
+       subtotal, tax_amount, total, currency, tax_rate, tax_rate_id, due_date, status, issue_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?)`,
       [orgId, clientId, contractId, invoiceNumber, subtotal, taxAmount, total,
-        currency, taxPct, taxRateId, dueDate],
+        currency, taxPct, taxRateId, dueDate, businessToday()],
     );
     const invoiceId = invResult.insertId;
 
@@ -915,9 +916,9 @@ async function createOneOffInvoice({
 
     // Debit client balance ledger — identical shape to generateInvoice()/POST /invoices/generate.
     await conn.execute(
-      `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-       VALUES (?, ?, 'debit', ?, ?, 'invoice', ?, ?)`,
-      [clientId, orgId, total, currency, invoiceId, `Invoice ${invoiceNumber}`],
+      `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+       VALUES (?, ?, 'debit', ?, ?, 'invoice', ?, ?, ?)`,
+      [clientId, orgId, total, currency, invoiceId, `Invoice ${invoiceNumber}`, businessToday()],
     );
 
     let invoice;
@@ -999,9 +1000,9 @@ async function recordPaymentCredit(payment, orgId, exec = db.query.bind(db)) {
   logger.info({ paymentId: payment.id, clientId: payment.client_id, amount: payment.amount }, 'Recording payment credit');
   const currency = payment.currency || await Organization.getCurrency(orgId);
   await exec(
-    `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-     VALUES (?, ?, 'credit', ?, ?, 'payment', ?, ?)`,
-    [payment.client_id, orgId, payment.amount, currency, payment.id, 'Payment ' + (payment.reference_number || payment.id)],
+    `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+     VALUES (?, ?, 'credit', ?, ?, 'payment', ?, ?, ?)`,
+    [payment.client_id, orgId, payment.amount, currency, payment.id, 'Payment ' + (payment.reference_number || payment.id), businessToday()],
   );
 }
 

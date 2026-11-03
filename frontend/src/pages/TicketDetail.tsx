@@ -19,6 +19,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { useTranslation } from 'react-i18next';
 import { parseApiError } from '@/api/errors';
+import { localToday } from '@/lib/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1343,7 +1344,7 @@ function TimeLogsPanel({ ticketId }: { ticketId: number }) {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [minutes, setMinutes] = useState('');
-  const [workDate, setWorkDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [workDate, setWorkDate] = useState(() => localToday());
   const [description, setDescription] = useState('');
   const [formErr, setFormErr] = useState('');
 
@@ -1731,7 +1732,7 @@ function FollowUpsPanel({ ticket }: { ticket: Ticket }) {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
-  const [dueAt, setDueAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dueAt, setDueAt] = useState(() => localToday());
   const [formErr, setFormErr] = useState('');
 
   const { data: followUps = [], refetch } = useQuery({

@@ -12,6 +12,7 @@ const { validate } = require('../middleware/validate');
 const { createScheduledTask, updateScheduledTask } = require('../middleware/schemas/scheduledTasks');
 const { quotaCheck } = require('../middleware/checkQuota');
 const taskRunner = require('../services/taskRunner');
+const { businessTimezone } = require('../utils/businessDate');
 const db = require('../config/database');
 const { isInstallOperator, OPERATOR_ONLY_MESSAGE } = require('../services/installOperator');
 
@@ -148,7 +149,8 @@ router.get('/', requirePermission('scheduled_tasks.view'), async (req, res, next
     const [[{ total }]] = await db.query(
       `SELECT COUNT(*) AS total FROM scheduled_tasks ${where}`, params,
     );
-    res.json({ data: rows, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
+    // Cron times are in the business time zone (BIL-34).
+    res.json({ data: rows, meta: { total, page, limit, totalPages: Math.ceil(total / limit), business_timezone: businessTimezone() } });
   } catch (err) { next(err); }
 });
 

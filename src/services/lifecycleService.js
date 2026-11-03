@@ -27,6 +27,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { businessToday, sqlBusinessToday } = require('../utils/businessDate');
 const Client = require('../models/Client');
 const ServiceOrder = require('../models/ServiceOrder');
 const User = require('../models/User');
@@ -504,7 +505,7 @@ async function startOrder(orderId, {
         client_id: clientId,
         plan_id: order.plan_id,
         connection_type: 'pppoe',
-        start_date: new Date().toISOString().slice(0, 10),
+        start_date: businessToday(),
         status: 'pending',
       };
       if (mxRegistrationSnapshot) {
@@ -1311,10 +1312,10 @@ async function atRiskClients(organizationId, { limit = 50 } = {}) {
       cl.name,
       cl.email,
       COUNT(DISTINCT CASE WHEN co.status = 'suspended' THEN co.id END) AS suspended_contracts,
-      COUNT(DISTINCT CASE WHEN i.status = 'issued' AND i.due_date < NOW() THEN i.id END) AS overdue_invoices,
+      COUNT(DISTINCT CASE WHEN i.status = 'issued' AND i.due_date < ${sqlBusinessToday()} THEN i.id END) AS overdue_invoices,
       -- Only count days for invoices that are ACTUALLY overdue (issued + past due);
       -- otherwise old PAID invoices made every long-tenured client look 400+ days overdue.
-      COALESCE(MAX(CASE WHEN i.status = 'issued' AND i.due_date < NOW() THEN DATEDIFF(NOW(), i.due_date) END), 0) AS max_days_overdue
+      COALESCE(MAX(CASE WHEN i.status = 'issued' AND i.due_date < ${sqlBusinessToday()} THEN DATEDIFF(${sqlBusinessToday()}, i.due_date) END), 0) AS max_days_overdue
     FROM clients cl
     -- Live rows of the client's own organization only (RTE-11): a soft-
     -- deleted overdue invoice no longer makes a client look at risk.

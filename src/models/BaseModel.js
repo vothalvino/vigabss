@@ -6,6 +6,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { businessToday } = require('../utils/businessDate');
 const { NotFoundError, AppError } = require('../utils/errors');
 
 // TNB-34: the organization argument of the org-scoped methods used to default
@@ -233,10 +234,20 @@ class BaseModel {
   /**
    * Insert a new record. Only `fillable` columns are accepted.
    */
+  /**
+   * DATE columns that default to today. The schema's DEFAULT (CURRENT_DATE)
+   * is the UTC day; create() fills an omitted one with the business day
+   * instead (BIL-34).
+   */
+  static get businessDateColumns() { return []; }
+
   static async create(data) {
     const filtered = {};
     for (const key of this.fillable) {
       if (data[key] !== undefined) filtered[key] = data[key];
+    }
+    for (const key of this.businessDateColumns) {
+      if (filtered[key] === undefined || filtered[key] === null) filtered[key] = businessToday();
     }
 
     const cols = Object.keys(filtered);

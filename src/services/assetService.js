@@ -3,6 +3,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { sqlBusinessToday } = require('../utils/businessDate');
 const { orgScopeFilter } = require('./organizationFanOut');
 
 /**
@@ -127,8 +128,8 @@ async function getStats(orgId) {
        SUM(lifecycle_status = 'maintenance') AS maintenance,
        SUM(lifecycle_status = 'rma') AS rma,
        SUM(lifecycle_status = 'disposed') AS disposed,
-       SUM(warranty_expires_at IS NOT NULL AND warranty_expires_at < CURDATE()) AS warranty_expired,
-       SUM(warranty_expires_at IS NOT NULL AND warranty_expires_at BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)) AS warranty_expiring_soon
+       SUM(warranty_expires_at IS NOT NULL AND warranty_expires_at < ${sqlBusinessToday()}) AS warranty_expired,
+       SUM(warranty_expires_at IS NOT NULL AND warranty_expires_at BETWEEN ${sqlBusinessToday()} AND DATE_ADD(${sqlBusinessToday()}, INTERVAL 30 DAY)) AS warranty_expiring_soon
      FROM assets
      WHERE deleted_at IS NULL
        AND (? IS NULL OR organization_id = ?)`,

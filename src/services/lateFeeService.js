@@ -6,6 +6,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { sqlBusinessToday } = require('../utils/businessDate');
 const { notUnderActivePlanSql } = require('../utils/invoiceBalance');
 const eventBus = require('./eventBus');
 const logger = require('../utils/logger');
@@ -117,14 +118,14 @@ async function applyLateFees(organizationId) {
   const [invoices] = await db.query(
     `SELECT i.id, i.invoice_number, i.total, i.subtotal, i.tax_amount, i.tax_rate,
             i.currency, i.due_date, i.client_id, i.contract_id,
-            DATEDIFF(NOW(), i.due_date) AS days_overdue,
+            DATEDIFF(${sqlBusinessToday()}, i.due_date) AS days_overdue,
             cl.name AS client_name,
             cl.email AS client_email, cl.phone AS client_phone
      FROM invoices i
      LEFT JOIN clients cl ON cl.id = i.client_id
      WHERE i.organization_id = ?
        AND i.status IN ('issued', 'overdue')
-       AND i.due_date < CURDATE()
+       AND i.due_date < ${sqlBusinessToday()}
        AND i.deleted_at IS NULL
        -- No late fees on an archived client's invoices (DAL-03).
        AND cl.deleted_at IS NULL

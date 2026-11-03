@@ -1063,7 +1063,7 @@ describe('Invoice Routes — /api/invoices', () => {
       expect(totalsCall[1]).toEqual([50, 8, 58, 1]);
       // The delta is debited to the balance ledger.
       const ledgerCall = conn.execute.mock.calls.find(([sql]) => sql.includes('client_balance_ledger'));
-      expect(ledgerCall[1]).toEqual([7, 1, 58, 'MXN', 1, 'Invoice INV-000001 — line item added']);
+      expect(ledgerCall[1]).toEqual([7, 1, 58, 'MXN', 1, 'Invoice INV-000001 — line item added', expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)]);
     });
 
     test('rejects amount that does not equal quantity × unit_price', async () => {

@@ -3,6 +3,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { businessToday } = require('../utils/businessDate');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const { crudController } = require('../controllers/crudController');
 const { authenticate } = require('../middleware/auth');
@@ -290,7 +291,7 @@ router.post('/:id/receive', requirePermission('purchase_orders.receive'), valida
         ? po.status
         : allFullyReceived ? 'received' : anyReceived ? 'partial' : po.status;
       const receivedDate = newStatus === 'received'
-        ? (req.body.received_date || new Date().toISOString().slice(0, 10))
+        ? (req.body.received_date || businessToday())
         : po.received_date;
 
       await conn.query(

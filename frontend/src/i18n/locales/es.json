@@ -507,6 +507,7 @@
     "noFiles": "No hay archivos de respaldo locales en disco."
   },
   "scheduledTasksPage": {
+    "timezoneNote": "Los horarios están en {{zone}}",
     "runNow": "▶ Ejecutar ahora",
     "running": "Ejecutando…",
     "runTitle": "Ejecutar tarea programada",

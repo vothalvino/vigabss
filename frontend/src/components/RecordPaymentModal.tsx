@@ -39,6 +39,7 @@ import {
   overlay, modalBox, errorBox, labelStyle, inputStyle, submitBtn, cancelBtn,
 } from '@/components/ClientFormModal';
 import { ClientPicker } from '@/components/ClientPicker';
+import { localToday } from '@/lib/dates';
 
 const API_BASE = '/api/v1';
 // Must match the backend payment_method enum exactly (src/middleware/schemas/payments.js
@@ -150,7 +151,7 @@ export function RecordPaymentModal({
   lockedClientId, lockedClientName, lockedInvoiceId, onClose, onRecorded,
 }: RecordPaymentModalProps) {
   const { t } = useTranslation();
-  const TODAY = new Date().toISOString().split('T')[0];
+  const TODAY = localToday();
   // Prime the currency field from the active organization (GET /auth/me's
   // organization_currency) instead of a hardcoded 'MXN' — the priming effect
   // below still overrides it with the client's actual open-invoice currency

@@ -28,6 +28,7 @@ import { Pagination } from '@/components/Pagination';
 import { ClientPicker } from '@/components/ClientPicker';
 import { useClientNames } from '@/api/clientNames';
 import { queryKeys } from '@/api/queryKeys';
+import { localToday } from '@/lib/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -352,7 +353,7 @@ function StatusBadge({ status }: { status: string }) {
 // New Contract Modal
 // ---------------------------------------------------------------------------
 
-const TODAY = new Date().toISOString().split('T')[0];
+const TODAY = localToday();
 
 interface NewContractModalProps {
   plans: Plan[];

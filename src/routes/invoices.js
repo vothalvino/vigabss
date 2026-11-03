@@ -3,6 +3,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { businessToday, sqlBusinessToday } = require('../utils/businessDate');
 const Invoice = require('../models/Invoice');
 const Organization = require('../models/Organization');
 const { crudController } = require('../controllers/crudController');
@@ -330,7 +331,7 @@ router.get('/', requirePermission('invoices.view'), async (req, res, next) => {
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
     const offset = (page - 1) * limit;
     const WHERE = `WHERE organization_id = ? AND deleted_at IS NULL
-        AND status IN ('issued', 'sent', 'overdue') AND due_date < NOW()`;
+        AND status IN ('issued', 'sent', 'overdue') AND due_date < ${sqlBusinessToday()}`;
     const [rows] = await db.query(
       `SELECT * FROM invoices ${WHERE} ORDER BY due_date ASC LIMIT ${limit} OFFSET ${offset}`,
       [req.orgId],
@@ -500,13 +501,13 @@ router.post('/', requirePermission('invoices.create'), validate(createInvoice, {
       const [ins] = await conn.execute(
         `INSERT INTO invoices
            (organization_id, client_id, contract_id, invoice_number, subtotal, tax_rate,
-            tax_amount, total, currency, tax_rate_id, due_date, status, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            tax_amount, total, currency, tax_rate_id, due_date, status, created_by, issue_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           req.orgId, req.body.client_id, req.body.contract_id ?? null, invoiceNumber,
           req.body.subtotal, taxRateFraction, taxAmount,
           req.body.total, currency, req.body.tax_rate_id ?? null,
-          req.body.due_date, req.body.status ?? 'draft', req.user?.id ?? null,
+          req.body.due_date, req.body.status ?? 'draft', req.user?.id ?? null, businessToday(),
         ],
       );
       invoiceId = ins.insertId;
@@ -606,10 +607,10 @@ async function applyItemTotals(conn, invoice, orgId, lineAmount) {
   if (delta > 0) {
     await conn.execute(
       `INSERT INTO client_balance_ledger
-         (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-       VALUES (?, ?, 'debit', ?, ?, 'invoice', ?, ?)`,
+         (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+       VALUES (?, ?, 'debit', ?, ?, 'invoice', ?, ?, ?)`,
       [invoice.client_id, orgId, delta, invoice.currency, invoice.id,
-        `Invoice ${invoice.invoice_number} — line item added`],
+        `Invoice ${invoice.invoice_number} — line item added`, businessToday()],
     );
   }
 }
@@ -957,10 +958,10 @@ router.post('/generate', requirePermission('invoices.create'), async (req, res, 
       const [invResult] = await conn.execute(
         `INSERT INTO invoices
            (organization_id, client_id, contract_id, invoice_number, subtotal, tax_amount, total,
-            currency, tax_rate, tax_rate_id, due_date, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued')`,
+            currency, tax_rate, tax_rate_id, due_date, status, issue_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?)`,
         [req.orgId, client_id, invoiceContractId, invoiceNumber, subtotal, taxAmount, total,
-          currency, taxPct, taxRate?.id || null, dueDate],
+          currency, taxPct, taxRate?.id || null, dueDate, businessToday()],
       );
       const invoiceId = invResult.insertId;
 
@@ -999,9 +1000,9 @@ router.post('/generate', requirePermission('invoices.create'), async (req, res, 
 
       await conn.execute(
         `INSERT INTO client_balance_ledger
-           (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-         VALUES (?, ?, 'debit', ?, ?, 'invoice', ?, ?)`,
-        [client_id, req.orgId, total, currency, invoiceId, `Invoice ${invoiceNumber}`],
+           (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+         VALUES (?, ?, 'debit', ?, ?, 'invoice', ?, ?, ?)`,
+        [client_id, req.orgId, total, currency, invoiceId, `Invoice ${invoiceNumber}`, businessToday()],
       );
 
       await conn.commit();

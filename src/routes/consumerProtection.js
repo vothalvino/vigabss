@@ -4,6 +4,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { businessToday } = require('../utils/businessDate');
 const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
@@ -533,7 +534,7 @@ router.put('/service-modifications/:id/send', requirePermission('service_modific
     }
 
     const effective = new Date(`${String(notice.effective_date instanceof Date ? notice.effective_date.toISOString() : notice.effective_date).slice(0, 10)}T00:00:00Z`);
-    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const today = new Date(`${businessToday()}T00:00:00Z`);
     const daysAhead = Math.floor((effective - today) / 86400000);
     if (daysAhead < Number(notice.notice_required_days || 0)) {
       throw new AppError(

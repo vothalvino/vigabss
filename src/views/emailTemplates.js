@@ -7,6 +7,7 @@
 // =============================================================================
 
 const { escapeHtml } = require('../utils/htmlEscape');
+const { businessToday } = require('../utils/businessDate');
 const product = require('../product');
 
 /**
@@ -160,7 +161,7 @@ function paymentReceiptEmail(vars) {
     <div class="amount">${currency || 'MXN'} ${parseFloat(amount || 0).toFixed(2)}</div>
     <table class="table">
       <tbody>
-        <tr><td><strong>Date</strong></td><td>${paymentDate || new Date().toISOString().slice(0, 10)}</td></tr>
+        <tr><td><strong>Date</strong></td><td>${paymentDate || businessToday()}</td></tr>
         <tr><td><strong>Method</strong></td><td>${paymentMethod || 'N/A'}</td></tr>
         ${reference ? `<tr><td><strong>Reference</strong></td><td>${reference}</td></tr>` : ''}
         ${invoiceNumber ? `<tr><td><strong>Invoice</strong></td><td>${invoiceNumber}</td></tr>` : ''}

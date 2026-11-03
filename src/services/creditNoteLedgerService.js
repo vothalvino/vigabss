@@ -24,6 +24,7 @@
 // =============================================================================
 
 const ClientBalanceLedger = require('../models/ClientBalanceLedger');
+const { businessToday } = require('../utils/businessDate');
 
 // The statuses clientBalanceService counts as standing credit.
 const POSTED_STATUSES = new Set(['issued', 'applied']);
@@ -83,10 +84,10 @@ async function syncCreditNoteLedger(exec, note, orgId, opts = {}) {
   const diff = round2(target - credited);
   if (Math.abs(diff) < 0.005) return 0;
   await exec(
-    `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description)
-     VALUES (?, ?, ?, ?, ?, 'credit_note', ?, ?)`,
+    `INSERT INTO client_balance_ledger (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+     VALUES (?, ?, ?, ?, ?, 'credit_note', ?, ?, ?)`,
     [note.client_id, orgId, diff > 0 ? 'credit' : 'debit', Math.abs(diff), note.currency || null,
-      note.id, describe(note, diff, target, opts.label).slice(0, 255)],
+      note.id, describe(note, diff, target, opts.label).slice(0, 255), businessToday()],
   );
   return diff;
 }

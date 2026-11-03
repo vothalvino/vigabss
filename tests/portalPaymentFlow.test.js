@@ -83,7 +83,7 @@ describe('portal invoices', () => {
     });
     await request(app).get('/api/v1/portal/invoices?status=overdue').set('Authorization', `Bearer ${token}`);
     const [sql, params] = db.query.mock.calls.find(([q]) => /FROM invoices i\s+LEFT JOIN/.test(q));
-    expect(sql).toMatch(/i\.due_date < CURDATE\(\)/);
+    expect(sql).toMatch(/i\.due_date < DATE\('\d{4}-\d{2}-\d{2}'\)/);
     expect(sql).toMatch(/CASE WHEN .* THEN 'overdue' ELSE i\.status END AS status/s);
     expect(params).not.toContain('overdue');
   });

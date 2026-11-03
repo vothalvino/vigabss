@@ -14,6 +14,8 @@ const BaseModel = require('./BaseModel');
 class ClientBalanceLedger extends BaseModel {
   static get tableName() { return 'client_balance_ledger'; }
 
+  static get businessDateColumns() { return ['entry_date']; }
+
   static get fillable() {
     return [
       'organization_id', 'client_id', 'balance_type', 'amount',

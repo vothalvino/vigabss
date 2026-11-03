@@ -9,6 +9,7 @@
 const cron = require('node-cron');
 const db = require('../config/database');
 const taskRunner = require('./taskRunner');
+const { businessTimezone } = require('../utils/businessDate');
 const logger = require('../utils/logger').child({ service: 'scheduler' });
 
 const jobs = new Map();
@@ -188,6 +189,8 @@ function schedule(task) {
     return;
   }
 
+  // Cron times are business-local (BIL-34/ASY-29): '0 7 * * *' is 07:00 in
+  // BUSINESS_TIMEZONE, not in the container's UTC.
   const job = cron.schedule(task.cron_expression, async () => {
     // BullMQ path: enqueue job with minute-granular deduplication ID so that
     // only one instance across multiple pods adds a job per cron tick.
@@ -223,7 +226,7 @@ function schedule(task) {
     })).catch((err) => {
       logger.error({ err, taskName: task.task_name }, 'Scheduler could not claim the task');
     });
-  });
+  }, { timezone: businessTimezone() });
 
   // Keyed by id: per-organization rows share a task_name, and keying by name
   // lost the handle of every row but the last, so stop() left them running.

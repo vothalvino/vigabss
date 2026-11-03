@@ -570,6 +570,16 @@ documented no-Redis fallback unless a deployment requirement is intentionally
 changed. Some tasks use MySQL locks or row locks for cross-process exclusion;
 do not replace those with process-local state.
 
+Calendar days are business days (BIL-34): `src/utils/businessDate.js` gives
+the day in `BUSINESS_TIMEZONE` (default `America/Mexico_City`). Containers and
+MySQL sessions run in UTC, so never write `CURDATE()`, `CURRENT_DATE`, a
+`NOW()` comparison against a DATE, or `new Date().toISOString().slice(0, 10)`
+for a business date: pass `businessToday()` as a parameter, or inline
+`sqlBusinessToday()`. Models list their today-defaulted DATE columns in
+`businessDateColumns`, which `BaseModel.create` fills. Cron expressions run in
+the business zone. Timestamps, usage and accounting days, and the analytics
+snapshot windows stay UTC.
+
 With `REDIS_URL` set, more than one app replica may run (SEC-24): the per-IP
 rate limiters count in Redis (`CacheStore`, prefix `rl_ip_<name>:`), and SSE,
 browser WebSocket and GraphQL subscription events go through

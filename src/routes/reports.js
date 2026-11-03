@@ -3,6 +3,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { businessToday } = require('../utils/businessDate');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
@@ -461,7 +462,7 @@ router.get('/:report/export', requirePermission('reports.export'), async (req, r
     const data = await generateReportData(req.orgId, report, params);
     const { buffer, contentType, extension } = await formatReport(data, report, format);
 
-    const filename = `${report}-${new Date().toISOString().slice(0, 10)}.${extension}`;
+    const filename = `${report}-${businessToday()}.${extension}`;
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);

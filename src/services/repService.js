@@ -20,6 +20,7 @@
 // =============================================================================
 
 const db = require('../config/database');
+const { businessToday } = require('../utils/businessDate');
 const { AppError } = require('../utils/errors');
 const cfdiService = require('./cfdiService');
 const { nextCfdiFolio } = require('./invoiceCfdiService');
@@ -168,7 +169,7 @@ async function generateRepForAllocation(paymentId, invoiceId, allocatedAmount, o
   // and the complement INSERT both want the plain day.
   const paymentDate = payment.payment_date
     ? new Date(payment.payment_date).toISOString().slice(0, 10)
-    : new Date().toISOString().slice(0, 10);
+    : businessToday();
 
   let result;
   try {

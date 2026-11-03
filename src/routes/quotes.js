@@ -3,6 +3,7 @@
 // =============================================================================
 
 const { Router } = require('express');
+const { businessToday } = require('../utils/businessDate');
 const Quote = require('../models/Quote');
 const Invoice = require('../models/Invoice');
 const Organization = require('../models/Organization');
@@ -118,6 +119,8 @@ router.post('/', requirePermission('quotes.create'), stripQuoteStatus, validate(
       for (const key of Quote.fillable) {
         if (req.body[key] !== undefined) filtered[key] = req.body[key];
       }
+      // The business day, not the database's UTC CURRENT_DATE (BIL-34).
+      if (filtered.issue_date === undefined) filtered.issue_date = businessToday();
       const cols = Object.keys(filtered);
       const placeholders = cols.map(() => '?').join(', ');
       const [result] = await conn.execute(
@@ -404,10 +407,10 @@ router.post('/generate', requirePermission('quotes.create'), async (req, res, ne
       const [quoteResult] = await conn.execute(
         `INSERT INTO quotes
            (organization_id, client_id, contract_id, quote_number, subtotal, tax_amount,
-            total, currency, tax_rate, tax_rate_id, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
+            total, currency, tax_rate, tax_rate_id, status, issue_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)`,
         [req.orgId, client_id, quoteContractId, quoteNumber, subtotal, taxAmount, total,
-          currency, taxPct, taxRate?.id || null],
+          currency, taxPct, taxRate?.id || null, businessToday()],
       );
       const quoteId = quoteResult.insertId;
 
@@ -545,11 +548,11 @@ router.post('/:id/convert-to-invoice', requirePermission('quotes.create'), requi
       const [invResult] = await conn.execute(
         `INSERT INTO invoices
            (organization_id, client_id, contract_id, invoice_number, subtotal, tax_amount,
-            total, currency, tax_rate, tax_rate_id, due_date, status, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?)`,
+            total, currency, tax_rate, tax_rate_id, due_date, status, notes, issue_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?, ?)`,
         [req.orgId, quote.client_id, quote.contract_id, invoiceNumber, quote.subtotal,
           quote.tax_amount, quote.total, quote.currency, quote.tax_rate,
-          quote.tax_rate_id, dueDate, quote.notes],
+          quote.tax_rate_id, dueDate, quote.notes, businessToday()],
       );
       const invoiceId = invResult.insertId;
 

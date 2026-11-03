@@ -4,7 +4,7 @@
 // '01T00:00:00.000Z'. Vitest runs in UTC, which hid it; this file runs in
 // Mexico City time.
 import { describe, expect, it } from 'vitest';
-import { formatDate, calendarDay } from '../dates';
+import { formatDate, calendarDay, localToday } from '../dates';
 import { fmtDate } from '@/pages/crudStyles';
 
 process.env.TZ = 'America/Mexico_City';
@@ -45,5 +45,14 @@ describe('formatDate in America/Mexico_City', () => {
 describe('page formatters', () => {
   it('the shared fmtDate shows a due date on its own day', () => {
     expect(fmtDate('2026-11-01T00:00:00.000Z')).toMatch(/^1 nov/);
+  });
+});
+
+describe('localToday (BIL-34)', () => {
+  it('is the local calendar day, not the UTC one', () => {
+    // 19:00 on 31 March in a UTC-6 browser is already 1 April in UTC.
+    const evening = new Date(2026, 2, 31, 19, 0, 0);
+    expect(localToday(evening)).toBe('2026-03-31');
+    expect(evening.toISOString().slice(0, 10)).toBe('2026-04-01');
   });
 });
