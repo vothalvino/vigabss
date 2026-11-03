@@ -92,3 +92,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM scheduled_tasks
     WHERE task_name = 'message_outbox' AND organization_id IS NULL
 );
+
+-- The SMS queue drained by sms_send is replaced by the outbox; queueSms now
+-- writes message_outbox rows.
+DELETE FROM scheduled_tasks WHERE task_name = 'sms_send';

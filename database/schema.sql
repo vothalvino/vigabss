@@ -8174,23 +8174,6 @@ VALUES
      TRUE);
 
 -- ---------------------------------------------------------------------------
--- Seed: SMS queue processor scheduled task (M5.3)
--- ---------------------------------------------------------------------------
-INSERT IGNORE INTO scheduled_tasks
-    (organization_id, task_name, task_type, description,
-     cron_expression, priority, max_retries, timeout_seconds, is_enabled)
-VALUES
-    (NULL,
-     'sms_send',
-     'notification',
-     'Drain the SMS outbox: send queued sms_logs rows via the configured provider (Twilio or generic HTTP).',
-     '* * * * *',
-     'high',
-     3,
-     60,
-     TRUE);
-
--- ---------------------------------------------------------------------------
 -- Seed: RouterOS config backup pull scheduled task (migration 158)
 -- ---------------------------------------------------------------------------
 INSERT IGNORE INTO scheduled_tasks

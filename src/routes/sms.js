@@ -7,6 +7,7 @@
 const { Router } = require('express');
 const db = require('../config/database');
 const smsTransport = require('../services/smsTransport');
+const messageOutbox = require('../services/messageOutbox');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
@@ -72,51 +73,64 @@ const sendSchema = {
   templateId: { type: 'number' },
 };
 
-router.post('/send', requirePermission('sms.send'), validate(sendSchema, { strip: false }), async (req, res) => {
-  const { to, body, channel = 'sms', clientId, templateId = null } = req.body;
-
-  const result = await smsTransport.sendSms({
-    organizationId: req.orgId,
-    clientId,
-    to,
-    body,
-    channel,
-    templateId,
-    messageClass: 'support_reply',
-  });
-
-  if (result.success) {
-    return res.status(200).json({ success: true, messageId: result.messageId });
-  }
-  return res.status(result.skipped ? 409 : 502).json({
-    success: false,
-    error: result.error,
-    ...(result.code && { code: result.code }),
-  });
+router.post('/send', requirePermission('sms.send'), validate(sendSchema, { strip: false }), async (req, res, next) => {
+  try {
+    const { to, body, channel = 'sms', clientId, templateId = null } = req.body;
+    smsTransport.assertClientSmsAttribution({ organizationId: req.orgId, clientId, messageClass: 'support_reply' });
+    // Through the outbox, delivered now (ASY-33): same consent checks and
+    // log as every other message, and a provably unsent failure is retried.
+    const result = await messageOutbox.sendNow({
+      channel, organizationId: req.orgId, clientId, messageClass: 'support_reply',
+      recipient: to, bodyText: body, payload: templateId ? { template_id: templateId } : null,
+      sourceType: 'staff_sms',
+    });
+    res.status(SEND_STATUS[result.status] || 502).json({
+      success: result.status === 'sent',
+      outbox_id: result.id,
+      status: result.status,
+      ...(result.providerMessageId && { messageId: result.providerMessageId }),
+      ...(result.status !== 'sent' && result.error && { error: result.error }),
+      ...(result.code && { code: result.code }),
+    });
+  } catch (err) { next(err); }
 });
 
-// ---------------------------------------------------------------------------
-// POST /sms/logs/:id/retry — retry a failed SMS
-// ---------------------------------------------------------------------------
-router.post('/logs/:id/retry', requirePermission('sms.send'), async (req, res) => {
-  const logId = parseInt(req.params.id, 10);
+// sent: delivered; queued: the provider was unreachable, the outbox retries
+// it; skipped: consent or the organization blocks it.
+const SEND_STATUS = { sent: 200, queued: 202, skipped: 409 };
 
-  // Verify the log belongs to this org
-  const [rows] = await db.query(
-    'SELECT id FROM sms_logs WHERE id = ? AND organization_id = ?',
-    [logId, req.orgId],
-  );
-  if (!rows[0]) return res.status(404).json({ error: 'SMS log not found' });
-
-  const result = await smsTransport.retryLog(logId, req.orgId);
-  if (result.success) {
-    return res.json({ success: true, messageId: result.messageId });
-  }
-  return res.status(result.skipped ? 409 : 502).json({
-    success: false,
-    error: result.error,
-    ...(result.code && { code: result.code }),
-  });
+// ---------------------------------------------------------------------------
+// POST /sms/logs/:id/retry — send a failed SMS again, through the outbox
+// ---------------------------------------------------------------------------
+router.post('/logs/:id/retry', requirePermission('sms.send'), async (req, res, next) => {
+  try {
+    const logId = parseInt(req.params.id, 10);
+    const [rows] = await db.query(
+      `SELECT id, client_id, phone_number, channel, template_id, message_body, message_class, status
+         FROM sms_logs WHERE id = ? AND organization_id = ? AND direction = 'outbound'`,
+      [logId, req.orgId],
+    );
+    const log = rows[0];
+    if (!log) return res.status(404).json({ error: 'SMS log not found' });
+    if (!['failed', 'undelivered'].includes(log.status) || !log.client_id || !log.message_class) {
+      return res.status(409).json({ success: false, code: 'SMS_NOT_RETRYABLE', error: `A ${log.status} message without a client and class cannot be retried.` });
+    }
+    // One retry per log row: a second click returns the same outbox message.
+    const result = await messageOutbox.sendNow({
+      channel: log.channel, organizationId: req.orgId, clientId: log.client_id, messageClass: log.message_class,
+      recipient: log.phone_number, bodyText: log.message_body,
+      payload: log.template_id ? { template_id: log.template_id } : null,
+      sourceType: 'sms_log_retry', sourceId: log.id, dedupeKey: `sms_log_retry:${req.orgId}:${log.id}`,
+    });
+    res.status(SEND_STATUS[result.status] || 502).json({
+      success: result.status === 'sent',
+      outbox_id: result.id,
+      status: result.status,
+      ...(result.providerMessageId && { messageId: result.providerMessageId }),
+      ...(result.status !== 'sent' && result.error && { error: result.error }),
+      ...(result.code && { code: result.code }),
+    });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

@@ -108,6 +108,7 @@ function fakeQuery(sql, params = []) {
     r.status = 'cancelled';
     return [{ affectedRows: 1 }];
   }
+  if (s.startsWith('UPDATE service_modification_notices')) return [{ affectedRows: 1 }];
   throw new Error(`Unexpected SQL in the fake: ${s.slice(0, 120)}`);
 }
 
@@ -282,6 +283,74 @@ describe('delivery', () => {
     await outbox.processQueue();
 
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: 1, source_id: 44 }), expect.objectContaining({ status: 'sent', providerMessageId: 'p-1' }));
+  });
+});
+
+test('a service-modification notice delivered on a later retry is marked sent then', async () => {
+  emailTransport.sendEmail
+    .mockResolvedValueOnce({ success: false, code: 'EMAIL_DELIVERY_FAILED' })
+    .mockResolvedValueOnce({ success: true, messageId: '<n9@isp>' });
+  await outbox.enqueue(clientEmail({ sourceType: 'service_modification_notice', sourceId: 9 }));
+  const marks = () => db.query.mock.calls.filter(([sql]) => /UPDATE service_modification_notices/.test(sql));
+
+  await outbox.processQueue();
+  expect(marks()).toHaveLength(0);
+
+  row(1).next_attempt_at = 0;
+  await outbox.processQueue();
+  expect(marks()).toHaveLength(1);
+  expect(marks()[0][1]).toEqual(['Sent by email (<n9@isp>)', 9, 5]);
+});
+
+describe('crash and concurrency safety', () => {
+  test('a worker that loses the claim to another makes no provider call', async () => {
+    await outbox.enqueue(clientEmail());
+    const original = db.query.getMockImplementation();
+    db.query.mockImplementation(async (sql, params) => {
+      if (/SET status = 'claimed'/.test(sql)) {
+        row(1).status = 'claimed'; // the other worker won
+        return [{ affectedRows: 0 }];
+      }
+      return original(sql, params);
+    });
+
+    await outbox.processQueue();
+
+    expect(emailTransport.sendEmail).not.toHaveBeenCalled();
+  });
+
+  test('stale recovery requeues only pre-I/O claims; a stale send becomes outcome_unknown, never queued', async () => {
+    await outbox.processQueue();
+
+    const sqls = db.query.mock.calls.map(([sql]) => sql.replace(/\s+/g, ' '));
+    const requeue = sqls.find(sql => /SET status = 'queued', claimed_at = NULL WHERE status = 'claimed'/.test(sql));
+    const unknown = sqls.find(sql => /SET status = 'outcome_unknown'/.test(sql));
+    expect(requeue).toMatch(/claimed_at < NOW\(\) - INTERVAL 5 MINUTE/);
+    expect(unknown).toMatch(/WHERE status = 'sending' AND claimed_at < NOW\(\) - INTERVAL 15 MINUTE/);
+    expect(sqls.some(sql => /SET status = 'queued'[^;]*WHERE status = 'sending'/.test(sql))).toBe(false);
+  });
+
+  test('the install-wide run skips isolated organizations on the primary and visits each isolated database', async () => {
+    const scopes = [];
+    db.withPrimaryContext = jest.fn(async (fn) => { scopes.push('primary'); return fn(); });
+    db.withTenantContext = jest.fn(async (orgId, fn) => { scopes.push(orgId); return fn(); });
+    const original = db.query.getMockImplementation();
+    db.query.mockImplementation(async (sql, params) => (/FROM organization_database_configs/.test(sql)
+      ? [[{ organization_id: 8 }]]
+      : original(sql, params)));
+
+    try {
+      await outbox.processQueue();
+    } finally {
+      delete db.withPrimaryContext;
+      delete db.withTenantContext;
+    }
+
+    expect(scopes).toEqual(['primary', 'primary', 8]);
+    const due = db.query.mock.calls.filter(([sql]) => /WHERE status = 'queued' AND next_attempt_at <= NOW\(\)/.test(sql));
+    expect(due[0][0]).toMatch(/organization_id NOT IN \(\?\)/);
+    expect(due[0][1]).toEqual([8]);
+    expect(due[1][1]).toEqual([8]);
   });
 });
 

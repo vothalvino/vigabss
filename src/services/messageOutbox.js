@@ -145,7 +145,7 @@ function validate(message) {
  * @param {Function} [opts.exec]  the caller's transaction (conn.execute.bind(conn)); the row
  *   commits with it, and delivery waits for the next sweep
  */
-async function enqueue(message, { exec = null } = {}) {
+async function enqueue(message, { exec = null, deliverByJob = true } = {}) {
   validate(message);
   const {
     channel, organizationId = null, clientId = null, messageClass = null, recipient = null,
@@ -205,7 +205,7 @@ async function enqueue(message, { exec = null } = {}) {
 
   // With Redis, deliver now instead of at the next minute. Not inside the
   // caller's transaction: the job could run before the row commits.
-  if (!exec && process.env.REDIS_URL) {
+  if (!exec && deliverByJob && process.env.REDIS_URL) {
     const jobQueue = require('./jobQueueService');
     await jobQueue.add('message-outbox', { id, organizationId }, { attempts: 1 }).catch(() => {});
   }
@@ -285,7 +285,15 @@ function onOutcome(sourceType, fn) {
   outcomeHandlers.set(sourceType, fn);
 }
 
+let builtInHandlersLoaded = false;
+
 async function notifyOutcome(row, outcome) {
+  // Producers' handlers live in one module so they run in whichever process
+  // delivers the message, not only where the producer's route is loaded.
+  if (!builtInHandlersLoaded) {
+    builtInHandlersLoaded = true;
+    require('./outboxOutcomeHandlers');
+  }
   const handler = row.source_type && outcomeHandlers.get(row.source_type);
   if (!handler) return;
   try {
@@ -507,6 +515,41 @@ async function processQueue(organizationId = null) {
   return total.totals;
 }
 
+/**
+ * Queue a message and deliver it in this request, for a caller that must
+ * tell a person what happened (a staff "send now", a legal notice). The row
+ * follows every outbox rule: a retryable failure stays queued and the sweep
+ * retries it; pass maxAttempts: 1 when the caller falls back to another
+ * channel instead. Not rate limited: it is one message.
+ *
+ * @returns {{ id, status: 'sent'|'skipped'|'queued'|'failed'|'outcome_unknown', providerMessageId?, code?, error? }}
+ */
+async function sendNow(message) {
+  const queued = await enqueue(message, { deliverByJob: false });
+  if (!queued.queued) {
+    return { id: queued.id, status: 'skipped', code: queued.code || null, error: 'Blocked by the organization state or the client\'s communication preferences.' };
+  }
+  return withTenant(message.organizationId ?? null, async () => {
+    const [rows] = await db.query('SELECT * FROM message_outbox WHERE id = ?', [queued.id]);
+    const row = rows[0];
+    if (!row) return { id: queued.id, status: 'queued' };
+    if (row.status !== 'queued') return { id: row.id, status: row.status, providerMessageId: row.provider_message_id || null };
+    await deliverRow(row);
+    const [after] = await db.query(
+      'SELECT status, provider_message_id, last_error_code, last_error FROM message_outbox WHERE id = ?',
+      [queued.id],
+    );
+    const a = after[0] || {};
+    return {
+      id: queued.id,
+      status: a.status || 'queued',
+      providerMessageId: a.provider_message_id || null,
+      code: a.last_error_code || null,
+      error: a.last_error || null,
+    };
+  });
+}
+
 /** Deliver one row now (the 'message-outbox' job). */
 async function deliverNow(id, organizationId = null) {
   return withTenant(organizationId, async () => {
@@ -618,6 +661,7 @@ module.exports = {
   CHANNELS,
   BACKOFF_MINUTES,
   enqueue,
+  sendNow,
   processQueue,
   deliverNow,
   onOutcome,

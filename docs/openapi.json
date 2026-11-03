@@ -54264,7 +54264,7 @@
           "Consumer Protection MX"
         ],
         "summary": "Deliver a service modification notice (email/SMS to its client), or record an outside delivery with delivery_evidence",
-        "description": "Marked sent only when delivery succeeds (502 otherwise, the notice stays pending). Broadcast, postal, portal and all-channel notices require delivery_evidence. Refused when the effective date leaves less than notice_required_days.",
+        "description": "Delivered through the message outbox and marked sent only when delivery succeeds. 202 when the provider could not take it yet: the notice stays pending and the outbox marks it sent when a retry delivers it. 502 when delivery failed for good (the notice stays pending; see /message-outbox). Broadcast, postal, portal and all-channel notices require delivery_evidence. Refused when the effective date leaves less than notice_required_days.",
         "operationId": "sendServiceModificationNotice",
         "security": [
           {
@@ -54291,6 +54291,9 @@
                 }
               }
             }
+          },
+          "202": {
+            "description": "Queued for retry; the notice stays pending"
           }
         }
       }

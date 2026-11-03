@@ -19,7 +19,6 @@ const pollerEngine = require('./pollerEngine');
 const snmpTrapReceiver = require('./snmpTrapReceiver');
 const emailTransport = require('./emailTransport');
 const { noteInvoiceRun, noteBillingEmail } = require('../utils/opsMetrics');
-const smsTransport = require('./smsTransport');
 const webhookService = require('./webhookService');
 const checkoutService = require('./checkoutService');
 const alertService = require('./alertService');
@@ -222,8 +221,6 @@ async function dispatchTask(taskName, organizationId) {
       return { message: 'SNMP trap receiver started' };
     case 'message_outbox':
       return require('./messageOutbox').processQueue(organizationId);
-    case 'sms_send':
-      return smsTransport.processQueue(organizationId);
     case 'webhook_delivery':
     case 'webhook_retry':
       return Promise.all([
