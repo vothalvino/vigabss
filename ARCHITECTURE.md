@@ -601,6 +601,15 @@ browser WebSocket and GraphQL subscription events go through
 Publish through `events.broadcast` or `pubsub.publish`, never to a local client
 set directly. FireRelay agent tunnels remain per process.
 
+Bulk subscriber work runs as a batch job, never inside the request (TNA-41):
+`automationService.createBatchJob` persists one `batch_job_items` row per
+target and queues a `batch-job` job (`POST /batch-jobs` and `/bulk/suspend`
+answer 202). `processBatchJob` holds the job's advisory lock
+(`src/utils/advisoryLock.js`), claims each item as `processing` before its
+operation, and records an item found still `processing` as a failure instead
+of running it twice; `resumeBatchJobs` queues unfinished jobs at startup. CSV
+imports still run in the request.
+
 Every scheduled task run goes through `taskRunner.executeScheduledTask(task,
 via)` (ASY-28), from the inline cron path (`via = 'cron'`), the BullMQ
 `scheduled-task` worker (`'worker'`) and a manual run (`'manual'`). It records

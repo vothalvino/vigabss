@@ -316,7 +316,7 @@ function BatchJobsTab() {
                   <td style={td}>{j.success_items}/{j.total_items} ({j.failed_items} {t('automation.failed')})</td>
                   <td style={td}>{new Date(j.created_at).toLocaleString()}</td>
                   <td style={td}>
-                    {j.status === 'running' && (
+                    {(j.status === 'running' || j.status === 'pending') && (
                       <ActionButton label={t('automation.cancel')} onClick={() => cancelJob(j.id)} variant="danger" />
                     )}
                   </td>

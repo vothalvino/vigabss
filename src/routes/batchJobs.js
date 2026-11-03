@@ -83,11 +83,12 @@ router.get('/:id/items', requirePermission('batch_jobs.view'), async (req, res, 
 // POST /batch-jobs
 router.post('/', requirePermission('batch_jobs.create'), validate(createBatchJob, { strip: false }), async (req, res, next) => {
   try {
+    // Queued, not run here (TNA-41): progress shows on the job.
     const job = await automationService.createBatchJob(req.orgId, {
       ...req.body,
       created_by: req.user.id,
     });
-    res.status(201).json({ data: job });
+    res.status(202).json({ data: job });
   } catch (err) { next(err); }
 });
 

@@ -181,22 +181,21 @@ describe('GET /api/batch-jobs', () => {
 });
 
 describe('POST /api/batch-jobs', () => {
-  it('creates and completes a batch job', async () => {
-    const completedJob = { id: 1, name: 'B1', operation: 'suspend', status: 'completed', total_items: 0, success_items: 0, failed_items: 0 };
+  it('queues a batch job and answers 202', async () => {
+    const queuedJob = { id: 1, name: 'B1', operation: 'suspend', status: 'pending', total_items: 0, success_items: 0, failed_items: 0 };
     db.query
       // resolveBatchTargets: contracts query
       .mockResolvedValueOnce(mockRows([]))
       // INSERT batch_jobs
       .mockResolvedValueOnce(mockInsert(1))
-      // UPDATE batch_jobs completed
-      .mockResolvedValueOnce(mockUpdate())
       // SELECT batch_jobs final
-      .mockResolvedValueOnce(mockRows([completedJob]));
+      .mockResolvedValueOnce(mockRows([queuedJob]));
 
     const res = await request(app).post('/api/batch-jobs').send({
       name: 'B1', operation: 'suspend', filter_criteria: { status: 'active' },
     });
-    expect(res.status).toBe(201);
+    // Queued for the background (TNA-41).
+    expect(res.status).toBe(202);
     expect(res.body.data.name).toBe('B1');
   });
 

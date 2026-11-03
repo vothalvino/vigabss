@@ -622,11 +622,11 @@ describe('automationService — createBatchJob', () => {
   afterEach(() => jest.clearAllMocks());
 
   it('creates a batch job with no targets and returns the job row', async () => {
-    const job = { id: 1, name: 'Test Batch', operation: 'suspend', status: 'completed' };
+    // Persisted and queued, not run in the request (TNA-41).
+    const job = { id: 1, name: 'Test Batch', operation: 'suspend', status: 'pending' };
     db.query
       .mockResolvedValueOnce([[], []])          // resolveBatchTargets
       .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 }])  // INSERT batch_jobs
-      .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE completed
       .mockResolvedValueOnce([[job], []]);        // SELECT final
     const result = await automationService.createBatchJob(1, {
       name: 'Test Batch', operation: 'suspend', filter_criteria: {}, created_by: 1,
@@ -635,11 +635,10 @@ describe('automationService — createBatchJob', () => {
   });
 
   it('creates a batch job with plan_id filter in criteria', async () => {
-    const job = { id: 2, name: 'PlanBatch', operation: 'rate_limit', status: 'completed' };
+    const job = { id: 2, name: 'PlanBatch', operation: 'rate_limit', status: 'pending' };
     db.query
       .mockResolvedValueOnce([[], []])  // resolveBatchTargets with plan_id filter
       .mockResolvedValueOnce([{ insertId: 2, affectedRows: 1 }])
-      .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockResolvedValueOnce([[job], []]);
     const result = await automationService.createBatchJob(1, {
       name: 'PlanBatch', operation: 'rate_limit',
@@ -648,17 +647,12 @@ describe('automationService — createBatchJob', () => {
     expect(result.name).toBe('PlanBatch');
   });
 
-  it('processes targets and inserts batch_job_items', async () => {
-    // Use an unimplemented operation so applyBatchOperation throws at the default case
-    // (no extra contract-lookup query) — the item is recorded as a failure.
-    const job = { id: 3, name: 'WithItems', operation: 'rate_limit', status: 'completed' };
+  it('persists one pending batch_job_items row per target', async () => {
+    const job = { id: 3, name: 'WithItems', operation: 'rate_limit', status: 'pending' };
     db.query
       .mockResolvedValueOnce([[{ entity_id: 100, entity_type: 'contract' }], []])  // targets
       .mockResolvedValueOnce([{ insertId: 3, affectedRows: 1 }])  // INSERT batch_jobs
-      .mockResolvedValueOnce([[{ status: 'running' }], []])  // per-item status check
-      .mockResolvedValueOnce([{ insertId: 50, affectedRows: 1 }])  // INSERT batch_job_items
-      .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE processed_items
-      .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE completed
+      .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT batch_job_items
       .mockResolvedValueOnce([[job], []]);
     const result = await automationService.createBatchJob(1, {
       name: 'WithItems', operation: 'rate_limit', filter_criteria: { status: 'active' },
