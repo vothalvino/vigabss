@@ -53,6 +53,9 @@
   "client_balance_ledger": {
     "client_id": "clients"
   },
+  "client_contact_suppressions": {
+    "client_id": "clients"
+  },
   "client_custom_fields": {
     "client_id": "clients"
   },

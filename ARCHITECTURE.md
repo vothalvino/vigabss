@@ -596,7 +596,13 @@ one transaction (`failed` + "Queued in the message outbox" is the in-flight
 state), the outbox outcome sets its final state and the campaign counters, an
 unknown outcome keeps the marker that blocks a duplicate redispatch, and
 cancelling or deleting a campaign withdraws its still-queued messages
-(`cancelQueuedBySource`). `tests/outboxOnlySender.test.js`
+(`cancelQueuedBySource`). Provider reports reach the client through
+`POST /communication/delivery-webhook` and `deliveryFeedbackService`
+(migration 512): a hard bounce adds a `client_contact_suppressions` row for
+the contact epoch the message went to, which the communication check refuses
+for every class until the address changes; a complaint withdraws marketing
+consent for the channel; an SMS STOP is a do-not-contact opt-out.
+`tests/outboxOnlySender.test.js`
 lists the only other direct callers (the SMTP settings test send and SNMP trap
 forwarding, which has its own durable queue).
 

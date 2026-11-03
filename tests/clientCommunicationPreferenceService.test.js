@@ -106,6 +106,23 @@ describe('clientCommunicationPreferenceService', () => {
     });
   });
 
+  test('an address a provider reported as a hard bounce is refused for every class (ASY-33)', async () => {
+    activeOrganization();
+    mockQuery.mockResolvedValueOnce([[clientState({ undeliverable: 1, has_marketing_consent: 1 })]]);
+
+    await expect(preferences.evaluateClientCommunication({
+      organizationId: 7,
+      clientId: 44,
+      channel: 'email',
+      destination: 'client@example.com',
+      messageClass: 'security',
+    })).resolves.toEqual({ allowed: false, code: preferences.BLOCK_CODES.UNDELIVERABLE });
+
+    // Only a bounce at the current address counts: a new address is a new epoch.
+    const [sql] = mockQuery.mock.calls[1];
+    expect(sql).toMatch(/client_contact_suppressions sup[\s\S]*sup\.reason = 'bounce'[\s\S]*sup\.contact_epoch = CASE/);
+  });
+
   test('marketing requires affirmative consent for the current contact epoch', async () => {
     activeOrganization();
     mockQuery.mockResolvedValueOnce([[clientState({ has_marketing_consent: 0 })]]);
@@ -125,7 +142,7 @@ describe('clientCommunicationPreferenceService', () => {
     expect(eligibilitySql).toMatch(
       /communication_contact_epoch\s*=\s*CASE[\s\S]*c\.email_contact_epoch[\s\S]*c\.phone_contact_epoch/,
     );
-    expect(eligibilityParams).toEqual(['email', 'email', 44, 7]);
+    expect(eligibilityParams).toEqual(['email', 'email', 'email', 44, 7]);
   });
 
   test.each(['transactional', 'security', 'support_reply'])(

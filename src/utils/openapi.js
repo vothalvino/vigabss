@@ -1543,6 +1543,7 @@ function generateSpec() {
         post: {
           tags: ['Communication'],
           summary: 'Delivery status callback from provider (webhook)',
+          description: 'Updates a campaign message\'s delivery state and applies what the report means for the recipient: a hard bounce (status bounced, or a Twilio ErrorCode 21211/21614/30005/30006) stops sends to that address until it changes; complained withdraws marketing consent; unsubscribed (or Twilio ErrorCode 21610, STOP) opts the client out of the channel.',
           operationId: 'communicationDeliveryWebhook',
           requestBody: jsonBody('DeliveryStatus'),
           responses: r200('updated or skipped'),
