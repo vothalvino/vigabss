@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
+import { extractApiError } from '@/components/ClientFormModal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,9 +27,22 @@ interface DiscoveryScan {
   has_snmp_community?: boolean;
   snmp_port: number;
   status: string;
+  total_hosts: number | null;
   scanned_hosts: number;
   discovered_hosts: number;
+  error_message?: string | null;
   created_at: string;
+}
+
+interface DiscoveryResult {
+  id: number;
+  ip_address: string;
+  hostname: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  device_type: string | null;
+  suggested_profile_name?: string | null;
+  status: 'pending_review' | 'onboarded' | 'ignored';
 }
 
 interface DiscoveryScansResponse {
@@ -64,8 +78,33 @@ async function fetchScans(page: number): Promise<DiscoveryScansResponse> {
 
 async function createScan(body: DiscoveryScanBody): Promise<void> {
   const res = await api.POST('/discovery-scans' as never, { body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create discovery scan');
+  const error = (res as { error?: unknown }).error;
+  // A refused range (loopback, too large) says which one.
+  if (error) throw new Error(extractApiError(error, 'Failed to create discovery scan'));
 }
+
+async function cancelScan(id: number): Promise<void> {
+  const res = await api.POST('/discovery-scans/{id}/cancel' as never, { params: { path: { id } } } as never);
+  const error = (res as { error?: unknown }).error;
+  if (error) throw new Error(extractApiError(error, 'Failed to cancel discovery scan'));
+}
+
+async function fetchResults(id: number): Promise<DiscoveryResult[]> {
+  const res = await api.GET('/discovery-scans/{id}/results' as never, { params: { path: { id } } } as never);
+  if ((res as { error?: unknown }).error) throw new Error('Failed to load results');
+  return ((res as { data: { data: DiscoveryResult[] } }).data?.data) ?? [];
+}
+
+async function resolveResult(scanId: number, resultId: number, action: 'onboard' | 'ignore'): Promise<void> {
+  const params = { params: { path: { id: scanId, resultId } } } as never;
+  const res = action === 'onboard'
+    ? await api.POST('/discovery-scans/{id}/results/{resultId}/onboard' as never, params)
+    : await api.POST('/discovery-scans/{id}/results/{resultId}/ignore' as never, params);
+  const error = (res as { error?: unknown }).error;
+  if (error) throw new Error(extractApiError(error, `Failed to ${action} the device`));
+}
+
+const RUNNING = ['pending', 'running'];
 
 async function deleteScan(id: number): Promise<void> {
   const res = await api.DELETE('/discovery-scans/{id}' as never, { params: { path: { id } } } as never);
@@ -186,9 +225,12 @@ export function DiscoveryScanList() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
 
+  const [resultsFor, setResultsFor] = useState<DiscoveryScan | null>(null);
   const scansQ = useQuery({
     queryKey: ['discovery-scans', page],
     queryFn: () => fetchScans(page),
+    // A scan runs in the background (NET-26): follow it until it finishes.
+    refetchInterval: q => ((q.state.data as DiscoveryScansResponse | undefined)?.data ?? []).some(s => RUNNING.includes(s.status)) ? 5000 : false,
   });
 
   const scans = scansQ.data?.data ?? [];
@@ -206,7 +248,13 @@ export function DiscoveryScanList() {
       setShowForm(false);
       showMsg('ok', t('discovery_scans.create_success', 'Discovery scan created.'));
     },
-    onError: () => showMsg('err', t('discovery_scans.create_error', 'Failed to create discovery scan.')),
+    onError: (e: Error) => showMsg('err', e.message || t('discovery_scans.create_error', 'Failed to create discovery scan.')),
+  });
+
+  const cancelMut = useMutation({
+    mutationFn: cancelScan,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['discovery-scans'] }),
+    onError: (e: Error) => showMsg('err', e.message),
   });
 
   const deleteMut = useMutation({
@@ -278,11 +326,19 @@ export function DiscoveryScanList() {
                     <td style={styles.td}><strong>{s.name}</strong></td>
                     <td style={{ ...styles.tdMono, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatCidrRanges(s.cidr_ranges)}</td>
                     <td style={styles.td}>{capitalize(s.snmp_version)} / port {s.snmp_port}</td>
-                    <td style={styles.td}>{s.scanned_hosts}</td>
+                    <td style={styles.td}>{s.scanned_hosts}{s.total_hosts !== null && s.total_hosts !== undefined ? ` / ${s.total_hosts}` : ''}</td>
                     <td style={styles.td}>{s.discovered_hosts}</td>
-                    <td style={styles.td}><StatusBadge status={s.status} /></td>
+                    <td style={styles.td} title={s.error_message ?? undefined}><StatusBadge status={s.status} /></td>
                     <td style={styles.td}>{formatDate(s.created_at)}</td>
-                    <td style={styles.td}>
+                    <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 6 }} onClick={() => setResultsFor(s)}>
+                        {t('discovery_scans.results', 'Results')}
+                      </button>
+                      {RUNNING.includes(s.status) && (
+                        <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 6 }} disabled={cancelMut.isPending} onClick={() => cancelMut.mutate(s.id)}>
+                          {t('discovery_scans.cancel_scan', 'Cancel scan')}
+                        </button>
+                      )}
                       <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(s.id)}>Delete</button>
                     </td>
                   </tr>
@@ -320,6 +376,81 @@ export function DiscoveryScanList() {
           </div>
         </div>
       )}
+      {resultsFor && <ResultsPanel scan={resultsFor} onClose={() => setResultsFor(null)} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Results of one scan: onboard a responder as a device, or ignore it
+// ---------------------------------------------------------------------------
+
+function ResultsPanel({ scan, onClose }: { scan: DiscoveryScan; onClose: () => void }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [err, setErr] = useState('');
+  const resultsQ = useQuery({
+    queryKey: ['discovery-scans', scan.id, 'results'],
+    queryFn: () => fetchResults(scan.id),
+    refetchInterval: RUNNING.includes(scan.status) ? 5000 : false,
+  });
+  const resolveMut = useMutation({
+    mutationFn: ({ id, action }: { id: number; action: 'onboard' | 'ignore' }) => resolveResult(scan.id, id, action),
+    onSuccess: () => { setErr(''); qc.invalidateQueries({ queryKey: ['discovery-scans', scan.id, 'results'] }); },
+    onError: (e: Error) => setErr(e.message),
+  });
+  const results = resultsQ.data ?? [];
+
+  return (
+    <div style={modalStyles.backdrop}>
+      <div style={{ ...modalStyles.panel, maxWidth: 900, width: '95%' }} role="dialog" aria-modal="true" aria-labelledby="discovery-results-title">
+        <h2 id="discovery-results-title" style={modalStyles.title}>{t('discovery_scans.results_title', 'Discovered devices')}: {scan.name}</h2>
+        {err && <p role="alert" style={styles.msgError}>{err}</p>}
+        {resultsQ.isLoading ? <LoadingState /> : results.length === 0 ? (
+          <p style={styles.msg}>{t('discovery_scans.results_empty', 'No device has answered yet.')}</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>{t('discovery_scans.ip_address', 'IP address')}</th>
+                  <th style={styles.th}>{t('discovery_scans.hostname', 'Hostname')}</th>
+                  <th style={styles.th}>{t('discovery_scans.vendor', 'Vendor / model')}</th>
+                  <th style={styles.th}>{t('discovery_scans.device_type', 'Type')}</th>
+                  <th style={styles.th}>{t('discovery_scans.status', 'Status')}</th>
+                  <th style={styles.th} />
+                </tr>
+              </thead>
+              <tbody>
+                {results.map(r => (
+                  <tr key={r.id} style={styles.tr}>
+                    <td style={styles.tdMono}>{r.ip_address}</td>
+                    <td style={styles.td}>{r.hostname ?? '—'}</td>
+                    <td style={styles.td}>{[r.manufacturer, r.model].filter(Boolean).join(' ') || '—'}</td>
+                    <td style={styles.td}>{r.device_type ?? '—'}</td>
+                    <td style={styles.td}><StatusBadge status={r.status} /></td>
+                    <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
+                      {r.status === 'pending_review' && (
+                        <>
+                          <button style={{ ...styles.btnPrimary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 6 }} disabled={resolveMut.isPending} onClick={() => resolveMut.mutate({ id: r.id, action: 'onboard' })}>
+                            {t('discovery_scans.onboard', 'Onboard')}
+                          </button>
+                          <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} disabled={resolveMut.isPending} onClick={() => resolveMut.mutate({ id: r.id, action: 'ignore' })}>
+                            {t('discovery_scans.ignore', 'Ignore')}
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={modalStyles.actions}>
+          <button style={styles.btnSecondary} onClick={onClose}>{t('common.close', 'Close')}</button>
+        </div>
+      </div>
     </div>
   );
 }

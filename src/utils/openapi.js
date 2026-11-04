@@ -1771,6 +1771,7 @@ function generateSpec() {
 
       // ---- Discovery Scans §6.1 ----
       ...crudPaths('discovery-scans', 'Discovery Scans', 'DiscoveryScan'),
+      '/discovery-scans/{id}/cancel': { post: { tags: ['Discovery Scans'], summary: 'Cancel a pending or running scan (results found so far stay)', operationId: 'cancelDiscoveryScan', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('DiscoveryScan'), 404: errorResponse('Scan not found'), 409: errorResponse('Scan already finished') } } },
       '/discovery-scans/{id}/restore': { post: { tags: ['Discovery Scans'], summary: 'Restore a soft-deleted scan', operationId: 'restoreDiscoveryScan', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DiscoveryScan') } },
       '/discovery-scans/{id}/results': {
         get: { tags: ['Discovery Scans'], summary: 'List discovery results for a scan', operationId: 'listDiscoveryResults', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DiscoveryResult[]') },
@@ -1982,7 +1983,7 @@ function generateSpec() {
       },
       '/onu-management/firmware-jobs': {
         get: { tags: ['ONU Management'], summary: 'List ONU firmware upgrade and reboot jobs', operationId: 'listOnuFirmwareJobs', security: [{ bearerAuth: [] }], responses: r200('OnuFirmwareJob[]') },
-        post: { tags: ['ONU Management'], summary: 'Schedule a firmware upgrade or batch reboot job', operationId: 'createOnuFirmwareJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('onuFirmwareJobs_createOnuFirmwareJob'), responses: r201('OnuFirmwareJob') },
+        post: { tags: ['ONU Management'], summary: 'Schedule a firmware upgrade job (not implemented: 501)', description: 'No OLT driver can push firmware to an ONU, so the request is refused with 501 ONU_ACTION_NOT_IMPLEMENTED and nothing is stored.', operationId: 'createOnuFirmwareJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('onuFirmwareJobs_createOnuFirmwareJob'), responses: { 501: errorResponse('No OLT driver; nothing was queued') } },
       },
       '/onu-management/firmware-jobs/{id}': {
         get: { tags: ['ONU Management'], summary: 'Get a firmware/reboot job', operationId: 'getOnuFirmwareJob', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('OnuFirmwareJob') },
@@ -2011,7 +2012,7 @@ function generateSpec() {
       },
       '/olt-management/onu-migrations': {
         get: { tags: ['PON Port Management'], summary: 'List ONU port migration jobs', operationId: 'listOnuMigrationJobs', security: [{ bearerAuth: [] }], responses: r200('OnuMigrationJob[]') },
-        post: { tags: ['PON Port Management'], summary: 'Create an ONU port migration job (transactional reassignment)', operationId: 'createOnuMigrationJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('onuMigrationJobs_createOnuMigrationJob'), responses: r201('OnuMigrationJob') },
+        post: { tags: ['PON Port Management'], summary: 'Create an ONU port migration job (not implemented: 501)', description: 'No OLT driver can move an ONU between PON ports, so the request is refused with 501 ONU_ACTION_NOT_IMPLEMENTED and nothing is stored.', operationId: 'createOnuMigrationJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('onuMigrationJobs_createOnuMigrationJob'), responses: { 501: errorResponse('No OLT driver; nothing was queued') } },
       },
       '/olt-management/onu-migrations/{jobId}': {
         get: { tags: ['PON Port Management'], summary: 'Get an ONU migration job', operationId: 'getOnuMigrationJob', security: [{ bearerAuth: [] }], parameters: [{ name: 'jobId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r200('OnuMigrationJob') },
@@ -2135,7 +2136,10 @@ function generateSpec() {
         delete: { tags: ['CPE Management'], summary: 'Delete a firmware campaign', operationId: 'deleteCpeFirmwareCampaign', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/cpe-management/firmware-campaigns/{id}/launch': {
-        post: { tags: ['CPE Management'], summary: 'Launch a firmware campaign (queues Download tasks per matching device)', operationId: 'launchCpeFirmwareCampaign', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('CampaignLaunchResult') },
+        post: { tags: ['CPE Management'], summary: 'Launch a firmware campaign (queues a TR-069 Download per targeted CPE)', description: 'Targets are target_device_ids, or every CPE of the organization matching the campaign (or firmware version) manufacturer, model and profile. Each Download is sent at that CPE\'s next Inform; completed_devices and failed_devices follow the tasks, and the campaign is done when none is left. 409 unless the campaign is scheduled; 501 for a future scheduled_at.', operationId: 'launchCpeFirmwareCampaign', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r202('CpeFirmwareCampaign (running)'), 409: errorResponse('Campaign is not scheduled'), 422: errorResponse('No CPE matches, or too many'), 501: errorResponse('Future scheduled_at') } },
+      },
+      '/cpe-management/firmware-campaigns/{id}/cancel': {
+        post: { tags: ['CPE Management'], summary: 'Cancel a firmware campaign (drops Downloads no CPE has taken)', operationId: 'cancelCpeFirmwareCampaign', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('CpeFirmwareCampaign'), 409: errorResponse('Campaign already finished') } },
       },
 
       // ---- §8.3 Diagnostics ----
@@ -2256,7 +2260,7 @@ function generateSpec() {
       // ---- AP Command Jobs §9.1 ----
       '/wireless/ap-commands': {
         get: { tags: ['AP Command Jobs'], summary: 'List AP remote command jobs', operationId: 'listApCommandJobs', security: [{ bearerAuth: [] }], responses: r200('ApCommandJob[]') },
-        post: { tags: ['AP Command Jobs'], summary: 'Create AP remote command job', operationId: 'createApCommandJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('wirelessSectors_createApCommandJob'), responses: r201('ApCommandJob') },
+        post: { tags: ['AP Command Jobs'], summary: 'Create and queue an AP remote command', description: 'Only reboot runs: through the device\'s router driver config (MikroTik RouterOS API), and the job ends completed or failed with the device\'s answer. set_tx_power, set_frequency, set_channel_width and other have no radio driver (501), as does a future scheduled_at; a device with no driver that can reboot it is 422.', operationId: 'createApCommandJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('wirelessSectors_createApCommandJob'), responses: { ...r201('ApCommandJob'), 422: errorResponse('No driver config can run the command'), 501: errorResponse('Command type or schedule not implemented') } },
       },
       '/wireless/ap-commands/{id}': {
         get: { tags: ['AP Command Jobs'], summary: 'Get AP command job', operationId: 'getApCommandJob', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ApCommandJob') },

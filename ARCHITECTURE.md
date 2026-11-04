@@ -724,6 +724,30 @@ MikroTik has one. A vendor without a driver records `not_dispatched` or
 registered driver to that contract and requires every command to call a real
 function of the unmocked transport module.
 
+### Network jobs
+
+A network job the API accepts is either executed or refused; it is never
+stored to sit `pending` (NET-26). Executed jobs are a durable row plus a queued
+job (`discovery-scan`, `ap-command`) that holds an advisory lock per row, and
+start-up queues unfinished rows again (`resumeDiscoveryScans`,
+`resumeApCommands`), like batch jobs:
+
+- discovery scans expand their ranges through the management-target guard
+  (at most 4096 addresses), probe each host's SNMP system group with bounded
+  concurrency, and write `discovery_results` for responders that are not
+  already devices; a scan can be cancelled;
+- AP commands: only `reboot` runs, through the device's driver config; radio
+  commands and future schedules are 501, a device without a capable driver 422;
+- CPE firmware campaigns are launched explicitly
+  (`POST /cpe-management/firmware-campaigns/:id/launch`) and queue one CWMP
+  `download` task per targeted CPE (`parameters._campaignId`); every path that
+  settles a CPE task recounts the campaign;
+- ONU reboot, ONU firmware jobs and ONU port migrations are 501
+  (`ONU_ACTION_NOT_IMPLEMENTED`) until an OLT driver exists.
+
+The executor owns these rows' status and progress columns; create and update
+routes drop them from the body.
+
 `POST /config-templates/:id/deploy` binds both template and device to
 `req.orgId`. No config-push mechanism exists (no RouterOS import/apply handler,
 FireRelay command, or driver command), so a deploy renders the template, records

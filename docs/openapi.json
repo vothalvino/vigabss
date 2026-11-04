@@ -34228,6 +34228,96 @@
         }
       }
     },
+    "/discovery-scans/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Discovery Scans"
+        ],
+        "summary": "Cancel a pending or running scan (results found so far stay)",
+        "operationId": "cancelDiscoveryScan",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DiscoveryScan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Scan not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Scan already finished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/discovery-scans/{id}/restore": {
       "post": {
         "tags": [
@@ -38420,7 +38510,8 @@
         "tags": [
           "ONU Management"
         ],
-        "summary": "Schedule a firmware upgrade or batch reboot job",
+        "summary": "Schedule a firmware upgrade job (not implemented: 501)",
+        "description": "No OLT driver can push firmware to an ONU, so the request is refused with 501 ONU_ACTION_NOT_IMPLEMENTED and nothing is stored.",
         "operationId": "createOnuFirmwareJob",
         "security": [
           {
@@ -38438,12 +38529,29 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "OnuFirmwareJob",
+          "501": {
+            "description": "No OLT driver; nothing was queued",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -38830,7 +38938,8 @@
         "tags": [
           "PON Port Management"
         ],
-        "summary": "Create an ONU port migration job (transactional reassignment)",
+        "summary": "Create an ONU port migration job (not implemented: 501)",
+        "description": "No OLT driver can move an ONU between PON ports, so the request is refused with 501 ONU_ACTION_NOT_IMPLEMENTED and nothing is stored.",
         "operationId": "createOnuMigrationJob",
         "security": [
           {
@@ -38848,12 +38957,29 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "OnuMigrationJob",
+          "501": {
+            "description": "No OLT driver; nothing was queued",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -41003,7 +41129,8 @@
         "tags": [
           "CPE Management"
         ],
-        "summary": "Launch a firmware campaign (queues Download tasks per matching device)",
+        "summary": "Launch a firmware campaign (queues a TR-069 Download per targeted CPE)",
+        "description": "Targets are target_device_ids, or every CPE of the organization matching the campaign (or firmware version) manufacturer, model and profile. Each Download is sent at that CPE's next Inform; completed_devices and failed_devices follow the tasks, and the campaign is done when none is left. 409 unless the campaign is scheduled; 501 for a future scheduled_at.",
         "operationId": "launchCpeFirmwareCampaign",
         "security": [
           {
@@ -41021,12 +41148,156 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "CampaignLaunchResult",
+          "202": {
+            "description": "CpeFirmwareCampaign (running)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Campaign is not scheduled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No CPE matches, or too many",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Future scheduled_at",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cpe-management/firmware-campaigns/{id}/cancel": {
+      "post": {
+        "tags": [
+          "CPE Management"
+        ],
+        "summary": "Cancel a firmware campaign (drops Downloads no CPE has taken)",
+        "operationId": "cancelCpeFirmwareCampaign",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CpeFirmwareCampaign",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Campaign already finished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -42695,7 +42966,8 @@
         "tags": [
           "AP Command Jobs"
         ],
-        "summary": "Create AP remote command job",
+        "summary": "Create and queue an AP remote command",
+        "description": "Only reboot runs: through the device's router driver config (MikroTik RouterOS API), and the job ends completed or failed with the device's answer. set_tx_power, set_frequency, set_channel_width and other have no radio driver (501), as does a future scheduled_at; a device with no driver that can reboot it is 422.",
         "operationId": "createApCommandJob",
         "security": [
           {
@@ -42719,6 +42991,60 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No driver config can run the command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command type or schedule not implemented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -64351,16 +64677,6 @@
           "target_device_ids": {
             "type": "object"
           },
-          "status": {
-            "type": "string",
-            "enum": [
-              "scheduled",
-              "running",
-              "done",
-              "failed",
-              "cancelled"
-            ]
-          },
           "scheduled_at": {
             "type": "string",
             "maximum": 30
@@ -80893,17 +81209,6 @@
           "target_value": {
             "type": "string",
             "maximum": 255
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "queued",
-              "in_progress",
-              "completed",
-              "failed",
-              "cancelled"
-            ]
           },
           "scheduled_at": {
             "type": "string"

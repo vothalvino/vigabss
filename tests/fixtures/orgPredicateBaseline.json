@@ -74,7 +74,7 @@
   "src/services/deviceStatusService.js": 4,
   "src/services/diagnosticEngineService.js": 2,
   "src/services/facturaPublicaService.js": 2,
-  "src/services/ftthService.js": 12,
+  "src/services/ftthService.js": 9,
   "src/services/fupNotificationService.js": 1,
   "src/services/globalOrganizationAccess.js": 1,
   "src/services/installOperator.js": 1,

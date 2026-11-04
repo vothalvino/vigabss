@@ -510,33 +510,6 @@ async function getApCommandJob(id, orgId) {
 }
 
 /**
- * Create an AP command job.
- */
-async function createApCommandJob(orgId, userId, data) {
-  const { device_id } = data;
-
-  // Verify device belongs to org
-  const [devRows] = await db.query(
-    'SELECT id FROM devices WHERE id = ? AND (organization_id = ? OR organization_id IS NULL) AND deleted_at IS NULL',
-    [device_id, orgId],
-  );
-  if (!devRows.length) {
-    const err = new Error('Device not found');
-    err.statusCode = 404;
-    throw err;
-  }
-
-  const { organization_id: _o, id: _i, created_at: _c, updated_at: _u, deleted_at: _d, ...fields } = data;
-  const { columns, placeholders, values } = buildInsert({ organization_id: orgId, created_by: userId || null, status: 'pending', ...fields },
-    columnsOf(schemas.createApCommandJob, 'organization_id', 'created_by', 'status'));
-  const [result] = await db.query(
-    `INSERT INTO ap_command_jobs (${columns}) VALUES (${placeholders})`,
-    values,
-  );
-  return getApCommandJob(result.insertId, orgId);
-}
-
-/**
  * Cancel an AP command job (only if pending or queued).
  */
 async function cancelApCommandJob(id, orgId) {
@@ -1072,7 +1045,6 @@ module.exports = {
   // AP command jobs
   listApCommandJobs,
   getApCommandJob,
-  createApCommandJob,
   cancelApCommandJob,
   // §9.2 Link planning calculator
   calculateLinkBudget,

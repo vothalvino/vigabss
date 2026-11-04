@@ -2615,7 +2615,7 @@
     "new": "Nuevo Escaneo de Descubrimiento",
     "name": "Nombre del Escaneo",
     "cidr_ranges": "Rangos CIDR",
-    "cidr_ranges_hint": "Separados por coma, ej. 192.168.1.0/24, 10.0.0.0/8",
+    "cidr_ranges_hint": "Separados por coma, ej. 192.168.1.0/24 (máximo 4096 direcciones por escaneo)",
     "snmp_version": "Version SNMP",
     "snmp_community": "Cadena de Comunidad",
     "snmp_port": "Puerto",
@@ -2628,7 +2628,17 @@
     "delete_success": "Escaneo de descubrimiento eliminado.",
     "delete_error": "Error al eliminar el escaneo de descubrimiento.",
     "error": "Error al cargar los escaneos de descubrimiento.",
-    "empty": "No se encontraron escaneos de descubrimiento."
+    "empty": "No se encontraron escaneos de descubrimiento.",
+    "results": "Resultados",
+    "cancel_scan": "Cancelar escaneo",
+    "results_title": "Dispositivos descubiertos",
+    "results_empty": "Ningún dispositivo ha respondido todavía.",
+    "ip_address": "Dirección IP",
+    "hostname": "Nombre de host",
+    "vendor": "Fabricante / modelo",
+    "device_type": "Tipo",
+    "onboard": "Incorporar",
+    "ignore": "Ignorar"
   },
   "device_import": {
     "title": "Importacion Masiva de Dispositivos",
@@ -3469,7 +3479,11 @@
       "scheduledAt": "Programado Para",
       "devices": "Dispositivos",
       "empty": "Sin campañas de firmware.",
-      "error": "Error al cargar las campañas."
+      "error": "Error al cargar las campañas.",
+      "launch": "Lanzar",
+      "cancel": "Cancelar campaña",
+      "failed": "fallidos",
+      "confirmLaunch": "¿Enviar este firmware a todos los CPE de la campaña? Cada uno lo descarga en su próxima conexión."
     }
   },
   "cpeProfiles": {
@@ -3701,6 +3715,7 @@
       "device": "Dispositivo",
       "commandType": "Tipo de Comando",
       "targetValue": "Valor Objetivo",
+      "driverHint": "Solo se puede enviar un reinicio: se ejecuta a través de la configuración del driver del router del dispositivo (API de MikroTik RouterOS). Los ajustes de radio se cambian en el propio radio.",
       "status": "Estado",
       "created": "Creado",
       "completed": "Completado",

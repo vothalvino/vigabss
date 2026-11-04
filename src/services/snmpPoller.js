@@ -669,11 +669,15 @@ function resolveSecurityLevel(authKey, privKey, authProto, privProto) {
  *
  * For v3: decrypts the stored AES-256-GCM ciphertext for auth/priv keys.
  * The decrypted keys are kept in local scope and never written to the DB.
+ *
+ * @param {object} device
+ * @param {{ timeout?: number, retries?: number }} [opts] discovery probes
+ *        use the scan's own timeout and no retry
  */
-function createSnmpSession(device) {
+function createSnmpSession(device, opts = {}) {
   const port    = device.snmp_port || 161;
-  const timeout = 5000;
-  const retries = 1;
+  const timeout = opts.timeout || 5000;
+  const retries = opts.retries ?? 1;
 
   if (device.snmp_version === 'v3') {
     const secName  = device.snmp_v3_security_name || 'firesipv3';
@@ -822,6 +826,7 @@ module.exports = {
   poll,
   pollDevice,
   createSnmpSession,
+  snmpGet,
   mapAuthProtocol,
   mapPrivProtocol,
   resolveSecurityLevel,

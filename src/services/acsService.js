@@ -188,7 +188,7 @@ async function dispatchNextOrEnd(res, cpeDevice, remoteIp) {
  */
 async function reapStuckTasks(organizationId, { olderThanMinutes = 30 } = {}) {
   const [stuck] = await db.query(
-    `SELECT id, task_type FROM cpe_tasks
+    `SELECT id, task_type, parameters, organization_id FROM cpe_tasks
       WHERE organization_id <=> ? AND status = 'in_progress'
         AND started_at < (NOW() - INTERVAL ? MINUTE)`,
     [organizationId, olderThanMinutes],
@@ -203,6 +203,7 @@ async function reapStuckTasks(organizationId, { olderThanMinutes = 30 } = {}) {
     if (r.affectedRows === 1 && task.task_type === 'set_parameter_values') {
       await require('./portalServiceRequestService').settleWifiRequestForTask(task.id, false, 'No response from the CPE');
     }
+    if (r.affectedRows === 1) await require('./cpeFirmwareCampaignService').afterTaskSettled(task);
   }
   return { reaped: stuck.length };
 }
@@ -443,6 +444,7 @@ async function handleCwmpRequest(req, res) {
         if (activeTask.task_type === 'set_parameter_values') {
           await require('./portalServiceRequestService').settleWifiRequestForTask(activeTask.id, false, faultMsg);
         }
+        await require('./cpeFirmwareCampaignService').afterTaskSettled(activeTask);
         // §8.3: log fault
         cpeSessionLogService.logSessionEvent({
           orgId: cpeDevice.organization_id,
