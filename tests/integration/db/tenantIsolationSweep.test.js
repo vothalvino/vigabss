@@ -356,10 +356,8 @@ describeDb('tenant isolation against a real database', () => {
     fs.writeFileSync(out, JSON.stringify(report, null, 2));
     console.log(`swept ${report.requests} writes ${JSON.stringify(byStatus)}; ${unresolved.length} unresolved`);
 
-    expect(initialLinks).toEqual([]);
-    expect(changed).toEqual([]);
-    expect(linked).toEqual([]);
-    expect(accepted).toEqual([]);
+    // One comparison, so a failing run reports every kind of finding.
+    expect({ initialLinks, changed, linked, accepted }).toEqual({ initialLinks: [], changed: [], linked: [], accepted: [] });
     // The sweep must stay meaningful: the session survives to the end.
     expect((await call('GET', '/api/v1/clients', staff)).status).toBe(200);
     expect(byStatus[401] || 0).toBeLessThan(routes.length * 0.05);
