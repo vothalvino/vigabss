@@ -643,6 +643,11 @@ and an action with nothing to act on is recorded `skipped`, never `success`.
 The client, contract and invoice come from the event payload and are checked
 against the organization. An event raised while a rule's action runs
 (`AsyncLocalStorage` scope) runs no rules, so rules cannot loop.
+Remediation rules (`remediation_evaluation`) send `reboot` / `reboot_device`
+to the breaching device through its driver config
+(`routerDriverService.dispatchCommand`), recording `success` or `failure`;
+any other action, or a device without a driver that can reboot it, is
+`not_dispatched`.
 
 Every scheduled task run goes through `taskRunner.executeScheduledTask(task,
 via)` (ASY-28), from the inline cron path (`via = 'cron'`), the BullMQ

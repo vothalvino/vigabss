@@ -362,6 +362,8 @@ describe('automationService', () => {
         // condition_duration_minutes) per device with a recent reading,
         // instead of one arbitrary org-wide row.
         .mockResolvedValueOnce(qResult([{ device_id: 1, metric_value: '95', polled_at: new Date() }])) // checkCondition
+        // A reboot goes through the device's driver now (ASY-36); this device has none.
+        .mockResolvedValueOnce(qResult([]))                      // driver configs
         .mockResolvedValueOnce(insertResult(1))                  // INSERT executions
         .mockResolvedValueOnce(updateResult());                   // UPDATE rules
 
@@ -376,7 +378,7 @@ describe('automationService', () => {
       // 4: which device actually triggered it) shifted status to index 4.
       expect(insertCall[1][2]).toBe(1); // device_id
       expect(insertCall[1][4]).toBe('not_dispatched');
-      expect(insertCall[1][5]).toMatch(/not dispatched/i);
+      expect(insertCall[1][5]).toMatch(/no active driver config .* nothing was sent/i);
     });
 
     test('does not record stubbed status for remediation actions', async () => {
@@ -387,6 +389,7 @@ describe('automationService', () => {
           cooldown_minutes: 1, last_triggered_at: null, is_enabled: 1, run_count: 0,
         }]))
         .mockResolvedValueOnce(qResult([{ device_id: 1, metric_value: '99', polled_at: new Date() }]))
+        .mockResolvedValueOnce(qResult([]))
         .mockResolvedValueOnce(insertResult(1))
         .mockResolvedValueOnce(updateResult());
 

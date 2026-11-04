@@ -708,12 +708,12 @@ async function assignPipelineIp({ organizationId, contract_id, ip_pool_id }) {
 }
 
 // ---------------------------------------------------------------------------
-// Remediation Rules — evaluate and dispatch (STUBBED device actions)
+// Remediation Rules — evaluate and dispatch
 // ---------------------------------------------------------------------------
 
 /**
  * Evaluate all enabled remediation rules for an organization.
- * Records each execution. Device actions are STUBBED.
+ * Records each execution; a reboot goes to the breaching device's driver.
  */
 async function evaluateRemediationRules(organizationId) {
   const [rules] = await db.query(
@@ -737,10 +737,7 @@ async function evaluateRemediationRules(organizationId) {
     if (!conditionMet) continue;
 
     const start = Date.now();
-    // Device actions are not dispatched to live devices — record as not_dispatched so
-    // the caller knows no real action was taken.
-    const execStatus = 'not_dispatched';
-    const resultMessage = `Action '${rule.action_type}' was NOT dispatched — live device dispatch is not yet implemented`;
+    const { status: execStatus, message: resultMessage } = await dispatchRemediation(organizationId, rule, deviceId);
 
     await db.query(
       `INSERT INTO remediation_executions
@@ -757,6 +754,36 @@ async function evaluateRemediationRules(organizationId) {
   }
 
   return { evaluated: rules.length, triggered };
+}
+
+/** Remediation action_type → driver command. Only these reach a device. */
+const REMEDIATION_COMMANDS = Object.freeze({ reboot: 'reboot', reboot_device: 'reboot' });
+
+/**
+ * Run a remediation rule's action on the breaching device through its vendor
+ * driver (routerDriverService, NET-30). An action with no driver command, or
+ * a device with no driver config that implements it, is 'not_dispatched'.
+ * @returns {Promise<{ status: 'success'|'failure'|'not_dispatched', message: string }>}
+ */
+async function dispatchRemediation(organizationId, rule, deviceId) {
+  const command = REMEDIATION_COMMANDS[rule.action_type];
+  if (!command) {
+    return { status: 'not_dispatched', message: `Action '${rule.action_type}' was NOT dispatched — only reboot can be sent to a device` };
+  }
+  if (!deviceId) return { status: 'not_dispatched', message: 'No device breached the condition' };
+  try {
+    const config = await require('./apCommandService').driverConfigFor(deviceId, organizationId, command);
+    if (!config) {
+      return { status: 'not_dispatched', message: `Device #${deviceId} has no active driver config that can ${command}; nothing was sent` };
+    }
+    const result = await require('./routerDriverService').dispatchCommand(config.id, organizationId, command, {}, null);
+    if (result && result.status === 'success') {
+      return { status: 'success', message: `${command} sent to device #${deviceId} (driver execution #${result.execution_id})` };
+    }
+    return { status: 'failure', message: String(result?.error_message || 'The device did not accept the command').slice(0, 500) };
+  } catch (err) {
+    return { status: 'failure', message: String(err.message).slice(0, 500) };
+  }
 }
 
 /**
