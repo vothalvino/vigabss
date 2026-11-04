@@ -393,6 +393,13 @@ that inevitably fail, but they never replace server-side authorization.
   FreeRADIUS reads it from the table, so it stays plaintext at rest, is
   redacted to `has_secret`, and only `GET /nas/:id/secret` with
   `radius.credentials.view` returns it.
+- A sealed value is `vb1:<key id>:<iv>:<tag>:<ciphertext>`
+  (`src/utils/encryption.js`). `ENCRYPTION_KEYS_PREVIOUS` keeps old keys for
+  decryption only, and `src/scripts/rotate-encryption-key.js` re-seals every
+  value an old key sealed, found by its prefix in any text or JSON column, so
+  a new secret column needs no registration for rotation. Do not store a
+  sealed value in a column the script cannot update (a generated column, a
+  table without a primary key).
 - Output encoding happens at the sink: React escapes text, the knowledge-base
   HTML sink uses DOMPurify, XML builders escape XML, and email templates escape
   interpolated HTML. Do not reintroduce blanket input-side HTML encoding.

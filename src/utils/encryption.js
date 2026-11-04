@@ -6,6 +6,15 @@
 //
 // Requires ENCRYPTION_KEY env var — a 64-character hex string (256 bits).
 // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+//
+// Key rotation (SEC-28): every ciphertext names the key that sealed it,
+//   vb1:<key id>:<iv>:<auth tag>:<ciphertext>   (all hex)
+// where the key id is the first 8 hex digits of SHA-256(key). To rotate, set
+// the new key as ENCRYPTION_KEY and list the old one in
+// ENCRYPTION_KEYS_PREVIOUS (comma-separated): previous keys only decrypt.
+// Then run src/scripts/rotate-encryption-key.js, which finds every value
+// sealed by another key in every text column and seals it again with the
+// current one, and drop the old key once it reports none left.
 // =============================================================================
 
 const crypto = require('crypto');
@@ -15,6 +24,22 @@ const IV_LENGTH = 12;     // 96-bit IV recommended for GCM
 const TAG_LENGTH = 16;    // 128-bit auth tag
 const ENCODING = 'hex';
 const HEX_64_RE = /^[0-9a-fA-F]{64}$/;
+const PREFIX = 'vb1';
+// One sealed value; the `g` form finds them inside a larger text or JSON value.
+const CIPHERTEXT_RE = /^vb1:([0-9a-f]{8}):([0-9a-f]{24}):([0-9a-f]{32}):((?:[0-9a-f]{2})*)$/;
+const CIPHERTEXT_GLOBAL_RE = /vb1:([0-9a-f]{8}):([0-9a-f]{24}):([0-9a-f]{32}):((?:[0-9a-f]{2})*)/g;
+
+function parseKey(hex, name) {
+  if (!HEX_64_RE.test(hex)) {
+    throw new Error(`${name} must be a 64-character hex string (256 bits)`);
+  }
+  return Buffer.from(hex, 'hex');
+}
+
+/** The id a ciphertext carries for a key: 8 hex digits of its SHA-256. */
+function keyIdOf(key) {
+  return crypto.createHash('sha256').update(key).digest('hex').slice(0, 8);
+}
 
 /**
  * Derive the 256-bit encryption key from the ENCRYPTION_KEY env var.
@@ -23,16 +48,53 @@ const HEX_64_RE = /^[0-9a-fA-F]{64}$/;
 function getKey() {
   const hex = process.env.ENCRYPTION_KEY;
   if (!hex) return null;
-  if (!HEX_64_RE.test(hex)) {
-    throw new Error('ENCRYPTION_KEY must be a 64-character hex string (256 bits)');
-  }
-  return Buffer.from(hex, 'hex');
+  return parseKey(hex, 'ENCRYPTION_KEY');
+}
+
+/** The current key, then each ENCRYPTION_KEYS_PREVIOUS key: [{ id, key }]. */
+function keyRing() {
+  const current = getKey();
+  if (!current) return [];
+  const previous = String(process.env.ENCRYPTION_KEYS_PREVIOUS || '')
+    .split(',').map(s => s.trim()).filter(Boolean)
+    .map(hex => parseKey(hex, 'Each ENCRYPTION_KEYS_PREVIOUS entry'));
+  return [current, ...previous].map(key => ({ id: keyIdOf(key), key }));
+}
+
+/** The current key's id, or null when encryption is disabled. */
+function currentKeyId() {
+  const key = getKey();
+  return key ? keyIdOf(key) : null;
+}
+
+function seal(key, plaintext) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
+  const encrypted = Buffer.concat([cipher.update(String(plaintext), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${PREFIX}:${keyIdOf(key)}:${iv.toString(ENCODING)}:${tag.toString(ENCODING)}:${encrypted.toString(ENCODING)}`;
 }
 
 /**
- * Encrypt a plaintext string.
- *
- * Output format: hex(iv) + ':' + hex(authTag) + ':' + hex(ciphertext)
+ * Open one sealed value. Throws { code: 'ENCRYPTION_KEY_UNKNOWN' } when no
+ * configured key has its id, and an authentication error when the bytes do
+ * not verify.
+ */
+function open(match, ring) {
+  const [, kid, ivHex, tagHex, encHex] = match;
+  const entry = ring.find(k => k.id === kid);
+  if (!entry) {
+    throw Object.assign(new Error(`No configured key has id ${kid} (set it in ENCRYPTION_KEYS_PREVIOUS)`), {
+      code: 'ENCRYPTION_KEY_UNKNOWN',
+    });
+  }
+  const decipher = crypto.createDecipheriv(ALGORITHM, entry.key, Buffer.from(ivHex, ENCODING), { authTagLength: TAG_LENGTH });
+  decipher.setAuthTag(Buffer.from(tagHex, ENCODING));
+  return Buffer.concat([decipher.update(Buffer.from(encHex, ENCODING)), decipher.final()]).toString('utf8');
+}
+
+/**
+ * Encrypt a plaintext string with the current key (format above).
  *
  * When ENCRYPTION_KEY is not configured the plaintext is returned as-is
  * so that development / test environments work without encryption.
@@ -45,25 +107,16 @@ function encrypt(plaintext) {
 
   const key = getKey();
   if (!key) return plaintext; // encryption disabled
-
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
-
-  const encrypted = Buffer.concat([
-    cipher.update(String(plaintext), 'utf8'),
-    cipher.final(),
-  ]);
-
-  const tag = cipher.getAuthTag();
-
-  return `${iv.toString(ENCODING)}:${tag.toString(ENCODING)}:${encrypted.toString(ENCODING)}`;
+  return seal(key, plaintext);
 }
 
 /**
- * Decrypt an encrypted string produced by `encrypt()`.
+ * Decrypt a value produced by `encrypt()`, with whichever configured key
+ * sealed it.
  *
- * When ENCRYPTION_KEY is not configured the ciphertext is returned as-is
- * (assumed to be plaintext in non-encrypted environments).
+ * When ENCRYPTION_KEY is not configured, or the value is not in the sealed
+ * format, or no configured key opens it, the value is returned as-is (it is
+ * taken to be plaintext). Use decryptStrict for long-lived credentials.
  *
  * @param {string} ciphertext
  * @returns {string}
@@ -71,33 +124,13 @@ function encrypt(plaintext) {
 function decrypt(ciphertext) {
   if (ciphertext === null || ciphertext === undefined) return ciphertext;
 
-  const key = getKey();
-  if (!key) return ciphertext; // encryption disabled
-
-  // If the value doesn't look like our format, return as-is (legacy plaintext)
-  const parts = String(ciphertext).split(':');
-  if (parts.length !== 3) return ciphertext;
-
-  const [ivHex, tagHex, encHex] = parts;
-
+  const ring = keyRing();
+  if (!ring.length) return ciphertext; // encryption disabled
+  const match = CIPHERTEXT_RE.exec(String(ciphertext));
+  if (!match) return ciphertext;
   try {
-    const iv = Buffer.from(ivHex, ENCODING);
-    const tag = Buffer.from(tagHex, ENCODING);
-    const encrypted = Buffer.from(encHex, ENCODING);
-
-    if (iv.length !== IV_LENGTH || tag.length !== TAG_LENGTH) return ciphertext;
-
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
-    decipher.setAuthTag(tag);
-
-    const decrypted = Buffer.concat([
-      decipher.update(encrypted),
-      decipher.final(),
-    ]);
-
-    return decrypted.toString('utf8');
+    return open(match, ring);
   } catch (_err) {
-    // If decryption fails the value may be legacy plaintext — return as-is
     return ciphertext;
   }
 }
@@ -126,28 +159,46 @@ function encryptStrict(plaintext) {
 
 function decryptStrict(ciphertext) {
   if (ciphertext === null || ciphertext === undefined) return ciphertext;
-  const key = getKey();
-  if (!key) throw encryptionConfigurationError();
+  const ring = keyRing();
+  if (!ring.length) throw encryptionConfigurationError();
 
-  const parts = String(ciphertext).split(':');
-  if (parts.length !== 3) throw invalidCiphertextError();
-  const [ivHex, tagHex, encHex] = parts;
-  if (!/^[0-9a-fA-F]{24}$/.test(ivHex)
-      || !/^[0-9a-fA-F]{32}$/.test(tagHex)
-      || !/^(?:[0-9a-fA-F]{2})+$/.test(encHex)) {
-    throw invalidCiphertextError();
-  }
-
+  const match = CIPHERTEXT_RE.exec(String(ciphertext));
+  if (!match) throw invalidCiphertextError();
   try {
-    const iv = Buffer.from(ivHex, ENCODING);
-    const tag = Buffer.from(tagHex, ENCODING);
-    const encrypted = Buffer.from(encHex, ENCODING);
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
-    decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
-  } catch (_err) {
+    return open(match, ring);
+  } catch (err) {
+    if (err.code === 'ENCRYPTION_KEY_UNKNOWN') throw err;
     throw invalidCiphertextError();
   }
+}
+
+/**
+ * Seal again with the current key every value inside `text` that another
+ * configured key sealed (a column may hold one sealed value or embed several
+ * in JSON). Returns { text, resealed, unknown }: `unknown` counts values whose
+ * key is not configured, which are left as they are.
+ *
+ * @param {string} text
+ */
+function resealWithCurrentKey(text) {
+  const ring = keyRing();
+  if (!ring.length) throw encryptionConfigurationError();
+  const [current] = ring;
+  let resealed = 0;
+  let unknown = 0;
+  const out = String(text).replace(CIPHERTEXT_GLOBAL_RE, (sealed, kid, ...rest) => {
+    if (kid === current.id) return sealed;
+    let plaintext;
+    try {
+      plaintext = open([sealed, kid, ...rest.slice(0, 3)], ring);
+    } catch (_err) {
+      unknown++;
+      return sealed;
+    }
+    resealed++;
+    return seal(current.key, plaintext);
+  });
+  return { text: out, resealed, unknown };
 }
 
 /**
@@ -165,6 +216,10 @@ module.exports = {
   decrypt,
   encryptStrict,
   decryptStrict,
+  resealWithCurrentKey,
   getKey,
+  keyRing,
+  currentKeyId,
   isConfigured,
+  CIPHERTEXT_GLOBAL_RE,
 };
