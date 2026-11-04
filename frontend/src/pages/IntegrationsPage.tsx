@@ -241,26 +241,6 @@ function ConnectionsTab({ onViewLogs }: { onViewLogs: (conn: IntegrationConnecti
     }
   };
 
-  const handleTest = async (id: number) => {
-    try {
-      const res = await apiFetch<{ data: { status: string } }>(`/integrations/connections/${id}/test`, { method: 'POST' });
-      alert(`Test result: ${res.data.status}`);
-      load();
-    } catch (e) {
-      alert(`Test failed: ${String(e)}`);
-    }
-  };
-
-  const handleSync = async (id: number) => {
-    try {
-      const res = await apiFetch<{ data: { status: string } }>(`/integrations/connections/${id}/sync`, { method: 'POST', body: JSON.stringify({ direction: 'bidirectional' }) });
-      alert(`Sync result: ${res.data.status}`);
-      load();
-    } catch (e) {
-      alert(`Sync failed: ${String(e)}`);
-    }
-  };
-
   const handleDelete = async (id: number) => {
     if (!confirm(t('integration.confirmDelete'))) return;
     try {
@@ -278,6 +258,8 @@ function ConnectionsTab({ onViewLogs }: { onViewLogs: (conn: IntegrationConnecti
         <ActionButton onClick={load} label={t('integration.refresh')} variant="secondary" />
       </div>
       {error && <div style={{ color: '#dc2626', marginBottom: 8 }}>{error}</div>}
+      {/* POST /connections/:id/test and /sync are 501 for every provider (ASY-36). */}
+      <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>{t('integration.liveNotImplemented')}</p>
 
       {showCreate && (
         <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: 16, marginBottom: 16 }}>
@@ -334,8 +316,6 @@ function ConnectionsTab({ onViewLogs }: { onViewLogs: (conn: IntegrationConnecti
                   {c.last_synced_at ? new Date(c.last_synced_at).toLocaleString() : '—'}
                 </td>
                 <td style={{ padding: '8px' }}>
-                  <ActionButton onClick={() => handleTest(c.id)} label={t('integration.test')} variant="secondary" />
-                  <ActionButton onClick={() => handleSync(c.id)} label={t('integration.sync')} />
                   <ActionButton onClick={() => onViewLogs(c)} label={t('integration.logs')} variant="secondary" />
                   <ActionButton onClick={() => handleDelete(c.id)} label={t('integration.delete')} variant="danger" />
                 </td>
