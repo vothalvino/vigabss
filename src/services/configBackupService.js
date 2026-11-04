@@ -3,18 +3,15 @@
 // =============================================================================
 // Provides functions to pull RouterOS configuration backups from remote
 // MikroTik devices via the FireRelay WebSocket tunnel and persist them to
-// the device_config_backups table.
-//
-// Environment variables used for nightly pulls:
-//   ROUTEROS_API_USER       — RouterOS API username (default: 'admin')
-//   ROUTEROS_API_PASSWORD   — RouterOS API password (required for nightly run)
-//   ROUTEROS_API_PORT       — RouterOS API port (default: 8728)
+// the device_config_backups table. Device logins come from
+// deviceCredentialService, per device and organization (NET-30).
 // =============================================================================
 
 const crypto = require('crypto');
 const db = require('../config/database');
 const { orgScopeFilter } = require('./organizationFanOut');
 const { tunnelServer } = require('./firerelayTunnel');
+const { resolveDeviceCredentials } = require('./deviceCredentialService');
 const logger = require('../utils/logger').child({ service: 'configBackupService' });
 const { NotFoundError } = require('../utils/errors');
 const { requireOrgId } = require('../utils/requireOrgId');
@@ -169,33 +166,26 @@ async function pullBackupForDevice({
  * Eligible devices: deleted_at IS NULL, firerelay_node_id IS NOT NULL,
  * ip_address IS NOT NULL.
  *
- * RouterOS credentials come from environment variables:
- *   ROUTEROS_API_USER     (default 'admin')
- *   ROUTEROS_API_PASSWORD (required)
- *   ROUTEROS_API_PORT     (default 8728)
+ * Each device logs in with its own organization's credentials, resolved by
+ * deviceCredentialService (a driver config bound to the device, the NAS at its
+ * address, then the organization's default driver config). There is no
+ * install-wide login: the old ROUTEROS_API_USER/PASSWORD env pair logged in to
+ * every tenant's devices with one operator password (NET-30). A device with
+ * no stored login is counted in no_credentials and not contacted.
  *
  * Per-device errors are logged and counted but do not abort the entire run.
  *
  * @param {number|null} [organizationId] - one organization's devices, or (null) every
  *        device of the current database scope; taskRunner runs the null case
  *        once per database, so isolated tenants are backed up too (NET-15)
- * @returns {Promise<{ total: number, backed_up: number, skipped: number, failed: number }>}
+ * @returns {Promise<{ total: number, backed_up: number, skipped: number, failed: number, no_credentials: number }>}
  */
 async function runNightlyBackups(organizationId = null) {
-  const user = process.env.ROUTEROS_API_USER || 'admin';
-  const password = process.env.ROUTEROS_API_PASSWORD;
-  const port = process.env.ROUTEROS_API_PORT ? parseInt(process.env.ROUTEROS_API_PORT, 10) : undefined;
-
-  if (!password) {
-    logger.warn('ROUTEROS_API_PASSWORD not set — config_backup_pull task will not run');
-    return { total: 0, backed_up: 0, skipped: 0, failed: 0 };
-  }
-
   // The device's own organization decides, not a client's: POP and backbone
   // devices have no client and were dropped by the old clients join (NET-15).
   const scope = orgScopeFilter('d.organization_id', organizationId);
   const [devices] = await db.query(
-    `SELECT d.id, d.name, d.ip_address, d.firerelay_node_id
+    `SELECT d.id, d.name, d.ip_address, d.firerelay_node_id, d.organization_id
        FROM devices d
       WHERE d.firerelay_node_id IS NOT NULL
         AND d.ip_address IS NOT NULL
@@ -203,7 +193,7 @@ async function runNightlyBackups(organizationId = null) {
     scope.params,
   );
 
-  const stats = { total: devices.length, backed_up: 0, skipped: 0, failed: 0 };
+  const stats = { total: devices.length, backed_up: 0, skipped: 0, failed: 0, no_credentials: 0 };
 
   for (const device of devices) {
     if (!tunnelServer.isConnected(device.firerelay_node_id)) {
@@ -216,13 +206,19 @@ async function runNightlyBackups(organizationId = null) {
     }
 
     try {
+      const creds = await resolveDeviceCredentials({ organizationId: device.organization_id, device });
+      if (!creds) {
+        logger.warn({ deviceId: device.id }, 'No stored RouterOS login for device — skipping config backup');
+        stats.no_credentials += 1;
+        continue;
+      }
       const result = await pullBackupForDevice({
         deviceId: device.id,
         nodeId: device.firerelay_node_id,
         host: device.ip_address,
-        user,
-        password,
-        port,
+        user: creds.user,
+        password: creds.password,
+        port: creds.port,
         captureMethod: 'scheduled',
       });
 

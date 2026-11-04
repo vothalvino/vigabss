@@ -708,11 +708,21 @@ enters each isolated tenant database explicitly; it must never query rules with
 
 On-demand `POST /device-config-backups/pull` loads the device with
 `organization_id <=> req.orgId` before any RouterOS session is opened through a
-FireRelay agent. Its credentials come only from the request body or from the
-device's active MikroTik `router_driver_configs` row in the same organization.
-The install-wide `ROUTEROS_API_USER`/`ROUTEROS_API_PASSWORD` variables belong to
-the unattended nightly `config_backup` task (`runNightlyBackups`) and must not
-become a fallback for tenant-triggered pulls.
+FireRelay agent. Device logins, for that pull and for the nightly
+`config_backup_pull` task, come only from `deviceCredentialService`, inside the
+device's own organization and in this order: credentials typed into the
+request, an active driver config bound to the device, the NAS row at the
+device's address (RouterOS only), the organization's default driver config
+(`device_id IS NULL`), then explicit job params. No install-wide device login
+exists; a device with no stored login is refused (422) or, nightly, counted in
+`no_credentials` and not contacted.
+
+Vendor I/O goes through the driver registry in `src/services/drivers/`: a
+driver is `{ vendor, protocols, toConnection, test, commands }`, and only
+MikroTik has one. A vendor without a driver records `not_dispatched` or
+`not_implemented`, never success. `tests/deviceDrivers.test.js` holds every
+registered driver to that contract and requires every command to call a real
+function of the unmocked transport module.
 
 `POST /config-templates/:id/deploy` binds both template and device to
 `req.orgId`. No config-push mechanism exists (no RouterOS import/apply handler,

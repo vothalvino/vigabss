@@ -36141,7 +36141,7 @@
           "Device Config Backups"
         ],
         "summary": "Pull an on-demand RouterOS config backup through the device's FireRelay agent",
-        "description": "Body: { device_id, user?, password?, port?, compact?, notes? }. The device must belong to the caller's organization (404 otherwise), checked before any RouterOS session is opened. Credentials come from the body (user defaults to admin) or from the device's active MikroTik router driver config in the same organization; the install-wide ROUTEROS_API_* env credentials are never used here (422 when neither source exists).",
+        "description": "Body: { device_id, user?, password?, port?, compact?, notes? }. The device must belong to the caller's organization (404 otherwise), checked before any RouterOS session is opened. Credentials come from the body (user defaults to admin), then from a stored login in the same organization: a MikroTik driver config bound to the device, the NAS API login at the device's address, or the organization's default MikroTik driver config (422 when none exists).",
         "operationId": "pullDeviceConfigBackup",
         "security": [
           {

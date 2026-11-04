@@ -227,29 +227,61 @@ describe('pullBackupForDevice', () => {
 describe('runNightlyBackups', () => {
   const origEnv = { ...process.env };
 
-  beforeEach(() => {
-    process.env.ROUTEROS_API_USER = 'admin';
-    process.env.ROUTEROS_API_PASSWORD = 'nightlypass';
-    delete process.env.ROUTEROS_API_PORT;
-  });
-
   afterEach(() => {
     process.env = { ...origEnv };
     jest.clearAllMocks();
+    db.query.mockReset();
   });
 
-  test('returns zeros when ROUTEROS_API_PASSWORD is not set', async () => {
-    delete process.env.ROUTEROS_API_PASSWORD;
+  // Every device of these tests has a driver config bound to it.
+  const boundConfig = [[{ id: 4, vendor: 'mikrotik', username: 'org-user', encrypted_password: 'CIPHER', port: 8728 }]];
+
+  test('handles empty device list gracefully', async () => {
+    db.query.mockResolvedValueOnce([[]]);
     const result = await runNightlyBackups();
-    expect(result).toEqual({ total: 0, backed_up: 0, skipped: 0, failed: 0 });
-    expect(db.query).not.toHaveBeenCalled();
+    expect(result).toEqual({ total: 0, backed_up: 0, skipped: 0, failed: 0, no_credentials: 0 });
+  });
+
+  // NET-30: one install-wide ROUTEROS_API_USER/PASSWORD logged in to every
+  // tenant's devices. Each device now uses its own organization's login, and a
+  // device without one is not contacted even when the old env pair is set.
+  test('logs in with the device organization login, never the old env pair', async () => {
+    process.env.ROUTEROS_API_USER = 'install-operator';
+    process.env.ROUTEROS_API_PASSWORD = 'install-operator-secret';
+    db.query
+      .mockResolvedValueOnce([[
+        { id: 1, ip_address: '10.0.0.1', firerelay_node_id: 'node-1', organization_id: 7 },
+        { id: 2, ip_address: '10.0.0.2', firerelay_node_id: 'node-1', organization_id: 8 },
+      ]])
+      .mockResolvedValueOnce(boundConfig)          // device 1: bound driver config
+      .mockResolvedValueOnce([[]])                 // getLatestChecksum
+      .mockResolvedValueOnce([[]])                 // getLatestVersion
+      .mockResolvedValueOnce([{ insertId: 10 }])   // INSERT
+      .mockResolvedValueOnce([[]])                 // device 2: no bound config
+      .mockResolvedValueOnce([[]])                 //           no NAS login
+      .mockResolvedValueOnce([[]]);                //           no org default
+    tunnelServer.isConnected.mockReturnValue(true);
+    tunnelServer.sendCommand.mockResolvedValueOnce({ content: '# config', configType: 'mikrotik_export' });
+
+    const result = await runNightlyBackups();
+
+    expect(result).toEqual({ total: 2, backed_up: 1, skipped: 0, failed: 0, no_credentials: 1 });
+    expect(tunnelServer.sendCommand).toHaveBeenCalledTimes(1);
+    const sent = tunnelServer.sendCommand.mock.calls[0][2];
+    expect(sent).toMatchObject({ host: '10.0.0.1', user: 'org-user' });
+    expect(sent.password).not.toBe('install-operator-secret');
+    const lookup = db.query.mock.calls[1];
+    expect(lookup[0]).toMatch(/FROM router_driver_configs[\s\S]*organization_id = \?/);
+    expect(lookup[1].slice(0, 2)).toEqual([1, 7]);
+    // Device 2's lookups are all bound to its own organization.
+    for (const [, params] of db.query.mock.calls.slice(5)) expect(params).toContain(8);
   });
 
   test('counts backed_up, skipped, and failed correctly', async () => {
     const devices = [
-      { id: 1, name: 'Router A', ip_address: '10.0.0.1', firerelay_node_id: 'node-1' },
-      { id: 2, name: 'Router B', ip_address: '10.0.0.2', firerelay_node_id: 'node-1' },
-      { id: 3, name: 'Router C', ip_address: '10.0.0.3', firerelay_node_id: 'node-2' },
+      { id: 1, name: 'Router A', ip_address: '10.0.0.1', firerelay_node_id: 'node-1', organization_id: 7 },
+      { id: 2, name: 'Router B', ip_address: '10.0.0.2', firerelay_node_id: 'node-1', organization_id: 7 },
+      { id: 3, name: 'Router C', ip_address: '10.0.0.3', firerelay_node_id: 'node-2', organization_id: 7 },
     ];
 
     db.query.mockResolvedValueOnce([devices]); // device list query
@@ -266,6 +298,7 @@ describe('runNightlyBackups', () => {
     // Device 1: new backup
     tunnelServer.sendCommand.mockResolvedValueOnce({ content: contentA, configType: 'mikrotik_export' });
     db.query
+      .mockResolvedValueOnce(boundConfig)
       .mockResolvedValueOnce([[]])                    // getLatestChecksum (no prior)
       .mockResolvedValueOnce([[]])                    // getLatestVersion (no prior)
       .mockResolvedValueOnce([{ insertId: 10 }]);     // INSERT
@@ -273,6 +306,7 @@ describe('runNightlyBackups', () => {
     // Device 2: unchanged (skipped)
     tunnelServer.sendCommand.mockResolvedValueOnce({ content: contentB, configType: 'mikrotik_export' });
     db.query
+      .mockResolvedValueOnce(boundConfig)
       .mockResolvedValueOnce([[{ checksum: checksumB }]]); // getLatestChecksum — same
 
     const result = await runNightlyBackups();
@@ -285,10 +319,10 @@ describe('runNightlyBackups', () => {
 
   test('counts a device as failed when tunnel throws', async () => {
     const devices = [
-      { id: 1, name: 'Router A', ip_address: '10.0.0.1', firerelay_node_id: 'node-1' },
+      { id: 1, name: 'Router A', ip_address: '10.0.0.1', firerelay_node_id: 'node-1', organization_id: 7 },
     ];
 
-    db.query.mockResolvedValueOnce([devices]);
+    db.query.mockResolvedValueOnce([devices]).mockResolvedValueOnce(boundConfig);
     tunnelServer.isConnected.mockReturnValueOnce(true);
     tunnelServer.sendCommand.mockRejectedValueOnce(new Error('command timeout'));
 
@@ -297,12 +331,6 @@ describe('runNightlyBackups', () => {
     expect(result.total).toBe(1);
     expect(result.failed).toBe(1);
     expect(result.backed_up).toBe(0);
-  });
-
-  test('handles empty device list gracefully', async () => {
-    db.query.mockResolvedValueOnce([[]]);
-    const result = await runNightlyBackups();
-    expect(result).toEqual({ total: 0, backed_up: 0, skipped: 0, failed: 0 });
   });
 
   // NET-15: the org-scoped run joined clients, so a POP or backbone device

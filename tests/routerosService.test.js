@@ -35,6 +35,7 @@ const {
   connFromParams,
   handlers,
   DEFAULT_PORT,
+  listInterfaces,
 } = require('../src/services/routerosService');
 
 // =============================================================================
@@ -1044,6 +1045,35 @@ describe('findAddressListEntryId — via addressListRemove (not-found error)', (
       await expect(
         addressListRemove({ ...CONN, port }, { list: 'blocked', address: '9.9.9.9' }),
       ).rejects.toThrow('not found');
+    });
+  });
+});
+
+// NET-30: the driver connection test and list_interfaces called a function
+// this module never exported.
+describe('listInterfaces', () => {
+  test('returns the parsed /interface/print rows', async () => {
+    const sent = [];
+    const handler = (sentence) => {
+      sent.push(sentence);
+      if (sentence[0] === '/interface/print') {
+        return [['!re', '=.id=*1', '=name=ether1', '=running=true'], ['!re', '=.id=*2', '=name=ether2'], ['!done']];
+      }
+      return [['!done']];
+    };
+    await withMockServer(handler, async (port) => {
+      const rows = await listInterfaces({ ...CONN, port });
+      expect(rows.map(r => r.name)).toEqual(['ether1', 'ether2']);
+      expect(sent.some(s => s[0] === '/interface/print')).toBe(true);
+    });
+  });
+
+  test('a !trap is an error, not an empty list', async () => {
+    const handler = sentence => (sentence[0] === '/interface/print'
+      ? [['!trap', '=message=not enough permissions'], ['!done']]
+      : [['!done']]);
+    await withMockServer(handler, async (port) => {
+      await expect(listInterfaces({ ...CONN, port })).rejects.toThrow('not enough permissions');
     });
   });
 });
