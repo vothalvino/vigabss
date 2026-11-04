@@ -77,7 +77,7 @@
   "src/services/drDrillService.js": 12,
   "src/services/fiberPlantService.js": 11,
   "src/services/firerelayService.js": 6,
-  "src/services/ftthService.js": 7,
+  "src/services/ftthService.js": 6,
   "src/services/fupNotificationService.js": 1,
   "src/services/fupService.js": 3,
   "src/services/geoFenceService.js": 1,

@@ -2615,7 +2615,7 @@
     "new": "Nova Varredura de Descoberta",
     "name": "Nome da Varredura",
     "cidr_ranges": "Faixas CIDR",
-    "cidr_ranges_hint": "Separadas por virgula, ex. 192.168.1.0/24, 10.0.0.0/8",
+    "cidr_ranges_hint": "Separadas por virgula, ex. 192.168.1.0/24 (no máximo 4096 endereços por varredura)",
     "snmp_version": "Versao SNMP",
     "snmp_community": "String de Comunidade",
     "snmp_port": "Porta",
@@ -2628,7 +2628,17 @@
     "delete_success": "Varredura de descoberta excluida.",
     "delete_error": "Falha ao excluir a varredura de descoberta.",
     "error": "Falha ao carregar as varreduras de descoberta.",
-    "empty": "Nenhuma varredura de descoberta encontrada."
+    "empty": "Nenhuma varredura de descoberta encontrada.",
+    "results": "Resultados",
+    "cancel_scan": "Cancelar varredura",
+    "results_title": "Dispositivos descobertos",
+    "results_empty": "Nenhum dispositivo respondeu ainda.",
+    "ip_address": "Endereço IP",
+    "hostname": "Nome do host",
+    "vendor": "Fabricante / modelo",
+    "device_type": "Tipo",
+    "onboard": "Incorporar",
+    "ignore": "Ignorar"
   },
   "device_import": {
     "title": "Importacao em Massa de Dispositivos",
@@ -3469,7 +3479,11 @@
       "scheduledAt": "Agendado Para",
       "devices": "Dispositivos",
       "empty": "Nenhuma campanha de firmware.",
-      "error": "Falha ao carregar as campanhas."
+      "error": "Falha ao carregar as campanhas.",
+      "launch": "Iniciar",
+      "cancel": "Cancelar campanha",
+      "failed": "com falha",
+      "confirmLaunch": "Enviar este firmware para todos os CPEs da campanha? Cada um o baixa na próxima conexão."
     }
   },
   "cpeProfiles": {
@@ -3701,6 +3715,7 @@
       "device": "Dispositivo",
       "commandType": "Tipo de Comando",
       "targetValue": "Valor Alvo",
+      "driverHint": "Só é possível enviar reinicialização: ela é executada pela configuração de driver do roteador do dispositivo (API do MikroTik RouterOS). Os ajustes de rádio são alterados no próprio rádio.",
       "status": "Status",
       "created": "Criado",
       "completed": "Concluído",

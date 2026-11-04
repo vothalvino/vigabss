@@ -76,7 +76,7 @@ const createApCommandJob = {
 const updateApCommandJob = {
   command_type: { type: 'string', enum: ['set_tx_power', 'set_frequency', 'set_channel_width', 'reboot', 'other'] },
   target_value: { type: 'string', max: 255 },
-  status:       { type: 'string', enum: ['pending', 'queued', 'in_progress', 'completed', 'failed', 'cancelled'] },
+  // No status: the executor owns it (NET-26); cancel has its own route.
   scheduled_at: { type: 'string' },
   notes:        { type: 'string', max: 5000 },
 };

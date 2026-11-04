@@ -308,3 +308,58 @@ describe('POST /:id/results/:resultId/onboard — cross-tenant guards', () => {
     );
   });
 });
+
+// NET-26: a scan was stored 'pending' and nothing ever ran it.
+describe('Discovery Scan routes — the scan is executed', () => {
+  const token = adminToken();
+  const jobQueue = require('../src/services/jobQueueService');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockDbDefault();
+    jest.spyOn(jobQueue, 'add').mockResolvedValue({ id: 'discovery-scan-1' });
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  const create = body => request(app)
+    .post('/api/v1/discovery-scans')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'POP scan', snmp_version: 'v2c', snmp_community: 'public', ...body });
+
+  test('POST queues a discovery-scan job for the stored scan', async () => {
+    const res = await create({ cidr_ranges: ['192.168.1.0/30'] });
+    expect(res.status).toBe(201);
+    expect(jobQueue.add).toHaveBeenCalledWith('discovery-scan', { scanId: 1, organizationId: 10 }, expect.objectContaining({ jobId: 'discovery-scan-1' }));
+    const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO `?discovery_scans/.test(sql));
+    expect(insert[1]).toContain(2); // total_hosts: a /30 has two hosts
+  });
+
+  test('a range the management-target guard refuses is 422 and nothing is stored', async () => {
+    for (const cidr of ['127.0.0.0/30', '169.254.169.254', '10.0.0.0/16', 'not-a-range']) {
+      const res = await create({ cidr_ranges: [cidr] });
+      expect(res.status).toBe(422);
+    }
+    expect(db.query.mock.calls.some(([sql]) => /INSERT INTO `?discovery_scans/.test(sql))).toBe(false);
+    expect(jobQueue.add).not.toHaveBeenCalled();
+  });
+
+  test('a client cannot set the executor-owned status or progress', async () => {
+    await create({ cidr_ranges: ['192.168.1.1'], status: 'completed', discovered_hosts: 900 });
+    const [sql, params] = db.query.mock.calls.find(([s]) => /INSERT INTO `?discovery_scans/.test(s));
+    expect(params).toContain('pending');
+    expect(params).not.toContain('completed');
+    expect(params).not.toContain(900);
+    expect(sql).not.toMatch(/discovered_hosts/);
+  });
+
+  test('POST /:id/cancel stops a pending or running scan, scoped to the caller organization', async () => {
+    const res = await request(app)
+      .post('/api/v1/discovery-scans/1/cancel')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const [sql, params] = db.query.mock.calls.find(([s]) => /SET status = 'cancelled'/.test(s));
+    expect(sql).toMatch(/organization_id = \?[\s\S]*status IN \('pending','running'\)/);
+    expect(params).toEqual(['1', 10]);
+  });
+});

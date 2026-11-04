@@ -426,7 +426,8 @@ function CampaignsTab() {
   const createMut = useMutation({
     mutationFn: async (body: { name: string; firmware_version_id: number }) => {
       const res = await api.POST('/cpe-management/firmware-campaigns' as never, { body } as never);
-      if ((res as { error?: unknown }).error) throw new Error('Create failed');
+      const error = (res as { error?: unknown }).error;
+      if (error) throw new Error(parseApiError(error, 'Create failed'));
       return (res as { data: unknown }).data;
     },
     onSuccess: () => {
@@ -435,6 +436,22 @@ function CampaignsTab() {
       setForm({ name: '', firmware_version_id: '' });
     },
     onError: (e: Error) => setCreateError(e.message),
+  });
+
+  // Launch queues a TR-069 Download for every targeted CPE (NET-26); cancel
+  // drops the ones no CPE has taken yet.
+  const [actionError, setActionError] = useState('');
+  const actionMut = useMutation({
+    mutationFn: async ({ id, action }: { id: number; action: 'launch' | 'cancel' }) => {
+      const opts = { params: { path: { id } } } as never;
+      const res = action === 'launch'
+        ? await api.POST('/cpe-management/firmware-campaigns/{id}/launch' as never, opts)
+        : await api.POST('/cpe-management/firmware-campaigns/{id}/cancel' as never, opts);
+      const error = (res as { error?: unknown }).error;
+      if (error) throw new Error(parseApiError(error, t('common.error')));
+    },
+    onSuccess: () => { setActionError(''); qc.invalidateQueries({ queryKey: ['cpe-firmware-campaigns'] }); },
+    onError: (e: Error) => setActionError(e.message),
   });
 
   const campaigns = data?.data ?? [];
@@ -452,6 +469,7 @@ function CampaignsTab() {
 
       {isLoading && <p>{t('common.loading')}</p>}
       {error && <p style={{ color: '#dc2626' }}>{t('cpeManagement.campaigns.error')}</p>}
+      {actionError && <p role="alert" style={{ color: '#dc2626' }}>{actionError}</p>}
 
       {!isLoading && campaigns.length === 0 && (
         <p style={{ color: '#6b7280' }}>{t('cpeManagement.campaigns.empty')}</p>
@@ -468,6 +486,7 @@ function CampaignsTab() {
                 <th style={styles.th}>{t('cpeManagement.campaigns.status')}</th>
                 <th style={styles.th}>{t('cpeManagement.campaigns.scheduledAt')}</th>
                 <th style={styles.th}>{t('cpeManagement.campaigns.devices')}</th>
+                <th style={styles.th} />
               </tr>
             </thead>
             <tbody>
@@ -480,7 +499,26 @@ function CampaignsTab() {
                     <span style={{ color: statusColor(c.status), fontWeight: 600 }}>{c.status}</span>
                   </td>
                   <td style={styles.td}>{c.scheduled_at ? new Date(c.scheduled_at).toLocaleString() : '—'}</td>
-                  <td style={styles.td}>{c.completed_devices}/{c.total_devices}</td>
+                  <td style={styles.td}>
+                    {c.completed_devices}/{c.total_devices}
+                    {c.failed_devices > 0 && <span style={{ color: '#dc2626' }}> ({c.failed_devices} {t('cpeManagement.campaigns.failed')})</span>}
+                  </td>
+                  <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
+                    {c.status === 'scheduled' && (
+                      <button
+                        style={{ ...styles.btnPrimary, marginRight: 6 }}
+                        disabled={actionMut.isPending}
+                        onClick={() => { if (confirm(t('cpeManagement.campaigns.confirmLaunch'))) actionMut.mutate({ id: c.id, action: 'launch' }); }}
+                      >
+                        {t('cpeManagement.campaigns.launch')}
+                      </button>
+                    )}
+                    {(c.status === 'scheduled' || c.status === 'running') && (
+                      <button style={styles.btnSecondary} disabled={actionMut.isPending} onClick={() => actionMut.mutate({ id: c.id, action: 'cancel' })}>
+                        {t('cpeManagement.campaigns.cancel')}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

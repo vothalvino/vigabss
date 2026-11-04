@@ -111,6 +111,25 @@ function registerWorkers() {
     return typeof db.withTenantContext === 'function' ? db.withTenantContext(organizationId, run) : run();
   });
 
+  // ---- Network jobs (NET-26) ---------------------------------------------
+  // The scan or command row is durable before its job is queued; one the
+  // queue loses is queued again at the next start.
+  jobQueue.process('discovery-scan', async (job) => {
+    const discoveryScanService = require('../services/discoveryScanService');
+    const db = require('../config/database');
+    const { scanId, organizationId } = job.data;
+    const run = () => discoveryScanService.runScan(scanId, organizationId);
+    return typeof db.withTenantContext === 'function' ? db.withTenantContext(organizationId, run) : run();
+  });
+
+  jobQueue.process('ap-command', async (job) => {
+    const apCommandService = require('../services/apCommandService');
+    const db = require('../config/database');
+    const { jobId, organizationId } = job.data;
+    const run = () => apCommandService.runApCommand(jobId, organizationId);
+    return typeof db.withTenantContext === 'function' ? db.withTenantContext(organizationId, run) : run();
+  });
+
   // ---- AI triage ----------------------------------------------------------
   jobQueue.process('ai-triage', async (job) => {
     const aiReplyService = require('../services/aiReplyService');

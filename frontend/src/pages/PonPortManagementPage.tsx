@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
+import { extractApiError } from '@/components/ClientFormModal';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
 import { listTotal, unwrapData, fmtFixed } from '@/api/envelope';
 
@@ -168,7 +169,9 @@ async function createMigration(body: {
   const res = await api.POST('/olt-management/onu-migrations' as never, {
     body: body as never,
   } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create migration');
+  const error = (res as { error?: unknown }).error;
+  // 501 until an OLT driver exists (NET-26): show why.
+  if (error) throw new Error(extractApiError(error, 'Failed to create migration'));
 }
 
 async function cancelMigration(jobId: number): Promise<void> {

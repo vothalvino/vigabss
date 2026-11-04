@@ -2615,7 +2615,7 @@
     "new": "New Discovery Scan",
     "name": "Scan Name",
     "cidr_ranges": "CIDR Ranges",
-    "cidr_ranges_hint": "Comma-separated, e.g. 192.168.1.0/24, 10.0.0.0/8",
+    "cidr_ranges_hint": "Comma-separated, e.g. 192.168.1.0/24 (at most 4096 addresses per scan)",
     "snmp_version": "SNMP Version",
     "snmp_community": "Community String",
     "snmp_port": "Port",
@@ -2628,7 +2628,17 @@
     "delete_success": "Discovery scan deleted.",
     "delete_error": "Failed to delete discovery scan.",
     "error": "Failed to load discovery scans.",
-    "empty": "No discovery scans found."
+    "empty": "No discovery scans found.",
+    "results": "Results",
+    "cancel_scan": "Cancel scan",
+    "results_title": "Discovered devices",
+    "results_empty": "No device has answered yet.",
+    "ip_address": "IP address",
+    "hostname": "Hostname",
+    "vendor": "Vendor / model",
+    "device_type": "Type",
+    "onboard": "Onboard",
+    "ignore": "Ignore"
   },
   "device_import": {
     "title": "Bulk Device Import",
@@ -3469,7 +3479,11 @@
       "scheduledAt": "Scheduled At",
       "devices": "Devices",
       "empty": "No firmware campaigns.",
-      "error": "Failed to load campaigns."
+      "error": "Failed to load campaigns.",
+      "launch": "Launch",
+      "cancel": "Cancel campaign",
+      "failed": "failed",
+      "confirmLaunch": "Send this firmware to every CPE the campaign targets? Each one downloads it at its next check-in."
     }
   },
   "cpeProfiles": {
@@ -3701,6 +3715,7 @@
       "device": "Device",
       "commandType": "Command Type",
       "targetValue": "Target Value",
+      "driverHint": "Only reboot can be sent: it runs through the device's router driver config (MikroTik RouterOS API). Radio settings are changed on the radio itself.",
       "status": "Status",
       "created": "Created",
       "completed": "Completed",

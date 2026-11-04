@@ -87,6 +87,12 @@ async function start() {
   require('./services/automationService').resumeBatchJobs()
     .catch(err => logger.warn({ err }, 'Could not resume unfinished batch jobs'));
 
+  // Discovery scans and AP commands left unfinished by the last process (NET-26).
+  require('./services/discoveryScanService').resumeDiscoveryScans()
+    .catch(err => logger.warn({ err }, 'Could not resume unfinished discovery scans'));
+  require('./services/apCommandService').resumeApCommands()
+    .catch(err => logger.warn({ err }, 'Could not resume unfinished AP commands'));
+
   // Populate the update-check cache so the first visit to Settings -> Version is
   // served from memory rather than waiting on api.github.com. Deliberately NOT
   // awaited: boot must not depend on a third party being reachable, and a

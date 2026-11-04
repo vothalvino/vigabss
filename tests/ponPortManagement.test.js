@@ -252,31 +252,17 @@ describe('ONU Migration Jobs', () => {
   });
 
   describe('POST /api/olt-management/onu-migrations', () => {
-    it('creates a migration job', async () => {
-      db.query
-        .mockResolvedValueOnce([[{ id: 5, olt_port_id: 1 }]]) // ONU detail check
-        .mockResolvedValueOnce([{ insertId: 99 }]) // INSERT
-        .mockResolvedValueOnce([[{ id: 99, status: 'pending', onu_device_id: 5, source_olt_port_id: 1, target_olt_port_id: 2 }]]);
-
+    // NET-26: the job was stored 'pending' and nothing ever moved the ONU.
+    // With no OLT driver the request is refused and nothing is stored.
+    it('refuses with 501 and stores no job', async () => {
       const res = await request(app)
         .post('/api/olt-management/onu-migrations')
         .set('Authorization', 'Bearer test')
         .send({ onu_device_id: 5, source_olt_port_id: 1, target_olt_port_id: 2 });
 
-      expect(res.status).toBe(201);
-      expect(res.body.data.id).toBe(99);
-      expect(res.body.data.status).toBe('pending');
-    });
-
-    it('returns 400 when source == target port', async () => {
-      db.query.mockResolvedValueOnce([[{ id: 5, olt_port_id: 1 }]]);
-
-      const res = await request(app)
-        .post('/api/olt-management/onu-migrations')
-        .set('Authorization', 'Bearer test')
-        .send({ onu_device_id: 5, source_olt_port_id: 3, target_olt_port_id: 3 });
-
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(501);
+      expect(res.body.error.code).toBe('ONU_ACTION_NOT_IMPLEMENTED');
+      expect(db.query.mock.calls.some(([sql]) => /INSERT INTO onu_migration_jobs/.test(sql))).toBe(false);
     });
   });
 

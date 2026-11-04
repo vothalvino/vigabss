@@ -15,6 +15,7 @@ const db = require('../config/database');
 const { assertDeviceClientFk } = require('../services/deviceAuthz');
 const { redactDevice, sealSnmpCommunity, sealSnmpV3Keys } = require('../utils/deviceSanitize');
 const { redactSecretColumns } = require('../utils/secretRedaction');
+const discoveryScanService = require('../services/discoveryScanService');
 
 const router = Router();
 router.use(authenticate);
@@ -39,20 +40,50 @@ const ctrl = crudController(DiscoveryScan, { serialize: redactDiscoveryScan });
 
 router.get('/',    requirePermission('discovery_scans.view'),   ctrl.list);
 router.get('/:id', requirePermission('discovery_scans.view'),   ctrl.get);
-router.post('/',   requirePermission('discovery_scans.create'), validate(createDiscoveryScan, { strip: false }), sealSnmpV3Keys, sealSnmpCommunity, async (req, res, next) => {
+// The executor owns a scan's state and progress (NET-26); a client can set
+// neither, and every range is checked before the scan is stored.
+const EXECUTOR_COLUMNS = ['status', 'scan_started_at', 'scan_completed_at', 'total_hosts', 'scanned_hosts', 'discovered_hosts', 'error_message'];
+function checkScanBody(req, res, next) {
+  try {
+    for (const key of EXECUTOR_COLUMNS) delete req.body[key];
+    if (req.body.cidr_ranges !== undefined) {
+      req.body.total_hosts = discoveryScanService.expandCidrs(req.body.cidr_ranges).length;
+      if (Array.isArray(req.body.cidr_ranges)) req.body.cidr_ranges = JSON.stringify(req.body.cidr_ranges);
+    }
+    next();
+  } catch (err) { next(err); }
+}
+
+// The scan is queued at once; GET /:id shows its progress and GET
+// /:id/results what answered.
+router.post('/',   requirePermission('discovery_scans.create'), validate(createDiscoveryScan, { strip: false }), checkScanBody, sealSnmpV3Keys, sealSnmpCommunity, async (req, res, next) => {
   try {
     req.body.organization_id = req.orgId;
     req.body.created_by = req.user.id;
     req.body.status = 'pending';
-    // Ensure cidr_ranges is stored as JSON string if it's an array
-    if (Array.isArray(req.body.cidr_ranges)) {
-      req.body.cidr_ranges = JSON.stringify(req.body.cidr_ranges);
-    }
     const created = await DiscoveryScan.create(req.body);
+    await discoveryScanService.queueScan(created.id, req.orgId);
     res.status(201).json({ data: redactDiscoveryScan(created) });
   } catch (err) { next(err); }
 });
-router.put('/:id',  requirePermission('discovery_scans.update'), validate(updateDiscoveryScan, { strip: false }), sealSnmpV3Keys, sealSnmpCommunity, ctrl.update);
+router.put('/:id',  requirePermission('discovery_scans.update'), validate(updateDiscoveryScan, { strip: false }), checkScanBody, sealSnmpV3Keys, sealSnmpCommunity, ctrl.update);
+
+// POST /:id/cancel — stop a pending or running scan; results found so far stay.
+router.post('/:id/cancel', requirePermission('discovery_scans.update'), async (req, res, next) => {
+  try {
+    const [result] = await db.query(
+      `UPDATE discovery_scans SET status = 'cancelled', scan_completed_at = NOW()
+        WHERE id = ? AND organization_id = ? AND status IN ('pending','running') AND deleted_at IS NULL`,
+      [req.params.id, req.orgId],
+    );
+    if (!result.affectedRows) {
+      const scan = await DiscoveryScan.findById(req.params.id, req.orgId);
+      if (!scan) return res.status(404).json({ error: { message: 'Discovery scan not found' } });
+      return res.status(409).json({ error: { message: `A ${scan.status} scan cannot be cancelled` } });
+    }
+    res.json({ data: redactDiscoveryScan(await DiscoveryScan.findById(req.params.id, req.orgId)) });
+  } catch (err) { next(err); }
+});
 router.delete('/:id', requirePermission('discovery_scans.delete'), ctrl.destroy);
 router.post('/:id/restore', requirePermission('discovery_scans.update'), ctrl.restore);
 

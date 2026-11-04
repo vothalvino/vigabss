@@ -223,27 +223,20 @@ async function scheduleOnuReboot(onuDeviceId, oltDeviceId, orgId, createdBy) {
 
 /**
  * Schedule a firmware upgrade job (single ONU, OLT port, or full OLT).
+ * Refused with 501 until an OLT driver exists.
  * @param {object} params
- * @returns {Promise<object>} job row
+ * @returns {Promise<never>}
  */
 async function scheduleFirmwareUpgrade(params) {
-  const {
-    scope, onuDeviceId, oltDeviceId, oltPortId,
-    firmwareVersion, firmwareUrl, scheduledAt,
-    orgId, createdBy,
-  } = params;
-
-  logger.info({ scope, oltDeviceId, firmwareVersion }, 'ftthService.scheduleFirmwareUpgrade: recording firmware job');
-
-  const [res] = await db.query(
-    `INSERT INTO onu_firmware_jobs
-       (organization_id, job_type, scope, onu_device_id, olt_device_id, olt_port_id,
-        firmware_version, firmware_url, scheduled_at, status, total_devices, created_by)
-     VALUES (?, 'firmware_upgrade', ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
-    [orgId, scope, onuDeviceId, oltDeviceId, oltPortId, firmwareVersion, firmwareUrl, scheduledAt, createdBy],
+  // The job used to be stored 'pending' for a processor that does not exist
+  // (ftth_onu_firmware_job_processor needs a vendor OLT driver), so no ONU was
+  // ever upgraded (NET-26). Refuse instead of storing a job nothing runs.
+  logger.warn({ scope: params.scope, oltDeviceId: params.oltDeviceId, orgId: params.orgId }, 'ONU firmware upgrade requested; OLT dispatch is not implemented');
+  throw new AppError(
+    'Upgrading ONU firmware through the OLT is not implemented yet; nothing was queued. Upgrade it from the OLT.',
+    501,
+    'ONU_ACTION_NOT_IMPLEMENTED',
   );
-  const [[job]] = await db.query('SELECT * FROM onu_firmware_jobs WHERE id = ?', [res.insertId]);
-  return job;
 }
 
 // ---------------------------------------------------------------------------
@@ -464,45 +457,21 @@ async function configurePortXgsPonMode(portId, mode, orgId) {
 }
 
 /**
- * Create an ONU migration job (transactional port reassignment intent).
- * Actual de-registration + re-registration on device is stubbed.
+ * Create an ONU migration job (port reassignment). Refused with 501 until an
+ * OLT driver can deregister and re-authorize the ONU.
  * @param {object} params
- * @returns {Promise<object>} created job row
+ * @returns {Promise<never>}
  */
 async function createOnuMigrationJob(params) {
-  const {
-    onuDeviceId, sourceOltPortId, targetOltPortId,
-    sourceOltDeviceId, targetOltDeviceId, scheduledAt, orgId, createdBy, notes,
-  } = params;
-
-  logger.info({ onuDeviceId, sourceOltPortId, targetOltPortId }, 'ftthService.createOnuMigrationJob: recording migration intent');
-
-  // Validate source port != target port
-  if (sourceOltPortId === targetOltPortId) {
-    throw Object.assign(new Error('Source and target ports must differ'), { statusCode: 400 });
-  }
-
-  // Check ONU is actually on the source port
-  const [detail] = await db.query(
-    'SELECT id, olt_port_id FROM onu_details WHERE device_id = ? AND deleted_at IS NULL LIMIT 1',
-    [onuDeviceId],
+  // Stored 'pending' with nothing to move the ONU between ports (NET-26): the
+  // OLT has to deregister it on one port and authorize it on the other, and
+  // no OLT driver exists. Refuse instead of storing a job nothing runs.
+  logger.warn({ onuDeviceId: params.onuDeviceId, orgId: params.orgId }, 'ONU port migration requested; OLT dispatch is not implemented');
+  throw new AppError(
+    'Moving an ONU to another PON port is not implemented yet; nothing was queued. Move it on the OLT.',
+    501,
+    'ONU_ACTION_NOT_IMPLEMENTED',
   );
-  if (!detail.length) {
-    throw Object.assign(new Error('ONU detail record not found'), { statusCode: 404 });
-  }
-
-  const [res] = await db.query(
-    `INSERT INTO onu_migration_jobs
-       (organization_id, onu_device_id, source_olt_port_id, target_olt_port_id,
-        source_olt_device_id, target_olt_device_id, scheduled_at, status, created_by, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-    [orgId, onuDeviceId, sourceOltPortId, targetOltPortId,
-      sourceOltDeviceId || null, targetOltDeviceId || null,
-      scheduledAt || null, createdBy, notes || null],
-  );
-
-  const [[job]] = await db.query('SELECT * FROM onu_migration_jobs WHERE id = ?', [res.insertId]);
-  return job;
 }
 
 module.exports = {

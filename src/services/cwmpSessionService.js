@@ -188,6 +188,8 @@ async function processTaskResponse(task, responsePayload) {
     [now, JSON.stringify(responsePayload), task.id],
   );
 
+  await require('./cpeFirmwareCampaignService').afterTaskSettled(task);
+
   // Status 0 = applied, 1 = applied and committed after a reboot (TR-069).
   if (task.task_type === 'set_parameter_values') {
     const applied = responsePayload.status === 0 || responsePayload.status === 1;

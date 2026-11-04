@@ -1,13 +1,10 @@
 // =============================================================================
 // VigaBSS 5.0 — Router Driver Service (§18.3)
 // =============================================================================
-// Vendor-agnostic router command dispatch interface.
-//
-// MikroTik RouterOS: LIVE dispatch via existing routerosService.js.
-// All other vendors (Cisco IOS/IOS-XE, Juniper JunOS, ZTE/Huawei, generic REST):
-//   STUBBED — records a device_command_executions row with status='stubbed'.
-//   No live SSH/NETCONF/REST call is made for non-MikroTik vendors.
-//   A vendor driver plugin system would wire real implementations here.
+// Vendor-agnostic router command dispatch. The vendor's driver comes from the
+// registry in ./drivers (NET-30); today only MikroTik RouterOS has one. A
+// vendor without a driver records a device_command_executions row with
+// status='not_dispatched': nothing was sent to the device, and the row says so.
 //
 // Credentials are stored AES-256-GCM encrypted via src/utils/encryption.js.
 // =============================================================================
@@ -15,13 +12,19 @@
 const db = require('../config/database');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { redactSecretParams } = require('../utils/secretRedaction');
+const { getDriver } = require('./drivers');
 const logger = require('../utils/logger').child({ service: 'routerDriverService' });
 
-// Lazily require routerosService to avoid circular deps at module load
-let _routerosService = null;
-function getRouterosService() {
-  if (!_routerosService) _routerosService = require('./routerosService');
-  return _routerosService;
+/** The driver connection for a router_driver_configs row. */
+function configConnection(driver, config) {
+  return driver.toConnection({
+    host: config.host,
+    port: config.port,
+    user: config.username,
+    password: config.encrypted_password ? decrypt(config.encrypted_password) : null,
+    secure: Boolean(config.ssl_enabled),
+    timeoutMs: config.timeout_ms,
+  });
 }
 
 /**
@@ -89,9 +92,8 @@ async function updateDriverConfig(configId, organizationId, data) {
 }
 
 /**
- * Test connectivity to a router.
- * For MikroTik: uses routerosService to open a real connection.
- * For others: STUBBED.
+ * Test connectivity to a router through its vendor driver; a vendor with no
+ * driver reports not_implemented.
  */
 async function testDriverConnection(configId, organizationId) {
   const [configs] = await db.query(
@@ -101,26 +103,23 @@ async function testDriverConnection(configId, organizationId) {
   if (!configs.length) return null;
 
   const config = configs[0];
-  const password = config.encrypted_password ? decrypt(config.encrypted_password) : null;
+  const driver = getDriver(config.vendor);
 
   let testStatus = 'failed';
   let testMessage;
 
-  if (config.vendor === 'mikrotik') {
+  if (driver) {
     try {
-      const rosService = getRouterosService();
-      await rosService.listInterfaces({ host: config.host, port: config.port, user: config.username, password });
-      testStatus = 'ok';
-      testMessage = 'RouterOS API connection successful';
+      ({ status: testStatus, message: testMessage } = await driver.test(configConnection(driver, config)));
     } catch (err) {
       testMessage = err.message;
-      logger.warn({ configId, err }, 'MikroTik connection test failed');
+      logger.warn({ configId, vendor: config.vendor, err }, 'Driver connection test failed');
     }
   } else {
-    // Non-MikroTik vendor drivers are not implemented — report honestly as not_tested
+    // No driver for this vendor: report honestly rather than test nothing.
     testStatus = 'not_implemented';
     testMessage = `Vendor '${config.vendor}' driver is not implemented — no live connection test available`;
-    logger.info({ configId, vendor: config.vendor }, 'Non-MikroTik driver test: not_implemented');
+    logger.info({ configId, vendor: config.vendor }, 'Driver test: not_implemented');
   }
 
   await db.query(
@@ -132,9 +131,8 @@ async function testDriverConnection(configId, organizationId) {
 }
 
 /**
- * Dispatch a command to a router.
- * MikroTik: live via routerosService.
- * Others: STUBBED (records device_command_executions with status='stubbed').
+ * Dispatch a command to a router through its vendor driver. A vendor with no
+ * driver records device_command_executions with status='not_dispatched'.
  */
 async function dispatchCommand(configId, organizationId, command, params = {}, executedBy = null) {
   const [configs] = await db.query(
@@ -149,47 +147,27 @@ async function dispatchCommand(configId, organizationId, command, params = {}, e
   let response = null;
   let errorMessage = null;
 
-  if (config.vendor === 'mikrotik') {
+  const driver = getDriver(config.vendor);
+  if (driver) {
     try {
-      const rosService = getRouterosService();
-      const password = config.encrypted_password ? decrypt(config.encrypted_password) : null;
-      const conn = { host: config.host, port: config.port, user: config.username, password };
-
-      // Map command names to routerosService methods
-      switch (command) {
-        case 'list_interfaces':
-          response = await rosService.listInterfaces(conn);
-          break;
-        case 'pppoe_create':
-          response = await rosService.pppoeCreate(conn, params);
-          break;
-        case 'pppoe_delete':
-          response = await rosService.pppoeDelete(conn, params);
-          break;
-        case 'queue_set':
-          response = await rosService.queueSet(conn, params);
-          break;
-        case 'reboot':
-          response = await rosService.systemReboot(conn);
-          break;
-        default:
-          // Unmapped commands must NOT report success — an unknown command was
-          // never sent to the device, so recording 'success' would be a silent
-          // no-op that reads as a real action (e.g. a reboot that never fired).
-          throw new Error(`Command '${command}' is not mapped to a MikroTik handler`);
-      }
+      const handler = Object.prototype.hasOwnProperty.call(driver.commands, command) ? driver.commands[command] : null;
+      // Unmapped commands must NOT report success — an unknown command was
+      // never sent to the device, so recording 'success' would be a silent
+      // no-op that reads as a real action (e.g. a reboot that never fired).
+      if (!handler) throw new Error(`Command '${command}' is not mapped to a ${config.vendor} handler`);
+      response = await handler(configConnection(driver, config), params);
       status = 'success';
     } catch (err) {
       status = 'failure';
       errorMessage = err.message;
-      logger.error({ configId, command, err }, 'MikroTik command dispatch failed');
+      logger.error({ configId, vendor: config.vendor, command, err }, 'Driver command dispatch failed');
     }
   } else {
-    // Non-MikroTik vendor: driver not implemented — record as not_dispatched and surface clearly
+    // No driver for this vendor — record as not_dispatched and surface clearly
     status = 'not_dispatched';
     errorMessage = `Vendor '${config.vendor}' driver is not implemented — command '${command}' was NOT sent to the device`;
     response = { dispatched: false, reason: `${config.vendor} driver not implemented` };
-    logger.warn({ configId, vendor: config.vendor, command }, 'Non-MikroTik command not dispatched: driver not implemented');
+    logger.warn({ configId, vendor: config.vendor, command }, 'Command not dispatched: driver not implemented');
   }
 
   const duration = Date.now() - start;

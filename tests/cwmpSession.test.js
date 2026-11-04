@@ -113,7 +113,7 @@ test('an unknown session cookie does not stand in for credentials', async () => 
 describe('reapStuckTasks', () => {
   test('fails tasks left in_progress and settles a waiting Wi-Fi request', async () => {
     db.query.mockImplementation(async (sql) => {
-      if (/^SELECT id, task_type FROM cpe_tasks/.test(sql.trim())) {
+      if (/^SELECT id, task_type, parameters, organization_id FROM cpe_tasks/.test(sql.trim())) {
         return [[{ id: 41, task_type: 'set_parameter_values' }, { id: 42, task_type: 'reboot' }]];
       }
       return [{ affectedRows: 1 }];

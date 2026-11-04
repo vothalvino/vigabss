@@ -348,7 +348,8 @@ router.get('/ap-commands/:id', requirePermission('ap_commands.view'), async (req
  */
 router.post('/ap-commands', requirePermission('ap_commands.create'), validate(createApCommandJob, { strip: false }), async (req, res, next) => {
   try {
-    const record = await wirelessService.createApCommandJob(req.orgId, req.user && req.user.id, req.body);
+    // Queued at once; the job row reports the device's answer (NET-26).
+    const record = await require('../services/apCommandService').createApCommandJob(req.orgId, req.user && req.user.id, req.body);
     res.status(201).json({ data: record });
   } catch (err) { next(err); }
 });
