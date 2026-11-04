@@ -47,7 +47,7 @@ const SOURCE_FILTER_OPTIONS = ['', 'client_portal', 'technician', 'automated_pro
 async function fetchSpeedTests(page: number, sourceFilter: string): Promise<SpeedTestResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (sourceFilter) query.test_source = sourceFilter;
-  const res = await api.GET('/speed-tests', { params: { query: query as never } });
+  const res = await api.GET('/speed-tests', { params: { query: query } });
   if (res.error) throw new Error('Failed to load speed tests');
   return res.data as unknown as SpeedTestResponse;
 }

@@ -142,65 +142,65 @@ const SIGNAL_BUCKETS = [
 // ---------------------------------------------------------------------------
 
 async function fetchDevices(): Promise<DevicesResponse> {
-  const res = await api.GET('/devices' as never, {
-    params: { query: { limit: 200 } as never },
-  } as never);
+  const res = await api.GET('/devices', {
+    params: { query: { limit: 200 } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load devices');
   return (res as { data: unknown }).data as unknown as DevicesResponse;
 }
 
 async function fetchSites(): Promise<SitesResponse> {
-  const res = await api.GET('/sites' as never, {
-    params: { query: { limit: 200 } as never },
-  } as never);
+  const res = await api.GET('/sites', {
+    params: { query: { limit: 200 } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load sites');
   return (res as { data: unknown }).data as unknown as SitesResponse;
 }
 
 async function fetchSignalDistribution(deviceId: number, hours: number): Promise<SignalDistributionResponse> {
-  const res = await api.GET('/wireless/clients/signal-distribution' as never, {
-    params: { query: { device_id: deviceId, hours } as never },
-  } as never);
+  const res = await api.GET('/wireless/clients/signal-distribution', {
+    params: { query: { device_id: deviceId, hours } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load signal distribution');
   return unwrapData<SignalDistributionResponse>((res as { data: unknown }).data);
 }
 
 async function calculateLinkBudget(input: LinkCalcInput): Promise<LinkCalcResult> {
-  const res = await api.POST('/wireless/link-planning/calculate' as never, { body: input as never } as never);
+  const res = await api.POST('/wireless/link-planning/calculate', { body: input as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to calculate link budget');
   return unwrapData<LinkCalcResult>((res as { data: unknown }).data);
 }
 
 async function fetchSavedCalcs(page: number): Promise<SavedLinkCalcsResponse> {
-  const res = await api.GET('/wireless/link-planning' as never, {
+  const res = await api.GET('/wireless/link-planning', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load saved calculations');
   return (res as { data: unknown }).data as unknown as SavedLinkCalcsResponse;
 }
 
 async function saveCalc(body: LinkCalcInput & { name: string }): Promise<void> {
-  const res = await api.POST('/wireless/link-planning' as never, { body: body as never } as never);
+  const res = await api.POST('/wireless/link-planning', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to save calculation');
 }
 
 async function deleteSavedCalc(id: number): Promise<void> {
-  const res = await api.DELETE('/wireless/link-planning/{id}' as never, {
+  const res = await api.DELETE('/wireless/link-planning/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete calculation');
 }
 
 async function fetchSpectrumScans(page: number): Promise<SpectrumScansResponse> {
-  const res = await api.GET('/wireless/spectrum-scans' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/wireless/spectrum-scans', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load spectrum scans');
   return (res as { data: unknown }).data as unknown as SpectrumScansResponse;
 }
 
 async function createSpectrumScan(body: SpectrumScanBody): Promise<void> {
-  const res = await api.POST('/wireless/spectrum-scans' as never, { body: body as never } as never);
+  const res = await api.POST('/wireless/spectrum-scans', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create spectrum scan');
 }
 

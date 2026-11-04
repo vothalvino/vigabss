@@ -816,6 +816,26 @@ frontend/src/api/schema.d.ts  (generated TypeScript types)
 generator. It cannot discover that an Express route was omitted from the
 generator, so reviewers must compare changed routes to the spec manually.
 
+`gen:api` runs with `--empty-objects-unknown`, so a response documented only as
+`{ type: 'object' }` is typed `unknown` and a page narrows it (`unwrapList`,
+`unwrapData` in `frontend/src/api/envelope.ts`, or a cast of `res.data`).
+Document a missing path or query parameter in `src/utils/openapi.js` rather
+than casting the call `as never`: `src/test/apiContract.test.ts` checks every
+literal path against the spec, and `src/test/asNeverRatchet.test.ts` keeps any
+file from adding an `as never` or `as unknown as` (FE-23).
+
+A response that sends whole table rows can be typed from `database/schema.sql`
+with `tableRowSchema(table)` (`src/utils/tableRowSchema.js`): DECIMAL columns
+are strings (mysql2's default), dates are ISO strings, NULL-able columns may be
+null, every column is required and joined fields are allowed. The invoice,
+payment, credit note, ticket and contract reads use it; pages take the row
+types from `frontend/src/api/rows.ts` instead of restating the columns.
+
+Display helpers are shared: `components/ui/StatusBadge` (a page passes its
+status colour map), `lib/money`'s `formatMoney` and `lib/dates`'
+`formatDate` (calendar dates never shift a day). `src/test/sharedHelpers.test.ts`
+keeps new pages from declaring their own StatusBadge or money formatter.
+
 Prefer the typed `api.GET/POST/PUT/PATCH/DELETE(...)` client from
 `frontend/src/api/client.ts`. Use `authedFetch` when raw response bodies,
 downloads, GraphQL, or a path not expressible through the generated client make

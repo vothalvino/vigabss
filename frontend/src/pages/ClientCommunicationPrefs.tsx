@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
+import { unwrapList } from '@/api/envelope';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import {
@@ -35,10 +36,6 @@ interface DndPref {
   reason: string | null;
 }
 
-interface DndResponse {
-  data: DndPref[];
-}
-
 type Channel = 'all' | 'email' | 'sms' | 'whatsapp';
 
 const CHANNELS: Channel[] = ['all', 'email', 'sms', 'whatsapp'];
@@ -55,11 +52,11 @@ const CHANNEL_LABELS: Record<Channel, string> = {
 // ---------------------------------------------------------------------------
 
 async function fetchDnd(clientId: number): Promise<DndPref[]> {
-  const res = await api.GET('/clients/{clientId}/dnd' as never, {
-    params: { path: { clientId } as never },
-  } as never);
+  const res = await api.GET('/clients/{clientId}/dnd', {
+    params: { path: { clientId } },
+  });
   if (res.error) throw new Error('Failed to load DND preferences');
-  return ((res.data as DndResponse).data ?? []);
+  return unwrapList<DndPref>(res.data);
 }
 
 // ---------------------------------------------------------------------------
@@ -102,11 +99,11 @@ function DndChannelRow({
       if (form.reason.trim()) body.reason = form.reason.trim();
 
       const { error: e } = await api.PATCH(
-        '/clients/{clientId}/dnd/{channel}' as never,
+        '/clients/{clientId}/dnd/{channel}',
         {
-          params: { path: { clientId, channel } as never },
-          body: body as never,
-        } as never,
+          params: { path: { clientId, channel } },
+          body: body,
+        },
       );
       if (e) throw new Error(extractApiError(e, t('clientDnd.errors.saveFailed')));
     },

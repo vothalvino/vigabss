@@ -26,6 +26,7 @@ import {
   cancelBtn,
   dangerBtn,
 } from '@/components/ClientFormModal';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,17 +99,17 @@ const CLIENT_STATUSES = ['active', 'inactive', 'suspended', 'cancelled'] as cons
 // ---------------------------------------------------------------------------
 
 async function fetchCampaigns(page: number): Promise<CampaignResponse> {
-  const res = await api.GET('/communication-campaigns' as never, {
-    params: { query: { page, limit: DEFAULT_PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/communication-campaigns', {
+    params: { query: { page, limit: DEFAULT_PAGE_SIZE } },
+  });
   if (res.error) throw new Error('Failed to load campaigns');
   return res.data as unknown as CampaignResponse;
 }
 
 async function fetchTemplates(): Promise<MessageTemplate[]> {
-  const res = await api.GET('/message-templates' as never, {
-    params: { query: { limit: 200 } as never },
-  } as never);
+  const res = await api.GET('/message-templates', {
+    params: { query: { limit: 200 } },
+  });
   if (res.error) return [];
   const d = res.data as unknown as { data: MessageTemplate[] };
   return d.data ?? [];
@@ -117,9 +118,9 @@ async function fetchTemplates(): Promise<MessageTemplate[]> {
 async function fetchMessages(campaignId: number, page: number, status?: string): Promise<MessagesResponse> {
   const query: Record<string, unknown> = { page, limit: 50 };
   if (status) query.status = status;
-  const res = await api.GET('/communication-campaigns/{id}/messages' as never, {
-    params: { path: { id: campaignId } as never, query: query as never },
-  } as never);
+  const res = await api.GET('/communication-campaigns/{id}/messages', {
+    params: { path: { id: campaignId }, query: query },
+  });
   if (res.error) throw new Error('Failed to load messages');
   return res.data as unknown as MessagesResponse;
 }
@@ -128,21 +129,13 @@ async function fetchMessages(campaignId: number, page: number, status?: string):
 // Status badges
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:     { bg: '#f3f4f6', color: '#374151' },
-    sending:   { bg: '#fef3c7', color: '#92400e' },
-    sent:      { bg: '#d1fae5', color: '#065f46' },
-    cancelled: { bg: '#fee2e2', color: '#991b1b' },
-    failed:    { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:     { bg: '#f3f4f6', color: '#374151' },
+  sending:   { bg: '#fef3c7', color: '#92400e' },
+  sent:      { bg: '#d1fae5', color: '#065f46' },
+  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+  failed:    { bg: '#fee2e2', color: '#991b1b' },
+};
 
 function ChannelBadge({ channel }: { channel: string }) {
   const map: Record<string, { bg: string; color: string; icon: string }> = {
@@ -206,13 +199,13 @@ function CampaignFormModal({
   const mutation = useMutation({
     mutationFn: async (body: CampaignFormBody) => {
       if (mode === 'create') {
-        const { error: e } = await api.POST('/communication-campaigns' as never, { body: body as never } as never);
+        const { error: e } = await api.POST('/communication-campaigns', { body: body as never });
         if (e) throw new Error(extractApiError(e, t('communicationCampaigns.errors.createFailed')));
       } else {
-        const { error: e } = await api.PUT('/communication-campaigns/{id}' as never, {
-          params: { path: { id: initial!.id } as never },
+        const { error: e } = await api.PUT('/communication-campaigns/{id}', {
+          params: { path: { id: initial!.id } },
           body: body as never,
-        } as never);
+        });
         if (e) throw new Error(extractApiError(e, t('communicationCampaigns.errors.updateFailed')));
       }
     },
@@ -309,9 +302,9 @@ function DispatchConfirm({
   const [error, setError] = useState('');
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error: e } = await api.POST('/communication-campaigns/{id}/dispatch' as never, {
-        params: { path: { id: campaign.id } as never },
-      } as never);
+      const { error: e } = await api.POST('/communication-campaigns/{id}/dispatch', {
+        params: { path: { id: campaign.id } },
+      });
       if (e) throw new Error(extractApiError(e, t('communicationCampaigns.errors.dispatchFailed')));
     },
     onSuccess: () => { onDispatched(); onClose(); },
@@ -356,9 +349,9 @@ function DeleteConfirm({
   const [error, setError] = useState('');
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error: e } = await api.DELETE('/communication-campaigns/{id}' as never, {
-        params: { path: { id: campaign.id } as never },
-      } as never);
+      const { error: e } = await api.DELETE('/communication-campaigns/{id}', {
+        params: { path: { id: campaign.id } },
+      });
       if (e) throw new Error(extractApiError(e, t('communicationCampaigns.errors.deleteFailed')));
     },
     onSuccess: () => { onDeleted(); onClose(); },
@@ -584,7 +577,7 @@ export function CommunicationCampaignList() {
                     <td style={styles.td}>#{c.id}</td>
                     <td style={{ ...styles.td, fontWeight: 500 }}>{c.name}</td>
                     <td style={styles.td}><ChannelBadge channel={c.channel} /></td>
-                    <td style={styles.td}><StatusBadge status={c.status} /></td>
+                    <td style={styles.td}><StatusBadge status={c.status} colors={STATUS_COLORS} /></td>
                     <td style={{ ...styles.td, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                       {c.recipient_count}
                     </td>

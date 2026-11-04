@@ -26,6 +26,7 @@ import { extractApiError } from '@/components/ClientFormModal';
 import { styles, modalStyles, fmtMoney, fmtDate, capitalize, RequiredMark } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
 import { localToday } from '@/lib/dates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -63,21 +64,21 @@ const STATUSES = ['draft', 'sent', 'partial', 'received', 'cancelled'];
 async function fetchPurchaseOrders(page: number, pageSize: number, statusFilter: string): Promise<PurchaseOrderListResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/purchase-orders' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/purchase-orders', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load purchase orders');
   return (res as { data: unknown }).data as unknown as PurchaseOrderListResponse;
 }
 
 async function fetchVendors(): Promise<Vendor[]> {
-  const res = await api.GET('/vendors' as never, { params: { query: { limit: 200, status: 'active' } as never } } as never);
+  const res = await api.GET('/vendors', { params: { query: { limit: 200, status: 'active' } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load vendors');
-  return ((res as { data: { data: Vendor[] } }).data?.data) ?? [];
+  return ((res.data as { data: Vendor[] })?.data) ?? [];
 }
 
 async function fetchWarehouses(): Promise<Warehouse[]> {
-  const res = await api.GET('/warehouses' as never, { params: { query: { limit: 200, status: 'active' } as never } } as never);
+  const res = await api.GET('/warehouses', { params: { query: { limit: 200, status: 'active' } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load warehouses');
-  return ((res as { data: { data: Warehouse[] } }).data?.data) ?? [];
+  return ((res.data as { data: Warehouse[] })?.data) ?? [];
 }
 
 interface CreatePoBody {
@@ -91,15 +92,15 @@ interface CreatePoBody {
 }
 
 async function createPurchaseOrder(body: CreatePoBody): Promise<PurchaseOrder> {
-  const res = await api.POST('/purchase-orders' as never, { body: body as never } as never);
+  const res = await api.POST('/purchase-orders', { body: body as never });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to create purchase order'));
   }
-  return (res as { data: { data: PurchaseOrder } }).data.data;
+  return (res.data as { data: PurchaseOrder }).data;
 }
 
 async function deletePurchaseOrder(id: number): Promise<void> {
-  const res = await api.DELETE('/purchase-orders/{id}' as never, { params: { path: { id } as never } } as never);
+  const res = await api.DELETE('/purchase-orders/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete purchase order');
 }
 
@@ -107,21 +108,13 @@ async function deletePurchaseOrder(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:     { bg: '#f3f4f6', color: '#374151' },
-    sent:      { bg: '#dbeafe', color: '#1e40af' },
-    partial:   { bg: '#fef3c7', color: '#92400e' },
-    received:  { bg: '#d1fae5', color: '#065f46' },
-    cancelled: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:     { bg: '#f3f4f6', color: '#374151' },
+  sent:      { bg: '#dbeafe', color: '#1e40af' },
+  partial:   { bg: '#fef3c7', color: '#92400e' },
+  received:  { bg: '#d1fae5', color: '#065f46' },
+  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // New Purchase Order Modal — header only; line items are added on the detail
@@ -350,7 +343,7 @@ export function PurchaseOrderList() {
                       <td style={styles.td}>{warehouseName(po.warehouse_id)}</td>
                       <td style={styles.td}>{fmtDate(po.order_date)}</td>
                       <td style={styles.td}>{fmtMoney(po.total, po.currency ?? 'MXN')}</td>
-                      <td style={styles.td}><StatusBadge status={po.status} /></td>
+                      <td style={styles.td}><StatusBadge status={po.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         {po.status === 'draft' && (
                           <button

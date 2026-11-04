@@ -45,7 +45,7 @@ const INTERACTION_TYPES = ['call', 'email', 'sms', 'visit', 'chat', 'other'];
 
 async function fetchTimeline(clientId: number): Promise<TimelineEvent[]> {
   const res = await api.GET('/clients/{id}/timeline', {
-    params: { path: { id: clientId }, query: { limit: 200 } as never },
+    params: { path: { id: clientId }, query: { limit: 200 } },
   });
   if (res.error) throw new Error('Failed to load activity timeline');
   return (res.data as unknown as { data: { events: TimelineEvent[] } }).data.events;
@@ -79,7 +79,7 @@ function LogInteractionModal({
       };
       if (form.notes.trim()) body.notes = form.notes.trim();
       if (form.duration_minutes) body.duration_minutes = Number(form.duration_minutes);
-      const { error } = await api.POST('/interactions', { body: body as never });
+      const { error } = await api.POST('/interactions', { body: body });
       if (error) throw new Error(extractApiError(error, 'Failed to log interaction'));
     },
     onSuccess: () => { onSaved(); onClose(); },

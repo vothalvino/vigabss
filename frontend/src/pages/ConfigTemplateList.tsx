@@ -38,23 +38,23 @@ const PAGE_SIZE = 25;
 const STATUSES = ['active', 'inactive', 'draft'];
 
 async function fetchTemplates(page: number): Promise<ConfigTemplatesResponse> {
-  const res = await api.GET('/config-templates' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/config-templates', { params: { query: { page, limit: PAGE_SIZE } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load config templates');
   return (res as { data: unknown }).data as unknown as ConfigTemplatesResponse;
 }
 
 async function createTemplate(body: ConfigTemplateBody): Promise<void> {
-  const res = await api.POST('/config-templates' as never, { body: body as never } as never);
+  const res = await api.POST('/config-templates', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create config template');
 }
 
 async function updateTemplate(id: number, body: Partial<ConfigTemplateBody>): Promise<void> {
-  const res = await api.PUT('/config-templates/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/config-templates/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update config template');
 }
 
 async function deleteTemplate(id: number): Promise<void> {
-  const res = await api.DELETE('/config-templates/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/config-templates/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete config template');
 }
 
@@ -70,10 +70,10 @@ export interface DeployResult {
 }
 
 async function deployTemplate(id: number, deviceId: number, variables: Record<string, string> | null): Promise<DeployResult> {
-  const res = await api.POST('/config-templates/{id}/deploy' as never, {
+  const res = await api.POST('/config-templates/{id}/deploy', {
     params: { path: { id } },
-    body: { device_id: deviceId, variables } as never,
-  } as never);
+    body: { device_id: deviceId, variables },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to deploy config template');
   return ((res as { data: unknown }).data as { data: DeployResult }).data;
 }

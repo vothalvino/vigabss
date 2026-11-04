@@ -40,7 +40,7 @@ const DEFAULT_PAGE_SIZE = 50;
 
 async function fetchConcessionTitles(page: number): Promise<ConcessionTitleResponse> {
   const query = { page, limit: DEFAULT_PAGE_SIZE };
-  const res = await api.GET('/concession-titles', { params: { query: query as never } });
+  const res = await api.GET('/concession-titles', { params: { query: query } });
   if (res.error) throw new Error('Failed to load concession titles');
   return res.data as unknown as ConcessionTitleResponse;
 }

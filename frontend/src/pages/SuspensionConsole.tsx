@@ -50,13 +50,13 @@ interface SuspensionLog {
 }
 
 async function evaluate(): Promise<EvaluatedContract[]> {
-  const res = await api.POST('/suspension/evaluate', {} as never);
+  const res = await api.POST('/suspension/evaluate', {});
   if ((res as { error?: unknown }).error) throw new Error('Evaluate failed');
   return ((res.data as unknown as { data: EvaluatedContract[] }).data) ?? [];
 }
 
 async function runAuto(): Promise<{ contracts_evaluated: number; contracts_suspended: number }> {
-  const res = await api.POST('/suspension/run-auto', {} as never);
+  const res = await api.POST('/suspension/run-auto', {});
   if ((res as { error?: unknown }).error) throw new Error('Run failed');
   return (res.data as unknown as { data: { contracts_evaluated: number; contracts_suspended: number } }).data;
 }

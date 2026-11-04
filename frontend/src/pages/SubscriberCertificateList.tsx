@@ -18,6 +18,7 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/api/apiFetch';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,23 +75,11 @@ async function fetchCerts(page: number): Promise<CertListResponse> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    expired: { bg: '#fee2e2', color: '#991b1b' },
-    revoked: { bg: '#f3f4f6', color: '#6b7280' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{
-      background: s.bg, color: s.color,
-      padding: '2px 8px', borderRadius: 12,
-      fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize',
-    }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  expired: { bg: '#fee2e2', color: '#991b1b' },
+  revoked: { bg: '#f3f4f6', color: '#6b7280' },
+};
 
 function expiryWarning(validUntil: string, status: string): string | null {
   if (status !== 'active') return null;
@@ -283,7 +272,7 @@ export function SubscriberCertificateList() {
                         </span>
                       )}
                     </td>
-                    <td style={s.td}><StatusBadge status={cert.status} /></td>
+                    <td style={s.td}><StatusBadge status={cert.status} colors={STATUS_COLORS} /></td>
                     <td style={s.td}>
                       {cert.status === 'active' && (
                         <button

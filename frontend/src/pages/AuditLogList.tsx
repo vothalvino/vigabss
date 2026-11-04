@@ -70,7 +70,7 @@ async function fetchAuditLogs(page: number, filters: Filters, scope: Scope): Pro
   if (filters.user_id) query.user_id = filters.user_id;
   if (filters.date_from) query.date_from = filters.date_from;
   if (filters.date_to) query.date_to = filters.date_to;
-  const res = await api.GET('/audit-logs', { params: { query: query as never } });
+  const res = await api.GET('/audit-logs', { params: { query: query } });
   if (res.error) throw new Error('Failed to load audit logs');
   return res.data as unknown as AuditLogsResponse;
 }

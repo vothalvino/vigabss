@@ -85,7 +85,7 @@ function EscalateModal({
     mutationFn: async () => {
       const body: Record<string, unknown> = { ticket_id: ticketId, reason: reason.trim() };
       if (escalatedTo) body.escalated_to = Number(escalatedTo);
-      const { error } = await api.POST('/escalations', { body: body as never });
+      const { error } = await api.POST('/escalations', { body: body });
       if (error) throw new Error(extractApiError(error, 'Failed to escalate ticket'));
     },
     onSuccess: () => { onSaved(); onClose(); },
@@ -145,7 +145,7 @@ export function EscalationList() {
     mutationFn: async ({ id, status }: { id: number; status: 'acknowledged' | 'resolved' }) => {
       const { error: e } = await api.POST('/escalations/{id}/transition', {
         params: { path: { id } },
-        body: { status } as never,
+        body: { status },
       });
       if (e) throw new Error(extractApiError(e, 'Failed to update escalation'));
     },

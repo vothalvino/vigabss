@@ -100,7 +100,7 @@ function CreateAdjustmentModal({ onClose, onCreated }: { onClose: () => void; on
         amount_delta: parseFloat(amountDelta),
         reason: reason.trim(),
       };
-      const { error: e } = await api.POST('/billing-adjustments' as never, { body: body as never } as never);
+      const { error: e } = await api.POST('/billing-adjustments', { body: body });
       if (e) throw new Error(extractApiError(e, 'Failed to create adjustment'));
     },
     onSuccess: () => { onCreated(); onClose(); },
@@ -183,9 +183,9 @@ export function BillingAdjustmentList() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['billing-adjustments', page],
     queryFn: async () => {
-      const res = await api.GET('/billing-adjustments' as never, {
+      const res = await api.GET('/billing-adjustments', {
         params: { query: { page, limit: PAGE_SIZE } as never },
-      } as never);
+      });
       if (res.error) throw new Error('Failed to load billing adjustments');
       return res.data as unknown as AdjustmentsResponse;
     },

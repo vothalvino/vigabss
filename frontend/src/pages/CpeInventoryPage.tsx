@@ -112,9 +112,9 @@ function DeviceSelector({ value, onChange }: { value: number | null; onChange: (
   const { data } = useQuery<ListResponse<CpeDevice>>({
     queryKey: ['cpe-devices-select'],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices' as never, {
-        params: { query: { limit: 200 } as never },
-      } as never);
+      const res = await api.GET('/cpe-management/devices', {
+        params: { query: { limit: 200 } },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load devices');
       return (res as { data: unknown }).data as unknown as ListResponse<CpeDevice>;
     },
@@ -159,9 +159,9 @@ function LifecycleTab() {
     queryKey: ['cpe-device', selectedDeviceId],
     enabled: selectedDeviceId !== null,
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices/{id}' as never, {
+      const res = await api.GET('/cpe-management/devices/{id}', {
         params: { path: { id: selectedDeviceId } } as never,
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load device');
       return (res as { data: unknown }).data as unknown as { data: CpeDevice };
     },
@@ -171,9 +171,9 @@ function LifecycleTab() {
     queryKey: ['cpe-lifecycle', selectedDeviceId, page],
     enabled: selectedDeviceId !== null,
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices/{id}/lifecycle' as never, {
-        params: { path: { id: selectedDeviceId }, query: { page, limit: 25 } as never },
-      } as never);
+      const res = await api.GET('/cpe-management/devices/{id}/lifecycle', {
+        params: { path: { id: selectedDeviceId! }, query: { page, limit: 25 } },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load lifecycle history');
       return (res as { data: unknown }).data as unknown as ListResponse<LifecycleHistory>;
     },
@@ -182,10 +182,10 @@ function LifecycleTab() {
   const transitionMut = useMutation({
     mutationFn: async () => {
       if (!selectedDeviceId || !toState) throw new Error('Select device and new state');
-      const res = await api.POST('/cpe-management/devices/{id}/lifecycle/transition' as never, {
-        params: { path: { id: selectedDeviceId } } as never,
-        body: { to_state: toState, reason: reason || undefined } as never,
-      } as never);
+      const res = await api.POST('/cpe-management/devices/{id}/lifecycle/transition', {
+        params: { path: { id: selectedDeviceId } },
+        body: { to_state: toState, reason: reason || undefined },
+      });
       // Surface the backend's real message (e.g. the stock-boundary 422 for
       // inventory-linked units) instead of a generic failure string.
       if ((res as { error?: unknown }).error) throw new Error(extractApiError((res as { error?: unknown }).error, 'Transition failed'));
@@ -328,9 +328,9 @@ function SubscriberTab() {
     queryKey: ['cpe-device', selectedDeviceId],
     enabled: selectedDeviceId !== null,
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices/{id}' as never, {
+      const res = await api.GET('/cpe-management/devices/{id}', {
         params: { path: { id: selectedDeviceId } } as never,
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load device');
       return (res as { data: unknown }).data as unknown as { data: CpeDevice };
     },
@@ -339,10 +339,10 @@ function SubscriberTab() {
   const linkMut = useMutation({
     mutationFn: async (subId: number | null) => {
       if (!selectedDeviceId) throw new Error('Select a device');
-      const res = await api.POST('/cpe-management/devices/{id}/subscriber-link' as never, {
-        params: { path: { id: selectedDeviceId } } as never,
-        body: { subscriber_id: subId } as never,
-      } as never);
+      const res = await api.POST('/cpe-management/devices/{id}/subscriber-link', {
+        params: { path: { id: selectedDeviceId } },
+        body: { subscriber_id: subId },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Link update failed');
       return (res as { data: unknown }).data;
     },
@@ -422,13 +422,13 @@ function SwapTab() {
   const swapMut = useMutation({
     mutationFn: async () => {
       if (!oldDeviceId || !newDeviceId) throw new Error('Both device IDs required');
-      const res = await api.POST('/cpe-management/devices/swap' as never, {
+      const res = await api.POST('/cpe-management/devices/swap', {
         body: {
           old_device_id: parseInt(oldDeviceId, 10),
           new_device_id: parseInt(newDeviceId, 10),
           reason: swapReason || 'CPE swap',
-        } as never,
-      } as never);
+        },
+      });
       if ((res as { error?: unknown }).error) throw new Error((res as { error?: { message?: string } }).error?.message || 'Swap failed');
       return (res as { data: unknown }).data;
     },
@@ -446,9 +446,9 @@ function SwapTab() {
   const { data: devicesData } = useQuery<ListResponse<CpeDevice>>({
     queryKey: ['cpe-devices-select'],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices' as never, {
-        params: { query: { limit: 200 } as never },
-      } as never);
+      const res = await api.GET('/cpe-management/devices', {
+        params: { query: { limit: 200 } },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load devices');
       return (res as { data: unknown }).data as unknown as ListResponse<CpeDevice>;
     },
@@ -528,9 +528,9 @@ function DepreciationTab() {
     queryKey: ['cpe-depreciation', selectedDeviceId],
     enabled: selectedDeviceId !== null,
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices/{id}/depreciation' as never, {
+      const res = await api.GET('/cpe-management/devices/{id}/depreciation', {
         params: { path: { id: selectedDeviceId } } as never,
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load depreciation');
       return (res as { data: unknown }).data as unknown as { data: DepreciationResult & { device_id: number } };
     },
@@ -605,7 +605,7 @@ function RegisterTab() {
   const { data: itemsData } = useQuery<ListResponse<InventoryItemOption>>({
     queryKey: ['inventory-items-lookup'],
     queryFn: async () => {
-      const res = await api.GET('/inventory/items' as never, { params: { query: { limit: 200 } as never } } as never);
+      const res = await api.GET('/inventory/items', { params: { query: { limit: 200 } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load inventory items');
       return (res as { data: unknown }).data as unknown as ListResponse<InventoryItemOption>;
     },
@@ -613,7 +613,7 @@ function RegisterTab() {
   const { data: warehousesData } = useQuery<ListResponse<WarehouseOption>>({
     queryKey: ['warehouses-lookup'],
     queryFn: async () => {
-      const res = await api.GET('/warehouses' as never, { params: { query: { limit: 200 } as never } } as never);
+      const res = await api.GET('/warehouses', { params: { query: { limit: 200 } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load warehouses');
       return (res as { data: unknown }).data as unknown as ListResponse<WarehouseOption>;
     },
@@ -621,7 +621,7 @@ function RegisterTab() {
 
   const registerMut = useMutation({
     mutationFn: async () => {
-      const res = await api.POST('/cpe-management/devices/register' as never, {
+      const res = await api.POST('/cpe-management/devices/register', {
         body: {
           inventory_item_id: Number(itemId),
           serial_number: serialNumber.trim(),
@@ -629,8 +629,8 @@ function RegisterTab() {
           manufacturer: manufacturer || undefined,
           model_name: modelName || undefined,
           increment_stock: incrementStock,
-        } as never,
-      } as never);
+        },
+      });
       if ((res as { error?: unknown }).error) {
         throw new Error((res as { error?: { message?: string } }).error?.message || t('cpeInventory.register.error'));
       }
@@ -655,7 +655,7 @@ function RegisterTab() {
       const query: Record<string, string | number> = { page, limit: 25 };
       if (stateFilter) query.lifecycle_state = stateFilter;
       if (itemFilter) query.inventory_item_id = itemFilter;
-      const res = await api.GET('/cpe-management/devices' as never, { params: { query: query as never } } as never);
+      const res = await api.GET('/cpe-management/devices', { params: { query: query } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load devices');
       return (res as { data: unknown }).data as unknown as ListResponse<CpeDevice>;
     },

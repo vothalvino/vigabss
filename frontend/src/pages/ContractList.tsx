@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api, authedFetch } from '@/api/client';
+import type { ContractRow } from '@/api/rows';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { MxRegisteredContractSourceField } from '@/components/MxRegisteredContractSourceField';
@@ -29,36 +30,13 @@ import { ClientPicker } from '@/components/ClientPicker';
 import { useClientNames } from '@/api/clientNames';
 import { queryKeys } from '@/api/queryKeys';
 import { localToday } from '@/lib/dates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface Contract {
-  id: number;
-  client_id: number;
-  plan_id: number;
-  connection_type: string | null;
-  start_date: string;
-  end_date: string | null;
-  billing_day: number | null;
-  ip_address: string | null;
-  price_override: string | null;
-  status: string;
-  facturar: boolean | number | null;
-  contract_template_mx_id: number | null;
-  mx_contract_environment?: MxContractEnvironment | null;
-  notes: string | null;
-  escalation_enabled: boolean | number | null;
-  escalate_on_disconnect: boolean | number | null;
-  // Migration 388 — per-contract diagnostic-threshold overrides. Blank =
-  // use the serving sector's default, else the org-wide code constant
-  // (link-capacity has no org-wide default at all).
-  optical_min_dbm: number | null;
-  wireless_signal_min_dbm: number | null;
-  // DECIMAL(8,2) — may come back as a numeric string.
-  wireless_link_capacity_min_mbps: string | number | null;
-}
+type Contract = ContractRow;
 
 // A provisioned PPPoE / RADIUS account belonging to a contract.  The base
 // endpoint (GET /radius/contract/{contractId}, requires devices.view) never
@@ -121,10 +99,10 @@ async function fetchContracts(
   const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order };
   if (statusFilter) query.status = statusFilter;
   const res = await api.GET('/contracts', {
-    params: { query: query as never },
+    params: { query: query },
   });
   if (res.error) throw new Error('Failed to load contracts');
-  return res.data as unknown as ContractsResponse;
+  return res.data;
 }
 
 // Sentinel thrown by fetchRadiusByContract so the UI can show a tailored
@@ -134,7 +112,7 @@ const RADIUS_FORBIDDEN = 'radius_forbidden';
 
 async function fetchRadiusByContract(id: number): Promise<RadiusAccount[]> {
   const res = await api.GET('/radius/contract/{contractId}', {
-    params: { path: { contractId: id } as never },
+    params: { path: { contractId: id } },
   });
   // These endpoints are typed loosely, so the success/error union collapses to
   // `never` on the error branch — read `response.status` through an explicit
@@ -161,7 +139,7 @@ const RADIUS_CREDENTIALS_FORBIDDEN = 'radius_credentials_forbidden';
 
 async function fetchRadiusCredentials(id: number): Promise<RadiusAccount[]> {
   const res = await api.GET('/radius/contract/{contractId}/credentials', {
-    params: { path: { contractId: id } as never },
+    params: { path: { contractId: id } },
   });
   const { error, response } = res as unknown as {
     error: unknown;
@@ -178,7 +156,7 @@ async function fetchRadiusCredentials(id: number): Promise<RadiusAccount[]> {
 
 async function fetchPlans(): Promise<Plan[]> {
   const res = await api.GET('/plans', {
-    params: { query: { limit: 200 } as never },
+    params: { query: { limit: 200 } },
   });
   if (res.error) throw new Error('Failed to load plans');
   return (res.data as unknown as { data: Plan[] }).data;
@@ -322,32 +300,14 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active:     { bg: '#d1fae5', color: '#065f46' },
-    pending:    { bg: '#ede9fe', color: '#5b21b6' },
-    suspended:  { bg: '#fef3c7', color: '#92400e' },
-    cancelled:  { bg: '#fee2e2', color: '#991b1b' },
-    terminated: { bg: '#f3f4f6', color: '#6b7280' },
-    expired:    { bg: '#fde68a', color: '#78350f' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:     { bg: '#d1fae5', color: '#065f46' },
+  pending:    { bg: '#ede9fe', color: '#5b21b6' },
+  suspended:  { bg: '#fef3c7', color: '#92400e' },
+  cancelled:  { bg: '#fee2e2', color: '#991b1b' },
+  terminated: { bg: '#f3f4f6', color: '#6b7280' },
+  expired:    { bg: '#fde68a', color: '#78350f' },
+};
 
 // ---------------------------------------------------------------------------
 // New Contract Modal
@@ -1064,7 +1024,7 @@ function RadiusAccountCard({ account, passwordForbidden }: { account: RadiusAcco
         copyable={passwordForbidden ? undefined : account.password}
       />
       <CredentialRow label={t('contractList.assignedIp')} value={assignedIp} copyable={assignedIp !== '—' ? assignedIp : null} mono />
-      <CredentialRow label={t('contractList.table.status')} value={account.status ? <StatusBadge status={account.status} /> : '—'} />
+      <CredentialRow label={t('contractList.table.status')} value={account.status ? <StatusBadge status={account.status} colors={STATUS_COLORS} /> : '—'} />
       <CredentialRow label={t('contractList.authMethod')} value={account.auth_method || '—'} />
       <CredentialRow label="MAC / VLAN" value={macVlan} mono />
       <CredentialRow label={t('contractList.table.plan')} value={account.profile || '—'} />
@@ -1121,7 +1081,7 @@ function ContractDetailModal({ contract, plans, onClose }: ContractDetailModalPr
         <div style={detailStyles.summary}>
           <CredentialRow label={t('contractList.table.plan')} value={plan ? plan.name : `Plan #${contract.plan_id}`} />
           <CredentialRow label={t('contractList.table.type')} value={contract.connection_type || '—'} />
-          <CredentialRow label={t('contractList.table.status')} value={<StatusBadge status={contract.status} />} />
+          <CredentialRow label={t('contractList.table.status')} value={<StatusBadge status={contract.status} colors={STATUS_COLORS} />} />
           <CredentialRow label={t('contractList.table.start')} value={fmt(contract.start_date)} />
           <CredentialRow label={t('contractList.table.end')} value={fmt(contract.end_date)} />
           <CredentialRow label={t('contractList.table.billingDay')} value={contract.billing_day ?? '—'} />
@@ -1509,7 +1469,7 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
           ? <MxContractEnvironmentBadge environment={c.mx_contract_environment} />
           : '—'}
       </td>
-      <td style={styles.td}><StatusBadge status={c.status} /></td>
+      <td style={styles.td}><StatusBadge status={c.status} colors={STATUS_COLORS} /></td>
       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
         <button
           style={styles.actionBtn}

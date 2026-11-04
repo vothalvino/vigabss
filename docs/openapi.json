@@ -1160,6 +1160,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Organization[]",
@@ -1767,6 +1785,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -2620,6 +2656,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "ApiToken[]",
@@ -2821,6 +2875,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -3918,6 +3990,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -5201,6 +5291,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "WinbackCampaign[]",
@@ -5510,6 +5618,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -6115,13 +6241,70 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Contract[]",
+            "description": "Paginated result",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Contract"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit",
+                        "totalPages"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "page": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "totalPages": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -6187,11 +6370,20 @@
         ],
         "responses": {
           "200": {
-            "description": "Contract",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Contract"
+                    }
+                  }
                 }
               }
             }
@@ -7430,13 +7622,70 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Invoice[]",
+            "description": "Paginated result",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Invoice"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit",
+                        "totalPages"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "page": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "totalPages": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -7502,11 +7751,20 @@
         ],
         "responses": {
           "200": {
-            "description": "Invoice",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Invoice"
+                    }
+                  }
                 }
               }
             }
@@ -7609,11 +7867,23 @@
         ],
         "responses": {
           "200": {
-            "description": "InvoiceItem[]",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InvoiceItem"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -7731,11 +8001,23 @@
         ],
         "responses": {
           "200": {
-            "description": "PaymentAllocation[]",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PaymentAllocation"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -7849,13 +8131,70 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Payment[]",
+            "description": "Paginated result",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Payment"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit",
+                        "totalPages"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "page": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "totalPages": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -7921,11 +8260,20 @@
         ],
         "responses": {
           "200": {
-            "description": "Payment",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Payment"
+                    }
+                  }
                 }
               }
             }
@@ -8376,13 +8724,70 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "CreditNote[]",
+            "description": "Paginated result",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CreditNote"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit",
+                        "totalPages"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "page": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "totalPages": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -8448,11 +8853,20 @@
         ],
         "responses": {
           "200": {
-            "description": "CreditNote",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CreditNote"
+                    }
+                  }
                 }
               }
             }
@@ -8587,6 +9001,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -9621,6 +10053,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "CfdiDocument[]",
@@ -10510,6 +10960,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "CsdCertificate[]",
@@ -10914,6 +11382,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "PacProvider[]",
@@ -11231,6 +11717,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "SuspensionRule[]",
@@ -11396,6 +11900,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -11633,6 +12155,65 @@
         }
       }
     },
+    "/devices/{id}/snmp-metrics": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "SNMP metric history of a device, newest first",
+        "operationId": "listDeviceSnmpMetrics",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "device_level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "1: device-level rows only (interface_id IS NULL)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SnmpMetric[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/devices/{id}/reboot": {
       "post": {
         "tags": [
@@ -11679,6 +12260,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -12270,6 +12869,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -13447,6 +14064,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "SubscriberCertificate[]",
@@ -13732,6 +14367,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "SnmpProfile[]",
@@ -13925,6 +14578,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "NetworkLink[]",
@@ -14090,6 +14761,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -14377,6 +15066,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "IpAssignment[]",
@@ -14544,6 +15251,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Vlan[]",
@@ -14709,6 +15434,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -16485,6 +17228,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "DeviceConfigBackup[]",
@@ -16650,6 +17411,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -16864,6 +17643,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "ServiceArea[]",
@@ -17029,6 +17826,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -17198,13 +18013,70 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Ticket[]",
+            "description": "Paginated result",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Ticket"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "limit",
+                        "totalPages"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "page": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "totalPages": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -17270,11 +18142,20 @@
         ],
         "responses": {
           "200": {
-            "description": "Ticket",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Ticket"
+                    }
+                  }
                 }
               }
             }
@@ -17363,6 +18244,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -17610,6 +18509,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -17885,6 +18802,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -18392,6 +19327,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -19593,6 +20546,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Outage[]",
@@ -19981,6 +20952,127 @@
         "responses": {
           "200": {
             "description": "Health",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/throughput": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Aggregate interface throughput series",
+        "operationId": "dashboardThroughput",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1H",
+                "6H",
+                "24H",
+                "7D"
+              ],
+              "default": "24H"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Throughput series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/live-sessions": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Live RADIUS session counts",
+        "operationId": "dashboardLiveSessions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/sites-utilization": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Device counts and online share per site",
+        "operationId": "dashboardSitesUtilization",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Site utilization[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/network-devices": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Network devices with live session counts",
+        "operationId": "dashboardNetworkDevices",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Network devices[]",
             "content": {
               "application/json": {
                 "schema": {
@@ -21920,6 +23012,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Expense[]",
@@ -22185,6 +23295,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "ScheduledTask[]",
@@ -22438,6 +23566,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Warehouse[]",
@@ -22593,16 +23739,68 @@
         }
       }
     },
-    "/inventory": {
+    "/inventory/items": {
       "get": {
         "tags": [
           "Inventory"
         ],
-        "summary": "List inventory",
+        "summary": "List inventory/items",
         "operationId": "listInventoryItems",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "discontinued"
+              ]
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "antenna",
+                "cable",
+                "router",
+                "switch",
+                "onu",
+                "olt",
+                "cpe",
+                "connector",
+                "power_supply",
+                "enclosure",
+                "tool",
+                "other"
+              ]
+            }
           }
         ],
         "responses": {
@@ -22653,7 +23851,7 @@
         }
       }
     },
-    "/inventory/{id}": {
+    "/inventory/items/{id}": {
       "get": {
         "tags": [
           "Inventory"
@@ -22756,6 +23954,78 @@
         "responses": {
           "204": {
             "description": "No content"
+          }
+        }
+      }
+    },
+    "/inventory/items/{id}/restore": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Restore a soft-deleted InventoryItem",
+        "operationId": "restoreInventoryItem",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "InventoryItem",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/items/{id}/stock": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Stock levels of an item per warehouse",
+        "operationId": "getInventoryItemStock",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "InventoryStock[]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         }
       }
@@ -23172,6 +24442,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -23652,6 +24940,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "RecurringPaymentProfile[]",
@@ -23817,6 +25123,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -23986,6 +25310,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "TaxRule[]",
@@ -24151,6 +25493,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -24390,6 +25750,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -25809,6 +27187,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "ConcessionTitle[]",
@@ -25976,6 +27372,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "RegulatoryFiling[]",
@@ -26141,6 +27555,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -27164,6 +28596,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -28425,6 +29875,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "LateFeeRule[]",
@@ -28650,6 +30118,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -29340,6 +30826,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "CommunicationCampaign[]",
@@ -29818,6 +31322,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "RefundRequest[]",
@@ -30075,6 +31597,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -30423,6 +31963,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Chargeback[]",
@@ -30759,6 +32317,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -32154,6 +33730,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "DhcpServer[]",
@@ -32474,6 +34068,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "NatPool[]",
@@ -32639,6 +34251,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -33753,6 +35383,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "DeviceGroup[]",
@@ -34071,6 +35719,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -35692,6 +37358,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "PollerNode[]",
@@ -35901,6 +37585,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -36364,6 +38066,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "ConfigTemplate[]",
@@ -36632,6 +38352,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "ConfigBackupSchedule[]",
@@ -36797,6 +38535,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -40386,13 +42142,23 @@
         ],
         "parameters": [
           {
-            "name": "search",
+            "name": "page",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
-            },
-            "description": "Search filter"
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            }
           },
           {
             "name": "status",
@@ -40408,6 +42174,46 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "model_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lifecycle_state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "inventory_item_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "subscriber_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "contract_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
             }
           }
         ],
@@ -43610,6 +45416,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "QualityClass[]",
@@ -43811,6 +45635,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -44069,6 +45911,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "RateLimitTemplate[]",
@@ -44306,6 +46166,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -45013,6 +46891,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "InterfaceQosPolicy[]",
@@ -45216,6 +47112,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "MplsVlanPrioritizationRule[]",
@@ -45417,6 +47331,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -45661,6 +47593,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -50977,6 +52927,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Vendor[]",
@@ -51178,6 +53146,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -51650,6 +53636,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Asset[]",
@@ -52061,6 +54065,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -53631,6 +55653,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "PhoneNumberInventory[]",
@@ -53798,6 +55838,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "NumberPortabilityRecord[]",
@@ -53963,6 +56021,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -54168,6 +56244,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "UsoObligation[]",
@@ -54333,6 +56427,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -54564,6 +56676,24 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "ServiceModificationNotice[]",
@@ -54729,6 +56859,24 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -81709,6 +83857,1017 @@
           "download_mbps",
           "upload_mbps"
         ]
+      },
+      "Invoice": {
+        "type": "object",
+        "description": "A invoices row (columns from database/schema.sql)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "organization_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "contract_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "invoice_number": {
+            "type": "string"
+          },
+          "issue_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "issued_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "subtotal": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "tax_rate": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "tax_amount": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "total": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "tax_rate_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "issued",
+              "sent",
+              "paid",
+              "overdue",
+              "cancelled",
+              "void"
+            ]
+          },
+          "paid_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "created_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "active_flag": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "period_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "GET /invoices/{id}: the billing period the invoice was generated for"
+          },
+          "period_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "client_id",
+          "contract_id",
+          "invoice_number",
+          "issue_date",
+          "due_date",
+          "issued_at",
+          "subtotal",
+          "tax_rate",
+          "tax_amount",
+          "total",
+          "currency",
+          "tax_rate_id",
+          "notes",
+          "status",
+          "paid_at",
+          "version",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "deleted_at",
+          "active_flag"
+        ],
+        "additionalProperties": true
+      },
+      "InvoiceItem": {
+        "type": "object",
+        "description": "A invoice_items row (columns from database/schema.sql)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "invoice_id": {
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "unit_price": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "amount": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "tax_rate_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "inventory_item_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "clave_prod_serv": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "clave_unidad": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "decimal"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "tax_rate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "decimal",
+            "description": "The line tax rate as a fraction (the line's tax_rates row, else the invoice rate)"
+          }
+        },
+        "required": [
+          "id",
+          "invoice_id",
+          "description",
+          "quantity",
+          "unit_price",
+          "amount",
+          "tax_rate_id",
+          "inventory_item_id",
+          "clave_prod_serv",
+          "clave_unidad",
+          "total",
+          "created_at",
+          "updated_at",
+          "deleted_at"
+        ],
+        "additionalProperties": true
+      },
+      "Payment": {
+        "type": "object",
+        "description": "A payments row (columns from database/schema.sql)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "organization_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "invoice_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "payment_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "cash",
+              "check",
+              "card",
+              "transfer",
+              "online",
+              "credit_card",
+              "debit_card",
+              "bank_transfer",
+              "oxxo_pay",
+              "spei",
+              "codi",
+              "convenience_store",
+              "digital_wallet",
+              "other"
+            ]
+          },
+          "sat_forma_pago": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reference_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "clabe": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bank_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "failed",
+              "refunded",
+              "cancelled"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "recorded_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "client_id",
+          "invoice_id",
+          "amount",
+          "currency",
+          "payment_date",
+          "payment_method",
+          "sat_forma_pago",
+          "reference_number",
+          "clabe",
+          "bank_name",
+          "notes",
+          "status",
+          "version",
+          "recorded_by",
+          "created_at",
+          "updated_at",
+          "deleted_at"
+        ],
+        "additionalProperties": true
+      },
+      "PaymentAllocation": {
+        "type": "object",
+        "description": "A payment_allocations row (columns from database/schema.sql)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "payment_id": {
+            "type": "integer"
+          },
+          "invoice_id": {
+            "type": "integer"
+          },
+          "amount": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "active_flag": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "payment_amount": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "payment_method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payment_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "payment_id",
+          "invoice_id",
+          "amount",
+          "created_at",
+          "updated_at",
+          "deleted_at",
+          "active_flag"
+        ],
+        "additionalProperties": true
+      },
+      "CreditNote": {
+        "type": "object",
+        "description": "A credit_notes row (columns from database/schema.sql)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "organization_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "contract_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "invoice_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "payment_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "credit_note_number": {
+            "type": "string"
+          },
+          "issue_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "billing_error",
+              "service_interruption",
+              "overpayment",
+              "promotional_credit",
+              "contract_cancellation",
+              "other"
+            ]
+          },
+          "subtotal": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "tax_rate": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "tax_amount": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "total": {
+            "type": "string",
+            "format": "decimal"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "tax_rate_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "issued",
+              "applied",
+              "cancelled"
+            ]
+          },
+          "applied_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "active_flag": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cfdi_document_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "List only: the live CFDI of the note"
+          },
+          "cfdi_uuid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cfdi_sat_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "client_id",
+          "contract_id",
+          "invoice_id",
+          "payment_id",
+          "credit_note_number",
+          "issue_date",
+          "reason",
+          "subtotal",
+          "tax_rate",
+          "tax_amount",
+          "total",
+          "currency",
+          "tax_rate_id",
+          "notes",
+          "status",
+          "applied_at",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "deleted_at",
+          "active_flag"
+        ],
+        "additionalProperties": true
+      },
+      "Ticket": {
+        "type": "object",
+        "description": "A tickets row (columns from database/schema.sql)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "organization_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "contract_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "assigned_to": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "subject": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "technical",
+              "billing",
+              "installation",
+              "general"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "alert",
+              "portal",
+              "ai_escalated",
+              "automation"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "waiting",
+              "resolved",
+              "closed"
+            ]
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "client_id",
+          "contract_id",
+          "assigned_to",
+          "subject",
+          "description",
+          "notes",
+          "category",
+          "source",
+          "priority",
+          "status",
+          "resolved_at",
+          "created_at",
+          "updated_at",
+          "deleted_at"
+        ],
+        "additionalProperties": true
+      },
+      "Contract": {
+        "type": "object",
+        "description": "A contracts row (columns from database/schema.sql)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "organization_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "client_id": {
+            "type": "integer"
+          },
+          "plan_id": {
+            "type": "integer"
+          },
+          "site_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "billing_day": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "test_window_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "test_window_cleanup_pending": {
+            "type": "integer"
+          },
+          "test_window_cleanup_attempted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "ip_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "billing_cycle": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "monthly",
+              "quarterly",
+              "semi_annual",
+              "annual",
+              null
+            ]
+          },
+          "price_override": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "decimal"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connection_type": {
+            "type": "string",
+            "enum": [
+              "pppoe",
+              "pppoe_dual",
+              "static",
+              "dual"
+            ]
+          },
+          "contract_template_mx_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "mx_contract_environment": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "sandbox",
+              "production",
+              null
+            ]
+          },
+          "facturar": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "suspended",
+              "expired",
+              "cancelled",
+              "terminated"
+            ]
+          },
+          "first_activated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "soft_suspend_download_kbps": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "soft_suspend_upload_kbps": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "fup_throttled_month": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "escalation_enabled": {
+            "type": "integer"
+          },
+          "escalate_on_disconnect": {
+            "type": "integer"
+          },
+          "optical_min_dbm": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "wireless_signal_min_dbm": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "wireless_link_capacity_min_mbps": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "decimal"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "created_by": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "client_id",
+          "plan_id",
+          "site_id",
+          "start_date",
+          "end_date",
+          "billing_day",
+          "test_window_expires_at",
+          "test_window_cleanup_pending",
+          "test_window_cleanup_attempted_at",
+          "ip_address",
+          "billing_cycle",
+          "price_override",
+          "notes",
+          "connection_type",
+          "contract_template_mx_id",
+          "mx_contract_environment",
+          "facturar",
+          "status",
+          "first_activated_at",
+          "soft_suspend_download_kbps",
+          "soft_suspend_upload_kbps",
+          "fup_throttled_month",
+          "escalation_enabled",
+          "escalate_on_disconnect",
+          "optical_min_dbm",
+          "wireless_signal_min_dbm",
+          "wireless_link_capacity_min_mbps",
+          "version",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "deleted_at"
+        ],
+        "additionalProperties": true
       },
       "SystemVersion": {
         "type": "object",

@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api, authedFetch } from '@/api/client';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -84,20 +85,12 @@ function fmt(dateStr: string | null | undefined): string {
   return d.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const colorMap: Record<string, { bg: string; color: string }> = {
-    active:   { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#f3f4f6', color: '#6b7280' },
-    online:   { bg: '#d1fae5', color: '#065f46' },
-    offline:  { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = colorMap[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:   { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#f3f4f6', color: '#6b7280' },
+  online:   { bg: '#d1fae5', color: '#065f46' },
+  offline:  { bg: '#fee2e2', color: '#991b1b' },
+};
 
 function InfoRow({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
   if (!value) return null;
@@ -122,7 +115,7 @@ function InfoRow({ label, value, mono }: { label: string; value: string | null |
 interface WoAssignableUser { id: number; first_name: string; last_name: string }
 
 async function fetchWoAssignableUsers(): Promise<WoAssignableUser[]> {
-  const res = await api.GET('/work-orders/assignable-users' as never, {} as never);
+  const res = await api.GET('/work-orders/assignable-users', {});
   if ((res as { error?: unknown }).error) return [];
   return (((res as { data: unknown }).data as { data: WoAssignableUser[] }).data) ?? [];
 }
@@ -314,7 +307,7 @@ export function SiteDetail() {
   const { data: site, isLoading, error } = useQuery({
     queryKey: ['site-detail', id],
     queryFn: async () => {
-      const res = await api.GET('/sites/{id}' as never, { params: { path: { id: Number(id) } } } as never);
+      const res = await api.GET('/sites/{id}', { params: { path: { id: Number(id) } } });
       if ((res as { error?: unknown }).error) throw new Error('Site not found');
       const d = (res as { data: unknown }).data;
       return (((d as { data?: SiteRecord }).data) ?? d) as SiteRecord;
@@ -325,7 +318,7 @@ export function SiteDetail() {
   const { data: devices } = useQuery({
     queryKey: ['site-devices', id],
     queryFn: async () => {
-      const res = await api.GET('/devices' as never, { params: { query: { site_id: Number(id), limit: 100 } as never } } as never);
+      const res = await api.GET('/devices', { params: { query: { site_id: Number(id), limit: 100 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<DeviceRow> | DeviceRow[];
       return Array.isArray(d) ? d : (d as ListResp<DeviceRow>).data ?? [];
@@ -336,7 +329,7 @@ export function SiteDetail() {
   const { data: nasList } = useQuery({
     queryKey: ['site-nas', id],
     queryFn: async () => {
-      const res = await api.GET('/nas' as never, { params: { query: { site_id: Number(id), limit: 100 } as never } } as never);
+      const res = await api.GET('/nas', { params: { query: { site_id: Number(id), limit: 100 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<NasRow> | NasRow[];
       return Array.isArray(d) ? d : (d as ListResp<NasRow>).data ?? [];
@@ -347,7 +340,7 @@ export function SiteDetail() {
   const { data: ipPools } = useQuery({
     queryKey: ['site-ip-pools', id],
     queryFn: async () => {
-      const res = await api.GET('/ip-pools' as never, { params: { query: { site_id: Number(id), limit: 100 } as never } } as never);
+      const res = await api.GET('/ip-pools', { params: { query: { site_id: Number(id), limit: 100 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<IpPoolRow> | IpPoolRow[];
       return Array.isArray(d) ? d : (d as ListResp<IpPoolRow>).data ?? [];
@@ -358,7 +351,7 @@ export function SiteDetail() {
   const { data: workOrders } = useQuery({
     queryKey: ['site-work-orders', id],
     queryFn: async () => {
-      const res = await api.GET('/work-orders' as never, { params: { query: { site_id: Number(id), limit: 50 } as never } } as never);
+      const res = await api.GET('/work-orders', { params: { query: { site_id: Number(id), limit: 50 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<WorkOrderRow> | WorkOrderRow[];
       return Array.isArray(d) ? d : (d as ListResp<WorkOrderRow>).data ?? [];
@@ -369,7 +362,7 @@ export function SiteDetail() {
   const { data: outages } = useQuery({
     queryKey: ['site-outages', id],
     queryFn: async () => {
-      const res = await api.GET('/outages' as never, { params: { query: { site_id: Number(id), limit: 50 } as never } } as never);
+      const res = await api.GET('/outages', { params: { query: { site_id: Number(id), limit: 50 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<OutageRow> | OutageRow[];
       return Array.isArray(d) ? d : (d as ListResp<OutageRow>).data ?? [];
@@ -380,7 +373,7 @@ export function SiteDetail() {
   const { data: timeline } = useQuery({
     queryKey: ['site-timeline', id],
     queryFn: async () => {
-      const res = await api.GET('/sites/{id}/timeline' as never, { params: { path: { id: Number(id) }, query: { limit: 100 } as never } } as never);
+      const res = await api.GET('/sites/{id}/timeline', { params: { path: { id: Number(id) }, query: { limit: 100 } } });
       if ((res as { error?: unknown }).error) return [];
       return (((res as { data?: { data?: { events?: TimelineEvent[] } } }).data?.data?.events) ?? []);
     },
@@ -416,7 +409,7 @@ export function SiteDetail() {
         <div>
           <h1 style={styles.title}>{site.name}</h1>
           <div style={styles.headerMeta}>
-            <StatusBadge status={site.status} />
+            <StatusBadge status={site.status} colors={STATUS_COLORS} />
             <span style={styles.idLabel}>ID #{site.id}</span>
           </div>
         </div>
@@ -478,7 +471,7 @@ export function SiteDetail() {
                         </Link>
                       </td>
                       <td style={styles.td}>{d.type ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={d.status} /></td>
+                      <td style={styles.td}><StatusBadge status={d.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, fontFamily: 'monospace' }}>{d.ip_address ?? '—'}</td>
                     </tr>
                   ))}
@@ -510,7 +503,7 @@ export function SiteDetail() {
                         </Link>
                       </td>
                       <td style={{ ...styles.td, fontFamily: 'monospace' }}>{n.ip_address}</td>
-                      <td style={styles.td}><StatusBadge status={n.status} /></td>
+                      <td style={styles.td}><StatusBadge status={n.status} colors={STATUS_COLORS} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -539,7 +532,7 @@ export function SiteDetail() {
                       <td style={{ ...styles.td, fontFamily: 'monospace' }}>
                         {p.network ? (p.cidr ? `${p.network}/${p.cidr}` : p.network) : '—'}
                       </td>
-                      <td style={styles.td}><StatusBadge status={p.status} /></td>
+                      <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -577,7 +570,7 @@ export function SiteDetail() {
                         <td style={styles.td}>#{wo.id}</td>
                         <td style={styles.td}>{wo.title}</td>
                         <td style={styles.td}>{wo.work_type ?? '—'}</td>
-                        <td style={styles.td}><StatusBadge status={wo.status} /></td>
+                        <td style={styles.td}><StatusBadge status={wo.status} colors={STATUS_COLORS} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -605,7 +598,7 @@ export function SiteDetail() {
                     <tr key={o.id} style={styles.tr}>
                       <td style={styles.td}>{o.title}</td>
                       <td style={styles.td}>{o.severity ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={o.status} /></td>
+                      <td style={styles.td}><StatusBadge status={o.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>{fmt(o.started_at)}</td>
                     </tr>
                   ))}
@@ -645,7 +638,7 @@ export function SiteDetail() {
                         {ev.subtype ? ` · ${ev.subtype}` : ''}
                       </td>
                       <td style={styles.td}>#{ev.id} — {ev.title}</td>
-                      <td style={styles.td}><StatusBadge status={ev.status} /></td>
+                      <td style={styles.td}><StatusBadge status={ev.status} colors={STATUS_COLORS} /></td>
                     </tr>
                   ))}
                 </tbody>

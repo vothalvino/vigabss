@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api, tokenStore, authedFetch } from '@/api/client';
+import type { InvoiceItemRow, InvoiceRow, PaymentAllocationRow } from '@/api/rows';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { extractApiError } from '@/components/ClientFormModal';
@@ -22,39 +23,15 @@ import { RecordPaymentModal } from '@/components/RecordPaymentModal';
 import { formatDate } from '@/lib/dates';
 import { parseApiError } from '@/api/errors';
 import { SandboxCfdiBadge } from '@/components/SandboxFiscal';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface Invoice {
-  id: number;
-  client_id: number;
-  contract_id: number | null;
-  invoice_number: string;
-  subtotal: string;
-  tax_amount: string;
-  tax_rate: string | null;
-  total: string;
-  currency: string;
-  period_start: string | null;
-  period_end: string | null;
-  due_date: string | null;
-  paid_at: string | null;
-  status: string;
-  notes: string | null;
-  created_at: string;
-}
-
-interface InvoiceItem {
-  id: number;
-  description: string;
-  quantity: string;
-  unit_price: string;
-  amount: string;
-  tax_rate: string | null;
-  inventory_item_id?: number | null;
-}
+type Invoice = InvoiceRow;
+type InvoiceItem = InvoiceItemRow;
 
 // A line's tax_rate is a fraction (0.1600 = 16%) joined from tax_rates or the
 // invoice; it was printed raw, and before FE-19 it was never sent at all.
@@ -64,15 +41,7 @@ export function taxPercent(rate: string | number | null | undefined): string {
   return Number.isFinite(n) ? `${parseFloat((n * 100).toFixed(2))}%` : '—';
 }
 
-interface Payment {
-  id: number;
-  payment_id: number;
-  invoice_id: number;
-  amount: string;
-  payment_amount: string;
-  payment_method: string;
-  payment_date: string | null;
-}
+type Payment = PaymentAllocationRow;
 
 interface Client {
   id: number;
@@ -99,20 +68,18 @@ const API_BASE = '/api/v1';
 
 async function fetchInvoice(id: string): Promise<Invoice> {
   const res = await api.GET('/invoices/{id}', { params: { path: { id: Number(id) } } });
-  if (res.error) throw new Error('Invoice not found');
-  return (res.data as unknown as { data: Invoice }).data ?? (res.data as unknown as Invoice);
+  if (res.error || !res.data) throw new Error('Invoice not found');
+  return res.data.data;
 }
 
 async function fetchItems(id: string): Promise<InvoiceItem[]> {
-  const res = await api.GET('/invoices/{id}/items' as never, { params: { path: { id: Number(id) } } } as never);
-  if ((res as { error?: unknown }).error) return [];
-  return ((res as { data: { data: InvoiceItem[] } }).data?.data) ?? [];
+  const res = await api.GET('/invoices/{id}/items', { params: { path: { id: Number(id) } } });
+  return res.data?.data ?? [];
 }
 
 async function fetchAppliedPayments(id: string): Promise<Payment[]> {
-  const res = await api.GET('/invoices/{id}/payments' as never, { params: { path: { id: Number(id) } } } as never);
-  if ((res as { error?: unknown }).error) return [];
-  return ((res as { data: { data: Payment[] } }).data?.data) ?? [];
+  const res = await api.GET('/invoices/{id}/payments', { params: { path: { id: Number(id) } } });
+  return res.data?.data ?? [];
 }
 
 async function fetchClient(id: number): Promise<Client> {
@@ -226,14 +193,14 @@ interface AddInvoiceItemBody {
 }
 
 async function addInvoiceItem(invoiceId: number, body: AddInvoiceItemBody): Promise<InvoiceItem> {
-  const res = await api.POST('/invoices/{id}/items' as never, {
+  const res = await api.POST('/invoices/{id}/items', {
     params: { path: { id: invoiceId } },
     body: body as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to add item'));
   }
-  return (res as { data: { data: InvoiceItem } }).data.data;
+  return (res.data as { data: InvoiceItem }).data;
 }
 
 // NOTE: there is deliberately no computeInvoiceTotals helper here any more.
@@ -252,32 +219,15 @@ function fmt(dateStr: string | null | undefined): string {
   return formatDate(dateStr);
 }
 
-function fmtAmount(amount: string | null | undefined, currency: string): string {
-  if (!amount) return '—';
-  const num = parseFloat(amount);
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN' }).format(num);
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:     { bg: '#f3f4f6', color: '#6b7280' },
-    pending:   { bg: '#ede9fe', color: '#5b21b6' },
-    sent:      { bg: '#dbeafe', color: '#1e40af' },
-    paid:      { bg: '#d1fae5', color: '#065f46' },
-    overdue:   { bg: '#fee2e2', color: '#991b1b' },
-    cancelled: { bg: '#fef3c7', color: '#92400e' },
-    void:      { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{
-      background: s.bg, color: s.color, padding: '3px 10px',
-      borderRadius: 12, fontSize: '0.78rem', fontWeight: 600, textTransform: 'capitalize',
-    }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:     { bg: '#f3f4f6', color: '#6b7280' },
+  pending:   { bg: '#ede9fe', color: '#5b21b6' },
+  sent:      { bg: '#dbeafe', color: '#1e40af' },
+  paid:      { bg: '#d1fae5', color: '#065f46' },
+  overdue:   { bg: '#fee2e2', color: '#991b1b' },
+  cancelled: { bg: '#fef3c7', color: '#92400e' },
+  void:      { bg: '#f3f4f6', color: '#374151' },
+};
 
 // SAT status of the invoice's CFDI: vigente = registered and fiscally valid at
 // SAT; cancel_pending = cancellation submitted, awaiting SAT; cancelado = SAT
@@ -607,7 +557,7 @@ function StampCfdiModal({ invoice, onClose, onStamped }: StampCfdiModalProps) {
       <div style={modalBox}>
         <h3 style={{ margin: '0 0 0.25rem' }}>Stamp invoice (SAT)</h3>
         <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.8rem' }}>
-          {invoice.invoice_number || `#${invoice.id}`} — {fmtAmount(invoice.total, invoice.currency)}
+          {invoice.invoice_number || `#${invoice.id}`} — {formatMoney(invoice.total, invoice.currency)}
         </p>
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: '#374151' }}>
           This converts the invoice into a formal CFDI 4.0 and submits it to SAT
@@ -726,7 +676,7 @@ function CancelCfdiModal({ cfdi, invoiceNumber, appliedTotal, currency, onClose,
         </p>
         {appliedTotal > 0 && (
           <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: '#92400e', background: '#fef3c7', padding: '8px 10px', borderRadius: 6 }}>
-            ⚠ This invoice has <strong>{fmtAmount(String(appliedTotal), currency)}</strong> in
+            ⚠ This invoice has <strong>{formatMoney(String(appliedTotal), currency)}</strong> in
             applied payments — SAT acceptance will release them as client credit
             (reallocate to a substitute invoice or refund afterwards).
           </p>
@@ -1139,7 +1089,7 @@ export function InvoiceDetail() {
           {/* Invoice metadata card */}
           <div style={card}>
             <div style={metaGrid}>
-              <MetaRow label="Status" value={<StatusBadge status={invoice.status} />} />
+              <MetaRow label="Status" value={<StatusBadge status={invoice.status} colors={STATUS_COLORS} size="md" />} />
               {displayCfdi && (
                 <MetaRow
                   label="CFDI (SAT)"
@@ -1156,9 +1106,9 @@ export function InvoiceDetail() {
                   }
                 />
               )}
-              <MetaRow label="Total" value={<strong style={{ fontSize: '1.05rem' }}>{fmtAmount(invoice.total, invoice.currency)}</strong>} />
-              <MetaRow label="Subtotal" value={fmtAmount(invoice.subtotal, invoice.currency)} />
-              <MetaRow label="Tax" value={fmtAmount(invoice.tax_amount, invoice.currency)} />
+              <MetaRow label="Total" value={<strong style={{ fontSize: '1.05rem' }}>{formatMoney(invoice.total, invoice.currency)}</strong>} />
+              <MetaRow label="Subtotal" value={formatMoney(invoice.subtotal, invoice.currency)} />
+              <MetaRow label="Tax" value={formatMoney(invoice.tax_amount, invoice.currency)} />
               <MetaRow label="Currency" value={invoice.currency} />
               <MetaRow label="Due Date" value={fmt(invoice.due_date)} />
               <MetaRow label="Paid At" value={fmt(invoice.paid_at)} />
@@ -1194,9 +1144,9 @@ export function InvoiceDetail() {
                     <tr key={item.id} style={{ borderBottom: '1px solid #f9fafb' }}>
                       <td style={{ padding: '8px 10px' }}>{item.description}</td>
                       <td style={{ padding: '8px 10px' }}>{item.quantity}</td>
-                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.unit_price, invoice.currency)}</td>
+                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.unit_price, invoice.currency)}</td>
                       <td style={{ padding: '8px 10px', color: '#9ca3af' }}>{taxPercent(item.tax_rate)}</td>
-                      <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.amount, invoice.currency)}</td>
+                      <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.amount, invoice.currency)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1237,7 +1187,7 @@ export function InvoiceDetail() {
                     <tr key={p.id} style={{ borderBottom: '1px solid #f9fafb' }}>
                       <td style={{ padding: '8px 10px', color: 'var(--accent)', fontWeight: 600 }}>#{p.payment_id}</td>
                       <td style={{ padding: '8px 10px', textTransform: 'capitalize' }}>{(p.payment_method || '').replace('_', ' ')}</td>
-                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(p.amount, invoice.currency)}</td>
+                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(p.amount, invoice.currency)}</td>
                       <td style={{ padding: '8px 10px', color: '#6b7280' }}>{fmt(p.payment_date)}</td>
                     </tr>
                   ))}

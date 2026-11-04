@@ -83,7 +83,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
   const { data: groups } = useQuery({
     queryKey: ['client-groups-options'],
     queryFn: async () => {
-      const res = await api.GET('/client-groups', { params: { query: { limit: 200 } as never } });
+      const res = await api.GET('/client-groups', { params: { query: { limit: 200 } } });
       if (res.error) throw new Error('Failed to load groups');
       return (res.data as { data: GroupRow[] }).data;
     },
@@ -96,7 +96,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
 
   const geocode = useMutation({
     mutationFn: async () => {
-      const { error: e } = await api.POST('/clients/{id}/geocode', { params: { path: { id: clientId } }, body: {} as never });
+      const { error: e } = await api.POST('/clients/{id}/geocode', { params: { path: { id: clientId } }, body: {} });
       if (e) throw new Error(extractApiError(e, 'Geocoding failed'));
     },
     onSuccess: () => { setError(''); refresh(); },
@@ -107,7 +107,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
     mutationFn: async (groupId: number | null) => {
       const { error: e } = await api.PUT('/clients/{id}', {
         params: { path: { id: clientId } },
-        body: { client_group_id: groupId } as never,
+        body: { client_group_id: groupId },
       });
       if (e) throw new Error(extractApiError(e, 'Failed to update group'));
     },
@@ -119,7 +119,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
     mutationFn: async (body: { suspension_exempt: boolean; suspension_exempt_reason?: string }) => {
       const { error: e } = await api.PUT('/clients/{id}', {
         params: { path: { id: clientId } },
-        body: body as never,
+        body: body,
       });
       if (e) throw new Error(extractApiError(e, 'Failed to update suspension exemption'));
     },
@@ -131,7 +131,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
     mutationFn: async (body: { tax_exempt: boolean; tax_exempt_reason?: string }) => {
       const { error: e } = await api.PUT('/clients/{id}', {
         params: { path: { id: clientId } },
-        body: body as never,
+        body: body,
       });
       if (e) throw new Error(extractApiError(e, 'Failed to update tax exemption'));
     },
@@ -356,7 +356,7 @@ export function CustomFieldsTab({ clientId, canEdit }: TabProps) {
     mutationFn: async (vars: { field_key: string; field_value: string }) => {
       const { error: e } = await api.PUT('/clients/{id}/custom-fields', {
         params: { path: { id: clientId } },
-        body: vars as never,
+        body: vars,
       });
       if (e) throw new Error(extractApiError(e, 'Failed to save field'));
     },
@@ -578,7 +578,7 @@ export function DuplicatesTab({ clientId, canEdit }: TabProps) {
     mutationFn: async (sourceId: number) => {
       const { error: e } = await api.POST('/clients/{id}/merge', {
         params: { path: { id: clientId } },
-        body: { source_id: sourceId } as never,
+        body: { source_id: sourceId },
       });
       if (e) throw new Error(extractApiError(e, 'Merge failed'));
     },

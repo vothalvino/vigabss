@@ -14,6 +14,7 @@ import type { CSSProperties, FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { authedFetch, tokenStore } from '@/api/client';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -122,22 +123,10 @@ function capitalize(s: string): string {
 // Status Badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active:   { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{
-      background: s.bg, color: s.color,
-      padding: '2px 8px', borderRadius: 12,
-      fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize',
-    }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:   { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Warehouse Form Modal (New / Edit)
@@ -462,7 +451,7 @@ export function WarehouseList() {
                     <td style={td}>{wh.state ?? '—'}</td>
                     <td style={td}>{wh.country ?? '—'}</td>
                     <td style={td}>{wh.zip_code ?? '—'}</td>
-                    <td style={td}><StatusBadge status={wh.status} /></td>
+                    <td style={td}><StatusBadge status={wh.status} colors={STATUS_COLORS} /></td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
                       <button style={actionBtn} onClick={() => setEditWarehouse(wh)}>Edit</button>
                       {' '}

@@ -29,23 +29,23 @@ interface ChainBody {
 const PAGE_SIZE = 25;
 
 async function fetchChains(page: number): Promise<ChainsResponse> {
-  const res = await api.GET('/alerts/escalation-chains' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/alerts/escalation-chains', { params: { query: { page, limit: PAGE_SIZE } as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load escalation chains');
   return (res as { data: unknown }).data as unknown as ChainsResponse;
 }
 
 async function createChain(body: ChainBody): Promise<void> {
-  const res = await api.POST('/alerts/escalation-chains' as never, { body: body as never } as never);
+  const res = await api.POST('/alerts/escalation-chains', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create escalation chain');
 }
 
 async function updateChain(id: number, body: Partial<ChainBody>): Promise<void> {
-  const res = await api.PUT('/alerts/escalation-chains/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/alerts/escalation-chains/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update escalation chain');
 }
 
 async function deleteChain(id: number): Promise<void> {
-  const res = await api.DELETE('/alerts/escalation-chains/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/alerts/escalation-chains/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete escalation chain');
 }
 

@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,7 +79,7 @@ const MAP_RULE_TYPES = ['map-e', 'map-t'];
 // ---------------------------------------------------------------------------
 
 async function fetchMechanisms<T>(type: string, page: number): Promise<MechResponse<T>> {
-  const res = await api.GET(`/transition-mechanisms/${type}` as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET(`/transition-mechanisms/${type}` as never, { params: { query: { page, limit: PAGE_SIZE } } } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to load');
   return (res as { data: unknown }).data as unknown as MechResponse<T>;
 }
@@ -101,18 +102,10 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const c = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // 6rd Tab
@@ -236,7 +229,7 @@ function SixRdTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: SixRdBody) => {
-      const res = await api.POST('/transition-mechanisms/6rd' as never, { body: body as never } as never);
+      const res = await api.POST('/transition-mechanisms/6rd', { body: body as never });
       if ((res as { error?: unknown }).error) throw new Error('Failed to create');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-6rd'] }); setShowForm(false); showMsg('ok', t('transition_mechanisms.create_success', 'Configuration created.')); },
@@ -245,7 +238,7 @@ function SixRdTab() {
 
   const updateMut = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: Partial<SixRdBody> }) => {
-      const res = await api.PUT('/transition-mechanisms/6rd/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+      const res = await api.PUT('/transition-mechanisms/6rd/{id}', { params: { path: { id } }, body: body });
       if ((res as { error?: unknown }).error) throw new Error('Failed to update');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-6rd'] }); setEditing(null); showMsg('ok', t('transition_mechanisms.update_success', 'Configuration updated.')); },
@@ -254,7 +247,7 @@ function SixRdTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await api.DELETE('/transition-mechanisms/6rd/{id}' as never, { params: { path: { id } } } as never);
+      const res = await api.DELETE('/transition-mechanisms/6rd/{id}', { params: { path: { id } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to delete');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-6rd'] }); setDeleteConfirm(null); showMsg('ok', t('transition_mechanisms.delete_success', 'Configuration deleted.')); },
@@ -290,7 +283,7 @@ function SixRdTab() {
                       <td style={styles.td}><strong>{item.name}</strong></td>
                       <td style={styles.tdMono}>{item.border_relay_ip}</td>
                       <td style={styles.tdMono}>{item.ipv6_prefix}</td>
-                      <td style={styles.td}><StatusBadge status={item.status} /></td>
+                      <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
                         <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
                         <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
@@ -436,7 +429,7 @@ function DsLiteTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: DsLiteBody) => {
-      const res = await api.POST('/transition-mechanisms/ds-lite' as never, { body: body as never } as never);
+      const res = await api.POST('/transition-mechanisms/ds-lite', { body: body as never });
       if ((res as { error?: unknown }).error) throw new Error('Failed to create');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-ds-lite'] }); setShowForm(false); showMsg('ok', t('transition_mechanisms.create_success', 'Configuration created.')); },
@@ -445,7 +438,7 @@ function DsLiteTab() {
 
   const updateMut = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: Partial<DsLiteBody> }) => {
-      const res = await api.PUT('/transition-mechanisms/ds-lite/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+      const res = await api.PUT('/transition-mechanisms/ds-lite/{id}', { params: { path: { id } }, body: body });
       if ((res as { error?: unknown }).error) throw new Error('Failed to update');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-ds-lite'] }); setEditing(null); showMsg('ok', t('transition_mechanisms.update_success', 'Configuration updated.')); },
@@ -454,7 +447,7 @@ function DsLiteTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await api.DELETE('/transition-mechanisms/ds-lite/{id}' as never, { params: { path: { id } } } as never);
+      const res = await api.DELETE('/transition-mechanisms/ds-lite/{id}', { params: { path: { id } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to delete');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-ds-lite'] }); setDeleteConfirm(null); showMsg('ok', t('transition_mechanisms.delete_success', 'Configuration deleted.')); },
@@ -490,7 +483,7 @@ function DsLiteTab() {
                       <td style={styles.td}><strong>{item.name}</strong></td>
                       <td style={styles.tdMono}>{item.aftr_address}</td>
                       <td style={styles.tdMono}>{item.b4_address_range ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={item.status} /></td>
+                      <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
                         <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
                         <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
@@ -654,7 +647,7 @@ function MapRulesTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: MapRuleBody) => {
-      const res = await api.POST('/transition-mechanisms/map-rules' as never, { body: body as never } as never);
+      const res = await api.POST('/transition-mechanisms/map-rules', { body: body as never });
       if ((res as { error?: unknown }).error) throw new Error('Failed to create');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-map-rules'] }); setShowForm(false); showMsg('ok', t('transition_mechanisms.create_success', 'Configuration created.')); },
@@ -663,7 +656,7 @@ function MapRulesTab() {
 
   const updateMut = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: Partial<MapRuleBody> }) => {
-      const res = await api.PUT('/transition-mechanisms/map-rules/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+      const res = await api.PUT('/transition-mechanisms/map-rules/{id}', { params: { path: { id } }, body: body });
       if ((res as { error?: unknown }).error) throw new Error('Failed to update');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-map-rules'] }); setEditing(null); showMsg('ok', t('transition_mechanisms.update_success', 'Configuration updated.')); },
@@ -672,7 +665,7 @@ function MapRulesTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await api.DELETE('/transition-mechanisms/map-rules/{id}' as never, { params: { path: { id } } } as never);
+      const res = await api.DELETE('/transition-mechanisms/map-rules/{id}', { params: { path: { id } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to delete');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-map-rules'] }); setDeleteConfirm(null); showMsg('ok', t('transition_mechanisms.delete_success', 'Configuration deleted.')); },
@@ -712,7 +705,7 @@ function MapRulesTab() {
                       <td style={styles.tdMono}>{item.ipv6_prefix}</td>
                       <td style={styles.tdMono}>{item.ipv4_prefix}</td>
                       <td style={styles.tdMono}>{item.br_address}</td>
-                      <td style={styles.td}><StatusBadge status={item.status} /></td>
+                      <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
                         <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
                         <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
@@ -858,7 +851,7 @@ function XlatTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: XlatBody) => {
-      const res = await api.POST('/transition-mechanisms/464xlat' as never, { body: body as never } as never);
+      const res = await api.POST('/transition-mechanisms/464xlat', { body: body as never });
       if ((res as { error?: unknown }).error) throw new Error('Failed to create');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-464xlat'] }); setShowForm(false); showMsg('ok', t('transition_mechanisms.create_success', 'Configuration created.')); },
@@ -867,7 +860,7 @@ function XlatTab() {
 
   const updateMut = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: Partial<XlatBody> }) => {
-      const res = await api.PUT('/transition-mechanisms/464xlat/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+      const res = await api.PUT('/transition-mechanisms/464xlat/{id}', { params: { path: { id } }, body: body });
       if ((res as { error?: unknown }).error) throw new Error('Failed to update');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-464xlat'] }); setEditing(null); showMsg('ok', t('transition_mechanisms.update_success', 'Configuration updated.')); },
@@ -876,7 +869,7 @@ function XlatTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await api.DELETE('/transition-mechanisms/464xlat/{id}' as never, { params: { path: { id } } } as never);
+      const res = await api.DELETE('/transition-mechanisms/464xlat/{id}', { params: { path: { id } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to delete');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-464xlat'] }); setDeleteConfirm(null); showMsg('ok', t('transition_mechanisms.delete_success', 'Configuration deleted.')); },
@@ -914,7 +907,7 @@ function XlatTab() {
                       <td style={styles.tdMono}>{item.plat_prefix}</td>
                       <td style={styles.tdMono}>{item.clat_prefix ?? '—'}</td>
                       <td style={styles.tdMono}>{item.dns64_prefix ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={item.status} /></td>
+                      <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
                         <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
                         <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>

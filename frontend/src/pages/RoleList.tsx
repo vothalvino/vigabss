@@ -137,10 +137,10 @@ async function deleteRole(id: number, fallbackMessage: string): Promise<void> {
 }
 
 async function setRolePermissions(roleId: number, permissionIds: number[], fallbackMessage: string): Promise<Permission[]> {
-  const res = await api.PUT('/roles/{id}/permissions' as never, {
+  const res = await api.PUT('/roles/{id}/permissions', {
     params: { path: { id: roleId } },
-    body: { permission_ids: permissionIds } as never,
-  } as never);
+    body: { permission_ids: permissionIds },
+  });
   if ((res as { error?: unknown }).error) {
     throw new Error(apiErrorMessage(res as { error?: unknown }, fallbackMessage));
   }

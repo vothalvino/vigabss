@@ -19,6 +19,7 @@ import { api } from '@/api/client';
 import { extractApiError } from '@/components/ClientFormModal';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,30 +66,30 @@ interface VendorSubmitBody {
 async function fetchVendors(page: number, pageSize: number, statusFilter: string): Promise<VendorListResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/vendors' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/vendors', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load vendors');
   return (res as { data: unknown }).data as unknown as VendorListResponse;
 }
 
 async function createVendor(body: VendorSubmitBody): Promise<void> {
-  const res = await api.POST('/vendors' as never, { body: body as never } as never);
+  const res = await api.POST('/vendors', { body: body as never });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to create vendor'));
   }
 }
 
 async function updateVendor(id: number, body: VendorSubmitBody): Promise<void> {
-  const res = await api.PUT('/vendors/{id}' as never, {
-    params: { path: { id } as never },
+  const res = await api.PUT('/vendors/{id}', {
+    params: { path: { id } },
     body: body as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to update vendor'));
   }
 }
 
 async function deleteVendor(id: number): Promise<void> {
-  const res = await api.DELETE('/vendors/{id}' as never, { params: { path: { id } as never } } as never);
+  const res = await api.DELETE('/vendors/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to delete vendor'));
   }
@@ -98,18 +99,10 @@ async function deleteVendor(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active:   { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:   { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Vendor Form Modal (New / Edit)
@@ -395,7 +388,7 @@ export function VendorList() {
                       <td style={styles.td}>{v.phone ?? '—'}</td>
                       <td style={styles.td}>{v.payment_terms ?? '—'}</td>
                       <td style={styles.td}>{v.currency ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={v.status} /></td>
+                      <td style={styles.td}><StatusBadge status={v.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditVendor(v)}>{t('vendors.actions.edit')}</button>
                         <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setConfirmDelete(v)}>{t('vendors.actions.delete')}</button>

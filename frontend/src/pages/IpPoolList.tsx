@@ -13,6 +13,7 @@ import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -118,19 +119,19 @@ const DHCPV6_MODES = ['stateful', 'stateless', 'slaac'];
 async function fetchIpPools(page: number, statusFilter: string): Promise<IpPoolsResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/ip-pools', { params: { query: query as never } });
+  const res = await api.GET('/ip-pools', { params: { query: query } });
   if (res.error) throw new Error('Failed to load IP pools');
   return res.data as unknown as IpPoolsResponse;
 }
 
 async function fetchSiteOptions(): Promise<SiteOption[]> {
-  const res = await api.GET('/sites', { params: { query: { limit: 500 } as never } });
+  const res = await api.GET('/sites', { params: { query: { limit: 500 } } });
   if (res.error) throw new Error('Failed to load sites');
   return (res.data as unknown as { data: SiteOption[] }).data;
 }
 
 async function fetchNasOptions(): Promise<NasOption[]> {
-  const res = await api.GET('/nas', { params: { query: { limit: 500 } as never } });
+  const res = await api.GET('/nas', { params: { query: { limit: 500 } } });
   if (res.error) throw new Error('Failed to load NAS options');
   return (res.data as unknown as { data: NasOption[] }).data;
 }
@@ -141,7 +142,7 @@ async function createIpPool(body: IpPoolBody): Promise<void> {
 }
 
 async function updateIpPool(id: number, body: Partial<IpPoolBody>): Promise<void> {
-  const res = await api.PUT('/ip-pools/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/ip-pools/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update IP pool');
 }
 
@@ -173,28 +174,10 @@ function UtilizationBar({ percent }: { percent: number | null | undefined }) {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const badge = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: badge.bg,
-        color: badge.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // IP Pool form modal (create + edit)
@@ -634,7 +617,7 @@ export function IpPoolList() {
   const utilQ = useQuery({
     queryKey: ['ip-pools-utilization'],
     queryFn: async () => {
-      const res = await api.GET('/ip-pools/utilization' as never, {} as never);
+      const res = await api.GET('/ip-pools/utilization', {});
       if (res.error) return [];
       return (res.data as unknown as { data: PoolUtilizationRow[] }).data;
     },
@@ -727,7 +710,7 @@ export function IpPoolList() {
                         <td style={styles.td}>{p.ip_version ? `IPv${p.ip_version}` : '—'}</td>
                         <td style={styles.td}>{p.gateway ?? '—'}</td>
                         <td style={styles.td}>{siteName(p.site_id)}</td>
-                        <td style={styles.td}><StatusBadge status={p.status} /></td>
+                        <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                         <td style={styles.td}>
                           <UtilizationBar percent={util?.percent_used ?? null} />
                         </td>

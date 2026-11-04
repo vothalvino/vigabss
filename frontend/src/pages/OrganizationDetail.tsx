@@ -120,7 +120,7 @@ function EditTab({ org }: { org: Organization }) {
         const v = (form as Record<string, string>)[k].trim();
         if (v) body[k] = v;
       }
-      const res = await api.PUT('/organizations/{id}', { params: { path: { id: org.id } }, body: body as never });
+      const res = await api.PUT('/organizations/{id}', { params: { path: { id: org.id } }, body: body });
       if (res.error) throw new Error('save failed');
     },
     onSuccess: () => { setMsg({ ok: true, text: t('orgDetail.saved') }); qc.invalidateQueries({ queryKey: ['organization', org.id] }); },
@@ -205,7 +205,7 @@ function SettingsTab({ id }: { id: number }) {
       for (const k of keys) {
         const next = form[k] ?? '';
         if (next !== (original[k] == null ? '' : String(original[k]))) {
-          const res = await api.PUT('/organizations/{id}/settings/{key}', { params: { path: { id, key: k } }, body: { value: next } as never });
+          const res = await api.PUT('/organizations/{id}/settings/{key}', { params: { path: { id, key: k } }, body: { value: next } });
           if (res.error) throw new Error('save failed');
         }
       }
@@ -259,7 +259,7 @@ function PrivacyTab({ org }: { org: Organization }) {
         body: {
           privacy_notice: form.privacy_notice,
           privacy_notice_version: form.privacy_notice_version.trim(),
-        } as never,
+        },
       });
       if (res.error) throw new Error('save failed');
     },
@@ -333,7 +333,7 @@ function QuotaTab({ id }: { id: number }) {
         const raw = (form[f.key] ?? '').trim();
         body[f.key] = raw === '' ? null : Number(raw);
       }
-      const res = await api.PUT('/organizations/{id}/quota', { params: { path: { id } }, body: body as never });
+      const res = await api.PUT('/organizations/{id}/quota', { params: { path: { id } }, body: body });
       if (res.error) throw new Error('save failed');
     },
     onSuccess: () => { setMsg({ ok: true, text: t('orgDetail.saved') }); qc.invalidateQueries({ queryKey: ['organization-quota', id] }); },
@@ -430,7 +430,7 @@ function IdentityEditor({ id, identity }: { id: number; identity: EmailIdentity 
       };
       if (clearStoredPassword) body.smtp_password = '';
       else if (form.smtp_password) body.smtp_password = form.smtp_password;
-      const res = await api.PUT('/organizations/{id}/email-settings/{function}', { params: { path: { id, function: fn as 'general' | 'support' | 'billing' | 'noc' } }, body: body as never });
+      const res = await api.PUT('/organizations/{id}/email-settings/{function}', { params: { path: { id, function: fn as 'general' | 'support' | 'billing' | 'noc' } }, body: body });
       const requestError: unknown = res.error;
       if (requestError) throw new Error(apiErrorMessage(requestError, t('orgDetail.saveError')));
     },
@@ -440,7 +440,7 @@ function IdentityEditor({ id, identity }: { id: number; identity: EmailIdentity 
 
   const test = useMutation({
     mutationFn: async (): Promise<{ success: boolean; error?: string }> => {
-      const res = await api.POST('/organizations/{id}/email-settings/{function}/test', { params: { path: { id, function: fn as 'general' | 'support' | 'billing' | 'noc' } }, body: { to: testTo.trim() } as never });
+      const res = await api.POST('/organizations/{id}/email-settings/{function}/test', { params: { path: { id, function: fn as 'general' | 'support' | 'billing' | 'noc' } }, body: { to: testTo.trim() } });
       const requestError: unknown = res.error;
       if (requestError) throw new Error(apiErrorMessage(requestError, t('orgDetail.mailTestFail', { error: '' })));
       return (res.data as unknown as { data: { success: boolean; error?: string } }).data;
@@ -582,7 +582,7 @@ function FiscalTab({ id }: { id: number }) {
   const q = useQuery({
     queryKey: ['organization-mx-profile', id],
     queryFn: async () => {
-      const res = await api.GET('/organizations/{id}/mx-profile' as never, { params: { path: { id } } } as never) as
+      const res = await api.GET('/organizations/{id}/mx-profile', { params: { path: { id } } }) as
         { error?: unknown; response?: Response; data?: { data: OrgMxProfile | null } };
       if (res.error) {
         // 403 is the RULE, not a failure: fiscal identity is edited from INSIDE
@@ -599,9 +599,9 @@ function FiscalTab({ id }: { id: number }) {
   const regimenQ = useQuery({
     queryKey: ['sat-regimen-fiscal'],
     queryFn: async () => {
-      const res = await api.GET('/sat-catalogs/regimen-fiscal' as never);
+      const res = await api.GET('/sat-catalogs/regimen-fiscal');
       if ((res as { error?: unknown }).error) return [] as { code: string; description: string }[];
-      return ((res as { data: { data: { code: string; description: string }[] } }).data?.data) ?? [];
+      return ((res.data as { data: { code: string; description: string }[] })?.data) ?? [];
     },
   });
 
@@ -642,7 +642,7 @@ function FiscalTab({ id }: { id: number }) {
         const v = (form[k] ?? '').trim();
         if (v) body[k] = v;
       }
-      const res = await api.PUT('/organizations/{id}/mx-profile' as never, { params: { path: { id } }, body: body as never } as never);
+      const res = await api.PUT('/organizations/{id}/mx-profile', { params: { path: { id } }, body: body });
       if ((res as { error?: unknown }).error) throw new Error('save failed');
     },
     onSuccess: () => {

@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,18 +70,10 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const c = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // RA Guard API helpers
@@ -89,23 +82,23 @@ function StatusBadge({ status }: { status: string }) {
 async function fetchRaGuard(page: number, statusFilter: string): Promise<RaGuardResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/ipv6/ra-guard' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/ipv6/ra-guard', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load RA Guard policies');
   return (res as { data: unknown }).data as unknown as RaGuardResponse;
 }
 
 async function createRaGuard(body: RaGuardBody): Promise<void> {
-  const res = await api.POST('/ipv6/ra-guard' as never, { body: body as never } as never);
+  const res = await api.POST('/ipv6/ra-guard', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create RA Guard policy');
 }
 
 async function updateRaGuard(id: number, body: Partial<RaGuardBody>): Promise<void> {
-  const res = await api.PUT('/ipv6/ra-guard/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/ipv6/ra-guard/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update RA Guard policy');
 }
 
 async function deleteRaGuard(id: number): Promise<void> {
-  const res = await api.DELETE('/ipv6/ra-guard/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/ipv6/ra-guard/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete RA Guard policy');
 }
 
@@ -306,7 +299,7 @@ function RaGuardTab() {
                     <td style={styles.td}>{p.switch_id ?? '—'}</td>
                     <td style={styles.tdMono}>{p.port_pattern ?? '—'}</td>
                     <td style={styles.td}>{capitalize(p.policy_type)}</td>
-                    <td style={styles.td}><StatusBadge status={p.status} /></td>
+                    <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>
                       <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(p)}>Edit</button>
                       <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(p.id)}>Delete</button>
@@ -386,9 +379,9 @@ function SubnetPlannerTab() {
       const query: Record<string, string | number> = { network: spNetwork };
       if (spPrefixLen) query.prefix_len = Number(spPrefixLen);
       if (spSubPrefixLen) query.sub_prefix_len = Number(spSubPrefixLen);
-      const res = await api.GET('/ipv6/subnet-plan' as never, {
+      const res = await api.GET('/ipv6/subnet-plan', {
         params: { query: query as never },
-      } as never);
+      });
       if (res.error) throw new Error('Failed to plan subnets');
       const data = res.data as unknown as { data: string[] };
       setSpResults(data.data ?? []);
@@ -474,7 +467,7 @@ function ConflictsTab({ active }: { active: boolean }) {
   const conflictsQ = useQuery({
     queryKey: ['pool-conflicts'],
     queryFn: async () => {
-      const res = await api.GET('/ipv6/pool-conflicts' as never, {} as never);
+      const res = await api.GET('/ipv6/pool-conflicts', {});
       if (res.error) throw new Error('Failed to check conflicts');
       return (res.data as unknown as { data: unknown[] }).data ?? [];
     },

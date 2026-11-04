@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authedFetch, tokenStore } from '@/api/client';
 import { SandboxCfdiBadge, SandboxEnvironmentBanner } from '@/components/SandboxFiscal';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -177,12 +178,6 @@ function fmt(dateStr: string | null | undefined): string {
   });
 }
 
-function fmtAmount(amount: string | null | undefined, currency: string | null): string {
-  if (!amount) return '—';
-  const num = parseFloat(amount);
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN' }).format(num);
-}
-
 function tipoLabel(tipo: string | null): string {
   const map: Record<string, string> = { I: 'Ingreso', E: 'Egreso', T: 'Traslado', N: 'Nómina', P: 'Pago' };
   return tipo ? (map[tipo] ?? tipo) : '—';
@@ -338,7 +333,7 @@ function StampModal({ doc, onClose, onStamped }: StampModalProps) {
         <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
           Document #{doc.id} — {doc.serie ?? ''}{doc.folio ? ` Folio ${doc.folio}` : ''}<br />
           Receptor: {doc.receptor_rfc ?? '—'} — {doc.receptor_nombre ?? '—'}<br />
-          Total: {fmtAmount(doc.total, doc.moneda)}
+          Total: {formatMoney(doc.total, doc.moneda)}
         </p>
         <p style={{ fontSize: '0.85rem', color: '#374151' }}>
           This will submit the document to the PAC for digital stamping (timbrado). Once stamped, the UUID cannot change.
@@ -544,7 +539,7 @@ export function CfdiList() {
 
                     {/* Total */}
                     <td style={{ padding: '9px 12px', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                      {fmtAmount(doc.total, doc.moneda)}
+                      {formatMoney(doc.total, doc.moneda)}
                     </td>
 
                     {/* Date */}

@@ -149,10 +149,10 @@ function NetworkTopologyTab() {
 
   const placeMutation = useMutation({
     mutationFn: async ({ id, lat, lng }: { id: number; lat: number; lng: number }) => {
-      const res = await api.PATCH('/devices/{id}' as never, {
+      const res = await api.PATCH('/devices/{id}', {
         params: { path: { id } },
-        body: { latitude: Number(lat.toFixed(7)), longitude: Number(lng.toFixed(7)) } as never,
-      } as never);
+        body: { latitude: Number(lat.toFixed(7)), longitude: Number(lng.toFixed(7)) },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Could not save the position');
     },
     onSuccess: () => {
@@ -328,24 +328,24 @@ function GeographicMapTab() {
   const { data: customers } = useQuery({
     queryKey: ['topology-customers'],
     queryFn: async () => {
-      const res = await api.GET('/topology/map/customers' as never, {} as never);
-      return (res as { data: { data: CustomerLocation[] } }).data?.data ?? [];
+      const res = await api.GET('/topology/map/customers', {});
+      return (res.data as { data: CustomerLocation[] })?.data ?? [];
     },
   });
 
   const { data: infraData } = useQuery({
     queryKey: ['topology-infrastructure-pins'],
     queryFn: async () => {
-      const res = await api.GET('/topology/map/infrastructure' as never, {} as never);
-      return (res as { data: { data: { infrastructure: InfraPin[]; sites: InfraPin[] } } }).data?.data;
+      const res = await api.GET('/topology/map/infrastructure', {});
+      return (res.data as { data: { infrastructure: InfraPin[]; sites: InfraPin[] } })?.data;
     },
   });
 
   const { data: fiberData } = useQuery({
     queryKey: ['topology-fiber-routes'],
     queryFn: async () => {
-      const res = await api.GET('/topology/map/fiber-routes' as never, {} as never);
-      return (res as { data: { data: FiberRoute[] } }).data?.data ?? [];
+      const res = await api.GET('/topology/map/fiber-routes', {});
+      return (res.data as { data: FiberRoute[] })?.data ?? [];
     },
   });
 
@@ -455,8 +455,8 @@ function DependencyTab() {
   const { data: dualHomed } = useQuery({
     queryKey: ['topology-dual-homed'],
     queryFn: async () => {
-      const res = await api.GET('/topology/map/dual-homed' as never, {} as never);
-      return (res as { data: { data: Array<DeviceNode & { upstream_link_count?: number }> } }).data?.data ?? [];
+      const res = await api.GET('/topology/map/dual-homed', {});
+      return (res.data as { data: Array<DeviceNode & { upstream_link_count?: number }> })?.data ?? [];
     },
   });
 
@@ -464,11 +464,11 @@ function DependencyTab() {
     if (!deviceId) return;
     setAnalysisLoading(true);
     try {
-      const endpoint = analysisType === 'impact'
-        ? `/topology/map/impact/${deviceId}`
-        : `/topology/map/cascade/${deviceId}`;
-      const res = await api.GET(endpoint as never, {} as never);
-      setAnalysisResult((res as { data: { data: ImpactAnalysis } }).data?.data ?? null);
+      const params = { params: { path: { deviceId: Number(deviceId) } } };
+      const res = analysisType === 'impact'
+        ? await api.GET('/topology/map/impact/{deviceId}', params)
+        : await api.GET('/topology/map/cascade/{deviceId}', params);
+      setAnalysisResult((res.data as { data: ImpactAnalysis })?.data ?? null);
     } catch {
       setAnalysisResult(null);
     } finally {
@@ -480,13 +480,13 @@ function DependencyTab() {
     mutationFn: async (body: typeof newEdge) => {
       // openapi-fetch resolves with { error } instead of throwing, so a 403
       // or 422 used to be reported as "edge created" (FE2-09).
-      const { error } = await api.POST('/topology/dependencies' as never, {
+      const { error } = await api.POST('/topology/dependencies', {
         body: {
           parent_device_id: Number(body.parent_device_id),
           child_device_id: Number(body.child_device_id),
           dependency_type: body.dependency_type,
         },
-      } as never) as { error?: unknown };
+      }) as { error?: unknown };
       if (error) throw new Error(parseApiError(error, t('topologyMap.edgeError')));
     },
     onSuccess: () => {

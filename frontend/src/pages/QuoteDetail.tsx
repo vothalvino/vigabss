@@ -22,6 +22,8 @@ import { api, tokenStore } from '@/api/client';
 import { extractApiError } from '@/components/ClientFormModal';
 import { styles as crudStyles, modalStyles, RequiredMark } from './crudStyles';
 import { fetchAddonCatalog, fetchSellableInventoryItems, buildProductPickerEntries } from '@/api/addonCatalog';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -81,9 +83,9 @@ async function fetchQuote(id: string): Promise<Quote> {
 }
 
 async function fetchItems(id: string): Promise<QuoteItem[]> {
-  const res = await api.GET('/quotes/{id}/items' as never, { params: { path: { id: Number(id) } } } as never);
+  const res = await api.GET('/quotes/{id}/items', { params: { path: { id: Number(id) } } });
   if ((res as { error?: unknown }).error) return [];
-  return ((res as { data: { data: QuoteItem[] } }).data?.data) ?? [];
+  return ((res.data as { data: QuoteItem[] })?.data) ?? [];
 }
 
 async function fetchClient(id: number): Promise<Client> {
@@ -120,14 +122,14 @@ interface AddItemBody {
 }
 
 async function addQuoteItem(quoteId: number, body: AddItemBody): Promise<QuoteItem> {
-  const res = await api.POST('/quotes/{id}/items' as never, {
+  const res = await api.POST('/quotes/{id}/items', {
     params: { path: { id: quoteId } },
     body: body as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to add item'));
   }
-  return (res as { data: { data: QuoteItem } }).data.data;
+  return (res.data as { data: QuoteItem }).data;
 }
 
 interface UpdateQuoteBody {
@@ -192,31 +194,13 @@ function fmt(dateStr: string | null | undefined): string {
   });
 }
 
-function fmtAmount(amount: string | number | null | undefined, currency: string): string {
-  if (amount === null || amount === undefined || amount === '') return '—';
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  if (Number.isNaN(num)) return '—';
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN' }).format(num);
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:    { bg: '#f3f4f6', color: '#6b7280' },
-    sent:     { bg: '#dbeafe', color: '#1e40af' },
-    accepted: { bg: '#d1fae5', color: '#065f46' },
-    rejected: { bg: '#fee2e2', color: '#991b1b' },
-    expired:  { bg: '#fef3c7', color: '#92400e' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{
-      background: s.bg, color: s.color, padding: '3px 10px',
-      borderRadius: 12, fontSize: '0.78rem', fontWeight: 600, textTransform: 'capitalize',
-    }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:    { bg: '#f3f4f6', color: '#6b7280' },
+  sent:     { bg: '#dbeafe', color: '#1e40af' },
+  accepted: { bg: '#d1fae5', color: '#065f46' },
+  rejected: { bg: '#fee2e2', color: '#991b1b' },
+  expired:  { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // Add Line Item form (inline card, not a modal — the primary "build the
@@ -669,10 +653,10 @@ export function QuoteDetail() {
           {/* Quote metadata card */}
           <div style={card}>
             <div style={metaGrid}>
-              <MetaRow label={t('quoteDetail.meta.status')} value={<StatusBadge status={quote.status} />} />
-              <MetaRow label={t('quoteDetail.meta.total')} value={<strong style={{ fontSize: '1.05rem' }}>{fmtAmount(quote.total, quote.currency)}</strong>} />
-              <MetaRow label={t('quoteDetail.meta.subtotal')} value={fmtAmount(quote.subtotal, quote.currency)} />
-              <MetaRow label={t('quoteDetail.meta.tax')} value={fmtAmount(quote.tax_amount, quote.currency)} />
+              <MetaRow label={t('quoteDetail.meta.status')} value={<StatusBadge status={quote.status} colors={STATUS_COLORS} size="md" />} />
+              <MetaRow label={t('quoteDetail.meta.total')} value={<strong style={{ fontSize: '1.05rem' }}>{formatMoney(quote.total, quote.currency)}</strong>} />
+              <MetaRow label={t('quoteDetail.meta.subtotal')} value={formatMoney(quote.subtotal, quote.currency)} />
+              <MetaRow label={t('quoteDetail.meta.tax')} value={formatMoney(quote.tax_amount, quote.currency)} />
               <MetaRow label={t('quoteDetail.meta.currency')} value={quote.currency} />
               <MetaRow label={t('quoteDetail.meta.validUntil')} value={fmt(quote.valid_until)} />
               {quote.issue_date && <MetaRow label={t('quoteDetail.meta.issueDate')} value={fmt(quote.issue_date)} />}
@@ -719,8 +703,8 @@ export function QuoteDetail() {
                     <tr key={item.id} style={{ borderBottom: '1px solid #f9fafb' }}>
                       <td style={{ padding: '8px 10px' }}>{item.description}</td>
                       <td style={{ padding: '8px 10px' }}>{item.quantity}</td>
-                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.unit_price, quote.currency)}</td>
-                      <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.total, quote.currency)}</td>
+                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.unit_price, quote.currency)}</td>
+                      <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.total, quote.currency)}</td>
                     </tr>
                   ))}
                 </tbody>

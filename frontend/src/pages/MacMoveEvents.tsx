@@ -43,7 +43,7 @@ const PAGE_SIZE = 25;
 // ---------------------------------------------------------------------------
 
 async function fetchMacMoveEvents(page: number): Promise<MacMoveEventsResponse> {
-  const res = await api.GET('/radius/mac-move-events', { params: { query: { page, limit: PAGE_SIZE } as never } });
+  const res = await api.GET('/radius/mac-move-events', { params: { query: { page, limit: PAGE_SIZE } } });
   if (res.error) throw new Error('Failed to load MAC move events');
   return res.data as unknown as MacMoveEventsResponse;
 }

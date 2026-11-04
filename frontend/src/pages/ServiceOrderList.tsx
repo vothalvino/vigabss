@@ -140,7 +140,7 @@ interface Plan {
 
 async function fetchPlansForSO(): Promise<Plan[]> {
   const res = await api.GET('/plans', {
-    params: { query: { limit: 200, order_by: 'name', order: 'ASC' } as never },
+    params: { query: { limit: 200, order_by: 'name', order: 'ASC' } },
   });
   if (res.error) throw new Error('Failed to load plans');
   return (res.data as unknown as { data: Plan[] }).data;
@@ -377,7 +377,7 @@ function CompleteOrderModal({
       }
       const { data, error: e } = await api.POST('/service-orders/{id}/complete', {
         params: { path: { id: order.id } },
-        body: body as never,
+        body: body,
       });
       if (e) throw new Error(extractApiError(e, t('serviceOrders.completeFailed', 'Failed to complete service order')));
       return (data as unknown as { data: ServiceOrder & { invoice?: InvoiceSummary | null } }).data;
@@ -577,23 +577,23 @@ function WorkOrdersModal({ order, onClose, onCreated, canCreate }: { order: Serv
 // ---------------------------------------------------------------------------
 
 async function fetchAssignedUnits(contractId: number): Promise<AssignedUnit[]> {
-  const res = await api.GET('/cpe-management/devices' as never, {
-    params: { query: { contract_id: contractId, limit: 100 } as never },
-  } as never);
+  const res = await api.GET('/cpe-management/devices', {
+    params: { query: { contract_id: contractId, limit: 100 } },
+  });
   if (res.error) return [];
   return ((res.data as unknown as { data: AssignedUnit[] }).data) ?? [];
 }
 
 async function fetchInventoryItemsSO(): Promise<InventoryItemOptionSO[]> {
-  const res = await api.GET('/inventory/items' as never, { params: { query: { limit: 200, status: 'active' } as never } } as never);
+  const res = await api.GET('/inventory/items', { params: { query: { limit: 200, status: 'active' } } });
   if (res.error) return [];
   return ((res.data as unknown as { data: InventoryItemOptionSO[] }).data) ?? [];
 }
 
 async function fetchInStockUnits(itemId: number): Promise<InStockUnit[]> {
-  const res = await api.GET('/cpe-management/devices' as never, {
-    params: { query: { inventory_item_id: itemId, lifecycle_state: 'in_stock', limit: 200 } as never },
-  } as never);
+  const res = await api.GET('/cpe-management/devices', {
+    params: { query: { inventory_item_id: itemId, lifecycle_state: 'in_stock', limit: 200 } },
+  });
   if (res.error) return [];
   return ((res.data as unknown as { data: InStockUnit[] }).data) ?? [];
 }
@@ -640,7 +640,7 @@ function EquipmentModal({ order, onClose, onAssigned, canInstall }: { order: Ser
         body.new_serial = newSerial.trim();
         body.inventory_item_id = Number(itemId);
       }
-      const { error } = await api.POST('/cpe-management/devices/install' as never, { body: body as never } as never);
+      const { error } = await api.POST('/cpe-management/devices/install', { body: body });
       if (error) throw new Error(extractApiError(error, t('serviceOrders.equipmentInstallFailed', 'Failed to install equipment')));
     },
     onSuccess: () => {

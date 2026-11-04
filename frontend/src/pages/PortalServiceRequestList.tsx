@@ -84,10 +84,10 @@ function ActionModal({ req, action, onClose, onDone }: { req: ServiceRequest; ac
   const [error, setError] = useState('');
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error: e } = await api.POST(`/portal-service-requests/{id}/${action}` as never, {
+      const { error: e } = await api.POST(`/portal-service-requests/{id}/${action}`, {
         params: { path: { id: req.id } },
-        body: (action === 'complete' ? {} : { notes: notes.trim() || undefined }) as never,
-      } as never);
+        body: (action === 'complete' ? {} : { notes: notes.trim() || undefined }),
+      });
       if (e) throw new Error(extractApiError(e, t('portalServiceRequests.actionFailed')));
     },
     onSuccess: () => { onDone(); onClose(); },
@@ -141,7 +141,7 @@ export function PortalServiceRequestList() {
       const query: Record<string, unknown> = { page, limit: PAGE_SIZE };
       if (statusFilter) query.status = statusFilter;
       if (typeFilter) query.request_type = typeFilter;
-      const res = await api.GET('/portal-service-requests' as never, { params: { query: query as never } } as never);
+      const res = await api.GET('/portal-service-requests', { params: { query: query } });
       if (res.error) throw new Error('Failed to load service requests');
       return res.data as unknown as ListResponse;
     },

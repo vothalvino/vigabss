@@ -118,6 +118,18 @@ describe('RecordPaymentModal', () => {
     expect(screen.getByDisplayValue('MXN')).toBeInTheDocument();
   });
 
+  it('shows an invoice\'s issue date on its calendar day, not the day before (FE-23)', async () => {
+    // A DATE column arrives as UTC midnight; in Mexico (UTC-6) the local
+    // copy of fmtDate rendered 1 November as 31 October.
+    setupApi([
+      { id: 30, invoice_number: 'INV-30', issue_date: '2026-11-01T00:00:00.000Z', total: '80.00', currency: 'MXN', status: 'issued', balance_due: '80.00' },
+    ]);
+    renderModal();
+    const row = (await screen.findByText('INV-30')).closest('tr') as HTMLElement;
+    expect(row.textContent).toContain('1 nov 2026');
+    expect(row.textContent).not.toContain('31 oct');
+  });
+
   it('loads the open invoices for a locked client, all checked, amount = sum of balances', async () => {
     renderModal();
     expect(await screen.findByText('INV-10')).toBeInTheDocument();

@@ -15,10 +15,10 @@ export interface UninstallResponse {
 }
 
 export async function uninstallCpeDevice(id: number, notes?: string): Promise<UninstallResponse> {
-  const res = await api.POST('/cpe-management/devices/{id}/uninstall' as never, {
-    params: { path: { id } } as never,
-    body: (notes ? { notes } : {}) as never,
-  } as never);
+  const res = await api.POST('/cpe-management/devices/{id}/uninstall', {
+    params: { path: { id } },
+    body: (notes ? { notes } : {}),
+  });
   // Surface the backend's real message (e.g. "resolve the payment before
   // undoing this install") instead of a generic failure string.
   if ((res as { error?: unknown }).error) {

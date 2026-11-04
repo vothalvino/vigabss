@@ -21,6 +21,7 @@ import { ClientPicker } from '@/components/ClientPicker';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { parseApiError } from '@/api/errors';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -93,12 +94,6 @@ export function extractList<T>(body: unknown): T[] {
   return [];
 }
 
-export function fmtAmount(amount: string | null | undefined, currency: string): string {
-  if (!amount) return '—';
-  const num = parseFloat(amount);
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN' }).format(num);
-}
-
 // ---------------------------------------------------------------------------
 // Fetch / mutate helpers
 // ---------------------------------------------------------------------------
@@ -151,7 +146,7 @@ export async function deletePayment(id: number): Promise<void> {
 export async function allocatePayment(id: number, invoiceId: number, amount: number): Promise<void> {
   const { error } = await api.POST('/payments/{id}/allocate', {
     params: { path: { id } },
-    body: { invoice_id: invoiceId, amount } as never,
+    body: { invoice_id: invoiceId, amount },
   });
   if (error) throw new Error(extractApiError(error, 'Failed to allocate payment'));
 }
@@ -480,7 +475,7 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
           }}>
             {isFullyAllocated
               ? 'Fully allocated — this payment has no remaining balance to apply.'
-              : `Unallocated balance: ${fmtAmount(String(unallocatedBalance), payment.currency)}`}
+              : `Unallocated balance: ${formatMoney(String(unallocatedBalance), payment.currency)}`}
           </div>
         )}
 
@@ -500,7 +495,7 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
             <option value="">— select invoice —</option>
             {applicableInvoices.map(inv => (
               <option key={inv.id} value={inv.id}>
-                {inv.invoice_number || `#${inv.id}`} — {fmtAmount(inv.total, payment.currency)}
+                {inv.invoice_number || `#${inv.id}`} — {formatMoney(inv.total, payment.currency)}
               </option>
             ))}
           </select>
@@ -610,7 +605,7 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
             <option value="">— select allocation —</option>
             {allocs.map(a => (
               <option key={a.id} value={a.invoice_id}>
-                Invoice #{a.invoice_id} — {fmtAmount(a.amount, payment.currency)}
+                Invoice #{a.invoice_id} — {formatMoney(a.amount, payment.currency)}
               </option>
             ))}
           </select>
@@ -633,7 +628,7 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
               .filter(inv => String(inv.id) !== fromInvoiceId)
               .map(inv => (
                 <option key={inv.id} value={inv.id}>
-                  {inv.invoice_number || `#${inv.id}`} — {fmtAmount(inv.total, payment.currency)}
+                  {inv.invoice_number || `#${inv.id}`} — {formatMoney(inv.total, payment.currency)}
                 </option>
               ))}
           </select>
@@ -800,7 +795,7 @@ function UnapplyModal({ payment, onClose, onUnapplied }: UnapplyModalProps) {
                 <tr key={a.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                   <td style={{ padding: '6px 8px', color: '#374151' }}>#{a.invoice_id}</td>
                   <td style={{ padding: '6px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtAmount(a.amount, payment.currency)}
+                    {formatMoney(a.amount, payment.currency)}
                   </td>
                   <td style={{ padding: '6px 8px' }}>
                     <button
@@ -1040,7 +1035,7 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
             <h3 style={{ margin: '0 0 0.75rem' }}>Delete Payment #{payment.id}?</h3>
             <p style={{ margin: '0 0 1.25rem', color: '#4b5563', fontSize: '0.9rem' }}>
               This will permanently remove payment of{' '}
-              {fmtAmount(payment.amount, payment.currency)}. This action cannot be undone.
+              {formatMoney(payment.amount, payment.currency)}. This action cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setDeleteOpen(false)} style={cancelBtn}>

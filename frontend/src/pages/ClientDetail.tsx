@@ -41,6 +41,7 @@ import { UndoInstallButton } from '@/components/UndoInstallButton';
 import { CreditNoteModal, reasonLabel, type CreditNote } from '@/pages/CreditNoteList';
 import { formatDate } from '@/lib/dates';
 import { queryKeys } from '@/api/queryKeys';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // GraphQL query — fetches the client + all sub-resources in one request
@@ -236,15 +237,6 @@ function fmt(dateStr: string | null | undefined): string {
   return formatDate(dateStr);
 }
 
-function fmtMoney(amount: string | null, currency = 'MXN'): string {
-  if (!amount) return '—';
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(parseFloat(amount));
-}
-
 function StatusBadge({ status, colorMap }: { status: string; colorMap?: Record<string, { bg: string; color: string }> }) {
   const defaultMap: Record<string, { bg: string; color: string }> = {
     active:    { bg: '#d1fae5', color: '#065f46' },
@@ -306,14 +298,6 @@ const TABS: { id: TabId; icon: string; label: string }[] = [
 // Tab panels — receive pre-loaded data as props (no sub-queries needed)
 // ---------------------------------------------------------------------------
 
-interface ClientTicket {
-  id: number;
-  subject: string;
-  priority: string | null;
-  status: string;
-  created_at: string;
-}
-
 // Right-aligned "+ New X" button row shown above a tab's content (mirrors the
 // Contacts tab's "+ Add Contact"). Rendered by the parent so the tab components
 // stay presentational.
@@ -329,9 +313,9 @@ function TicketsTab({ clientId }: { clientId: number }) {
   const { data: tickets = [], isLoading, error } = useQuery({
     queryKey: ['client-tickets', clientId],
     queryFn: async () => {
-      const res = await api.GET('/tickets', { params: { query: { client_id: clientId, limit: 100 } as never } });
+      const res = await api.GET('/tickets', { params: { query: { client_id: clientId, limit: 100 } } });
       if (res.error) throw new Error('Failed to load tickets');
-      return (res.data as unknown as { data: ClientTicket[] }).data ?? [];
+      return res.data.data;
     },
   });
 
@@ -421,7 +405,7 @@ function InvoicesTab({ invoices }: { invoices: Invoice[] }) {
                 </Link>
               </td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtMoney(inv.total, inv.currency)}
+                {formatMoney(inv.total, inv.currency)}
               </td>
               <td style={styles.td}>{fmt(inv.dueDate)}</td>
               <td style={styles.td}>{fmt(inv.paidAt)}</td>
@@ -453,7 +437,7 @@ function PaymentsTab({ payments }: { payments: Payment[] }) {
                 </Link>
               </td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtMoney(p.amount, p.currency)}
+                {formatMoney(p.amount, p.currency)}
               </td>
               <td style={{ ...styles.td, textTransform: 'capitalize' }}>{p.paymentMethod || '—'}</td>
               <td style={styles.td}>{p.reference || '—'}</td>
@@ -478,9 +462,9 @@ function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note
   const { data: notes = [], isLoading, error } = useQuery({
     queryKey: ['client-credit-notes', clientId],
     queryFn: async () => {
-      const res = await api.GET('/credit-notes', { params: { query: { client_id: clientId, limit: 100 } as never } });
+      const res = await api.GET('/credit-notes', { params: { query: { client_id: clientId, limit: 100 } } });
       if (res.error) throw new Error('Failed to load credit notes');
-      return (res.data as unknown as { data: CreditNote[] }).data ?? [];
+      return res.data.data;
     },
   });
 
@@ -506,7 +490,7 @@ function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note
               <td style={styles.td}>{fmt(n.issue_date)}</td>
               <td style={styles.td}>{n.reason ? reasonLabel(n.reason) : '—'}</td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtMoney(n.total == null ? null : String(n.total), n.currency || 'MXN')}
+                {formatMoney(n.total == null ? null : String(n.total), n.currency || 'MXN')}
               </td>
               <td style={styles.td}><StatusBadge status={n.status} colorMap={CREDIT_NOTE_STATUS_COLORS} /></td>
               {onEdit && (
@@ -542,9 +526,9 @@ interface AssignedEquipmentUnit {
 }
 
 async function fetchAssignedEquipment(clientId: number): Promise<AssignedEquipmentUnit[]> {
-  const res = await api.GET('/cpe-management/devices' as never, {
-    params: { query: { subscriber_id: clientId, limit: 100 } as never },
-  } as never);
+  const res = await api.GET('/cpe-management/devices', {
+    params: { query: { subscriber_id: clientId, limit: 100 } },
+  });
   if ((res as { error?: unknown }).error) return [];
   return (((res as { data: unknown }).data as { data: AssignedEquipmentUnit[] }).data) ?? [];
 }
@@ -746,10 +730,10 @@ function LedgerTab({ ledger, clientId }: { ledger: LedgerEntry[]; clientId: numb
                     fontWeight: 600,
                   }}
                 >
-                  {isCredit ? '+' : ''}{fmtMoney(e.amount, e.currency)}
+                  {isCredit ? '+' : ''}{formatMoney(e.amount, e.currency)}
                 </td>
                 <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtMoney(e.balanceAfter, e.currency)}
+                  {formatMoney(e.balanceAfter, e.currency)}
                 </td>
                 <td style={{ ...styles.td, color: '#6b7280' }}>{e.notes || '—'}</td>
               </tr>
@@ -917,7 +901,7 @@ function AddContactModal({
     if (form.phone.trim()) body.phone = form.phone.trim();
     const { error: apiError } = await api.POST('/clients/{id}/contacts', {
       params: { path: { id: Number(clientId) } },
-      body: body as never,
+      body: body,
     });
     setSaving(false);
     if (apiError) { setError(extractApiError(apiError, 'Failed to add contact.')); return; }
@@ -1021,7 +1005,7 @@ function MxProfileModal({
     if (form.curp.trim()) body.curp = form.curp.trim();
     const { error: apiError } = await api.PUT('/clients/{id}/mx-profile', {
       params: { path: { id: Number(clientId) } },
-      body: body as never,
+      body: body,
     });
     setSaving(false);
     if (apiError) { setError(extractApiError(apiError, 'Failed to save MX profile.')); return; }
@@ -1095,7 +1079,7 @@ function PortalPasswordModal({
     setError(null);
     const { data, error: apiError } = await api.PUT('/clients/{id}/portal-password', {
       params: { path: { id: Number(clientId) } },
-      body: { password } as never,
+      body: { password },
     });
     setSaving(false);
     if (apiError) { setError(extractApiError(apiError, 'Failed to set portal password.')); return; }
@@ -1195,7 +1179,7 @@ export function ClientDetail() {
   const { data: clientGroups } = useQuery({
     queryKey: ['client-groups-options'],
     queryFn: async () => {
-      const res = await api.GET('/client-groups', { params: { query: { limit: 200 } as never } });
+      const res = await api.GET('/client-groups', { params: { query: { limit: 200 } } });
       if (res.error) throw new Error('Failed to load groups');
       return (res.data as unknown as { data: { id: number; name: string }[] }).data;
     },
@@ -1309,7 +1293,7 @@ export function ClientDetail() {
         </span>
         {balanceParts.map(p => (
           <span key={p.currency} style={{ fontSize: '1.5rem', fontWeight: 800 }}>
-            {fmtMoney(String(Math.abs(p.amount)), p.currency)}
+            {formatMoney(String(Math.abs(p.amount)), p.currency)}
             {client.mixedCurrency && (
               <span style={{ fontSize: '0.8rem', fontWeight: 600, marginLeft: 4 }}>
                 {p.amount > 0.005 ? 'owed' : p.amount < -0.005 ? 'credit' : ''}

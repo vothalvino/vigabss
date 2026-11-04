@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,7 +45,7 @@ const STATUS_FILTER_OPTIONS = ['', 'active', 'inactive'];
 async function fetchSnmpProfiles(page: number, statusFilter: string): Promise<SnmpProfileResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/snmp-profiles', { params: { query: query as never } });
+  const res = await api.GET('/snmp-profiles', { params: { query: query } });
   if (res.error) throw new Error('Failed to load SNMP profiles');
   return res.data as unknown as SnmpProfileResponse;
 }
@@ -53,28 +54,10 @@ async function fetchSnmpProfiles(page: number, statusFilter: string): Promise<Sn
 // Badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#f3f4f6', color: '#374151' },
+};
 
 function deviceTypeLabel(type: string | null): string {
   if (!type) return '—';
@@ -157,7 +140,7 @@ export function SnmpProfileList() {
                       <td style={{ ...styles.td, textTransform: 'uppercase' }}>{p.snmp_version ?? '—'}</td>
                       <td style={styles.td}>{p.poll_interval_sec}s</td>
                       <td style={styles.td}>{p.is_default ? '⭐' : '—'}</td>
-                      <td style={styles.td}><StatusBadge status={p.status} /></td>
+                      <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                     </tr>
                   ))}
                 </tbody>

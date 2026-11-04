@@ -43,7 +43,7 @@ const METHOD_FILTER_OPTIONS = ['', 'manual', 'scheduled', 'pre_change', 'post_ch
 async function fetchBackups(page: number, methodFilter: string): Promise<DeviceConfigBackupResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (methodFilter) query.capture_method = methodFilter;
-  const res = await api.GET('/device-config-backups', { params: { query: query as never } });
+  const res = await api.GET('/device-config-backups', { params: { query: query } });
   if (res.error) throw new Error('Failed to load device config backups');
   return res.data as unknown as DeviceConfigBackupResponse;
 }
