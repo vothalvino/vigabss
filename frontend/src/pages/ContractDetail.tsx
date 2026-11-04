@@ -35,6 +35,8 @@ import {
 } from '@/components/MxContractEnvironment';
 import { formatDate } from '@/lib/dates';
 import { invalidateContractViews, queryKeys } from '@/api/queryKeys';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { formatMoney } from '@/lib/money';
 
 // The markdown renderer is its own chunk (FE-21).
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
@@ -269,46 +271,19 @@ function fmt(dateStr: string | null | undefined): string {
   return formatDate(dateStr);
 }
 
-function fmtMoney(amount: string | null, currency = 'MXN'): string {
-  if (!amount) return '—';
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(parseFloat(amount));
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active:     { bg: '#d1fae5', color: '#065f46' },
-    paid:       { bg: '#d1fae5', color: '#065f46' },
-    pending:    { bg: '#ede9fe', color: '#5b21b6' },
-    suspended:  { bg: '#fef3c7', color: '#92400e' },
-    overdue:    { bg: '#fee2e2', color: '#991b1b' },
-    cancelled:  { bg: '#fee2e2', color: '#991b1b' },
-    terminated: { bg: '#f3f4f6', color: '#6b7280' },
-    expired:    { bg: '#fde68a', color: '#78350f' },
-    failed:     { bg: '#fee2e2', color: '#991b1b' },
-    draft:      { bg: '#f3f4f6', color: '#6b7280' },
-    inactive:   { bg: '#f3f4f6', color: '#6b7280' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:     { bg: '#d1fae5', color: '#065f46' },
+  paid:       { bg: '#d1fae5', color: '#065f46' },
+  pending:    { bg: '#ede9fe', color: '#5b21b6' },
+  suspended:  { bg: '#fef3c7', color: '#92400e' },
+  overdue:    { bg: '#fee2e2', color: '#991b1b' },
+  cancelled:  { bg: '#fee2e2', color: '#991b1b' },
+  terminated: { bg: '#f3f4f6', color: '#6b7280' },
+  expired:    { bg: '#fde68a', color: '#78350f' },
+  failed:     { bg: '#fee2e2', color: '#991b1b' },
+  draft:      { bg: '#f3f4f6', color: '#6b7280' },
+  inactive:   { bg: '#f3f4f6', color: '#6b7280' },
+};
 
 // ---------------------------------------------------------------------------
 // Tab types
@@ -345,11 +320,11 @@ function InvoicesTab({ invoices }: { invoices: Invoice[] }) {
                 </Link>
               </td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtMoney(inv.total, inv.currency)}
+                {formatMoney(inv.total, inv.currency)}
               </td>
               <td style={styles.td}>{fmt(inv.dueDate)}</td>
               <td style={styles.td}>{fmt(inv.paidAt)}</td>
-              <td style={styles.td}><StatusBadge status={inv.status} /></td>
+              <td style={styles.td}><StatusBadge status={inv.status} colors={STATUS_COLORS} /></td>
             </tr>
           ))}
         </tbody>
@@ -760,7 +735,7 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
                   </td>
                   <td style={{ ...styles.td, fontFamily: 'monospace' }}>{d.macAddress || '—'}</td>
                   <td style={{ ...styles.td, fontFamily: 'monospace' }}>{d.ipAddress || '—'}</td>
-                  <td style={styles.td}><StatusBadge status={d.status} /></td>
+                  <td style={styles.td}><StatusBadge status={d.status} colors={STATUS_COLORS} /></td>
                   {canManage && (
                     <td style={styles.td}>
                       <button
@@ -821,11 +796,11 @@ function AddonsTab({ addons }: { addons: ContractAddon[] }) {
               <td style={{ ...styles.td, textTransform: 'capitalize' }}>{a.addonType || '—'}</td>
               <td style={styles.td}>{a.quantity ?? '—'}</td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {a.unitPrice ? fmtMoney(a.unitPrice) : '—'}
+                {a.unitPrice ? formatMoney(a.unitPrice) : '—'}
               </td>
               <td style={styles.td}>{fmt(a.startDate)}</td>
               <td style={styles.td}>{fmt(a.endDate)}</td>
-              <td style={styles.td}><StatusBadge status={a.status} /></td>
+              <td style={styles.td}><StatusBadge status={a.status} colors={STATUS_COLORS} /></td>
             </tr>
           ))}
         </tbody>
@@ -1043,7 +1018,7 @@ function ContractInfoCard({ contract }: { contract: Contract }) {
         <InfoRow label="IP Address"  value={contract.ipAddress} mono />
         <InfoRow label="Created"     value={fmt(contract.createdAt)} />
         {contract.priceOverride && (
-          <InfoRow label="Price Override" value={fmtMoney(contract.priceOverride)} />
+          <InfoRow label="Price Override" value={formatMoney(contract.priceOverride)} />
         )}
       </div>
       {contract.notes && (
@@ -2298,7 +2273,7 @@ export function ContractDetail() {
         <div>
           <h1 style={styles.contractTitle}>Contract #{contract.id}</h1>
           <div style={styles.headerMeta}>
-            <StatusBadge status={contract.status} />
+            <StatusBadge status={contract.status} colors={STATUS_COLORS} />
             {contract.mxContractEnvironment && (
               <MxContractEnvironmentBadge environment={contract.mxContractEnvironment} />
             )}

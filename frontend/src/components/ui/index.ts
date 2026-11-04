@@ -10,6 +10,9 @@ export type { ButtonProps, ButtonVariant, ButtonSize } from './Button';
 export { Badge } from './Badge';
 export type { BadgeProps, BadgeTone } from './Badge';
 
+export { StatusBadge } from './StatusBadge';
+export type { StatusBadgeProps, StatusColors } from './StatusBadge';
+
 export { Card } from './Card';
 export type { CardProps } from './Card';
 

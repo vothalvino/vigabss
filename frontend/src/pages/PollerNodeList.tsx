@@ -13,6 +13,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -81,20 +82,12 @@ async function deleteNode(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    active:      { bg: '#d1fae5', color: '#065f46' },
-    draining:    { bg: '#fef9c3', color: '#854d0e' },
-    maintenance: { bg: '#fef3c7', color: '#92400e' },
-    offline:     { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const c = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:      { bg: '#d1fae5', color: '#065f46' },
+  draining:    { bg: '#fef9c3', color: '#854d0e' },
+  maintenance: { bg: '#fef3c7', color: '#92400e' },
+  offline:     { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Poller node form modal
@@ -291,7 +284,7 @@ export function PollerNodeList() {
                   <tr key={n.id} style={styles.tr}>
                     <td style={styles.td}><code>{n.node_identifier}</code></td>
                     <td style={styles.td}><strong>{n.name}</strong></td>
-                    <td style={styles.td}><StatusBadge status={n.status} /></td>
+                    <td style={styles.td}><StatusBadge status={n.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>{n.current_queue_depth}</td>
                     <td style={styles.td}>{n.avg_poll_duration_ms ?? '—'}</td>
                     <td style={styles.td}>{n.last_heartbeat_at ? new Date(n.last_heartbeat_at).toLocaleString() : '—'}</td>

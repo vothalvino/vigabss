@@ -26,6 +26,7 @@ import {
   cancelBtn,
   dangerBtn,
 } from '@/components/ClientFormModal';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -128,21 +129,13 @@ async function fetchMessages(campaignId: number, page: number, status?: string):
 // Status badges
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:     { bg: '#f3f4f6', color: '#374151' },
-    sending:   { bg: '#fef3c7', color: '#92400e' },
-    sent:      { bg: '#d1fae5', color: '#065f46' },
-    cancelled: { bg: '#fee2e2', color: '#991b1b' },
-    failed:    { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:     { bg: '#f3f4f6', color: '#374151' },
+  sending:   { bg: '#fef3c7', color: '#92400e' },
+  sent:      { bg: '#d1fae5', color: '#065f46' },
+  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+  failed:    { bg: '#fee2e2', color: '#991b1b' },
+};
 
 function ChannelBadge({ channel }: { channel: string }) {
   const map: Record<string, { bg: string; color: string; icon: string }> = {
@@ -584,7 +577,7 @@ export function CommunicationCampaignList() {
                     <td style={styles.td}>#{c.id}</td>
                     <td style={{ ...styles.td, fontWeight: 500 }}>{c.name}</td>
                     <td style={styles.td}><ChannelBadge channel={c.channel} /></td>
-                    <td style={styles.td}><StatusBadge status={c.status} /></td>
+                    <td style={styles.td}><StatusBadge status={c.status} colors={STATUS_COLORS} /></td>
                     <td style={{ ...styles.td, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                       {c.recipient_count}
                     </td>

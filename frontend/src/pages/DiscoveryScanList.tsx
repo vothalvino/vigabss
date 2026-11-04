@@ -14,6 +14,7 @@ import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
 import { extractApiError } from '@/components/ClientFormModal';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -115,20 +116,12 @@ async function deleteScan(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    pending:   { bg: '#fef9c3', color: '#854d0e' },
-    running:   { bg: '#dbeafe', color: '#1e40af' },
-    completed: { bg: '#d1fae5', color: '#065f46' },
-    failed:    { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const c = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  pending:   { bg: '#fef9c3', color: '#854d0e' },
+  running:   { bg: '#dbeafe', color: '#1e40af' },
+  completed: { bg: '#d1fae5', color: '#065f46' },
+  failed:    { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Discovery scan form modal
@@ -328,7 +321,7 @@ export function DiscoveryScanList() {
                     <td style={styles.td}>{capitalize(s.snmp_version)} / port {s.snmp_port}</td>
                     <td style={styles.td}>{s.scanned_hosts}{s.total_hosts !== null && s.total_hosts !== undefined ? ` / ${s.total_hosts}` : ''}</td>
                     <td style={styles.td}>{s.discovered_hosts}</td>
-                    <td style={styles.td} title={s.error_message ?? undefined}><StatusBadge status={s.status} /></td>
+                    <td style={styles.td} title={s.error_message ?? undefined}><StatusBadge status={s.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>{formatDate(s.created_at)}</td>
                     <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                       <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 6 }} onClick={() => setResultsFor(s)}>
@@ -428,7 +421,7 @@ function ResultsPanel({ scan, onClose }: { scan: DiscoveryScan; onClose: () => v
                     <td style={styles.td}>{r.hostname ?? '—'}</td>
                     <td style={styles.td}>{[r.manufacturer, r.model].filter(Boolean).join(' ') || '—'}</td>
                     <td style={styles.td}>{r.device_type ?? '—'}</td>
-                    <td style={styles.td}><StatusBadge status={r.status} /></td>
+                    <td style={styles.td}><StatusBadge status={r.status} colors={STATUS_COLORS} /></td>
                     <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                       {r.status === 'pending_review' && (
                         <>

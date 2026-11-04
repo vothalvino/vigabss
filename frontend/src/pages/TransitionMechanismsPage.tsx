@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,18 +102,10 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const c = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // 6rd Tab
@@ -290,7 +283,7 @@ function SixRdTab() {
                       <td style={styles.td}><strong>{item.name}</strong></td>
                       <td style={styles.tdMono}>{item.border_relay_ip}</td>
                       <td style={styles.tdMono}>{item.ipv6_prefix}</td>
-                      <td style={styles.td}><StatusBadge status={item.status} /></td>
+                      <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
                         <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
                         <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
@@ -490,7 +483,7 @@ function DsLiteTab() {
                       <td style={styles.td}><strong>{item.name}</strong></td>
                       <td style={styles.tdMono}>{item.aftr_address}</td>
                       <td style={styles.tdMono}>{item.b4_address_range ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={item.status} /></td>
+                      <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
                         <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
                         <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
@@ -712,7 +705,7 @@ function MapRulesTab() {
                       <td style={styles.tdMono}>{item.ipv6_prefix}</td>
                       <td style={styles.tdMono}>{item.ipv4_prefix}</td>
                       <td style={styles.tdMono}>{item.br_address}</td>
-                      <td style={styles.td}><StatusBadge status={item.status} /></td>
+                      <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
                         <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
                         <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
@@ -914,7 +907,7 @@ function XlatTab() {
                       <td style={styles.tdMono}>{item.plat_prefix}</td>
                       <td style={styles.tdMono}>{item.clat_prefix ?? '—'}</td>
                       <td style={styles.tdMono}>{item.dns64_prefix ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={item.status} /></td>
+                      <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
                         <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
                         <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>

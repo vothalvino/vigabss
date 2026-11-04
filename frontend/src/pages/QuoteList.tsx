@@ -35,6 +35,7 @@ import {
 import { Pagination } from '@/components/Pagination';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';
 import { useClientNames } from '@/api/clientNames';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -87,21 +88,13 @@ async function deleteQuote(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:    { bg: '#f3f4f6', color: '#374151' },
-    sent:     { bg: '#dbeafe', color: '#1e40af' },
-    accepted: { bg: '#d1fae5', color: '#065f46' },
-    rejected: { bg: '#fee2e2', color: '#991b1b' },
-    expired:  { bg: '#fef3c7', color: '#92400e' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:    { bg: '#f3f4f6', color: '#374151' },
+  sent:     { bg: '#dbeafe', color: '#1e40af' },
+  accepted: { bg: '#d1fae5', color: '#065f46' },
+  rejected: { bg: '#fee2e2', color: '#991b1b' },
+  expired:  { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // Confirm dialog
@@ -227,7 +220,7 @@ export function QuoteList() {
                       </td>
                       <td style={styles.td}>{fmtMoney(q.total, q.currency ?? orgCurrency)}</td>
                       <td style={styles.td}>{fmtDate(q.valid_until)}</td>
-                      <td style={styles.td}><StatusBadge status={q.status} /></td>
+                      <td style={styles.td}><StatusBadge status={q.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setConfirm({ type: 'delete', id: q.id })} title="Delete this quote">🗑 Delete</button>
                       </td>

@@ -24,6 +24,8 @@ import { formatDate } from '@/lib/dates';
 import { SandboxEnvironmentBanner } from '@/components/SandboxFiscal';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -82,12 +84,6 @@ function fmt(dateStr: string | null | undefined): string {
   return formatDate(dateStr);
 }
 
-function fmtAmount(amount: string | null | undefined, currency: string): string {
-  if (!amount) return '—';
-  const num = parseFloat(amount);
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN' }).format(num);
-}
-
 // "overdue" is never persisted on invoices.status — it is derived from an
 // unpaid (issued/sent) invoice whose due_date has passed. Display it that way
 // so the badge matches reality everywhere, not only when ?status=overdue
@@ -99,33 +95,15 @@ function displayStatus(status: string, dueDate: string | null): string {
   return status;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft: { bg: '#f3f4f6', color: '#6b7280' },
-    pending: { bg: '#ede9fe', color: '#5b21b6' },
-    sent: { bg: '#dbeafe', color: '#1e40af' },
-    paid: { bg: '#d1fae5', color: '#065f46' },
-    overdue: { bg: '#fee2e2', color: '#991b1b' },
-    cancelled: { bg: '#fef3c7', color: '#92400e' },
-    void: { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft: { bg: '#f3f4f6', color: '#6b7280' },
+  pending: { bg: '#ede9fe', color: '#5b21b6' },
+  sent: { bg: '#dbeafe', color: '#1e40af' },
+  paid: { bg: '#d1fae5', color: '#065f46' },
+  overdue: { bg: '#fee2e2', color: '#991b1b' },
+  cancelled: { bg: '#fef3c7', color: '#92400e' },
+  void: { bg: '#f3f4f6', color: '#374151' },
+};
 
 // Generate Invoice Modal lives in @/components/GenerateInvoiceModal (shared with
 // the client page).
@@ -395,11 +373,11 @@ export function InvoiceList() {
                       {inv.client_id ?? '—'}
                     </td>
                     <td style={{ padding: '10px 14px', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtAmount(inv.total, inv.currency)}
+                      {formatMoney(inv.total, inv.currency)}
                     </td>
                     <td style={{ padding: '10px 14px' }}>{fmt(inv.due_date)}</td>
                     <td style={{ padding: '10px 14px' }}>
-                      <StatusBadge status={displayStatus(inv.status, inv.due_date)} />
+                      <StatusBadge status={displayStatus(inv.status, inv.due_date)} colors={STATUS_COLORS} />
                     </td>
                     <td style={{ padding: '10px 14px', color: '#9ca3af', fontSize: '0.8rem' }}>
                       {fmt(inv.created_at)}

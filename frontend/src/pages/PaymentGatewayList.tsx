@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,28 +50,10 @@ async function fetchGateways(page: number): Promise<PaymentGatewayResponse> {
 // Badges
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#f3f4f6', color: '#374151' },
+};
 
 function EnvBadge({ env }: { env: string }) {
   const isProd = env === 'production';
@@ -143,7 +126,7 @@ export function PaymentGatewayList() {
                         {g.public_key ?? '—'}
                       </td>
                       <td style={styles.td}>{g.is_default ? '⭐' : '—'}</td>
-                      <td style={styles.td}><StatusBadge status={g.status} /></td>
+                      <td style={styles.td}><StatusBadge status={g.status} colors={STATUS_COLORS} /></td>
                     </tr>
                   ))}
                 </tbody>

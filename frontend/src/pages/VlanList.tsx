@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,29 +90,11 @@ async function deleteVlan(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    reserved: { bg: '#dbeafe', color: '#1e40af' },
-    deprecated: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  reserved: { bg: '#dbeafe', color: '#1e40af' },
+  deprecated: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // VLAN form modal (create + edit)
@@ -397,7 +380,7 @@ export function VlanList() {
                       <td style={{ ...styles.td, fontWeight: 500 }}>{v.vlan_id}</td>
                       <td style={styles.td}>{v.name}</td>
                       <td style={styles.td}>{siteName(v.site_id)}</td>
-                      <td style={styles.td}><StatusBadge status={v.status} /></td>
+                      <td style={styles.td}><StatusBadge status={v.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditVlan(v)} title="Edit this VLAN">
                           ✏️ Edit

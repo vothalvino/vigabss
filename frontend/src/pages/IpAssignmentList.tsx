@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -97,29 +98,11 @@ async function deleteIpAssignment(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    available: { bg: '#dbeafe', color: '#1e40af' },
-    expired: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  available: { bg: '#dbeafe', color: '#1e40af' },
+  expired: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // IP Assignment form modal (create + edit)
@@ -439,7 +422,7 @@ export function IpAssignmentList() {
                       </td>
                       <td style={styles.td}>{poolName(a.pool_id)}</td>
                       <td style={{ ...styles.td, textTransform: 'capitalize' }}>{a.type ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={a.status} /></td>
+                      <td style={styles.td}><StatusBadge status={a.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditAssignment(a)} title="Edit this assignment">
                           ✏️ Edit

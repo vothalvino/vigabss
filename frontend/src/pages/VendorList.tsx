@@ -19,6 +19,7 @@ import { api } from '@/api/client';
 import { extractApiError } from '@/components/ClientFormModal';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,18 +99,10 @@ async function deleteVendor(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active:   { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:   { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Vendor Form Modal (New / Edit)
@@ -395,7 +388,7 @@ export function VendorList() {
                       <td style={styles.td}>{v.phone ?? '—'}</td>
                       <td style={styles.td}>{v.payment_terms ?? '—'}</td>
                       <td style={styles.td}>{v.currency ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={v.status} /></td>
+                      <td style={styles.td}><StatusBadge status={v.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditVendor(v)}>{t('vendors.actions.edit')}</button>
                         <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setConfirmDelete(v)}>{t('vendors.actions.delete')}</button>

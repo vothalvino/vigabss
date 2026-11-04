@@ -26,6 +26,7 @@ import { extractApiError } from '@/components/ClientFormModal';
 import { styles, modalStyles, fmtMoney, fmtDate, capitalize, RequiredMark } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
 import { localToday } from '@/lib/dates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -107,21 +108,13 @@ async function deletePurchaseOrder(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:     { bg: '#f3f4f6', color: '#374151' },
-    sent:      { bg: '#dbeafe', color: '#1e40af' },
-    partial:   { bg: '#fef3c7', color: '#92400e' },
-    received:  { bg: '#d1fae5', color: '#065f46' },
-    cancelled: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:     { bg: '#f3f4f6', color: '#374151' },
+  sent:      { bg: '#dbeafe', color: '#1e40af' },
+  partial:   { bg: '#fef3c7', color: '#92400e' },
+  received:  { bg: '#d1fae5', color: '#065f46' },
+  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // New Purchase Order Modal — header only; line items are added on the detail
@@ -350,7 +343,7 @@ export function PurchaseOrderList() {
                       <td style={styles.td}>{warehouseName(po.warehouse_id)}</td>
                       <td style={styles.td}>{fmtDate(po.order_date)}</td>
                       <td style={styles.td}>{fmtMoney(po.total, po.currency ?? 'MXN')}</td>
-                      <td style={styles.td}><StatusBadge status={po.status} /></td>
+                      <td style={styles.td}><StatusBadge status={po.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         {po.status === 'draft' && (
                           <button

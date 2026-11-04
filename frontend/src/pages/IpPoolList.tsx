@@ -13,6 +13,7 @@ import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -173,28 +174,10 @@ function UtilizationBar({ percent }: { percent: number | null | undefined }) {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const badge = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: badge.bg,
-        color: badge.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // IP Pool form modal (create + edit)
@@ -727,7 +710,7 @@ export function IpPoolList() {
                         <td style={styles.td}>{p.ip_version ? `IPv${p.ip_version}` : '—'}</td>
                         <td style={styles.td}>{p.gateway ?? '—'}</td>
                         <td style={styles.td}>{siteName(p.site_id)}</td>
-                        <td style={styles.td}><StatusBadge status={p.status} /></td>
+                        <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                         <td style={styles.td}>
                           <UtilizationBar percent={util?.percent_used ?? null} />
                         </td>

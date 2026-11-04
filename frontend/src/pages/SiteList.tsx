@@ -15,6 +15,7 @@ import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -97,28 +98,10 @@ async function deleteSite(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // Site form modal (create + edit)
@@ -464,7 +447,7 @@ export function SiteList() {
                       <td style={{ ...styles.td, fontWeight: 500 }}>{s.name}</td>
                       <td style={styles.td}>{s.site_type ? labelType(s.site_type) : '—'}</td>
                       <td style={styles.td}>{s.city ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={s.status} /></td>
+                      <td style={styles.td}><StatusBadge status={s.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <Link to={`/sites/${s.id}`} style={{ ...styles.actionBtn, textDecoration: 'none', display: 'inline-block' }}>
                           View

@@ -16,6 +16,7 @@ import { ClientPicker } from '@/components/ClientPicker';
 import { extractApiError } from '@/components/ClientFormModal';
 import { fmtPct, fmtSignal, fmtLatency, fmtUptimeTicks } from './snmpMetrics/format';
 import { DeviceFormModal, type Site as DeviceSite, type Device as EditableDevice } from './DeviceMap';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -162,21 +163,13 @@ function fmtRawSnmpValue(key: string, value: unknown, t: (key: string) => string
   return `${String(value)}${SNMP_COLUMN_UNITS[key] ?? ''}`;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const colorMap: Record<string, { bg: string; color: string }> = {
-    online:      { bg: '#d1fae5', color: '#065f46' },
-    offline:     { bg: '#fee2e2', color: '#991b1b' },
-    maintenance: { bg: '#fef9c3', color: '#854d0e' },
-    active:      { bg: '#d1fae5', color: '#065f46' },
-    inactive:    { bg: '#f3f4f6', color: '#6b7280' },
-  };
-  const s = colorMap[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  online:      { bg: '#d1fae5', color: '#065f46' },
+  offline:     { bg: '#fee2e2', color: '#991b1b' },
+  maintenance: { bg: '#fef9c3', color: '#854d0e' },
+  active:      { bg: '#d1fae5', color: '#065f46' },
+  inactive:    { bg: '#f3f4f6', color: '#6b7280' },
+};
 
 // snmp_enabled is a MySQL BOOLEAN and arrives as 0/1, so comparing with
 // `false` hid the row for every device with SNMP off (FE-19).
@@ -675,7 +668,7 @@ export function DeviceDetail() {
         <div>
           <h1 style={styles.title}>{device.name}</h1>
           <div style={styles.headerMeta}>
-            <StatusBadge status={device.status} />
+            <StatusBadge status={device.status} colors={STATUS_COLORS} />
             <span style={styles.idLabel}>ID #{device.id}</span>
           </div>
         </div>
@@ -816,7 +809,7 @@ export function DeviceDetail() {
             <div style={styles.infoGrid}>
               <div style={styles.infoRow}>
                 <span style={styles.infoLabel}>{t('deviceDetail.overview.status')}</span>
-                <span style={styles.infoValue}><StatusBadge status={device.status} /></span>
+                <span style={styles.infoValue}><StatusBadge status={device.status} colors={STATUS_COLORS} /></span>
               </div>
               <InfoRow label={t('deviceDetail.fields.type')} value={device.type} capitalize />
               <InfoRow
@@ -1008,7 +1001,7 @@ export function DeviceDetail() {
                         <td style={styles.td}>#{wo.id}</td>
                         <td style={styles.td}>{wo.title}</td>
                         <td style={styles.td}>{wo.work_type ?? '—'}</td>
-                        <td style={styles.td}><StatusBadge status={wo.status} /></td>
+                        <td style={styles.td}><StatusBadge status={wo.status} colors={STATUS_COLORS} /></td>
                         <td style={styles.td}>{fmt(wo.scheduled_at)}</td>
                       </tr>
                     ))}
@@ -1037,7 +1030,7 @@ export function DeviceDetail() {
                     <tr key={o.id} style={styles.tr}>
                       <td style={styles.td}>{o.title}</td>
                       <td style={styles.td}>{o.severity ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={o.status} /></td>
+                      <td style={styles.td}><StatusBadge status={o.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>{fmt(o.started_at)}</td>
                       <td style={styles.td}>{fmt(o.resolved_at)}</td>
                     </tr>

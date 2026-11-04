@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { authedFetch, tokenStore } from '@/api/client';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';
 import { Pagination } from '@/components/Pagination';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -190,22 +191,10 @@ function capitalize(s: string): string {
 // Status Badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active:        { bg: '#d1fae5', color: '#065f46' },
-    discontinued:  { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{
-      background: s.bg, color: s.color,
-      padding: '2px 8px', borderRadius: 12,
-      fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize',
-    }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:        { bg: '#d1fae5', color: '#065f46' },
+  discontinued:  { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Item Form Modal (New / Edit)
@@ -779,7 +768,7 @@ export function InventoryList() {
                     <td style={td}>{fmtCurrency(item.unit_cost)}</td>
                     <td style={td}>{fmtCurrency(item.sale_price)}</td>
                     <td style={td}>{item.reorder_level ?? '—'}</td>
-                    <td style={td}><StatusBadge status={item.status} /></td>
+                    <td style={td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
                       <button style={actionBtn} onClick={() => setEditItem(item)}>Edit</button>
                       {' '}

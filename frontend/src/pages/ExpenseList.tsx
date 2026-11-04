@@ -24,6 +24,7 @@ import {
   fmtDate,
   capitalize,
 } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -109,19 +110,11 @@ async function deleteExpense(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    pending:  { bg: '#fef3c7', color: '#92400e' },
-    approved: { bg: '#d1fae5', color: '#065f46' },
-    rejected: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  pending:  { bg: '#fef3c7', color: '#92400e' },
+  approved: { bg: '#d1fae5', color: '#065f46' },
+  rejected: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Expense form modal (create + edit)
@@ -357,7 +350,7 @@ export function ExpenseList() {
                       <td style={styles.td}>{fmtDate(x.expense_date)}</td>
                       <td style={{ ...styles.td, fontWeight: 500, textTransform: 'capitalize' }}>{x.category}</td>
                       <td style={styles.td}>{fmtMoney(x.amount, x.currency ?? orgCurrency)}</td>
-                      <td style={styles.td}><StatusBadge status={x.status} /></td>
+                      <td style={styles.td}><StatusBadge status={x.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         {canApprove && x.status === 'pending' && x.user_id !== user?.id && (
                           <>

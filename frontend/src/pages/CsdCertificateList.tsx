@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api, authedFetch } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,19 +70,11 @@ function daysLeft(validTo: string | null): number | null {
   return Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    expired: { bg: '#fee2e2', color: '#991b1b' },
-    revoked: { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  expired: { bg: '#fee2e2', color: '#991b1b' },
+  revoked: { bg: '#f3f4f6', color: '#374151' },
+};
 
 function expiryNote(validTo: string | null): { label: string; color: string } | null {
   const days = daysLeft(validTo);
@@ -251,7 +244,7 @@ export function CsdCertificateList() {
                           )}
                         </td>
                         <td style={styles.td}>{c.is_active ? '✅' : '—'}</td>
-                        <td style={styles.td}><StatusBadge status={c.status} /></td>
+                        <td style={styles.td}><StatusBadge status={c.status} colors={STATUS_COLORS} /></td>
                         <td style={styles.td}>
                           {activatable && (
                             <button

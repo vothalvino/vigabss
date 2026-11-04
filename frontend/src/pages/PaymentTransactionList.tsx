@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, fmtDate, fmtMoney } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,32 +54,14 @@ async function fetchTransactions(page: number, statusFilter: string): Promise<Pa
 // Badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    succeeded: { bg: '#d1fae5', color: '#065f46' },
-    pending: { bg: '#fef3c7', color: '#92400e' },
-    failed: { bg: '#fee2e2', color: '#991b1b' },
-    refunded: { bg: '#dbeafe', color: '#1e40af' },
-    disputed: { bg: '#fde68a', color: '#92400e' },
-    cancelled: { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  succeeded: { bg: '#d1fae5', color: '#065f46' },
+  pending: { bg: '#fef3c7', color: '#92400e' },
+  failed: { bg: '#fee2e2', color: '#991b1b' },
+  refunded: { bg: '#dbeafe', color: '#1e40af' },
+  disputed: { bg: '#fde68a', color: '#92400e' },
+  cancelled: { bg: '#f3f4f6', color: '#374151' },
+};
 
 // ---------------------------------------------------------------------------
 // PaymentTransactionList component
@@ -155,7 +138,7 @@ export function PaymentTransactionList() {
                       <td style={styles.td}>#{t.client_id}</td>
                       <td style={styles.td}>#{t.payment_gateway_id}</td>
                       <td style={styles.td}>{fmtMoney(t.amount, t.currency)}</td>
-                      <td style={styles.td}><StatusBadge status={t.gateway_status} /></td>
+                      <td style={styles.td}><StatusBadge status={t.gateway_status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>{t.gateway_response_code ?? '—'}</td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>{t.created_at ? fmtDate(t.created_at) : '—'}</td>
                     </tr>

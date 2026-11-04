@@ -24,6 +24,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { extractApiError } from '@/components/ClientFormModal';
 import { styles as crudStyles, modalStyles, RequiredMark } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -170,28 +172,13 @@ function fmt(dateStr: string | null | undefined): string {
   return new Date(dateStr).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function fmtAmount(amount: string | number | null | undefined, currency: string): string {
-  if (amount === null || amount === undefined || amount === '') return '—';
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  if (Number.isNaN(num)) return '—';
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN' }).format(num);
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:     { bg: '#f3f4f6', color: '#6b7280' },
-    sent:      { bg: '#dbeafe', color: '#1e40af' },
-    partial:   { bg: '#fef3c7', color: '#92400e' },
-    received:  { bg: '#d1fae5', color: '#065f46' },
-    cancelled: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 12, fontSize: '0.78rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:     { bg: '#f3f4f6', color: '#6b7280' },
+  sent:      { bg: '#dbeafe', color: '#1e40af' },
+  partial:   { bg: '#fef3c7', color: '#92400e' },
+  received:  { bg: '#d1fae5', color: '#065f46' },
+  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Add Line Item form (inline card — the primary "build the PO" interaction)
@@ -513,11 +500,11 @@ export function PurchaseOrderDetail() {
 
           <div style={card}>
             <div style={metaGrid}>
-              <MetaRow label={t('purchaseOrderDetail.meta.status')} value={<StatusBadge status={po.status} />} />
+              <MetaRow label={t('purchaseOrderDetail.meta.status')} value={<StatusBadge status={po.status} colors={STATUS_COLORS} size="md" />} />
               <MetaRow label={t('purchaseOrderDetail.meta.warehouse')} value={warehouseQ.data?.name ?? '—'} />
-              <MetaRow label={t('purchaseOrderDetail.meta.total')} value={<strong style={{ fontSize: '1.05rem' }}>{fmtAmount(po.total, po.currency ?? 'MXN')}</strong>} />
-              <MetaRow label={t('purchaseOrderDetail.meta.subtotal')} value={fmtAmount(po.subtotal, po.currency ?? 'MXN')} />
-              <MetaRow label={t('purchaseOrderDetail.meta.tax')} value={fmtAmount(po.tax_amount, po.currency ?? 'MXN')} />
+              <MetaRow label={t('purchaseOrderDetail.meta.total')} value={<strong style={{ fontSize: '1.05rem' }}>{formatMoney(po.total, po.currency ?? 'MXN')}</strong>} />
+              <MetaRow label={t('purchaseOrderDetail.meta.subtotal')} value={formatMoney(po.subtotal, po.currency ?? 'MXN')} />
+              <MetaRow label={t('purchaseOrderDetail.meta.tax')} value={formatMoney(po.tax_amount, po.currency ?? 'MXN')} />
               <MetaRow label={t('purchaseOrderDetail.meta.orderDate')} value={fmt(po.order_date)} />
               <MetaRow label={t('purchaseOrderDetail.meta.expectedDate')} value={fmt(po.expected_date)} />
               {po.received_date && <MetaRow label={t('purchaseOrderDetail.meta.receivedDate')} value={fmt(po.received_date)} />}
@@ -560,8 +547,8 @@ export function PurchaseOrderDetail() {
                           {item.quantity_received}
                         </span>
                       </td>
-                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.unit_cost, po.currency ?? 'MXN')}</td>
-                      <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.total_cost, po.currency ?? 'MXN')}</td>
+                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.unit_cost, po.currency ?? 'MXN')}</td>
+                      <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.total_cost, po.currency ?? 'MXN')}</td>
                     </tr>
                   ))}
                 </tbody>

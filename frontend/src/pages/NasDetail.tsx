@@ -17,6 +17,7 @@ import { NasWireguardModal } from './NasWireguardModal';
 // Shared NAS action modals/helpers — the per-device actions live on this page now,
 // not in the list (which only navigates here).
 import { type Nas, SeedModal, NasModal, ConfirmDialog, deleteNas } from './NasList';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,21 +70,13 @@ function fmt(dateStr: string | null | undefined): string {
   return d.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const colorMap: Record<string, { bg: string; color: string }> = {
-    active:   { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#f3f4f6', color: '#6b7280' },
-    up:       { bg: '#d1fae5', color: '#065f46' },
-    down:     { bg: '#fee2e2', color: '#991b1b' },
-    unknown:  { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = colorMap[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:   { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#f3f4f6', color: '#6b7280' },
+  up:       { bg: '#d1fae5', color: '#065f46' },
+  down:     { bg: '#fee2e2', color: '#991b1b' },
+  unknown:  { bg: '#f3f4f6', color: '#374151' },
+};
 
 function WgStateBadge({ state }: { state: string | null | undefined }) {
   const colorMap: Record<string, { bg: string; color: string }> = {
@@ -317,7 +310,7 @@ export function NasDetail() {
         <div>
           <h1 style={styles.title}>{nas.name}</h1>
           <div style={styles.headerMeta}>
-            <StatusBadge status={nas.status} />
+            <StatusBadge status={nas.status} colors={STATUS_COLORS} />
             <span style={styles.idLabel}>ID #{nas.id}</span>
           </div>
         </div>
@@ -418,7 +411,7 @@ export function NasDetail() {
         {activeTab === 'health' && (
           <div style={{ padding: '1.25rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-              <StatusBadge status={nas.health_status} />
+              <StatusBadge status={nas.health_status} colors={STATUS_COLORS} />
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 {t('nasDetail.health.lastCheck')}: {fmt(nas.last_health_check_at)}
               </span>

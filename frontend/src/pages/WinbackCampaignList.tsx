@@ -29,6 +29,7 @@ import {
   cancelBtn,
   dangerBtn,
 } from '@/components/ClientFormModal';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -97,20 +98,12 @@ async function fetchCampaigns(page: number): Promise<WinbackResponse> {
 // Badges
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:     { bg: '#f3f4f6', color: '#374151' },
-    active:    { bg: '#d1fae5', color: '#065f46' },
-    paused:    { bg: '#fef3c7', color: '#92400e' },
-    completed: { bg: '#dbeafe', color: '#1e40af' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:     { bg: '#f3f4f6', color: '#374151' },
+  active:    { bg: '#d1fae5', color: '#065f46' },
+  paused:    { bg: '#fef3c7', color: '#92400e' },
+  completed: { bg: '#dbeafe', color: '#1e40af' },
+};
 
 // ---------------------------------------------------------------------------
 // Form modal (create + edit)
@@ -396,7 +389,7 @@ export function WinbackCampaignList() {
                         ? `${c.start_date ?? '…'} → ${c.end_date ?? '…'}`
                         : '—'}
                     </td>
-                    <td style={styles.td}><StatusBadge status={c.status} /></td>
+                    <td style={styles.td}><StatusBadge status={c.status} colors={STATUS_COLORS} /></td>
                     <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                       <button type="button"
                         style={{ ...cancelBtn, padding: '4px 10px', marginRight: 6 }}

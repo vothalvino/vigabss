@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,29 +51,11 @@ async function fetchServiceAreas(page: number, statusFilter: string): Promise<Se
 // Badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    planned: { bg: '#dbeafe', color: '#1e40af' },
-    retired: { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  planned: { bg: '#dbeafe', color: '#1e40af' },
+  retired: { bg: '#f3f4f6', color: '#374151' },
+};
 
 function ColorSwatch({ color }: { color: string | null }) {
   if (!color) return <span>—</span>;
@@ -165,7 +148,7 @@ export function ServiceAreaList() {
                       <td style={{ ...styles.td, fontWeight: 500 }}>{a.name}</td>
                       <td style={styles.td}>{a.site_id != null ? `#${a.site_id}` : '—'}</td>
                       <td style={styles.td}><ColorSwatch color={a.color} /></td>
-                      <td style={styles.td}><StatusBadge status={a.status} /></td>
+                      <td style={styles.td}><StatusBadge status={a.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, maxWidth: 320, overflowWrap: 'anywhere' }}>{a.description ?? '—'}</td>
                     </tr>
                   ))}

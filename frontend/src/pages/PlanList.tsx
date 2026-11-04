@@ -22,6 +22,7 @@ import {
   capitalize,
 } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,29 +125,11 @@ async function deletePlan(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active:   { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fef3c7', color: '#92400e' },
-    archived: { bg: '#f3f4f6', color: '#6b7280' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:   { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fef3c7', color: '#92400e' },
+  archived: { bg: '#f3f4f6', color: '#6b7280' },
+};
 
 // ---------------------------------------------------------------------------
 // Plan form modal (create + edit)
@@ -626,7 +609,7 @@ export function PlanList() {
                         {p.billing_cycle ? p.billing_cycle.replace('_', '-') : '—'}
                       </td>
                       <td style={styles.td}>{p.data_cap_gb != null ? `${p.data_cap_gb} GB` : 'Unlimited'}</td>
-                      <td style={styles.td}><StatusBadge status={p.status} /></td>
+                      <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditPlan(p)} title="Edit this plan">
                           ✏️ Edit

@@ -41,6 +41,7 @@ import { UndoInstallButton } from '@/components/UndoInstallButton';
 import { CreditNoteModal, reasonLabel, type CreditNote } from '@/pages/CreditNoteList';
 import { formatDate } from '@/lib/dates';
 import { queryKeys } from '@/api/queryKeys';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // GraphQL query — fetches the client + all sub-resources in one request
@@ -236,15 +237,6 @@ function fmt(dateStr: string | null | undefined): string {
   return formatDate(dateStr);
 }
 
-function fmtMoney(amount: string | null, currency = 'MXN'): string {
-  if (!amount) return '—';
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(parseFloat(amount));
-}
-
 function StatusBadge({ status, colorMap }: { status: string; colorMap?: Record<string, { bg: string; color: string }> }) {
   const defaultMap: Record<string, { bg: string; color: string }> = {
     active:    { bg: '#d1fae5', color: '#065f46' },
@@ -413,7 +405,7 @@ function InvoicesTab({ invoices }: { invoices: Invoice[] }) {
                 </Link>
               </td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtMoney(inv.total, inv.currency)}
+                {formatMoney(inv.total, inv.currency)}
               </td>
               <td style={styles.td}>{fmt(inv.dueDate)}</td>
               <td style={styles.td}>{fmt(inv.paidAt)}</td>
@@ -445,7 +437,7 @@ function PaymentsTab({ payments }: { payments: Payment[] }) {
                 </Link>
               </td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtMoney(p.amount, p.currency)}
+                {formatMoney(p.amount, p.currency)}
               </td>
               <td style={{ ...styles.td, textTransform: 'capitalize' }}>{p.paymentMethod || '—'}</td>
               <td style={styles.td}>{p.reference || '—'}</td>
@@ -498,7 +490,7 @@ function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note
               <td style={styles.td}>{fmt(n.issue_date)}</td>
               <td style={styles.td}>{n.reason ? reasonLabel(n.reason) : '—'}</td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtMoney(n.total == null ? null : String(n.total), n.currency || 'MXN')}
+                {formatMoney(n.total == null ? null : String(n.total), n.currency || 'MXN')}
               </td>
               <td style={styles.td}><StatusBadge status={n.status} colorMap={CREDIT_NOTE_STATUS_COLORS} /></td>
               {onEdit && (
@@ -738,10 +730,10 @@ function LedgerTab({ ledger, clientId }: { ledger: LedgerEntry[]; clientId: numb
                     fontWeight: 600,
                   }}
                 >
-                  {isCredit ? '+' : ''}{fmtMoney(e.amount, e.currency)}
+                  {isCredit ? '+' : ''}{formatMoney(e.amount, e.currency)}
                 </td>
                 <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtMoney(e.balanceAfter, e.currency)}
+                  {formatMoney(e.balanceAfter, e.currency)}
                 </td>
                 <td style={{ ...styles.td, color: '#6b7280' }}>{e.notes || '—'}</td>
               </tr>
@@ -1301,7 +1293,7 @@ export function ClientDetail() {
         </span>
         {balanceParts.map(p => (
           <span key={p.currency} style={{ fontSize: '1.5rem', fontWeight: 800 }}>
-            {fmtMoney(String(Math.abs(p.amount)), p.currency)}
+            {formatMoney(String(Math.abs(p.amount)), p.currency)}
             {client.mixedCurrency && (
               <span style={{ fontSize: '0.8rem', fontWeight: 600, marginLeft: 4 }}>
                 {p.amount > 0.005 ? 'owed' : p.amount < -0.005 ? 'credit' : ''}
