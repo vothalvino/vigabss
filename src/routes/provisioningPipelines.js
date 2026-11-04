@@ -14,6 +14,7 @@ const createPipelineSchema = {
   name:        { type: 'string', required: true, min: 1, max: 255 },
   contract_id: { type: 'number' },
   client_id:   { type: 'number' },
+  ip_pool_id:  { type: 'number' },
 };
 
 const router = Router();
@@ -66,6 +67,7 @@ router.post('/', requirePermission('provisioning_pipelines.create'), validate(cr
       name: req.body.name,
       contract_id: req.body.contract_id || null,
       client_id: req.body.client_id || null,
+      ip_pool_id: req.body.ip_pool_id || null,
       triggered_by: req.user.id,
     });
     res.status(201).json({ data: pipeline });

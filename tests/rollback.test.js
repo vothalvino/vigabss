@@ -92,6 +92,18 @@ describe('Rollback SQL files — database/rollbacks/', () => {
   });
 });
 
+// The CI rollback round-trip rolls back every migration from 130 up, so a
+// migration without a rollback of the same number fails it (rollback.js
+// matches by numeric prefix); catch that here first.
+describe('Rollback SQL files — every migration from 130 on', () => {
+  it('has a rollback with the same numeric prefix', () => {
+    const rollbackNumbers = new Set(listSqlFiles(ROLLBACKS_DIR).map(migrationNumber));
+    const missing = listSqlFiles(MIGRATIONS_DIR)
+      .filter(f => migrationNumber(f) >= 130 && !rollbackNumbers.has(migrationNumber(f)));
+    expect(missing).toEqual([]);
+  });
+});
+
 // Recent schema-altering migrations 174–185 that must have a tested down-path.
 const RECENT_RANGE = Array.from({ length: 12 }, (_, i) => i + 174); // 174–185
 

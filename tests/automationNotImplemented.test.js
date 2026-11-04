@@ -42,7 +42,9 @@ beforeEach(() => {
 
 const executions = () => db.query.mock.calls.filter(([sql]) => /INSERT INTO automation_rule_executions/.test(sql));
 
-test.each(['send_notification', 'create_ticket', 'run_script', 'set_alert', 'suspend_contract', 'anything_else'])(
+// create_ticket, suspend_contract and send_notification are implemented now
+// (ASY-36, tests/automationActions.test.js); every other type still does nothing.
+test.each(['run_script', 'set_alert', 'anything_else'])(
   "a '%s' action is recorded as skipped, not as a successful run",
   async (actionType) => {
     db.query.mockImplementation(async (sql) => (/FROM automation_rules/.test(sql)

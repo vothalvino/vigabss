@@ -607,8 +607,47 @@ target and queues a `batch-job` job (`POST /batch-jobs` and `/bulk/suspend`
 answer 202). `processBatchJob` holds the job's advisory lock
 (`src/utils/advisoryLock.js`), claims each item as `processing` before its
 operation, and records an item found still `processing` as a failure instead
-of running it twice; `resumeBatchJobs` queues unfinished jobs at startup. CSV
-imports still run in the request.
+of running it twice; `resumeBatchJobs` queues unfinished jobs at startup.
+`send_email` and `send_sms` queue one `message_outbox` row per item (dedupe key
+`batch_job_item:<org>:<item>`), and an item the client's preferences block is
+`skipped`; `rate_limit`, `send_notification`, `apply_tag` and `remove_tag` have
+no implementation and are refused (501) before a job is stored. CSV imports
+still run in the request. A provisioning pipeline's `assign_ip` stage keeps the
+contract's active `ip_assignments` row or allocates from the request's
+`ip_pool_id` through `poolAssignmentService.assignNextFreeIp`; with neither it
+is `skipped`. `configure_device` and `send_notification` stages remain
+unimplemented and are recorded `skipped`.
+
+The FUP throttle is state on the contract, like a soft suspension:
+`contracts.fup_throttled_month` names the billing month a contract is throttled
+for (migration 519). `check_fup_thresholds` (`fupService.checkFupThresholds`,
+every organization) throttles an active contract once its complete-day usage
+this business month reaches the plan's FUP threshold (`fup_threshold_gb`, else
+`fup_threshold_percent` of `data_cap_gb`, else the cap) plus purchased packs and
+rollover, and restores the plan rate when the month ends or a pack lifts it
+back under. Setting and clearing the column are conditional UPDATEs, so each
+contract is throttled and logged once per month. Both RADIUS paths serve the
+FUP rate while the column names the current month
+(`radiusAttributeService.effectiveThrottle`; a soft suspension's throttle wins),
+speed-window transitions skip throttled contracts, and the CoA carries the
+vendor rate attributes. `convert_expired_trials` was removed: invoices price
+the trial window themselves (`billingService.isContractInTrial`).
+
+Automation rules (`src/services/automationActions.js`, ASY-36) run on every
+business event: a `*` listener on `eventBus` evaluates the organization's
+enabled rules whose `trigger_event` matches (the set of trigger events is
+cached per organization for a minute and dropped when a rule is saved).
+`create_ticket`, `suspend_contract` and `send_notification` (outbox email or
+SMS) are the only actions; saving a rule with any other `action_type` is 422,
+and an action with nothing to act on is recorded `skipped`, never `success`.
+The client, contract and invoice come from the event payload and are checked
+against the organization. An event raised while a rule's action runs
+(`AsyncLocalStorage` scope) runs no rules, so rules cannot loop.
+Remediation rules (`remediation_evaluation`) send `reboot` / `reboot_device`
+to the breaching device through its driver config
+(`routerDriverService.dispatchCommand`), recording `success` or `failure`;
+any other action, or a device without a driver that can reboot it, is
+`not_dispatched`.
 
 Every scheduled task run goes through `taskRunner.executeScheduledTask(task,
 via)` (ASY-28), from the inline cron path (`via = 'cron'`), the BullMQ

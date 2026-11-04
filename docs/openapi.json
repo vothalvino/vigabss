@@ -56629,6 +56629,7 @@
           "Automation"
         ],
         "summary": "Create automation rule",
+        "description": "The rule runs on every business event named by trigger_event (and through /execute). action_type is create_ticket (action_config: subject, description, priority, category), suspend_contract, or send_notification (action_config: channel email|sms, subject, message, message_class); {{field.path}} placeholders are filled from the event. The client, contract and invoice come from the event payload and must belong to the organization.",
         "operationId": "createAutomationRule",
         "security": [
           {
@@ -56652,6 +56653,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown action_type or invalid action_config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -56732,6 +56760,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown action_type or invalid action_config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -56878,7 +56933,7 @@
           "Automation"
         ],
         "summary": "Queue a batch subscriber job",
-        "description": "Resolves and persists the targets (at most 10,000; more is refused) and answers 202 with the pending job, which runs in the background and resumes after a restart. An item interrupted mid-operation is recorded as a failure to check by hand, never run twice.",
+        "description": "Resolves and persists the targets (at most 10,000; more is refused) and answers 202 with the pending job, which runs in the background and resumes after a restart. An item interrupted mid-operation is recorded as a failure to check by hand, never run twice. Operations: suspend, unsuspend, change_plan (operation_params.plan_id), send_email (subject, message) and send_sms (message), which queue one outbox message per contract's client ({{client.name}} is filled; message_class transactional or marketing; a client without an address or whose preferences block it is a skipped item). rate_limit, send_notification, apply_tag and remove_tag are 501.",
         "operationId": "createBatchJob",
         "security": [
           {
@@ -56902,6 +56957,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation not implemented (BATCH_OPERATION_NOT_IMPLEMENTED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -57047,6 +57129,7 @@
           "Automation"
         ],
         "summary": "Trigger a provisioning pipeline run",
+        "description": "Stages: assign_ip keeps the contract's active address or takes the next free one from ip_pool_id (skipped without either); configure_device and send_notification are not implemented and are recorded skipped; activate_contract stops the run and points to the guided activation flow.",
         "operationId": "createProvisioningPipeline",
         "security": [
           {
@@ -57054,7 +57137,7 @@
           }
         ],
         "requestBody": {
-          "description": "name + contract_id + client_id",
+          "description": "name + contract_id + client_id + ip_pool_id",
           "content": {
             "application/json": {
               "schema": {

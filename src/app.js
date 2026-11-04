@@ -884,6 +884,8 @@ app.use('/metrics', metricsRoutes);
 // ---------------------------------------------------------------------------
 const { registerHooks } = require('./services/notificationHooks');
 registerHooks();
+// Automation rules run on business events (ASY-36).
+require('./services/automationActions').registerAutomationTriggers();
 
 const { mountApiDocs } = require('./utils/openapi');
 mountApiDocs(app);

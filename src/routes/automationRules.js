@@ -9,6 +9,17 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const db = require('../config/database');
 const automationService = require('../services/automationService');
+const automationActions = require('../services/automationActions');
+const { parseJsonColumn } = require('../utils/jsonColumn');
+
+// A rule must name an action that exists (ASY-36); one that could never run
+// used to be stored and then recorded 'skipped' on every event.
+function actionProblem(res, actionType, config) {
+  const problem = automationActions.actionConfigProblem(actionType, config);
+  if (!problem) return false;
+  res.status(422).json({ error: { message: problem, code: 'AUTOMATION_ACTION_INVALID' } });
+  return true;
+}
 
 const createAutomationRule = {
   name:               { type: 'string', required: true, min: 1, max: 255 },
@@ -76,6 +87,7 @@ router.get('/:id', requirePermission('automation_rules.view'), async (req, res, 
 router.post('/', requirePermission('automation_rules.create'), validate(createAutomationRule, { strip: false }), async (req, res, next) => {
   try {
     const { name, description, trigger_event, trigger_conditions, action_type, action_config, is_enabled, priority } = req.body;
+    if (actionProblem(res, action_type, action_config)) return;
     const [result] = await db.query(
       `INSERT INTO automation_rules
          (organization_id, name, description, trigger_event, trigger_conditions,
@@ -89,7 +101,8 @@ router.post('/', requirePermission('automation_rules.create'), validate(createAu
         is_enabled !== false ? 1 : 0,
         priority || 50, req.user.id],
     );
-    const [rows] = await db.query('SELECT * FROM automation_rules WHERE id = ?', [result.insertId]);
+    automationActions.invalidateTriggerCache(req.orgId);
+    const [rows] = await db.query('SELECT * FROM automation_rules WHERE id = ? AND organization_id = ?', [result.insertId, req.orgId]);
     res.status(201).json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -98,10 +111,15 @@ router.post('/', requirePermission('automation_rules.create'), validate(createAu
 router.put('/:id', requirePermission('automation_rules.update'), validate(updateAutomationRule, { strip: false }), async (req, res, next) => {
   try {
     const [existing] = await db.query(
-      'SELECT id FROM automation_rules WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+      'SELECT id, action_type, action_config FROM automation_rules WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
       [req.params.id, req.orgId],
     );
     if (!existing.length) return res.status(404).json({ error: { message: 'Automation rule not found' } });
+    if ((req.body.action_type !== undefined || req.body.action_config !== undefined) && actionProblem(
+      res,
+      req.body.action_type ?? existing[0].action_type,
+      req.body.action_config ?? parseJsonColumn(existing[0].action_config, {}),
+    )) return;
 
     const fields = [];
     const params = [];
@@ -116,7 +134,8 @@ router.put('/:id', requirePermission('automation_rules.update'), validate(update
     if (!fields.length) return res.status(422).json({ error: { message: 'No updatable fields provided' } });
     params.push(req.params.id, req.orgId);
     await db.query(`UPDATE automation_rules SET ${fields.join(', ')}, updated_at = NOW() WHERE id = ? AND organization_id = ?`, params);
-    const [rows] = await db.query('SELECT * FROM automation_rules WHERE id = ?', [req.params.id]);
+    automationActions.invalidateTriggerCache(req.orgId);
+    const [rows] = await db.query('SELECT * FROM automation_rules WHERE id = ? AND organization_id = ?', [req.params.id, req.orgId]);
     res.json({ data: rows[0] });
   } catch (err) { next(err); }
 });
@@ -129,7 +148,8 @@ router.delete('/:id', requirePermission('automation_rules.delete'), async (req, 
       [req.params.id, req.orgId],
     );
     if (!existing.length) return res.status(404).json({ error: { message: 'Automation rule not found' } });
-    await db.query('UPDATE automation_rules SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
+    await db.query('UPDATE automation_rules SET deleted_at = NOW() WHERE id = ? AND organization_id = ?', [req.params.id, req.orgId]);
+    automationActions.invalidateTriggerCache(req.orgId);
     res.status(204).send();
   } catch (err) { next(err); }
 });

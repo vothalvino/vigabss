@@ -1,7 +1,6 @@
 {
   "src/routes/alerts.js": 3,
   "src/routes/analyticsAI.js": 2,
-  "src/routes/automationRules.js": 3,
   "src/routes/bandwidthTests.js": 1,
   "src/routes/billingDisputes.js": 1,
   "src/routes/configBackupSchedules.js": 4,

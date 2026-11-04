@@ -47,11 +47,13 @@ test('a pipeline whose stages are not implemented is not reported completed', as
   const stageUpdates = db.query.mock.calls
     .filter(([sql]) => /UPDATE provisioning_pipeline_stages/.test(sql))
     .map(([, p]) => ({ name: p[4], status: p[0], output: JSON.parse(p[1]) }));
-  for (const name of ['assign_ip', 'configure_device', 'send_notification']) {
+  for (const name of ['configure_device', 'send_notification']) {
     const stage = stageUpdates.find((s) => s.name === name);
     expect(stage.status).toBe('skipped');
     expect(stage.output.implemented).toBe(false);
   }
+  // assign_ip is implemented (ASY-36); with no contract it has nothing to do.
+  expect(stageUpdates.find((s) => s.name === 'assign_ip')).toMatchObject({ status: 'skipped', output: { skipped: true } });
   expect(JSON.stringify(stageUpdates)).not.toMatch(/0\.0\.0\.0|dispatched/);
   const [, finalParams] = db.query.mock.calls.find(([sql]) => /UPDATE provisioning_pipelines\s+SET status = \?, stages_results/.test(sql));
   expect(finalParams[0]).toBe('failed');

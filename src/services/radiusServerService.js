@@ -22,7 +22,9 @@ const logger = require('../utils/logger').child({ service: 'radiusServer' });
 const codec = require('./radiusServerCodec');
 const coa = require('./radiusCoaEncoder');
 const { openWalledGardenPredicate } = require('./suspensionLogConstants');
-const { generateAttributes, generateThrottleAttributes, hasThrottle } = require('./radiusAttributeService');
+const {
+  generateAttributes, generateThrottleAttributes, effectiveThrottle, fupThrottleActiveSql,
+} = require('./radiusAttributeService');
 const speedWindowService = require('./speedWindowService');
 const { resolveNasByIp } = require('./tenantNasResolverService');
 
@@ -148,6 +150,7 @@ async function findSubscriber(username, organizationId) {
             ipv6_pool.name AS ipv6_pool_name,
             c.plan_id, c.status AS contract_status,
             c.soft_suspend_download_kbps, c.soft_suspend_upload_kbps,
+            ${fupThrottleActiveSql('c')} AS fup_throttle_active,
             CASE WHEN c.status = 'pending'
                  THEN GREATEST(TIMESTAMPDIFF(SECOND, NOW(), c.test_window_expires_at), 1)
                  ELSE NULL END AS test_window_seconds_remaining,
@@ -290,10 +293,15 @@ function buildAcceptAttributes(subscriber, plan, withMessageAuth) {
     }
   }
   if (plan) {
-    // A soft-suspended contract (NPR-01) gets its throttle instead of the
-    // plan (or speed-window) rate.
-    const attrMap = subscriber.contract_status === 'active' && hasThrottle(subscriber)
-      ? generateThrottleAttributes(plan.radius_vendor, subscriber.soft_suspend_download_kbps, subscriber.soft_suspend_upload_kbps)
+    // A soft-suspended (NPR-01) or FUP-throttled (ASY-36) contract gets its
+    // throttle instead of the plan (or speed-window) rate.
+    const throttle = subscriber.contract_status === 'active' && effectiveThrottle({
+      ...subscriber,
+      fup_download_speed_mbps: plan.fup_download_speed_mbps,
+      fup_upload_speed_mbps: plan.fup_upload_speed_mbps,
+    });
+    const attrMap = throttle
+      ? generateThrottleAttributes(plan.radius_vendor, throttle.downloadKbps, throttle.uploadKbps)
       : generateAttributes(plan);
     const named = [];
     for (const [name, val] of Object.entries(attrMap)) {

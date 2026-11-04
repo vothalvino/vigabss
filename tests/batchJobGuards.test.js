@@ -72,7 +72,7 @@ test('creating a job only persists it: no item runs inside the request', async (
     if (/^\s*(INSERT|UPDATE)/.test(sql)) return [{ affectedRows: 1 }];
     return [[{ id: 1, status: 'pending' }]];
   });
-  await automationService.createBatchJob(1, job({ operation: 'rate_limit' }));
+  await automationService.createBatchJob(1, job({ operation: 'suspend' }));
   expect(sqlRan(/INSERT INTO batch_job_items/)).toBe(true);
   expect(sqlRan(/SET status = 'processing'/)).toBe(false);
   expect(sqlRan(/SET status = 'completed'/)).toBe(false);

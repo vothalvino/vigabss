@@ -132,6 +132,37 @@ function hasThrottle(row) {
   return Boolean(row && Number(row.soft_suspend_download_kbps) > 0 && Number(row.soft_suspend_upload_kbps) > 0);
 }
 
+/**
+ * The throttle a subscriber row is under, in kbps, or null. A soft suspension
+ * (NPR-01) wins; otherwise the plan's FUP rate while the contract is
+ * FUP-throttled for the current month (ASY-36). The row carries
+ * fup_throttle_active (see fupThrottleActiveSql) and the plan's
+ * fup_download_speed_mbps / fup_upload_speed_mbps.
+ *
+ * @returns {{ downloadKbps: number, uploadKbps: number, reason: 'soft_suspend'|'fup' }|null}
+ */
+function effectiveThrottle(row) {
+  if (!row) return null;
+  if (hasThrottle(row)) {
+    return { downloadKbps: Number(row.soft_suspend_download_kbps), uploadKbps: Number(row.soft_suspend_upload_kbps), reason: 'soft_suspend' };
+  }
+  const dl = Number(row.fup_download_speed_mbps);
+  const ul = Number(row.fup_upload_speed_mbps);
+  if (Number(row.fup_throttle_active) === 1 && dl > 0 && ul > 0) {
+    return { downloadKbps: dl * 1000, uploadKbps: ul * 1000, reason: 'fup' };
+  }
+  return null;
+}
+
+/**
+ * SQL that is 1 while contract alias `c` is FUP-throttled for the current
+ * business month.
+ */
+function fupThrottleActiveSql(alias = 'c') {
+  const { sqlBusinessToday } = require('../utils/businessDate');
+  return `(${alias}.fup_throttled_month IS NOT NULL AND ${alias}.fup_throttled_month >= DATE_FORMAT(${sqlBusinessToday()}, '%Y-%m-01'))`;
+}
+
 /** Attribute map as the [{ name, value }] list the CoA/Accept encoders take. */
 function toNamedAttributes(attrMap) {
   const named = [];
@@ -142,4 +173,6 @@ function toNamedAttributes(attrMap) {
   return named;
 }
 
-module.exports = { generateAttributes, generateThrottleAttributes, hasThrottle, toNamedAttributes };
+module.exports = {
+  generateAttributes, generateThrottleAttributes, hasThrottle, effectiveThrottle, fupThrottleActiveSql, toNamedAttributes,
+};

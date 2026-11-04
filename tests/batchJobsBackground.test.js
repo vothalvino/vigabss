@@ -204,7 +204,12 @@ test('more targets than the cap are refused, not cut short', async () => {
 });
 
 test('an unimplemented operation becomes a failure item, never a success', async () => {
-  const job = await automation.createBatchJob(1, { name: 'Tags', operation: 'apply_tag', filter_criteria: { contract_ids: [10] }, created_by: 7 });
+  // createBatchJob refuses apply_tag now (ASY-36, batchMessages.test.js); a
+  // job stored with it still fails its items rather than reporting success.
+  jobs.push({ id: 1, organization_id: 1, name: 'Tags', operation: 'apply_tag', operation_params: null, status: 'pending',
+    total_items: 1, processed_items: 0, success_items: 0, failed_items: 0, created_by: 7 });
+  items.push({ id: 1, batch_job_id: 1, organization_id: 1, entity_type: 'contract', entity_id: 10, status: 'pending', result_message: null });
+  const job = jobs[0];
   await automation.processBatchJob(job.id, 1);
   expect(items[0].status).toBe('failure');
   expect(jobs[0]).toMatchObject({ status: 'completed', success_items: 0, failed_items: 1 });

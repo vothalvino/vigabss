@@ -106,6 +106,8 @@ describe('speedWindowService', () => {
       // their throttle (NPR-01).
       const contractsCall = db.query.mock.calls.find(([sql]) => /FROM contracts/.test(sql));
       expect(contractsCall[0]).toContain('soft_suspend_download_kbps IS NULL');
+      // Nor are FUP-throttled ones (ASY-36).
+      expect(contractsCall[0]).toMatch(/AND NOT \(c\.fup_throttled_month IS NOT NULL/);
 
       expect(conn.beginTransaction).toHaveBeenCalledTimes(1);
       expect(conn.commit).toHaveBeenCalledTimes(1);

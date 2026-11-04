@@ -535,10 +535,10 @@ describe('automationService — evaluateAutomationRules', () => {
     expect(result).toEqual({ evaluated: 0, triggered: 0, results: [] });
   });
 
-  // No action type has a handler yet (ASY-16): an all-match rule reaches its
+  // An action type with no handler (ASY-16): an all-match rule reaches its
   // action, which is recorded as skipped and does not count as triggered.
   it('reaches the action when conditions array is empty (all-match)', async () => {
-    const rule = { id: 1, trigger_conditions: '[]', action_type: 'send_notification', action_config: '{}', priority: 0 };
+    const rule = { id: 1, trigger_conditions: '[]', action_type: 'run_script', action_config: '{}', priority: 0 };
     db.query
       .mockResolvedValueOnce([[rule], []])  // SELECT rules
       .mockResolvedValueOnce([{ insertId: 10, affectedRows: 1 }]);  // INSERT executions
@@ -604,8 +604,9 @@ describe('automationService — dispatchAction', () => {
   beforeAll(() => { dispatchAction = require('../src/services/automationService').dispatchAction; });
 
   // None of these has a handler; each says so instead of claiming it was
-  // queued or done (ASY-16).
-  const actionCases = ['send_notification', 'create_ticket', 'run_script', 'set_alert', 'suspend_contract', 'unknown_action'];
+  // queued or done (ASY-16). create_ticket, suspend_contract and
+  // send_notification have handlers now (ASY-36, automationActions.test.js).
+  const actionCases = ['run_script', 'set_alert', 'unknown_action'];
 
   it.each(actionCases)('action=%s reports not_implemented', async (actionType) => {
     const result = await dispatchAction(actionType, {}, {}, 1);
@@ -635,27 +636,28 @@ describe('automationService — createBatchJob', () => {
   });
 
   it('creates a batch job with plan_id filter in criteria', async () => {
-    const job = { id: 2, name: 'PlanBatch', operation: 'rate_limit', status: 'pending' };
+    // rate_limit is refused now (ASY-36); suspend is stored.
+    const job = { id: 2, name: 'PlanBatch', operation: 'suspend', status: 'pending' };
     db.query
       .mockResolvedValueOnce([[], []])  // resolveBatchTargets with plan_id filter
       .mockResolvedValueOnce([{ insertId: 2, affectedRows: 1 }])
       .mockResolvedValueOnce([[job], []]);
     const result = await automationService.createBatchJob(1, {
-      name: 'PlanBatch', operation: 'rate_limit',
+      name: 'PlanBatch', operation: 'suspend',
       filter_criteria: { plan_id: 3, client_id: 10 },
     });
     expect(result.name).toBe('PlanBatch');
   });
 
   it('persists one pending batch_job_items row per target', async () => {
-    const job = { id: 3, name: 'WithItems', operation: 'rate_limit', status: 'pending' };
+    const job = { id: 3, name: 'WithItems', operation: 'suspend', status: 'pending' };
     db.query
       .mockResolvedValueOnce([[{ entity_id: 100, entity_type: 'contract' }], []])  // targets
       .mockResolvedValueOnce([{ insertId: 3, affectedRows: 1 }])  // INSERT batch_jobs
       .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT batch_job_items
       .mockResolvedValueOnce([[job], []]);
     const result = await automationService.createBatchJob(1, {
-      name: 'WithItems', operation: 'rate_limit', filter_criteria: { status: 'active' },
+      name: 'WithItems', operation: 'suspend', filter_criteria: { status: 'active' },
     });
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO batch_job_items'),
