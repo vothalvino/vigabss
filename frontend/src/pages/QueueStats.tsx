@@ -11,6 +11,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, capitalize } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,6 +55,7 @@ async function fetchQueueStats(): Promise<QueueStatsResponse> {
 // ---------------------------------------------------------------------------
 
 export function QueueStats() {
+  const { t } = useTranslation();
   const statsQ = useQuery({
     queryKey: ['queue-stats'],
     queryFn: fetchQueueStats,
@@ -65,8 +67,8 @@ export function QueueStats() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📥 Queue Status</h1>
-        {stats && <span style={styles.countBadge}>Mode: {capitalize(stats.mode)}</span>}
+        <h1 style={styles.pageTitle}>{t('ui.queueStats.queueStatus')}</h1>
+        {stats && <span style={styles.countBadge}>{t('ui.queueStats.mode')}{capitalize(stats.mode)}</span>}
         <button
           style={{ ...styles.btnSecondary, marginLeft: 'auto' }}
           onClick={() => statsQ.refetch()}
@@ -84,21 +86,19 @@ export function QueueStats() {
 
       <div style={styles.tableCard}>
         {statsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.queueStats.loading')}</p>
         ) : statsQ.error ? (
-          <p style={styles.msgError}>Failed to load queue stats.</p>
+          <p style={styles.msgError}>{t('ui.queueStats.failedToLoadQueueStats')}</p>
         ) : queues.length === 0 ? (
           <p style={styles.msg}>
-            No active queues. The in-process queue mode does not expose per-queue
-            counters; set <code>REDIS_URL</code> and install BullMQ for a distributed
-            queue with live statistics.
+            {t('ui.queueStats.noActiveQueuesTheIn')}<code>REDIS_URL</code> {t('ui.queueStats.andInstallBullmqForA')}
           </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Queue</th>
+                  <th style={styles.th}>{t('ui.queueStats.queue')}</th>
                   {COUNT_COLUMNS.map(c => <th key={c.key} style={styles.th}>{c.label}</th>)}
                 </tr>
               </thead>

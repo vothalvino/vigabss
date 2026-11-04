@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -81,6 +82,7 @@ function ColorSwatch({ color }: { color: string | null }) {
 // ---------------------------------------------------------------------------
 
 export function ServiceAreaList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -101,12 +103,12 @@ export function ServiceAreaList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🗺️ Service Areas</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.serviceAreaList.serviceAreas')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.serviceAreaList.total')}</span>}
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.serviceAreaList.status')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -118,18 +120,18 @@ export function ServiceAreaList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.serviceAreaList.clearFilter')}
           </button>
         )}
       </div>
 
       <div style={styles.tableCard}>
         {areasQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.serviceAreaList.loading')}</p>
         ) : areasQ.error ? (
-          <p style={styles.msgError}>Failed to load service areas.</p>
+          <p style={styles.msgError}>{t('ui.serviceAreaList.failedToLoadServiceAreas')}</p>
         ) : areas.length === 0 ? (
-          <p style={styles.msg}>No service areas found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.serviceAreaList.noServiceAreasFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -159,15 +161,15 @@ export function ServiceAreaList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.serviceAreaList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.serviceAreaList.page')}{page} {t('ui.serviceAreaList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.serviceAreaList.next')}
                 </button>
               </div>
             )}

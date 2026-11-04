@@ -261,7 +261,7 @@ export function InvoiceList() {
             borderRadius: 6,
           }}
         >
-          <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{selected.size} selected</span>
+          <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{selected.size} {t('ui.invoiceList.selected')}</span>
           <button
             style={{ ...submitBtn, background: '#b91c1c' }}
             disabled={voidMut.isPending}
@@ -270,10 +270,10 @@ export function InvoiceList() {
               setConfirmVoid(true);
             }}
           >
-            Void selected
+            {t('ui.invoiceList.voidSelected')}
           </button>
           <button style={cancelBtn} onClick={() => setSelected(new Set())}>
-            Clear
+            {t('ui.invoiceList.clear')}
           </button>
         </div>
       )}
@@ -297,7 +297,7 @@ export function InvoiceList() {
                       type="checkbox"
                       checked={allVisibleSelected}
                       onChange={toggleAllVisible}
-                      aria-label="Select all invoices on this page"
+                      aria-label={t('ui.invoiceList.selectAllInvoicesOnThis')}
                     />
                   </th>
                   <SortableTh label={t('invoiceList.table.invoiceNumber')} col="invoice_number" sort={sort} />
@@ -416,13 +416,13 @@ export function InvoiceList() {
       )}
 
       {confirmVoid && (
-        <div style={overlay} role="dialog" aria-modal="true" aria-label="Confirm void invoices">
+        <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.invoiceList.confirmVoidInvoices')}>
           <div style={modalBox}>
             <h2 style={{ marginTop: 0, fontSize: '1.1rem' }}>
-              Void {selected.size} invoice{selected.size !== 1 ? 's' : ''}?
+              {t('ui.invoiceList.void')}{selected.size} {t('ui.invoiceList.invoice')}{selected.size !== 1 ? 's' : ''}?
             </h2>
             <p style={{ fontSize: '0.9rem', color: '#374151' }}>
-              The selected invoice{selected.size !== 1 ? 's' : ''} will be marked as void. This cannot be undone.
+              {t('ui.invoiceList.theSelectedInvoice')}{selected.size !== 1 ? 's' : ''} {t('ui.invoiceList.willBeMarkedAsVoid')}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
               <button
@@ -431,7 +431,7 @@ export function InvoiceList() {
                 onClick={() => setConfirmVoid(false)}
                 disabled={voidMut.isPending}
               >
-                Cancel
+                {t('ui.invoiceList.cancel')}
               </button>
               <button
                 type="button"

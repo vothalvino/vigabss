@@ -78,7 +78,7 @@ function ChannelForm({ initial, onSave, onClose, saving, editMode }: ChannelForm
       <div style={{ ...modalStyles.panel, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('alert_channels.edit', 'Edit Notification Channel') : t('alert_channels.new', 'New Notification Channel')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.alertChannelList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -98,7 +98,7 @@ function ChannelForm({ initial, onSave, onClose, saving, editMode }: ChannelForm
             </label>
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.alertChannelList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -153,7 +153,7 @@ export function AlertChannelList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('alert_channels.title', 'Alert Notification Channels')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.alertChannelList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('alert_channels.new', 'New Notification Channel')}
         </button>
@@ -177,10 +177,10 @@ export function AlertChannelList() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>Type</th>
-                  <th style={styles.th}>Enabled</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.alertChannelList.name')}</th>
+                  <th style={styles.th}>{t('ui.alertChannelList.type')}</th>
+                  <th style={styles.th}>{t('ui.alertChannelList.enabled')}</th>
+                  <th style={styles.th}>{t('ui.alertChannelList.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -190,8 +190,8 @@ export function AlertChannelList() {
                     <td style={styles.td}>{capitalize(c.channel_type)}</td>
                     <td style={styles.td}>{c.is_enabled ? 'Yes' : 'No'}</td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(c)}>Edit</button>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(c.id)}>Delete</button>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(c)}>{t('ui.alertChannelList.edit')}</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(c.id)}>{t('ui.alertChannelList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -203,9 +203,9 @@ export function AlertChannelList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.alertChannelList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.alertChannelList.page')}{page} {t('ui.alertChannelList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.alertChannelList.next')}</button>
         </div>
       )}
 
@@ -220,8 +220,8 @@ export function AlertChannelList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('alert_channels.delete_confirm', 'Delete this notification channel?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.alertChannelList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.alertChannelList.delete')}</button>
             </div>
           </div>
         </div>

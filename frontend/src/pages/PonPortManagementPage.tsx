@@ -371,7 +371,7 @@ export function PonPortManagementPage() {
               {/* Port info card */}
               <div style={card}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.75rem' }}>
-                  {util.port.port_name} &mdash; {util.port.olt_name}
+                  {util.port.port_name} {t('ui.ponPortManagementPage.text')}{util.port.olt_name}
                 </h3>
                 <table style={styles.table}>
                   <tbody>
@@ -752,7 +752,7 @@ export function PonPortManagementPage() {
                   onClick={() => setMigPage(p => Math.max(1, p - 1))}
                   disabled={migPage <= 1}
                 >
-                  &laquo; {t('ponPortManagement.prev')}
+                  {t('ui.ponPortManagementPage.laquo')}{t('ponPortManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>
                   {migPage} / {migTotalPages}
@@ -762,7 +762,7 @@ export function PonPortManagementPage() {
                   onClick={() => setMigPage(p => p + 1)}
                   disabled={migPage >= migTotalPages}
                 >
-                  {t('ponPortManagement.next')} &raquo;
+                  {t('ponPortManagement.next')} {t('ui.ponPortManagementPage.raquo')}
                 </button>
               </div>
             </>

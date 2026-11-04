@@ -21,6 +21,7 @@ import { can } from '@/auth/permissions';
 import { useTranslation } from 'react-i18next';
 import { parseApiError } from '@/api/errors';
 import { localToday } from '@/lib/dates';
+import { TopologyContext, TopoBreadcrumb, ConfidenceBadge } from './tickets/AiReplyContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -211,6 +212,7 @@ interface ActionsProps {
 }
 
 function TicketActions({ ticket, users, onPatched }: ActionsProps) {
+  const { t } = useTranslation();
   const fieldId = useId();
   const [newStatus, setNewStatus] = useState<string>(ticket.status);
   const [newAssignee, setNewAssignee] = useState(String(ticket.assigned_to ?? ''));
@@ -235,10 +237,10 @@ function TicketActions({ ticket, users, onPatched }: ActionsProps) {
 
   return (
     <div style={card}>
-      <h3 style={cardTitle}>Actions</h3>
+      <h3 style={cardTitle}>{t('ui.ticketDetail.actions')}</h3>
       {err && <div style={errStyle}>{err}</div>}
 
-      <label htmlFor={`${fieldId}-1`} style={labelStyle}>Status</label>
+      <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ui.ticketDetail.status')}</label>
       <select id={`${fieldId}-1`}
         style={inputStyle}
         value={newStatus}
@@ -247,13 +249,13 @@ function TicketActions({ ticket, users, onPatched }: ActionsProps) {
         {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
       </select>
 
-      <label htmlFor={`${fieldId}-2`} style={labelStyle}>Assigned To</label>
+      <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('ui.ticketDetail.assignedTo')}</label>
       <select id={`${fieldId}-2`}
         style={inputStyle}
         value={newAssignee}
         onChange={e => setNewAssignee(e.target.value)}
       >
-        <option value="">— unassigned —</option>
+        <option value="">{t('ui.ticketDetail.unassigned')}</option>
         {users.map(u => (
           <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
         ))}
@@ -271,22 +273,22 @@ function TicketActions({ ticket, users, onPatched }: ActionsProps) {
       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {ticket.status !== 'in_progress' && ticket.status !== 'closed' && (
           <button style={btnSecondary} onClick={() => { setNewStatus('in_progress'); }}>
-            ▶ Mark In Progress
+            {t('ui.ticketDetail.markInProgress')}
           </button>
         )}
         {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
           <button style={btnSecondary} onClick={() => { setNewStatus('resolved'); }}>
-            ✅ Mark Resolved
+            {t('ui.ticketDetail.markResolved')}
           </button>
         )}
         {ticket.status !== 'closed' && (
           <button style={btnSecondary} onClick={() => { setNewStatus('closed'); }}>
-            🔒 Close Ticket
+            {t('ui.ticketDetail.closeTicket')}
           </button>
         )}
         {(ticket.status === 'resolved' || ticket.status === 'closed') && (
           <button style={btnSecondary} onClick={() => { setNewStatus('open'); }}>
-            🔄 Reopen
+            {t('ui.ticketDetail.reopen')}
           </button>
         )}
       </div>
@@ -306,6 +308,7 @@ interface EditTicketModalProps {
 }
 
 export function EditTicketModal({ ticket, onClose, onSaved }: EditTicketModalProps) {
+  const { t } = useTranslation();
   const fieldId = useId();
   const [form, setForm] = useState({
     subject: ticket.subject,
@@ -342,15 +345,15 @@ export function EditTicketModal({ ticket, onClose, onSaved }: EditTicketModalPro
     form.notes !== (ticket.notes ?? '');
 
   return (
-    <div style={editOverlay} role="dialog" aria-modal="true" aria-label="Edit Ticket">
+    <div style={editOverlay} role="dialog" aria-modal="true" aria-label={t('ui.ticketDetail.editTicket')}>
       <div style={editBox}>
-        <h3 style={{ margin: '0 0 1rem' }}>Edit Ticket #{ticket.id}</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.ticketDetail.editTicket2')}{ticket.id}</h3>
         {err && <div style={errStyle}>{err}</div>}
 
-        <label htmlFor={`${fieldId}-1`} style={labelStyle}>Subject *</label>
+        <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ui.ticketDetail.subject')}</label>
         <input id={`${fieldId}-1`} style={inputStyle} value={form.subject} onChange={set('subject')} />
 
-        <label htmlFor={`${fieldId}-2`} style={labelStyle}>Description</label>
+        <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('ui.ticketDetail.description')}</label>
         <textarea id={`${fieldId}-2`}
           style={{ ...inputStyle, height: 90, resize: 'vertical' }}
           value={form.description}
@@ -359,29 +362,29 @@ export function EditTicketModal({ ticket, onClose, onSaved }: EditTicketModalPro
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
           <div>
-            <label htmlFor={`${fieldId}-3`} style={labelStyle}>Category</label>
+            <label htmlFor={`${fieldId}-3`} style={labelStyle}>{t('ui.ticketDetail.category')}</label>
             <select id={`${fieldId}-3`} style={inputStyle} value={form.category} onChange={set('category')}>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label htmlFor={`${fieldId}-4`} style={labelStyle}>Priority</label>
+            <label htmlFor={`${fieldId}-4`} style={labelStyle}>{t('ui.ticketDetail.priority')}</label>
             <select id={`${fieldId}-4`} style={inputStyle} value={form.priority} onChange={set('priority')}>
               {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
         </div>
 
-        <label htmlFor={`${fieldId}-5`} style={labelStyle}>Internal notes (never shown to the client)</label>
+        <label htmlFor={`${fieldId}-5`} style={labelStyle}>{t('ui.ticketDetail.internalNotesNeverShownTo')}</label>
         <textarea id={`${fieldId}-5`}
           style={{ ...inputStyle, height: 70, resize: 'vertical' }}
           value={form.notes}
           onChange={set('notes')}
-          placeholder="Operator notes for this ticket"
+          placeholder={t('ui.ticketDetail.operatorNotesForThisTicket')}
         />
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button style={btnSecondary} onClick={onClose}>Cancel</button>
+          <button style={btnSecondary} onClick={onClose}>{t('ui.ticketDetail.cancel')}</button>
           <button
             style={btnPrimary}
             disabled={mutation.isPending || !isDirty || !form.subject.trim()}
@@ -463,7 +466,7 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
               fontSize: '0.7rem', fontWeight: 700,
               padding: '1px 6px', borderRadius: 10,
             }}>
-              INTERNAL
+              {t('ui.ticketDetail.internal')}
             </span>
           )}
           <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{fmt(comment.created_at)}</span>
@@ -491,7 +494,7 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
               style={commentActionBtn}
               onClick={() => { setEditing(false); setDraft(comment.body); setErr(''); }}
             >
-              Cancel
+              {t('ui.ticketDetail.cancel')}
             </button>
           </div>
         </>
@@ -502,7 +505,7 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
           </p>
           {confirmDelete ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-              <span style={{ fontSize: '0.78rem', color: '#991b1b' }}>Delete this comment?</span>
+              <span style={{ fontSize: '0.78rem', color: '#991b1b' }}>{t('ui.ticketDetail.deleteThisComment')}</span>
               <button
                 style={commentDeleteBtn}
                 disabled={deleteMutation.isPending}
@@ -510,15 +513,15 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
               >
                 {deleteMutation.isPending ? 'Deleting…' : 'Confirm'}
               </button>
-              <button style={commentActionBtn} onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button style={commentActionBtn} onClick={() => setConfirmDelete(false)}>{t('ui.ticketDetail.cancel')}</button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
               <button style={commentActionBtn} onClick={() => { setEditing(true); setDraft(comment.body); }}>
-                Edit
+                {t('ui.ticketDetail.edit')}
               </button>
               <button style={commentDeleteBtn} onClick={() => setConfirmDelete(true)}>
-                Delete
+                {t('ui.ticketDetail.delete')}
               </button>
             </div>
           )}
@@ -529,6 +532,7 @@ function CommentItem({ ticketId, comment, onChanged }: CommentItemProps) {
 }
 
 function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
+  const { t } = useTranslation();
   const commentId = useId();
   // POST /tickets/:id/comments accepts tickets.comment or tickets.update (DB-23).
   const { user } = useAuth();
@@ -545,12 +549,12 @@ function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
 
   return (
     <div style={{ ...card, marginTop: '1.5rem' }}>
-      <h3 style={cardTitle}>Comments ({comments.length})</h3>
+      <h3 style={cardTitle}>{t('ui.ticketDetail.comments')}{comments.length})</h3>
 
       {/* Existing comments */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
         {comments.length === 0 && (
-          <p style={{ color: '#888', fontSize: '0.85rem', margin: 0 }}>No comments yet.</p>
+          <p style={{ color: '#888', fontSize: '0.85rem', margin: 0 }}>{t('ui.ticketDetail.noCommentsYet')}</p>
         )}
         {comments.map(c => (
           <CommentItem key={c.id} ticketId={ticketId} comment={c} onChanged={onAdded} />
@@ -559,14 +563,14 @@ function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
 
       {/* Add comment form */}
       {canComment && <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
-        <label htmlFor={`${commentId}-body`} style={labelStyle}>Add Comment</label>
+        <label htmlFor={`${commentId}-body`} style={labelStyle}>{t('ui.ticketDetail.addComment')}</label>
         {err && <div style={errStyle}>{err}</div>}
         <textarea
           id={`${commentId}-body`}
           style={{ ...inputStyle, height: 90, resize: 'vertical' }}
           value={body}
           onChange={e => setBody(e.target.value)}
-          placeholder="Write a comment…"
+          placeholder={t('ui.ticketDetail.writeAComment')}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
@@ -575,7 +579,7 @@ function CommentsThread({ ticketId, comments, onAdded }: CommentsProps) {
               checked={isInternal}
               onChange={e => setIsInternal(e.target.checked)}
             />
-            Internal note (not visible to client)
+            {t('ui.ticketDetail.internalNoteNotVisibleTo')}
           </label>
           <button
             style={btnPrimary}
@@ -598,20 +602,6 @@ interface AiPolicy {
   enabled: number | boolean;
   mode: string;
   active_provider_id: number | null;
-}
-
-interface TopologyNode {
-  id?: number;
-  name?: string;
-  device_id?: number;
-}
-
-interface TopologyContext {
-  cpe: TopologyNode | null;
-  accessDevice: TopologyNode | null;
-  backhauls: Array<{ device: TopologyNode | null; medium: string | null }>;
-  coreDevice: TopologyNode | null;
-  activeOutages: Array<{ id: number; device_id: number }>;
 }
 
 interface AiReplyLog {
@@ -685,87 +675,6 @@ function parseTopology(contextSnapshot: string | null): TopologyContext | null {
   } catch {
     return null;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Confidence badge
-// ---------------------------------------------------------------------------
-
-function ConfidenceBadge({ confidence }: { confidence: number | null }) {
-  if (confidence === null) return null;
-  const pct = Math.round(confidence * 100);
-  const color = pct >= 80 ? '#065f46' : pct >= 60 ? '#854d0e' : '#991b1b';
-  const bg    = pct >= 80 ? '#d1fae5' : pct >= 60 ? '#fef9c3' : '#fee2e2';
-  return (
-    <span style={{
-      background: bg, color,
-      padding: '2px 8px', borderRadius: 10,
-      fontSize: '0.72rem', fontWeight: 700,
-    }}>
-      {pct}% confidence
-    </span>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Topology breadcrumb
-// ---------------------------------------------------------------------------
-
-interface TopoBreadcrumbProps { topology: TopologyContext }
-
-function TopoBreadcrumb({ topology }: TopoBreadcrumbProps) {
-  const outagedIds = new Set(topology.activeOutages.map(o => o.device_id));
-
-  function NodeChip({ node, role }: { node: TopologyNode | null; role: string }) {
-    if (!node) return null;
-    const nodeId = node.id ?? node.device_id;
-    const hasOutage = nodeId !== undefined && outagedIds.has(nodeId);
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-        {hasOutage && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} aria-label="active outage" />}
-        <span style={{
-          background: '#f3f4f6', color: '#374151',
-          padding: '2px 8px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600,
-        }}>
-          {role}: {node.name ?? `#${nodeId}`}
-        </span>
-      </span>
-    );
-  }
-
-  function MediumIcon({ medium }: { medium: string | null }) {
-    if (medium === 'fiber') return <span title="fiber">🔵</span>;
-    if (medium === 'wireless') return <span title="wireless">📡</span>;
-    return <span>—</span>;
-  }
-
-  return (
-    <div
-      style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 8 }}
-      aria-label="topology breadcrumb"
-    >
-      <NodeChip node={topology.cpe} role="CPE" />
-      {topology.accessDevice && (
-        <>
-          <span style={{ color: '#9ca3af' }}>→</span>
-          <NodeChip node={topology.accessDevice} role="Access" />
-        </>
-      )}
-      {topology.backhauls.map((bh, i) => (
-        <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: '#9ca3af' }}>→</span>
-          <MediumIcon medium={bh.medium} />
-          <NodeChip node={bh.device} role="Backhaul" />
-        </span>
-      ))}
-      {topology.coreDevice && (
-        <>
-          <span style={{ color: '#9ca3af' }}>→</span>
-          <NodeChip node={topology.coreDevice} role="Core" />
-        </>
-      )}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1284,7 +1193,7 @@ function RelationsPanel({ ticketId }: { ticketId: number }) {
             return (
               <li key={rel.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
                 <span style={{ background: '#f3f4f6', color: '#374151', padding: '2px 8px', borderRadius: 10 }}>{typeLabel(rel.relation_type)}</span>
-                <span>Ticket #{other}</span>
+                <span>{t('ui.ticketDetail.ticket')}{other}</span>
                 <button
                   style={{ marginLeft: 'auto', ...commentDeleteBtn, fontSize: '0.75rem', padding: '2px 8px' }}
                   disabled={removeMut.isPending}
@@ -1926,6 +1835,7 @@ function AttachmentsPanel({ ticketId }: { ticketId: number }) {
 // ---------------------------------------------------------------------------
 
 export function TicketDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [showEdit, setShowEdit] = useState(false);
@@ -1975,8 +1885,8 @@ export function TicketDetail() {
     queryClient.invalidateQueries({ queryKey: ['tickets'] });
   }
 
-  if (isLoading) return <div style={{ padding: '2rem', color: '#888' }}>Loading ticket…</div>;
-  if (error || !ticket) return <div style={{ padding: '2rem', color: '#e00' }}>Ticket not found.</div>;
+  if (isLoading) return <div style={{ padding: '2rem', color: '#888' }}>{t('ui.ticketDetail.loadingTicket')}</div>;
+  if (error || !ticket) return <div style={{ padding: '2rem', color: '#e00' }}>{t('ui.ticketDetail.ticketNotFound')}</div>;
 
   const assignedUser = ticket.assigned_to
     ? users.find(u => u.id === ticket.assigned_to)
@@ -1986,7 +1896,7 @@ export function TicketDetail() {
     <div style={{ padding: '1.5rem', maxWidth: 1000 }}>
       {/* Breadcrumb */}
       <div style={{ fontSize: '0.82rem', color: '#888', marginBottom: '0.75rem' }}>
-        <Link to="/tickets" style={{ color: 'var(--link)', textDecoration: 'none' }}>Tickets</Link>
+        <Link to="/tickets" style={{ color: 'var(--link)', textDecoration: 'none' }}>{t('ui.ticketDetail.tickets')}</Link>
         {' › '}
         <span>#{ticket.id}</span>
       </div>
@@ -2008,29 +1918,29 @@ export function TicketDetail() {
           {/* Metadata card */}
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h3 style={{ ...cardTitle, margin: 0 }}>Details</h3>
-              <button style={btnSecondary} onClick={() => setShowEdit(true)}>✏️ Edit</button>
+              <h3 style={{ ...cardTitle, margin: 0 }}>{t('ui.ticketDetail.details')}</h3>
+              <button style={btnSecondary} onClick={() => setShowEdit(true)}>{t('ui.ticketDetail.edit2')}</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem 1.5rem', marginTop: '0.75rem' }}>
-              <MetaRow label="Status"><StatusBadge status={ticket.status} /></MetaRow>
-              <MetaRow label="Priority"><PriorityBadge priority={ticket.priority} /></MetaRow>
-              <MetaRow label="Client">
+              <MetaRow label={t('ui.ticketDetail.status')}><StatusBadge status={ticket.status} /></MetaRow>
+              <MetaRow label={t('ui.ticketDetail.priority')}><PriorityBadge priority={ticket.priority} /></MetaRow>
+              <MetaRow label={t('ui.ticketDetail.client')}>
                 {client ? (
                   <Link to={`/clients/${client.id}`} style={{ color: 'var(--link)', textDecoration: 'none' }}>
                     {client.name}
                   </Link>
                 ) : ticket.client_id ? `#${ticket.client_id}` : '—'}
               </MetaRow>
-              <MetaRow label="Assigned To">
+              <MetaRow label={t('ui.ticketDetail.assignedTo')}>
                 {assignedUser
                   ? `${assignedUser.first_name} ${assignedUser.last_name}`
                   : ticket.assigned_to ? `#${ticket.assigned_to}` : '—'}
               </MetaRow>
-              <MetaRow label="Category">{ticket.category ?? '—'}</MetaRow>
-              <MetaRow label="Created">{fmt(ticket.created_at)}</MetaRow>
-              <MetaRow label="Updated">{fmt(ticket.updated_at)}</MetaRow>
+              <MetaRow label={t('ui.ticketDetail.category')}>{ticket.category ?? '—'}</MetaRow>
+              <MetaRow label={t('ui.ticketDetail.created')}>{fmt(ticket.created_at)}</MetaRow>
+              <MetaRow label={t('ui.ticketDetail.updated')}>{fmt(ticket.updated_at)}</MetaRow>
               {ticket.contract_id && (
-                <MetaRow label="Contract">#{ticket.contract_id}</MetaRow>
+                <MetaRow label={t('ui.ticketDetail.contract')}>#{ticket.contract_id}</MetaRow>
               )}
             </div>
 
@@ -2046,7 +1956,7 @@ export function TicketDetail() {
             {ticket.notes && (
               <div style={{ marginTop: '1rem', padding: '0.6rem 0.8rem', background: 'var(--warning-soft)', borderRadius: 6, fontSize: '0.82rem' }}>
                 <strong style={{ display: 'block', marginBottom: 4, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Internal notes
+                  {t('ui.ticketDetail.internalNotes')}
                 </strong>
                 <span style={{ whiteSpace: 'pre-wrap' }}>{ticket.notes}</span>
               </div>

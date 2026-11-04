@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useId, type CSSProperties, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface ModalProps {
   open: boolean;
@@ -19,6 +20,7 @@ export interface ModalProps {
 }
 
 export function Modal({ open, title, onClose, children, footer, inline = false, style }: ModalProps) {
+  const { t } = useTranslation();
   // Unique per instance: a fixed id named the wrong title when two were open.
   const titleId = useId();
   const handleKeyDown = useCallback(
@@ -117,7 +119,7 @@ export function Modal({ open, title, onClose, children, footer, inline = false, 
       <div style={cardStyle}>
         <div style={headerStyle}>
           <h2 id={titleId} style={titleStyle}>{title}</h2>
-          <button style={closeStyle} onClick={onClose} aria-label="Close" type="button">✕</button>
+          <button style={closeStyle} onClick={onClose} aria-label={t('ui.modal.close')} type="button">✕</button>
         </div>
         <div style={bodyStyle}>{children}</div>
         {footer && <div style={footerStyle}>{footer}</div>}

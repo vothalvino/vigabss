@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import { gatewayPayload, type GatewayForm } from './paymentGatewayPayload';
 import { useAuth } from '@/auth/AuthContext';
 import { apiFetch } from '@/api/apiFetch';
+import { QuotaBar } from './settings/QuotaBar';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -368,13 +369,13 @@ function AlertRulesTab() {
   return (
     <div>
       <div style={sty.tabBar}>
-        <h3 style={sty.sectionTitle}>Alert Rules</h3>
-        <button style={sty.btnPrimary} onClick={openNew}>+ New Rule</button>
+        <h3 style={sty.sectionTitle}>{t('ui.settings.alertRules')}</h3>
+        <button style={sty.btnPrimary} onClick={openNew}>{t('ui.settings.newRule')}</button>
       </div>
 
-      {isLoading && <p style={sty.muted}>Loading rules…</p>}
-      {error && <p style={sty.errorText}>Failed to load alert rules.</p>}
-      {!isLoading && rules.length === 0 && <p style={sty.muted}>No alert rules defined.</p>}
+      {isLoading && <p style={sty.muted}>{t('ui.settings.loadingRules')}</p>}
+      {error && <p style={sty.errorText}>{t('ui.settings.failedToLoadAlertRules')}</p>}
+      {!isLoading && rules.length === 0 && <p style={sty.muted}>{t('ui.settings.noAlertRulesDefined')}</p>}
 
       {rules.length > 0 && (
         <table style={sty.table}>
@@ -389,7 +390,7 @@ function AlertRulesTab() {
                   {r.description && <div style={{ fontSize: '0.8rem', color: '#888' }}>{r.description}</div>}
                 </td>
                 <td style={sty.td}><code style={sty.code}>{r.metric}</code></td>
-                <td style={sty.td}>{r.operator} {r.threshold} for {r.duration_minutes}m</td>
+                <td style={sty.td}>{r.operator} {r.threshold} {t('ui.settings.for')}{r.duration_minutes}m</td>
                 <td style={sty.td}><span style={severityBadge(r.severity)}>{r.severity}</span></td>
                 <td style={sty.td}>
                   <button
@@ -402,8 +403,8 @@ function AlertRulesTab() {
                 </td>
                 <td style={sty.td}>
                   <span style={sty.rowActions}>
-                    <button style={sty.btnGhost} onClick={() => openEdit(r)}>Edit</button>
-                    <button style={sty.btnDanger} onClick={() => setDeleteId(r.id)}>Delete</button>
+                    <button style={sty.btnGhost} onClick={() => openEdit(r)}>{t('ui.settings.edit')}</button>
+                    <button style={sty.btnDanger} onClick={() => setDeleteId(r.id)}>{t('ui.settings.delete')}</button>
                   </span>
                 </td>
               </tr>
@@ -415,42 +416,42 @@ function AlertRulesTab() {
       {showModal && (
         <Modal title={editing ? 'Edit Alert Rule' : 'New Alert Rule'} onClose={closeModal}>
           <form onSubmit={handleSubmit} style={sty.form}>
-            <label style={sty.label}>Name *
+            <label style={sty.label}>{t('ui.settings.name')}
               <input style={sty.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
             </label>
-            <label style={sty.label}>Description
+            <label style={sty.label}>{t('ui.settings.description')}
               <input style={sty.input} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </label>
             <div style={sty.row2}>
-              <label style={sty.label}>Metric *
+              <label style={sty.label}>{t('ui.settings.metric')}
                 <select style={sty.select} value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))}>
                   {METRICS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </label>
-              <label style={sty.label}>Operator
+              <label style={sty.label}>{t('ui.settings.operator')}
                 <select style={sty.select} value={form.operator} onChange={e => setForm(f => ({ ...f, operator: e.target.value }))}>
                   {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
               </label>
             </div>
             <div style={sty.row2}>
-              <label style={sty.label}>Threshold *
+              <label style={sty.label}>{t('ui.settings.threshold')}
                 <input style={sty.input} type="number" step="any" value={form.threshold}
                   onChange={e => setForm(f => ({ ...f, threshold: e.target.value }))} required />
               </label>
-              <label style={sty.label}>Duration (min)
+              <label style={sty.label}>{t('ui.settings.durationMin')}
                 <input style={sty.input} type="number" min="1" value={form.duration_minutes}
                   onChange={e => setForm(f => ({ ...f, duration_minutes: e.target.value }))} />
               </label>
             </div>
             <div style={sty.row2}>
-              <label style={sty.label}>Severity
+              <label style={sty.label}>{t('ui.settings.severity')}
                 <select style={sty.select} value={form.severity} onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}>
                   {SEVERITIES.map(sv => <option key={sv} value={sv}>{sv}</option>)}
                 </select>
               </label>
-              <label style={sty.label}>Device ID (optional)
-                <input style={sty.input} type="number" value={form.device_id} placeholder="leave blank for all"
+              <label style={sty.label}>{t('ui.settings.deviceIdOptional')}
+                <input style={sty.input} type="number" value={form.device_id} placeholder={t('ui.settings.leaveBlankForAll')}
                   onChange={e => setForm(f => ({ ...f, device_id: e.target.value }))} />
               </label>
             </div>
@@ -466,17 +467,17 @@ function AlertRulesTab() {
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input type="checkbox" checked={form.auto_create_outage}
                   onChange={e => setForm(f => ({ ...f, auto_create_outage: e.target.checked }))} />
-                Auto-create outage when triggered
+                {t('ui.settings.autoCreateOutageWhenTriggered')}
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input type="checkbox" checked={form.is_enabled}
                   onChange={e => setForm(f => ({ ...f, is_enabled: e.target.checked }))} />
-                Enabled
+                {t('ui.settings.enabled')}
               </label>
             </div>
             {formError && <p style={sty.errorText}>{formError}</p>}
             <div style={sty.modalFooter}>
-              <button type="button" style={sty.btnGhost} onClick={closeModal}>Cancel</button>
+              <button type="button" style={sty.btnGhost} onClick={closeModal}>{t('ui.settings.cancel')}</button>
               <button type="submit" style={sty.btnPrimary} disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? 'Saving…' : editing ? 'Update' : 'Create'}
               </button>
@@ -507,6 +508,7 @@ const EMPTY_GW: GatewayForm = {
 };
 
 function PaymentGatewaysTab() {
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<PaymentGateway | null>(null);
   const [form, setForm] = useState({ ...EMPTY_GW });
@@ -558,13 +560,13 @@ function PaymentGatewaysTab() {
   return (
     <div>
       <div style={sty.tabBar}>
-        <h3 style={sty.sectionTitle}>Payment Gateways</h3>
-        <button style={sty.btnPrimary} onClick={openNew}>+ Add Gateway</button>
+        <h3 style={sty.sectionTitle}>{t('ui.settings.paymentGateways')}</h3>
+        <button style={sty.btnPrimary} onClick={openNew}>{t('ui.settings.addGateway')}</button>
       </div>
 
-      {isLoading && <p style={sty.muted}>Loading gateways…</p>}
-      {error && <p style={sty.errorText}>Failed to load payment gateways.</p>}
-      {!isLoading && gateways.length === 0 && <p style={sty.muted}>No payment gateways configured.</p>}
+      {isLoading && <p style={sty.muted}>{t('ui.settings.loadingGateways')}</p>}
+      {error && <p style={sty.errorText}>{t('ui.settings.failedToLoadPaymentGateways')}</p>}
+      {!isLoading && gateways.length === 0 && <p style={sty.muted}>{t('ui.settings.noPaymentGatewaysConfigured')}</p>}
 
       {gateways.length > 0 && (
         <table style={sty.table}>
@@ -577,13 +579,13 @@ function PaymentGatewaysTab() {
                 <td style={sty.td}><span style={channelBadge(gw.provider)}>{gw.provider}</span></td>
                 <td style={sty.td}>{gw.name}</td>
                 <td style={sty.td}>{gw.environment}</td>
-                <td style={sty.td}>{gw.has_secret_key ? 'Set' : <em style={sty.muted}>Not set</em>}</td>
-                <td style={sty.td}>{gw.has_webhook_secret ? 'Set' : <em style={sty.muted}>Not set</em>}</td>
+                <td style={sty.td}>{gw.has_secret_key ? 'Set' : <em style={sty.muted}>{t('ui.settings.notSet')}</em>}</td>
+                <td style={sty.td}>{gw.has_webhook_secret ? 'Set' : <em style={sty.muted}>{t('ui.settings.notSet')}</em>}</td>
                 <td style={sty.td}><span style={statusBadge(gw.status)}>{gw.status}</span></td>
                 <td style={sty.td}>
                   <span style={sty.rowActions}>
-                    <button style={sty.btnGhost} onClick={() => openEdit(gw)}>Edit</button>
-                    <button style={sty.btnDanger} onClick={() => setDeleteId(gw.id)}>Delete</button>
+                    <button style={sty.btnGhost} onClick={() => openEdit(gw)}>{t('ui.settings.edit')}</button>
+                    <button style={sty.btnDanger} onClick={() => setDeleteId(gw.id)}>{t('ui.settings.delete')}</button>
                   </span>
                 </td>
               </tr>
@@ -596,44 +598,44 @@ function PaymentGatewaysTab() {
         <Modal title={editing ? 'Edit Gateway' : 'Add Payment Gateway'} onClose={closeModal}>
           <form onSubmit={handleSubmit} style={sty.form}>
             <div style={sty.row2}>
-              <label style={sty.label}>Provider *
+              <label style={sty.label}>{t('ui.settings.provider')}
                 <select style={sty.select} value={form.provider} disabled={!!editing}
                   onChange={e => setForm(f => ({ ...f, provider: e.target.value }))}>
                   {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
-                {editing && <span style={sty.hint}>Provider is fixed for an existing gateway (it drives webhook/charge routing) — create a new gateway to switch.</span>}
+                {editing && <span style={sty.hint}>{t('ui.settings.providerIsFixedForAn')}</span>}
               </label>
-              <label style={sty.label}>Name *
-                <input style={sty.input} value={form.name} placeholder="e.g. Stripe MX" required maxLength={100}
+              <label style={sty.label}>{t('ui.settings.name')}
+                <input style={sty.input} value={form.name} placeholder={t('ui.settings.eGStripeMx')} required maxLength={100}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
               </label>
             </div>
             <div style={sty.row2}>
-              <label style={sty.label}>Environment
+              <label style={sty.label}>{t('ui.settings.environment')}
                 <select style={sty.select} value={form.environment} onChange={e => setForm(f => ({ ...f, environment: e.target.value }))}>
                   {ENVIRONMENTS.map(env => <option key={env} value={env}>{env}</option>)}
                 </select>
               </label>
-              <label style={sty.label}>Status
+              <label style={sty.label}>{t('ui.settings.status')}
                 <select style={sty.select} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                  <option value="active">active</option>
-                  <option value="inactive">inactive</option>
+                  <option value="active">{t('ui.settings.active')}</option>
+                  <option value="inactive">{t('ui.settings.inactive')}</option>
                 </select>
               </label>
             </div>
-            <label style={sty.label}>Public Key
-              <input style={sty.input} value={form.public_key} placeholder="pk_live_…"
+            <label style={sty.label}>{t('ui.settings.publicKey')}
+              <input style={sty.input} value={form.public_key} placeholder={t('ui.settings.pkLive')}
                 onChange={e => setForm(f => ({ ...f, public_key: e.target.value }))} />
             </label>
             <label style={sty.label}>
-              Secret Key {editing?.has_secret_key && <span style={sty.hint}>(leave blank to keep existing)</span>}
+              {t('ui.settings.secretKey')}{editing?.has_secret_key && <span style={sty.hint}>{t('ui.settings.leaveBlankToKeepExisting')}</span>}
               <input style={sty.input} type="password" value={form.secret_key} autoComplete="new-password"
                 placeholder={editing?.has_secret_key ? '••••••••' : 'sk_live_…'}
                 onChange={e => setForm(f => ({ ...f, secret_key: e.target.value }))} />
             </label>
             <label style={sty.label}>
               {form.provider === 'conekta' ? 'Webhook Public Key (PEM)' : 'Webhook Secret'}
-              {editing?.has_webhook_secret && <span style={sty.hint}> (leave blank to keep existing)</span>}
+              {editing?.has_webhook_secret && <span style={sty.hint}> {t('ui.settings.leaveBlankToKeepExisting2')}</span>}
               {form.provider === 'conekta' ? (
                 // Conekta signs webhooks with RSA; the verifier needs the
                 // multi-line public key from POST /webhook_keys.
@@ -654,7 +656,7 @@ function PaymentGatewaysTab() {
                 : `${window.location.origin}/api/v1/payment-webhooks/${editing.provider}/${editing.id}`;
               return (
                 <div style={sty.label}>
-                  <span>Webhook URL <span style={sty.hint}>(paste into your {editing.provider} dashboard)</span></span>
+                  <span>{t('ui.settings.webhookUrl')}<span style={sty.hint}>{t('ui.settings.pasteIntoYour')}{editing.provider} {t('ui.settings.dashboard')}</span></span>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <code style={{ ...sty.code, flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>{webhookUrl}</code>
                     <button type="button" style={sty.btnGhost} onClick={async () => {
@@ -668,9 +670,9 @@ function PaymentGatewaysTab() {
                       setTimeout(() => setCopied(null), 2000);
                     }}>{copied === 'ok' ? 'Copied!' : copied === 'fail' ? 'Select it ↑' : 'Copy'}</button>
                   </div>
-                  <span style={sty.hint}>Set this as the webhook endpoint in {editing.provider}, then paste the signing secret it returns into “Webhook Secret” above. Until a secret is saved here, incoming webhooks are rejected (503) — payments won’t auto-reconcile.</span>
+                  <span style={sty.hint}>{t('ui.settings.setThisAsTheWebhook')}{editing.provider}{t('ui.settings.thenPasteTheSigningSecret')}</span>
                   <span style={sty.hint}>
-                    Subscribe it to: {editing.provider === 'stripe'
+                    {t('ui.settings.subscribeItTo')}{editing.provider === 'stripe'
                       ? 'checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, checkout.session.expired, payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, charge.dispute.created'
                       : 'order.paid, order.payment_failed, charge.refunded, charge.chargeback.created'}
                   </span>
@@ -679,7 +681,7 @@ function PaymentGatewaysTab() {
             })()}
             {formError && <p style={sty.errorText}>{formError}</p>}
             <div style={sty.modalFooter}>
-              <button type="button" style={sty.btnGhost} onClick={closeModal}>Cancel</button>
+              <button type="button" style={sty.btnGhost} onClick={closeModal}>{t('ui.settings.cancel')}</button>
               <button type="submit" style={sty.btnPrimary} disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? 'Saving…' : editing ? 'Update' : 'Create'}
               </button>
@@ -721,13 +723,14 @@ function Modal({ title, onClose, children }: ModalProps) {
 
 interface ConfirmProps { message: string; onConfirm: () => void; onCancel: () => void; loading: boolean; }
 function ConfirmDialog({ message, onConfirm, onCancel, loading }: ConfirmProps) {
+  const { t } = useTranslation();
   return (
     <div style={sty.overlay}>
       <div style={{ ...sty.modal, maxWidth: 400 }}>
         <div style={sty.modalBody}>
           <p style={{ marginTop: 0 }}>{message}</p>
           <div style={sty.modalFooter}>
-            <button style={sty.btnGhost} onClick={onCancel} disabled={loading}>Cancel</button>
+            <button style={sty.btnGhost} onClick={onCancel} disabled={loading}>{t('ui.settings.cancel')}</button>
             <button style={sty.btnDanger} onClick={onConfirm} disabled={loading}>
               {loading ? 'Deleting…' : 'Delete'}
             </button>
@@ -791,29 +794,8 @@ interface QuotaData {
   usage: QuotaUsage;
 }
 
-function QuotaBar({ label, used, limit }: { label: string; used: number; limit: number | null }) {
-  const isUnlimited = limit === null;
-  const pct = (isUnlimited || limit === 0) ? 100 : Math.min(100, Math.round((used / limit!) * 100));
-  const color = pct >= 95 ? '#dc2626' : pct >= 80 ? '#d97706' : '#16a34a';
-  return (
-    <div style={{ marginBottom: '1rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.875rem' }}>
-        <span style={{ fontWeight: 500 }}>{label}</span>
-        <span style={{ color: '#555' }}>
-          {used.toLocaleString()} / {isUnlimited ? '∞' : limit!.toLocaleString()}
-          {!isUnlimited && <span style={{ color: pct >= 95 ? '#dc2626' : '#888', marginLeft: 6 }}>({pct}%)</span>}
-        </span>
-      </div>
-      {!isUnlimited && (
-        <div style={{ background: '#f3f4f6', borderRadius: 6, height: 8, overflow: 'hidden' }}>
-          <div style={{ width: `${pct}%`, background: color, height: '100%', borderRadius: 6, transition: 'width .3s' }} />
-        </div>
-      )}
-    </div>
-  );
-}
-
 function QuotasTab() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const orgId = user?.organization_id;
   const queryClient = useQueryClient();
@@ -836,8 +818,8 @@ function QuotasTab() {
     },
   });
 
-  if (isLoading) return <p style={sty.muted}>Loading quota…</p>;
-  if (error || !data) return <p style={{ color: '#dc2626', fontSize: '0.875rem' }}>Failed to load quota.</p>;
+  if (isLoading) return <p style={sty.muted}>{t('ui.settings.loadingQuota')}</p>;
+  if (error || !data) return <p style={{ color: '#dc2626', fontSize: '0.875rem' }}>{t('ui.settings.failedToLoadQuota')}</p>;
 
   const { limits, usage } = data.data;
 
@@ -863,26 +845,26 @@ function QuotasTab() {
   return (
     <div>
       <div style={sty.tabBar}>
-        <h3 style={sty.sectionTitle}>Resource Quotas</h3>
+        <h3 style={sty.sectionTitle}>{t('ui.settings.resourceQuotas')}</h3>
         {!editing && (
-          <button style={sty.btnPrimary} onClick={startEdit}>✏️ Edit Limits</button>
+          <button style={sty.btnPrimary} onClick={startEdit}>{t('ui.settings.editLimits')}</button>
         )}
       </div>
 
       {!editing ? (
         <>
           <p style={{ fontSize: '0.85rem', color: '#555', marginTop: 0, marginBottom: '1.5rem' }}>
-            Current usage versus configured limits. <strong>∞</strong> means unlimited.
+            {t('ui.settings.currentUsageVersusConfiguredLimits')}<strong>∞</strong> {t('ui.settings.meansUnlimited')}
           </p>
-          <QuotaBar label="Clients"         used={usage.clients}         limit={limits.max_clients} />
-          <QuotaBar label="Devices"         used={usage.devices}         limit={limits.max_devices} />
-          <QuotaBar label="Storage (MB)"    used={usage.storage_mb}      limit={limits.max_storage_mb} />
-          <QuotaBar label="Scheduled Tasks" used={usage.scheduled_tasks} limit={limits.max_scheduled_tasks} />
+          <QuotaBar label={t('ui.settings.clients')}         used={usage.clients}         limit={limits.max_clients} />
+          <QuotaBar label={t('ui.settings.devices')}         used={usage.devices}         limit={limits.max_devices} />
+          <QuotaBar label={t('ui.settings.storageMb')}    used={usage.storage_mb}      limit={limits.max_storage_mb} />
+          <QuotaBar label={t('ui.settings.scheduledTasks')} used={usage.scheduled_tasks} limit={limits.max_scheduled_tasks} />
         </>
       ) : (
         <form onSubmit={handleSave} style={sty.form}>
           <p style={{ fontSize: '0.85rem', color: '#555', margin: '0 0 0.75rem' }}>
-            Leave a field blank to set it as <strong>unlimited</strong>.
+            {t('ui.settings.leaveAFieldBlankTo')}<strong>{t('ui.settings.unlimited')}</strong>.
           </p>
           {(
             [
@@ -898,7 +880,7 @@ function QuotasTab() {
                 style={sty.input}
                 type="number"
                 min={0}
-                placeholder="unlimited"
+                placeholder={t('ui.settings.unlimited')}
                 value={form[key] ?? ''}
                 onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
               />
@@ -908,7 +890,7 @@ function QuotasTab() {
             <p style={sty.errorText}>{(saveMutation.error as Error).message}</p>
           )}
           <div style={sty.modalFooter}>
-            <button type="button" style={sty.btnGhost} onClick={() => setEditing(false)}>Cancel</button>
+            <button type="button" style={sty.btnGhost} onClick={() => setEditing(false)}>{t('ui.settings.cancel')}</button>
             <button type="submit" style={sty.btnPrimary} disabled={saveMutation.isPending}>
               {saveMutation.isPending ? 'Saving…' : 'Save Limits'}
             </button>
@@ -1077,7 +1059,7 @@ function EmailSettingsTab({ userId, organizationId }: { userId: number | null; o
         <p style={{ fontSize: '0.78rem', color: 'var(--text-faint)', margin: '-6px 0 0' }}>{t('emailSettings.enabledHint')}</p>
 
         <label style={sty.label}>{t('emailSettings.smtpHost')}
-          <input style={sty.input} value={form.smtp_host} placeholder="smtp.example.com"
+          <input style={sty.input} value={form.smtp_host} placeholder={t('ui.settings.smtpExampleCom')}
             onChange={e => setForm(f => ({ ...f, smtp_host: e.target.value }))} />
         </label>
 
@@ -1348,7 +1330,7 @@ function VersionTab() {
 
       {!v.check_enabled && (
         <p style={sty.verNote}>
-          {t('version.howToEnable')} <code style={sty.code}>VIGABSS_UPDATE_CHECK=0</code>
+          {t('version.howToEnable')} <code style={sty.code}>{t('ui.settings.vigabssUpdateCheck0')}</code>
           {' '}{t('version.howToEnableTail')}
         </p>
       )}
@@ -1440,6 +1422,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
 const VERSION_TAB: { id: SettingsTab; label: string } = { id: 'version', label: '⬆️ Version' };
 
 export function Settings() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<SettingsTab>('orgConfig');
   const { user } = useAuth();
   // Resolved by the backend (GET /auth/me), not guessed from users.role: the
@@ -1451,7 +1434,7 @@ export function Settings() {
 
   return (
     <div style={sty.page}>
-      <h2 style={sty.pageTitle}>Settings</h2>
+      <h2 style={sty.pageTitle}>{t('ui.settings.settings')}</h2>
 
       {/* Tab bar */}
       <div style={sty.tabs}>

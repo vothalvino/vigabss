@@ -16,6 +16,7 @@ import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,6 +115,7 @@ interface SiteModalProps {
 }
 
 function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
+  const { t } = useTranslation();
   const isEdit = site !== null;
   const [form, setForm] = useState({
     name: site?.name ?? '',
@@ -179,12 +181,12 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit Site #${site.id}` : '🏢 New Site'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.siteList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.siteList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
@@ -196,7 +198,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Site Type
+            {t('ui.siteList.siteType')}
             <select
               style={modalStyles.select}
               value={form.site_type}
@@ -207,7 +209,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Address
+            {t('ui.siteList.address')}
             <input
               style={modalStyles.input}
               type="text"
@@ -218,7 +220,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            City
+            {t('ui.siteList.city')}
             <input
               style={modalStyles.input}
               type="text"
@@ -229,7 +231,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            State
+            {t('ui.siteList.state')}
             <input
               style={modalStyles.input}
               type="text"
@@ -240,7 +242,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            ZIP Code
+            {t('ui.siteList.zipCode')}
             <input
               style={modalStyles.input}
               type="text"
@@ -251,7 +253,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Country
+            {t('ui.siteList.country')}
             <input
               style={modalStyles.input}
               type="text"
@@ -262,7 +264,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Latitude
+            {t('ui.siteList.latitude')}
             <input
               style={modalStyles.input}
               type="number"
@@ -275,7 +277,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Longitude
+            {t('ui.siteList.longitude')}
             <input
               style={modalStyles.input}
               type="number"
@@ -288,7 +290,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Status
+            {t('ui.siteList.status')}
             <select
               style={modalStyles.select}
               value={form.status}
@@ -299,7 +301,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Notes
+            {t('ui.siteList.notes')}
             <textarea
               style={{ ...modalStyles.input, minHeight: 60, resize: 'vertical' }}
               maxLength={5000}
@@ -312,7 +314,7 @@ function SiteModal({ site, onClose, onSaved }: SiteModalProps) {
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.siteList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Site'}
@@ -335,18 +337,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.siteList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.siteList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.siteList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -358,6 +361,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function SiteList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -391,15 +395,15 @@ export function SiteList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🏢 Sites</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.siteList.sites')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.siteList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New Site
+          {t('ui.siteList.newSite')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.siteList.status2')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -411,24 +415,24 @@ export function SiteList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.siteList.clearFilter')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.siteList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {sitesQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.siteList.loading')}</p>
         ) : sitesQ.error ? (
-          <p style={styles.msgError}>Failed to load sites.</p>
+          <p style={styles.msgError}>{t('ui.siteList.failedToLoadSites')}</p>
         ) : sites.length === 0 ? (
-          <p style={styles.msg}>No sites found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.siteList.noSitesFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -450,17 +454,17 @@ export function SiteList() {
                       <td style={styles.td}><StatusBadge status={s.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <Link to={`/sites/${s.id}`} style={{ ...styles.actionBtn, textDecoration: 'none', display: 'inline-block' }}>
-                          View
+                          {t('ui.siteList.view')}
                         </Link>
-                        <button style={styles.actionBtn} onClick={() => setEditSite(s)} title="Edit this site">
-                          ✏️ Edit
+                        <button style={styles.actionBtn} onClick={() => setEditSite(s)} title={t('ui.siteList.editThisSite')}>
+                          {t('ui.siteList.edit')}
                         </button>
                         <button
                           style={{ ...styles.actionBtn, color: '#991b1b' }}
                           onClick={() => setDeleteId(s.id)}
-                          title="Delete this site"
+                          title={t('ui.siteList.deleteThisSite')}
                         >
-                          🗑 Delete
+                          {t('ui.siteList.delete')}
                         </button>
                       </td>
                     </tr>

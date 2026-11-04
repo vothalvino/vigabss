@@ -658,7 +658,7 @@ export function DeviceDetail() {
     <div style={styles.page}>
       {/* Breadcrumb */}
       <div style={styles.breadcrumb}>
-        <Link to="/devices" style={styles.breadcrumbLink}>Devices</Link>
+        <Link to="/devices" style={styles.breadcrumbLink}>{t('ui.deviceDetail.devices')}</Link>
         <span style={styles.breadcrumbSep}>›</span>
         <span style={styles.breadcrumbCurrent}>{device.name}</span>
       </div>
@@ -784,7 +784,7 @@ export function DeviceDetail() {
         </div>
         {device.notes && (
           <div style={styles.notesRow}>
-            <span style={styles.noteLabel}>Notes: </span>{device.notes}
+            <span style={styles.noteLabel}>{t('ui.deviceDetail.notes')}</span>{device.notes}
           </div>
         )}
       </div>

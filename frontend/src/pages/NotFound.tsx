@@ -3,8 +3,10 @@
 // =============================================================================
 
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export function NotFound() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -19,9 +21,9 @@ export function NotFound() {
       }}
     >
       <h1 style={{ fontSize: '3rem', margin: 0 }}>404</h1>
-      <p style={{ margin: 0 }}>Page not found.</p>
+      <p style={{ margin: 0 }}>{t('ui.notFound.pageNotFound')}</p>
       <Link to="/" style={{ color: 'var(--accent)' }}>
-        ← Back to dashboard
+        {t('ui.notFound.backToDashboard')}
       </Link>
     </div>
   );

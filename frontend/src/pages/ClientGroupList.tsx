@@ -101,6 +101,7 @@ async function fetchGroups(page: number, pageSize: number): Promise<GroupsRespon
 function AddMembersModal({ groupId, existingIds, onClose, onSaved }: {
   groupId: number; existingIds: Set<number>; onClose: () => void; onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Record<number, string>>({});
   const [error, setError] = useState('');
@@ -134,34 +135,34 @@ function AddMembersModal({ groupId, existingIds, onClose, onSaved }: {
   const selCount = Object.keys(selected).length;
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Add members">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.clientGroupList.addMembers')}>
       <div style={{ ...modalBox, width: 520, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Add members</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.clientGroupList.addMembers')}</h3>
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-          Search for existing clients and add them to this group.
+          {t('ui.clientGroupList.searchForExistingClientsAnd')}
         </p>
         {error && <div style={errorBox}>{error}</div>}
-        <input style={inputStyle} type="text" placeholder="Search by name, email or phone…" autoFocus
+        <input style={inputStyle} type="text" placeholder={t('ui.clientGroupList.searchByNameEmailOr')} autoFocus
           value={search} onChange={e => setSearch(e.target.value)} />
 
         <div style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6, marginTop: 8 }}>
-          {results.isLoading && <p style={{ padding: 10, color: 'var(--text-secondary)' }}>Searching…</p>}
-          {results.data && results.data.length === 0 && <p style={{ padding: 10, color: 'var(--text-secondary)' }}>No clients found.</p>}
+          {results.isLoading && <p style={{ padding: 10, color: 'var(--text-secondary)' }}>{t('ui.clientGroupList.searching')}</p>}
+          {results.data && results.data.length === 0 && <p style={{ padding: 10, color: 'var(--text-secondary)' }}>{t('ui.clientGroupList.noClientsFound')}</p>}
           {results.data && results.data.map(c => {
             const already = existingIds.has(c.id);
             return (
               <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderBottom: '1px solid var(--border-subtle)', opacity: already ? 0.5 : 1, cursor: already ? 'default' : 'pointer' }}>
                 <input type="checkbox" disabled={already} checked={already || Boolean(selected[c.id])} onChange={() => toggle(c.id, c.name)} />
                 <span style={{ fontWeight: 600 }}>{c.name}</span>
-                {already && <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>already in this group</span>}
-                {!already && c.client_group_id != null && <span style={{ fontSize: '0.75rem', color: '#b45309' }}>in another group — will move</span>}
+                {already && <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t('ui.clientGroupList.alreadyInThisGroup')}</span>}
+                {!already && c.client_group_id != null && <span style={{ fontSize: '0.75rem', color: '#b45309' }}>{t('ui.clientGroupList.inAnotherGroupWillMove')}</span>}
               </label>
             );
           })}
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+          <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.clientGroupList.cancel')}</button>
           <button type="button" onClick={() => { setError(''); add.mutate(); }} style={submitBtn} disabled={add.isPending || selCount === 0}>
             {add.isPending ? 'Adding…' : `Add ${selCount || ''} member${selCount === 1 ? '' : 's'}`}
           </button>
@@ -209,22 +210,22 @@ function PayGroupModal({ group, billing, onClose, onSaved }: {
   });
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Pay group balance">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.clientGroupList.payGroupBalance')}>
       <div style={{ ...modalBox, width: 460 }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Pay group balance — {group.name}</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.clientGroupList.payGroupBalance2')}{group.name}</h3>
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-          A single payment recorded on the primary member, applied oldest-invoice-first across the group.
+          {t('ui.clientGroupList.aSinglePaymentRecordedOn')}
         </p>
         {error && <div style={errorBox}>{error}</div>}
 
         {result ? (
           <div>
             <div style={{ padding: 12, background: 'var(--bg-subtle, #f0fdf4)', borderRadius: 6, fontSize: '0.9rem' }}>
-              ✓ Applied {fmtMoney(result.allocated_total, currency)} across {result.settled_invoices.length} invoice(s).
-              {result.unallocated_credit > 0 && <> Remaining {fmtMoney(result.unallocated_credit, currency)} left as credit on the primary.</>}
+              {t('ui.clientGroupList.applied')}{fmtMoney(result.allocated_total, currency)} {t('ui.clientGroupList.across')}{result.settled_invoices.length} {t('ui.clientGroupList.invoiceS')}
+              {result.unallocated_credit > 0 && <> {t('ui.clientGroupList.remaining')}{fmtMoney(result.unallocated_credit, currency)} {t('ui.clientGroupList.leftAsCreditOnThe')}</>}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-              <button type="button" onClick={onClose} style={submitBtn}>Done</button>
+              <button type="button" onClick={onClose} style={submitBtn}>{t('ui.clientGroupList.done')}</button>
             </div>
           </div>
         ) : (
@@ -238,18 +239,18 @@ function PayGroupModal({ group, billing, onClose, onSaved }: {
               </>
             )}
             <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
-              Group open balance: <strong>{fmtMoney(openForCurrency, currency)}</strong>
+              {t('ui.clientGroupList.groupOpenBalance')}<strong>{fmtMoney(openForCurrency, currency)}</strong>
             </div>
-            <label style={labelStyle}>Amount</label>
+            <label style={labelStyle}>{t('ui.clientGroupList.amount')}</label>
             <input style={inputStyle} type="number" min={0.01} step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
-            <label style={labelStyle}>Payment method</label>
+            <label style={labelStyle}>{t('ui.clientGroupList.paymentMethod')}</label>
             <select style={inputStyle} value={method} onChange={e => setMethod(e.target.value)}>
               {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            <label style={labelStyle}>Reference (optional)</label>
+            <label style={labelStyle}>{t('ui.clientGroupList.referenceOptional')}</label>
             <input style={inputStyle} type="text" value={reference} onChange={e => setReference(e.target.value)} />
             <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+              <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.clientGroupList.cancel')}</button>
               <button type="button" onClick={() => { setError(''); pay.mutate(); }} style={submitBtn} disabled={pay.isPending || !(Number(amount) > 0)}>
                 {pay.isPending ? 'Processing…' : 'Pay now'}
               </button>
@@ -334,13 +335,13 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '10px 0 6px' }}>
           {canUpdate && (
             <button type="button" style={{ ...submitBtn, padding: '5px 12px' }} onClick={() => { setActionError(''); setShowAdd(true); }}>
-              ＋ Add members
+              {t('ui.clientGroupList.addMembers2')}
             </button>
           )}
           {isShared && canViewBilling && billingQ.data && (
             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: '0.85rem' }}>
-                Group balance:{' '}
+                {t('ui.clientGroupList.groupBalance')}{' '}
                 {/* One figure per currency; never added across currencies (GQL-10). */}
                 {(billingQ.data.group_mixed_currency
                   ? (billingQ.data.group_balances ?? [])
@@ -353,7 +354,7 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
               </span>
               {canPay && (billingQ.data.payable_by_currency ?? [{ amount: billingQ.data.payable_total ?? 0 }]).some(p => p.amount > 0.005) && (
                 <button type="button" style={{ ...submitBtn, padding: '5px 12px' }} onClick={() => { setActionError(''); setShowPay(true); }}>
-                  Pay group balance
+                  {t('ui.clientGroupList.payGroupBalance')}
                 </button>
               )}
             </span>
@@ -361,7 +362,7 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
         </div>
         {isShared && !group.primary_client_id && (
           <p style={{ margin: '2px 0 6px', fontSize: '0.8rem', color: '#b45309' }}>
-            This shared group has no primary member yet — use ★ Make primary on a member to enable group payment.
+            {t('ui.clientGroupList.thisSharedGroupHasNo')}
           </p>
         )}
         {actionError && <div style={errorBox}>{actionError}</div>}
@@ -382,8 +383,8 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
                 <th style={{ padding: '6px 8px' }}>{t('clientList.table.name')}</th>
                 <th style={{ padding: '6px 8px' }}>{t('clientList.table.email')}</th>
                 <th style={{ padding: '6px 8px' }}>{t('clientList.table.status')}</th>
-                {isShared && canViewBilling && <th style={{ padding: '6px 8px', textAlign: 'right' }}>Balance</th>}
-                {canUpdate && <th style={{ padding: '6px 8px', textAlign: 'right' }}>Actions</th>}
+                {isShared && canViewBilling && <th style={{ padding: '6px 8px', textAlign: 'right' }}>{t('ui.clientGroupList.balance')}</th>}
+                {canUpdate && <th style={{ padding: '6px 8px', textAlign: 'right' }}>{t('ui.clientGroupList.actions')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -394,7 +395,7 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
                   <tr key={m.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <td style={{ padding: '6px 8px', fontWeight: 600 }}>
                       <Link to={`/clients/${m.id}`} style={{ color: 'var(--link)', textDecoration: 'none' }}>{m.name}</Link>
-                      {isPrimary && <span title="Primary (billing owner)" style={{ marginLeft: 6, color: '#ca8a04' }}>★</span>}
+                      {isPrimary && <span title={t('ui.clientGroupList.primaryBillingOwner')} style={{ marginLeft: 6, color: '#ca8a04' }}>★</span>}
                     </td>
                     <td style={{ padding: '6px 8px' }}>{m.email || '—'}</td>
                     <td style={{ padding: '6px 8px', textTransform: 'capitalize' }}>{m.status}</td>
@@ -409,10 +410,10 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
                       <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {isShared && !isPrimary && (
                           <button type="button" style={{ ...cancelBtn, padding: '3px 8px', marginRight: 6 }}
-                            onClick={() => { setActionError(''); makePrimary.mutate(m.id); }} disabled={makePrimary.isPending}>★ Make primary</button>
+                            onClick={() => { setActionError(''); makePrimary.mutate(m.id); }} disabled={makePrimary.isPending}>{t('ui.clientGroupList.makePrimary')}</button>
                         )}
                         <button type="button" style={{ ...cancelBtn, padding: '3px 8px' }}
-                          onClick={() => { setActionError(''); removeMember.mutate(m.id); }} disabled={removeMember.isPending}>Remove</button>
+                          onClick={() => { setActionError(''); removeMember.mutate(m.id); }} disabled={removeMember.isPending}>{t('ui.clientGroupList.remove')}</button>
                       </td>
                     )}
                   </tr>
@@ -433,6 +434,7 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
 function ClientSearchSelect({ valueId, valueLabel, onPick, placeholder }: {
   valueId?: number; valueLabel?: string; onPick: (id: number | undefined, name: string) => void; placeholder?: string;
 }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
 
@@ -452,8 +454,8 @@ function ClientSearchSelect({ valueId, valueLabel, onPick, placeholder }: {
         <span style={{ ...inputStyle, display: 'flex', alignItems: 'center', flex: 1 }}>
           ★ {valueLabel || `Client #${valueId}`}
         </span>
-        <button type="button" style={{ ...cancelBtn, padding: '4px 10px' }} onClick={() => { setOpen(true); setSearch(''); }}>Change</button>
-        <button type="button" style={{ ...cancelBtn, padding: '4px 10px' }} onClick={() => onPick(undefined, '')}>Clear</button>
+        <button type="button" style={{ ...cancelBtn, padding: '4px 10px' }} onClick={() => { setOpen(true); setSearch(''); }}>{t('ui.clientGroupList.change')}</button>
+        <button type="button" style={{ ...cancelBtn, padding: '4px 10px' }} onClick={() => onPick(undefined, '')}>{t('ui.clientGroupList.clear')}</button>
       </div>
     );
   }
@@ -464,8 +466,8 @@ function ClientSearchSelect({ valueId, valueLabel, onPick, placeholder }: {
         onFocus={() => setOpen(true)} onChange={e => { setSearch(e.target.value); setOpen(true); }} />
       {open && search.trim().length > 0 && (
         <div style={{ position: 'absolute', zIndex: 10, left: 0, right: 0, background: 'var(--bg-primary, #fff)', border: '1px solid var(--border)', borderRadius: 6, maxHeight: 200, overflowY: 'auto' }}>
-          {results.isLoading && <p style={{ padding: 8, margin: 0, color: 'var(--text-secondary)' }}>Searching…</p>}
-          {results.data && results.data.length === 0 && <p style={{ padding: 8, margin: 0, color: 'var(--text-secondary)' }}>No clients found.</p>}
+          {results.isLoading && <p style={{ padding: 8, margin: 0, color: 'var(--text-secondary)' }}>{t('ui.clientGroupList.searching')}</p>}
+          {results.data && results.data.length === 0 && <p style={{ padding: 8, margin: 0, color: 'var(--text-secondary)' }}>{t('ui.clientGroupList.noClientsFound')}</p>}
           {results.data && results.data.map(c => (
             <button key={c.id} type="button"
               style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit' }}
@@ -490,6 +492,7 @@ function GroupFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<GroupFormBody>({
     name: initial?.name ?? '',
     billing_mode: initial?.billing_mode ?? 'separate',
@@ -552,33 +555,33 @@ function GroupFormModal({
         <h3 style={{ margin: '0 0 1rem' }}>{title}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Name *</label>
+          <label style={labelStyle}>{t('ui.clientGroupList.name')}</label>
           <input style={inputStyle} type="text" value={form.name} autoFocus
             onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
 
-          <label style={labelStyle}>Billing mode</label>
+          <label style={labelStyle}>{t('ui.clientGroupList.billingMode')}</label>
           <select style={inputStyle} value={form.billing_mode}
             onChange={e => setForm(p => ({ ...p, billing_mode: e.target.value }))}>
             {BILLING_MODES.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
 
-          <label style={labelStyle}>Primary member (billing owner)</label>
+          <label style={labelStyle}>{t('ui.clientGroupList.primaryMemberBillingOwner')}</label>
           <ClientSearchSelect
             valueId={form.primary_client_id ?? undefined}
             valueLabel={primaryLabel}
-            placeholder="Search for the billing owner…"
+            placeholder={t('ui.clientGroupList.searchForTheBillingOwner')}
             onPick={(id, name) => { setForm(p => ({ ...p, primary_client_id: id })); setPrimaryLabel(name); }}
           />
           <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            For shared billing. You can also set it later with ★ Make primary in the members list.
+            {t('ui.clientGroupList.forSharedBillingYouCan')}
           </p>
 
-          <label style={labelStyle}>Notes</label>
+          <label style={labelStyle}>{t('ui.clientGroupList.notes')}</label>
           <input style={inputStyle} type="text" value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.clientGroupList.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : mode === 'create' ? 'Create' : 'Save'}
             </button>
@@ -622,17 +625,17 @@ export function ClientGroupList() {
   return (
     <div style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0 }}>Account Groups</h2>
+        <h2 style={{ margin: 0 }}>{t('ui.clientGroupList.accountGroups')}</h2>
         {canCreate && (
-          <button type="button" style={submitBtn} onClick={() => setShowCreate(true)}>+ New Group</button>
+          <button type="button" style={submitBtn} onClick={() => setShowCreate(true)}>{t('ui.clientGroupList.newGroup')}</button>
         )}
       </div>
 
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 0 }}>
-        Group several client accounts together for shared billing or family plans.
+        {t('ui.clientGroupList.groupSeveralClientAccountsTogether')}
       </p>
 
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t('ui.clientGroupList.loading')}</p>}
       {error && <div style={errorBox}>{(error as Error).message}</div>}
 
       {data && (
@@ -640,16 +643,16 @@ export function ClientGroupList() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-strong)' }}>
-              <th style={{ padding: '8px' }}>Name</th>
-              <th style={{ padding: '8px' }}>Billing</th>
-              <th style={{ padding: '8px', textAlign: 'right' }}>Primary client</th>
-              <th style={{ padding: '8px' }}>Notes</th>
-              <th style={{ padding: '8px', textAlign: 'right' }}>Actions</th>
+              <th style={{ padding: '8px' }}>{t('ui.clientGroupList.name2')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.clientGroupList.billing')}</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.clientGroupList.primaryClient')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.clientGroupList.notes')}</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.clientGroupList.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {data.data.length === 0 && (
-              <tr><td colSpan={5} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No account groups yet.</td></tr>
+              <tr><td colSpan={5} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{t('ui.clientGroupList.noAccountGroupsYet')}</td></tr>
             )}
             {data.data.map(g => (
               <Fragment key={g.id}>
@@ -666,11 +669,11 @@ export function ClientGroupList() {
                     </button>
                     {canUpdate && (
                       <button type="button" style={{ ...cancelBtn, padding: '4px 10px', marginRight: 6 }}
-                        onClick={() => setEditGroup(g)}>Edit</button>
+                        onClick={() => setEditGroup(g)}>{t('ui.clientGroupList.edit')}</button>
                     )}
                     {canDelete && (
                       <button type="button" style={{ ...dangerBtn, padding: '4px 10px' }}
-                        onClick={() => setDeleteTarget(g)}>Delete</button>
+                        onClick={() => setDeleteTarget(g)}>{t('ui.clientGroupList.delete')}</button>
                     )}
                   </td>
                 </tr>
@@ -696,15 +699,14 @@ export function ClientGroupList() {
       {editGroup && <GroupFormModal mode="edit" initial={editGroup} onClose={() => setEditGroup(null)} onSaved={refresh} />}
 
       {deleteTarget && (
-        <div style={overlay} role="dialog" aria-modal="true" aria-label="Delete group">
+        <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.clientGroupList.deleteGroup')}>
           <div style={modalBox}>
-            <h3 style={{ margin: '0 0 0.75rem' }}>Delete group?</h3>
+            <h3 style={{ margin: '0 0 0.75rem' }}>{t('ui.clientGroupList.deleteGroup2')}</h3>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginTop: 0 }}>
-              <strong>{deleteTarget.name}</strong> will be removed. Member clients are not deleted; they are
-              simply unlinked from this group.
+              <strong>{deleteTarget.name}</strong> {t('ui.clientGroupList.willBeRemovedMemberClients')}
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setDeleteTarget(null)} style={cancelBtn}>Cancel</button>
+              <button type="button" onClick={() => setDeleteTarget(null)} style={cancelBtn}>{t('ui.clientGroupList.cancel')}</button>
               <button type="button" onClick={() => deleteMutation.mutate(deleteTarget.id)} style={dangerBtn} disabled={deleteMutation.isPending}>
                 {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
               </button>

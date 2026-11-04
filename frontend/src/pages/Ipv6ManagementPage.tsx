@@ -142,7 +142,7 @@ function RaGuardForm({ initial, onSave, onClose, saving, editMode }: RaGuardForm
       <div style={{ ...modalStyles.panel, maxWidth: 540 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('ipv6_management.edit_ra_guard', 'Edit RA Guard Policy') : t('ipv6_management.new_ra_guard', 'New RA Guard Policy')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.ipv6ManagementPage.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -157,7 +157,7 @@ function RaGuardForm({ initial, onSave, onClose, saving, editMode }: RaGuardForm
             </div>
             <div>
               <label style={modalStyles.label}>{t('ipv6_management.port_pattern', 'Port Pattern')}</label>
-              <input style={inp} value={portPattern} onChange={e => setPortPattern(e.target.value)} placeholder="ether1-10" />
+              <input style={inp} value={portPattern} onChange={e => setPortPattern(e.target.value)} placeholder={t('ui.ipv6ManagementPage.ether110')} />
             </div>
           </div>
 
@@ -181,7 +181,7 @@ function RaGuardForm({ initial, onSave, onClose, saving, editMode }: RaGuardForm
           </div>
 
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.ipv6ManagementPage.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -252,7 +252,7 @@ function RaGuardTab() {
   return (
     <div>
       <div style={styles.header}>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.ipv6ManagementPage.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('ipv6_management.new_ra_guard', 'New RA Guard Policy')}
         </button>
@@ -265,9 +265,9 @@ function RaGuardTab() {
       )}
 
       <div style={styles.filterRow}>
-        <span style={styles.filterLabel}>Status:</span>
+        <span style={styles.filterLabel}>{t('ui.ipv6ManagementPage.status')}</span>
         <select style={styles.filterSelect} value={raStatusFilter} onChange={e => { setRaStatusFilter(e.target.value); setRaPage(1); }}>
-          <option value="">All</option>
+          <option value="">{t('ui.ipv6ManagementPage.all')}</option>
           {STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
         </select>
       </div>
@@ -284,12 +284,12 @@ function RaGuardTab() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>Switch ID</th>
-                  <th style={styles.th}>Port Pattern</th>
-                  <th style={styles.th}>Policy Type</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.ipv6ManagementPage.name')}</th>
+                  <th style={styles.th}>{t('ui.ipv6ManagementPage.switchId')}</th>
+                  <th style={styles.th}>{t('ui.ipv6ManagementPage.portPattern')}</th>
+                  <th style={styles.th}>{t('ui.ipv6ManagementPage.policyType')}</th>
+                  <th style={styles.th}>{t('ui.ipv6ManagementPage.status2')}</th>
+                  <th style={styles.th}>{t('ui.ipv6ManagementPage.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -301,8 +301,8 @@ function RaGuardTab() {
                     <td style={styles.td}>{capitalize(p.policy_type)}</td>
                     <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(p)}>Edit</button>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(p.id)}>Delete</button>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(p)}>{t('ui.ipv6ManagementPage.edit')}</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(p.id)}>{t('ui.ipv6ManagementPage.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -314,9 +314,9 @@ function RaGuardTab() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={raPage <= 1} onClick={() => setRaPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {raPage} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={raPage >= totalPages} onClick={() => setRaPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={raPage <= 1} onClick={() => setRaPage(p => p - 1)}>{t('ui.ipv6ManagementPage.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.ipv6ManagementPage.page')}{raPage} {t('ui.ipv6ManagementPage.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={raPage >= totalPages} onClick={() => setRaPage(p => p + 1)}>{t('ui.ipv6ManagementPage.next')}</button>
         </div>
       )}
 
@@ -345,8 +345,8 @@ function RaGuardTab() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('ipv6_management.ra_guard_delete_confirm', 'Delete this RA Guard policy?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.ipv6ManagementPage.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.ipv6ManagementPage.delete')}</button>
             </div>
           </div>
         </div>
@@ -489,9 +489,9 @@ function ConflictsTab({ active }: { active: boolean }) {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Pool A</th>
-                <th style={styles.th}>Pool B</th>
-                <th style={styles.th}>Overlapping Networks</th>
+                <th style={styles.th}>{t('ui.ipv6ManagementPage.poolA')}</th>
+                <th style={styles.th}>{t('ui.ipv6ManagementPage.poolB')}</th>
+                <th style={styles.th}>{t('ui.ipv6ManagementPage.overlappingNetworks')}</th>
               </tr>
             </thead>
             <tbody>

@@ -290,6 +290,7 @@ interface NewContractModalProps {
 }
 
 function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     client_id: '',
     plan_id: '',
@@ -356,11 +357,11 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
         aria-labelledby="modal-title"
       >
         <div style={modalStyles.header}>
-          <h2 id="modal-title" style={modalStyles.title}>📄 New Contract</h2>
+          <h2 id="modal-title" style={modalStyles.title}>{t('ui.contractList.newContract')}</h2>
           <button
             style={modalStyles.closeBtn}
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('ui.contractList.close')}
           >
             ✕
           </button>
@@ -370,21 +371,21 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
           {/* Client */}
           {/* Search, not a <select>: the list returns at most 100 clients (FE-04). */}
           <ClientPicker
-            label="Client"
+            label={t('ui.contractList.client')}
             value={form.client_id ? Number(form.client_id) : ''}
             onChange={id => setField('client_id', id ? String(id) : '')}
           />
 
           {/* Plan */}
           <label style={modalStyles.label}>
-            Plan <span style={{ color: '#ef4444' }}>*</span>
+            {t('ui.contractList.plan')}<span style={{ color: '#ef4444' }}>*</span>
             <select
               style={modalStyles.select}
               value={form.plan_id}
               onChange={e => setField('plan_id', e.target.value)}
               required
             >
-              <option value="">— select plan —</option>
+              <option value="">{t('ui.contractList.selectPlan')}</option>
               {plans.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
@@ -393,22 +394,22 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* Connection type */}
           <label style={modalStyles.label}>
-            Connection Type
+            {t('ui.contractList.connectionType')}
             <select
               style={modalStyles.select}
               value={form.connection_type}
               onChange={e => setField('connection_type', e.target.value)}
             >
               <option value="pppoe">PPPoE</option>
-              <option value="pppoe_dual">PPPoE Dual</option>
-              <option value="static">Static</option>
-              <option value="dual">Dual</option>
+              <option value="pppoe_dual">{t('ui.contractList.pppoeDual')}</option>
+              <option value="static">{t('ui.contractList.static')}</option>
+              <option value="dual">{t('ui.contractList.dual')}</option>
             </select>
           </label>
 
           {/* Start date */}
           <label style={modalStyles.label}>
-            Start Date <span style={{ color: '#ef4444' }}>*</span>
+            {t('ui.contractList.startDate')}<span style={{ color: '#ef4444' }}>*</span>
             <input
               style={modalStyles.input}
               type="date"
@@ -420,7 +421,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* Billing day */}
           <label style={modalStyles.label}>
-            Billing Day (1–28)
+            {t('ui.contractList.billingDay128')}
             <input
               style={modalStyles.input}
               type="number"
@@ -434,7 +435,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* IP address */}
           <label style={modalStyles.label}>
-            IP Address
+            {t('ui.contractList.ipAddress')}
             <input
               style={modalStyles.input}
               type="text"
@@ -447,7 +448,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* Price override */}
           <label style={modalStyles.label}>
-            Price Override (leave blank for plan default)
+            {t('ui.contractList.priceOverrideLeaveBlankFor')}
             <input
               style={modalStyles.input}
               type="number"
@@ -477,7 +478,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
                 checked={form.facturar}
                 onChange={e => setField('facturar', e.target.checked)}
               />
-              Generate CFDI invoice automatically
+              {t('ui.contractList.generateCfdiInvoiceAutomatically')}
             </label>
           )}
 
@@ -490,7 +491,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
               style={styles.btnSecondary}
               disabled={submitting}
             >
-              Cancel
+              {t('ui.contractList.cancel')}
             </button>
             <button
               type="submit"
@@ -517,6 +518,7 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
@@ -528,8 +530,8 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
           {message}
         </p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.contractList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.contractList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -548,6 +550,7 @@ interface RenewModalProps {
 }
 
 function RenewModal({ contractId, contractEnvironment, onClose, onRenewed }: RenewModalProps) {
+  const { t } = useTranslation();
   const [endDate, setEndDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -579,14 +582,14 @@ function RenewModal({ contractId, contractEnvironment, onClose, onRenewed }: Ren
         aria-labelledby="renew-title"
       >
         <div style={modalStyles.header}>
-          <h2 id="renew-title" style={modalStyles.title}>🔄 Renew Contract</h2>
+          <h2 id="renew-title" style={modalStyles.title}>{t('ui.contractList.renewContract')}</h2>
           {contractEnvironment && <MxContractEnvironmentBadge environment={contractEnvironment} />}
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.contractList.close')}>✕</button>
         </div>
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <MxSandboxDocumentBanner environment={contractEnvironment} />
           <label style={modalStyles.label}>
-            New End Date (leave blank for month-to-month)
+            {t('ui.contractList.newEndDateLeaveBlank')}
             <input
               style={modalStyles.input}
               type="date"
@@ -597,7 +600,7 @@ function RenewModal({ contractId, contractEnvironment, onClose, onRenewed }: Ren
           {error && <p style={modalStyles.error}>{error}</p>}
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={submitting}>
-              Cancel
+              {t('ui.contractList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={submitting}>
               {submitting ? 'Renewing…' : 'Renew'}
@@ -759,7 +762,7 @@ function ContractDetailModal({ contract, plans, onClose }: ContractDetailModalPr
           {contract.mx_contract_environment && (
             <MxContractEnvironmentBadge environment={contract.mx_contract_environment} />
           )}
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.contractList.close')}>✕</button>
         </div>
 
         <MxSandboxDocumentBanner environment={contract.mx_contract_environment} />
@@ -914,7 +917,7 @@ export function ContractList() {
       {/* Header */}
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>📄 {t('contractList.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.contractList.total')}</span>}
         <button
           style={{ ...styles.btnPrimary, marginLeft: 'auto' }}
           onClick={() => setShowNew(true)}
@@ -1168,9 +1171,9 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
         <button
           style={styles.actionBtn}
           onClick={onEdit}
-          title="Edit this contract"
+          title={t('ui.contractList.editThisContract')}
         >
-          ✏️ Edit
+          {t('ui.contractList.edit')}
         </button>
         {c.status === 'pending' && (
           <Link
@@ -1185,45 +1188,45 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
           <button
             style={styles.actionBtn}
             onClick={onRenew}
-            title="Reactivate this contract"
+            title={t('ui.contractList.reactivateThisContract')}
           >
-            🔄 Renew
+            {t('ui.contractList.renew')}
           </button>
         )}
         {canSuspend && (
           <button
             style={{ ...styles.actionBtn, color: '#92400e' }}
             onClick={onSuspend}
-            title="Suspend this contract"
+            title={t('ui.contractList.suspendThisContract')}
           >
-            ⏸ Suspend
+            {t('ui.contractList.suspend')}
           </button>
         )}
         {canTerminate && (
           <button
             style={{ ...styles.actionBtn, color: '#991b1b' }}
             onClick={onTerminate}
-            title="Permanently terminate this contract"
+            title={t('ui.contractList.permanentlyTerminateThisContract')}
           >
-            🚫 Terminate
+            {t('ui.contractList.terminate')}
           </button>
         )}
         {canCancel && (
           <button
             style={{ ...styles.actionBtn, color: '#991b1b' }}
             onClick={onCancel}
-            title="Cancel this contract"
+            title={t('ui.contractList.cancelThisContract')}
           >
-            ✕ Cancel
+            {t('ui.contractList.cancel2')}
           </button>
         )}
         {canDelete && (
           <button
             style={{ ...styles.actionBtn, color: '#991b1b' }}
             onClick={onDelete}
-            title="Delete this contract"
+            title={t('ui.contractList.deleteThisContract')}
           >
-            🗑 Delete
+            {t('ui.contractList.delete')}
           </button>
         )}
       </td>

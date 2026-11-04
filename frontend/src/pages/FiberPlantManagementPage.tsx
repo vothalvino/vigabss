@@ -534,11 +534,11 @@ export function FiberPlantManagementPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setFrPage(p => Math.max(1, p - 1))} disabled={frPage <= 1}>
-                  &laquo; {t('fiberPlantManagement.prev')}
+                  {t('ui.fiberPlantManagementPage.laquo')}{t('fiberPlantManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{frPage} / {frTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setFrPage(p => p + 1)} disabled={frPage >= frTotalPages}>
-                  {t('fiberPlantManagement.next')} &raquo;
+                  {t('fiberPlantManagement.next')} {t('ui.fiberPlantManagementPage.raquo')}
                 </button>
               </div>
             </>
@@ -612,11 +612,11 @@ export function FiberPlantManagementPage() {
                 </div>
                 <div style={styles.pagination}>
                   <button style={styles.pageBtn} onClick={() => setOdfPage(p => Math.max(1, p - 1))} disabled={odfPage <= 1}>
-                    &laquo;
+                    {t('ui.fiberPlantManagementPage.laquo2')}
                   </button>
                   <span style={styles.pageInfo}>{odfPage} / {odfTotalPages}</span>
                   <button style={styles.pageBtn} onClick={() => setOdfPage(p => p + 1)} disabled={odfPage >= odfTotalPages}>
-                    &raquo;
+                    {t('ui.fiberPlantManagementPage.raquo2')}
                   </button>
                 </div>
               </>
@@ -739,11 +739,11 @@ export function FiberPlantManagementPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setOtdrPage(p => Math.max(1, p - 1))} disabled={otdrPage <= 1}>
-                  &laquo; {t('fiberPlantManagement.prev')}
+                  {t('ui.fiberPlantManagementPage.laquo')}{t('fiberPlantManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{otdrPage} / {otdrTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setOtdrPage(p => p + 1)} disabled={otdrPage >= otdrTotalPages}>
-                  {t('fiberPlantManagement.next')} &raquo;
+                  {t('fiberPlantManagement.next')} {t('ui.fiberPlantManagementPage.raquo')}
                 </button>
               </div>
             </>
@@ -829,11 +829,11 @@ export function FiberPlantManagementPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setSfpPage(p => Math.max(1, p - 1))} disabled={sfpPage <= 1}>
-                  &laquo; {t('fiberPlantManagement.prev')}
+                  {t('ui.fiberPlantManagementPage.laquo')}{t('fiberPlantManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{sfpPage} / {sfpTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setSfpPage(p => p + 1)} disabled={sfpPage >= sfpTotalPages}>
-                  {t('fiberPlantManagement.next')} &raquo;
+                  {t('fiberPlantManagement.next')} {t('ui.fiberPlantManagementPage.raquo')}
                 </button>
               </div>
 

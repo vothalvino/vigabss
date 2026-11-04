@@ -963,7 +963,7 @@ function ReadinessTab({
               <div><dt>{t('sniiReporting.profile.expirationDate')}</dt><dd>{profile.concession_title_snapshot.expiration_date || '—'}</dd></div>
               <div><dt>{t('sniiReporting.profile.renewalFiledAt')}</dt><dd>{profile.concession_title_snapshot.renewal_filed_at || '—'}</dd></div>
               <div><dt>{t('sniiReporting.profile.documentReference')}</dt><dd>{profile.concession_title_snapshot.document_file_id ? `#${profile.concession_title_snapshot.document_file_id}` : '—'}</dd></div>
-              <div style={{ gridColumn: '1 / -1' }}><dt>SHA-256</dt><dd><code style={{ wordBreak: 'break-all' }}>{profile.concession_title_sha256 || '—'}</code></dd></div>
+              <div style={{ gridColumn: '1 / -1' }}><dt>{t('ui.sniiInfrastructureReportingPage.sha256')}</dt><dd><code style={{ wordBreak: 'break-all' }}>{profile.concession_title_sha256 || '—'}</code></dd></div>
             </dl>
           </section>
         )}
@@ -1354,7 +1354,7 @@ function PackagesTab({ profile, batches, selected, selectedId, elements, loading
             <dt>{t('sniiReporting.packages.fullLoad')}</dt><dd>{selected.full_load ? t('sniiReporting.packages.yes') : t('sniiReporting.packages.no')}</dd>
             <dt>{t('sniiReporting.profile.electronicFolio')}</dt><dd>{selected.electronic_folio || '—'}</dd>
             <dt>{t('sniiReporting.profile.titleNumber')}</dt><dd>{title?.title_number || '—'}{title?.status ? ` (${title.status})` : ''}</dd>
-            <dt>{t('sniiReporting.profile.titleReviewContext')} SHA-256</dt><dd><code style={{ wordBreak: 'break-all' }}>{selected.concession_title_sha256 || '—'}</code></dd>
+            <dt>{t('sniiReporting.profile.titleReviewContext')} {t('ui.sniiInfrastructureReportingPage.sha2562')}</dt><dd><code style={{ wordBreak: 'break-all' }}>{selected.concession_title_sha256 || '—'}</code></dd>
             <dt>{t('sniiReporting.profile.sourcesReviewedAt')}</dt><dd>{selected.official_sources_reviewed_at || '—'}{selected.official_sources_reviewed_by ? ` (user #${selected.official_sources_reviewed_by})` : ''}</dd>
             <dt>{t('sniiReporting.profile.freshnessDays')}</dt><dd>{selected.source_freshness_days ?? '—'}</dd>
             <dt>{t('sniiReporting.packages.objectDecisions')}</dt><dd>{applicabilityElements.length ? applicabilityElements.map(item => `${item.element_type}: ${item.applicability}/${item.population_status || 'unreviewed'}`).join('; ') : '—'}</dd>

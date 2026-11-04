@@ -30,6 +30,7 @@ import {
   dangerBtn,
 } from '@/components/ClientFormModal';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -120,6 +121,7 @@ function CampaignFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<CampaignFormBody>({
     name: initial?.name ?? '',
     status: initial?.status ?? 'draft',
@@ -176,49 +178,49 @@ function CampaignFormModal({
         <h3 style={{ margin: '0 0 1rem' }}>{title}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Campaign name *</label>
+          <label style={labelStyle}>{t('ui.winbackCampaignList.campaignName')}</label>
           <input style={inputStyle} type="text" value={form.name} autoFocus required
             onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
 
-          <label style={labelStyle}>Status</label>
+          <label style={labelStyle}>{t('ui.winbackCampaignList.status')}</label>
           <select style={inputStyle} value={form.status}
             onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
             {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
-          <label style={labelStyle}>Target segment</label>
+          <label style={labelStyle}>{t('ui.winbackCampaignList.targetSegment')}</label>
           <select style={inputStyle} value={form.target_segment}
             onChange={e => setForm(p => ({ ...p, target_segment: e.target.value }))}>
             {SEGMENTS.map(s => <option key={s} value={s}>{SEGMENT_LABELS[s]}</option>)}
           </select>
 
-          <label style={labelStyle}>Offer description</label>
+          <label style={labelStyle}>{t('ui.winbackCampaignList.offerDescription')}</label>
           <textarea style={{ ...inputStyle, minHeight: 64, resize: 'vertical' }} value={form.offer_description ?? ''}
             onChange={e => setForm(p => ({ ...p, offer_description: e.target.value }))} />
 
-          <label style={labelStyle}>Discount percent (optional)</label>
+          <label style={labelStyle}>{t('ui.winbackCampaignList.discountPercentOptional')}</label>
           <input style={inputStyle} type="number" min={0} max={100} value={form.discount_percent ?? ''}
             onChange={e => setForm(p => ({ ...p, discount_percent: e.target.value ? Number(e.target.value) : undefined }))} />
 
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Start date</label>
+              <label style={labelStyle}>{t('ui.winbackCampaignList.startDate')}</label>
               <input style={inputStyle} type="date" value={form.start_date ?? ''}
                 onChange={e => setForm(p => ({ ...p, start_date: e.target.value || undefined }))} />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={labelStyle}>End date</label>
+              <label style={labelStyle}>{t('ui.winbackCampaignList.endDate')}</label>
               <input style={inputStyle} type="date" value={form.end_date ?? ''}
                 onChange={e => setForm(p => ({ ...p, end_date: e.target.value || undefined }))} />
             </div>
           </div>
 
-          <label style={labelStyle}>Notes</label>
+          <label style={labelStyle}>{t('ui.winbackCampaignList.notes')}</label>
           <textarea style={{ ...inputStyle, minHeight: 48, resize: 'vertical' }} value={form.notes ?? ''}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.winbackCampaignList.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : mode === 'create' ? 'Create' : 'Save'}
             </button>
@@ -234,6 +236,7 @@ function CampaignFormModal({
 // ---------------------------------------------------------------------------
 
 function DeleteConfirm({ campaign, onClose, onDeleted }: { campaign: WinbackCampaign; onClose: () => void; onDeleted: () => void }) {
+  const { t } = useTranslation();
   const [error, setError] = useState('');
   const mutation = useMutation({
     mutationFn: async () => {
@@ -247,10 +250,10 @@ function DeleteConfirm({ campaign, onClose, onDeleted }: { campaign: WinbackCamp
   return (
     <div style={overlay} role="alertdialog" aria-modal="true">
       <div style={{ ...modalBox, width: 400 }}>
-        <p style={{ margin: '0 0 1rem' }}>Delete campaign <strong>{campaign.name}</strong>? This cannot be undone.</p>
+        <p style={{ margin: '0 0 1rem' }}>{t('ui.winbackCampaignList.deleteCampaign')}<strong>{campaign.name}</strong>{t('ui.winbackCampaignList.thisCannotBeUndone')}</p>
         {error && <div style={errorBox}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>Cancel</button>
+          <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>{t('ui.winbackCampaignList.cancel')}</button>
           <button type="button" onClick={() => mutation.mutate()} style={dangerBtn} disabled={mutation.isPending}>
             {mutation.isPending ? 'Deleting…' : 'Delete'}
           </button>
@@ -265,6 +268,7 @@ function DeleteConfirm({ campaign, onClose, onDeleted }: { campaign: WinbackCamp
 // ---------------------------------------------------------------------------
 
 function TargetsModal({ campaign, onClose }: { campaign: WinbackCampaign; onClose: () => void }) {
+  const { t } = useTranslation();
   const { data, isLoading, error } = useQuery({
     queryKey: ['winback-targets', campaign.id],
     queryFn: async () => {
@@ -275,30 +279,30 @@ function TargetsModal({ campaign, onClose }: { campaign: WinbackCampaign; onClos
   });
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Campaign targets">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.winbackCampaignList.campaignTargets')}>
       <div style={{ ...modalBox, width: 560, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Targets — {campaign.name}</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.winbackCampaignList.targets')}{campaign.name}</h3>
         <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          Cancelled-customer cohort matching segment
+          {t('ui.winbackCampaignList.cancelledCustomerCohortMatchingSegment')}
           {' '}<strong>{SEGMENT_LABELS[campaign.target_segment ?? ''] ?? campaign.target_segment ?? '—'}</strong>.
         </p>
-        {isLoading && <p>Loading…</p>}
+        {isLoading && <p>{t('ui.winbackCampaignList.loading')}</p>}
         {error && <div style={errorBox}>{(error as Error).message}</div>}
         {data && (
           <>
-            <p style={{ margin: '0 0 0.5rem', fontSize: '0.82rem' }}>{data.meta.count} matching client(s).</p>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.82rem' }}>{data.meta.count} {t('ui.winbackCampaignList.matchingClientS')}</p>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-strong)' }}>
-                  <th style={{ padding: '6px' }}>Client</th>
-                  <th style={{ padding: '6px' }}>Name</th>
-                  <th style={{ padding: '6px' }}>Email</th>
-                  <th style={{ padding: '6px' }}>Phone</th>
+                  <th style={{ padding: '6px' }}>{t('ui.winbackCampaignList.client')}</th>
+                  <th style={{ padding: '6px' }}>{t('ui.winbackCampaignList.name')}</th>
+                  <th style={{ padding: '6px' }}>{t('ui.winbackCampaignList.email')}</th>
+                  <th style={{ padding: '6px' }}>{t('ui.winbackCampaignList.phone')}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.data.length === 0 && (
-                  <tr><td colSpan={4} style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>No matching clients.</td></tr>
+                  <tr><td colSpan={4} style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>{t('ui.winbackCampaignList.noMatchingClients')}</td></tr>
                 )}
                 {data.data.map(t => (
                   <tr key={t.client_id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -313,7 +317,7 @@ function TargetsModal({ campaign, onClose }: { campaign: WinbackCampaign; onClos
           </>
         )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button type="button" onClick={onClose} style={cancelBtn}>Close</button>
+          <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.winbackCampaignList.close')}</button>
         </div>
       </div>
     </div>
@@ -325,6 +329,7 @@ function TargetsModal({ campaign, onClose }: { campaign: WinbackCampaign; onClos
 // ---------------------------------------------------------------------------
 
 export function WinbackCampaignList() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
@@ -347,26 +352,25 @@ export function WinbackCampaignList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🎁 Win-back Campaigns</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.winbackCampaignList.winBackCampaigns')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.winbackCampaignList.total')}</span>}
         {canCreate && (
           <button type="button" style={{ ...styles.btnPrimary, marginLeft: 'auto' }}
-            onClick={() => setShowCreate(true)}>+ New Campaign</button>
+            onClick={() => setShowCreate(true)}>{t('ui.winbackCampaignList.newCampaign')}</button>
         )}
       </div>
 
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '0 0 1rem' }}>
-        Re-engage cancelled customers with targeted retention offers. Preview the
-        cancelled-customer cohort each campaign reaches before activating it.
+        {t('ui.winbackCampaignList.reEngageCancelledCustomersWith')}
       </p>
 
       <div style={styles.tableCard}>
         {campaignsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.winbackCampaignList.loading')}</p>
         ) : campaignsQ.error ? (
-          <p style={styles.msgError}>Failed to load win-back campaigns.</p>
+          <p style={styles.msgError}>{t('ui.winbackCampaignList.failedToLoadWinBack')}</p>
         ) : campaigns.length === 0 ? (
-          <p style={styles.msg}>No win-back campaigns yet.</p>
+          <p style={styles.msg}>{t('ui.winbackCampaignList.noWinBackCampaignsYet')}</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={styles.table}>
@@ -393,16 +397,16 @@ export function WinbackCampaignList() {
                     <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                       <button type="button"
                         style={{ ...cancelBtn, padding: '4px 10px', marginRight: 6 }}
-                        onClick={() => setTargetsCampaign(c)}>Targets</button>
+                        onClick={() => setTargetsCampaign(c)}>{t('ui.winbackCampaignList.targets2')}</button>
                       {canUpdate && (
                         <button type="button"
                           style={{ ...cancelBtn, padding: '4px 10px', marginRight: 6 }}
-                          onClick={() => setEditCampaign(c)}>Edit</button>
+                          onClick={() => setEditCampaign(c)}>{t('ui.winbackCampaignList.edit')}</button>
                       )}
                       {canDelete && (
                         <button type="button"
                           style={{ ...dangerBtn, padding: '4px 10px' }}
-                          onClick={() => setDeleteCampaign(c)}>Delete</button>
+                          onClick={() => setDeleteCampaign(c)}>{t('ui.winbackCampaignList.delete')}</button>
                       )}
                     </td>
                   </tr>
@@ -416,10 +420,10 @@ export function WinbackCampaignList() {
       {totalPages > 1 && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: '1rem' }}>
           <button type="button" style={cancelBtn} disabled={page <= 1}
-            onClick={() => setPage(p => Math.max(1, p - 1))}>Previous</button>
-          <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Page {page} of {totalPages}</span>
+            onClick={() => setPage(p => Math.max(1, p - 1))}>{t('ui.winbackCampaignList.previous')}</button>
+          <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{t('ui.winbackCampaignList.page')}{page} {t('ui.winbackCampaignList.of')}{totalPages}</span>
           <button type="button" style={cancelBtn} disabled={page >= totalPages}
-            onClick={() => setPage(p => p + 1)}>Next</button>
+            onClick={() => setPage(p => p + 1)}>{t('ui.winbackCampaignList.next')}</button>
         </div>
       )}
 

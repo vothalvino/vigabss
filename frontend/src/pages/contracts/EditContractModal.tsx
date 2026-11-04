@@ -174,19 +174,19 @@ export function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }
         aria-labelledby="edit-contract-title"
       >
         <div style={modalStyles.header}>
-          <h2 id="edit-contract-title" style={modalStyles.title}>📝 Edit Contract #{contract.id}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <h2 id="edit-contract-title" style={modalStyles.title}>{t('ui.editContractModal.editContract')}{contract.id}</h2>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.editContractModal.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Plan
+            {t('ui.editContractModal.plan')}
             <select style={modalStyles.select} value={form.plan_id} onChange={e => setField('plan_id', e.target.value)}>
               {/* If the contract runs on an archived plan (absent from the active
                   list), keep it shown + selectable so the selection stays correct
                   and the contract isn't silently moved off it. */}
               {!plans.some(p => p.id === contract.plan_id) && (
-                <option value={contract.plan_id}>Archived plan (#{contract.plan_id})</option>
+                <option value={contract.plan_id}>{t('ui.editContractModal.archivedPlan')}{contract.plan_id})</option>
               )}
               {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -202,7 +202,7 @@ export function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }
           )}
 
           <label style={modalStyles.label}>
-            Connection Type
+            {t('ui.editContractModal.connectionType')}
             <select style={modalStyles.select} value={form.connection_type} onChange={e => setField('connection_type', e.target.value)}>
               {!connectionOptions.some(option => option.value === form.connection_type) && (
                 <option value={form.connection_type}>{form.connection_type}</option>
@@ -215,27 +215,27 @@ export function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }
           <p style={modalStyles.hint}>{t('contractList.editModal.connectionFamilyHelp')}</p>
 
           <label style={modalStyles.label}>
-            Start Date
+            {t('ui.editContractModal.startDate')}
             <input style={modalStyles.input} type="date" value={form.start_date} onChange={e => setField('start_date', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            End Date (leave blank for month-to-month)
+            {t('ui.editContractModal.endDateLeaveBlankFor')}
             <input style={modalStyles.input} type="date" value={form.end_date} onChange={e => setField('end_date', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Billing Day (1–28)
+            {t('ui.editContractModal.billingDay128')}
             <input style={modalStyles.input} type="number" min={1} max={28} value={form.billing_day} onChange={e => setField('billing_day', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            IP Address
+            {t('ui.editContractModal.ipAddress')}
             <input style={modalStyles.input} type="text" maxLength={45} value={form.ip_address} onChange={e => setField('ip_address', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Price Override (leave blank for plan default)
+            {t('ui.editContractModal.priceOverrideLeaveBlankFor')}
             <input style={modalStyles.input} type="number" min={0} step="0.01" value={form.price_override} onChange={e => setField('price_override', e.target.value)} />
           </label>
 
@@ -257,7 +257,7 @@ export function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }
           {isMxOrg && (
             <label style={modalStyles.checkboxLabel}>
               <input type="checkbox" checked={form.facturar} onChange={e => setField('facturar', e.target.checked)} />
-              Generate CFDI invoice automatically
+              {t('ui.editContractModal.generateCfdiInvoiceAutomatically')}
             </label>
           )}
 
@@ -332,7 +332,7 @@ export function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
-            <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>Cancel</button>
+            <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>{t('ui.editContractModal.cancel')}</button>
             <button
               type="submit"
               style={styles.btnPrimary}

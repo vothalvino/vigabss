@@ -379,7 +379,7 @@ function EditQuoteModal({ quote, onClose, onSaved }: EditQuoteModalProps) {
       <div style={modalStyles.panel}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{t('quoteDetail.editTitle')}</h3>
-          <button type="button" style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.quoteDetail.close')}>✕</button>
         </div>
         {error && <p style={modalStyles.error}>{error}</p>}
         <form onSubmit={handleSubmit} style={modalStyles.form}>

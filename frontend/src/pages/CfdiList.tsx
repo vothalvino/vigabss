@@ -225,6 +225,7 @@ interface CancelModalProps {
 }
 
 function CancelModal({ doc, onClose, onCancelled }: CancelModalProps) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('02');
   const [replacementUuid, setReplacementUuid] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -254,13 +255,13 @@ function CancelModal({ doc, onClose, onCancelled }: CancelModalProps) {
   return (
     <div style={overlay}>
       <div style={modalBox}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Cancel CFDI</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.cfdiList.cancelCfdi')}</h3>
         <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
           UUID: {doc.uuid ?? `#${doc.id}`}
         </p>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Cancellation reason (SAT)</label>
+          <label style={labelStyle}>{t('ui.cfdiList.cancellationReasonSat')}</label>
           <select
             style={inputStyle}
             value={reason}
@@ -274,7 +275,7 @@ function CancelModal({ doc, onClose, onCancelled }: CancelModalProps) {
 
           {reason === '01' && (
             <>
-              <label style={labelStyle}>Replacement UUID (required for reason 01)</label>
+              <label style={labelStyle}>{t('ui.cfdiList.replacementUuidRequiredForReason')}</label>
               <input
                 style={inputStyle}
                 type="text"
@@ -287,7 +288,7 @@ function CancelModal({ doc, onClose, onCancelled }: CancelModalProps) {
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn} disabled={submitting}>Dismiss</button>
+            <button type="button" onClick={onClose} style={cancelBtn} disabled={submitting}>{t('ui.cfdiList.dismiss')}</button>
             <button type="submit" style={dangerBtn} disabled={submitting}>
               {submitting ? 'Cancelling…' : 'Cancel CFDI'}
             </button>
@@ -309,6 +310,7 @@ interface StampModalProps {
 }
 
 function StampModal({ doc, onClose, onStamped }: StampModalProps) {
+  const { t } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -329,18 +331,18 @@ function StampModal({ doc, onClose, onStamped }: StampModalProps) {
   return (
     <div style={overlay}>
       <div style={modalBox}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Stamp (Timbrar) CFDI</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.cfdiList.stampTimbrarCfdi')}</h3>
         <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
-          Document #{doc.id} — {doc.serie ?? ''}{doc.folio ? ` Folio ${doc.folio}` : ''}<br />
-          Receptor: {doc.receptor_rfc ?? '—'} — {doc.receptor_nombre ?? '—'}<br />
-          Total: {formatMoney(doc.total, doc.moneda)}
+          {t('ui.cfdiList.document')}{doc.id} — {doc.serie ?? ''}{doc.folio ? ` Folio ${doc.folio}` : ''}<br />
+          {t('ui.cfdiList.receptor')}{doc.receptor_rfc ?? '—'} — {doc.receptor_nombre ?? '—'}<br />
+          {t('ui.cfdiList.total')}{formatMoney(doc.total, doc.moneda)}
         </p>
         <p style={{ fontSize: '0.85rem', color: '#374151' }}>
-          This will submit the document to the PAC for digital stamping (timbrado). Once stamped, the UUID cannot change.
+          {t('ui.cfdiList.thisWillSubmitTheDocument')}
         </p>
         {error && <div style={errorBox}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} style={cancelBtn} disabled={submitting}>Cancel</button>
+          <button type="button" onClick={onClose} style={cancelBtn} disabled={submitting}>{t('ui.cfdiList.cancel')}</button>
           <button type="button" onClick={handleConfirm} style={submitBtn} disabled={submitting}>
             {submitting ? 'Stamping…' : 'Stamp now'}
           </button>
@@ -436,14 +438,14 @@ export function CfdiList() {
       <SandboxEnvironmentBanner />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
-        <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>🧾 CFDI Management</h1>
+        <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>{t('ui.cfdiList.cfdiManagement')}</h1>
       </div>
 
       {/* Filters row */}
       <div style={{ display: 'flex', gap: 16, marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* Status filter */}
         <div>
-          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 4, display: 'block' }}>Status</span>
+          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 4, display: 'block' }}>{t('ui.cfdiList.status')}</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {STATUS_OPTIONS.map(s => (
               <button
@@ -464,7 +466,7 @@ export function CfdiList() {
 
         {/* Type filter */}
         <div>
-          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 4, display: 'block' }}>Type</span>
+          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 4, display: 'block' }}>{t('ui.cfdiList.type')}</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {TYPE_OPTIONS.map(t => (
               <button
@@ -485,8 +487,8 @@ export function CfdiList() {
       </div>
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#888' }}>Loading…</p>}
-      {isError && <p style={{ color: 'var(--accent)' }}>Failed to load CFDI documents.</p>}
+      {isLoading && <p style={{ color: '#888' }}>{t('ui.cfdiList.loading')}</p>}
+      {isError && <p style={{ color: 'var(--accent)' }}>{t('ui.cfdiList.failedToLoadCfdiDocuments')}</p>}
       {statusNotice && <p role="status" style={{ fontSize: '0.85rem' }}>{statusNotice}</p>}
       {data && (
         <>
@@ -503,7 +505,7 @@ export function CfdiList() {
                 {data.data.length === 0 && (
                   <tr>
                     <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>
-                      No CFDI documents found.
+                      {t('ui.cfdiList.noCfdiDocumentsFound')}
                     </td>
                   </tr>
                 )}
@@ -566,9 +568,9 @@ export function CfdiList() {
                           <button
                             onClick={() => setStampTarget(doc)}
                             style={actionBtn}
-                            title="Stamp (timbrar) this CFDI with the PAC"
+                            title={t('ui.cfdiList.stampTimbrarThisCfdiWith')}
                           >
-                            📤 Stamp
+                            {t('ui.cfdiList.stamp')}
                           </button>
                         )}
 
@@ -579,7 +581,7 @@ export function CfdiList() {
                             style={{ ...actionBtn, color: '#991b1b', borderColor: '#fca5a5' }}
                             title={doc.stamp_error ? `Last stamp attempt: ${doc.stamp_error}` : 'Delete this unstamped draft'}
                           >
-                            🗑 Discard
+                            {t('ui.cfdiList.discard')}
                           </button>
                         )}
 
@@ -588,7 +590,7 @@ export function CfdiList() {
                           <button
                             onClick={() => setCancelTarget(doc)}
                             style={{ ...actionBtn, color: '#991b1b', borderColor: '#fca5a5' }}
-                            title="Request cancellation via SAT/PAC"
+                            title={t('ui.cfdiList.requestCancellationViaSatPac')}
                           >
                             {doc.sat_status === 'cancel_pending' ? '✕ Retry cancel' : '✕ Cancel'}
                           </button>
@@ -610,9 +612,9 @@ export function CfdiList() {
                           <button
                             onClick={() => { void handleCheckStatus(doc); }}
                             style={actionBtn}
-                            title="Ask SAT whether the receptor accepted or refused the cancellation"
+                            title={t('ui.cfdiList.askSatWhetherTheReceptor')}
                           >
-                            ↻ Check status
+                            {t('ui.cfdiList.checkStatus')}
                           </button>
                         )}
 
@@ -624,7 +626,7 @@ export function CfdiList() {
                               `CFDI-${doc.uuid}.xml`,
                             )}
                             style={actionBtn}
-                            title="Download XML"
+                            title={t('ui.cfdiList.downloadXml')}
                           >
                             ↓ XML
                           </button>
@@ -637,7 +639,7 @@ export function CfdiList() {
                             `CFDI-${doc.uuid ?? doc.id}.pdf`,
                           )}
                           style={actionBtn}
-                          title="Download PDF"
+                          title={t('ui.cfdiList.downloadPdf')}
                         >
                           ↓ PDF
                         </button>
@@ -651,11 +653,11 @@ export function CfdiList() {
 
           {/* Pagination */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>
-            <span>{total} document{total !== 1 ? 's' : ''}</span>
+            <span>{total} {t('ui.cfdiList.document2')}{total !== 1 ? 's' : ''}</span>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button style={pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
-              <span style={{ padding: '4px 8px' }}>Page {page} / {totalPages}</span>
-              <button style={pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
+              <button style={pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.cfdiList.prev')}</button>
+              <span style={{ padding: '4px 8px' }}>{t('ui.cfdiList.page')}{page} / {totalPages}</span>
+              <button style={pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.cfdiList.next')}</button>
             </div>
           </div>
         </>

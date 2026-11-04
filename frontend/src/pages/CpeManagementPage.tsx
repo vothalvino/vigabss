@@ -241,7 +241,7 @@ function DevicesTab() {
             <label style={modalStyles.label}>{t('cpeManagement.devices.serialNumber')}<RequiredMark /></label>
             <input style={modalStyles.input} value={form.serial_number} onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeManagement.devices.oui')}<RequiredMark /></label>
-            <input style={modalStyles.input} placeholder="EC1724" maxLength={6} value={form.oui} onChange={e => setForm(f => ({ ...f, oui: e.target.value }))} />
+            <input style={modalStyles.input} placeholder={t('ui.cpeManagementPage.ec1724')} maxLength={6} value={form.oui} onChange={e => setForm(f => ({ ...f, oui: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeManagement.devices.manufacturer')}</label>
             <input style={modalStyles.input} value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeManagement.devices.model')}</label>
@@ -546,7 +546,7 @@ function CampaignsTab() {
             <label style={modalStyles.label}>{t('cpeManagement.campaigns.name')}<RequiredMark /></label>
             <input style={modalStyles.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeManagement.campaigns.firmwareVersion')}<RequiredMark /></label>
-            <input style={modalStyles.input} type="number" placeholder="Firmware Version ID" value={form.firmware_version_id} onChange={e => setForm(f => ({ ...f, firmware_version_id: e.target.value }))} />
+            <input style={modalStyles.input} type="number" placeholder={t('ui.cpeManagementPage.firmwareVersionId')} value={form.firmware_version_id} onChange={e => setForm(f => ({ ...f, firmware_version_id: e.target.value }))} />
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button
                 style={styles.btnPrimary}

@@ -121,12 +121,13 @@ const LOG_ACTIONS = ['proposed', 'edited', 'sent', 'auto_sent', 'discarded', 'fa
 // ---------------------------------------------------------------------------
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const { t } = useTranslation();
   return (
     <div style={sty.overlay} role="dialog" aria-modal="true" aria-label={title}>
       <div style={sty.modal}>
         <div style={sty.modalHeader}>
           <strong>{title}</strong>
-          <button style={sty.closeBtn} onClick={onClose} aria-label="Close modal">✕</button>
+          <button style={sty.closeBtn} onClick={onClose} aria-label={t('ui.aIAssistantSettings.closeModal')}>✕</button>
         </div>
         <div style={sty.modalBody}>{children}</div>
       </div>
@@ -244,7 +245,7 @@ function GeneralTab() {
       <form onSubmit={handleSave} style={sty.form}>
         {/* Master toggle */}
         <fieldset style={sty.fieldset}>
-          <legend style={sty.legend}>Chatbot</legend>
+          <legend style={sty.legend}>{t('ui.aIAssistantSettings.chatbot')}</legend>
           <label style={sty.switchRow}>
             <span>{t('aiAssistantSettings.general.enabled')}</span>
             <input
@@ -521,7 +522,7 @@ function LiveModelField({
         style={sty.input}
         value={value}
         autoComplete="off"
-        placeholder="anthropic/claude-sonnet-4.5"
+        placeholder={t('ui.aIAssistantSettings.anthropicClaudeSonnet45')}
         list={canPick ? 'ai-provider-model-options' : undefined}
         // The status line below (loading / N models / stale / error / unknown
         // model) is the only place the picker explains itself, so it has to be
@@ -803,13 +804,13 @@ function ProvidersTab() {
                     <button
                       style={sty.btnTiny}
                       disabled={idx === 0}
-                      aria-label="Move up"
+                      aria-label={t('ui.aIAssistantSettings.moveUp')}
                       onClick={() => moveProvider(providers, idx, 'up')}
                     >▲</button>
                     <button
                       style={sty.btnTiny}
                       disabled={idx === providers.length - 1}
-                      aria-label="Move down"
+                      aria-label={t('ui.aIAssistantSettings.moveDown')}
                       onClick={() => moveProvider(providers, idx, 'down')}
                     >▼</button>
                     <span style={{ fontSize: '0.8rem', color: '#888' }}>{p.priority}</span>
@@ -916,7 +917,7 @@ function ProvidersTab() {
               <label style={{ ...sty.label, justifyContent: 'flex-end' }}>
                 <span style={sty.switchRow}>
                   <span>{t('aiAssistantSettings.providers.form.providerEnabled')}</span>
-                  <input type="checkbox" aria-label="Provider enabled"
+                  <input type="checkbox" aria-label={t('ui.aIAssistantSettings.providerEnabled')}
                     checked={form.is_enabled}
                     onChange={e => setForm(f => ({ ...f, is_enabled: e.target.checked }))} />
                 </span>
@@ -1030,7 +1031,7 @@ function PhrasesTab() {
         <div style={sty.rowActions}>
           <select
             style={{ ...sty.select, width: 'auto' }}
-            aria-label="Locale"
+            aria-label={t('ui.aIAssistantSettings.locale')}
             value={locale}
             onChange={e => setLocale(e.target.value)}
           >
@@ -1090,7 +1091,7 @@ function PhrasesTab() {
               </label>
             </div>
             <label style={sty.label}>
-              {t('aiAssistantSettings.phrases.form.phrase')} * <span style={sty.hint}>(use {'{{variable}}'} placeholders)</span>
+              {t('aiAssistantSettings.phrases.form.phrase')} * <span style={sty.hint}>{t('ui.aIAssistantSettings.use')}{'{{variable}}'} {t('ui.aIAssistantSettings.placeholders')}</span>
               <textarea
                 style={{ ...sty.input, height: 100, resize: 'vertical' }}
                 value={form.text}
@@ -1303,7 +1304,7 @@ function AuditTab() {
           {t('aiAssistantSettings.audit.month')}
           <input
             type="month"
-            aria-label="Select metrics month"
+            aria-label={t('ui.aIAssistantSettings.selectMetricsMonth')}
             style={{ ...sty.input, width: 'auto', marginLeft: 6 }}
             value={month}
             max={currentMonth}
@@ -1331,7 +1332,7 @@ function AuditTab() {
         <h4 style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem' }}>{t('aiAssistantSettings.audit.log')}</h4>
         <select
           style={{ ...sty.select, width: 'auto' }}
-          aria-label="Filter by action"
+          aria-label={t('ui.aIAssistantSettings.filterByAction')}
           value={logAction}
           onChange={e => setLogAction(e.target.value)}
         >

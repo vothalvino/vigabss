@@ -160,7 +160,7 @@ function ScanForm({ onSave, onClose, saving }: ScanFormProps) {
       <div style={{ ...modalStyles.panel, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{t('discovery_scans.new', 'New Discovery Scan')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.discoveryScanList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -188,7 +188,7 @@ function ScanForm({ onSave, onClose, saving }: ScanFormProps) {
             </div>
             <div>
               <label style={modalStyles.label}>{t('discovery_scans.snmp_community', 'Community String')}</label>
-              <input style={inp} value={snmpCommunity} onChange={e => setSnmpCommunity(e.target.value)} placeholder="public" />
+              <input style={inp} value={snmpCommunity} onChange={e => setSnmpCommunity(e.target.value)} placeholder={t('ui.discoveryScanList.public')} />
             </div>
             <div>
               <label style={modalStyles.label}>{t('discovery_scans.snmp_port', 'Port')}</label>
@@ -197,7 +197,7 @@ function ScanForm({ onSave, onClose, saving }: ScanFormProps) {
           </div>
 
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.discoveryScanList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -279,7 +279,7 @@ export function DiscoveryScanList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('discovery_scans.title', 'Discovery Scans')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.discoveryScanList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('discovery_scans.new', 'New Discovery Scan')}
         </button>
@@ -303,14 +303,14 @@ export function DiscoveryScanList() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>CIDR Ranges</th>
+                  <th style={styles.th}>{t('ui.discoveryScanList.name')}</th>
+                  <th style={styles.th}>{t('ui.discoveryScanList.cidrRanges')}</th>
                   <th style={styles.th}>SNMP</th>
                   <th style={styles.th}>{t('discovery_scans.scanned', 'Scanned')}</th>
                   <th style={styles.th}>{t('discovery_scans.discovered', 'Discovered')}</th>
                   <th style={styles.th}>{t('discovery_scans.status', 'Status')}</th>
-                  <th style={styles.th}>Created</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.discoveryScanList.created')}</th>
+                  <th style={styles.th}>{t('ui.discoveryScanList.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -318,7 +318,7 @@ export function DiscoveryScanList() {
                   <tr key={s.id} style={styles.tr}>
                     <td style={styles.td}><strong>{s.name}</strong></td>
                     <td style={{ ...styles.tdMono, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatCidrRanges(s.cidr_ranges)}</td>
-                    <td style={styles.td}>{capitalize(s.snmp_version)} / port {s.snmp_port}</td>
+                    <td style={styles.td}>{capitalize(s.snmp_version)} {t('ui.discoveryScanList.port')}{s.snmp_port}</td>
                     <td style={styles.td}>{s.scanned_hosts}{s.total_hosts !== null && s.total_hosts !== undefined ? ` / ${s.total_hosts}` : ''}</td>
                     <td style={styles.td}>{s.discovered_hosts}</td>
                     <td style={styles.td} title={s.error_message ?? undefined}><StatusBadge status={s.status} colors={STATUS_COLORS} /></td>
@@ -332,7 +332,7 @@ export function DiscoveryScanList() {
                           {t('discovery_scans.cancel_scan', 'Cancel scan')}
                         </button>
                       )}
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(s.id)}>Delete</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(s.id)}>{t('ui.discoveryScanList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -344,9 +344,9 @@ export function DiscoveryScanList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.discoveryScanList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.discoveryScanList.page')}{page} {t('ui.discoveryScanList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.discoveryScanList.next')}</button>
         </div>
       )}
 
@@ -363,8 +363,8 @@ export function DiscoveryScanList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('discovery_scans.delete_confirm', 'Delete this discovery scan?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.discoveryScanList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.discoveryScanList.delete')}</button>
             </div>
           </div>
         </div>

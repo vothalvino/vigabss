@@ -399,7 +399,7 @@ export function SiteDetail() {
     <div style={styles.page}>
       {/* Breadcrumb */}
       <div style={styles.breadcrumb}>
-        <Link to="/sites" style={styles.breadcrumbLink}>Sites</Link>
+        <Link to="/sites" style={styles.breadcrumbLink}>{t('ui.siteDetail.sites')}</Link>
         <span style={styles.breadcrumbSep}>›</span>
         <span style={styles.breadcrumbCurrent}>{site.name}</span>
       </div>
@@ -425,7 +425,7 @@ export function SiteDetail() {
         </div>
         {site.notes && (
           <div style={styles.notesRow}>
-            <span style={styles.noteLabel}>Notes: </span>{site.notes}
+            <span style={styles.noteLabel}>{t('ui.siteDetail.notes')}</span>{site.notes}
           </div>
         )}
       </div>

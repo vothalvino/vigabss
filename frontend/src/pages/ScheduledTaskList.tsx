@@ -174,6 +174,7 @@ interface TaskModalProps {
 }
 
 function TaskModal({ task, onClose, onSaved }: TaskModalProps) {
+  const { t } = useTranslation();
   const isEdit = task !== null;
   const [form, setForm] = useState({
     task_name: task?.task_name ?? '',
@@ -254,25 +255,25 @@ function TaskModal({ task, onClose, onSaved }: TaskModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit Task #${task.id}` : '⏰ New Scheduled Task'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.scheduledTaskList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Task name <RequiredMark />
+            {t('ui.scheduledTaskList.taskName')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={100}
               value={form.task_name}
               onChange={e => setField('task_name', e.target.value)}
-              placeholder="e.g. nightly-auto-suspend"
+              placeholder={t('ui.scheduledTaskList.eGNightlyAutoSuspend')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Task type {!isEdit && <RequiredMark />}
+            {t('ui.scheduledTaskList.taskType')}{!isEdit && <RequiredMark />}
             <select
               style={modalStyles.select}
               value={form.task_type}
@@ -286,7 +287,7 @@ function TaskModal({ task, onClose, onSaved }: TaskModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Cron expression <RequiredMark />
+            {t('ui.scheduledTaskList.cronExpression')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
@@ -299,7 +300,7 @@ function TaskModal({ task, onClose, onSaved }: TaskModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Priority
+            {t('ui.scheduledTaskList.priority')}
             <select
               style={modalStyles.select}
               value={form.priority}
@@ -310,7 +311,7 @@ function TaskModal({ task, onClose, onSaved }: TaskModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Description
+            {t('ui.scheduledTaskList.description')}
             <input
               style={modalStyles.input}
               type="text"
@@ -321,13 +322,13 @@ function TaskModal({ task, onClose, onSaved }: TaskModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Payload (JSON)
+            {t('ui.scheduledTaskList.payloadJson')}
             <textarea
               style={{ ...modalStyles.input, minHeight: 60, resize: 'vertical', fontFamily: 'monospace' }}
               maxLength={5000}
               value={form.payload}
               onChange={e => setField('payload', e.target.value)}
-              placeholder='{"key": "value"}'
+              placeholder={t('ui.scheduledTaskList.keyValue')}
             />
           </label>
 
@@ -337,14 +338,14 @@ function TaskModal({ task, onClose, onSaved }: TaskModalProps) {
               checked={form.is_enabled}
               onChange={e => setField('is_enabled', e.target.checked)}
             />
-            Enabled
+            {t('ui.scheduledTaskList.enabled')}
           </label>
 
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.scheduledTaskList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Task'}
@@ -465,8 +466,8 @@ export function ScheduledTaskList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>⏰ Scheduled Tasks</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.scheduledTaskList.scheduledTasks')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.scheduledTaskList.total')}</span>}
         {meta?.business_timezone && (
           <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             {t('scheduledTasksPage.timezoneNote', { zone: meta.business_timezone })}
@@ -474,14 +475,14 @@ export function ScheduledTaskList() {
         )}
         {canCreate && (
           <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-            + New Task
+            {t('ui.scheduledTaskList.newTask')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.scheduledTaskList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
@@ -528,11 +529,11 @@ export function ScheduledTaskList() {
 
       <div style={styles.tableCard}>
         {tasksQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.scheduledTaskList.loading')}</p>
         ) : tasksQ.error ? (
-          <p style={styles.msgError}>Failed to load scheduled tasks.</p>
+          <p style={styles.msgError}>{t('ui.scheduledTaskList.failedToLoadScheduledTasks')}</p>
         ) : tasks.length === 0 ? (
-          <p style={styles.msg}>No scheduled tasks found.</p>
+          <p style={styles.msg}>{t('ui.scheduledTaskList.noScheduledTasksFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -576,17 +577,17 @@ export function ScheduledTaskList() {
                             </button>
                           )}
                           {canUpdate && !task.is_global && (
-                            <button style={styles.actionBtn} onClick={() => setEditTask(task)} title="Edit this task">
-                              ✏️ Edit
+                            <button style={styles.actionBtn} onClick={() => setEditTask(task)} title={t('ui.scheduledTaskList.editThisTask')}>
+                              {t('ui.scheduledTaskList.edit')}
                             </button>
                           )}
                           {canDelete && !task.is_global && (
                             <button
                               style={{ ...styles.actionBtn, color: '#991b1b' }}
                               onClick={() => setDeleteId(task.id)}
-                              title="Delete this task"
+                              title={t('ui.scheduledTaskList.deleteThisTask')}
                             >
-                              🗑 Delete
+                              {t('ui.scheduledTaskList.delete')}
                             </button>
                           )}
                         </div>
@@ -600,15 +601,15 @@ export function ScheduledTaskList() {
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.scheduledTaskList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.scheduledTaskList.page')}{page} {t('ui.scheduledTaskList.of')}{meta.totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                 >
-                  Next →
+                  {t('ui.scheduledTaskList.next')}
                 </button>
               </div>
             )}

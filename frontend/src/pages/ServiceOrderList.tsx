@@ -825,7 +825,7 @@ function CreateContractModal({ order, onClose, onLinked }: { order: ServiceOrder
         {error && <div style={errorBox}>{error}</div>}
 
         {/* Client — read-only display */}
-        <label style={labelStyle}>{t('serviceOrders.contractClientId', 'Client')} (pre-filled)</label>
+        <label style={labelStyle}>{t('serviceOrders.contractClientId', 'Client')} {t('ui.serviceOrderList.preFilled')}</label>
         <input
           style={{ ...inputStyle, background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
           type="text"
@@ -857,9 +857,9 @@ function CreateContractModal({ order, onClose, onLinked }: { order: ServiceOrder
           onChange={e => setForm(p => ({ ...p, connection_type: e.target.value }))}
         >
           <option value="pppoe">PPPoE</option>
-          <option value="pppoe_dual">PPPoE Dual</option>
-          <option value="static">Static</option>
-          <option value="dual">Dual</option>
+          <option value="pppoe_dual">{t('ui.serviceOrderList.pppoeDual')}</option>
+          <option value="static">{t('ui.serviceOrderList.static')}</option>
+          <option value="dual">{t('ui.serviceOrderList.dual')}</option>
         </select>
 
         {/* Start date */}

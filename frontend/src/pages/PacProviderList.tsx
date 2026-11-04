@@ -101,6 +101,7 @@ interface PacModalProps {
 }
 
 function PacModal({ existing, onClose, onSaved }: PacModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     provider_name: existing?.provider_name ?? 'sw_sapien',
     label: existing?.label ?? '',
@@ -179,78 +180,74 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
         <h3 style={{ margin: '0 0 0.75rem' }}>{existing ? `Edit PAC provider #${existing.id}` : 'New PAC provider'}</h3>
         {error && <p style={{ ...styles.msgError, textAlign: 'left' }}>{error}</p>}
         <form onSubmit={submit}>
-          <label style={label} htmlFor="pac-provider">Provider <RequiredMark /></label>
+          <label style={label} htmlFor="pac-provider">{t('ui.pacProviderList.provider')}<RequiredMark /></label>
           <select id="pac-provider" style={input} value={form.provider_name}
             onChange={e => { set('provider_name', e.target.value); applyPreset(e.target.value, form.environment); }}>
             {PROVIDERS.map(p => <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>)}
           </select>
 
-          <label style={label} htmlFor="pac-label">Label <RequiredMark /></label>
-          <input id="pac-label" style={input} maxLength={100} placeholder="SW Sapien (sandbox)" value={form.label} onChange={e => set('label', e.target.value)} />
+          <label style={label} htmlFor="pac-label">{t('ui.pacProviderList.label')}<RequiredMark /></label>
+          <input id="pac-label" style={input} maxLength={100} placeholder={t('ui.pacProviderList.swSapienSandbox')} value={form.label} onChange={e => set('label', e.target.value)} />
 
-          <label style={label} htmlFor="pac-env">Environment <RequiredMark /></label>
+          <label style={label} htmlFor="pac-env">{t('ui.pacProviderList.environment')}<RequiredMark /></label>
           <select id="pac-env" style={input} value={form.environment}
             onChange={e => { set('environment', e.target.value); applyPreset(form.provider_name, e.target.value); }}>
-            <option value="sandbox">sandbox</option>
-            <option value="production">production</option>
+            <option value="sandbox">{t('ui.pacProviderList.sandbox')}</option>
+            <option value="production">{t('ui.pacProviderList.production')}</option>
           </select>
 
-          <label style={label} htmlFor="pac-seal">Sealing</label>
+          <label style={label} htmlFor="pac-seal">{t('ui.pacProviderList.sealing')}</label>
           <select id="pac-seal" style={input} value={form.seal_mode} onChange={e => set('seal_mode', e.target.value)}>
-            <option value="pac">PAC seals (Emisión — CSD in the PAC’s vault)</option>
-            <option value="local">Local sealing (we seal, stamp-only tier)</option>
+            <option value="pac">{t('ui.pacProviderList.pacSealsEmisionCsdIn')}</option>
+            <option value="local">{t('ui.pacProviderList.localSealingWeSealStamp')}</option>
           </select>
           {form.seal_mode === 'local' && (
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '4px 0 8px' }}>
-              VigaBSS signs the invoice with the org’s active CSD (Facturación → Certificados CSD) and sends the
-              sealed XML to the PAC’s stamp-only tier. Cancellations are signed with the same CSD sent inline
-              per request (SW <code>cancel/csd</code>, Finkok cer/key), so the CSD never needs uploading to the
-              PAC — it stays on your server. Supported for SW Sapien and Finkok.
+              {t('ui.pacProviderList.vigabssSignsTheInvoiceWith')}<code>{t('ui.pacProviderList.cancelCsd')}</code>{t('ui.pacProviderList.finkokCerKeySoThe')}
             </p>
           )}
 
-          <label style={label} htmlFor="pac-priority">Failover priority</label>
+          <label style={label} htmlFor="pac-priority">{t('ui.pacProviderList.failoverPriority')}</label>
           <input id="pac-priority" style={input} type="number" min={0} max={1000} value={form.priority}
             onChange={e => set('priority', e.target.value)} />
           <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '2px 0 8px' }}>
-            Lower is tried first. With two active PACs, stamping fails over to the next only when the
-            primary is unreachable.
+            {t('ui.pacProviderList.lowerIsTriedFirstWith')}
           </p>
 
           <label style={label} htmlFor="pac-url">API URL <RequiredMark /></label>
           <input id="pac-url" style={{ ...input, fontFamily: 'monospace' }} maxLength={500} value={form.api_url} onChange={e => set('api_url', e.target.value)} />
 
-          <label style={label} htmlFor="pac-user">Username</label>
+          <label style={label} htmlFor="pac-user">{t('ui.pacProviderList.username')}</label>
           <input id="pac-user" style={input} maxLength={500} autoComplete="off"
             placeholder={existing?.has_username ? 'saved — leave blank to keep' : ''}
             value={form.username} onChange={e => set('username', e.target.value)} />
 
-          <label style={label} htmlFor="pac-pass">Password</label>
+          <label style={label} htmlFor="pac-pass">{t('ui.pacProviderList.password')}</label>
           <input id="pac-pass" type="password" style={input} maxLength={500} autoComplete="new-password"
             placeholder={existing?.has_password ? 'saved — leave blank to keep' : ''}
             value={form.password} onChange={e => set('password', e.target.value)} />
 
-          <label style={label} htmlFor="pac-token">Access token</label>
+          <label style={label} htmlFor="pac-token">{t('ui.pacProviderList.accessToken')}</label>
           <input id="pac-token" type="password" style={input} maxLength={2000} autoComplete="off"
             placeholder={existing?.has_token ? 'saved — leave blank to keep' : 'alternative to username + password'}
             value={form.token} onChange={e => set('token', e.target.value)} />
           <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-            Use EITHER an access token (SW portal “infinite token”) OR username + password.
+            {t('ui.pacProviderList.useEitherAnAccessToken')}
           </p>
 
-          <label style={label} htmlFor="pac-status">Status</label>
+          <label style={label} htmlFor="pac-status">{t('ui.pacProviderList.status')}</label>
           <select id="pac-status" style={input} value={form.status} onChange={e => set('status', e.target.value)}>
-            <option value="active">active</option>
-            <option value="inactive">inactive</option>
+            <option value="active">{t('ui.pacProviderList.active')}</option>
+            <option value="inactive">{t('ui.pacProviderList.inactive')}</option>
           </select>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.4rem 0 0' }}>
-            Stamping uses the newest <strong>active</strong> provider for the organization.
+            {t('ui.pacProviderList.stampingUsesTheNewest')}<strong>{t('ui.pacProviderList.active')}</strong> {t('ui.pacProviderList.providerForTheOrganization')}
           </p>
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.1rem', justifyContent: 'flex-end' }}>
             <button type="button" onClick={onClose} disabled={mutation.isPending}
               style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong, #d1d5db)', padding: '7px 18px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>
-              Cancel
+              {t('ui.pacProviderList.cancel')}
             </button>
             <button type="submit" disabled={mutation.isPending}
               style={{ background: 'var(--accent, #ea580c)', color: '#fff', border: 'none', padding: '7px 18px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>
@@ -270,6 +267,7 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
 // ---------------------------------------------------------------------------
 
 function FiscalEnvironmentBar() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [err, setErr] = useState<string | null>(null);
 
@@ -315,15 +313,15 @@ function FiscalEnvironmentBar() {
   return (
     <div style={{ background: isProd ? '#fffbeb' : 'var(--bg-secondary, #f8fafc)', border: `1px solid ${isProd ? '#fde68a' : 'var(--border-color, #e2e8f0)'}`, borderRadius: 8, padding: '10px 14px', margin: '4px 0 12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Fiscal environment</span>
+        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t('ui.pacProviderList.fiscalEnvironment')}</span>
         <select
           value={env}
           disabled={envQ.isLoading || setEnv.isPending}
           onChange={e => onSelect(e.target.value)}
           style={{ padding: '6px 10px', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, background: 'var(--bg-primary, #fff)', color: 'inherit', fontSize: '0.85rem', fontWeight: 600 }}
         >
-          <option value="sandbox">Sandbox (testing)</option>
-          <option value="production">Production (live SAT)</option>
+          <option value="sandbox">{t('ui.pacProviderList.sandboxTesting')}</option>
+          <option value="production">{t('ui.pacProviderList.productionLiveSat')}</option>
         </select>
         <span style={{ fontSize: '0.8rem', color: isProd ? '#92400e' : 'var(--text-muted)' }}>
           {setEnv.isPending ? 'Saving…' : isProd
@@ -332,9 +330,8 @@ function FiscalEnvironmentBar() {
         </span>
       </div>
       <p style={{ margin: '8px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-        Only providers whose <strong>Environment</strong> matches this setting stamp and cancel — lowest{' '}
-        <strong>failover priority</strong> first, the rest as backups. Sandbox and production are separate entries
-        with their own credentials, so a row in the other environment stays dormant until you switch here.
+        {t('ui.pacProviderList.onlyProvidersWhose')}<strong>{t('ui.pacProviderList.environment2')}</strong> {t('ui.pacProviderList.matchesThisSettingStampAnd')}{' '}
+        <strong>{t('ui.pacProviderList.failoverPriority2')}</strong> {t('ui.pacProviderList.firstTheRestAsBackups')}
       </p>
       {err && <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#991b1b' }}>{err}</p>}
     </div>
@@ -390,6 +387,7 @@ function AutoStampBar() {
 // ---------------------------------------------------------------------------
 
 export function PacProviderList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState<{ open: boolean; existing: PacProvider | null }>({ open: false, existing: null });
   const qc = useQueryClient();
@@ -406,13 +404,13 @@ export function PacProviderList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🧾 PAC Providers</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.pacProviderList.pacProviders')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.pacProviderList.total')}</span>}
         <button
           onClick={() => setModal({ open: true, existing: null })}
           style={{ marginLeft: 'auto', background: 'var(--accent, #ea580c)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}
         >
-          + New provider
+          {t('ui.pacProviderList.newProvider')}
         </button>
       </div>
 
@@ -421,11 +419,11 @@ export function PacProviderList() {
 
       <div style={styles.tableCard}>
         {providersQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.pacProviderList.loading')}</p>
         ) : providersQ.error ? (
-          <p style={styles.msgError}>Failed to load PAC providers.</p>
+          <p style={styles.msgError}>{t('ui.pacProviderList.failedToLoadPacProviders')}</p>
         ) : providers.length === 0 ? (
-          <p style={styles.msg}>No PAC providers configured — add one to enable CFDI stamping.</p>
+          <p style={styles.msg}>{t('ui.pacProviderList.noPacProvidersConfiguredAdd')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -457,7 +455,7 @@ export function PacProviderList() {
                           onClick={() => setModal({ open: true, existing: p })}
                           style={{ background: 'transparent', border: '1px solid var(--border-strong, #d1d5db)', borderRadius: 6, padding: '3px 12px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-secondary)' }}
                         >
-                          Edit
+                          {t('ui.pacProviderList.edit')}
                         </button>
                       </td>
                     </tr>
@@ -469,15 +467,15 @@ export function PacProviderList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.pacProviderList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.pacProviderList.page')}{page} {t('ui.pacProviderList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.pacProviderList.next')}
                 </button>
               </div>
             )}

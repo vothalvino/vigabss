@@ -16,7 +16,7 @@
   "pages/ChargebackList.tsx": 9,
   "pages/ClientActivityTab.tsx": 5,
   "pages/ClientCommunicationPrefs.tsx": 3,
-  "pages/ClientDetail.tsx": 12,
+  "pages/ClientDetail.tsx": 5,
   "pages/ClientGroupList.tsx": 7,
   "pages/ClientProfileTabs.tsx": 2,
   "pages/CommunicationCampaignList.tsx": 7,
@@ -95,5 +95,6 @@
   "pages/WinbackCampaignList.tsx": 8,
   "pages/WirelessMetricsPage.tsx": 2,
   "pages/WorkOrders.tsx": 1,
+  "pages/clients/ClientModals.tsx": 7,
   "pages/payments/PaymentActions.tsx": 10
 }

@@ -42,6 +42,7 @@ import { CreditNoteModal, reasonLabel, type CreditNote } from '@/pages/CreditNot
 import { formatDate } from '@/lib/dates';
 import { queryKeys } from '@/api/queryKeys';
 import { formatMoney } from '@/lib/money';
+import { AddContactModal, PortalPasswordModal, modalTitle, modalActions } from './clients/ClientModals';
 
 // ---------------------------------------------------------------------------
 // GraphQL query — fetches the client + all sub-resources in one request
@@ -310,6 +311,7 @@ function NewBtnRow({ label, onClick }: { label: string; onClick: () => void }) {
 }
 
 function TicketsTab({ clientId }: { clientId: number }) {
+  const { t } = useTranslation();
   const { data: tickets = [], isLoading, error } = useQuery({
     queryKey: ['client-tickets', clientId],
     queryFn: async () => {
@@ -319,9 +321,9 @@ function TicketsTab({ clientId }: { clientId: number }) {
     },
   });
 
-  if (isLoading) return <p style={styles.msg}>Loading tickets…</p>;
-  if (error) return <p style={styles.msg}>Failed to load tickets.</p>;
-  if (!tickets.length) return <p style={styles.msg}>No tickets found.</p>;
+  if (isLoading) return <p style={styles.msg}>{t('ui.clientDetail.loadingTickets')}</p>;
+  if (error) return <p style={styles.msg}>{t('ui.clientDetail.failedToLoadTickets')}</p>;
+  if (!tickets.length) return <p style={styles.msg}>{t('ui.clientDetail.noTicketsFound')}</p>;
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -352,7 +354,8 @@ function TicketsTab({ clientId }: { clientId: number }) {
 }
 
 function ContractsTab({ contracts }: { contracts: Contract[] }) {
-  if (!contracts.length) return <p style={styles.msg}>No contracts found.</p>;
+  const { t } = useTranslation();
+  if (!contracts.length) return <p style={styles.msg}>{t('ui.clientDetail.noContractsFound')}</p>;
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
@@ -387,7 +390,8 @@ function ContractsTab({ contracts }: { contracts: Contract[] }) {
 }
 
 function InvoicesTab({ invoices }: { invoices: Invoice[] }) {
-  if (!invoices.length) return <p style={styles.msg}>No invoices found.</p>;
+  const { t } = useTranslation();
+  if (!invoices.length) return <p style={styles.msg}>{t('ui.clientDetail.noInvoicesFound')}</p>;
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
@@ -419,7 +423,8 @@ function InvoicesTab({ invoices }: { invoices: Invoice[] }) {
 }
 
 function PaymentsTab({ payments }: { payments: Payment[] }) {
-  if (!payments.length) return <p style={styles.msg}>No payments found.</p>;
+  const { t } = useTranslation();
+  if (!payments.length) return <p style={styles.msg}>{t('ui.clientDetail.noPaymentsFound')}</p>;
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
@@ -459,6 +464,7 @@ const CREDIT_NOTE_STATUS_COLORS: Record<string, { bg: string; color: string }> =
 };
 
 function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note: CreditNote) => void) | null }) {
+  const { t } = useTranslation();
   const { data: notes = [], isLoading, error } = useQuery({
     queryKey: ['client-credit-notes', clientId],
     queryFn: async () => {
@@ -468,9 +474,9 @@ function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note
     },
   });
 
-  if (isLoading) return <p style={styles.msg}>Loading credit notes…</p>;
-  if (error) return <p style={styles.msg}>Failed to load credit notes.</p>;
-  if (!notes.length) return <p style={styles.msg}>No credit notes found.</p>;
+  if (isLoading) return <p style={styles.msg}>{t('ui.clientDetail.loadingCreditNotes')}</p>;
+  if (error) return <p style={styles.msg}>{t('ui.clientDetail.failedToLoadCreditNotes')}</p>;
+  if (!notes.length) return <p style={styles.msg}>{t('ui.clientDetail.noCreditNotesFound')}</p>;
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -480,7 +486,7 @@ function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note
             {['Number', 'Issued', 'Reason', 'Total', 'Status'].map(h => (
               <th key={h} style={styles.th}>{h}</th>
             ))}
-            {onEdit && <th style={styles.th} aria-label="Actions" />}
+            {onEdit && <th style={styles.th} aria-label={t('ui.clientDetail.actions')} />}
           </tr>
         </thead>
         <tbody>
@@ -499,9 +505,9 @@ function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note
                     type="button"
                     onClick={() => onEdit(n)}
                     style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.82rem' }}
-                    title="Edit this credit note"
+                    title={t('ui.clientDetail.editThisCreditNote')}
                   >
-                    ✏️ Edit
+                    {t('ui.clientDetail.edit')}
                   </button>
                 </td>
               )}
@@ -585,9 +591,10 @@ function AssignedEquipmentSection({ clientId }: { clientId: number }) {
 }
 
 function DevicesTab({ devices, clientId }: { devices: Device[]; clientId: number }) {
+  const { t } = useTranslation();
   return (
     <div>
-      {devices.length === 0 ? <p style={styles.msg}>No devices found.</p> : (
+      {devices.length === 0 ? <p style={styles.msg}>{t('ui.clientDetail.noDevicesFound')}</p> : (
         <div style={{ overflowX: 'auto' }}>
           <table style={styles.table}>
             <thead>
@@ -655,6 +662,7 @@ async function downloadLedgerPdf(clientId: number | string, from: string, to: st
 }
 
 function LedgerTab({ ledger, clientId }: { ledger: LedgerEntry[]; clientId: number | string }) {
+  const { t } = useTranslation();
   const { i18n } = useTranslation();
   const [range, setRange] = useState<LedgerRange>('all');
   const [customFrom, setCustomFrom] = useState('');
@@ -685,17 +693,17 @@ function LedgerTab({ ledger, clientId }: { ledger: LedgerEntry[]; clientId: numb
   return (
     <div>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '0.75rem 0.75rem 0', justifyContent: 'flex-end' }}>
-        <select value={range} onChange={e => { setErr(''); setRange(e.target.value as LedgerRange); }} style={ctrlStyle} aria-label="Statement period">
-          <option value="all">All time</option>
-          <option value="month">This month</option>
-          <option value="year">This year</option>
-          <option value="custom">Custom…</option>
+        <select value={range} onChange={e => { setErr(''); setRange(e.target.value as LedgerRange); }} style={ctrlStyle} aria-label={t('ui.clientDetail.statementPeriod')}>
+          <option value="all">{t('ui.clientDetail.allTime')}</option>
+          <option value="month">{t('ui.clientDetail.thisMonth')}</option>
+          <option value="year">{t('ui.clientDetail.thisYear')}</option>
+          <option value="custom">{t('ui.clientDetail.custom')}</option>
         </select>
         {range === 'custom' && (
           <>
-            <input type="date" value={customFrom} max={customTo || undefined} onChange={e => setCustomFrom(e.target.value)} style={ctrlStyle} aria-label="From date" />
+            <input type="date" value={customFrom} max={customTo || undefined} onChange={e => setCustomFrom(e.target.value)} style={ctrlStyle} aria-label={t('ui.clientDetail.fromDate')} />
             <span style={{ color: 'var(--text-muted)' }}>–</span>
-            <input type="date" value={customTo} min={customFrom || undefined} onChange={e => setCustomTo(e.target.value)} style={ctrlStyle} aria-label="To date" />
+            <input type="date" value={customTo} min={customFrom || undefined} onChange={e => setCustomTo(e.target.value)} style={ctrlStyle} aria-label={t('ui.clientDetail.toDate')} />
           </>
         )}
         <button type="button" onClick={handleDownload} disabled={downloading} aria-busy={downloading} style={styles.smallPrimaryBtn}>
@@ -704,7 +712,7 @@ function LedgerTab({ ledger, clientId }: { ledger: LedgerEntry[]; clientId: numb
       </div>
       {err && <p role="alert" style={{ color: '#991b1b', textAlign: 'right', padding: '4px 0.75rem 0', fontSize: '0.8rem', margin: 0 }}>{err}</p>}
       {!ledger.length ? (
-        <p style={styles.msg}>No ledger entries found.</p>
+        <p style={styles.msg}>{t('ui.clientDetail.noLedgerEntriesFound')}</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
@@ -762,15 +770,16 @@ function ContactsTab({
   onAdd: () => void;
   onDelete: (contactId: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div>
       {canEdit && (
         <div style={{ padding: '0.75rem 0.75rem 0', textAlign: 'right' }}>
-          <button type="button" onClick={onAdd} style={styles.smallPrimaryBtn}>+ Add Contact</button>
+          <button type="button" onClick={onAdd} style={styles.smallPrimaryBtn}>{t('ui.clientDetail.addContact')}</button>
         </div>
       )}
       {!contacts.length ? (
-        <p style={styles.msg}>No contacts found.</p>
+        <p style={styles.msg}>{t('ui.clientDetail.noContactsFound')}</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={styles.table}>
@@ -779,7 +788,7 @@ function ContactsTab({
                 {['Name', 'Role', 'Email', 'Phone'].map(h => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
-                {canEdit && <th style={styles.th} aria-label="Actions" />}
+                {canEdit && <th style={styles.th} aria-label={t('ui.clientDetail.actions')} />}
               </tr>
             </thead>
             <tbody>
@@ -795,9 +804,9 @@ function ContactsTab({
                         type="button"
                         onClick={() => onDelete(c.id)}
                         style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', fontSize: '0.82rem' }}
-                        title="Delete contact"
+                        title={t('ui.clientDetail.deleteContact')}
                       >
-                        🗑 Delete
+                        {t('ui.clientDetail.delete')}
                       </button>
                     </td>
                   )}
@@ -824,17 +833,17 @@ function ClientInfoCard({ client, accountGroup }: { client: Client; accountGroup
   return (
     <div style={styles.infoCard}>
       <div style={styles.infoGrid}>
-        <InfoRow label="Email"    value={client.email}       />
-        <InfoRow label="Phone"    value={client.phone}       />
-        <InfoRow label="Type"     value={client.clientType}  capitalize />
-        <InfoRow label="Tax ID"   value={client.taxId}       mono />
-        <InfoRow label="Location" value={location || null}   />
+        <InfoRow label={t('ui.clientDetail.email')}    value={client.email}       />
+        <InfoRow label={t('ui.clientDetail.phone')}    value={client.phone}       />
+        <InfoRow label={t('ui.clientDetail.type')}     value={client.clientType}  capitalize />
+        <InfoRow label={t('ui.clientDetail.taxId')}   value={client.taxId}       mono />
+        <InfoRow label={t('ui.clientDetail.location')} value={location || null}   />
         <InfoRow label={t('clientList.accountGroup')} value={accountGroup} />
-        <InfoRow label="Since"    value={fmt(client.createdAt)} />
+        <InfoRow label={t('ui.clientDetail.since')}    value={fmt(client.createdAt)} />
       </div>
       {client.notes && (
         <div style={styles.notesRow}>
-          <span style={styles.noteLabel}>Notes: </span>
+          <span style={styles.noteLabel}>{t('ui.clientDetail.notes')}</span>
           {client.notes}
         </div>
       )}
@@ -871,72 +880,6 @@ function InfoRow({
 }
 
 // ---------------------------------------------------------------------------
-// Add Contact modal
-// ---------------------------------------------------------------------------
-
-function AddContactModal({
-  clientId,
-  onClose,
-  onSaved,
-}: {
-  clientId: string;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [form, setForm] = useState({ name: '', role: '', email: '', phone: '' });
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }));
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.name.trim()) { setError('Name is required.'); return; }
-    setSaving(true);
-    setError(null);
-    const body: Record<string, string> = { name: form.name.trim() };
-    if (form.role.trim()) body.role = form.role.trim();
-    if (form.email.trim()) body.email = form.email.trim();
-    if (form.phone.trim()) body.phone = form.phone.trim();
-    const { error: apiError } = await api.POST('/clients/{id}/contacts', {
-      params: { path: { id: Number(clientId) } },
-      body: body,
-    });
-    setSaving(false);
-    if (apiError) { setError(extractApiError(apiError, 'Failed to add contact.')); return; }
-    onSaved();
-  }
-
-  return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Add contact">
-      <form style={modalBox} onSubmit={handleSubmit}>
-        <h2 style={modalTitle}>Add Contact</h2>
-        {error && <div style={errorBox}>{error}</div>}
-        <label style={labelStyle}>Name *</label>
-        <input style={inputStyle} value={form.name} onChange={set('name')} autoFocus />
-        <label style={labelStyle}>Role</label>
-        <input style={inputStyle} value={form.role} onChange={set('role')} />
-        <div style={twoCol}>
-          <div>
-            <label style={labelStyle}>Email</label>
-            <input style={inputStyle} type="email" value={form.email} onChange={set('email')} />
-          </div>
-          <div>
-            <label style={labelStyle}>Phone</label>
-            <input style={inputStyle} value={form.phone} onChange={set('phone')} />
-          </div>
-        </div>
-        <div style={modalActions}>
-          <button type="button" style={cancelBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="submit" style={submitBtn} disabled={saving}>{saving ? 'Saving…' : 'Add Contact'}</button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // MX Profile modal
 // ---------------------------------------------------------------------------
 
@@ -957,6 +900,7 @@ function MxProfileModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     rfc: '', curp: '', razon_social: '', regimen_fiscal: '', codigo_postal_fiscal: '',
   });
@@ -1013,25 +957,25 @@ function MxProfileModal({
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="MX fiscal profile">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.clientDetail.mxFiscalProfile')}>
       <form style={modalBox} onSubmit={handleSubmit}>
-        <h2 style={modalTitle}>MX Fiscal Profile</h2>
+        <h2 style={modalTitle}>{t('ui.clientDetail.mxFiscalProfile2')}</h2>
         {error && <div style={errorBox}>{error}</div>}
         {isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.clientDetail.loading')}</p>
         ) : (
           <>
             <label style={labelStyle}>RFC *</label>
             <input style={inputStyle} value={form.rfc} onChange={set('rfc')} maxLength={13} />
-            <label style={labelStyle}>Razón social *</label>
+            <label style={labelStyle}>{t('ui.clientDetail.razonSocial')}</label>
             <input style={inputStyle} maxLength={254} value={form.razon_social} onChange={set('razon_social')} />
             <div style={twoCol}>
               <div>
-                <label style={labelStyle}>Régimen fiscal *</label>
+                <label style={labelStyle}>{t('ui.clientDetail.regimenFiscal')}</label>
                 <input style={inputStyle} value={form.regimen_fiscal} onChange={set('regimen_fiscal')} maxLength={3} />
               </div>
               <div>
-                <label style={labelStyle}>Código postal fiscal *</label>
+                <label style={labelStyle}>{t('ui.clientDetail.codigoPostalFiscal')}</label>
                 <input style={inputStyle} value={form.codigo_postal_fiscal} onChange={set('codigo_postal_fiscal')} maxLength={5} />
               </div>
             </div>
@@ -1040,85 +984,8 @@ function MxProfileModal({
           </>
         )}
         <div style={modalActions}>
-          <button type="button" style={cancelBtn} onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="button" style={cancelBtn} onClick={onClose} disabled={saving}>{t('ui.clientDetail.cancel')}</button>
           <button type="submit" style={submitBtn} disabled={saving || isLoading}>{saving ? 'Saving…' : 'Save Profile'}</button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Portal password modal
-// ---------------------------------------------------------------------------
-
-function PortalPasswordModal({
-  clientId,
-  username,
-  onClose,
-  onSaved,
-}: {
-  clientId: string;
-  username: string | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  // Set when the email is shared with other portal accounts (WHK-10).
-  const [sharedWarning, setSharedWarning] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (sharedWarning) { onSaved(); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
-    if (password !== confirm) { setError('Passwords do not match.'); return; }
-    setSaving(true);
-    setError(null);
-    const { data, error: apiError } = await api.PUT('/clients/{id}/portal-password', {
-      params: { path: { id: Number(clientId) } },
-      body: { password },
-    });
-    setSaving(false);
-    if (apiError) { setError(extractApiError(apiError, 'Failed to set portal password.')); return; }
-    const warning = (data as { warning?: string } | undefined)?.warning;
-    if (warning) { setSharedWarning(warning); return; }
-    onSaved();
-  }
-
-  return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Set portal password">
-      <form style={modalBox} onSubmit={handleSubmit}>
-        <h2 style={modalTitle}>Set Portal Password</h2>
-        {error && <div style={errorBox}>{error}</div>}
-        {sharedWarning && (
-          <div role="status" style={{ ...errorBox, background: '#fef3c7', color: '#92400e' }}>
-            Password set. {sharedWarning}
-          </div>
-        )}
-        <label style={labelStyle}>Portal username</label>
-        {username ? (
-          <>
-            <input style={{ ...inputStyle, background: 'var(--bg-subtle)' }} type="text" value={username} readOnly />
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>
-              The client signs in to the portal with this email and the password below.
-            </p>
-          </>
-        ) : (
-          <div style={errorBox}>
-            This client has no email. The portal login uses the email as the username, so add an email
-            to the client before the portal password can be used.
-          </div>
-        )}
-        <label style={labelStyle}>New password *</label>
-        <input style={inputStyle} type="password" value={password} onChange={e => setPassword(e.target.value)} autoFocus />
-        <label style={labelStyle}>Confirm password *</label>
-        <input style={inputStyle} type="password" value={confirm} onChange={e => setConfirm(e.target.value)} />
-        <div style={modalActions}>
-          <button type="button" style={cancelBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="submit" style={submitBtn} disabled={saving}>{saving ? 'Saving…' : sharedWarning ? 'Done' : 'Set Password'}</button>
         </div>
       </form>
     </div>
@@ -1130,6 +997,7 @@ function PortalPasswordModal({
 // ---------------------------------------------------------------------------
 
 export function ClientDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -1196,7 +1064,7 @@ export function ClientDetail() {
   if (isLoading) {
     return (
       <div style={styles.page}>
-        <p style={styles.msg}>Loading client…</p>
+        <p style={styles.msg}>{t('ui.clientDetail.loadingClient')}</p>
       </div>
     );
   }
@@ -1204,8 +1072,8 @@ export function ClientDetail() {
   if (error || !client) {
     return (
       <div style={styles.page}>
-        <p style={styles.msgError}>Client not found.</p>
-        <Link to="/clients" style={styles.backLink}>← Back to Clients</Link>
+        <p style={styles.msgError}>{t('ui.clientDetail.clientNotFound')}</p>
+        <Link to="/clients" style={styles.backLink}>{t('ui.clientDetail.backToClients')}</Link>
       </div>
     );
   }
@@ -1252,7 +1120,7 @@ export function ClientDetail() {
     <div style={styles.page}>
       {/* Breadcrumb */}
       <div style={styles.breadcrumb}>
-        <Link to="/clients" style={styles.breadcrumbLink}>👥 Clients</Link>
+        <Link to="/clients" style={styles.breadcrumbLink}>{t('ui.clientDetail.clients')}</Link>
         <span style={styles.breadcrumbSep}>›</span>
         <span style={styles.breadcrumbCurrent}>{client.name}</span>
       </div>
@@ -1268,11 +1136,11 @@ export function ClientDetail() {
         </div>
         {canEdit && (
           <div style={styles.headerActions}>
-            <button type="button" style={styles.actionBtn} onClick={() => setShowEdit(true)}>✏️ Edit</button>
+            <button type="button" style={styles.actionBtn} onClick={() => setShowEdit(true)}>{t('ui.clientDetail.edit')}</button>
             {isMxOrg && (
-              <button type="button" style={styles.actionBtn} onClick={() => setShowMxProfile(true)}>🧾 MX Profile</button>
+              <button type="button" style={styles.actionBtn} onClick={() => setShowMxProfile(true)}>{t('ui.clientDetail.mxProfile')}</button>
             )}
-            <button type="button" style={styles.actionBtn} onClick={() => setShowPortalPassword(true)}>🔑 Portal Password</button>
+            <button type="button" style={styles.actionBtn} onClick={() => setShowPortalPassword(true)}>{t('ui.clientDetail.portalPassword')}</button>
           </div>
         )}
       </div>
@@ -1289,7 +1157,7 @@ export function ClientDetail() {
         }}
       >
         <span style={{ fontSize: '0.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.85 }}>
-          Account Balance
+          {t('ui.clientDetail.accountBalance')}
         </span>
         {balanceParts.map(p => (
           <span key={p.currency} style={{ fontSize: '1.5rem', fontWeight: 800 }}>
@@ -1333,25 +1201,25 @@ export function ClientDetail() {
         {activeTab === 'activity'  && <ActivityTimelineTab clientId={Number(client.id)} />}
         {activeTab === 'contracts' && (
           <>
-            {canCreateContract && <NewBtnRow label="+ New Contract" onClick={() => setShowNewContract(true)} />}
+            {canCreateContract && <NewBtnRow label={t('ui.clientDetail.newContract')} onClick={() => setShowNewContract(true)} />}
             <ContractsTab contracts={client.contracts} />
           </>
         )}
         {activeTab === 'invoices' && (
           <>
-            {canCreateInvoice && <NewBtnRow label="+ New Invoice" onClick={() => setShowGenerateInvoice(true)} />}
+            {canCreateInvoice && <NewBtnRow label={t('ui.clientDetail.newInvoice')} onClick={() => setShowGenerateInvoice(true)} />}
             <InvoicesTab invoices={client.invoices} />
           </>
         )}
         {activeTab === 'payments' && (
           <>
-            {canRecordPayment && <NewBtnRow label="+ Record Payment" onClick={() => setShowRecordPayment(true)} />}
+            {canRecordPayment && <NewBtnRow label={t('ui.clientDetail.recordPayment')} onClick={() => setShowRecordPayment(true)} />}
             <PaymentsTab payments={client.payments} />
           </>
         )}
         {activeTab === 'creditNotes' && (
           <>
-            {canCreateCreditNote && <NewBtnRow label="+ New Credit Note" onClick={() => setCreditNoteModal({ note: null })} />}
+            {canCreateCreditNote && <NewBtnRow label={t('ui.clientDetail.newCreditNote')} onClick={() => setCreditNoteModal({ note: null })} />}
             <CreditNotesTab
               clientId={Number(client.id)}
               onEdit={canEditCreditNote ? (note => setCreditNoteModal({ note })) : null}
@@ -1361,7 +1229,7 @@ export function ClientDetail() {
         {activeTab === 'devices'   && <DevicesTab   devices={client.devices} clientId={Number(client.id)} />}
         {activeTab === 'tickets'   && (
           <>
-            {canCreateTicket && <NewBtnRow label="+ New Ticket" onClick={() => setShowNewTicket(true)} />}
+            {canCreateTicket && <NewBtnRow label={t('ui.clientDetail.newTicket')} onClick={() => setShowNewTicket(true)} />}
             <TicketsTab clientId={Number(client.id)} />
           </>
         )}
@@ -1469,17 +1337,6 @@ export function ClientDetail() {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const modalTitle: React.CSSProperties = {
-  margin: '0 0 1rem', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)',
-};
-const modalActions: React.CSSProperties = {
-  display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: '1.25rem',
-};
 
 const styles = {
   page: {

@@ -585,11 +585,11 @@ function Pagination({ page, totalPages, previous, next }: {
   return (
     <div style={styles.pagination}>
       <button style={styles.pageBtn} disabled={page <= 1} onClick={previous}>
-        &larr; {t('pppoe_diagnostics.previous', 'Previous')}
+        {t('ui.pppoeDiagnostics.text')}{t('pppoe_diagnostics.previous', 'Previous')}
       </button>
       <span style={styles.pageInfo}>{t('pppoe_diagnostics.page_of', 'Page {{page}} of {{totalPages}}', { page, totalPages })}</span>
       <button style={styles.pageBtn} disabled={page >= totalPages} onClick={next}>
-        {t('pppoe_diagnostics.next', 'Next')} &rarr;
+        {t('pppoe_diagnostics.next', 'Next')} {t('ui.pppoeDiagnostics.text2')}
       </button>
     </div>
   );

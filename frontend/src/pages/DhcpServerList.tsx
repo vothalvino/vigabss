@@ -131,7 +131,7 @@ function ServerForm({ initial, onSave, onClose, saving, editMode }: ServerFormPr
       <div style={{ ...modalStyles.panel, maxWidth: 600 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('dhcp_servers.edit', 'Edit DHCP Server') : t('dhcp_servers.new', 'New DHCP Server')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.dhcpServerList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -180,7 +180,7 @@ function ServerForm({ initial, onSave, onClose, saving, editMode }: ServerFormPr
           </div>
 
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.dhcpServerList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -252,7 +252,7 @@ export function DhcpServerList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('dhcp_servers.title', 'DHCP Servers')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.dhcpServerList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('dhcp_servers.new', 'New DHCP Server')}
         </button>
@@ -265,9 +265,9 @@ export function DhcpServerList() {
       )}
 
       <div style={styles.filterRow}>
-        <span style={styles.filterLabel}>Status:</span>
+        <span style={styles.filterLabel}>{t('ui.dhcpServerList.status')}</span>
         <select style={styles.filterSelect} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">All</option>
+          <option value="">{t('ui.dhcpServerList.all')}</option>
           {STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
         </select>
       </div>
@@ -284,11 +284,11 @@ export function DhcpServerList() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>Server Type</th>
-                  <th style={styles.th}>Host:Port</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.dhcpServerList.name')}</th>
+                  <th style={styles.th}>{t('ui.dhcpServerList.serverType')}</th>
+                  <th style={styles.th}>{t('ui.dhcpServerList.hostPort')}</th>
+                  <th style={styles.th}>{t('ui.dhcpServerList.status2')}</th>
+                  <th style={styles.th}>{t('ui.dhcpServerList.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,8 +299,8 @@ export function DhcpServerList() {
                     <td style={styles.tdMono}>{s.host}:{s.port}</td>
                     <td style={styles.td}><StatusBadge status={s.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(s)}>Edit</button>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(s.id)}>Delete</button>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(s)}>{t('ui.dhcpServerList.edit')}</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(s.id)}>{t('ui.dhcpServerList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -312,9 +312,9 @@ export function DhcpServerList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.dhcpServerList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.dhcpServerList.page')}{page} {t('ui.dhcpServerList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.dhcpServerList.next')}</button>
         </div>
       )}
 
@@ -343,8 +343,8 @@ export function DhcpServerList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('dhcp_servers.delete_confirm', 'Delete this DHCP server?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.dhcpServerList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.dhcpServerList.delete')}</button>
             </div>
           </div>
         </div>

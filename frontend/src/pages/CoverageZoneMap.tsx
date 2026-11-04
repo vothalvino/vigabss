@@ -24,6 +24,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { authedFetch } from '@/api/client';
 import { apiFetch } from '@/api/apiFetch';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -238,6 +239,7 @@ function ZoneModal({
   mode, initial, serviceAreas, drawingBoundary,
   onDrawingClear, onSave, onCancel, saving, error,
 }: ZoneModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<ZoneFormData>(initial);
 
   function field(key: keyof ZoneFormData, value: string) {
@@ -258,67 +260,67 @@ function ZoneModal({
         )}
 
         <div style={fieldGrid}>
-          <label style={label}>Name *</label>
+          <label style={label}>{t('ui.coverageZoneMap.name')}</label>
           <input style={input} value={form.name} onChange={e => field('name', e.target.value)} />
 
-          <label style={label}>Service Area</label>
+          <label style={label}>{t('ui.coverageZoneMap.serviceArea')}</label>
           <select style={input} value={form.service_area_id ?? ''} onChange={e => field('service_area_id', e.target.value)}>
-            <option value="">— None —</option>
+            <option value="">{t('ui.coverageZoneMap.none')}</option>
             {serviceAreas.map(sa => (
               <option key={sa.id} value={sa.id}>{sa.name}</option>
             ))}
           </select>
 
-          <label style={label}>Zone Type</label>
+          <label style={label}>{t('ui.coverageZoneMap.zoneType')}</label>
           <select style={input} value={form.zone_type} onChange={e => field('zone_type', e.target.value)}>
             {['fiber', 'fixed_wireless', 'dsl', 'cable', 'satellite', 'lte', '5g', 'other'].map(t => (
               <option key={t} value={t}>{ZONE_TYPE_ICONS[t]} {t.replace(/_/g, ' ')}</option>
             ))}
           </select>
 
-          <label style={label}>Status</label>
+          <label style={label}>{t('ui.coverageZoneMap.status')}</label>
           <select style={input} value={form.status} onChange={e => field('status', e.target.value)}>
             {['planned', 'under_construction', 'active', 'degraded', 'retired'].map(s => (
               <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
             ))}
           </select>
 
-          <label style={label}>Max Download (Mbps)</label>
+          <label style={label}>{t('ui.coverageZoneMap.maxDownloadMbps')}</label>
           <input style={input} type="number" min="0" value={form.max_download_mbps}
             onChange={e => field('max_download_mbps', e.target.value)} />
 
-          <label style={label}>Max Upload (Mbps)</label>
+          <label style={label}>{t('ui.coverageZoneMap.maxUploadMbps')}</label>
           <input style={input} type="number" min="0" value={form.max_upload_mbps}
             onChange={e => field('max_upload_mbps', e.target.value)} />
 
-          <label style={label}>Color</label>
+          <label style={label}>{t('ui.coverageZoneMap.color')}</label>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <input type="color" value={form.color} onChange={e => field('color', e.target.value)}
               style={{ width: 36, height: 28, padding: 1, borderRadius: 4, border: '1px solid #d1d5db', cursor: 'pointer' }} />
             <input style={{ ...input, flex: 1 }} value={form.color} onChange={e => field('color', e.target.value)} />
           </div>
 
-          <label style={label}>Description</label>
+          <label style={label}>{t('ui.coverageZoneMap.description')}</label>
           <textarea style={{ ...input, resize: 'vertical', height: 56 }} value={form.description}
             onChange={e => field('description', e.target.value)} />
 
-          <label style={label}>Boundary</label>
+          <label style={label}>{t('ui.coverageZoneMap.boundary')}</label>
           <div>
             {drawingBoundary ? (
               <div style={{ fontSize: '0.8rem', color: '#059669', display: 'flex', gap: 8, alignItems: 'center' }}>
-                ✅ Polygon drawn ({drawingBoundary.coordinates[0].length - 1} vertices)
-                <button style={btnDanger} onClick={onDrawingClear}>Clear</button>
+                {t('ui.coverageZoneMap.polygonDrawn')}{drawingBoundary.coordinates[0].length - 1} {t('ui.coverageZoneMap.vertices')}
+                <button style={btnDanger} onClick={onDrawingClear}>{t('ui.coverageZoneMap.clear')}</button>
               </div>
             ) : (
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#9ca3af', fontStyle: 'italic' }}>
-                Close this modal and draw a polygon on the map.
+                {t('ui.coverageZoneMap.closeThisModalAndDraw')}
               </p>
             )}
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1.25rem' }}>
-          <button style={btnSecondary} onClick={onCancel} disabled={saving}>Cancel</button>
+          <button style={btnSecondary} onClick={onCancel} disabled={saving}>{t('ui.coverageZoneMap.cancel')}</button>
           <button style={btnPrimary} onClick={() => onSave(form)} disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -467,6 +469,7 @@ function MapCanvas({
 // ---------------------------------------------------------------------------
 
 export function CoverageZoneMap() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
 
   // Service area selection
@@ -649,13 +652,13 @@ export function CoverageZoneMap() {
         width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12,
         overflowY: 'auto',
       }}>
-        <h1 style={{ margin: 0, fontSize: '1.2rem' }}>🗺️ Coverage Zone Editor</h1>
+        <h1 style={{ margin: 0, fontSize: '1.2rem' }}>{t('ui.coverageZoneMap.coverageZoneEditor')}</h1>
 
         {/* Service area selector */}
         <div>
-          <label style={{ fontSize: '0.78rem', color: '#555', fontWeight: 600 }}>Service Area</label>
+          <label style={{ fontSize: '0.78rem', color: '#555', fontWeight: 600 }}>{t('ui.coverageZoneMap.serviceArea')}</label>
           {serviceAreasQuery.isLoading ? (
-            <p style={{ margin: '4px 0', fontSize: '0.8rem', color: '#888' }}>Loading…</p>
+            <p style={{ margin: '4px 0', fontSize: '0.8rem', color: '#888' }}>{t('ui.coverageZoneMap.loading')}</p>
           ) : (
             <select
               style={filterSelect}
@@ -665,7 +668,7 @@ export function CoverageZoneMap() {
                 setSelectedZoneId(null);
               }}
             >
-              <option value="">— Select a service area —</option>
+              <option value="">{t('ui.coverageZoneMap.selectAServiceArea')}</option>
               {serviceAreas.map(sa => (
                 <option key={sa.id} value={sa.id}>{sa.name}</option>
               ))}
@@ -678,15 +681,15 @@ export function CoverageZoneMap() {
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>
-                Zones ({zones.length})
+                {t('ui.coverageZoneMap.zones')}{zones.length})
               </span>
               <button style={btnPrimary} onClick={() => { setCreateModalOpen(true); setModalError(null); setDraftBoundary(null); }}>
-                + New Zone
+                {t('ui.coverageZoneMap.newZone')}
               </button>
             </div>
 
-            {zonesQuery.isLoading && <p style={{ fontSize: '0.8rem', color: '#888' }}>Loading zones…</p>}
-            {zonesQuery.error && <p style={{ fontSize: '0.8rem', color: '#e00' }}>Failed to load zones.</p>}
+            {zonesQuery.isLoading && <p style={{ fontSize: '0.8rem', color: '#888' }}>{t('ui.coverageZoneMap.loadingZones')}</p>}
+            {zonesQuery.error && <p style={{ fontSize: '0.8rem', color: '#e00' }}>{t('ui.coverageZoneMap.failedToLoadZones')}</p>}
 
             {zones.map(zone => (
               <div
@@ -716,8 +719,8 @@ export function CoverageZoneMap() {
                 )}
                 {selectedZoneId === zone.id && (
                   <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                    <button style={btnSmSecondary} onClick={e => { e.stopPropagation(); openEditModal(zone); }}>Edit</button>
-                    <button style={btnSmDanger} onClick={e => { e.stopPropagation(); setDeleteTarget(zone); }}>Delete</button>
+                    <button style={btnSmSecondary} onClick={e => { e.stopPropagation(); openEditModal(zone); }}>{t('ui.coverageZoneMap.edit')}</button>
+                    <button style={btnSmDanger} onClick={e => { e.stopPropagation(); setDeleteTarget(zone); }}>{t('ui.coverageZoneMap.delete')}</button>
                   </div>
                 )}
               </div>
@@ -727,7 +730,7 @@ export function CoverageZoneMap() {
 
         {!selectedSaId && (
           <p style={{ fontSize: '0.82rem', color: '#9ca3af', fontStyle: 'italic' }}>
-            Select a service area to view and edit its coverage zones.
+            {t('ui.coverageZoneMap.selectAServiceAreaTo')}
           </p>
         )}
       </div>
@@ -742,7 +745,7 @@ export function CoverageZoneMap() {
               onClick={() => { setDrawingMode(true); setDraftVerticesSvg([]); }}
               disabled={!selectedSaId}
             >
-              ✏️ Draw Polygon
+              {t('ui.coverageZoneMap.drawPolygon')}
             </button>
           ) : (
             <>
@@ -751,24 +754,24 @@ export function CoverageZoneMap() {
                 onClick={completePolygon}
                 disabled={draftVerticesSvg.length < 3}
               >
-                ✅ Complete Polygon ({draftVerticesSvg.length} pts)
+                {t('ui.coverageZoneMap.completePolygon')}{draftVerticesSvg.length} {t('ui.coverageZoneMap.pts')}
               </button>
               <button style={btnSecondary} onClick={undoLastVertex} disabled={draftVerticesSvg.length === 0}>
-                ↩ Undo
+                {t('ui.coverageZoneMap.undo')}
               </button>
               <button style={btnDanger} onClick={clearDrawing}>
-                ✕ Cancel Drawing
+                {t('ui.coverageZoneMap.cancelDrawing')}
               </button>
             </>
           )}
           {draftBoundary && !drawingMode && (
             <span style={{ fontSize: '0.78rem', color: '#059669', fontWeight: 600 }}>
-              ✅ Polygon ready — open a zone modal to save it
+              {t('ui.coverageZoneMap.polygonReadyOpenAZone')}
             </span>
           )}
           {drawingMode && (
             <span style={{ fontSize: '0.78rem', color: '#f59e0b', fontWeight: 600 }}>
-              Click on the map to add vertices. First vertex (green) closes the polygon.
+              {t('ui.coverageZoneMap.clickOnTheMapTo')}
             </span>
           )}
         </div>
@@ -777,7 +780,7 @@ export function CoverageZoneMap() {
         <div style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', minHeight: 400 }}>
           {!selectedSaId ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
-              Select a service area to display its coverage zones
+              {t('ui.coverageZoneMap.selectAServiceAreaTo2')}
             </div>
           ) : (
             <MapCanvas
@@ -797,9 +800,9 @@ export function CoverageZoneMap() {
         {/* Coordinate info bar */}
         {selectedSaId && (
           <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
-            Viewport: {viewport.minLat.toFixed(4)}°–{viewport.maxLat.toFixed(4)}°N,{' '}
-            {viewport.minLng.toFixed(4)}°–{viewport.maxLng.toFixed(4)}°W &nbsp;|&nbsp;
-            {zones.length} zone{zones.length !== 1 ? 's' : ''} loaded
+            {t('ui.coverageZoneMap.viewport')}{viewport.minLat.toFixed(4)}°–{viewport.maxLat.toFixed(4)}°N,{' '}
+            {viewport.minLng.toFixed(4)}°–{viewport.maxLng.toFixed(4)}{t('ui.coverageZoneMap.w')}
+            {zones.length} {t('ui.coverageZoneMap.zone')}{zones.length !== 1 ? 's' : ''} {t('ui.coverageZoneMap.loaded')}
           </div>
         )}
       </div>
@@ -847,12 +850,12 @@ export function CoverageZoneMap() {
       {deleteTarget && (
         <div style={overlay}>
           <div style={{ ...modal, maxWidth: 360 }}>
-            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>🗑️ Delete Zone</h3>
+            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>{t('ui.coverageZoneMap.deleteZone')}</h3>
             <p style={{ margin: '0 0 1rem', fontSize: '0.85rem' }}>
-              Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action can be undone from the API.
+              {t('ui.coverageZoneMap.areYouSureYouWant')}<strong>{deleteTarget.name}</strong>{t('ui.coverageZoneMap.thisActionCanBeUndone')}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button style={btnSecondary} onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button style={btnSecondary} onClick={() => setDeleteTarget(null)}>{t('ui.coverageZoneMap.cancel')}</button>
               <button style={btnDanger} onClick={() => deleteMutation.mutate(deleteTarget.id)}
                 disabled={deleteMutation.isPending}>
                 {deleteMutation.isPending ? 'Deleting…' : 'Delete'}

@@ -36,6 +36,7 @@ import { Pagination } from '@/components/Pagination';
 import { useOrgCurrency } from '@/auth/useOrgCurrency';
 import { useClientNames } from '@/api/clientNames';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,12 +109,13 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
-      <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label="Confirm action">
+      <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label={t('ui.quoteList.confirmAction')}>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.quoteList.noGoBack')}</button>
           <button onClick={onConfirm} style={styles.btnPrimary}>{confirmLabel ?? 'Yes, confirm'}</button>
         </div>
       </div>
@@ -128,6 +130,7 @@ function ConfirmDialog({ message, confirmLabel, onConfirm, onCancel }: ConfirmDi
 type Confirmable = { type: 'delete'; id: number };
 
 export function QuoteList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const orgCurrency = useOrgCurrency();
   const navigate = useNavigate();
@@ -167,34 +170,34 @@ export function QuoteList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🧮 Quotes</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.quoteList.quotes')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.quoteList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New Quote
+          {t('ui.quoteList.newQuote')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.quoteList.status')}</label>
         <select style={styles.filterSelect} value={statusFilter} onChange={e => handleFilterChange(e.target.value)}>
           {STATUS_FILTER_OPTIONS.map(s => <option key={s} value={s}>{s ? capitalize(s) : 'All'}</option>)}
         </select>
         {statusFilter && (
-          <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>Clear filter</button>
+          <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>{t('ui.quoteList.clearFilter')}</button>
         )}
       </div>
 
       {deleteMutation.isError && (
-        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>Action failed. Please try again.</p>
+        <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>{t('ui.quoteList.actionFailedPleaseTryAgain')}</p>
       )}
 
       <div style={styles.tableCard}>
         {quotesQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.quoteList.loading')}</p>
         ) : quotesQ.error ? (
-          <p style={styles.msgError}>Failed to load quotes.</p>
+          <p style={styles.msgError}>{t('ui.quoteList.failedToLoadQuotes')}</p>
         ) : quotes.length === 0 ? (
-          <p style={styles.msg}>No quotes found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.quoteList.noQuotesFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -222,7 +225,7 @@ export function QuoteList() {
                       <td style={styles.td}>{fmtDate(q.valid_until)}</td>
                       <td style={styles.td}><StatusBadge status={q.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setConfirm({ type: 'delete', id: q.id })} title="Delete this quote">🗑 Delete</button>
+                        <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setConfirm({ type: 'delete', id: q.id })} title={t('ui.quoteList.deleteThisQuote')}>{t('ui.quoteList.delete')}</button>
                       </td>
                     </tr>
                   ))}

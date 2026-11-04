@@ -148,7 +148,7 @@ function CreateAdjustmentModal({ onClose, onCreated }: { onClose: () => void; on
           <label style={labelStyle}>{t('billingAdjustments.form.amountDelta')} *</label>
           <input style={inputStyle} type="number" step={0.01} value={amountDelta} required
             onChange={e => setAmountDelta(e.target.value)}
-            placeholder="Use negative for deductions (e.g. -10.00)" />
+            placeholder={t('ui.billingAdjustmentList.useNegativeForDeductionsE')} />
 
           <label style={labelStyle}>{t('billingAdjustments.form.reason')} *</label>
           <textarea style={{ ...inputStyle, height: 80, resize: 'vertical' as const }} value={reason} required
@@ -213,7 +213,7 @@ export function BillingAdjustmentList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('billingAdjustments.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.billingAdjustmentList.total')}</span>}
 
         {canCreate && (
           <button type="button" style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowCreate(true)}>
@@ -227,9 +227,9 @@ export function BillingAdjustmentList() {
         {isLoading ? (
           <p style={styles.msg}>{t('common.loading')}</p>
         ) : isError ? (
-          <p style={styles.msgError}>Failed to load billing adjustments.</p>
+          <p style={styles.msgError}>{t('ui.billingAdjustmentList.failedToLoadBillingAdjustments')}</p>
         ) : adjustments.length === 0 ? (
-          <p style={styles.msg}>No billing adjustments found.</p>
+          <p style={styles.msg}>{t('ui.billingAdjustmentList.noBillingAdjustmentsFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -266,11 +266,11 @@ export function BillingAdjustmentList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.billingAdjustmentList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.billingAdjustmentList.page')}{page} {t('ui.billingAdjustmentList.of')}{totalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                  Next →
+                  {t('ui.billingAdjustmentList.next')}
                 </button>
               </div>
             )}

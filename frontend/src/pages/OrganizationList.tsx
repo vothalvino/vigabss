@@ -16,6 +16,7 @@ import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,6 +125,7 @@ interface OrgModalProps {
 }
 
 function OrgModal({ organization, onClose, onSaved }: OrgModalProps) {
+  const { t } = useTranslation();
   const isEdit = organization !== null;
   const [form, setForm] = useState({
     name: organization?.name ?? '',
@@ -192,91 +194,91 @@ function OrgModal({ organization, onClose, onSaved }: OrgModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `🏢 Edit Organization #${organization.id}` : '🏢 New Organization'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.organizationList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.organizationList.name')}<RequiredMark />
             <input style={modalStyles.input} type="text" maxLength={255} value={form.name} onChange={e => setField('name', e.target.value)} required />
           </label>
 
           <label style={modalStyles.label}>
-            Legal name
+            {t('ui.organizationList.legalName')}
             <input style={modalStyles.input} type="text" maxLength={255} value={form.legal_name} onChange={e => setField('legal_name', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Email
+            {t('ui.organizationList.email')}
             <input style={modalStyles.input} type="email" maxLength={255} value={form.email} onChange={e => setField('email', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Phone
+            {t('ui.organizationList.phone')}
             <input style={modalStyles.input} type="text" maxLength={30} value={form.phone} onChange={e => setField('phone', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Website
+            {t('ui.organizationList.website')}
             <input style={modalStyles.input} type="text" maxLength={255} value={form.website} onChange={e => setField('website', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Tax ID
+            {t('ui.organizationList.taxId')}
             <input style={modalStyles.input} type="text" maxLength={50} value={form.tax_id} onChange={e => setField('tax_id', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Address
+            {t('ui.organizationList.address')}
             <input style={modalStyles.input} type="text" maxLength={255} value={form.address} onChange={e => setField('address', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            City
+            {t('ui.organizationList.city')}
             <input style={modalStyles.input} type="text" maxLength={100} value={form.city} onChange={e => setField('city', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            State
+            {t('ui.organizationList.state')}
             <input style={modalStyles.input} type="text" maxLength={100} value={form.state} onChange={e => setField('state', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            ZIP code
+            {t('ui.organizationList.zipCode')}
             <input style={modalStyles.input} type="text" maxLength={20} value={form.zip_code} onChange={e => setField('zip_code', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Country
+            {t('ui.organizationList.country')}
             <input style={modalStyles.input} type="text" maxLength={100} value={form.country} onChange={e => setField('country', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Currency <RequiredMark />
+            {t('ui.organizationList.currency')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={3}
               value={form.currency}
               onChange={e => setField('currency', e.target.value.toUpperCase())}
-              placeholder="e.g. MXN"
+              placeholder={t('ui.organizationList.eGMxn')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Logo URL
+            {t('ui.organizationList.logoUrl')}
             <input style={modalStyles.input} type="text" maxLength={500} value={form.logo_url} onChange={e => setField('logo_url', e.target.value)} />
           </label>
 
           <label style={modalStyles.label}>
-            Locale <RequiredMark />
+            {t('ui.organizationList.locale')}<RequiredMark />
             <select style={modalStyles.select} value={form.locale} onChange={e => setField('locale', e.target.value)}>
               {LOCALES.map(l => <option key={l} value={l}>{l === 'MX' ? 'Mexico (MX)' : capitalize(l)}</option>)}
             </select>
           </label>
 
           <label style={modalStyles.label}>
-            Status <RequiredMark />
+            {t('ui.organizationList.status')}<RequiredMark />
             <select style={modalStyles.select} value={form.status} onChange={e => setField('status', e.target.value)}>
               {STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
             </select>
@@ -285,7 +287,7 @@ function OrgModal({ organization, onClose, onSaved }: OrgModalProps) {
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
-            <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>Cancel</button>
+            <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>{t('ui.organizationList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Organization'}
             </button>
@@ -301,13 +303,14 @@ function OrgModal({ organization, onClose, onSaved }: OrgModalProps) {
 // ---------------------------------------------------------------------------
 
 function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
-      <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()} role="alertdialog" aria-label="Confirm action">
+      <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()} role="alertdialog" aria-label={t('ui.organizationList.confirmAction')}>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.organizationList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.organizationList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -319,6 +322,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onCo
 // ---------------------------------------------------------------------------
 
 export function OrganizationList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   // Creating and deleting organisations are INSTALL-OPERATOR only (backend
   // 403s everyone else, own org included — product decision 2026-08-02).
@@ -351,28 +355,28 @@ export function OrganizationList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🏢 Organizations</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.organizationList.organizations')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.organizationList.total')}</span>}
         {isOperator && (
           <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-            + New Organization
+            {t('ui.organizationList.newOrganization')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.organizationList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {orgsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.organizationList.loading')}</p>
         ) : orgsQ.error ? (
-          <p style={styles.msgError}>Failed to load organizations.</p>
+          <p style={styles.msgError}>{t('ui.organizationList.failedToLoadOrganizations')}</p>
         ) : orgs.length === 0 ? (
-          <p style={styles.msg}>No organizations found.</p>
+          <p style={styles.msg}>{t('ui.organizationList.noOrganizationsFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -391,9 +395,9 @@ export function OrganizationList() {
                       <td style={styles.td}>{o.locale === 'MX' ? 'MX' : 'Global'}</td>
                       <td style={styles.td}><StatusBadge status={o.status} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <Link to={`/organizations/${o.id}`} style={{ ...styles.actionBtn, textDecoration: 'none' }} title="Manage organization (edit, settings, quota, mail)">⚙️ Manage</Link>
+                        <Link to={`/organizations/${o.id}`} style={{ ...styles.actionBtn, textDecoration: 'none' }} title={t('ui.organizationList.manageOrganizationEditSettingsQuota')}>{t('ui.organizationList.manage')}</Link>
                         {isOperator && (
-                          <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setDeleteId(o.id)} title="Delete this organization">🗑 Delete</button>
+                          <button style={{ ...styles.actionBtn, color: '#991b1b' }} onClick={() => setDeleteId(o.id)} title={t('ui.organizationList.deleteThisOrganization')}>{t('ui.organizationList.delete')}</button>
                         )}
                       </td>
                     </tr>
@@ -404,9 +408,9 @@ export function OrganizationList() {
 
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
-                <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Prev</button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
-                <button style={styles.pageBtn} onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page === meta.totalPages}>Next →</button>
+                <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>{t('ui.organizationList.prev')}</button>
+                <span style={styles.pageInfo}>{t('ui.organizationList.page')}{page} {t('ui.organizationList.of')}{meta.totalPages}</span>
+                <button style={styles.pageBtn} onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page === meta.totalPages}>{t('ui.organizationList.next')}</button>
               </div>
             )}
           </>

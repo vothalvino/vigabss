@@ -283,20 +283,20 @@ function MaterialsPanel({ workOrderId }: { workOrderId: number }) {
         <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
           <input
             style={styles.input}
-            placeholder="Item name"
+            placeholder={t('ui.workOrders.itemName')}
             value={form.item_name ?? ''}
             onChange={e => setForm(f => ({ ...f, item_name: e.target.value }))}
           />
           <input
             style={{ ...styles.input, width: 80 }}
             type="number"
-            placeholder="Qty"
+            placeholder={t('ui.workOrders.qty')}
             value={form.quantity ?? 1}
             onChange={e => setForm(f => ({ ...f, quantity: Number(e.target.value) }))}
           />
           <input
             style={{ ...styles.input, width: 80 }}
-            placeholder="Unit"
+            placeholder={t('ui.workOrders.unit')}
             value={form.unit ?? ''}
             onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
           />
@@ -1133,7 +1133,7 @@ export function WorkOrders() {
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
         >
-          <option value="">All statuses</option>
+          <option value="">{t('ui.workOrders.allStatuses')}</option>
           {STATUSES.map(s => (
             <option key={s} value={s}>{statusLabel(s)}</option>
           ))}
@@ -1155,15 +1155,15 @@ export function WorkOrders() {
                 <thead>
                   <tr>
                     <SortableTh label={t('common.id')} col="id" sort={sort} style={styles.th} />
-                    <SortableTh label="Title" col="title" sort={sort} style={styles.th} />
+                    <SortableTh label={t('ui.workOrders.title')} col="title" sort={sort} style={styles.th} />
                     <SortableTh label={t('workOrders.type')} col="work_type" sort={sort} style={styles.th} />
                     {/* target is a derived label from joined client/site/device name — non-sortable */}
                     <th style={styles.th}>{t('workOrders.target')}</th>
                     {/* assigned_to name comes from a JOIN on users — non-sortable by name; assigned_to FK is own-table */}
-                    <th style={styles.th}>Assigned To</th>
-                    <SortableTh label="Status" col="status" sort={sort} style={styles.th} />
-                    <SortableTh label="Scheduled" col="scheduled_at" sort={sort} style={styles.th} />
-                    <th style={styles.th}>Actions</th>
+                    <th style={styles.th}>{t('ui.workOrders.assignedTo')}</th>
+                    <SortableTh label={t('ui.workOrders.status')} col="status" sort={sort} style={styles.th} />
+                    <SortableTh label={t('ui.workOrders.scheduled')} col="scheduled_at" sort={sort} style={styles.th} />
+                    <th style={styles.th}>{t('ui.workOrders.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1189,7 +1189,7 @@ export function WorkOrders() {
                               style={{ ...styles.btnPrimary, marginRight: 4 }}
                               onClick={() => patchMut.mutate({ id: wo.id, body: { status: 'assigned' } })}
                             >
-                              Dispatch
+                              {t('ui.workOrders.dispatch')}
                             </button>
                           )}
                           {wo.status === 'assigned' && (
@@ -1197,7 +1197,7 @@ export function WorkOrders() {
                               style={{ ...styles.btnPrimary, marginRight: 4 }}
                               onClick={() => patchMut.mutate({ id: wo.id, body: { status: 'in_progress' } })}
                             >
-                              Start
+                              {t('ui.workOrders.start')}
                             </button>
                           )}
                           {wo.status === 'in_progress' && (
@@ -1216,14 +1216,14 @@ export function WorkOrders() {
                                     else patchMut.mutate({ id: wo.id, body: { status: 'completed' } });
                                   }}
                                 >
-                                  Complete
+                                  {t('ui.workOrders.complete')}
                                 </button>
                               )}
                               <button
                                 style={styles.btnDanger}
                                 onClick={() => patchMut.mutate({ id: wo.id, body: { status: 'cancelled' } })}
                               >
-                                Cancel
+                                {t('ui.workOrders.cancel')}
                               </button>
                             </>
                           )}
@@ -1287,7 +1287,7 @@ export function WorkOrders() {
             </div>
             <div style={modalStyles.form}>
               <label style={modalStyles.label}>
-                Title *
+                {t('ui.workOrders.title2')}
                 <input
                   style={modalStyles.input}
                   value={form.title ?? ''}
@@ -1295,7 +1295,7 @@ export function WorkOrders() {
                 />
               </label>
               <label style={modalStyles.label}>
-                Description
+                {t('ui.workOrders.description')}
                 <textarea
                   style={{ ...modalStyles.input, height: 80 }}
                   value={form.description ?? ''}
@@ -1303,7 +1303,7 @@ export function WorkOrders() {
                 />
               </label>
               <label style={modalStyles.label}>
-                Status
+                {t('ui.workOrders.status')}
                 <select
                   style={modalStyles.select}
                   value={form.status ?? 'pending'}
@@ -1313,7 +1313,7 @@ export function WorkOrders() {
                 </select>
               </label>
               <label style={modalStyles.label}>
-                Priority
+                {t('ui.workOrders.priority')}
                 <select
                   style={modalStyles.select}
                   value={form.priority ?? 'medium'}
@@ -1379,7 +1379,7 @@ export function WorkOrders() {
               </label>
 
               <label style={modalStyles.label}>
-                Scheduled
+                {t('ui.workOrders.scheduled')}
                 <input
                   type="datetime-local"
                   style={modalStyles.input}
@@ -1389,13 +1389,13 @@ export function WorkOrders() {
               </label>
 
               <label style={modalStyles.label}>
-                Assigned To
+                {t('ui.workOrders.assignedTo')}
                 <select
                   style={modalStyles.select}
                   value={form.assigned_to ?? ''}
                   onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value ? Number(e.target.value) : undefined }))}
                 >
-                  <option value="">Unassigned</option>
+                  <option value="">{t('ui.workOrders.unassigned')}</option>
                   {/* The row's current assignee may no longer be authorized (or
                       active) and thus absent from the options — keep them
                       visible and selectable rather than misrendering as

@@ -161,9 +161,9 @@ function NasSummarySection({ refreshInterval }: { refreshInterval: number | fals
               <thead>
                 <tr>
                   <th style={s.th} />
-                  <th style={s.th}>NAS Name</th>
+                  <th style={s.th}>{t('ui.radiusSessions.nasName')}</th>
                   <th style={s.th}>NAS IP</th>
-                  <th style={s.th}>Active Sessions</th>
+                  <th style={s.th}>{t('ui.radiusSessions.activeSessions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -177,7 +177,7 @@ function NasSummarySection({ refreshInterval }: { refreshInterval: number | fals
                           <button
                             style={s.expandBtn}
                             onClick={() => toggleNas(entry.nas_id)}
-                            title="Toggle port breakdown"
+                            title={t('ui.radiusSessions.togglePortBreakdown')}
                           >
                             {isExpanded ? '▼' : '▶'}
                           </button>
@@ -190,7 +190,7 @@ function NasSummarySection({ refreshInterval }: { refreshInterval: number | fals
                         <tr key={`nas-${idx}-port-${pi}`} style={{ ...s.tr, background: '#f8fafc' }}>
                           <td style={s.td} />
                           <td style={{ ...s.td, paddingLeft: '1.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }} colSpan={2}>
-                            Port: {port.nas_port_id ?? '—'}
+                            {t('ui.radiusSessions.port')}{port.nas_port_id ?? '—'}
                           </td>
                           <td style={{ ...s.td, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                             {port.session_count}
@@ -412,10 +412,10 @@ export function RadiusSessions() {
   return (
     <div style={s.page}>
       <div style={s.header}>
-        <h1 style={s.title}>📡 RADIUS Sessions</h1>
+        <h1 style={s.title}>{t('ui.radiusSessions.radiusSessions')}</h1>
         <div style={s.headerRight}>
           <span style={s.refreshedAt}>
-            Last refreshed: {lastRefreshed.toLocaleTimeString()}
+            {t('ui.radiusSessions.lastRefreshed')}{lastRefreshed.toLocaleTimeString()}
           </span>
           <label style={s.autoRefreshLabel}>
             <input
@@ -424,7 +424,7 @@ export function RadiusSessions() {
               onChange={e => setAutoRefresh(e.target.checked)}
               style={{ marginRight: 6 }}
             />
-            Auto-refresh (30 s)
+            {t('ui.radiusSessions.autoRefresh30S')}
           </label>
           <button
             onClick={() => refetch()}
@@ -443,15 +443,15 @@ export function RadiusSessions() {
       <div style={s.summaryBar}>
         <div style={s.summaryCard}>
           <div style={s.summaryValue}>{total}</div>
-          <div style={s.summaryLabel}>Active Sessions</div>
+          <div style={s.summaryLabel}>{t('ui.radiusSessions.activeSessions')}</div>
         </div>
         <div style={s.summaryCard}>
           <div style={s.summaryValue}>{formatBytes(totalBytesIn)}</div>
-          <div style={s.summaryLabel}>↓ Download (current page)</div>
+          <div style={s.summaryLabel}>{t('ui.radiusSessions.downloadCurrentPage')}</div>
         </div>
         <div style={s.summaryCard}>
           <div style={s.summaryValue}>{formatBytes(totalBytesOut)}</div>
-          <div style={s.summaryLabel}>↑ Upload (current page)</div>
+          <div style={s.summaryLabel}>{t('ui.radiusSessions.uploadCurrentPage')}</div>
         </div>
       </div>
 
@@ -459,14 +459,14 @@ export function RadiusSessions() {
       <form onSubmit={handleFilterSubmit} style={s.filterBar}>
         <input
           type="text"
-          placeholder="Username…"
+          placeholder={t('ui.radiusSessions.username')}
           value={usernameFilter}
           onChange={e => setUsernameFilter(e.target.value)}
           style={s.filterInput}
         />
         <input
           type="text"
-          placeholder="Client IP…"
+          placeholder={t('ui.radiusSessions.clientIp')}
           value={ipFilter}
           onChange={e => setIpFilter(e.target.value)}
           style={s.filterInput}
@@ -485,8 +485,8 @@ export function RadiusSessions() {
           onChange={e => setMacFilter(e.target.value)}
           style={s.filterInput}
         />
-        <button type="submit" style={s.applyBtn}>Apply</button>
-        <button type="button" onClick={handleFilterClear} style={s.clearBtn}>Clear</button>
+        <button type="submit" style={s.applyBtn}>{t('ui.radiusSessions.apply')}</button>
+        <button type="button" onClick={handleFilterClear} style={s.clearBtn}>{t('ui.radiusSessions.clear')}</button>
       </form>
 
       {/* Batch disconnect toolbar */}
@@ -550,31 +550,31 @@ export function RadiusSessions() {
                   title={t('radius_sessions.select_all')}
                 />
               </th>
-              <th style={s.th}>Username</th>
-              <th style={s.th}>Client IP</th>
+              <th style={s.th}>{t('ui.radiusSessions.username2')}</th>
+              <th style={s.th}>{t('ui.radiusSessions.clientIp2')}</th>
               <th style={s.th}>NAS IP</th>
               <th style={s.th}>{t('radius_sessions.mac_column')}</th>
               <th style={s.th}>{t('radius_sessions.nas_port_column')}</th>
-              <th style={s.th}>Session ID</th>
-              <th style={s.th}>Started</th>
-              <th style={s.th}>Duration</th>
+              <th style={s.th}>{t('ui.radiusSessions.sessionId')}</th>
+              <th style={s.th}>{t('ui.radiusSessions.started')}</th>
+              <th style={s.th}>{t('ui.radiusSessions.duration')}</th>
               <th style={s.th}>{t('radius_sessions.uptime_column')}</th>
-              <th style={s.th}>↓ Download</th>
-              <th style={s.th}>↑ Upload</th>
-              <th style={s.th}>Actions</th>
+              <th style={s.th}>{t('ui.radiusSessions.download')}</th>
+              <th style={s.th}>{t('ui.radiusSessions.upload')}</th>
+              <th style={s.th}>{t('ui.radiusSessions.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {sessions.length === 0 && !isFetching && (
               <tr>
                 <td colSpan={13} style={s.emptyCell}>
-                  No active sessions found.
+                  {t('ui.radiusSessions.noActiveSessionsFound')}
                 </td>
               </tr>
             )}
             {isFetching && sessions.length === 0 && (
               <tr>
-                <td colSpan={13} style={s.emptyCell}>Loading…</td>
+                <td colSpan={13} style={s.emptyCell}>{t('ui.radiusSessions.loading')}</td>
               </tr>
             )}
             {sessions.map(session => (
@@ -607,9 +607,9 @@ export function RadiusSessions() {
                   <button
                     onClick={() => handleDisconnect(session)}
                     style={s.disconnectBtn}
-                    title="Force-disconnect this session"
+                    title={t('ui.radiusSessions.forceDisconnectThisSession')}
                   >
-                    ✕ Disconnect
+                    {t('ui.radiusSessions.disconnect')}
                   </button>
                 </td>
               </tr>
@@ -626,15 +626,15 @@ export function RadiusSessions() {
             disabled={page <= 1}
             style={s.pageBtn}
           >
-            ← Prev
+            {t('ui.radiusSessions.prev')}
           </button>
-          <span style={s.pageInfo}>Page {page} / {totalPages} ({total} total)</span>
+          <span style={s.pageInfo}>{t('ui.radiusSessions.page')}{page} / {totalPages} ({total} {t('ui.radiusSessions.total')}</span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
             style={s.pageBtn}
           >
-            Next →
+            {t('ui.radiusSessions.next')}
           </button>
         </div>
       )}
@@ -643,15 +643,15 @@ export function RadiusSessions() {
       {disconnectTarget && (
         <div style={s.overlay}>
           <div style={s.dialog}>
-            <h3 style={s.dialogTitle}>Disconnect Session</h3>
+            <h3 style={s.dialogTitle}>{t('ui.radiusSessions.disconnectSession')}</h3>
             {!disconnectSuccess ? (
               <>
                 <p style={s.dialogBody}>
-                  Force-disconnect the active PPPoE session for{' '}
+                  {t('ui.radiusSessions.forceDisconnectTheActivePppoe')}{' '}
                   <strong>{disconnectTarget.username}</strong>
                   {disconnectTarget.ip_address ? ` (${disconnectTarget.ip_address})` : ''}?
                   <br />
-                  This sends a RADIUS Disconnect-Request to the NAS.
+                  {t('ui.radiusSessions.thisSendsARadiusDisconnect')}
                 </p>
                 {disconnectError && <p style={s.errorText}>{disconnectError}</p>}
                 <div style={s.dialogActions}>
@@ -660,7 +660,7 @@ export function RadiusSessions() {
                     disabled={disconnecting}
                     style={s.cancelBtn}
                   >
-                    Cancel
+                    {t('ui.radiusSessions.cancel')}
                   </button>
                   <button
                     onClick={confirmDisconnect}
@@ -676,7 +676,7 @@ export function RadiusSessions() {
                 <p style={{ color: '#1a7a3a' }}>{disconnectSuccess}</p>
                 <div style={s.dialogActions}>
                   <button onClick={() => setDisconnectTarget(null)} style={s.cancelBtn}>
-                    Close
+                    {t('ui.radiusSessions.close')}
                   </button>
                 </div>
               </>

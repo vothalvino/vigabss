@@ -139,6 +139,7 @@ interface AllocationsRowProps {
 }
 
 function AllocationsRow({ paymentId, currency }: AllocationsRowProps) {
+  const { t } = useTranslation();
   const { data: allocs = [], isLoading } = useQuery({
     queryKey: ['payment-allocs', paymentId],
     queryFn: () => fetchAllocations(paymentId),
@@ -148,7 +149,7 @@ function AllocationsRow({ paymentId, currency }: AllocationsRowProps) {
     return (
       <tr>
         <td colSpan={9} style={{ padding: '8px 20px', background: '#f8faff', fontSize: '0.82rem', color: '#9ca3af' }}>
-          Loading allocations…
+          {t('ui.paymentList.loadingAllocations')}
         </td>
       </tr>
     );
@@ -158,7 +159,7 @@ function AllocationsRow({ paymentId, currency }: AllocationsRowProps) {
     <tr>
       <td colSpan={9} style={{ padding: '8px 20px 12px', background: '#f8faff' }}>
         {allocs.length === 0 ? (
-          <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>No invoice allocations.</p>
+          <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>{t('ui.paymentList.noInvoiceAllocations')}</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
             <thead>
@@ -176,7 +177,7 @@ function AllocationsRow({ paymentId, currency }: AllocationsRowProps) {
                       to={`/invoices/${a.invoice_id}`}
                       style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}
                     >
-                      Invoice #{a.invoice_id}
+                      {t('ui.paymentList.invoice')}{a.invoice_id}
                     </Link>
                   </td>
                   <td style={{ padding: '4px 8px', fontVariantNumeric: 'tabular-nums' }}>
@@ -201,6 +202,7 @@ interface GatewayRowProps {
 }
 
 function GatewayRow({ paymentId }: GatewayRowProps) {
+  const { t } = useTranslation();
   const { data: txns = [], isLoading } = useQuery({
     queryKey: ['gateway-txns', paymentId],
     queryFn: () => fetchGatewayTransactions(paymentId),
@@ -212,7 +214,7 @@ function GatewayRow({ paymentId }: GatewayRowProps) {
     return (
       <tr>
         <td colSpan={9} style={{ padding: '8px 20px', background: '#fafff8', fontSize: '0.82rem', color: '#9ca3af' }}>
-          Loading gateway transactions…
+          {t('ui.paymentList.loadingGatewayTransactions')}
         </td>
       </tr>
     );
@@ -223,7 +225,7 @@ function GatewayRow({ paymentId }: GatewayRowProps) {
       <td colSpan={9} style={{ padding: '8px 20px 12px', background: '#fafff8' }}>
         {linked.length === 0 ? (
           <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>
-            No gateway transactions linked to this payment.
+            {t('ui.paymentList.noGatewayTransactionsLinkedTo')}
           </p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
@@ -268,6 +270,7 @@ interface PaymentRowProps {
 }
 
 function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState<'none' | 'alloc' | 'gateway'>('none');
 
   function toggleExpand(mode: 'alloc' | 'gateway') {
@@ -313,16 +316,16 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
             <button
               style={{ ...actionBtn, background: expanded === 'alloc' ? '#ede9fe' : '#f3f4f6', color: '#5b21b6' }}
               onClick={() => toggleExpand('alloc')}
-              title="Show invoice allocations"
-              aria-label="Show invoice allocations"
+              title={t('ui.paymentList.showInvoiceAllocations')}
+              aria-label={t('ui.paymentList.showInvoiceAllocations')}
             >
               📎
             </button>
             <button
               style={{ ...actionBtn, background: expanded === 'gateway' ? '#d1fae5' : '#f3f4f6', color: '#065f46' }}
               onClick={() => toggleExpand('gateway')}
-              title="Show gateway transactions"
-              aria-label="Show gateway transactions"
+              title={t('ui.paymentList.showGatewayTransactions')}
+              aria-label={t('ui.paymentList.showGatewayTransactions')}
             >
               🔗
             </button>

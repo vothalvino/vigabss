@@ -676,7 +676,7 @@ function WhitelistTab() {
               </label>
               <label style={modalStyles.label}>
                 {t('onuManagement.whitelist.value')}<RequiredMark />
-                <input style={modalStyles.input} value={(form.entry_value as string) ?? ''} onChange={e => setForm(f => ({ ...f, entry_value: e.target.value }))} placeholder="ALCL12345678" />
+                <input style={modalStyles.input} value={(form.entry_value as string) ?? ''} onChange={e => setForm(f => ({ ...f, entry_value: e.target.value }))} placeholder={t('ui.onuManagementPage.alcl12345678')} />
               </label>
               <label style={modalStyles.label}>
                 {t('onuManagement.whitelist.description')}

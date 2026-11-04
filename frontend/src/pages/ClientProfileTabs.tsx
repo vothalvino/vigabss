@@ -17,6 +17,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { extractApiError, errorBox, inputStyle, labelStyle, submitBtn, cancelBtn, dangerBtn } from '@/components/ClientFormModal';
 import { queryKeys } from '@/api/queryKeys';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Shared local styles
@@ -47,6 +48,7 @@ interface ClientRaw {
 interface GroupRow { id: number; name: string; }
 
 export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   // Was `user?.role === 'admin'` — the LEGACY users.role, not the resolved
   // permission set. An ORG-MEMBERSHIP admin (whose users.role is something else
@@ -142,8 +144,8 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
   const [exemptReason, setExemptReason] = useState<string | null>(null);
   const [taxExemptReason, setTaxExemptReason] = useState<string | null>(null);
 
-  if (isLoading) return <p style={msg}>Loading…</p>;
-  if (!client) return <p style={msg}>No profile data.</p>;
+  if (isLoading) return <p style={msg}>{t('ui.clientProfileTabs.loading')}</p>;
+  if (!client) return <p style={msg}>{t('ui.clientProfileTabs.noProfileData')}</p>;
 
   // Initialise exemption reasons from client data on first render
   const currentExemptReason = exemptReason ?? (client.suspension_exempt_reason || '');
@@ -159,15 +161,15 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
       <table style={tableStyle}>
         <tbody>
           <tr>
-            <td style={{ ...cell, width: 220, color: 'var(--text-secondary)' }}>Credit score</td>
+            <td style={{ ...cell, width: 220, color: 'var(--text-secondary)' }}>{t('ui.clientProfileTabs.creditScore')}</td>
             <td style={cell}>{client.credit_score ?? '—'}</td>
           </tr>
           <tr>
-            <td style={{ ...cell, color: 'var(--text-secondary)' }}>Risk rating</td>
+            <td style={{ ...cell, color: 'var(--text-secondary)' }}>{t('ui.clientProfileTabs.riskRating')}</td>
             <td style={{ ...cell, textTransform: 'capitalize' }}>{client.risk_rating ?? 'unrated'}</td>
           </tr>
           <tr>
-            <td style={{ ...cell, color: 'var(--text-secondary)' }}>GPS coordinates</td>
+            <td style={{ ...cell, color: 'var(--text-secondary)' }}>{t('ui.clientProfileTabs.gpsCoordinates')}</td>
             <td style={cell}>
               {hasCoords ? (
                 <>
@@ -177,7 +179,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
                     target="_blank"
                     rel="noreferrer"
                     style={{ color: 'var(--accent)', marginLeft: 8 }}
-                  >📍 View map pin</a>
+                  >{t('ui.clientProfileTabs.viewMapPin')}</a>
                 </>
               ) : '—'}
               {canEdit && (
@@ -189,7 +191,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
             </td>
           </tr>
           <tr>
-            <td style={{ ...cell, color: 'var(--text-secondary)' }}>Account group</td>
+            <td style={{ ...cell, color: 'var(--text-secondary)' }}>{t('ui.clientProfileTabs.accountGroup')}</td>
             <td style={cell}>
               {canEdit ? (
                 <select
@@ -198,7 +200,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
                   onChange={e => assignGroup.mutate(e.target.value ? Number(e.target.value) : null)}
                   disabled={assignGroup.isPending}
                 >
-                  <option value="">— None —</option>
+                  <option value="">{t('ui.clientProfileTabs.none')}</option>
                   {(groups ?? []).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               ) : (
@@ -210,7 +212,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
           {canEditProtectedFields && canEdit && (
             <>
               <tr>
-                <td style={{ ...cell, color: 'var(--text-secondary)' }}>Exempt from automatic suspension (VIP)</td>
+                <td style={{ ...cell, color: 'var(--text-secondary)' }}>{t('ui.clientProfileTabs.exemptFromAutomaticSuspensionVip')}</td>
                 <td style={cell}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                     <input
@@ -227,14 +229,14 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
                 </td>
               </tr>
               <tr>
-                <td style={{ ...cell, color: 'var(--text-secondary)' }}>Exemption reason</td>
+                <td style={{ ...cell, color: 'var(--text-secondary)' }}>{t('ui.clientProfileTabs.exemptionReason')}</td>
                 <td style={cell}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input
                       style={{ ...inputStyle, maxWidth: 320 }}
                       type="text"
                       value={currentExemptReason}
-                      placeholder="Reason for VIP exemption"
+                      placeholder={t('ui.clientProfileTabs.reasonForVipExemption')}
                       onChange={e => setExemptReason(e.target.value)}
                       disabled={updateExemption.isPending}
                     />
@@ -311,10 +313,10 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
 
           {canEditProtectedFields && !canEdit && Boolean(client.suspension_exempt) && (
             <tr>
-              <td style={{ ...cell, color: 'var(--text-secondary)' }}>Suspension exemption</td>
+              <td style={{ ...cell, color: 'var(--text-secondary)' }}>{t('ui.clientProfileTabs.suspensionExemption')}</td>
               <td style={cell}>
                 <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600 }}>
-                  Exempt (VIP)
+                  {t('ui.clientProfileTabs.exemptVip')}
                 </span>
                 {client.suspension_exempt_reason && (
                   <span style={{ marginLeft: 8, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
@@ -336,6 +338,7 @@ export function ProfileExtrasTab({ clientId, canEdit }: TabProps) {
 interface CustomField { id: number; field_key: string; field_value: string | null; }
 
 export function CustomFieldsTab({ clientId, canEdit }: TabProps) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [error, setError] = useState('');
   const [key, setKey] = useState('');
@@ -380,11 +383,11 @@ export function CustomFieldsTab({ clientId, canEdit }: TabProps) {
       {canEdit && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'flex-end' }}>
           <div style={{ flex: '0 0 220px' }}>
-            <label style={labelStyle}>Field name</label>
-            <input style={inputStyle} value={key} onChange={e => setKey(e.target.value)} placeholder="e.g. gate_code" />
+            <label style={labelStyle}>{t('ui.clientProfileTabs.fieldName')}</label>
+            <input style={inputStyle} value={key} onChange={e => setKey(e.target.value)} placeholder={t('ui.clientProfileTabs.eGGateCode')} />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Value</label>
+            <label style={labelStyle}>{t('ui.clientProfileTabs.value')}</label>
             <input style={inputStyle} value={value} onChange={e => setValue(e.target.value)} />
           </div>
           <button type="button" style={submitBtn} disabled={!key.trim() || save.isPending}
@@ -394,14 +397,14 @@ export function CustomFieldsTab({ clientId, canEdit }: TabProps) {
         </div>
       )}
 
-      {isLoading ? <p style={msg}>Loading…</p> : (
+      {isLoading ? <p style={msg}>{t('ui.clientProfileTabs.loading')}</p> : (
         <table style={tableStyle}>
           <thead>
-            <tr><th style={headCell}>Field</th><th style={headCell}>Value</th>{canEdit && <th style={headCell} />}</tr>
+            <tr><th style={headCell}>{t('ui.clientProfileTabs.field')}</th><th style={headCell}>{t('ui.clientProfileTabs.value')}</th>{canEdit && <th style={headCell} />}</tr>
           </thead>
           <tbody>
             {(data ?? []).length === 0 && (
-              <tr><td style={cell} colSpan={canEdit ? 3 : 2}>No custom fields.</td></tr>
+              <tr><td style={cell} colSpan={canEdit ? 3 : 2}>{t('ui.clientProfileTabs.noCustomFields')}</td></tr>
             )}
             {(data ?? []).map(f => (
               <tr key={f.id}>
@@ -410,7 +413,7 @@ export function CustomFieldsTab({ clientId, canEdit }: TabProps) {
                 {canEdit && (
                   <td style={{ ...cell, textAlign: 'right' }}>
                     <button type="button" style={{ ...dangerBtn, padding: '3px 8px' }}
-                      onClick={() => remove.mutate(f.field_key)}>Delete</button>
+                      onClick={() => remove.mutate(f.field_key)}>{t('ui.clientProfileTabs.delete')}</button>
                   </td>
                 )}
               </tr>
@@ -435,6 +438,7 @@ function formatBytes(n: number | null): string {
 }
 
 export function DocumentsTab({ clientId, canEdit }: TabProps) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -514,24 +518,24 @@ export function DocumentsTab({ clientId, canEdit }: TabProps) {
         <div style={{ marginBottom: 12 }}>
           <input ref={fileRef} type="file" onChange={handleUpload} disabled={uploading}
             accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" />
-          {uploading && <span style={{ marginLeft: 8, fontSize: '0.85rem' }}>Uploading…</span>}
+          {uploading && <span style={{ marginLeft: 8, fontSize: '0.85rem' }}>{t('ui.clientProfileTabs.uploading')}</span>}
           <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-            Upload an ID document or photo (INE, passport, etc.). Max 20&nbsp;MB.
+            {t('ui.clientProfileTabs.uploadAnIdDocumentOr')}
           </p>
         </div>
       )}
 
-      {isLoading ? <p style={msg}>Loading…</p> : (
+      {isLoading ? <p style={msg}>{t('ui.clientProfileTabs.loading')}</p> : (
         <table style={tableStyle}>
           <thead>
             <tr>
-              <th style={headCell}>File</th><th style={headCell}>Type</th>
-              <th style={headCell}>Size</th><th style={headCell}>Uploaded</th><th style={headCell} />
+              <th style={headCell}>{t('ui.clientProfileTabs.file')}</th><th style={headCell}>{t('ui.clientProfileTabs.type')}</th>
+              <th style={headCell}>{t('ui.clientProfileTabs.size')}</th><th style={headCell}>{t('ui.clientProfileTabs.uploaded')}</th><th style={headCell} />
             </tr>
           </thead>
           <tbody>
             {(data ?? []).length === 0 && (
-              <tr><td style={cell} colSpan={5}>No documents.</td></tr>
+              <tr><td style={cell} colSpan={5}>{t('ui.clientProfileTabs.noDocuments')}</td></tr>
             )}
             {(data ?? []).map(d => (
               <tr key={d.id}>
@@ -540,10 +544,10 @@ export function DocumentsTab({ clientId, canEdit }: TabProps) {
                 <td style={cell}>{formatBytes(d.file_size)}</td>
                 <td style={cell}>{new Date(d.created_at).toLocaleDateString()}</td>
                 <td style={{ ...cell, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <button type="button" style={{ ...smallBtn, marginRight: 6 }} onClick={() => download(d)}>Download</button>
+                  <button type="button" style={{ ...smallBtn, marginRight: 6 }} onClick={() => download(d)}>{t('ui.clientProfileTabs.download')}</button>
                   {canEdit && (
                     <button type="button" style={{ ...dangerBtn, padding: '3px 8px' }}
-                      onClick={() => remove.mutate(d.id)}>Delete</button>
+                      onClick={() => remove.mutate(d.id)}>{t('ui.clientProfileTabs.delete')}</button>
                   )}
                 </td>
               </tr>
@@ -561,6 +565,7 @@ export function DocumentsTab({ clientId, canEdit }: TabProps) {
 interface DuplicateClient { id: number; name: string; email: string | null; phone: string | null; tax_id: string | null; status: string; }
 
 export function DuplicatesTab({ clientId, canEdit }: TabProps) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [error, setError] = useState('');
   const [confirmMerge, setConfirmMerge] = useState<DuplicateClient | null>(null);
@@ -595,20 +600,19 @@ export function DuplicatesTab({ clientId, canEdit }: TabProps) {
     <div style={{ padding: '0.75rem' }}>
       {error && <div style={errorBox}>{error}</div>}
       <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 0 }}>
-        Other clients that share this client&apos;s email, phone, or tax ID. Merging folds the duplicate&apos;s
-        contracts, invoices, payments and other records into this client, then archives the duplicate.
+        {t('ui.clientProfileTabs.otherClientsThatShareThis')}
       </p>
-      {isLoading ? <p style={msg}>Loading…</p> : (
+      {isLoading ? <p style={msg}>{t('ui.clientProfileTabs.loading')}</p> : (
         <table style={tableStyle}>
           <thead>
             <tr>
-              <th style={headCell}>ID</th><th style={headCell}>Name</th><th style={headCell}>Email</th>
-              <th style={headCell}>Phone</th><th style={headCell}>Tax ID</th>{canEdit && <th style={headCell} />}
+              <th style={headCell}>ID</th><th style={headCell}>{t('ui.clientProfileTabs.name')}</th><th style={headCell}>{t('ui.clientProfileTabs.email')}</th>
+              <th style={headCell}>{t('ui.clientProfileTabs.phone')}</th><th style={headCell}>{t('ui.clientProfileTabs.taxId')}</th>{canEdit && <th style={headCell} />}
             </tr>
           </thead>
           <tbody>
             {(data ?? []).length === 0 && (
-              <tr><td style={cell} colSpan={canEdit ? 6 : 5}>No potential duplicates found.</td></tr>
+              <tr><td style={cell} colSpan={canEdit ? 6 : 5}>{t('ui.clientProfileTabs.noPotentialDuplicatesFound')}</td></tr>
             )}
             {(data ?? []).map(d => (
               <tr key={d.id}>
@@ -620,7 +624,7 @@ export function DuplicatesTab({ clientId, canEdit }: TabProps) {
                 {canEdit && (
                   <td style={{ ...cell, textAlign: 'right' }}>
                     <button type="button" style={{ ...smallBtn }} onClick={() => setConfirmMerge(d)}>
-                      Merge into this client
+                      {t('ui.clientProfileTabs.mergeIntoThisClient')}
                     </button>
                   </td>
                 )}
@@ -632,15 +636,14 @@ export function DuplicatesTab({ clientId, canEdit }: TabProps) {
 
       {confirmMerge && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
-          role="dialog" aria-modal="true" aria-label="Confirm merge">
+          role="dialog" aria-modal="true" aria-label={t('ui.clientProfileTabs.confirmMerge')}>
           <div style={{ background: 'var(--bg-card)', borderRadius: 10, padding: '1.5rem', width: 440, maxWidth: '92vw' }}>
-            <h3 style={{ margin: '0 0 0.75rem' }}>Merge clients?</h3>
+            <h3 style={{ margin: '0 0 0.75rem' }}>{t('ui.clientProfileTabs.mergeClients')}</h3>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginTop: 0 }}>
-              <strong>{confirmMerge.name}</strong> (#{confirmMerge.id}) will be merged into this client and then
-              archived. This cannot be undone automatically.
+              <strong>{confirmMerge.name}</strong> (#{confirmMerge.id}{t('ui.clientProfileTabs.willBeMergedIntoThis')}
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
-              <button type="button" style={cancelBtn} onClick={() => setConfirmMerge(null)}>Cancel</button>
+              <button type="button" style={cancelBtn} onClick={() => setConfirmMerge(null)}>{t('ui.clientProfileTabs.cancel')}</button>
               <button type="button" style={dangerBtn} disabled={merge.isPending}
                 onClick={() => merge.mutate(confirmMerge.id)}>
                 {merge.isPending ? 'Merging…' : 'Merge'}

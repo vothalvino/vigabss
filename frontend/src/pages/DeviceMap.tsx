@@ -201,6 +201,7 @@ interface DeviceChipActions {
 }
 
 function DeviceChip({ device, actions }: { device: Device; actions?: DeviceChipActions }) {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const archived = Boolean(device.deleted_at);
   return (
@@ -239,7 +240,7 @@ function DeviceChip({ device, actions }: { device: Device; actions?: DeviceChipA
             background: '#f3f4f6', color: '#6b7280',
             padding: '1px 7px', borderRadius: 10, fontSize: '0.68rem', fontWeight: 600,
           }}>
-            Archived
+            {t('ui.deviceMap.archived')}
           </span>
         ) : (
           <DeviceStatusBadge status={device.status} />
@@ -258,15 +259,15 @@ function DeviceChip({ device, actions }: { device: Device; actions?: DeviceChipA
         <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
           {archived ? (
             actions.canEdit && (
-              <button type="button" style={chipBtn} onClick={() => actions.onRestore(device)}>↩ Restore</button>
+              <button type="button" style={chipBtn} onClick={() => actions.onRestore(device)}>{t('ui.deviceMap.restore')}</button>
             )
           ) : (
             <>
               {actions.canEdit && (
-                <button type="button" style={chipBtn} onClick={() => actions.onEdit(device)}>✏️ Edit</button>
+                <button type="button" style={chipBtn} onClick={() => actions.onEdit(device)}>{t('ui.deviceMap.edit')}</button>
               )}
               {actions.canDelete && (
-                <button type="button" style={chipDangerBtn} onClick={() => actions.onDelete(device)}>🗑 Archive</button>
+                <button type="button" style={chipDangerBtn} onClick={() => actions.onDelete(device)}>{t('ui.deviceMap.archive')}</button>
               )}
             </>
           )}
@@ -287,6 +288,7 @@ interface SiteCardProps {
 }
 
 function SiteCard({ site, devices, actions }: SiteCardProps) {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   return (
     <div style={{
@@ -331,7 +333,7 @@ function SiteCard({ site, devices, actions }: SiteCardProps) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-            {devices.length} device{devices.length !== 1 ? 's' : ''}
+            {devices.length} {t('ui.deviceMap.device')}{devices.length !== 1 ? 's' : ''}
           </span>
           <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>{collapsed ? '▶' : '▼'}</span>
         </div>
@@ -342,7 +344,7 @@ function SiteCard({ site, devices, actions }: SiteCardProps) {
         <div style={{ padding: 12 }}>
           {devices.length === 0 ? (
             <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.8rem', fontStyle: 'italic' }}>
-              No devices assigned to this site.
+              {t('ui.deviceMap.noDevicesAssignedToThis')}
             </p>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -365,6 +367,7 @@ interface LinksTableProps {
 }
 
 function LinksTable({ links, deviceMap }: LinksTableProps) {
+  const { t } = useTranslation();
   function devLabel(id: number): string {
     const d = deviceMap.get(id);
     return d ? d.name : `#${id}`;
@@ -380,21 +383,21 @@ function LinksTable({ links, deviceMap }: LinksTableProps) {
 
   return (
     <div style={{ overflowX: 'auto', marginTop: '1.5rem' }}>
-      <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.75rem' }}>🔗 Network Links</h2>
+      <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.75rem' }}>{t('ui.deviceMap.networkLinks')}</h2>
       {links.length === 0 ? (
-        <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem' }}>No network links defined.</p>
+        <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem' }}>{t('ui.deviceMap.noNetworkLinksDefined')}</p>
       ) : (
         <table style={tableStyle}>
           <thead>
             <tr>
               <th style={th}>#</th>
-              <th style={th}>Device A</th>
-              <th style={th}>Interface A</th>
-              <th style={th}>Device B</th>
-              <th style={th}>Interface B</th>
-              <th style={th}>Type</th>
-              <th style={th}>Capacity</th>
-              <th style={th}>Status</th>
+              <th style={th}>{t('ui.deviceMap.deviceA')}</th>
+              <th style={th}>{t('ui.deviceMap.interfaceA')}</th>
+              <th style={th}>{t('ui.deviceMap.deviceB')}</th>
+              <th style={th}>{t('ui.deviceMap.interfaceB')}</th>
+              <th style={th}>{t('ui.deviceMap.type')}</th>
+              <th style={th}>{t('ui.deviceMap.capacity')}</th>
+              <th style={th}>{t('ui.deviceMap.status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -600,66 +603,66 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
         <h3 style={{ margin: '0 0 1rem' }}>{title}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Name *</label>
+          <label style={labelStyle}>{t('ui.deviceMap.name')}</label>
           <input style={inputStyle} type="text" value={form.name} onChange={set('name')} required autoFocus />
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>Type</label>
+              <label style={labelStyle}>{t('ui.deviceMap.type')}</label>
               <select style={inputStyle} value={form.type} onChange={set('type')}>
                 {DEVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Status</label>
+              <label style={labelStyle}>{t('ui.deviceMap.status')}</label>
               <select style={inputStyle} value={form.status} onChange={set('status')}>
                 {DEVICE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
 
-          <label style={labelStyle}>Site</label>
+          <label style={labelStyle}>{t('ui.deviceMap.site')}</label>
           <select style={inputStyle} value={form.site_id} onChange={set('site_id')}>
-            <option value="">— Unassigned —</option>
+            <option value="">{t('ui.deviceMap.unassigned')}</option>
             {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>Manufacturer</label>
+              <label style={labelStyle}>{t('ui.deviceMap.manufacturer')}</label>
               <input style={inputStyle} type="text" value={form.manufacturer} onChange={set('manufacturer')} />
             </div>
             <div>
-              <label style={labelStyle}>Model</label>
+              <label style={labelStyle}>{t('ui.deviceMap.model')}</label>
               <input style={inputStyle} type="text" value={form.model} onChange={set('model')} />
             </div>
           </div>
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>MAC Address</label>
+              <label style={labelStyle}>{t('ui.deviceMap.macAddress')}</label>
               <input style={inputStyle} type="text" value={form.mac_address} onChange={set('mac_address')} maxLength={17} />
             </div>
             <div>
-              <label style={labelStyle}>IP Address</label>
+              <label style={labelStyle}>{t('ui.deviceMap.ipAddress')}</label>
               <input style={inputStyle} type="text" value={form.ip_address} onChange={set('ip_address')} maxLength={45} />
             </div>
           </div>
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>Latitude</label>
+              <label style={labelStyle}>{t('ui.deviceMap.latitude')}</label>
               <input style={inputStyle} type="number" step="0.0000001" min={-90} max={90}
                 placeholder="19.4326" value={form.latitude} onChange={set('latitude')} />
             </div>
             <div>
-              <label style={labelStyle}>Longitude</label>
+              <label style={labelStyle}>{t('ui.deviceMap.longitude')}</label>
               <input style={inputStyle} type="number" step="0.0000001" min={-180} max={180}
                 placeholder="-99.1332" value={form.longitude} onChange={set('longitude')} />
             </div>
           </div>
 
-          <label style={labelStyle}>Serial Number</label>
+          <label style={labelStyle}>{t('ui.deviceMap.serialNumber')}</label>
           <input style={inputStyle} type="text" value={form.serial_number} onChange={set('serial_number')} maxLength={100} />
 
           {/* SNMP monitoring — the profile decides WHAT metrics get recorded */}
@@ -670,13 +673,13 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
                 checked={form.snmp_enabled}
                 onChange={e => setForm(f => ({ ...f, snmp_enabled: e.target.checked }))}
               />
-              SNMP monitoring
+              {t('ui.deviceMap.snmpMonitoring')}
             </label>
             {form.snmp_enabled && (
               <div style={{ marginTop: 8 }}>
                 <div style={twoCol}>
                   <div>
-                    <label style={labelStyle}>Version</label>
+                    <label style={labelStyle}>{t('ui.deviceMap.version')}</label>
                     <select style={inputStyle} value={form.snmp_version} onChange={set('snmp_version')}>
                       <option value="v1">v1</option>
                       <option value="v2c">v2c</option>
@@ -684,11 +687,11 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
                     </select>
                   </div>
                   <div>
-                    <label style={labelStyle}>Port</label>
+                    <label style={labelStyle}>{t('ui.deviceMap.port')}</label>
                     <input style={inputStyle} type="number" min={1} max={65535} value={form.snmp_port} onChange={set('snmp_port')} />
                   </div>
                 </div>
-                <label style={labelStyle}>Community</label>
+                <label style={labelStyle}>{t('ui.deviceMap.community')}</label>
                 <input style={inputStyle} type="password" autoComplete="new-password" value={form.snmp_community} onChange={set('snmp_community')} maxLength={96} placeholder={device?.has_snmp_community ? 'Leave blank to keep the current community' : 'public'} />
                 <label style={labelStyle} htmlFor="device-trap-community">{t('deviceForm.trapCommunity')}</label>
                 <input id="device-trap-community" style={inputStyle} type="password" autoComplete="new-password" value={form.snmp_trap_community} onChange={set('snmp_trap_community')} maxLength={96} placeholder={device?.has_snmp_trap_community ? t('deviceForm.trapCommunityKeep') : ''} aria-describedby="device-trap-community-hint" />
@@ -723,22 +726,20 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
                     </div>
                   </div>
                 )}
-                <label style={labelStyle}>Profile (what to record)</label>
+                <label style={labelStyle}>{t('ui.deviceMap.profileWhatToRecord')}</label>
                 <select style={inputStyle} value={form.snmp_profile_id} onChange={set('snmp_profile_id')}>
-                  <option value="">— No profile (not polled) —</option>
+                  <option value="">{t('ui.deviceMap.noProfileNotPolled')}</option>
                   {(profilesQ.data ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
                 <p style={{ fontSize: '0.72rem', color: 'var(--text-muted, #6b7280)', margin: '4px 0 0' }}>
-                  The profile is the OID→metric list the poller records (traffic, errors, signal, CCQ, CPU…).
-                  Model templates exist for LiteBeam 5AC Gen2, PowerBeam M5-400 and airCube ISP.
-                  (The RG-EW1300G has no SNMP agent — it is cloud-managed and cannot be SNMP-monitored.)
+                  {t('ui.deviceMap.theProfileIsTheOid')}
                 </p>
               </div>
             )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: '1.25rem' }}>
-            <button type="button" style={cancelBtn} onClick={onClose} disabled={saving}>Cancel</button>
+            <button type="button" style={cancelBtn} onClick={onClose} disabled={saving}>{t('ui.deviceMap.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={saving}>{saving ? 'Saving…' : (mode === 'create' ? 'Create Device' : 'Save Changes')}</button>
           </div>
         </form>
@@ -760,6 +761,7 @@ function DeleteDeviceModal({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -775,15 +777,15 @@ function DeleteDeviceModal({
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Archive device">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.deviceMap.archiveDevice')}>
       <div style={modalBox}>
-        <h3 style={{ margin: '0 0 1rem' }}>Archive Device</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.deviceMap.archiveDevice2')}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-          Archive <strong>{device.name}</strong>? It can be restored later from the archived view.
+          {t('ui.deviceMap.archive2')}<strong>{device.name}</strong>{t('ui.deviceMap.itCanBeRestoredLater')}
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: '1.25rem' }}>
-          <button type="button" style={cancelBtn} onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="button" style={cancelBtn} onClick={onClose} disabled={saving}>{t('ui.deviceMap.cancel')}</button>
           <button type="button" style={dangerBtn} onClick={handleDelete} disabled={saving}>{saving ? 'Archiving…' : 'Archive'}</button>
         </div>
       </div>
@@ -796,6 +798,7 @@ function DeleteDeviceModal({
 // ---------------------------------------------------------------------------
 
 export function DeviceMap() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [siteFilter, setSiteFilter] = useState('');
@@ -868,10 +871,10 @@ export function DeviceMap() {
     <div style={{ padding: '1.5rem', maxWidth: 1200 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h1 style={{ margin: 0, fontSize: '1.4rem' }}>🖧 Device / Network Map</h1>
+        <h1 style={{ margin: 0, fontSize: '1.4rem' }}>{t('ui.deviceMap.deviceNetworkMap')}</h1>
         {canCreate && (
           <button style={btnPrimary} onClick={() => setFormTarget({ mode: 'create' })}>
-            + New Device
+            {t('ui.deviceMap.newDevice')}
           </button>
         )}
       </div>
@@ -880,7 +883,7 @@ export function DeviceMap() {
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           style={filterInput}
-          placeholder="Filter sites by name…"
+          placeholder={t('ui.deviceMap.filterSitesByName')}
           value={siteFilter}
           onChange={e => setSiteFilter(e.target.value)}
         />
@@ -889,27 +892,27 @@ export function DeviceMap() {
           value={deviceStatusFilter}
           onChange={e => setDeviceStatusFilter(e.target.value)}
         >
-          <option value="">All device statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="maintenance">Maintenance</option>
-          <option value="decommissioned">Decommissioned</option>
+          <option value="">{t('ui.deviceMap.allDeviceStatuses')}</option>
+          <option value="active">{t('ui.deviceMap.active')}</option>
+          <option value="inactive">{t('ui.deviceMap.inactive')}</option>
+          <option value="maintenance">{t('ui.deviceMap.maintenance')}</option>
+          <option value="decommissioned">{t('ui.deviceMap.decommissioned')}</option>
         </select>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: '#6b7280', cursor: 'pointer' }}>
           <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
-          Show archived
+          {t('ui.deviceMap.showArchived')}
         </label>
         {(siteFilter || deviceStatusFilter) && (
           <button style={btnSecondary} onClick={() => { setSiteFilter(''); setDeviceStatusFilter(''); }}>
-            Clear
+            {t('ui.deviceMap.clear')}
           </button>
         )}
       </div>
 
       {actionError && <p style={{ color: '#e00', fontSize: '0.85rem' }}>{actionError}</p>}
 
-      {isLoading && <p style={{ color: '#888' }}>Loading network map…</p>}
-      {error && <p style={{ color: '#e00' }}>Failed to load network data.</p>}
+      {isLoading && <p style={{ color: '#888' }}>{t('ui.deviceMap.loadingNetworkMap')}</p>}
+      {error && <p style={{ color: '#e00' }}>{t('ui.deviceMap.failedToLoadNetworkData')}</p>}
 
       {!isLoading && !error && (
         <>
@@ -917,12 +920,12 @@ export function DeviceMap() {
           <SummaryBar sites={allSites} devices={allDevices} links={allLinks} />
 
           {/* Sites + their devices */}
-          <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.75rem' }}>📍 Sites</h2>
+          <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.75rem' }}>{t('ui.deviceMap.sites')}</h2>
           {sites.length === 0 && !siteFilter && (
-            <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem' }}>No sites defined.</p>
+            <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem' }}>{t('ui.deviceMap.noSitesDefined')}</p>
           )}
           {sites.length === 0 && siteFilter && (
-            <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem' }}>No sites match "{siteFilter}".</p>
+            <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem' }}>{t('ui.deviceMap.noSitesMatch')}{siteFilter}".</p>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {sites.map(site => (

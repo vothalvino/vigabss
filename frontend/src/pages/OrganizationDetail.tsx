@@ -457,7 +457,7 @@ function IdentityEditor({ id, identity }: { id: number; identity: EmailIdentity 
       </label>
       <label style={label}>{t('orgDetail.fromName')}<input style={input} value={form.from_name} onChange={e => set('from_name', e.target.value)} placeholder={`${capitalize(fn)} Team`} /></label>
       <label style={label}>{t('orgDetail.fromEmail')}<input style={input} type="email" value={form.from_email} onChange={e => set('from_email', e.target.value)} placeholder={`${fn}@isp.example`} /></label>
-      <label style={label}>{t('orgDetail.smtpHost')}<input style={input} value={form.smtp_host} onChange={e => set('smtp_host', e.target.value)} placeholder="smtp.example.com" /></label>
+      <label style={label}>{t('orgDetail.smtpHost')}<input style={input} value={form.smtp_host} onChange={e => set('smtp_host', e.target.value)} placeholder={t('ui.organizationDetail.smtpExampleCom')} /></label>
       <label style={label}>{t('orgDetail.smtpPort')}<input style={input} type="number" min={1} max={65535} value={form.smtp_port} onChange={e => set('smtp_port', e.target.value)} /></label>
       <label style={{ ...label, display: 'flex', alignItems: 'center', gap: 8 }}>
         <input type="checkbox" checked={form.smtp_secure} onChange={e => set('smtp_secure', e.target.checked)} /> {t('orgDetail.smtpSecure')}
@@ -677,7 +677,7 @@ function FiscalTab({ id }: { id: number }) {
     <div style={{ maxWidth: 560 }}>
       <p style={{ ...styles.msg, fontSize: '0.82rem' }}>{t('orgDetail.fiscalHint')}</p>
       <label style={label}>{t('orgDetail.fiscalRfc')} <RequiredMark />
-        <input style={input} maxLength={13} value={form.rfc ?? ''} placeholder="EKU9003173C9"
+        <input style={input} maxLength={13} value={form.rfc ?? ''} placeholder={t('ui.organizationDetail.eku9003173c9')}
           onChange={e => setForm(p => ({ ...p, rfc: e.target.value.toUpperCase() }))} />
       </label>
       <label style={label}>{t('orgDetail.fiscalRazonSocial')} <RequiredMark />
@@ -707,7 +707,7 @@ function FiscalTab({ id }: { id: number }) {
       </label>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
         <label style={label}>{t('orgDetail.fiscalProfeco')}
-          <input style={input} maxLength={50} value={form.profeco_registro ?? ''} placeholder="PROFECO 1234-2026"
+          <input style={input} maxLength={50} value={form.profeco_registro ?? ''} placeholder={t('ui.organizationDetail.profeco12342026')}
             onChange={e => setForm(p => ({ ...p, profeco_registro: e.target.value }))} />
         </label>
         <label style={label}>{t('orgDetail.fiscalCartaUrl')}

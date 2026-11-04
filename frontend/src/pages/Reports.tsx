@@ -30,6 +30,7 @@ import { api } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { localToday } from '@/lib/dates';
 import { apiFetch } from '@/api/apiFetch';
+import { LineChart } from './reports/LineChart';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -198,74 +199,11 @@ function BarChart({ rows, width = 480, height = 200 }: BarChartProps) {
 }
 
 // ---------------------------------------------------------------------------
-// SVG line chart — multi-series
-// ---------------------------------------------------------------------------
-
-interface LineChartProps {
-  labels: string[];
-  series: { label: string; values: number[]; color: string }[];
-  width?: number;
-  height?: number;
-}
-
-function LineChart({ labels, series, width = 520, height = 180 }: LineChartProps) {
-  const pad = { top: 10, right: 20, bottom: 30, left: 40 };
-  const w = width - pad.left - pad.right;
-  const h = height - pad.top - pad.bottom;
-  const allVals = series.flatMap(s => s.values);
-  const maxV = Math.max(...allVals, 1);
-  const n = labels.length;
-
-  function x(i: number) { return pad.left + (n <= 1 ? w / 2 : (i / (n - 1)) * w); }
-  function y(v: number) { return pad.top + h - (v / maxV) * h; }
-  function polyline(values: number[]) {
-    return values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
-  }
-
-  // x-axis label step to avoid crowding
-  const step = Math.ceil(n / 8);
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: width, display: 'block' }}>
-      {/* axes */}
-      <line x1={pad.left} y1={pad.top} x2={pad.left} y2={pad.top + h} stroke="#ddd" />
-      <line x1={pad.left} y1={pad.top + h} x2={pad.left + w} y2={pad.top + h} stroke="#ddd" />
-      {/* y gridlines */}
-      {[0.25, 0.5, 0.75, 1].map(t => (
-        <g key={t}>
-          <line x1={pad.left} y1={pad.top + h - t * h} x2={pad.left + w} y2={pad.top + h - t * h} stroke="#eee" strokeDasharray="3 3" />
-          <text x={pad.left - 4} y={pad.top + h - t * h + 4} fontSize={9} textAnchor="end" fill="#999">{Math.round(maxV * t)}</text>
-        </g>
-      ))}
-      {/* x labels */}
-      {labels.map((l, i) => i % step === 0 && (
-        <text key={i} x={x(i)} y={height - 4} fontSize={9} textAnchor="middle" fill="#999">{l}</text>
-      ))}
-      {/* series */}
-      {series.map(s => (
-        <g key={s.label}>
-          <polyline points={polyline(s.values)} fill="none" stroke={s.color} strokeWidth={2} />
-          {s.values.map((v, i) => (
-            <circle key={i} cx={x(i)} cy={y(v)} r={3} fill={s.color} />
-          ))}
-        </g>
-      ))}
-      {/* legend */}
-      {series.map((s, si) => (
-        <g key={s.label} transform={`translate(${pad.left + si * 120}, ${height - 6})`}>
-          <rect width={10} height={10} y={-10} fill={s.color} rx={2} />
-          <text x={14} y={0} fontSize={10} fill="#555">{s.label}</text>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Tab: Revenue
 // ---------------------------------------------------------------------------
 
 function RevenueTab() {
+  const { t } = useTranslation();
   const today = localToday();
   const firstOfMonth = today.slice(0, 7) + '-01';
   const [from, setFrom] = useState(firstOfMonth);
@@ -287,25 +225,25 @@ function RevenueTab() {
   return (
     <div style={styles.tabContent}>
       <form onSubmit={handleApply} style={styles.filterRow}>
-        <label style={styles.label}>From</label>
+        <label style={styles.label}>{t('ui.reports.from')}</label>
         <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={styles.input} />
-        <label style={styles.label}>To</label>
+        <label style={styles.label}>{t('ui.reports.to')}</label>
         <input type="date" value={to} onChange={e => setTo(e.target.value)} style={styles.input} />
-        <button type="submit" style={styles.btn}>Apply</button>
+        <button type="submit" style={styles.btn}>{t('ui.reports.apply')}</button>
       </form>
 
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
       {d && (
         <>
           <div style={styles.kpiRow}>
-            <KpiCard label="Invoiced" value={currency(d.revenue.invoiced)} sub={`${d.revenue.invoice_count} invoices`} color="#4a90e2" />
-            <KpiCard label="Collected" value={currency(d.revenue.collected)} sub={pct(d.revenue.collected, d.revenue.invoiced) + ' collection rate'} color="#27ae60" />
-            <KpiCard label="Outstanding" value={currency(d.revenue.outstanding)} sub="Unpaid invoices" color="#e67e22" />
-            <KpiCard label="Net Income" value={currency(d.net_income)} sub={`Expenses: ${currency(d.expenses.total)}`} color={d.net_income >= 0 ? '#27ae60' : '#e74c3c'} />
+            <KpiCard label={t('ui.reports.invoiced')} value={currency(d.revenue.invoiced)} sub={`${d.revenue.invoice_count} invoices`} color="#4a90e2" />
+            <KpiCard label={t('ui.reports.collected')} value={currency(d.revenue.collected)} sub={pct(d.revenue.collected, d.revenue.invoiced) + ' collection rate'} color="#27ae60" />
+            <KpiCard label={t('ui.reports.outstanding')} value={currency(d.revenue.outstanding)} sub="Unpaid invoices" color="#e67e22" />
+            <KpiCard label={t('ui.reports.netIncome')} value={currency(d.net_income)} sub={`Expenses: ${currency(d.expenses.total)}`} color={d.net_income >= 0 ? '#27ae60' : '#e74c3c'} />
           </div>
 
-          <h3 style={styles.sectionTitle}>Revenue vs. Expenses</h3>
+          <h3 style={styles.sectionTitle}>{t('ui.reports.revenueVsExpenses')}</h3>
           <BarChart rows={[
             { label: 'Invoiced', value: d.revenue.invoiced, color: '#4a90e2' },
             { label: 'Collected', value: d.revenue.collected, color: '#27ae60' },
@@ -313,7 +251,7 @@ function RevenueTab() {
             { label: 'Net Income', value: Math.max(d.net_income, 0), color: '#9b59b6' },
           ]} />
 
-          <p style={styles.muted}>Generated {new Date(d.generated_at).toLocaleString()}</p>
+          <p style={styles.muted}>{t('ui.reports.generated')}{new Date(d.generated_at).toLocaleString()}</p>
         </>
       )}
     </div>
@@ -325,6 +263,7 @@ function RevenueTab() {
 // ---------------------------------------------------------------------------
 
 function GrowthTab() {
+  const { t } = useTranslation();
   const [months, setMonths] = useState(12);
   const [applied, setApplied] = useState(12);
 
@@ -346,25 +285,25 @@ function GrowthTab() {
   return (
     <div style={styles.tabContent}>
       <div style={styles.filterRow}>
-        <label style={styles.label}>Period (months)</label>
+        <label style={styles.label}>{t('ui.reports.periodMonths')}</label>
         <select value={months} onChange={e => setMonths(Number(e.target.value))} style={{ ...styles.input, width: 100 }}>
-          {[3, 6, 12, 24].map(m => <option key={m} value={m}>{m} months</option>)}
+          {[3, 6, 12, 24].map(m => <option key={m} value={m}>{m} {t('ui.reports.months')}</option>)}
         </select>
-        <button onClick={() => setApplied(months)} style={styles.btn}>Apply</button>
+        <button onClick={() => setApplied(months)} style={styles.btn}>{t('ui.reports.apply')}</button>
       </div>
 
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
       {rows.length > 0 && (
         <>
           <div style={styles.kpiRow}>
-            <KpiCard label="New Contracts" value={String(totalNew)} sub={`${applied}-month total`} color="#27ae60" />
-            <KpiCard label="Churned" value={String(totalChurn)} sub={`${applied}-month total`} color="#e74c3c" />
-            <KpiCard label="Net Growth" value={String(totalNew - totalChurn)} sub="New − Churned" color={totalNew - totalChurn >= 0 ? '#27ae60' : '#e74c3c'} />
-            <KpiCard label="Churn Ratio" value={churnRatio === '—' ? '—' : `${churnRatio}%`} sub="Churned ÷ New" color="#e67e22" />
+            <KpiCard label={t('ui.reports.newContracts')} value={String(totalNew)} sub={`${applied}-month total`} color="#27ae60" />
+            <KpiCard label={t('ui.reports.churned')} value={String(totalChurn)} sub={`${applied}-month total`} color="#e74c3c" />
+            <KpiCard label={t('ui.reports.netGrowth')} value={String(totalNew - totalChurn)} sub="New − Churned" color={totalNew - totalChurn >= 0 ? '#27ae60' : '#e74c3c'} />
+            <KpiCard label={t('ui.reports.churnRatio')} value={churnRatio === '—' ? '—' : `${churnRatio}%`} sub="Churned ÷ New" color="#e67e22" />
           </div>
 
-          <h3 style={styles.sectionTitle}>Monthly Subscriber Trend</h3>
+          <h3 style={styles.sectionTitle}>{t('ui.reports.monthlySubscriberTrend')}</h3>
           <LineChart
             labels={labels}
             series={[
@@ -374,7 +313,7 @@ function GrowthTab() {
             ]}
           />
 
-          <h3 style={styles.sectionTitle}>Monthly Detail</h3>
+          <h3 style={styles.sectionTitle}>{t('ui.reports.monthlyDetail')}</h3>
           <table style={styles.table}>
             <thead>
               <tr>
@@ -416,6 +355,7 @@ const AGING_BUCKETS: { key: keyof AgingBucket; label: string; color: string }[] 
 ];
 
 function AgingTab() {
+  const { t } = useTranslation();
   const { data, isFetching, error } = useQuery<{ data: AgingData }>({
     queryKey: ['reports', 'aging'],
     queryFn: () => apiFetch('/reports/aging'),
@@ -434,30 +374,30 @@ function AgingTab() {
 
   return (
     <div style={styles.tabContent}>
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
       {d && (
         <>
           <div style={styles.kpiRow}>
-            <KpiCard label="Total Outstanding" value={currency(d.total_outstanding)} sub={`${d.invoice_count} invoices`} color="#e74c3c" />
+            <KpiCard label={t('ui.reports.totalOutstanding')} value={currency(d.total_outstanding)} sub={`${d.invoice_count} invoices`} color="#e74c3c" />
             {AGING_BUCKETS.slice(1).map(b => (
               <KpiCard key={b.key} label={b.label} value={currency(d.summary[b.key])} sub={pct(d.summary[b.key], d.total_outstanding)} color={b.color} />
             ))}
           </div>
 
-          <h3 style={styles.sectionTitle}>Aging Breakdown</h3>
+          <h3 style={styles.sectionTitle}>{t('ui.reports.agingBreakdown')}</h3>
           <BarChart rows={AGING_BUCKETS.map(b => ({ label: b.label, value: d.summary[b.key], color: b.color }))} />
 
           <div style={{ ...styles.filterRow, marginTop: 20 }}>
             <input
-              placeholder="Search client or invoice…"
+              placeholder={t('ui.reports.searchClientOrInvoice')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ ...styles.input, width: 260 }}
             />
           </div>
 
-          <h3 style={styles.sectionTitle}>Overdue Invoices ({filtered.length})</h3>
+          <h3 style={styles.sectionTitle}>{t('ui.reports.overdueInvoices')}{filtered.length})</h3>
           <table style={styles.table}>
             <thead>
               <tr>
@@ -487,11 +427,11 @@ function AgingTab() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>No overdue invoices</td></tr>
+                <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>{t('ui.reports.noOverdueInvoices')}</td></tr>
               )}
             </tbody>
           </table>
-          <p style={styles.muted}>Generated {new Date(d.generated_at).toLocaleString()}</p>
+          <p style={styles.muted}>{t('ui.reports.generated')}{new Date(d.generated_at).toLocaleString()}</p>
         </>
       )}
     </div>
@@ -549,6 +489,7 @@ function derivePeriodBounds(reportPeriod: string): { start: string; end: string 
 }
 
 function IftTab() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
@@ -606,11 +547,11 @@ function IftTab() {
   return (
     <div style={styles.tabContent}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ ...styles.sectionTitle, margin: 0 }}>IFT Statistical Reports</h3>
-        <button onClick={() => setShowCreate(true)} style={styles.btnPrimary}>+ New Report</button>
+        <h3 style={{ ...styles.sectionTitle, margin: 0 }}>{t('ui.reports.iftStatisticalReports')}</h3>
+        <button onClick={() => setShowCreate(true)} style={styles.btnPrimary}>{t('ui.reports.newReport')}</button>
       </div>
 
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
 
       <table style={styles.table}>
@@ -637,7 +578,7 @@ function IftTab() {
             );
           })}
           {rows.length === 0 && !isFetching && (
-            <tr><td colSpan={7} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>No IFT reports yet</td></tr>
+            <tr><td colSpan={7} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>{t('ui.reports.noIftReportsYet')}</td></tr>
           )}
         </tbody>
       </table>
@@ -645,9 +586,9 @@ function IftTab() {
       {/* Pagination */}
       {meta && meta.total > meta.limit && (
         <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-          <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} style={styles.btnSm}>← Prev</button>
-          <span style={styles.muted}>Page {page} of {Math.ceil(meta.total / meta.limit)}</span>
-          <button disabled={page * meta.limit >= meta.total} onClick={() => setPage(p => p + 1)} style={styles.btnSm}>Next →</button>
+          <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} style={styles.btnSm}>{t('ui.reports.prev')}</button>
+          <span style={styles.muted}>{t('ui.reports.page')}{page} {t('ui.reports.of')}{Math.ceil(meta.total / meta.limit)}</span>
+          <button disabled={page * meta.limit >= meta.total} onClick={() => setPage(p => p + 1)} style={styles.btnSm}>{t('ui.reports.next')}</button>
         </div>
       )}
 
@@ -673,9 +614,9 @@ function IftTab() {
 
           {selected.subscribers_by_technology && (
             <>
-              <h4 style={{ marginTop: 16, marginBottom: 6, fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Subscribers by Technology</h4>
+              <h4 style={{ marginTop: 16, marginBottom: 6, fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('ui.reports.subscribersByTechnology')}</h4>
               <table style={{ ...styles.table, marginBottom: 0 }}>
-                <thead><tr><th style={styles.th}>Technology</th><th style={styles.th}>Subscribers</th></tr></thead>
+                <thead><tr><th style={styles.th}>{t('ui.reports.technology')}</th><th style={styles.th}>{t('ui.reports.subscribers')}</th></tr></thead>
                 <tbody>
                   {Object.entries(selected.subscribers_by_technology).map(([tech, cnt]) => (
                     <tr key={tech}><td style={styles.td}>{tech}</td><td style={styles.td}>{cnt}</td></tr>
@@ -689,33 +630,33 @@ function IftTab() {
 
       {/* Create modal */}
       {showCreate && (
-        <Modal title="New IFT Statistical Report" onClose={() => { setShowCreate(false); setCreateError(''); }}>
+        <Modal title={t('ui.reports.newIftStatisticalReport')} onClose={() => { setShowCreate(false); setCreateError(''); }}>
           <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Field label="Report Period (e.g. 2025-Q1)">
+            <Field label={t('ui.reports.reportPeriodEG2025')}>
               <input required value={form.report_period} onChange={e => setForm(f => ({ ...f, report_period: e.target.value }))} style={styles.input} />
             </Field>
-            <Field label="Status">
+            <Field label={t('ui.reports.status')}>
               <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={styles.input}>
                 {Object.entries(IFT_STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             </Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Field label="Avg Download (Mbps)">
+              <Field label={t('ui.reports.avgDownloadMbps')}>
                 <input type="number" step="0.1" value={form.avg_download_speed_mbps} onChange={e => setForm(f => ({ ...f, avg_download_speed_mbps: e.target.value }))} style={styles.input} />
               </Field>
-              <Field label="Avg Upload (Mbps)">
+              <Field label={t('ui.reports.avgUploadMbps')}>
                 <input type="number" step="0.1" value={form.avg_upload_speed_mbps} onChange={e => setForm(f => ({ ...f, avg_upload_speed_mbps: e.target.value }))} style={styles.input} />
               </Field>
-              <Field label="Coverage Municipalities">
+              <Field label={t('ui.reports.coverageMunicipalities')}>
                 <input type="number" value={form.coverage_municipalities} onChange={e => setForm(f => ({ ...f, coverage_municipalities: e.target.value }))} style={styles.input} />
               </Field>
-              <Field label="Revenue (MXN)">
+              <Field label={t('ui.reports.revenueMxn')}>
                 <input type="number" step="0.01" value={form.revenue_total} onChange={e => setForm(f => ({ ...f, revenue_total: e.target.value }))} style={styles.input} />
               </Field>
             </div>
             {createError && <p style={styles.error}>{createError}</p>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-              <button type="button" onClick={() => { setShowCreate(false); setCreateError(''); }} style={styles.btnSm}>Cancel</button>
+              <button type="button" onClick={() => { setShowCreate(false); setCreateError(''); }} style={styles.btnSm}>{t('ui.reports.cancel')}</button>
               <button type="submit" disabled={createMut.isPending} style={styles.btnPrimary}>
                 {createMut.isPending ? 'Creating…' : 'Create Report'}
               </button>
@@ -732,6 +673,7 @@ function IftTab() {
 // ---------------------------------------------------------------------------
 
 function TechnicianTab() {
+  const { t } = useTranslation();
   const today = localToday();
   const firstOfMonth = today.slice(0, 7) + '-01';
   const [from, setFrom] = useState(firstOfMonth);
@@ -758,25 +700,25 @@ function TechnicianTab() {
   return (
     <div style={styles.tabContent}>
       <form onSubmit={handleApply} style={styles.filterRow}>
-        <label style={styles.label}>From</label>
+        <label style={styles.label}>{t('ui.reports.from')}</label>
         <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={styles.input} />
-        <label style={styles.label}>To</label>
+        <label style={styles.label}>{t('ui.reports.to')}</label>
         <input type="date" value={to} onChange={e => setTo(e.target.value)} style={styles.input} />
-        <button type="submit" style={styles.btn}>Apply</button>
+        <button type="submit" style={styles.btn}>{t('ui.reports.apply')}</button>
       </form>
 
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
       {data && (
         <>
           <div style={styles.kpiRow}>
-            <KpiCard label="Total Jobs" value={String(totalJobs)} sub={`${applied.from} – ${applied.to}`} color="#4a90e2" />
-            <KpiCard label="Completed" value={String(totalCompleted)} sub={totalJobs > 0 ? pct(totalCompleted, totalJobs) + ' completion' : '—'} color="#27ae60" />
-            <KpiCard label="Avg Completion" value={avgHours === '—' ? '—' : `${avgHours}h`} sub="Across technicians" color="#9b59b6" />
-            <KpiCard label="Technicians" value={String(techs.length)} sub="With assigned jobs" color="#e67e22" />
+            <KpiCard label={t('ui.reports.totalJobs')} value={String(totalJobs)} sub={`${applied.from} – ${applied.to}`} color="#4a90e2" />
+            <KpiCard label={t('ui.reports.completed')} value={String(totalCompleted)} sub={totalJobs > 0 ? pct(totalCompleted, totalJobs) + ' completion' : '—'} color="#27ae60" />
+            <KpiCard label={t('ui.reports.avgCompletion')} value={avgHours === '—' ? '—' : `${avgHours}h`} sub="Across technicians" color="#9b59b6" />
+            <KpiCard label={t('ui.reports.technicians')} value={String(techs.length)} sub="With assigned jobs" color="#e67e22" />
           </div>
 
-          <h3 style={styles.sectionTitle}>Per-Technician Breakdown</h3>
+          <h3 style={styles.sectionTitle}>{t('ui.reports.perTechnicianBreakdown')}</h3>
           <table style={styles.table}>
             <thead>
               <tr>
@@ -797,11 +739,11 @@ function TechnicianTab() {
                 </tr>
               ))}
               {techs.length === 0 && (
-                <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>No data for this period</td></tr>
+                <tr><td colSpan={6} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>{t('ui.reports.noDataForThisPeriod')}</td></tr>
               )}
             </tbody>
           </table>
-          {data.data && <p style={styles.muted}>Generated {new Date(data.data.generated_at).toLocaleString()}</p>}
+          {data.data && <p style={styles.muted}>{t('ui.reports.generated')}{new Date(data.data.generated_at).toLocaleString()}</p>}
         </>
       )}
     </div>
@@ -984,7 +926,7 @@ function NetworkTab() {
   return (
     <div style={styles.tabContent}>
       <h2 style={styles.sectionTitle}>{t('reports.networkReports')}</h2>
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
       {d && (
         <>
@@ -1020,8 +962,8 @@ function NetworkTab() {
                 <thead>
                   <tr>
                     <th style={styles.th}>OLT ID</th>
-                    <th style={styles.th}>Name</th>
-                    <th style={styles.th}>Utilization %</th>
+                    <th style={styles.th}>{t('ui.reports.name')}</th>
+                    <th style={styles.th}>{t('ui.reports.utilization')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1071,7 +1013,7 @@ function ComplianceTab() {
   return (
     <div style={styles.tabContent}>
       <h2 style={styles.sectionTitle}>{t('reports.complianceReports')}</h2>
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
       {d && (
         <>
@@ -1127,8 +1069,8 @@ function ComplianceTab() {
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Table</th>
-                    <th style={styles.th}>Old Record Count</th>
+                    <th style={styles.th}>{t('ui.reports.table')}</th>
+                    <th style={styles.th}>{t('ui.reports.oldRecordCount')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1215,7 +1157,7 @@ function ScheduledTab() {
         </button>
       </div>
 
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
 
       <table style={styles.table}>
@@ -1225,8 +1167,8 @@ function ScheduledTab() {
             <th style={styles.th}>{t('reports.reportDefName')}</th>
             <th style={styles.th}>{t('reports.format')}</th>
             <th style={styles.th}>{t('reports.cronExpression')}</th>
-            <th style={styles.th}>Enabled</th>
-            <th style={styles.th}>Last Run</th>
+            <th style={styles.th}>{t('ui.reports.enabled')}</th>
+            <th style={styles.th}>{t('ui.reports.lastRun')}</th>
             <th style={styles.th}></th>
           </tr>
         </thead>
@@ -1249,7 +1191,7 @@ function ScheduledTab() {
                   disabled={deleteMut.isPending}
                   style={{ ...styles.btnSm, color: '#e74c3c' }}
                 >
-                  Delete
+                  {t('ui.reports.delete')}
                 </button>
               </td>
             </tr>
@@ -1257,7 +1199,7 @@ function ScheduledTab() {
           {rows.length === 0 && !isFetching && (
             <tr>
               <td colSpan={7} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>
-                No scheduled reports
+                {t('ui.reports.noScheduledReports')}
               </td>
             </tr>
           )}
@@ -1286,7 +1228,7 @@ function ScheduledTab() {
               >
                 <option value="csv">CSV</option>
                 <option value="pdf">PDF</option>
-                <option value="xlsx">XLSX</option>
+                <option value="xlsx">{t('ui.reports.xlsx')}</option>
                 <option value="json">JSON</option>
               </select>
             </Field>
@@ -1304,7 +1246,7 @@ function ScheduledTab() {
                 value={form.recipients}
                 onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
                 style={styles.input}
-                placeholder="email1@example.com, email2@example.com"
+                placeholder={t('ui.reports.email1ExampleComEmail2Example')}
               />
             </Field>
             {createError && <p style={styles.error}>{createError}</p>}
@@ -1314,7 +1256,7 @@ function ScheduledTab() {
                 onClick={() => { setShowCreate(false); setCreateError(''); }}
                 style={styles.btnSm}
               >
-                Cancel
+                {t('ui.reports.cancel')}
               </button>
               <button type="submit" disabled={createMut.isPending} style={styles.btnPrimary}>
                 {createMut.isPending ? 'Creating…' : t('reports.createScheduledReport')}
@@ -1405,16 +1347,16 @@ function CustomTab() {
 
       {!mayManageSql && <p style={styles.muted}>{t('reports.customReportsOperatorOnly')}</p>}
 
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
 
       <table style={styles.table}>
         <thead>
           <tr>
             <th style={styles.th}>ID</th>
-            <th style={styles.th}>Name</th>
+            <th style={styles.th}>{t('ui.reports.name')}</th>
             <th style={styles.th}>{t('reports.queryType')}</th>
-            <th style={styles.th}>Public</th>
+            <th style={styles.th}>{t('ui.reports.public')}</th>
             <th style={styles.th}></th>
           </tr>
         </thead>
@@ -1444,7 +1386,7 @@ function CustomTab() {
                   disabled={deleteMut.isPending}
                   style={{ ...styles.btnSm, color: '#e74c3c' }}
                 >
-                  Delete
+                  {t('ui.reports.delete')}
                 </button>
               </td>
             </tr>
@@ -1452,7 +1394,7 @@ function CustomTab() {
           {rows.length === 0 && !isFetching && (
             <tr>
               <td colSpan={5} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>
-                No custom reports
+                {t('ui.reports.noCustomReports')}
               </td>
             </tr>
           )}
@@ -1484,7 +1426,7 @@ function CustomTab() {
                 {execResult.rows.length === 0 && (
                   <tr>
                     <td colSpan={execResult.fields.length} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>
-                      No rows returned
+                      {t('ui.reports.noRowsReturned')}
                     </td>
                   </tr>
                 )}
@@ -1500,7 +1442,7 @@ function CustomTab() {
           onClose={() => { setShowCreate(false); setCreateError(''); }}
         >
           <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Field label="Name">
+            <Field label={t('ui.reports.name')}>
               <input
                 required
                 value={form.name}
@@ -1514,7 +1456,7 @@ function CustomTab() {
                 onChange={e => setForm(f => ({ ...f, query_type: e.target.value }))}
                 style={styles.input}
               >
-                <option value="sql">SQL</option>
+                <option value="sql">{t('ui.reports.sql')}</option>
               </select>
             </Field>
             <Field label={t('reports.sqlQuery')}>
@@ -1523,7 +1465,7 @@ function CustomTab() {
                 value={form.sql_query}
                 onChange={e => setForm(f => ({ ...f, sql_query: e.target.value }))}
                 style={{ ...styles.input, height: 120, resize: 'vertical', fontFamily: 'var(--font-mono, monospace)' }}
-                placeholder="SELECT * FROM clients LIMIT 10"
+                placeholder={t('ui.reports.selectFromClientsLimit10')}
               />
             </Field>
             {createError && <p style={styles.error}>{createError}</p>}
@@ -1533,7 +1475,7 @@ function CustomTab() {
                 onClick={() => { setShowCreate(false); setCreateError(''); }}
                 style={styles.btnSm}
               >
-                Cancel
+                {t('ui.reports.cancel')}
               </button>
               <button type="submit" disabled={createMut.isPending} style={styles.btnPrimary}>
                 {createMut.isPending ? 'Creating…' : t('reports.createCustomReport')}
@@ -1627,7 +1569,7 @@ function WidgetsTab() {
         </div>
       </div>
 
-      {isFetching && <p style={styles.muted}>Loading…</p>}
+      {isFetching && <p style={styles.muted}>{t('ui.reports.loading')}</p>}
       {error && <p style={styles.error}>{String(error)}</p>}
 
       <table style={styles.table}>
@@ -1661,7 +1603,7 @@ function WidgetsTab() {
                   disabled={deleteMut.isPending}
                   style={{ ...styles.btnSm, color: '#e74c3c' }}
                 >
-                  Delete
+                  {t('ui.reports.delete')}
                 </button>
               </td>
             </tr>
@@ -1669,7 +1611,7 @@ function WidgetsTab() {
           {rows.length === 0 && !isFetching && (
             <tr>
               <td colSpan={8} style={{ ...styles.td, textAlign: 'center', color: '#999' }}>
-                No widgets configured
+                {t('ui.reports.noWidgetsConfigured')}
               </td>
             </tr>
           )}
@@ -1708,7 +1650,7 @@ function WidgetsTab() {
                 onClick={() => { setShowCreate(false); setCreateError(''); }}
                 style={styles.btnSm}
               >
-                Cancel
+                {t('ui.reports.cancel')}
               </button>
               <button type="submit" disabled={createMut.isPending} style={styles.btnPrimary}>
                 {createMut.isPending ? 'Creating…' : t('reports.createWidget')}
@@ -1771,6 +1713,7 @@ const EXPORTS: { path: ExportPath; filename: string; label: string }[] = [
 ];
 
 function ExportPanel() {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState<ExportPath | null>(null);
   const [error, setError] = useState('');
 
@@ -1788,9 +1731,9 @@ function ExportPanel() {
 
   return (
     <div style={styles.tabContent}>
-      <h2 style={{ margin: '0 0 4px', fontSize: '1.05rem' }}>Export data (CSV)</h2>
+      <h2 style={{ margin: '0 0 4px', fontSize: '1.05rem' }}>{t('ui.reports.exportDataCsv')}</h2>
       <p style={{ margin: '0 0 14px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-        Download a CSV snapshot of your organization&apos;s records.
+        {t('ui.reports.downloadACsvSnapshotOf')}
       </p>
       {error && <div style={styles.exportError}>{error}</div>}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -1810,11 +1753,12 @@ function ExportPanel() {
 }
 
 export function Reports() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('revenue');
 
   return (
     <div style={styles.page}>
-      <h1 style={styles.pageTitle}>Reports</h1>
+      <h1 style={styles.pageTitle}>{t('ui.reports.reports')}</h1>
 
       <ReportsTabBar tab={tab} onTabChange={setTab} />
 

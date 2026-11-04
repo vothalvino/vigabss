@@ -120,17 +120,17 @@ function ConfigForm({ onSave, onClose, saving }: ConfigFormProps) {
       <div style={{ ...modalStyles.panel, maxWidth: 540 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{t('device_polling_configs.new', 'New Polling Config')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.devicePollingConfigList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div>
               <label style={modalStyles.label}>{t('device_polling_configs.device_id', 'Device ID')}</label>
-              <input style={inp} type="number" min={1} value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="Leave blank for type-based" />
+              <input style={inp} type="number" min={1} value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder={t('ui.devicePollingConfigList.leaveBlankForTypeBased')} />
             </div>
             <div>
               <label style={modalStyles.label}>{t('device_polling_configs.device_type', 'Device Type')}</label>
-              <input style={inp} value={deviceType} onChange={e => setDeviceType(e.target.value)} placeholder="e.g. router" />
+              <input style={inp} value={deviceType} onChange={e => setDeviceType(e.target.value)} placeholder={t('ui.devicePollingConfigList.eGRouter')} />
             </div>
           </div>
 
@@ -172,7 +172,7 @@ function ConfigForm({ onSave, onClose, saving }: ConfigFormProps) {
           </div>
 
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.devicePollingConfigList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -232,7 +232,7 @@ export function DevicePollingConfigList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('device_polling_configs.title', 'Device Polling Configs')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.devicePollingConfigList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('device_polling_configs.new', 'New Polling Config')}
         </button>
@@ -262,7 +262,7 @@ export function DevicePollingConfigList() {
                   <th style={styles.th}>{t('device_polling_configs.bulk_get_enabled', 'Bulk GET')}</th>
                   <th style={styles.th}>{t('device_polling_configs.adaptive_polling_enabled', 'Adaptive')}</th>
                   <th style={styles.th}>{t('device_polling_configs.is_enabled', 'Enabled')}</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.devicePollingConfigList.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -275,7 +275,7 @@ export function DevicePollingConfigList() {
                     <td style={styles.td}>{c.adaptive_polling_enabled ? 'Yes' : 'No'}</td>
                     <td style={styles.td}>{c.is_enabled ? 'Yes' : 'No'}</td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(c.id)}>Delete</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(c.id)}>{t('ui.devicePollingConfigList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -287,9 +287,9 @@ export function DevicePollingConfigList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.devicePollingConfigList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.devicePollingConfigList.page')}{page} {t('ui.devicePollingConfigList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.devicePollingConfigList.next')}</button>
         </div>
       )}
 
@@ -306,8 +306,8 @@ export function DevicePollingConfigList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('device_polling_configs.delete_confirm', 'Delete this polling config?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.devicePollingConfigList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.devicePollingConfigList.delete')}</button>
             </div>
           </div>
         </div>

@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,6 +74,7 @@ function formatExpiry(p: RecurringPaymentProfile): string {
 // ---------------------------------------------------------------------------
 
 export function RecurringPaymentProfileList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
 
   const profilesQ = useQuery({
@@ -87,17 +89,17 @@ export function RecurringPaymentProfileList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🔁 Recurring Payment Profiles</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.recurringPaymentProfileList.recurringPaymentProfiles')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.recurringPaymentProfileList.total')}</span>}
       </div>
 
       <div style={styles.tableCard}>
         {profilesQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.recurringPaymentProfileList.loading')}</p>
         ) : profilesQ.error ? (
-          <p style={styles.msgError}>Failed to load recurring payment profiles.</p>
+          <p style={styles.msgError}>{t('ui.recurringPaymentProfileList.failedToLoadRecurringPayment')}</p>
         ) : profiles.length === 0 ? (
-          <p style={styles.msg}>No recurring payment profiles found.</p>
+          <p style={styles.msg}>{t('ui.recurringPaymentProfileList.noRecurringPaymentProfilesFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -128,15 +130,15 @@ export function RecurringPaymentProfileList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.recurringPaymentProfileList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.recurringPaymentProfileList.page')}{page} {t('ui.recurringPaymentProfileList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.recurringPaymentProfileList.next')}
                 </button>
               </div>
             )}
@@ -145,7 +147,7 @@ export function RecurringPaymentProfileList() {
       </div>
 
       <p style={{ ...styles.msg, textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-        Card tokens are stored by the payment gateway and managed through the secure autopay flow.
+        {t('ui.recurringPaymentProfileList.cardTokensAreStoredBy')}
       </p>
     </div>
   );

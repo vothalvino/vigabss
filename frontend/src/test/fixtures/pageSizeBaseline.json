@@ -1,11 +1,10 @@
 {
-  "pages/ClientDetail.tsx": 1602,
   "pages/ConnectionLogList.tsx": 1776,
-  "pages/ContractDetail.tsx": 2646,
+  "pages/ContractDetail.tsx": 2583,
   "pages/QosBandwidthPage.tsx": 2465,
   "pages/RegulatoryCompliancePage.tsx": 1852,
-  "pages/Reports.tsx": 2031,
-  "pages/Settings.tsx": 1535,
-  "pages/TicketDetail.tsx": 2161,
-  "pages/UserList.tsx": 1654
+  "pages/Reports.tsx": 1975,
+  "pages/Settings.tsx": 1518,
+  "pages/TicketDetail.tsx": 2071,
+  "pages/UserList.tsx": 1651
 }

@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,6 +72,7 @@ const STATUS_COLORS: StatusColors = {
 // ---------------------------------------------------------------------------
 
 export function FacturaPublicaList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
 
   const facturasQ = useQuery({
@@ -92,17 +94,17 @@ export function FacturaPublicaList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🧾 Facturas Públicas</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.facturaPublicaList.facturasPublicas')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.facturaPublicaList.total')}</span>}
       </div>
 
       <div style={styles.tableCard}>
         {facturasQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.facturaPublicaList.loading')}</p>
         ) : facturasQ.error ? (
-          <p style={styles.msgError}>Failed to load facturas públicas.</p>
+          <p style={styles.msgError}>{t('ui.facturaPublicaList.failedToLoadFacturasPublicas')}</p>
         ) : facturas.length === 0 ? (
-          <p style={styles.msg}>No facturas públicas recorded.</p>
+          <p style={styles.msg}>{t('ui.facturaPublicaList.noFacturasPublicasRecorded')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -134,15 +136,15 @@ export function FacturaPublicaList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.facturaPublicaList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.facturaPublicaList.page')}{page} {t('ui.facturaPublicaList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.facturaPublicaList.next')}
                 </button>
               </div>
             )}

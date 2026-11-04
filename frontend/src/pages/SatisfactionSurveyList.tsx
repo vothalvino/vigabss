@@ -25,6 +25,7 @@ import {
   cancelBtn,
 } from '@/components/ClientFormModal';
 import { ClientPicker } from '@/components/ClientPicker';
+import { useTranslation } from 'react-i18next';
 
 interface Survey {
   id: number;
@@ -79,6 +80,7 @@ function MetricCard({ label, value, hint }: { label: string; value: string; hint
 }
 
 function NewSurveyModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ client_id: '', ticket_id: '', survey_type: 'nps', channel: 'email' });
   const [error, setError] = useState('');
 
@@ -105,9 +107,9 @@ function NewSurveyModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="New Survey">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.satisfactionSurveyList.newSurvey')}>
       <div style={{ ...modalBox, width: 420 }}>
-        <h3 style={{ margin: '0 0 1rem' }}>New Survey</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.satisfactionSurveyList.newSurvey')}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <ClientPicker
@@ -115,25 +117,25 @@ function NewSurveyModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
             onChange={(id) => setForm(p => ({ ...p, client_id: id ? String(id) : '' }))}
           />
 
-          <label style={labelStyle}>Ticket ID</label>
+          <label style={labelStyle}>{t('ui.satisfactionSurveyList.ticketId')}</label>
           <input style={inputStyle} type="number" min={1} value={form.ticket_id}
             onChange={e => setForm(p => ({ ...p, ticket_id: e.target.value }))} />
 
-          <label style={labelStyle}>Type</label>
+          <label style={labelStyle}>{t('ui.satisfactionSurveyList.type')}</label>
           <select style={inputStyle} value={form.survey_type}
             onChange={e => setForm(p => ({ ...p, survey_type: e.target.value }))}>
-            <option value="nps">NPS (0-10)</option>
-            <option value="csat">CSAT (1-5)</option>
+            <option value="nps">{t('ui.satisfactionSurveyList.nps010')}</option>
+            <option value="csat">{t('ui.satisfactionSurveyList.csat15')}</option>
           </select>
 
-          <label style={labelStyle}>Channel</label>
+          <label style={labelStyle}>{t('ui.satisfactionSurveyList.channel')}</label>
           <select style={inputStyle} value={form.channel}
             onChange={e => setForm(p => ({ ...p, channel: e.target.value }))}>
             {['email', 'sms', 'portal', 'in_person'].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.satisfactionSurveyList.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : 'Create'}
             </button>
@@ -145,6 +147,7 @@ function NewSurveyModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 }
 
 function RespondModal({ survey, onClose, onSaved }: { survey: Survey; onClose: () => void; onSaved: () => void }) {
+  const { t } = useTranslation();
   const isNps = survey.survey_type === 'nps';
   const [score, setScore] = useState('');
   const [comment, setComment] = useState('');
@@ -172,21 +175,21 @@ function RespondModal({ survey, onClose, onSaved }: { survey: Survey; onClose: (
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Record Response">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.satisfactionSurveyList.recordResponse')}>
       <div style={{ ...modalBox, width: 420 }}>
-        <h3 style={{ margin: '0 0 1rem' }}>Record Response — Survey #{survey.id}</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.satisfactionSurveyList.recordResponseSurvey')}{survey.id}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Score * ({isNps ? '0-10' : '1-5'})</label>
+          <label style={labelStyle}>{t('ui.satisfactionSurveyList.score')}{isNps ? '0-10' : '1-5'})</label>
           <input style={inputStyle} type="number" min={isNps ? 0 : 1} max={isNps ? 10 : 5} value={score} autoFocus
             onChange={e => setScore(e.target.value)} required />
 
-          <label style={labelStyle}>Comment</label>
+          <label style={labelStyle}>{t('ui.satisfactionSurveyList.comment')}</label>
           <textarea style={{ ...inputStyle, minHeight: 70 }} value={comment}
             onChange={e => setComment(e.target.value)} />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.satisfactionSurveyList.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : 'Save response'}
             </button>
@@ -198,6 +201,7 @@ function RespondModal({ survey, onClose, onSaved }: { survey: Survey; onClose: (
 }
 
 export function SatisfactionSurveyList() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -227,28 +231,28 @@ export function SatisfactionSurveyList() {
   return (
     <div style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0 }}>Satisfaction Surveys</h2>
+        <h2 style={{ margin: 0 }}>{t('ui.satisfactionSurveyList.satisfactionSurveys')}</h2>
         {canCreate && (
-          <button type="button" style={submitBtn} onClick={() => setShowCreate(true)}>+ New Survey</button>
+          <button type="button" style={submitBtn} onClick={() => setShowCreate(true)}>{t('ui.satisfactionSurveyList.newSurvey2')}</button>
         )}
       </div>
 
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 0 }}>
-        CSAT surveys are sent automatically when tickets are resolved. NPS surveys can be sent manually.
+        {t('ui.satisfactionSurveyList.csatSurveysAreSentAutomatically')}
       </p>
 
       {metrics && (
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '0.5rem 0 1.25rem' }}>
-          <MetricCard label="NPS score" value={metrics.nps.score === null ? '—' : String(metrics.nps.score)}
+          <MetricCard label={t('ui.satisfactionSurveyList.npsScore')} value={metrics.nps.score === null ? '—' : String(metrics.nps.score)}
             hint={`${metrics.nps.responses}/${metrics.nps.sent} responses`} />
-          <MetricCard label="CSAT average" value={metrics.csat.average === null ? '—' : `${metrics.csat.average}/5`}
+          <MetricCard label={t('ui.satisfactionSurveyList.csatAverage')} value={metrics.csat.average === null ? '—' : `${metrics.csat.average}/5`}
             hint={`${metrics.csat.responses}/${metrics.csat.sent} responses`} />
-          <MetricCard label="CSAT satisfaction" value={metrics.csat.satisfaction_pct === null ? '—' : `${metrics.csat.satisfaction_pct}%`}
+          <MetricCard label={t('ui.satisfactionSurveyList.csatSatisfaction')} value={metrics.csat.satisfaction_pct === null ? '—' : `${metrics.csat.satisfaction_pct}%`}
             hint="responses scoring 4-5" />
         </div>
       )}
 
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t('ui.satisfactionSurveyList.loading')}</p>}
       {error && <div style={errorBox}>{(error as Error).message}</div>}
 
       {data && (
@@ -257,18 +261,18 @@ export function SatisfactionSurveyList() {
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-strong)' }}>
               <th style={{ padding: '8px' }}>ID</th>
-              <th style={{ padding: '8px' }}>Client</th>
-              <th style={{ padding: '8px' }}>Ticket</th>
-              <th style={{ padding: '8px' }}>Type</th>
-              <th style={{ padding: '8px' }}>Channel</th>
-              <th style={{ padding: '8px' }}>Status</th>
-              <th style={{ padding: '8px', textAlign: 'right' }}>Score</th>
-              <th style={{ padding: '8px', textAlign: 'right' }}>Actions</th>
+              <th style={{ padding: '8px' }}>{t('ui.satisfactionSurveyList.client')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.satisfactionSurveyList.ticket')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.satisfactionSurveyList.type')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.satisfactionSurveyList.channel')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.satisfactionSurveyList.status')}</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.satisfactionSurveyList.score2')}</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.satisfactionSurveyList.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {data.data.length === 0 && (
-              <tr><td colSpan={8} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No surveys yet.</td></tr>
+              <tr><td colSpan={8} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{t('ui.satisfactionSurveyList.noSurveysYet')}</td></tr>
             )}
             {data.data.map(s => (
               <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -283,11 +287,11 @@ export function SatisfactionSurveyList() {
                   {canCreate && s.status === 'pending' && (
                     <button type="button" style={{ ...submitBtn, padding: '4px 10px', marginRight: 6 }}
                       disabled={sendMutation.isPending}
-                      onClick={() => sendMutation.mutate(s.id)}>Send</button>
+                      onClick={() => sendMutation.mutate(s.id)}>{t('ui.satisfactionSurveyList.send')}</button>
                   )}
                   {canUpdate && s.status !== 'responded' && (
                     <button type="button" style={{ ...cancelBtn, padding: '4px 10px' }}
-                      onClick={() => setRespondTo(s)}>Respond</button>
+                      onClick={() => setRespondTo(s)}>{t('ui.satisfactionSurveyList.respond')}</button>
                   )}
                 </td>
               </tr>

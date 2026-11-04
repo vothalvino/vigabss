@@ -194,7 +194,7 @@ function VendorFormModal({ vendor, onClose, onSaved }: VendorFormModalProps) {
       <div style={modalStyles.panel}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{isEdit ? t('vendors.editTitle') : t('vendors.newTitle')}</h3>
-          <button type="button" style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.vendorList.close')}>✕</button>
         </div>
         {error && <p style={modalStyles.error}>{error}</p>}
         <form onSubmit={handleSubmit} style={modalStyles.form}>
@@ -245,7 +245,7 @@ function VendorFormModal({ vendor, onClose, onSaved }: VendorFormModalProps) {
             <label style={modalStyles.label}>
               {t('vendors.form.paymentTerms')}
               <input style={modalStyles.input} maxLength={100} value={form.payment_terms}
-                onChange={e => set('payment_terms', e.target.value)} placeholder="Net 30" />
+                onChange={e => set('payment_terms', e.target.value)} placeholder={t('ui.vendorList.net30')} />
             </label>
             <label style={modalStyles.label}>
               {t('vendors.form.currency')}

@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,6 +74,7 @@ async function fetchCatalog(value: string, search: string): Promise<CatalogRespo
 // ---------------------------------------------------------------------------
 
 export function SatCatalogList() {
+  const { t } = useTranslation();
   const [catalog, setCatalog] = useState(CATALOGS[0].value);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -113,17 +115,17 @@ export function SatCatalogList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📚 SAT Catalogs</h1>
-        {enabled && catalogQ.data && rows.length > 0 && <span style={styles.countBadge}>{rows.length} rows</span>}
+        <h1 style={styles.pageTitle}>{t('ui.satCatalogList.satCatalogs')}</h1>
+        {enabled && catalogQ.data && rows.length > 0 && <span style={styles.countBadge}>{rows.length} {t('ui.satCatalogList.rows')}</span>}
       </div>
 
       <div style={{ ...styles.filterRow, flexWrap: 'wrap' }}>
-        <label style={styles.filterLabel}>Catalog:</label>
+        <label style={styles.filterLabel}>{t('ui.satCatalogList.catalog')}</label>
         <select
           style={styles.filterSelect}
           value={catalog}
           onChange={e => onCatalogChange(e.target.value)}
-          aria-label="Select catalog"
+          aria-label={t('ui.satCatalogList.selectCatalog')}
         >
           {CATALOGS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
@@ -135,23 +137,23 @@ export function SatCatalogList() {
               type="text"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              placeholder="Search code or description"
-              aria-label="Search catalog"
+              placeholder={t('ui.satCatalogList.searchCodeOrDescription')}
+              aria-label={t('ui.satCatalogList.searchCatalog')}
             />
-            <button type="submit" style={styles.btnPrimary}>Search</button>
+            <button type="submit" style={styles.btnPrimary}>{t('ui.satCatalogList.search')}</button>
           </form>
         )}
       </div>
 
       <div style={styles.tableCard}>
         {selected.searchable && !enabled ? (
-          <p style={styles.msg}>Enter a search term to look up {selected.label.toLowerCase()}.</p>
+          <p style={styles.msg}>{t('ui.satCatalogList.enterASearchTermTo')}{selected.label.toLowerCase()}.</p>
         ) : catalogQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.satCatalogList.loading')}</p>
         ) : catalogQ.error ? (
-          <p style={styles.msgError}>Failed to load catalog.</p>
+          <p style={styles.msgError}>{t('ui.satCatalogList.failedToLoadCatalog')}</p>
         ) : rows.length === 0 ? (
-          <p style={styles.msg}>No entries found.</p>
+          <p style={styles.msg}>{t('ui.satCatalogList.noEntriesFound')}</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={styles.table}>

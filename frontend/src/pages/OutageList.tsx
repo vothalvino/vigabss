@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -107,6 +108,7 @@ function SeverityBadge({ severity }: { severity: string }) {
 // ---------------------------------------------------------------------------
 
 export function OutageList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -127,12 +129,12 @@ export function OutageList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🚧 Outages</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.outageList.outages')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.outageList.total')}</span>}
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.outageList.status')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -144,18 +146,18 @@ export function OutageList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.outageList.clearFilter')}
           </button>
         )}
       </div>
 
       <div style={styles.tableCard}>
         {outagesQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.outageList.loading')}</p>
         ) : outagesQ.error ? (
-          <p style={styles.msgError}>Failed to load outages.</p>
+          <p style={styles.msgError}>{t('ui.outageList.failedToLoadOutages')}</p>
         ) : outages.length === 0 ? (
-          <p style={styles.msg}>No outages found{statusFilter ? ` with status "${statusFilter.replace(/_/g, ' ')}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.outageList.noOutagesFound')}{statusFilter ? ` with status "${statusFilter.replace(/_/g, ' ')}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -187,15 +189,15 @@ export function OutageList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.outageList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.outageList.page')}{page} {t('ui.outageList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.outageList.next')}
                 </button>
               </div>
             )}

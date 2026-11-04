@@ -16,6 +16,7 @@ import {
   type KpiModel, type SiteModel, type DeviceModel, type EventModel, type DeviceStatus,
 } from './consoleModel';
 import { canOpenConsoleRoute } from './consoleAccess';
+import { useTranslation } from 'react-i18next';
 
 // Sparkline now lives in @/components/ui/Sparkline (shared across pages);
 // re-exported here so any existing external import of it from this module
@@ -41,6 +42,7 @@ function cpuColor(v: number | null): string {
 // ---------------------------------------------------------------------------
 
 export function KpiRow({ kpis: k }: { kpis: KpiModel }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const role = user?.role ?? '';
@@ -73,7 +75,7 @@ export function KpiRow({ kpis: k }: { kpis: KpiModel }) {
       {role === 'admin' && (
         <div className={linkClass('/clients')} {...linkProps('/clients', 'Active Clients — open client list')}>
           <div className="fi-kpi-top">
-            <span className="fi-kpi-label">Active Clients</span>
+            <span className="fi-kpi-label">{t('ui.consoleWidgets.activeClients')}</span>
             {k.activeClients.trend && <span className="fi-trend">▲ {k.activeClients.trend}</span>}
           </div>
           <div className="fi-kpi-num">{k.activeClients.value}</div>
@@ -83,7 +85,7 @@ export function KpiRow({ kpis: k }: { kpis: KpiModel }) {
       {/* MRR */}
       <div className="fi-kpi">
         <div className="fi-kpi-top">
-          <span className="fi-kpi-label">MRR</span>
+          <span className="fi-kpi-label">{t('ui.consoleWidgets.mrr')}</span>
           {k.mrr.trend && <span className="fi-trend">▲ {k.mrr.trend}</span>}
         </div>
         <div className="fi-kpi-num">
@@ -96,7 +98,7 @@ export function KpiRow({ kpis: k }: { kpis: KpiModel }) {
       {/* devices online — jumps to the device map */}
       <div className={linkClass('/devices')} {...linkProps('/devices', 'Devices Online — open device map')}>
         <div className="fi-kpi-top">
-          <span className="fi-kpi-label">Devices Online</span>
+          <span className="fi-kpi-label">{t('ui.consoleWidgets.devicesOnline')}</span>
           <span className="fi-dot" style={{ background: 'var(--success)' }} />
         </div>
         <div className="fi-kpi-num">
@@ -109,7 +111,7 @@ export function KpiRow({ kpis: k }: { kpis: KpiModel }) {
       {/* live sessions */}
       <div className="fi-kpi">
         <div className="fi-kpi-top">
-          <span className="fi-kpi-label">Live Sessions</span>
+          <span className="fi-kpi-label">{t('ui.consoleWidgets.liveSessions')}</span>
           <span className="fi-dot fi-live" style={{ background: 'var(--success)' }} />
         </div>
         <div className="fi-kpi-num">{k.liveSessions.value}</div>
@@ -118,7 +120,7 @@ export function KpiRow({ kpis: k }: { kpis: KpiModel }) {
       {/* open tickets — jumps to the ticket list pre-filtered to open */}
       <div className={linkClass('/tickets?status=open')} {...linkProps('/tickets?status=open', 'Open Tickets — open ticket list filtered to open')}>
         <div className="fi-kpi-top">
-          <span className="fi-kpi-label">Open Tickets</span>
+          <span className="fi-kpi-label">{t('ui.consoleWidgets.openTickets')}</span>
           {k.openTickets.sla && <span className="fi-kpi-label" style={{ color: 'var(--warning)' }}>{k.openTickets.sla}</span>}
         </div>
         <div className="fi-kpi-num">{k.openTickets.value}</div>
@@ -132,7 +134,7 @@ export function KpiRow({ kpis: k }: { kpis: KpiModel }) {
       {(role === 'admin' || role === 'billing') && (
         <div className={linkClass('/invoices?status=overdue', ' accent')} {...linkProps('/invoices?status=overdue', 'Overdue — open invoice list filtered to overdue')}>
           <div className="fi-kpi-top">
-            <span className="fi-kpi-label" style={{ color: 'var(--warning)' }}>Overdue</span>
+            <span className="fi-kpi-label" style={{ color: 'var(--warning)' }}>{t('ui.consoleWidgets.overdue')}</span>
             <span className="fi-dot fi-live" style={{ background: 'var(--warning)' }} />
           </div>
           <div className="fi-kpi-num" style={{ color: 'var(--warning)' }}>
@@ -168,6 +170,7 @@ export function ThroughputChart({
   chart?: ChartModel;
   emptyMessage?: string;
 }) {
+  const { t } = useTranslation();
   // Point inspector: hover follows the cursor; click pins the tooltip in place
   // (click again or Escape releases it). Arrow keys step through buckets.
   const [hover, setHover] = useState<number | null>(null);
@@ -192,8 +195,8 @@ export function ThroughputChart({
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
       {chart && (
         <div className="fi-legend">
-          <span className="sw" style={{ background: 'var(--accent)' }} />Ingress
-          <span className="sw" style={{ background: 'var(--text-dimmed)', marginLeft: 8 }} />Egress
+          <span className="sw" style={{ background: 'var(--accent)' }} />{t('ui.consoleWidgets.ingress')}
+          <span className="sw" style={{ background: 'var(--text-dimmed)', marginLeft: 8 }} />{t('ui.consoleWidgets.egress')}
         </div>
       )}
       <div className="fi-tabs">
@@ -206,7 +209,7 @@ export function ThroughputChart({
 
   if (!chart) {
     return (
-      <Card title="Network Throughput" actions={legend} style={{ height: '100%' }}>
+      <Card title={t('ui.consoleWidgets.networkThroughput')} actions={legend} style={{ height: '100%' }}>
         <div className="fi-panel-empty" style={{ minHeight: 200 }}>{emptyMessage ?? 'No throughput data.'}</div>
       </Card>
     );
@@ -215,11 +218,11 @@ export function ThroughputChart({
   const pct = (v: number, span: number) => `${((v / span) * 100).toFixed(2)}%`;
 
   return (
-    <Card title="Network Throughput" actions={legend} style={{ height: '100%' }}>
+    <Card title={t('ui.consoleWidgets.networkThroughput')} actions={legend} style={{ height: '100%' }}>
       <div
         className="fi-chart-hit"
         role="application"
-        aria-label="Network throughput chart — hover or use arrow keys to inspect points, click to pin"
+        aria-label={t('ui.consoleWidgets.networkThroughputChartHoverOr')}
         tabIndex={0}
         onPointerMove={(e) => { if (!pinned) setHover(locate(e)); }}
         onPointerLeave={() => { if (!pinned) setHover(null); }}
@@ -271,18 +274,18 @@ export function ThroughputChart({
               role="status"
             >
               <div className="tt">{tipTime(hp.ts, range)}{pinned ? ' · pinned' : ''}</div>
-              <div className="tr"><span className="sw" style={{ background: 'var(--accent)' }} />Ingress<b>{fmtBps(hp.in_bps)}</b></div>
-              <div className="tr"><span className="sw" style={{ background: 'var(--text-dimmed)' }} />Egress<b>{fmtBps(hp.out_bps)}</b></div>
+              <div className="tr"><span className="sw" style={{ background: 'var(--accent)' }} />{t('ui.consoleWidgets.ingress')}<b>{fmtBps(hp.in_bps)}</b></div>
+              <div className="tr"><span className="sw" style={{ background: 'var(--text-dimmed)' }} />{t('ui.consoleWidgets.egress')}<b>{fmtBps(hp.out_bps)}</b></div>
             </div>
           </>
         )}
       </div>
       <div className="fi-chart-stats">
-        <div className="fi-stat"><span className="k">PEAK</span><span className="v">{chart.peak.value} <small>{chart.peak.unit}</small></span></div>
-        <div className="fi-stat"><span className="k">AVG</span><span className="v">{chart.avg.value} <small>{chart.avg.unit}</small></span></div>
-        <div className="fi-stat"><span className="k">95TH %ILE</span><span className="v">{chart.p95.value} <small>{chart.p95.unit}</small></span></div>
+        <div className="fi-stat"><span className="k">{t('ui.consoleWidgets.peak')}</span><span className="v">{chart.peak.value} <small>{chart.peak.unit}</small></span></div>
+        <div className="fi-stat"><span className="k">{t('ui.consoleWidgets.avg')}</span><span className="v">{chart.avg.value} <small>{chart.avg.unit}</small></span></div>
+        <div className="fi-stat"><span className="k">{t('ui.consoleWidgets.t95thIle')}</span><span className="v">{chart.p95.value} <small>{chart.p95.unit}</small></span></div>
         <div style={{ flex: 1 }} />
-        <div className="fi-stat" style={{ alignItems: 'flex-end' }}><span className="k">95/5 COMMIT</span><span className="v" style={{ color: 'var(--accent)' }}>{chart.commit == null ? '—' : `${chart.commit}% used`}</span></div>
+        <div className="fi-stat" style={{ alignItems: 'flex-end' }}><span className="k">{t('ui.consoleWidgets.t955Commit')}</span><span className="v" style={{ color: 'var(--accent)' }}>{chart.commit == null ? '—' : `${chart.commit}% used`}</span></div>
       </div>
     </Card>
   );
@@ -293,17 +296,18 @@ export function ThroughputChart({
 // ---------------------------------------------------------------------------
 
 export function LiveEvents({ events }: { events: EventModel[] }) {
+  const { t } = useTranslation();
   const dot = (lvl: EventModel['level']) => (lvl === 'accent' ? 'var(--accent)' : `var(--${lvl})`);
   const actions = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span className="fi-dot fi-live" style={{ background: 'var(--success)' }} />
-      <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>last 5m</span>
+      <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t('ui.consoleWidgets.last5m')}</span>
     </div>
   );
   return (
-    <Card title="Live Events" actions={actions} style={{ height: '100%' }}>
+    <Card title={t('ui.consoleWidgets.liveEvents')} actions={actions} style={{ height: '100%' }}>
       {events.length === 0 ? (
-        <div className="fi-events-empty">No recent events.</div>
+        <div className="fi-events-empty">{t('ui.consoleWidgets.noRecentEvents')}</div>
       ) : (
         <div className="fi-events">
           {events.map((e, i) => (
@@ -324,15 +328,16 @@ export function LiveEvents({ events }: { events: EventModel[] }) {
 // ---------------------------------------------------------------------------
 
 export function SitesStrip({ sites }: { sites: SiteModel[] }) {
+  const { t } = useTranslation();
   const counts = sites.reduce<Record<string, number>>((a, s) => { a[s.status] = (a[s.status] || 0) + 1; return a; }, {});
   const cls: Record<SiteModel['status'], string> = { ok: '', warn: ' warn', crit: ' crit' };
   const barColor: Record<SiteModel['status'], string> = { ok: 'var(--success)', warn: 'var(--warning)', crit: 'var(--danger)' };
   const valColor: Record<SiteModel['status'], string> = { ok: 'var(--text-secondary)', warn: 'var(--warning)', crit: 'var(--danger)' };
   const summary = `${sites.length} sites · ${counts.ok || 0} healthy · ${counts.warn || 0} warn · ${counts.crit || 0} critical`;
   return (
-    <Card title="Sites & POPs" actions={<span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>{sites.length ? `${summary} · uplink util` : 'no POP telemetry'}</span>}>
+    <Card title={t('ui.consoleWidgets.sitesPops')} actions={<span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>{sites.length ? `${summary} · uplink util` : 'no POP telemetry'}</span>}>
       {sites.length === 0 ? (
-        <div className="fi-panel-empty">No POP telemetry yet — utilization appears once sites report uplink stats.</div>
+        <div className="fi-panel-empty">{t('ui.consoleWidgets.noPopTelemetryYetUtilization')}</div>
       ) : (
         <div className="fi-sites">
           {sites.map((s, i) => (
@@ -364,6 +369,7 @@ export function DeviceTable({
   onFilter: (f: DeviceFilter) => void;
   query: string;
 }) {
+  const { t } = useTranslation();
   let rows = devices;
   if (filter !== 'All') rows = rows.filter((d) => STATUS[d.status].label === filter);
   if (query.trim()) {
@@ -422,7 +428,7 @@ export function DeviceTable({
   );
 
   return (
-    <Card title="Network Devices" actions={actions} padding={false}>
+    <Card title={t('ui.consoleWidgets.networkDevices')} actions={actions} padding={false}>
       <div className="fi-table-wrap">
         <div style={{ minWidth: 880 }}>
           <Table columns={columns} rows={tableRows} empty={devices.length === 0 ? 'No device telemetry yet.' : 'No devices match this filter.'} />

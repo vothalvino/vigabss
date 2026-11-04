@@ -190,7 +190,7 @@ function ProfileForm({ initial, onSave, onClose, saving, editMode }: ProfileForm
       <div style={{ ...modalStyles.panel, maxWidth: 600 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('pppoe_service_profiles.edit', 'Edit Profile') : t('pppoe_service_profiles.new', 'New Profile')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.pppoeServiceProfileList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -203,7 +203,7 @@ function ProfileForm({ initial, onSave, onClose, saving, editMode }: ProfileForm
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
               {t('pppoe_service_profiles.service_name_hint', 'PPPoE Access Concentrator service name. Must match pppoe-service-name on the NAS. Leave blank to accept any.')}
             </div>
-            <input style={inp} value={serviceName} onChange={e => setServiceName(e.target.value)} placeholder="e.g. ISP-PPPoE" />
+            <input style={inp} value={serviceName} onChange={e => setServiceName(e.target.value)} placeholder={t('ui.pppoeServiceProfileList.eGIspPppoe')} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
@@ -225,7 +225,7 @@ function ProfileForm({ initial, onSave, onClose, saving, editMode }: ProfileForm
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
               {t('pppoe_service_profiles.auth_methods_hint', 'Comma-separated: pap,chap,mschapv2. Reference only — FreeRADIUS derives all three from Cleartext-Password.')}
             </div>
-            <input style={inp} value={authMethods} onChange={e => setAuthMethods(e.target.value)} placeholder="pap,chap,mschapv2" />
+            <input style={inp} value={authMethods} onChange={e => setAuthMethods(e.target.value)} placeholder={t('ui.pppoeServiceProfileList.papChapMschapv2')} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
@@ -242,11 +242,11 @@ function ProfileForm({ initial, onSave, onClose, saving, editMode }: ProfileForm
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div>
               <label style={modalStyles.label}>{t('pppoe_service_profiles.session_timeout', 'Session Timeout (s)')}</label>
-              <input style={inp} type="number" min={0} value={sessionTimeout} onChange={e => setSessionTimeout(e.target.value)} placeholder="Leave blank = plan default" />
+              <input style={inp} type="number" min={0} value={sessionTimeout} onChange={e => setSessionTimeout(e.target.value)} placeholder={t('ui.pppoeServiceProfileList.leaveBlankPlanDefault')} />
             </div>
             <div>
               <label style={modalStyles.label}>{t('pppoe_service_profiles.idle_timeout', 'Idle Timeout (s)')}</label>
-              <input style={inp} type="number" min={0} value={idleTimeout} onChange={e => setIdleTimeout(e.target.value)} placeholder="Leave blank = plan default" />
+              <input style={inp} type="number" min={0} value={idleTimeout} onChange={e => setIdleTimeout(e.target.value)} placeholder={t('ui.pppoeServiceProfileList.leaveBlankPlanDefault')} />
             </div>
           </div>
 
@@ -345,7 +345,7 @@ function ProfileForm({ initial, onSave, onClose, saving, editMode }: ProfileForm
           </div>
 
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.pppoeServiceProfileList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -417,7 +417,7 @@ export function PppoeServiceProfileList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('pppoe_service_profiles.title', 'PPPoE Service Profiles')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.pppoeServiceProfileList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('pppoe_service_profiles.new', 'New Profile')}
         </button>
@@ -430,9 +430,9 @@ export function PppoeServiceProfileList() {
       )}
 
       <div style={styles.filterRow}>
-        <span style={styles.filterLabel}>Status:</span>
+        <span style={styles.filterLabel}>{t('ui.pppoeServiceProfileList.status')}</span>
         <select style={styles.filterSelect} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">All</option>
+          <option value="">{t('ui.pppoeServiceProfileList.all')}</option>
           {STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
         </select>
       </div>
@@ -449,13 +449,13 @@ export function PppoeServiceProfileList() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>AC Service Name</th>
-                  <th style={styles.th}>MTU/MRU</th>
+                  <th style={styles.th}>{t('ui.pppoeServiceProfileList.name')}</th>
+                  <th style={styles.th}>{t('ui.pppoeServiceProfileList.acServiceName')}</th>
+                  <th style={styles.th}>{t('ui.pppoeServiceProfileList.mtuMru')}</th>
                   <th style={styles.th}>DNS</th>
-                  <th style={styles.th}>Auth Methods</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.pppoeServiceProfileList.authMethods')}</th>
+                  <th style={styles.th}>{t('ui.pppoeServiceProfileList.status2')}</th>
+                  <th style={styles.th}>{t('ui.pppoeServiceProfileList.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -472,8 +472,8 @@ export function PppoeServiceProfileList() {
                     <td style={styles.tdMono}>{p.auth_methods}</td>
                     <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(p)}>Edit</button>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(p.id)}>Delete</button>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(p)}>{t('ui.pppoeServiceProfileList.edit')}</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(p.id)}>{t('ui.pppoeServiceProfileList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -485,9 +485,9 @@ export function PppoeServiceProfileList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.pppoeServiceProfileList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.pppoeServiceProfileList.page')}{page} {t('ui.pppoeServiceProfileList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.pppoeServiceProfileList.next')}</button>
         </div>
       )}
 
@@ -516,8 +516,8 @@ export function PppoeServiceProfileList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('pppoe_service_profiles.delete_confirm', 'Delete this service profile?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.pppoeServiceProfileList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.pppoeServiceProfileList.delete')}</button>
             </div>
           </div>
         </div>

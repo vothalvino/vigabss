@@ -11,6 +11,7 @@ import { useMutation } from '@/api/useMutation';
 import i18n from '@/i18n';
 import { api } from '@/api/client';
 import { parseApiError } from '@/api/errors';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -138,6 +139,7 @@ export interface ClientFormModalProps {
 }
 
 export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormModalProps) {
+  const { t } = useTranslation();
   const fieldId = useId();
   const [form, setForm] = useState<ClientFormBody>({
     name: initial?.name ?? '',
@@ -229,7 +231,7 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
         <h3 style={{ margin: '0 0 1rem' }}>{title}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label htmlFor={`${fieldId}-1`} style={labelStyle}>Name *</label>
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ui.clientFormModal.name')}</label>
           <input id={`${fieldId}-1`}
             style={inputStyle}
             type="text"
@@ -241,24 +243,24 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
 
           <div style={twoCol}>
             <div>
-              <label htmlFor={`${fieldId}-2`} style={labelStyle}>Email</label>
+              <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('ui.clientFormModal.email')}</label>
               <input id={`${fieldId}-2`} style={inputStyle} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
             </div>
             <div>
-              <label htmlFor={`${fieldId}-3`} style={labelStyle}>Phone</label>
+              <label htmlFor={`${fieldId}-3`} style={labelStyle}>{t('ui.clientFormModal.phone')}</label>
               <input id={`${fieldId}-3`} style={inputStyle} type="text" value={form.phone} onChange={e => set('phone', e.target.value)} />
             </div>
           </div>
 
           <div style={twoCol}>
             <div>
-              <label htmlFor={`${fieldId}-4`} style={labelStyle}>Type</label>
+              <label htmlFor={`${fieldId}-4`} style={labelStyle}>{t('ui.clientFormModal.type')}</label>
               <select id={`${fieldId}-4`} style={inputStyle} value={form.client_type} onChange={e => set('client_type', e.target.value)}>
                 {CLIENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label htmlFor={`${fieldId}-5`} style={labelStyle}>Status</label>
+              <label htmlFor={`${fieldId}-5`} style={labelStyle}>{t('ui.clientFormModal.status')}</label>
               <select id={`${fieldId}-5`} style={inputStyle} value={form.status} onChange={e => set('status', e.target.value)}>
                 {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -267,36 +269,36 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
 
           <div style={twoCol}>
             <div>
-              <label htmlFor={`${fieldId}-6`} style={labelStyle}>Tax ID</label>
+              <label htmlFor={`${fieldId}-6`} style={labelStyle}>{t('ui.clientFormModal.taxId')}</label>
               <input id={`${fieldId}-6`} style={inputStyle} type="text" value={form.tax_id} onChange={e => set('tax_id', e.target.value)} />
             </div>
             <div>
-              <label htmlFor={`${fieldId}-7`} style={labelStyle}>Locale</label>
+              <label htmlFor={`${fieldId}-7`} style={labelStyle}>{t('ui.clientFormModal.locale')}</label>
               <select id={`${fieldId}-7`} style={inputStyle} value={form.locale} onChange={e => set('locale', e.target.value)}>
                 {LOCALES.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
           </div>
 
-          <label htmlFor={`${fieldId}-8`} style={labelStyle}>Address</label>
+          <label htmlFor={`${fieldId}-8`} style={labelStyle}>{t('ui.clientFormModal.address')}</label>
           <input id={`${fieldId}-8`} style={inputStyle} type="text" value={form.address} onChange={e => set('address', e.target.value)} />
 
           <div style={threeCol}>
             <div>
-              <label htmlFor={`${fieldId}-9`} style={labelStyle}>City</label>
+              <label htmlFor={`${fieldId}-9`} style={labelStyle}>{t('ui.clientFormModal.city')}</label>
               <input id={`${fieldId}-9`} style={inputStyle} type="text" value={form.city} onChange={e => set('city', e.target.value)} />
             </div>
             <div>
-              <label htmlFor={`${fieldId}-10`} style={labelStyle}>State</label>
+              <label htmlFor={`${fieldId}-10`} style={labelStyle}>{t('ui.clientFormModal.state')}</label>
               <input id={`${fieldId}-10`} style={inputStyle} type="text" value={form.state} onChange={e => set('state', e.target.value)} />
             </div>
             <div>
-              <label htmlFor={`${fieldId}-11`} style={labelStyle}>ZIP</label>
+              <label htmlFor={`${fieldId}-11`} style={labelStyle}>{t('ui.clientFormModal.zip')}</label>
               <input id={`${fieldId}-11`} style={inputStyle} type="text" value={form.zip_code} onChange={e => set('zip_code', e.target.value)} />
             </div>
           </div>
 
-          <label htmlFor={`${fieldId}-12`} style={labelStyle}>Country (ISO-2)</label>
+          <label htmlFor={`${fieldId}-12`} style={labelStyle}>{t('ui.clientFormModal.countryIso2')}</label>
           <input id={`${fieldId}-12`}
             style={inputStyle}
             type="text"
@@ -313,7 +315,7 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
                 onChange={e => set('curp', e.target.value.toUpperCase())} />
             </div>
             <div>
-              <label htmlFor={`${fieldId}-14`} style={labelStyle}>Risk rating</label>
+              <label htmlFor={`${fieldId}-14`} style={labelStyle}>{t('ui.clientFormModal.riskRating')}</label>
               <select id={`${fieldId}-14`} style={inputStyle} value={form.risk_rating} onChange={e => set('risk_rating', e.target.value)}>
                 {RISK_RATINGS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -322,7 +324,7 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
 
           <div style={twoCol}>
             <div>
-              <label htmlFor={`${fieldId}-15`} style={labelStyle}>Credit score (0–1000)</label>
+              <label htmlFor={`${fieldId}-15`} style={labelStyle}>{t('ui.clientFormModal.creditScore01000')}</label>
               <input id={`${fieldId}-15`} style={inputStyle} type="number" min={0} max={1000} value={numeric.credit_score}
                 onChange={e => setNumeric(p => ({ ...p, credit_score: e.target.value }))} />
             </div>
@@ -331,19 +333,19 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
 
           <div style={twoCol}>
             <div>
-              <label htmlFor={`${fieldId}-16`} style={labelStyle}>Latitude</label>
+              <label htmlFor={`${fieldId}-16`} style={labelStyle}>{t('ui.clientFormModal.latitude')}</label>
               <input id={`${fieldId}-16`} style={inputStyle} type="number" step="any" min={-90} max={90} value={numeric.latitude}
                 onChange={e => setNumeric(p => ({ ...p, latitude: e.target.value }))} />
             </div>
             <div>
-              <label htmlFor={`${fieldId}-17`} style={labelStyle}>Longitude</label>
+              <label htmlFor={`${fieldId}-17`} style={labelStyle}>{t('ui.clientFormModal.longitude')}</label>
               <input id={`${fieldId}-17`} style={inputStyle} type="number" step="any" min={-180} max={180} value={numeric.longitude}
                 onChange={e => setNumeric(p => ({ ...p, longitude: e.target.value }))} />
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.clientFormModal.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : mode === 'create' ? 'Create' : 'Save'}
             </button>
