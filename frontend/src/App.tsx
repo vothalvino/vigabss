@@ -22,6 +22,7 @@ import { NotFound } from '@/pages/NotFound';
 import { LoadingState } from '@/components/FetchStates';
 import { DarkModeProvider } from '@/auth/DarkModeContext';
 import { AccentProvider } from '@/auth/AccentContext';
+import { DialogFocusManager } from '@/components/DialogFocusManager';
 
 // Every page but the sign-in screens is its own chunk, loaded on first visit
 // (FE-21): the app shipped as one 3.9 MB bundle. The layouts show a loading
@@ -212,6 +213,7 @@ export function App() {
       <AuthProvider>
         <PortalAuthProvider>
           <BrowserRouter>
+            <DialogFocusManager />
             <Suspense fallback={<LoadingState />}>
             <Routes>
               {/* Public */}

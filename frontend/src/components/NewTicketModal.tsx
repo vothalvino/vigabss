@@ -6,7 +6,7 @@
 // Assignment is left to the ticket page; this is a quick-create.
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import {
@@ -41,6 +41,7 @@ export interface NewTicketModalProps {
 }
 
 export function NewTicketModal({ lockedClientId, lockedClientName, onClose, onCreated }: NewTicketModalProps) {
+  const fieldId = useId();
   const { t } = useTranslation();
   const [form, setForm] = useState({
     subject: '', description: '', priority: 'medium', category: '', status: 'open',
@@ -78,35 +79,35 @@ export function NewTicketModal({ lockedClientId, lockedClientName, onClose, onCr
         <h3 style={{ margin: '0 0 1rem' }}>New Ticket</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Client</label>
-          <input style={{ ...inputStyle, background: 'var(--bg-body)', color: 'var(--text-muted)' }}
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>Client</label>
+          <input id={`${fieldId}-1`} style={{ ...inputStyle, background: 'var(--bg-body)', color: 'var(--text-muted)' }}
             value={lockedClientName ?? `Client #${lockedClientId}`} disabled />
 
-          <label style={labelStyle}>Subject *</label>
-          <input style={inputStyle} value={form.subject} onChange={set('subject')}
+          <label htmlFor={`${fieldId}-2`} style={labelStyle}>Subject *</label>
+          <input id={`${fieldId}-2`} style={inputStyle} value={form.subject} onChange={set('subject')}
             placeholder="Brief description of the issue" required />
 
-          <label style={labelStyle}>Description</label>
-          <textarea style={{ ...inputStyle, height: 80, resize: 'vertical' }}
+          <label htmlFor={`${fieldId}-3`} style={labelStyle}>Description</label>
+          <textarea id={`${fieldId}-3`} style={{ ...inputStyle, height: 80, resize: 'vertical' }}
             value={form.description} onChange={set('description')} placeholder="Detailed description (optional)" />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             <div>
-              <label style={labelStyle}>Priority</label>
-              <select style={inputStyle} value={form.priority} onChange={set('priority')}>
+              <label htmlFor={`${fieldId}-4`} style={labelStyle}>Priority</label>
+              <select id={`${fieldId}-4`} style={inputStyle} value={form.priority} onChange={set('priority')}>
                 {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Status</label>
-              <select style={inputStyle} value={form.status} onChange={set('status')}>
+              <label htmlFor={`${fieldId}-5`} style={labelStyle}>Status</label>
+              <select id={`${fieldId}-5`} style={inputStyle} value={form.status} onChange={set('status')}>
                 {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>)}
               </select>
             </div>
           </div>
 
-          <label style={labelStyle}>Category *</label>
-          <select style={inputStyle} value={form.category} onChange={set('category')} required>
+          <label htmlFor={`${fieldId}-6`} style={labelStyle}>Category *</label>
+          <select id={`${fieldId}-6`} style={inputStyle} value={form.category} onChange={set('category')} required>
             <option value="" disabled>{t('ticketList.selectCategory')}</option>
             {CATEGORIES.map(c => <option key={c} value={c}>{t(`ticketCategory.${c}`)}</option>)}
           </select>

@@ -88,7 +88,7 @@ function DeployResultDialog({ result, onClose }: DeployResultDialogProps) {
   const pushed = result.push_performed === true;
   return (
     <div style={modalStyles.backdrop} onClick={onClose}>
-      <div style={{ ...modalStyles.panel, maxWidth: 560 }} onClick={e => e.stopPropagation()} role="dialog" aria-label={t('config_templates.deploy_result_title')}>
+      <div style={{ ...modalStyles.panel, maxWidth: 560 }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('config_templates.deploy_result_title')}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{t('config_templates.deploy_result_title')}</h3>
           <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('common.close')}>x</button>

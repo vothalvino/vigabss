@@ -16,7 +16,7 @@
 // clients / contracts / product catalog so callers just render it.
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import {
@@ -98,6 +98,7 @@ export interface GenerateInvoiceModalProps {
 }
 
 export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose, onGenerated }: GenerateInvoiceModalProps) {
+  const fieldId = useId();
   const [clientId, setClientId] = useState(lockedClientId ? String(lockedClientId) : '');
   // Start with no line — the user picks the type (product / contract charge /
   // custom) via the buttons, so we never force an empty `required` product line
@@ -265,8 +266,8 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
                 {item.type === 'contract' && (
                   /* Contract charge: the only type that asks for a contract */
                   <>
-                    <label style={{ ...labelStyle, marginTop: 0 }}>Contract</label>
-                    <select
+                    <label htmlFor={`${fieldId}-1`} style={{ ...labelStyle, marginTop: 0 }}>Contract</label>
+                    <select id={`${fieldId}-1`}
                       style={inputStyle}
                       value={item.contractId}
                       onChange={e => updateItem(item.localId, { contractId: e.target.value })}
@@ -282,8 +283,8 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
                 {item.type === 'product' && (
                   /* Product: choose from the add-on catalog; price auto-fills (editable) */
                   <>
-                    <label style={{ ...labelStyle, marginTop: 0 }}>Product</label>
-                    <select
+                    <label htmlFor={`${fieldId}-2`} style={{ ...labelStyle, marginTop: 0 }}>Product</label>
+                    <select id={`${fieldId}-2`}
                       style={inputStyle}
                       value={item.productAddonId}
                       onChange={e => selectAddon(item.localId, e.target.value)}
@@ -305,13 +306,13 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
                     )}
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <div style={{ flex: 1 }}>
-                        <label style={labelStyle}>Quantity</label>
-                        <input style={inputStyle} type="number" min={isInventoryLinked ? '1' : '0.01'} step={isInventoryLinked ? '1' : 'any'} value={item.quantity}
+                        <label htmlFor={`${fieldId}-3`} style={labelStyle}>Quantity</label>
+                        <input id={`${fieldId}-3`} style={inputStyle} type="number" min={isInventoryLinked ? '1' : '0.01'} step={isInventoryLinked ? '1' : 'any'} value={item.quantity}
                           onChange={e => updateItem(item.localId, { quantity: e.target.value })} />
                       </div>
                       <div style={{ flex: 2 }}>
-                        <label style={labelStyle}>Unit Price</label>
-                        <input style={inputStyle} type="number" min="0.01" step="0.01" placeholder="0.00" value={item.unitPrice}
+                        <label htmlFor={`${fieldId}-4`} style={labelStyle}>Unit Price</label>
+                        <input id={`${fieldId}-4`} style={inputStyle} type="number" min="0.01" step="0.01" placeholder="0.00" value={item.unitPrice}
                           onChange={e => updateItem(item.localId, { unitPrice: e.target.value })} required />
                       </div>
                     </div>
@@ -321,18 +322,18 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
                 {item.type === 'custom' && (
                   /* Custom: free-text one-off charge */
                   <>
-                    <label style={{ ...labelStyle, marginTop: 0 }}>Description</label>
-                    <input style={inputStyle} type="text" placeholder="e.g. Installation fee" value={item.description}
+                    <label htmlFor={`${fieldId}-5`} style={{ ...labelStyle, marginTop: 0 }}>Description</label>
+                    <input id={`${fieldId}-5`} style={inputStyle} type="text" placeholder="e.g. Installation fee" value={item.description}
                       onChange={e => updateItem(item.localId, { description: e.target.value })} required />
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <div style={{ flex: 1 }}>
-                        <label style={labelStyle}>Quantity</label>
-                        <input style={inputStyle} type="number" min="0.01" step="any" value={item.quantity}
+                        <label htmlFor={`${fieldId}-6`} style={labelStyle}>Quantity</label>
+                        <input id={`${fieldId}-6`} style={inputStyle} type="number" min="0.01" step="any" value={item.quantity}
                           onChange={e => updateItem(item.localId, { quantity: e.target.value })} />
                       </div>
                       <div style={{ flex: 2 }}>
-                        <label style={labelStyle}>Unit Price</label>
-                        <input style={inputStyle} type="number" min="0.01" step="0.01" placeholder="0.00" value={item.unitPrice}
+                        <label htmlFor={`${fieldId}-7`} style={labelStyle}>Unit Price</label>
+                        <input id={`${fieldId}-7`} style={inputStyle} type="number" min="0.01" step="0.01" placeholder="0.00" value={item.unitPrice}
                           onChange={e => updateItem(item.localId, { unitPrice: e.target.value })} required />
                       </div>
                     </div>

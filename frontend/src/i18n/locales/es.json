@@ -693,6 +693,7 @@
     "quickSpeedTest": "Prueba de Velocidad"
   },
   "portalInvoices": {
+    "statusFilterLabel": "Filtrar por estado",
     "title": "Mis facturas",
     "table": {
       "invoiceNumber": "Factura #",

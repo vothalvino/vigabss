@@ -163,8 +163,12 @@ test('full operator workflow smoke test', async ({ page, request }) => {
   // Step 3 — Navigate to Clients; verify seeded + new client are present
   // -------------------------------------------------------------------------
   await page.goto('/clients');
-  await expect(page.getByText('John Doe')).toBeVisible({ timeout: 15_000 });
+  // Newest first: the new client is on page 1. The seeded John Doe is not
+  // once the persona seed adds 120 clients (FE-06), so search for him.
   await expect(page.getByText(clientName)).toBeVisible({ timeout: 15_000 });
+  await page.getByPlaceholder(/search/i).first().fill('John Doe');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('John Doe')).toBeVisible({ timeout: 15_000 });
 
   // -------------------------------------------------------------------------
   // Step 4 — Contracts → New Contract (assign plan to our test client)

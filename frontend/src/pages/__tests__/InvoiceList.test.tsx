@@ -14,9 +14,10 @@ import { InvoiceList } from '../InvoiceList';
 const mockApiGet = vi.fn();
 // The page shows the sandbox fiscal banner, which reads the signed-in user
 // (BIL-35); a user without cfdi_documents.view never sees it.
+const auth = vi.hoisted(() => ({ user: { id: 1, organization_id: 1, role: 'billing', permissions: [] as string[] } }));
 vi.mock('@/auth/AuthContext', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/auth/AuthContext')>()),
-  useAuth: () => ({ user: { id: 1, organization_id: 1, role: 'billing', permissions: [] } }),
+  useAuth: () => ({ user: auth.user }),
 }));
 vi.mock('@/api/client', () => ({
   // Pages reach the API through authedFetch (FE-20); pass it to the stubbed fetch.
@@ -61,6 +62,19 @@ describe('InvoiceList page', () => {
   it('renders the page heading', async () => {
     renderInvoiceList();
     await waitFor(() => expect(screen.getByText('🧾 Invoices')).toBeInTheDocument());
+  });
+
+  // FE-06: Generate Invoice showed for every role, read-only included.
+  it('offers Generate Invoice only to a user who may create invoices', async () => {
+    auth.user = { id: 1, organization_id: 1, role: 'billing', permissions: ['invoices.view', 'invoices.create'] };
+    const { unmount } = renderInvoiceList();
+    expect(await screen.findByRole('button', { name: /generate invoice/i })).toBeInTheDocument();
+    unmount();
+    auth.user = { id: 2, organization_id: 1, role: 'readonly', permissions: ['invoices.view'] };
+    renderInvoiceList();
+    await waitFor(() => expect(screen.getByText('🧾 Invoices')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /generate invoice/i })).toBeNull();
+    auth.user = { id: 1, organization_id: 1, role: 'billing', permissions: [] };
   });
 
   it('renders an invoice row after data loads', async () => {

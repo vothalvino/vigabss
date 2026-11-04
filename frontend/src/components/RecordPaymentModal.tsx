@@ -30,7 +30,7 @@
 //      and any remaining credit, before closing.
 // =============================================================================
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api, authedFetch } from '@/api/client';
@@ -150,6 +150,7 @@ export interface RecordPaymentModalProps {
 export function RecordPaymentModal({
   lockedClientId, lockedClientName, lockedInvoiceId, onClose, onRecorded,
 }: RecordPaymentModalProps) {
+  const fieldId = useId();
   const { t } = useTranslation();
   const TODAY = localToday();
   // Prime the currency field from the active organization (GET /auth/me's
@@ -337,8 +338,8 @@ export function RecordPaymentModal({
         <form onSubmit={handleSubmit}>
           {lockedClientId ? (
             <>
-              <label style={labelStyle}>{t('recordPayment.client')}</label>
-              <input style={{ ...inputStyle, background: 'var(--bg-body)', color: 'var(--text-muted)' }}
+              <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('recordPayment.client')}</label>
+              <input id={`${fieldId}-1`} style={{ ...inputStyle, background: 'var(--bg-body)', color: 'var(--text-muted)' }}
                 value={lockedClientName ?? `Client #${lockedClientId}`} disabled />
             </>
           ) : (
@@ -358,8 +359,8 @@ export function RecordPaymentModal({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             <div>
-              <label style={labelStyle}>{t('recordPayment.amount')} *</label>
-              <input type="number" step="0.01" min="0.01" style={inputStyle}
+              <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('recordPayment.amount')} *</label>
+              <input id={`${fieldId}-2`} type="number" step="0.01" min="0.01" style={inputStyle}
                 value={form.amount} onChange={e => setField('amount', e.target.value)} required disabled={paymentLocked} />
               {showExcessHint && (
                 <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
@@ -368,30 +369,31 @@ export function RecordPaymentModal({
               )}
             </div>
             <div>
-              <label style={labelStyle}>{t('recordPayment.currency')}</label>
-              <input type="text" maxLength={3} style={inputStyle}
+              <label htmlFor={`${fieldId}-3`} style={labelStyle}>{t('recordPayment.currency')}</label>
+              <input id={`${fieldId}-3`} type="text" maxLength={3} style={inputStyle}
                 value={form.currency} onChange={e => setField('currency', e.target.value.toUpperCase())} required disabled={paymentLocked} />
             </div>
           </div>
 
-          <label style={labelStyle}>{t('recordPayment.paymentMethod')}</label>
-          <select style={inputStyle} value={form.payment_method} onChange={e => setField('payment_method', e.target.value)} disabled={paymentLocked}>
+          <label htmlFor={`${fieldId}-4`} style={labelStyle}>{t('recordPayment.paymentMethod')}</label>
+          <select id={`${fieldId}-4`} style={inputStyle} value={form.payment_method} onChange={e => setField('payment_method', e.target.value)} disabled={paymentLocked}>
             {PAYMENT_METHODS.map(m => <option key={m} value={m}>{t(`paymentMethods.${m}`)}</option>)}
           </select>
 
-          <label style={labelStyle}>{t('recordPayment.status')}</label>
-          <select style={inputStyle} value={form.status} onChange={e => setField('status', e.target.value)} disabled={paymentLocked}>
+          <label htmlFor={`${fieldId}-5`} style={labelStyle}>{t('recordPayment.status')}</label>
+          <select id={`${fieldId}-5`} style={inputStyle} value={form.status} onChange={e => setField('status', e.target.value)} disabled={paymentLocked}>
             {STATUSES.map(s => <option key={s} value={s}>{t(`recordPayment.statusValues.${s}`)}</option>)}
           </select>
 
-          <label style={labelStyle}>{t('recordPayment.paymentDate')}</label>
-          <input type="date" style={inputStyle} value={form.payment_date} onChange={e => setField('payment_date', e.target.value)} required disabled={paymentLocked} />
+          <label htmlFor={`${fieldId}-6`} style={labelStyle}>{t('recordPayment.paymentDate')}</label>
+          <input id={`${fieldId}-6`} type="date" style={inputStyle} value={form.payment_date} onChange={e => setField('payment_date', e.target.value)} required disabled={paymentLocked} />
 
-          <label style={labelStyle}>{t('recordPayment.reference')}</label>
-          <input type="text" style={inputStyle} value={form.reference} onChange={e => setField('reference', e.target.value)}
+          <label htmlFor={`${fieldId}-7`} style={labelStyle}>{t('recordPayment.reference')}</label>
+          <input id={`${fieldId}-7`} type="text" style={inputStyle} value={form.reference} onChange={e => setField('reference', e.target.value)}
             placeholder={t('recordPayment.referencePlaceholder')} disabled={paymentLocked} />
 
-          <label style={labelStyle}>{t('recordPayment.invoicesHeading')}</label>
+          {/* A heading over the invoice checklist, not a field's label. */}
+          <div style={labelStyle}>{t('recordPayment.invoicesHeading')}</div>
           {numericClientId == null && (
             <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
               {t('recordPayment.selectClientFirst')}

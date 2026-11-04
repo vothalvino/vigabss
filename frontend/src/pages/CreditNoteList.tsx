@@ -8,7 +8,7 @@
 // All mutations go through the typed `api` client + React Query.
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
@@ -506,6 +506,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function CreditNoteList() {
+  const fieldId = useId();
   const queryClient = useQueryClient();
   const orgCurrency = useOrgCurrency();
   const { user } = useAuth();
@@ -567,8 +568,8 @@ export function CreditNoteList() {
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
-        <select style={styles.filterSelect} value={statusFilter} onChange={e => handleFilterChange(e.target.value)}>
+        <label htmlFor={`${fieldId}-1`} style={styles.filterLabel}>Status:</label>
+        <select id={`${fieldId}-1`} style={styles.filterSelect} value={statusFilter} onChange={e => handleFilterChange(e.target.value)}>
           {STATUS_FILTER_OPTIONS.map(s => <option key={s} value={s}>{s ? capitalize(s) : 'All'}</option>)}
         </select>
         {statusFilter && (

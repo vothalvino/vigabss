@@ -693,6 +693,7 @@
     "quickSpeedTest": "Speed Test"
   },
   "portalInvoices": {
+    "statusFilterLabel": "Filter by status",
     "title": "My Invoices",
     "table": {
       "invoiceNumber": "Invoice #",

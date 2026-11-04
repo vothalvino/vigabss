@@ -6,7 +6,7 @@
 // onSaved so the caller can refresh its own queries.
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useMutation } from '@/api/useMutation';
 import i18n from '@/i18n';
 import { api } from '@/api/client';
@@ -138,6 +138,7 @@ export interface ClientFormModalProps {
 }
 
 export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormModalProps) {
+  const fieldId = useId();
   const [form, setForm] = useState<ClientFormBody>({
     name: initial?.name ?? '',
     email: initial?.email ?? '',
@@ -228,8 +229,8 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
         <h3 style={{ margin: '0 0 1rem' }}>{title}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Name *</label>
-          <input
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>Name *</label>
+          <input id={`${fieldId}-1`}
             style={inputStyle}
             type="text"
             value={form.name}
@@ -240,25 +241,25 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>Email</label>
-              <input style={inputStyle} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+              <label htmlFor={`${fieldId}-2`} style={labelStyle}>Email</label>
+              <input id={`${fieldId}-2`} style={inputStyle} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>Phone</label>
-              <input style={inputStyle} type="text" value={form.phone} onChange={e => set('phone', e.target.value)} />
+              <label htmlFor={`${fieldId}-3`} style={labelStyle}>Phone</label>
+              <input id={`${fieldId}-3`} style={inputStyle} type="text" value={form.phone} onChange={e => set('phone', e.target.value)} />
             </div>
           </div>
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>Type</label>
-              <select style={inputStyle} value={form.client_type} onChange={e => set('client_type', e.target.value)}>
+              <label htmlFor={`${fieldId}-4`} style={labelStyle}>Type</label>
+              <select id={`${fieldId}-4`} style={inputStyle} value={form.client_type} onChange={e => set('client_type', e.target.value)}>
                 {CLIENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Status</label>
-              <select style={inputStyle} value={form.status} onChange={e => set('status', e.target.value)}>
+              <label htmlFor={`${fieldId}-5`} style={labelStyle}>Status</label>
+              <select id={`${fieldId}-5`} style={inputStyle} value={form.status} onChange={e => set('status', e.target.value)}>
                 {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -266,37 +267,37 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>Tax ID</label>
-              <input style={inputStyle} type="text" value={form.tax_id} onChange={e => set('tax_id', e.target.value)} />
+              <label htmlFor={`${fieldId}-6`} style={labelStyle}>Tax ID</label>
+              <input id={`${fieldId}-6`} style={inputStyle} type="text" value={form.tax_id} onChange={e => set('tax_id', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>Locale</label>
-              <select style={inputStyle} value={form.locale} onChange={e => set('locale', e.target.value)}>
+              <label htmlFor={`${fieldId}-7`} style={labelStyle}>Locale</label>
+              <select id={`${fieldId}-7`} style={inputStyle} value={form.locale} onChange={e => set('locale', e.target.value)}>
                 {LOCALES.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
           </div>
 
-          <label style={labelStyle}>Address</label>
-          <input style={inputStyle} type="text" value={form.address} onChange={e => set('address', e.target.value)} />
+          <label htmlFor={`${fieldId}-8`} style={labelStyle}>Address</label>
+          <input id={`${fieldId}-8`} style={inputStyle} type="text" value={form.address} onChange={e => set('address', e.target.value)} />
 
           <div style={threeCol}>
             <div>
-              <label style={labelStyle}>City</label>
-              <input style={inputStyle} type="text" value={form.city} onChange={e => set('city', e.target.value)} />
+              <label htmlFor={`${fieldId}-9`} style={labelStyle}>City</label>
+              <input id={`${fieldId}-9`} style={inputStyle} type="text" value={form.city} onChange={e => set('city', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>State</label>
-              <input style={inputStyle} type="text" value={form.state} onChange={e => set('state', e.target.value)} />
+              <label htmlFor={`${fieldId}-10`} style={labelStyle}>State</label>
+              <input id={`${fieldId}-10`} style={inputStyle} type="text" value={form.state} onChange={e => set('state', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>ZIP</label>
-              <input style={inputStyle} type="text" value={form.zip_code} onChange={e => set('zip_code', e.target.value)} />
+              <label htmlFor={`${fieldId}-11`} style={labelStyle}>ZIP</label>
+              <input id={`${fieldId}-11`} style={inputStyle} type="text" value={form.zip_code} onChange={e => set('zip_code', e.target.value)} />
             </div>
           </div>
 
-          <label style={labelStyle}>Country (ISO-2)</label>
-          <input
+          <label htmlFor={`${fieldId}-12`} style={labelStyle}>Country (ISO-2)</label>
+          <input id={`${fieldId}-12`}
             style={inputStyle}
             type="text"
             maxLength={2}
@@ -307,13 +308,13 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>CURP</label>
-              <input style={inputStyle} type="text" maxLength={18} value={form.curp}
+              <label htmlFor={`${fieldId}-13`} style={labelStyle}>CURP</label>
+              <input id={`${fieldId}-13`} style={inputStyle} type="text" maxLength={18} value={form.curp}
                 onChange={e => set('curp', e.target.value.toUpperCase())} />
             </div>
             <div>
-              <label style={labelStyle}>Risk rating</label>
-              <select style={inputStyle} value={form.risk_rating} onChange={e => set('risk_rating', e.target.value)}>
+              <label htmlFor={`${fieldId}-14`} style={labelStyle}>Risk rating</label>
+              <select id={`${fieldId}-14`} style={inputStyle} value={form.risk_rating} onChange={e => set('risk_rating', e.target.value)}>
                 {RISK_RATINGS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
@@ -321,8 +322,8 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>Credit score (0–1000)</label>
-              <input style={inputStyle} type="number" min={0} max={1000} value={numeric.credit_score}
+              <label htmlFor={`${fieldId}-15`} style={labelStyle}>Credit score (0–1000)</label>
+              <input id={`${fieldId}-15`} style={inputStyle} type="number" min={0} max={1000} value={numeric.credit_score}
                 onChange={e => setNumeric(p => ({ ...p, credit_score: e.target.value }))} />
             </div>
             <div />
@@ -330,13 +331,13 @@ export function ClientFormModal({ mode, initial, onClose, onSaved }: ClientFormM
 
           <div style={twoCol}>
             <div>
-              <label style={labelStyle}>Latitude</label>
-              <input style={inputStyle} type="number" step="any" min={-90} max={90} value={numeric.latitude}
+              <label htmlFor={`${fieldId}-16`} style={labelStyle}>Latitude</label>
+              <input id={`${fieldId}-16`} style={inputStyle} type="number" step="any" min={-90} max={90} value={numeric.latitude}
                 onChange={e => setNumeric(p => ({ ...p, latitude: e.target.value }))} />
             </div>
             <div>
-              <label style={labelStyle}>Longitude</label>
-              <input style={inputStyle} type="number" step="any" min={-180} max={180} value={numeric.longitude}
+              <label htmlFor={`${fieldId}-17`} style={labelStyle}>Longitude</label>
+              <input id={`${fieldId}-17`} style={inputStyle} type="number" step="any" min={-180} max={180} value={numeric.longitude}
                 onChange={e => setNumeric(p => ({ ...p, longitude: e.target.value }))} />
             </div>
           </div>

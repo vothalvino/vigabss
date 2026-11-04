@@ -12,6 +12,8 @@ import { TicketList } from '../TicketList';
 // ---------------------------------------------------------------------------
 
 const mockApiGet = vi.fn();
+const auth = vi.hoisted(() => ({ user: { id: 1, role: 'support', permissions: ['tickets.view', 'tickets.create'] as string[] } }));
+vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: auth.user }) }));
 vi.mock('@/api/client', () => ({
   api: { GET: (...args: unknown[]) => mockApiGet(...args) },
   tokenStore: { getAccess: () => 'tok', setAccess: vi.fn(), getRefresh: () => null, setRefresh: vi.fn(), clear: vi.fn() },
@@ -63,5 +65,17 @@ describe('TicketList page', () => {
     mockApiGet.mockResolvedValue({ data: { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } }, error: undefined });
     renderTicketList();
     await waitFor(() => expect(screen.getByText(/No tickets found/)).toBeInTheDocument());
+  });
+
+  // FE-06: the button showed for every role, read-only included.
+  it('offers New Ticket only to a user who may create tickets', async () => {
+    mockApiGet.mockResolvedValue({ data: { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } }, error: undefined });
+    renderTicketList();
+    expect(await screen.findByRole('button', { name: /new ticket/i })).toBeInTheDocument();
+
+    auth.user = { id: 2, role: 'readonly', permissions: ['tickets.view'] };
+    renderTicketList();
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /new ticket/i })).toHaveLength(1));
+    auth.user = { id: 1, role: 'support', permissions: ['tickets.view', 'tickets.create'] };
   });
 });
