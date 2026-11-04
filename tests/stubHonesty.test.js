@@ -301,9 +301,11 @@ describe('automationService', () => {
     test('configure_device is recorded as not-implemented, never fake success', async () => {
       db.query
         .mockResolvedValueOnce(insertResult(1))     // INSERT pipeline
-        // assign_ip
+        // assign_ip (the contract keeps its active address, ASY-36)
         .mockResolvedValueOnce(updateResult())      // UPDATE current_stage
         .mockResolvedValueOnce(insertResult(10))    // INSERT stage
+        .mockResolvedValueOnce(qResult([{ id: 1, client_id: 1 }]))               // SELECT contract
+        .mockResolvedValueOnce(qResult([{ ip_address: '10.0.0.9', pool_id: 3 }])) // SELECT active assignment
         .mockResolvedValueOnce(updateResult())      // UPDATE stage completed
         // configure_device (returns marker, no internal query)
         .mockResolvedValueOnce(updateResult())      // UPDATE current_stage

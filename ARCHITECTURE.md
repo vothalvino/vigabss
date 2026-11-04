@@ -612,7 +612,11 @@ of running it twice; `resumeBatchJobs` queues unfinished jobs at startup.
 `batch_job_item:<org>:<item>`), and an item the client's preferences block is
 `skipped`; `rate_limit`, `send_notification`, `apply_tag` and `remove_tag` have
 no implementation and are refused (501) before a job is stored. CSV imports
-still run in the request.
+still run in the request. A provisioning pipeline's `assign_ip` stage keeps the
+contract's active `ip_assignments` row or allocates from the request's
+`ip_pool_id` through `poolAssignmentService.assignNextFreeIp`; with neither it
+is `skipped`. `configure_device` and `send_notification` stages remain
+unimplemented and are recorded `skipped`.
 
 Automation rules (`src/services/automationActions.js`, ASY-36) run on every
 business event: a `*` listener on `eventBus` evaluates the organization's

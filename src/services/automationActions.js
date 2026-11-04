@@ -190,7 +190,7 @@ async function runAction(rule, payload, organizationId) {
   const action = ACTIONS[rule.action_type];
   if (!action) {
     logger.info({ organizationId, actionType: rule.action_type }, 'Automation action is not implemented; nothing was done');
-    return { status: 'not_implemented', message: `Action '${rule.action_type}' is not implemented; nothing was done` };
+    return { status: 'not_implemented', message: `Action '${rule.action_type}' is not implemented yet; nothing was done` };
   }
   const config = rule.action_config && typeof rule.action_config === 'object' ? rule.action_config : {};
   return ruleScope.run({ ruleId: rule.id }, () => action(config, payload || {}, organizationId, rule));

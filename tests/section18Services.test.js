@@ -416,9 +416,11 @@ describe('automationService — additional branch coverage', () => {
       const pipelineResult = { id: 1, name: 'ContractPipeline', status: 'failed' };
       db.query
         .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 }])  // INSERT pipeline
-        // Stage 0 (assign_ip)
+        // Stage 0 (assign_ip: the contract keeps its active address, ASY-36)
         .mockResolvedValueOnce([{ affectedRows: 1 }])   // UPDATE current_stage
         .mockResolvedValueOnce([{ insertId: 10 }])        // INSERT stage
+        .mockResolvedValueOnce([[{ id: 5, client_id: 2 }], []])               // SELECT contract
+        .mockResolvedValueOnce([[{ ip_address: '10.0.0.9', pool_id: 3 }], []]) // SELECT active assignment
         .mockResolvedValueOnce([{ affectedRows: 1 }])    // UPDATE stage completed
         // Stage 1 (configure_device)
         .mockResolvedValueOnce([{ affectedRows: 1 }])
@@ -455,9 +457,11 @@ describe('automationService — additional branch coverage', () => {
       const pipelineFailed = { id: 1, name: 'FailPipeline', status: 'failed' };
       db.query
         .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 }])  // INSERT pipeline
-        // Stage 0 (assign_ip)
+        // Stage 0 (assign_ip: the contract keeps its active address, ASY-36)
         .mockResolvedValueOnce([{ affectedRows: 1 }])   // UPDATE current_stage
         .mockResolvedValueOnce([{ insertId: 10 }])        // INSERT stage
+        .mockResolvedValueOnce([[{ id: 5, client_id: 2 }], []])               // SELECT contract
+        .mockResolvedValueOnce([[{ ip_address: '10.0.0.9', pool_id: 3 }], []]) // SELECT active assignment
         .mockResolvedValueOnce([{ affectedRows: 1 }])    // UPDATE stage completed
         // Stage 1 (configure_device)
         .mockResolvedValueOnce([{ affectedRows: 1 }])

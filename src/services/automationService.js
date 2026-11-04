@@ -555,7 +555,7 @@ const DEFAULT_STAGES = ['assign_ip', 'configure_device', 'activate_contract', 's
  * Run a provisioning pipeline for a contract.
  * Stages are ordered; 'configure_device' is STUBBED (no live device call).
  */
-async function runProvisioningPipeline(organizationId, { name, contract_id, client_id, triggered_by }) {
+async function runProvisioningPipeline(organizationId, { name, contract_id, client_id, ip_pool_id = null, triggered_by }) {
   const [result] = await db.query(
     `INSERT INTO provisioning_pipelines
        (organization_id, name, contract_id, client_id, status, current_stage, stages_config, triggered_by, started_at)
@@ -588,10 +588,10 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
     );
 
     try {
-      stageOutput = await executeProvisioningStage(stageName, { organizationId, contract_id, client_id });
-      // A stage with no implementation did nothing: 'skipped', never
-      // 'completed' (TNB-37).
-      if (stageOutput && stageOutput.implemented === false) stageStatus = 'skipped';
+      stageOutput = await executeProvisioningStage(stageName, { organizationId, contract_id, client_id, ip_pool_id });
+      // A stage with no implementation, or nothing to do, did nothing:
+      // 'skipped', never 'completed' (TNB-37).
+      if (stageOutput && (stageOutput.implemented === false || stageOutput.skipped)) stageStatus = 'skipped';
     } catch (err) {
       stageStatus = 'failed';
       stageError = err.message;
@@ -617,7 +617,7 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
   const skipped = Object.entries(stageResults).filter(([, r]) => r.status === 'skipped').map(([n]) => n);
   if (pipelineStatus === 'completed' && skipped.length > 0) {
     const didWork = Object.values(stageResults).some(r => r.status === 'completed' && r.output?.implemented !== false
-      && !(r.output && r.output.activated === false));
+      && !r.output?.skipped && !(r.output && r.output.activated === false));
     if (!didWork) {
       pipelineStatus = 'failed';
       errorMessage = `Nothing was provisioned: stages not implemented (${skipped.join(', ')})`;
@@ -638,10 +638,9 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
 async function executeProvisioningStage(stageName, ctx) {
   switch (stageName) {
     case 'assign_ip':
-      // Not implemented: poolAssignmentService is not wired. It used to report
-      // a "completed" stage with assigned_ip 0.0.0.0 (TNB-37).
-      logger.warn(ctx, 'Provisioning: assign_ip not implemented — no address assigned');
-      return { implemented: false, note: 'assign_ip not implemented — no IP address was assigned. Assign one from the contract page.' };
+      // It reported a "completed" stage with assigned_ip 0.0.0.0 (TNB-37);
+      // it now allocates through poolAssignmentService (ASY-36).
+      return assignPipelineIp(ctx);
     case 'configure_device':
       // Not implemented: live device configuration (routerDriverService integration) is
       // not wired. Do NOT claim success and do NOT abort the whole pipeline — record an
@@ -677,6 +676,35 @@ async function executeProvisioningStage(stageName, ctx) {
     default:
       return { implemented: false, note: `Unknown stage: ${stageName}` };
   }
+}
+
+/**
+ * assign_ip: keep the contract's active address, or take the next free one
+ * from the chosen pool (the pool and contract are checked against the
+ * organization by assignNextFreeIp, the same path as POST /ip-pools/:id/assign-next).
+ */
+async function assignPipelineIp({ organizationId, contract_id, ip_pool_id }) {
+  if (!contract_id) return { skipped: true, note: 'No contract was supplied; no address was assigned' };
+  const [[contract]] = await db.query(
+    'SELECT id, client_id FROM contracts WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+    [contract_id, organizationId],
+  );
+  if (!contract) throw new ValidationError('contract_id does not belong to this organization');
+  const [[existing]] = await db.query(
+    `SELECT ip_address, pool_id FROM ip_assignments
+      WHERE contract_id = ? AND organization_id = ? AND status = 'active' AND deleted_at IS NULL
+      ORDER BY id LIMIT 1`,
+    [contract.id, organizationId],
+  );
+  if (existing) return { assigned_ip: existing.ip_address, pool_id: existing.pool_id, reused: true };
+  if (!ip_pool_id) {
+    return { skipped: true, note: 'No address was assigned: the contract has none and no ip_pool_id was given' };
+  }
+  const assignment = await require('./poolAssignmentService').assignNextFreeIp(ip_pool_id, {
+    contractId: contract.id, clientId: contract.client_id, orgId: organizationId,
+  });
+  logger.info({ organizationId, contractId: contract.id, ip: assignment.ip_address }, 'Provisioning: address assigned');
+  return { assigned_ip: assignment.ip_address, pool_id: assignment.pool_id, assignment_id: assignment.id };
 }
 
 // ---------------------------------------------------------------------------

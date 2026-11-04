@@ -103,6 +103,7 @@ describe('POST /api/automation-rules', () => {
 
     const res = await request(app).post('/api/automation-rules').send({
       name: 'Offline Alert', trigger_event: 'device.offline', action_type: 'send_notification',
+      action_config: { channel: 'email', message: 'Your device is offline' },
     });
     expect(res.status).toBe(201);
     expect(res.body.data.id).toBe(2);

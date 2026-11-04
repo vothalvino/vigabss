@@ -3160,7 +3160,7 @@ function generateSpec() {
 
       '/provisioning-pipelines': {
         get: { tags: ['Automation'], summary: 'List provisioning pipeline runs', operationId: 'listProvisioningPipelines', security: [{ bearerAuth: [] }], responses: r200('ProvisioningPipeline[]') },
-        post: { tags: ['Automation'], summary: 'Trigger a provisioning pipeline run', operationId: 'createProvisioningPipeline', security: [{ bearerAuth: [] }], requestBody: jsonBody('name + contract_id + client_id'), responses: r201('ProvisioningPipeline') },
+        post: { tags: ['Automation'], summary: 'Trigger a provisioning pipeline run', description: 'Stages: assign_ip keeps the contract\'s active address or takes the next free one from ip_pool_id (skipped without either); configure_device and send_notification are not implemented and are recorded skipped; activate_contract stops the run and points to the guided activation flow.', operationId: 'createProvisioningPipeline', security: [{ bearerAuth: [] }], requestBody: jsonBody('name + contract_id + client_id + ip_pool_id'), responses: r201('ProvisioningPipeline') },
       },
       '/provisioning-pipelines/{id}': {
         get: { tags: ['Automation'], summary: 'Get provisioning pipeline with stage details', operationId: 'getProvisioningPipeline', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ProvisioningPipeline') },
