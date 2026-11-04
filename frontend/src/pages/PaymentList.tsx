@@ -68,7 +68,7 @@ async function fetchPayments(page: number, pageSize: number, statusFilter: strin
   if (statusFilter) query.status = statusFilter;
   const res = await api.GET('/payments', { params: { query: query } });
   if (res.error) throw new Error('Failed to load payments');
-  return res.data as unknown as PaymentsResponse;
+  return res.data;
 }
 
 async function fetchGatewayTransactions(paymentId: number): Promise<GatewayTransaction[]> {

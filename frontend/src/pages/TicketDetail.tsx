@@ -14,6 +14,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api, tokenStore, authedFetch } from '@/api/client';
+import type { TicketRow } from '@/api/rows';
 import { useGraphQLSubscription } from '@/api/useGraphQLSubscription';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
@@ -25,20 +26,7 @@ import { localToday } from '@/lib/dates';
 // Types
 // ---------------------------------------------------------------------------
 
-interface Ticket {
-  id: number;
-  client_id: number | null;
-  contract_id: number | null;
-  assigned_to: number | null;
-  subject: string;
-  description: string | null;
-  priority: string;
-  category: string | null;
-  status: string;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
+type Ticket = TicketRow;
 
 type TicketPatch = Partial<Omit<Ticket, 'id' | 'created_at' | 'updated_at'>>;
 
@@ -75,9 +63,8 @@ const API_BASE = '/api/v1';
 
 async function fetchTicket(id: string): Promise<Ticket> {
   const res = await api.GET('/tickets/{id}', { params: { path: { id: Number(id) } } });
-  if ((res as { error?: unknown }).error) throw new Error('Ticket not found');
-  const d = res.data as unknown;
-  return ((d as { data?: Ticket }).data ?? d) as Ticket;
+  if (res.error) throw new Error('Ticket not found');
+  return res.data.data;
 }
 
 async function fetchComments(ticketId: string): Promise<TicketComment[]> {
@@ -225,7 +212,7 @@ interface ActionsProps {
 
 function TicketActions({ ticket, users, onPatched }: ActionsProps) {
   const fieldId = useId();
-  const [newStatus, setNewStatus] = useState(ticket.status);
+  const [newStatus, setNewStatus] = useState<string>(ticket.status);
   const [newAssignee, setNewAssignee] = useState(String(ticket.assigned_to ?? ''));
   const [err, setErr] = useState('');
 

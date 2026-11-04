@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api, tokenStore, authedFetch } from '@/api/client';
+import type { InvoiceItemRow, InvoiceRow, PaymentAllocationRow } from '@/api/rows';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { extractApiError } from '@/components/ClientFormModal';
@@ -27,34 +28,8 @@ import { SandboxCfdiBadge } from '@/components/SandboxFiscal';
 // Types
 // ---------------------------------------------------------------------------
 
-interface Invoice {
-  id: number;
-  client_id: number;
-  contract_id: number | null;
-  invoice_number: string;
-  subtotal: string;
-  tax_amount: string;
-  tax_rate: string | null;
-  total: string;
-  currency: string;
-  period_start: string | null;
-  period_end: string | null;
-  due_date: string | null;
-  paid_at: string | null;
-  status: string;
-  notes: string | null;
-  created_at: string;
-}
-
-interface InvoiceItem {
-  id: number;
-  description: string;
-  quantity: string;
-  unit_price: string;
-  amount: string;
-  tax_rate: string | null;
-  inventory_item_id?: number | null;
-}
+type Invoice = InvoiceRow;
+type InvoiceItem = InvoiceItemRow;
 
 // A line's tax_rate is a fraction (0.1600 = 16%) joined from tax_rates or the
 // invoice; it was printed raw, and before FE-19 it was never sent at all.
@@ -64,15 +39,7 @@ export function taxPercent(rate: string | number | null | undefined): string {
   return Number.isFinite(n) ? `${parseFloat((n * 100).toFixed(2))}%` : '—';
 }
 
-interface Payment {
-  id: number;
-  payment_id: number;
-  invoice_id: number;
-  amount: string;
-  payment_amount: string;
-  payment_method: string;
-  payment_date: string | null;
-}
+type Payment = PaymentAllocationRow;
 
 interface Client {
   id: number;
@@ -99,20 +66,18 @@ const API_BASE = '/api/v1';
 
 async function fetchInvoice(id: string): Promise<Invoice> {
   const res = await api.GET('/invoices/{id}', { params: { path: { id: Number(id) } } });
-  if (res.error) throw new Error('Invoice not found');
-  return (res.data as unknown as { data: Invoice }).data ?? (res.data as unknown as Invoice);
+  if (res.error || !res.data) throw new Error('Invoice not found');
+  return res.data.data;
 }
 
 async function fetchItems(id: string): Promise<InvoiceItem[]> {
   const res = await api.GET('/invoices/{id}/items', { params: { path: { id: Number(id) } } });
-  if ((res as { error?: unknown }).error) return [];
-  return ((res.data as { data: InvoiceItem[] })?.data) ?? [];
+  return res.data?.data ?? [];
 }
 
 async function fetchAppliedPayments(id: string): Promise<Payment[]> {
   const res = await api.GET('/invoices/{id}/payments', { params: { path: { id: Number(id) } } });
-  if ((res as { error?: unknown }).error) return [];
-  return ((res.data as { data: Payment[] })?.data) ?? [];
+  return res.data?.data ?? [];
 }
 
 async function fetchClient(id: number): Promise<Client> {

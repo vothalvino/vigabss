@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const product = require('../product');
+const { tableRowSchema } = require('./tableRowSchema');
 
 /**
  * Build OpenAPI spec from routes and schema files.
@@ -414,7 +415,7 @@ function generateSpec() {
       },
 
       // ---- Contracts ----
-      ...crudPaths('contracts', 'Contracts', 'Contract'),
+      ...withRowResponses(crudPaths('contracts', 'Contracts', 'Contract'), 'Contract'),
       '/contracts/{id}/activation': {
         get: {
           tags: ['Contracts'],
@@ -499,9 +500,9 @@ function generateSpec() {
       '/contracts/{id}/regenerate-pppoe': { post: { tags: ['Contracts'], summary: 'Regenerate (rotate) the PPPoE password for a contract’s RADIUS account; keeps the username and best-effort pushes the new secret to the NAS', operationId: 'regenerateContractPppoe', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: { description: 'New PPPoE credentials', content: { 'application/json': { schema: { type: 'object' } } } }, 404: { description: 'Contract not found' }, 422: { description: 'Contract is not PPPoE or has no RADIUS account' } } } },
 
       // ---- Invoices ----
-      ...crudPaths('invoices', 'Invoices', 'Invoice'),
+      ...withRowResponses(crudPaths('invoices', 'Invoices', 'Invoice'), 'Invoice'),
       '/invoices/{id}/items': {
-        get: { tags: ['Invoices'], summary: 'List invoice line items', operationId: 'listInvoiceItems', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('InvoiceItem[]') },
+        get: { tags: ['Invoices'], summary: 'List invoice line items', operationId: 'listInvoiceItems', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: arrayDataResponse('InvoiceItem') } },
         post: {
           tags: ['Invoices'],
           summary: 'Add invoice line item; inventory_item_id-linked lines draw down stock atomically',
@@ -517,7 +518,7 @@ function generateSpec() {
         },
       },
       '/invoices/generate': { post: { tags: ['Invoices'], summary: 'Generate invoice from contract', operationId: 'generateContractInvoice', security: [{ bearerAuth: [] }], requestBody: jsonBody('contract_id (legacy) OR client_id + items[] — product/custom items take unit_price (or amount, from which unit_price is derived; one of the two is required, and both together must agree with quantity × unit_price); items[].inventory_item_id is optional on type:"product" lines and draws down stock in the same transaction as the invoice'), responses: r201('Invoice') } },
-      '/invoices/{id}/payments': { get: { tags: ['Invoices'], summary: 'List invoice payments', operationId: 'listInvoicePayments', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('PaymentAllocation[]') } },
+      '/invoices/{id}/payments': { get: { tags: ['Invoices'], summary: 'List invoice payments', operationId: 'listInvoicePayments', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 200: arrayDataResponse('PaymentAllocation') } } },
       '/invoices/{id}/stamp': { post: { tags: ['Invoices'], summary: 'Convert an MX-org invoice into a CFDI 4.0 and stamp it via the org PAC (stamp-later); 200 with stamped:false + stamp_error on retryable PAC failure', operationId: 'stampInvoice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('invoices_stampInvoice (optional uso_cfdi, forma_pago)'), responses: r200('{ cfdi_document_id, serie, uuid, sat_status, stamped }') } },
       '/invoices/{id}/receipt': {
         get: {
@@ -534,7 +535,7 @@ function generateSpec() {
       },
 
       // ---- Payments ----
-      ...crudPaths('payments', 'Payments', 'Payment'),
+      ...withRowResponses(crudPaths('payments', 'Payments', 'Payment'), 'Payment'),
       '/payments/{id}/allocate': { post: { tags: ['Payments'], summary: 'Allocate payment to invoice', operationId: 'allocatePaymentToInvoice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('payments_allocatePayment'), responses: r201('Allocation') } },
       '/payments/{id}/allocate-auto': { post: { tags: ['Payments'], summary: 'Allocate a payment across the client\'s open invoices oldest→newest (FIFO waterfall), atomically', operationId: 'allocatePaymentAuto', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('payments_allocateAuto (optional invoice_ids — omitted = all payable invoices)'), responses: r201('{ allocations: Allocation[], remaining_credit: number }') } },
       '/payments/{id}/allocations': { get: { tags: ['Payments'], summary: 'List payment allocations', operationId: 'listPaymentAllocations', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Allocation[]') } },
@@ -557,7 +558,7 @@ function generateSpec() {
       },
 
       // ---- Credit Notes ----
-      ...crudPaths('credit-notes', 'Credit Notes', 'CreditNote'),
+      ...withRowResponses(crudPaths('credit-notes', 'Credit Notes', 'CreditNote'), 'CreditNote'),
       '/credit-notes/{id}/stamp': { post: { tags: ['Credit Notes'], summary: 'Convert an MX-org credit note into a CFDI de Egreso (tipo E, related to the credited invoice via TipoRelacion 01) and stamp it via the org PAC; 200 with stamped:false + stamp_error on retryable PAC failure', operationId: 'stampCreditNote', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('creditNotes_stampCreditNote (optional uso_cfdi, forma_pago)'), responses: r200('{ cfdi_document_id, serie, uuid, sat_status, stamped }') } },
 
       // ---- Quotes ----
@@ -866,7 +867,7 @@ function generateSpec() {
       ...crudPaths('coverage-zones', 'Coverage Zones', 'CoverageZone'),
 
       // ---- Tickets ----
-      ...crudPaths('tickets', 'Tickets', 'Ticket'),
+      ...withRowResponses(crudPaths('tickets', 'Tickets', 'Ticket'), 'Ticket'),
 
       // ---- Interactions (§1.3) ----
       ...crudPaths('interactions', 'Interactions', 'Interaction'),
@@ -3496,6 +3497,7 @@ function generateSpec() {
       },
       schemas: {
         ...schemas,
+        ...billingRowSchemas(),
         SystemVersion: systemVersionSchema(),
         ConnectionSession: connectionSessionSchema(),
         CgnatBindingInput: cgnatBindingInputSchema(),
@@ -5048,6 +5050,66 @@ function limitParam() {
 /**
  * Generate standard CRUD paths for a resource.
  */
+// Row schemas for the billing, ticket and contract reads (FE-23): the columns
+// come from database/schema.sql (tableRowSchema), plus the fields the routes
+// join in.
+function billingRowSchemas() {
+  const nullableString = { type: ['string', 'null'] };
+  const withFields = (schema, properties) => ({ ...schema, properties: { ...schema.properties, ...properties } });
+  return {
+    Invoice: withFields(tableRowSchema('invoices'), {
+      period_start: { type: ['string', 'null'], format: 'date-time', description: 'GET /invoices/{id}: the billing period the invoice was generated for' },
+      period_end: { type: ['string', 'null'], format: 'date-time' },
+    }),
+    InvoiceItem: withFields(tableRowSchema('invoice_items'), {
+      tax_rate: { type: ['string', 'null'], format: 'decimal', description: 'The line tax rate as a fraction (the line\'s tax_rates row, else the invoice rate)' },
+    }),
+    Payment: tableRowSchema('payments'),
+    PaymentAllocation: withFields(tableRowSchema('payment_allocations'), {
+      payment_amount: { type: 'string', format: 'decimal' },
+      payment_method: nullableString,
+      payment_date: { type: ['string', 'null'], format: 'date-time' },
+    }),
+    CreditNote: withFields(tableRowSchema('credit_notes'), {
+      cfdi_document_id: { type: ['integer', 'null'], description: 'List only: the live CFDI of the note' },
+      cfdi_uuid: nullableString,
+      cfdi_sat_status: nullableString,
+    }),
+    Ticket: tableRowSchema('tickets'),
+    Contract: tableRowSchema('contracts'),
+  };
+}
+
+/** The `{ data, meta }` page every crudController-style list answers with. */
+function listEnvelopeResponse(componentName) {
+  return {
+    description: 'Paginated result',
+    content: { 'application/json': { schema: {
+      type: 'object', required: ['data', 'meta'],
+      properties: {
+        data: { type: 'array', items: { $ref: `#/components/schemas/${componentName}` } },
+        meta: {
+          type: 'object', required: ['total', 'page', 'limit', 'totalPages'],
+          properties: {
+            total: { type: 'integer', minimum: 0 },
+            page: { type: 'integer', minimum: 1 },
+            limit: { type: 'integer', minimum: 1 },
+            totalPages: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
+    } } },
+  };
+}
+
+/** Type the list and get responses of a crudPaths() resource with its row schema. */
+function withRowResponses(paths, componentName) {
+  const [list, item] = Object.keys(paths);
+  paths[list].get.responses = { 200: listEnvelopeResponse(componentName) };
+  paths[item].get.responses = { 200: dataResponse(componentName) };
+  return paths;
+}
+
 function crudPaths(basePath, tag, modelName, requestSchemas = {}) {
   const createBody = requestSchemas.create
     ? typedJsonBody({ $ref: `#/components/schemas/${requestSchemas.create}` }, `Create ${modelName}`)

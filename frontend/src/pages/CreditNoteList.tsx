@@ -112,7 +112,7 @@ async function fetchCreditNotes(page: number, statusFilter: string): Promise<Cre
   if (statusFilter) query.status = statusFilter;
   const res = await api.GET('/credit-notes', { params: { query: query } });
   if (res.error) throw new Error('Failed to load credit notes');
-  return res.data as unknown as CreditNotesResponse;
+  return res.data;
 }
 
 // Surface the backend's own message (e.g. the totals-consistency 422) instead

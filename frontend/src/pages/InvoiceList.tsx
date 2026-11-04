@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
+import type { InvoiceRow } from '@/api/rows';
 import { apiFetch } from '@/api/apiFetch';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { GenerateInvoiceModal } from '@/components/GenerateInvoiceModal';
@@ -28,20 +29,7 @@ import { can } from '@/auth/permissions';
 // Types
 // ---------------------------------------------------------------------------
 
-interface Invoice {
-  id: number;
-  client_id: number;
-  contract_id: number | null;
-  invoice_number: string;
-  subtotal: string;
-  tax_amount: string;
-  total: string;
-  currency: string;
-  due_date: string | null;
-  paid_at: string | null;
-  status: string;
-  created_at: string;
-}
+type Invoice = InvoiceRow;
 
 interface InvoicesResponse {
   data: Invoice[];
@@ -63,7 +51,7 @@ async function fetchInvoices(
   if (statusFilter) query.status = statusFilter;
   const res = await api.GET('/invoices', { params: { query: query } });
   if (res.error) throw new Error('Failed to load invoices');
-  return res.data as unknown as InvoicesResponse;
+  return res.data;
 }
 
 // POST /bulk/invoices/void — single request for the entire selection.

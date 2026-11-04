@@ -17,9 +17,11 @@ vi.mock('@/api/client', () => ({
 }));
 
 import { EditTicketModal } from '../TicketDetail';
+import type { TicketRow } from '@/api/rows';
 
-const ticket = {
+const ticket: TicketRow = {
   id: 7,
+  organization_id: 1,
   client_id: 37,
   contract_id: null,
   assigned_to: null,
@@ -28,9 +30,12 @@ const ticket = {
   priority: 'medium',
   category: 'technical',
   status: 'open',
+  source: 'manual',
   notes: null,
+  resolved_at: null,
   created_at: '2026-07-01T00:00:00Z',
   updated_at: '2026-07-01T00:00:00Z',
+  deleted_at: null,
 };
 
 function renderModal(onSaved = vi.fn(), onClose = vi.fn()) {

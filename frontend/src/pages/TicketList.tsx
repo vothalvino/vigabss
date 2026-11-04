@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
+import type { TicketRow } from '@/api/rows';
 import { extractApiError } from '@/components/ClientFormModal';
 import { useTableSort, SortableTh } from '@/components/SortableTh';
 import { Pagination } from '@/components/Pagination';
@@ -26,19 +27,7 @@ import { can } from '@/auth/permissions';
 // Types
 // ---------------------------------------------------------------------------
 
-interface Ticket {
-  id: number;
-  client_id: number | null;
-  contract_id: number | null;
-  assigned_to: number | null;
-  subject: string;
-  description: string | null;
-  priority: string;
-  category: string | null;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
+type Ticket = TicketRow;
 
 interface TicketsResponse {
   data: Ticket[];
@@ -80,8 +69,8 @@ async function fetchTickets(
   if (priorityFilter) query.priority = priorityFilter;
   if (categoryFilter) query.category = categoryFilter;
   const res = await api.GET('/tickets', { params: { query: query } });
-  if ((res as { error?: unknown }).error) throw new Error('Failed to load tickets');
-  return res.data as unknown as TicketsResponse;
+  if (res.error) throw new Error('Failed to load tickets');
+  return res.data;
 }
 
 async function fetchUsers(): Promise<User[]> {

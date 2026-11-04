@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api, authedFetch } from '@/api/client';
+import type { ContractRow } from '@/api/rows';
 import { useAuth } from '@/auth/AuthContext';
 import { can } from '@/auth/permissions';
 import { MxRegisteredContractSourceField } from '@/components/MxRegisteredContractSourceField';
@@ -34,31 +35,7 @@ import { localToday } from '@/lib/dates';
 // Types
 // ---------------------------------------------------------------------------
 
-interface Contract {
-  id: number;
-  client_id: number;
-  plan_id: number;
-  connection_type: string | null;
-  start_date: string;
-  end_date: string | null;
-  billing_day: number | null;
-  ip_address: string | null;
-  price_override: string | null;
-  status: string;
-  facturar: boolean | number | null;
-  contract_template_mx_id: number | null;
-  mx_contract_environment?: MxContractEnvironment | null;
-  notes: string | null;
-  escalation_enabled: boolean | number | null;
-  escalate_on_disconnect: boolean | number | null;
-  // Migration 388 — per-contract diagnostic-threshold overrides. Blank =
-  // use the serving sector's default, else the org-wide code constant
-  // (link-capacity has no org-wide default at all).
-  optical_min_dbm: number | null;
-  wireless_signal_min_dbm: number | null;
-  // DECIMAL(8,2) — may come back as a numeric string.
-  wireless_link_capacity_min_mbps: string | number | null;
-}
+type Contract = ContractRow;
 
 // A provisioned PPPoE / RADIUS account belonging to a contract.  The base
 // endpoint (GET /radius/contract/{contractId}, requires devices.view) never
@@ -124,7 +101,7 @@ async function fetchContracts(
     params: { query: query },
   });
   if (res.error) throw new Error('Failed to load contracts');
-  return res.data as unknown as ContractsResponse;
+  return res.data;
 }
 
 // Sentinel thrown by fetchRadiusByContract so the UI can show a tailored

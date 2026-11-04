@@ -74,7 +74,7 @@ function makeItem(type: ItemType): InvoiceLineItem {
 async function fetchClientContracts(clientId: string): Promise<Contract[]> {
   const res = await api.GET('/contracts', { params: { query: { client_id: clientId, limit: 100 } } });
   if (res.error) throw new Error('Failed to load contracts');
-  return (res.data as unknown as { data: Contract[] }).data;
+  return res.data.data;
 }
 
 async function generateFlexibleInvoice(clientId: number, items: FlexItem[]): Promise<void> {

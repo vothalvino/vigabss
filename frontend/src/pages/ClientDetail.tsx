@@ -306,14 +306,6 @@ const TABS: { id: TabId; icon: string; label: string }[] = [
 // Tab panels — receive pre-loaded data as props (no sub-queries needed)
 // ---------------------------------------------------------------------------
 
-interface ClientTicket {
-  id: number;
-  subject: string;
-  priority: string | null;
-  status: string;
-  created_at: string;
-}
-
 // Right-aligned "+ New X" button row shown above a tab's content (mirrors the
 // Contacts tab's "+ Add Contact"). Rendered by the parent so the tab components
 // stay presentational.
@@ -331,7 +323,7 @@ function TicketsTab({ clientId }: { clientId: number }) {
     queryFn: async () => {
       const res = await api.GET('/tickets', { params: { query: { client_id: clientId, limit: 100 } } });
       if (res.error) throw new Error('Failed to load tickets');
-      return (res.data as unknown as { data: ClientTicket[] }).data ?? [];
+      return res.data.data;
     },
   });
 
@@ -480,7 +472,7 @@ function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note
     queryFn: async () => {
       const res = await api.GET('/credit-notes', { params: { query: { client_id: clientId, limit: 100 } } });
       if (res.error) throw new Error('Failed to load credit notes');
-      return (res.data as unknown as { data: CreditNote[] }).data ?? [];
+      return res.data.data;
     },
   });
 
