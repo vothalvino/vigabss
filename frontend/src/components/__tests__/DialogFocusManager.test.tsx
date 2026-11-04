@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { DialogFocusManager } from '../DialogFocusManager';
 
-function Page({ modal = true }: { modal?: boolean }) {
+function Page({ modal = true, autoFocusField = false }: { modal?: boolean; autoFocusField?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -18,7 +18,7 @@ function Page({ modal = true }: { modal?: boolean }) {
         <div role="dialog" aria-modal={modal ? 'true' : undefined} aria-label="Record payment">
           <button type="button" onClick={() => setOpen(false)} aria-label="Close">✕</button>
           <label htmlFor="amt">Amount</label>
-          <input id="amt" />
+          <input id="amt" autoFocus={autoFocusField} />
           <button type="button" onClick={() => setOpen(false)}>Save</button>
         </div>
       )}
@@ -65,5 +65,17 @@ describe('DialogFocusManager', () => {
     await user.click(opener);
     await new Promise(r => setTimeout(r, 0));
     expect(opener).toHaveFocus();
+  });
+
+  // Found by the e2e keyboard check: a dialog that autofocuses its own field
+  // takes focus before the manager sees it, so the opener was forgotten.
+  it('returns focus to the opener when the dialog focused its own field', async () => {
+    const user = userEvent.setup();
+    render(<Page autoFocusField />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    await user.click(opener);
+    await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveFocus());
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 });

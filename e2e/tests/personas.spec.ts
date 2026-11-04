@@ -71,13 +71,21 @@ test('a subscriber signs in to the portal and opens an invoice to pay', async ({
   await page.fill('input[type="email"]', 'john@example.com');
   await page.fill('input[type="password"]', PORTAL_PASSWORD);
   await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/\/portal/, { timeout: 15_000 });
+  // Signed in: the login form is gone (a failed login stays on /portal/login
+  // with its error, which the next assertion would show).
+  await expect(page).not.toHaveURL(/\/portal\/login/, { timeout: 15_000 });
 
-  await page.goto('/portal/invoices');
+  await page.locator('a[href="/portal/invoices"]').first().click();
+  await expect(page).toHaveURL(/\/portal\/invoices$/);
   await page.getByRole('link', { name: 'INV-E2E-0001' }).click();
   await expect(page).toHaveURL(/\/portal\/invoices\/\d+/);
   await expect(page.getByText('INV-E2E-0001').first()).toBeVisible();
   await expect(page.getByRole('button', { name: /pay now/i })).toBeVisible();
+
+  // A reload keeps the session (the refresh cookie restores it).
+  await page.reload();
+  await expect(page).toHaveURL(/\/portal\/invoices\/\d+/);
+  await expect(page.getByText('INV-E2E-0001').first()).toBeVisible({ timeout: 15_000 });
 });
 
 test('keyboard focus stays inside a modal and returns to the opener (FE-22)', async ({ page }) => {

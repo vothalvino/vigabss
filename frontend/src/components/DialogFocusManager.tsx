@@ -54,12 +54,20 @@ export function DialogFocusManager() {
   useEffect(() => {
     // dialog → the element that had focus before it opened
     const returnTo = new Map<HTMLElement, HTMLElement | null>();
+    // A dialog that autofocuses its own field takes focus during React's
+    // commit, before the observer below runs, so the opener is remembered as
+    // focus moves rather than read when the dialog appears.
+    let lastOutside: HTMLElement | null = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const onFocusIn = (e: FocusEvent) => {
+      if (e.target instanceof HTMLElement && !e.target.closest(DIALOG)) lastOutside = e.target;
+    };
 
     const sync = () => {
       const open = new Set([...document.querySelectorAll<HTMLElement>(DIALOG)].filter(visible));
       for (const dialog of open) {
         if (returnTo.has(dialog)) continue;
-        const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const before = active && !dialog.contains(active) && active !== document.body ? active : lastOutside;
         returnTo.set(dialog, before && !dialog.contains(before) ? before : null);
         if (!dialog.contains(document.activeElement)) initialFocus(dialog).focus();
       }
@@ -98,10 +106,12 @@ export function DialogFocusManager() {
       childList: true, subtree: true, attributes: true, attributeFilter: ['role', 'aria-modal', 'hidden'],
     });
     document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('focusin', onFocusIn, true);
     sync();
     return () => {
       observer.disconnect();
       document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('focusin', onFocusIn, true);
     };
   }, []);
   return null;
