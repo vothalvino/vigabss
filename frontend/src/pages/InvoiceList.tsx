@@ -21,6 +21,8 @@ import { Pagination } from '@/components/Pagination';
 import { useClientNames } from '@/api/clientNames';
 import { formatDate } from '@/lib/dates';
 import { SandboxEnvironmentBanner } from '@/components/SandboxFiscal';
+import { useAuth } from '@/auth/AuthContext';
+import { can } from '@/auth/permissions';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -160,6 +162,7 @@ function isVoidable(status: string): boolean {
 
 export function InvoiceList() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   // Deep-linkable filter (?status=overdue from the dashboard KPI tile)
@@ -249,9 +252,12 @@ export function InvoiceList() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>🧾 {t('invoiceList.title')}</h1>
-        <button onClick={() => setShowGenerate(true)} style={submitBtn}>
-          {t('invoiceList.generateInvoice')}
-        </button>
+        {/* Shown only to who may create one (FE-06): the API refuses the rest. */}
+        {can(user, 'invoices.create') && (
+          <button onClick={() => setShowGenerate(true)} style={submitBtn}>
+            {t('invoiceList.generateInvoice')}
+          </button>
+        )}
       </div>
 
       {/* Filters */}

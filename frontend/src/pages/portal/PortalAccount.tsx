@@ -5,7 +5,7 @@
 // static IP request, cancellation, visit schedule.
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
@@ -73,6 +73,7 @@ const REQUEST_TYPES: RequestType[] = [
 const TIME_SLOTS = ['morning', 'afternoon', 'evening'];
 
 export function PortalAccount() {
+  const fieldId = useId();
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<'requests' | 'new' | 'whatsapp'>('requests');
@@ -284,8 +285,8 @@ export function PortalAccount() {
           <h2 style={styles.sectionTitle}>{t('portalAccount.submitTitle')}</h2>
 
           <div style={styles.formGroup}>
-            <label style={styles.label}>{t('portalAccount.requestType')}</label>
-            <select
+            <label htmlFor={`${fieldId}-1`} style={styles.label}>{t('portalAccount.requestType')}</label>
+            <select id={`${fieldId}-1`}
               value={reqType}
               onChange={e => { setReqType(e.target.value as RequestType); setPayload({}); }}
               style={styles.select}
@@ -318,8 +319,8 @@ export function PortalAccount() {
 
           {(reqType === 'wifi_password_change' || reqType === 'pppoe_password_change') && (
             <div style={styles.formGroup}>
-              <label style={styles.label}>{t('portalAccount.newPassword')}</label>
-              <input
+              <label htmlFor={`${fieldId}-2`} style={styles.label}>{t('portalAccount.newPassword')}</label>
+              <input id={`${fieldId}-2`}
                 type="password"
                 value={payload.new_password ?? ''}
                 onChange={e => setPayload(p => ({ ...p, new_password: e.target.value }))}
@@ -332,8 +333,8 @@ export function PortalAccount() {
 
           {reqType === 'static_ip_request' && (
             <div style={styles.formGroup}>
-              <label style={styles.label}>{t('portalAccount.notesReason')}</label>
-              <textarea
+              <label htmlFor={`${fieldId}-3`} style={styles.label}>{t('portalAccount.notesReason')}</label>
+              <textarea id={`${fieldId}-3`}
                 value={payload.notes ?? ''}
                 onChange={e => setPayload(p => ({ ...p, notes: e.target.value }))}
                 style={styles.textarea}
@@ -344,8 +345,8 @@ export function PortalAccount() {
 
           {reqType === 'cancellation' && (
             <div style={styles.formGroup}>
-              <label style={styles.label}>{t('portalAccount.cancellationReason')}</label>
-              <textarea
+              <label htmlFor={`${fieldId}-4`} style={styles.label}>{t('portalAccount.cancellationReason')}</label>
+              <textarea id={`${fieldId}-4`}
                 value={payload.reason ?? ''}
                 onChange={e => setPayload(p => ({ ...p, reason: e.target.value }))}
                 style={styles.textarea}
@@ -357,8 +358,8 @@ export function PortalAccount() {
           {reqType === 'visit_schedule' && (
             <>
               <div style={styles.formGroup}>
-                <label style={styles.label}>{t('portalAccount.preferredDate')}</label>
-                <input
+                <label htmlFor={`${fieldId}-5`} style={styles.label}>{t('portalAccount.preferredDate')}</label>
+                <input id={`${fieldId}-5`}
                   type="date"
                   value={payload.preferred_date ?? ''}
                   onChange={e => setPayload(p => ({ ...p, preferred_date: e.target.value }))}
@@ -366,8 +367,8 @@ export function PortalAccount() {
                 />
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>{t('portalAccount.preferredSlot')}</label>
-                <select
+                <label htmlFor={`${fieldId}-6`} style={styles.label}>{t('portalAccount.preferredSlot')}</label>
+                <select id={`${fieldId}-6`}
                   value={payload.preferred_slot ?? ''}
                   onChange={e => setPayload(p => ({ ...p, preferred_slot: e.target.value }))}
                   style={styles.select}
@@ -377,8 +378,8 @@ export function PortalAccount() {
                 </select>
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>{t('portalAccount.notes')}</label>
-                <textarea
+                <label htmlFor={`${fieldId}-7`} style={styles.label}>{t('portalAccount.notes')}</label>
+                <textarea id={`${fieldId}-7`}
                   value={payload.notes ?? ''}
                   onChange={e => setPayload(p => ({ ...p, notes: e.target.value }))}
                   style={styles.textarea}

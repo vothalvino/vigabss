@@ -306,8 +306,9 @@ jobs:
   db-integration:
     # Jest against a migrated MySQL with two organizations (TNA-37, OPS-20).
     # Every other Jest suite mocks the database; these run the app's SQL:
-    # a GET sweep of every /api/v1 route as organization A with B's ids, and
-    # numbering, billing-period, allocation and webhook races. Runs on PRs.
+    # a GET sweep of every /api/v1 route as organization A with B's ids, a
+    # per-role permission matrix (FE-06), and numbering, billing-period,
+    # allocation and webhook races. Runs on PRs.
     timeout-minutes: 30
     runs-on: ubuntu-latest
 
@@ -337,6 +338,7 @@ jobs:
       ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
       LOG_LEVEL: warn
       DB_INTEGRATION_REPORT: db-isolation-report.json
+      DB_RBAC_REPORT: db-rbac-report.json
 
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -364,7 +366,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: db-isolation-report
-          path: db-isolation-report.json
+          path: |
+            db-isolation-report.json
+            db-rbac-report.json
           if-no-files-found: ignore
           retention-days: 14
 
@@ -705,8 +709,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run frontend tests
-        run: pnpm --filter vigabss-frontend test
+      - name: Run frontend tests with the coverage threshold
+        # test:coverage, not test: the line threshold in vite.config.ts never
+        # gated anything while CI ran plain `test` (FE-24).
+        run: pnpm --filter vigabss-frontend test:coverage
 
       - name: Run frontend type-check
         run: pnpm --filter vigabss-frontend run lint
@@ -786,9 +792,13 @@ jobs:
           # (seed.js:42). The smoke suite logs in as this user, so the same
           # value must reach both steps — omitting it is what broke e2e.
           ADMIN_PASSWORD: e2e-admin-password-not-for-production
+          # Personas, a portal login and a second organization (FE-06).
+          E2E_PERSONA_PASSWORD: e2e-persona-password-not-for-production
+          E2E_PORTAL_PASSWORD: e2e-portal-password-not-for-production
         run: |
           pnpm run migrate
           pnpm run seed
+          pnpm run seed:e2e
 
       - name: Build frontend bundle
         run: pnpm --filter vigabss-frontend build
@@ -824,8 +834,10 @@ jobs:
         env:
           BASE_URL: http://localhost:3000
           CI: 'true'
-          # Must match the value given to the seed step above.
+          # Must match the values given to the seed step above.
           ADMIN_PASSWORD: e2e-admin-password-not-for-production
+          E2E_PERSONA_PASSWORD: e2e-persona-password-not-for-production
+          E2E_PORTAL_PASSWORD: e2e-portal-password-not-for-production
         run: pnpm --filter vigabss-e2e test
 
       - name: Upload Playwright report

@@ -63,10 +63,16 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       globals: true,
       setupFiles: ['./src/test/setup.ts'],
+      // A Mexican zone, where a UTC-midnight DATE read as local time is the
+      // previous day (FE-24); CI runners are UTC, which hid that bug class.
+      env: { TZ: 'America/Mexico_City' },
       coverage: {
         provider: 'v8',
         include: ['src/pages/**/*.tsx', 'src/auth/**/*.tsx'],
-        thresholds: { lines: 60 },
+        // Enforced in CI from FE-24. The 60 written here before never ran
+        // (the coverage command crashed in test-exclude, and CI ran plain
+        // `test`); measured coverage was 57.4%, so the floor starts there.
+        thresholds: { lines: 57 },
       },
     } as UserConfig['test'],
   };

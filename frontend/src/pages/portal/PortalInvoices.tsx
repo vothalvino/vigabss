@@ -73,6 +73,7 @@ export function PortalInvoices() {
         )}
         {paymentReturn === 'cancelled' && <p role="status">{t('portalInvoices.paymentCancelled')}</p>}
         <select
+          aria-label={t('portalInvoices.statusFilterLabel')}
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           style={styles.select}

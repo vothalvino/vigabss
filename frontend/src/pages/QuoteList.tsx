@@ -117,7 +117,7 @@ interface ConfirmDialogProps {
 function ConfirmDialog({ message, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
-      <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()} role="alertdialog" aria-label="Confirm action">
+      <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label="Confirm action">
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
           <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>

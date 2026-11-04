@@ -6,7 +6,7 @@
 // These are applied by pdfService.generateInvoicePdf at PDF render time.
 // =============================================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
@@ -87,6 +87,7 @@ const saveBtn: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 
 export function InvoiceSettings() {
+  const fieldId = useId();
   const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -166,8 +167,8 @@ export function InvoiceSettings() {
         )}
 
         <div style={fieldGroup}>
-          <label style={labelStyle}>{t('invoiceSettings.logoUrl')}</label>
-          <input
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('invoiceSettings.logoUrl')}</label>
+          <input id={`${fieldId}-1`}
             style={inputStyle}
             type="url"
             placeholder={t('invoiceSettings.logoUrlPlaceholder')}
@@ -177,8 +178,8 @@ export function InvoiceSettings() {
         </div>
 
         <div style={fieldGroup}>
-          <label style={labelStyle}>{t('invoiceSettings.headerColor')}</label>
-          <input
+          <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('invoiceSettings.headerColor')}</label>
+          <input id={`${fieldId}-2`}
             style={{ ...inputStyle, width: 120 }}
             type="color"
             value={form.header_color || '#1a5276'}
@@ -190,8 +191,8 @@ export function InvoiceSettings() {
         </div>
 
         <div style={fieldGroup}>
-          <label style={labelStyle}>{t('invoiceSettings.footerLegal')}</label>
-          <textarea
+          <label htmlFor={`${fieldId}-3`} style={labelStyle}>{t('invoiceSettings.footerLegal')}</label>
+          <textarea id={`${fieldId}-3`}
             style={textareaStyle}
             placeholder={t('invoiceSettings.footerLegalPlaceholder')}
             value={form.footer_legal || ''}
@@ -200,8 +201,8 @@ export function InvoiceSettings() {
         </div>
 
         <div style={fieldGroup}>
-          <label style={labelStyle}>{t('invoiceSettings.paymentInstructions')}</label>
-          <textarea
+          <label htmlFor={`${fieldId}-4`} style={labelStyle}>{t('invoiceSettings.paymentInstructions')}</label>
+          <textarea id={`${fieldId}-4`}
             style={textareaStyle}
             placeholder={t('invoiceSettings.paymentInstructionsPlaceholder')}
             value={form.payment_instructions || ''}
