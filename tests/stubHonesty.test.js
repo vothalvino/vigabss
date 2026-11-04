@@ -275,7 +275,9 @@ describe('automationService', () => {
   describe('unimplemented batch operations produce failure items', () => {
     // applyBatchOperation refuses them; the background job records each such
     // item as a failure (tests/batchJobsBackground.test.js, TNA-41).
-    test.each(['send_notification', 'apply_tag', 'remove_tag', 'rate_limit', 'send_email', 'send_sms'])(
+    // send_email and send_sms go through the outbox now (ASY-36,
+    // tests/batchMessages.test.js); these four are also refused at creation.
+    test.each(['send_notification', 'apply_tag', 'remove_tag', 'rate_limit'])(
       'operation "%s" is refused, never a silent success',
       async (operation) => {
         await expect(automationService.applyBatchOperation(1, operation, { entity_id: 10, entity_type: 'contract' }, {}, 1))
@@ -299,9 +301,11 @@ describe('automationService', () => {
     test('configure_device is recorded as not-implemented, never fake success', async () => {
       db.query
         .mockResolvedValueOnce(insertResult(1))     // INSERT pipeline
-        // assign_ip
+        // assign_ip (the contract keeps its active address, ASY-36)
         .mockResolvedValueOnce(updateResult())      // UPDATE current_stage
         .mockResolvedValueOnce(insertResult(10))    // INSERT stage
+        .mockResolvedValueOnce(qResult([{ id: 1, client_id: 1 }]))               // SELECT contract
+        .mockResolvedValueOnce(qResult([{ ip_address: '10.0.0.9', pool_id: 3 }])) // SELECT active assignment
         .mockResolvedValueOnce(updateResult())      // UPDATE stage completed
         // configure_device (returns marker, no internal query)
         .mockResolvedValueOnce(updateResult())      // UPDATE current_stage
@@ -358,6 +362,8 @@ describe('automationService', () => {
         // condition_duration_minutes) per device with a recent reading,
         // instead of one arbitrary org-wide row.
         .mockResolvedValueOnce(qResult([{ device_id: 1, metric_value: '95', polled_at: new Date() }])) // checkCondition
+        // A reboot goes through the device's driver now (ASY-36); this device has none.
+        .mockResolvedValueOnce(qResult([]))                      // driver configs
         .mockResolvedValueOnce(insertResult(1))                  // INSERT executions
         .mockResolvedValueOnce(updateResult());                   // UPDATE rules
 
@@ -372,7 +378,7 @@ describe('automationService', () => {
       // 4: which device actually triggered it) shifted status to index 4.
       expect(insertCall[1][2]).toBe(1); // device_id
       expect(insertCall[1][4]).toBe('not_dispatched');
-      expect(insertCall[1][5]).toMatch(/not dispatched/i);
+      expect(insertCall[1][5]).toMatch(/no active driver config .* nothing was sent/i);
     });
 
     test('does not record stubbed status for remediation actions', async () => {
@@ -383,6 +389,7 @@ describe('automationService', () => {
           cooldown_minutes: 1, last_triggered_at: null, is_enabled: 1, run_count: 0,
         }]))
         .mockResolvedValueOnce(qResult([{ device_id: 1, metric_value: '99', polled_at: new Date() }]))
+        .mockResolvedValueOnce(qResult([]))
         .mockResolvedValueOnce(insertResult(1))
         .mockResolvedValueOnce(updateResult());
 

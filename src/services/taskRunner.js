@@ -59,7 +59,7 @@ const ORGANIZATION_SCOPED_TASK_NAMES = new Set([
   'anomaly_detection', 'churn_score_computation', 'remediation_evaluation',
   'ai_support_metrics_rollup', 'rollover_balance_accrue', 'apply_speed_windows',
   'poll_pppoe_events', 'reconcile_gateway_payments', 'poll_cfdi_cancellations',
-  'close_stale_sessions',
+  'close_stale_sessions', 'check_fup_thresholds', 'fup_threshold_notify',
 ]);
 
 const PPPoE_EVENT_POLL_TASK = 'poll_pppoe_events';
@@ -427,25 +427,17 @@ async function dispatchTask(taskName, organizationId) {
     // restores plan speeds when a window ends. See speedWindowService.
     case 'apply_speed_windows':
       return inEveryDatabase(taskName, organizationId, orgId => speedWindowService.applySpeedWindows(orgId));
-    // check_fup_thresholds (migration 290): fupService.applyFupThrottle() sends
-    // a CoA and inserts a plan_throttle_logs row with NO idempotency guard — a
-    // */15 cron would re-throttle every over-cap contract every tick.
-    // DEFERRED until the throttle is idempotent.
+    // check_fup_thresholds (migration 290, enabled by 519): throttles each
+    // contract over its plan's FUP threshold once per month and restores the
+    // plan rate when the month ends or a data pack lifts it (ASY-36).
     case 'check_fup_thresholds':
-      logger.warn({ taskName }, 'check_fup_thresholds not wired: applyFupThrottle has no idempotency guard and would re-throttle every tick');
-      return { message: 'check_fup_thresholds: deferred — throttle idempotency needed first', deferred: true };
-    // fup_threshold_notify (migration 290): checkAndNotifyThresholds() hard-
-    // filters on organization_id, but the seeded row is global (NULL) — needs
-    // an all-orgs sweep wrapper. DEFERRED.
+      return perOrganization(taskName, organizationId, orgId => require('./fupService').checkFupThresholds(orgId));
+    // fup_threshold_notify (migration 290, enabled by 519): the 80/90/100%
+    // notices, for every organization when the row is install-wide.
     case 'fup_threshold_notify':
-      logger.warn({ taskName }, 'fup_threshold_notify not wired: service requires a concrete organization_id; the global row needs an org sweep');
-      return { message: 'fup_threshold_notify: deferred — needs an all-orgs iteration wrapper', deferred: true };
-    // convert_expired_trials (migration 200): no implementation exists —
-    // needs trial-expiry detection (contracts.start_date + plans.trial_days)
-    // plus the billing transition. DEFERRED.
-    case 'convert_expired_trials':
-      logger.warn({ taskName }, 'convert_expired_trials is not yet implemented');
-      return { message: 'convert_expired_trials: handler not yet implemented', deferred: true };
+      return perOrganization(taskName, organizationId, orgId => require('./fupNotificationService').checkAndNotifyThresholds(orgId));
+    // convert_expired_trials was removed by migration 519: invoices price the
+    // trial window themselves (billingService.isContractInTrial).
     // subscriber_speed_test_run (migration 293): no implementation exists.
     case 'subscriber_speed_test_run':
       logger.warn({ taskName }, 'subscriber_speed_test_run is not yet implemented');

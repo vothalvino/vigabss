@@ -416,9 +416,11 @@ describe('automationService — additional branch coverage', () => {
       const pipelineResult = { id: 1, name: 'ContractPipeline', status: 'failed' };
       db.query
         .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 }])  // INSERT pipeline
-        // Stage 0 (assign_ip)
+        // Stage 0 (assign_ip: the contract keeps its active address, ASY-36)
         .mockResolvedValueOnce([{ affectedRows: 1 }])   // UPDATE current_stage
         .mockResolvedValueOnce([{ insertId: 10 }])        // INSERT stage
+        .mockResolvedValueOnce([[{ id: 5, client_id: 2 }], []])               // SELECT contract
+        .mockResolvedValueOnce([[{ ip_address: '10.0.0.9', pool_id: 3 }], []]) // SELECT active assignment
         .mockResolvedValueOnce([{ affectedRows: 1 }])    // UPDATE stage completed
         // Stage 1 (configure_device)
         .mockResolvedValueOnce([{ affectedRows: 1 }])
@@ -455,9 +457,11 @@ describe('automationService — additional branch coverage', () => {
       const pipelineFailed = { id: 1, name: 'FailPipeline', status: 'failed' };
       db.query
         .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 }])  // INSERT pipeline
-        // Stage 0 (assign_ip)
+        // Stage 0 (assign_ip: the contract keeps its active address, ASY-36)
         .mockResolvedValueOnce([{ affectedRows: 1 }])   // UPDATE current_stage
         .mockResolvedValueOnce([{ insertId: 10 }])        // INSERT stage
+        .mockResolvedValueOnce([[{ id: 5, client_id: 2 }], []])               // SELECT contract
+        .mockResolvedValueOnce([[{ ip_address: '10.0.0.9', pool_id: 3 }], []]) // SELECT active assignment
         .mockResolvedValueOnce([{ affectedRows: 1 }])    // UPDATE stage completed
         // Stage 1 (configure_device)
         .mockResolvedValueOnce([{ affectedRows: 1 }])
@@ -544,13 +548,14 @@ describe('automationRules routes — additional coverage', () => {
   it('PUT /api/automation-rules/:id updates successfully with object fields', async () => {
     const updated = { id: 1, name: 'Updated', trigger_event: 'device.offline', action_type: 'send_notification' };
     db.query
-      .mockResolvedValueOnce(mockRows([{ id: 1 }]))
+      .mockResolvedValueOnce(mockRows([{ id: 1, action_type: 'send_notification', action_config: null }]))
       .mockResolvedValueOnce(mockUpdate())
       .mockResolvedValueOnce(mockRows([updated]));
     const res = await request(app).put('/api/automation-rules/1').send({
       // trigger_conditions is a list of conditions (DB-05).
       trigger_conditions: [{ field: 'status', operator: 'eq', value: 'offline' }],
-      action_config: { channel: 'email' },
+      // A send_notification rule needs its message (ASY-36).
+      action_config: { channel: 'email', message: 'Your device is offline' },
     });
     expect(res.status).toBe(200);
   });

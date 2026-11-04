@@ -57,6 +57,43 @@ async function deliverThresholdNotice(contract, threshold, usedGb, allowanceGb) 
   return null;
 }
 
+/**
+ * A contract's data use this billing month, from complete accounting days
+ * only, or null when the counters cannot be trusted yet (an incomplete day,
+ * a session spanning the boundary, or no data at all): nothing may notify or
+ * throttle from them. Packs bought this month and available rollover extend
+ * the allowance (TNA-21) and are returned as extraGb.
+ *
+ * @param {{ id: number, organization_id: number }} contract
+ * @param {string} billingMonth  YYYY-MM-01
+ * @param {string} endStr        YYYY-MM-DD, the month's last day
+ * @returns {Promise<{ usedGb: number, extraGb: number }|null>}
+ */
+async function monthUsage(contract, billingMonth, endStr) {
+  const [[usage]] = await db.query(
+    `SELECT COALESCE(SUM(CASE WHEN is_complete = 1
+                  THEN bytes_in_delta + bytes_out_delta ELSE 0 END) / 1073741824.0, 0) AS used_gb,
+            COALESCE(SUM(is_complete = 0), 0) AS incomplete_rows
+            , COUNT(*) AS observed_rows,
+            (SELECT COUNT(*) FROM connection_logs unverifiable
+              WHERE unverifiable.organization_id = ? AND unverifiable.contract_id = ?
+                AND ${buildUnverifiableSessionOverlap('unverifiable', '?', 'DATE_ADD(?, INTERVAL 1 DAY)')}) AS unverifiable_session_rows
+       FROM radius_accounting_usage_daily
+      WHERE organization_id = ? AND contract_id = ?
+        AND usage_date >= ? AND usage_date <= ?`,
+    [contract.organization_id, contract.id, billingMonth, endStr,
+      contract.organization_id, contract.id, billingMonth, endStr],
+  );
+
+  // Never throttle/notify from an uncertain counter baseline or an interval
+  // that crossed a UTC billing boundary without exact allocation.
+  if (!usage || Number(usage.observed_rows || 0) === 0 || Number(usage.incomplete_rows || 0) > 0
+      || Number(usage.unverifiable_session_rows || 0) > 0) return null;
+
+  const extra = await dataPackService.extraAllowanceGb(contract.id, contract.organization_id, billingMonth, endStr);
+  return { usedGb: parseFloat(usage.used_gb) || 0, extraGb: Number(extra.total_gb) || 0 };
+}
+
 async function checkAndNotifyThresholds(organizationId) {
   const now = new Date();
   const billingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -85,31 +122,11 @@ async function checkAndNotifyThresholds(organizationId) {
     const capGb = parseFloat(contract.data_cap_gb) || parseFloat(contract.fup_threshold_gb) || 0;
     if (capGb <= 0) continue;
 
-    const [[usage]] = await db.query(
-      `SELECT COALESCE(SUM(CASE WHEN is_complete = 1
-                    THEN bytes_in_delta + bytes_out_delta ELSE 0 END) / 1073741824.0, 0) AS used_gb,
-              COALESCE(SUM(is_complete = 0), 0) AS incomplete_rows
-              , COUNT(*) AS observed_rows,
-              (SELECT COUNT(*) FROM connection_logs unverifiable
-                WHERE unverifiable.organization_id = ? AND unverifiable.contract_id = ?
-                  AND ${buildUnverifiableSessionOverlap('unverifiable', '?', 'DATE_ADD(?, INTERVAL 1 DAY)')}) AS unverifiable_session_rows
-         FROM radius_accounting_usage_daily
-        WHERE organization_id = ? AND contract_id = ?
-          AND usage_date >= ? AND usage_date <= ?`,
-      [contract.organization_id, contract.id, billingMonth, endStr,
-        contract.organization_id, contract.id, billingMonth, endStr],
-    );
-
-    // Never throttle/notify from an uncertain counter baseline or an interval
-    // that crossed a UTC billing boundary without exact allocation.
-    if (Number(usage.observed_rows || 0) === 0 || Number(usage.incomplete_rows || 0) > 0
-        || Number(usage.unverifiable_session_rows || 0) > 0) continue;
-
-    const usedGb = parseFloat(usage.used_gb) || 0;
-    // Packs bought this month and available rollover extend the allowance
-    // the 80/90/100% notices are measured against (TNA-21).
-    const extra = await dataPackService.extraAllowanceGb(contract.id, contract.organization_id, billingMonth, endStr);
-    const usagePct = (usedGb / (capGb + extra.total_gb)) * 100;
+    const usage = await monthUsage(contract, billingMonth, endStr);
+    if (!usage) continue;
+    const usedGb = usage.usedGb;
+    const usagePct = (usedGb / (capGb + usage.extraGb)) * 100;
+    const extra = { total_gb: usage.extraGb };
 
     for (const threshold of [80, 90, 100]) {
       if (usagePct < threshold) continue;
@@ -190,4 +207,4 @@ async function listNotifications(organizationId, { contractId, month } = {}) {
   return rows;
 }
 
-module.exports = { checkAndNotifyThresholds, listNotifications };
+module.exports = { checkAndNotifyThresholds, listNotifications, monthUsage };

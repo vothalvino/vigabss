@@ -178,4 +178,4 @@ async function resumeApCommands() {
   return count;
 }
 
-module.exports = { EXECUTABLE, createApCommandJob, runApCommand, queueApCommand, resumeApCommands };
+module.exports = { EXECUTABLE, driverConfigFor, createApCommandJob, runApCommand, queueApCommand, resumeApCommands };

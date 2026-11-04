@@ -4,10 +4,7 @@
 // Handles workflow automation rules, batch subscriber operations, provisioning
 // pipelines, and auto-remediation rules.
 //
-// STUBS:
-//   - Batch operations against RADIUS/devices are enqueued/recorded only.
-//   - Provisioning pipeline stage "configure_device" is stubbed (no live call).
-//   - Remediation device actions (e.g. reboot) are stubbed (status = 'stubbed').
+// Rule actions and event triggers live in automationActions.js (ASY-36).
 // =============================================================================
 
 const db = require('../config/database');
@@ -15,7 +12,7 @@ const logger = require('../utils/logger').child({ service: 'automationService' }
 const auditLog = require('./auditLog');
 const { assertPlanSelectable } = require('./planAvailability');
 const { assertOwnedReferences } = require('../utils/ownedReferences');
-const { ValidationError } = require('../utils/errors');
+const { AppError, ValidationError } = require('../utils/errors');
 const { parseJsonColumn } = require('../utils/jsonColumn');
 const { SNMP_METRICS } = require('./alertService');
 
@@ -63,10 +60,11 @@ async function evaluateAutomationRules(organizationId, triggerEvent, payload = {
         status = 'skipped';
         resultMessage = 'Conditions not met';
       } else {
-        const outcome = await dispatchAction(rule.action_type, parseJsonColumn(rule.action_config, {}), payload, organizationId);
+        const outcome = await dispatchAction(rule.action_type, parseJsonColumn(rule.action_config, {}), payload, organizationId, rule);
         resultMessage = outcome.message;
-        if (outcome.status === 'not_implemented') {
-          // Nothing was done, so nothing is recorded as a run (ASY-16).
+        if (outcome.status !== 'done') {
+          // Nothing was done (not implemented, or nothing to act on), so
+          // nothing is recorded as a run (ASY-16).
           status = 'skipped';
         } else {
           triggered++;
@@ -128,22 +126,20 @@ function evaluateCondition(payload, condition) {
 }
 
 /**
- * Dispatch an automation rule action.
+ * Dispatch an automation rule action (automationActions, ASY-36).
  * @param {string} actionType
  * @param {object} actionConfig
  * @param {object} payload
  * @param {number} organizationId
- * @returns {Promise<{ status: 'done'|'not_implemented', message: string }>}
+ * @param {object} [rule]  the rule row (its id and name label what the action does)
+ * @returns {Promise<{ status: 'done'|'skipped'|'not_implemented', message: string }>}
  */
-async function dispatchAction(actionType, actionConfig, payload, organizationId) {
-  // No action type has a handler yet. They used to return messages such as
-  // "Ticket creation enqueued (stub)" that were recorded as a successful run
-  // (ASY-16); say plainly that nothing happened.
-  logger.info({ organizationId, actionType }, 'Automation action is not implemented; nothing was done');
-  return {
-    status: 'not_implemented',
-    message: `Action '${actionType}' is not implemented yet; nothing was done`,
-  };
+async function dispatchAction(actionType, actionConfig, payload, organizationId, rule = {}) {
+  return require('./automationActions').runAction(
+    { ...rule, action_type: actionType, action_config: actionConfig || {} },
+    payload,
+    organizationId,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -255,7 +251,13 @@ async function processBatchJob(jobId, organizationId) {
         let status = 'success';
         let message = `${job.operation} applied`;
         try {
-          await applyBatchOperation(organizationId, job.operation, item, params, job.created_by || null);
+          const outcome = await applyBatchOperation(organizationId, job.operation, item, params, job.created_by || null);
+          if (outcome && outcome.skipped) {
+            status = 'skipped';
+            message = String(outcome.message).slice(0, 500);
+          } else if (outcome && outcome.message) {
+            message = String(outcome.message).slice(0, 500);
+          }
         } catch (err) {
           status = 'failure';
           message = String(err.message).slice(0, 500);
@@ -314,7 +316,31 @@ async function resumeBatchJobs() {
   return count;
 }
 
+// Operations with no implementation are refused before a job exists, rather
+// than failing every item (ASY-36).
+const BATCH_NOT_IMPLEMENTED = Object.freeze(['rate_limit', 'send_notification', 'apply_tag', 'remove_tag']);
+const BATCH_MESSAGE_CLASSES = Object.freeze(['transactional', 'marketing']);
+
 async function checkBatchParams(organizationId, operation, params) {
+  if (BATCH_NOT_IMPLEMENTED.includes(operation)) {
+    throw new AppError(
+      `Batch operation '${operation}' is not implemented; nothing was queued.`
+        + (operation === 'send_notification' ? ' Use send_email or send_sms.' : ''),
+      501,
+      'BATCH_OPERATION_NOT_IMPLEMENTED',
+    );
+  }
+  if (operation === 'send_email' || operation === 'send_sms') {
+    if (typeof params.message !== 'string' || !params.message.trim()) {
+      throw new ValidationError(`${operation} requires operation_params.message`);
+    }
+    if (operation === 'send_email' && (typeof params.subject !== 'string' || !params.subject.trim())) {
+      throw new ValidationError('send_email requires operation_params.subject');
+    }
+    if (params.message_class !== undefined && !BATCH_MESSAGE_CLASSES.includes(params.message_class)) {
+      throw new ValidationError(`operation_params.message_class must be one of: ${BATCH_MESSAGE_CLASSES.join(', ')}`);
+    }
+  }
   if (operation === 'change_plan') {
     if (!params.plan_id) throw new ValidationError('change_plan requires operation_params.plan_id');
     await assertPlanSelectable(db, params.plan_id, organizationId);
@@ -375,10 +401,14 @@ async function resolveBatchTargets(organizationId, operation, filterCriteria) {
  *   suspend    → suspensionService.suspendContract()
  *   unsuspend  → suspensionService.reconnectContract()
  *   change_plan → direct DB update on contract plan_id
+ *   send_email / send_sms → one message_outbox row per item for the contract's
+ *     client (dedupe key per item, so a resumed job never sends twice); a
+ *     message the client's preferences block is a 'skipped' item
  *
- * NOT IMPLEMENTED (throws to surface honest failure):
- *   rate_limit, send_notification, apply_tag, remove_tag, send_email, send_sms
- *   — these require additional service integrations not yet wired here.
+ * NOT IMPLEMENTED (refused by checkBatchParams; throws if reached):
+ *   rate_limit, send_notification, apply_tag, remove_tag
+ *
+ * @returns {Promise<void|{skipped?: boolean, message?: string}>}
  */
 async function applyBatchOperation(organizationId, operation, target, params, actorId = null) {
   const contractId = target.entity_id;
@@ -459,6 +489,10 @@ async function applyBatchOperation(organizationId, operation, target, params, ac
       return;
     }
 
+    case 'send_email':
+    case 'send_sms':
+      return sendBatchMessage(organizationId, operation, target, params);
+
     default: {
       // Not implemented — throw so createBatchJob records this item as 'failure'
       // and the operator knows the operation did not execute.
@@ -472,6 +506,45 @@ async function applyBatchOperation(organizationId, operation, target, params, ac
   }
 }
 
+async function sendBatchMessage(organizationId, operation, target, params) {
+  const [[row]] = await db.query(
+    `SELECT c.id AS contract_id, cl.id AS client_id, cl.name, cl.email, cl.phone
+       FROM contracts c
+       JOIN clients cl ON cl.id = c.client_id AND cl.organization_id = c.organization_id AND cl.deleted_at IS NULL
+      WHERE c.id = ? AND c.organization_id = ? AND c.deleted_at IS NULL`,
+    [target.entity_id, organizationId],
+  );
+  if (!row) throw new Error(`Contract ${target.entity_id} not found in organization`);
+  const channel = operation === 'send_email' ? 'email' : 'sms';
+  const recipient = channel === 'email' ? row.email : row.phone;
+  if (!recipient) {
+    return { skipped: true, message: `Client #${row.client_id} has no ${channel === 'email' ? 'email address' : 'phone number'}` };
+  }
+  const { fill } = require('./automationActions');
+  const context = { client: { id: row.client_id, name: row.name }, contract: { id: row.contract_id } };
+  const body = fill(params.message, context).trim();
+  const queued = await require('./messageOutbox').enqueue({
+    channel,
+    organizationId,
+    clientId: row.client_id,
+    messageClass: BATCH_MESSAGE_CLASSES.includes(params.message_class) ? params.message_class : 'transactional',
+    recipient,
+    ...(channel === 'email'
+      ? {
+        subject: fill(params.subject, context).trim(),
+        bodyText: body,
+        bodyHtml: `<p>${require('./notificationService').escapeHtmlForTemplate(body)}</p>`,
+      }
+      : { bodyText: body }),
+    sourceType: 'batch_job_item',
+    sourceId: target.id ?? null,
+    // One message per item, even when an interrupted job is resumed.
+    dedupeKey: target.id ? `batch_job_item:${organizationId}:${target.id}` : null,
+  });
+  if (!queued.queued) return { skipped: true, message: `Not sent: ${queued.code || 'blocked by the client\'s communication preferences'}` };
+  return { message: `${channel === 'email' ? 'Email' : 'SMS'} queued (outbox #${queued.id})` };
+}
+
 // ---------------------------------------------------------------------------
 // Provisioning Pipelines
 // ---------------------------------------------------------------------------
@@ -482,7 +555,7 @@ const DEFAULT_STAGES = ['assign_ip', 'configure_device', 'activate_contract', 's
  * Run a provisioning pipeline for a contract.
  * Stages are ordered; 'configure_device' is STUBBED (no live device call).
  */
-async function runProvisioningPipeline(organizationId, { name, contract_id, client_id, triggered_by }) {
+async function runProvisioningPipeline(organizationId, { name, contract_id, client_id, ip_pool_id = null, triggered_by }) {
   const [result] = await db.query(
     `INSERT INTO provisioning_pipelines
        (organization_id, name, contract_id, client_id, status, current_stage, stages_config, triggered_by, started_at)
@@ -515,10 +588,10 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
     );
 
     try {
-      stageOutput = await executeProvisioningStage(stageName, { organizationId, contract_id, client_id });
-      // A stage with no implementation did nothing: 'skipped', never
-      // 'completed' (TNB-37).
-      if (stageOutput && stageOutput.implemented === false) stageStatus = 'skipped';
+      stageOutput = await executeProvisioningStage(stageName, { organizationId, contract_id, client_id, ip_pool_id });
+      // A stage with no implementation, or nothing to do, did nothing:
+      // 'skipped', never 'completed' (TNB-37).
+      if (stageOutput && (stageOutput.implemented === false || stageOutput.skipped)) stageStatus = 'skipped';
     } catch (err) {
       stageStatus = 'failed';
       stageError = err.message;
@@ -544,7 +617,7 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
   const skipped = Object.entries(stageResults).filter(([, r]) => r.status === 'skipped').map(([n]) => n);
   if (pipelineStatus === 'completed' && skipped.length > 0) {
     const didWork = Object.values(stageResults).some(r => r.status === 'completed' && r.output?.implemented !== false
-      && !(r.output && r.output.activated === false));
+      && !r.output?.skipped && !(r.output && r.output.activated === false));
     if (!didWork) {
       pipelineStatus = 'failed';
       errorMessage = `Nothing was provisioned: stages not implemented (${skipped.join(', ')})`;
@@ -565,10 +638,9 @@ async function runProvisioningPipeline(organizationId, { name, contract_id, clie
 async function executeProvisioningStage(stageName, ctx) {
   switch (stageName) {
     case 'assign_ip':
-      // Not implemented: poolAssignmentService is not wired. It used to report
-      // a "completed" stage with assigned_ip 0.0.0.0 (TNB-37).
-      logger.warn(ctx, 'Provisioning: assign_ip not implemented — no address assigned');
-      return { implemented: false, note: 'assign_ip not implemented — no IP address was assigned. Assign one from the contract page.' };
+      // It reported a "completed" stage with assigned_ip 0.0.0.0 (TNB-37);
+      // it now allocates through poolAssignmentService (ASY-36).
+      return assignPipelineIp(ctx);
     case 'configure_device':
       // Not implemented: live device configuration (routerDriverService integration) is
       // not wired. Do NOT claim success and do NOT abort the whole pipeline — record an
@@ -606,13 +678,42 @@ async function executeProvisioningStage(stageName, ctx) {
   }
 }
 
+/**
+ * assign_ip: keep the contract's active address, or take the next free one
+ * from the chosen pool (the pool and contract are checked against the
+ * organization by assignNextFreeIp, the same path as POST /ip-pools/:id/assign-next).
+ */
+async function assignPipelineIp({ organizationId, contract_id, ip_pool_id }) {
+  if (!contract_id) return { skipped: true, note: 'No contract was supplied; no address was assigned' };
+  const [[contract]] = await db.query(
+    'SELECT id, client_id FROM contracts WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
+    [contract_id, organizationId],
+  );
+  if (!contract) throw new ValidationError('contract_id does not belong to this organization');
+  const [[existing]] = await db.query(
+    `SELECT ip_address, pool_id FROM ip_assignments
+      WHERE contract_id = ? AND organization_id = ? AND status = 'active' AND deleted_at IS NULL
+      ORDER BY id LIMIT 1`,
+    [contract.id, organizationId],
+  );
+  if (existing) return { assigned_ip: existing.ip_address, pool_id: existing.pool_id, reused: true };
+  if (!ip_pool_id) {
+    return { skipped: true, note: 'No address was assigned: the contract has none and no ip_pool_id was given' };
+  }
+  const assignment = await require('./poolAssignmentService').assignNextFreeIp(ip_pool_id, {
+    contractId: contract.id, clientId: contract.client_id, orgId: organizationId,
+  });
+  logger.info({ organizationId, contractId: contract.id, ip: assignment.ip_address }, 'Provisioning: address assigned');
+  return { assigned_ip: assignment.ip_address, pool_id: assignment.pool_id, assignment_id: assignment.id };
+}
+
 // ---------------------------------------------------------------------------
-// Remediation Rules — evaluate and dispatch (STUBBED device actions)
+// Remediation Rules — evaluate and dispatch
 // ---------------------------------------------------------------------------
 
 /**
  * Evaluate all enabled remediation rules for an organization.
- * Records each execution. Device actions are STUBBED.
+ * Records each execution; a reboot goes to the breaching device's driver.
  */
 async function evaluateRemediationRules(organizationId) {
   const [rules] = await db.query(
@@ -636,10 +737,7 @@ async function evaluateRemediationRules(organizationId) {
     if (!conditionMet) continue;
 
     const start = Date.now();
-    // Device actions are not dispatched to live devices — record as not_dispatched so
-    // the caller knows no real action was taken.
-    const execStatus = 'not_dispatched';
-    const resultMessage = `Action '${rule.action_type}' was NOT dispatched — live device dispatch is not yet implemented`;
+    const { status: execStatus, message: resultMessage } = await dispatchRemediation(organizationId, rule, deviceId);
 
     await db.query(
       `INSERT INTO remediation_executions
@@ -656,6 +754,36 @@ async function evaluateRemediationRules(organizationId) {
   }
 
   return { evaluated: rules.length, triggered };
+}
+
+/** Remediation action_type → driver command. Only these reach a device. */
+const REMEDIATION_COMMANDS = Object.freeze({ reboot: 'reboot', reboot_device: 'reboot' });
+
+/**
+ * Run a remediation rule's action on the breaching device through its vendor
+ * driver (routerDriverService, NET-30). An action with no driver command, or
+ * a device with no driver config that implements it, is 'not_dispatched'.
+ * @returns {Promise<{ status: 'success'|'failure'|'not_dispatched', message: string }>}
+ */
+async function dispatchRemediation(organizationId, rule, deviceId) {
+  const command = REMEDIATION_COMMANDS[rule.action_type];
+  if (!command) {
+    return { status: 'not_dispatched', message: `Action '${rule.action_type}' was NOT dispatched — only reboot can be sent to a device` };
+  }
+  if (!deviceId) return { status: 'not_dispatched', message: 'No device breached the condition' };
+  try {
+    const config = await require('./apCommandService').driverConfigFor(deviceId, organizationId, command);
+    if (!config) {
+      return { status: 'not_dispatched', message: `Device #${deviceId} has no active driver config that can ${command}; nothing was sent` };
+    }
+    const result = await require('./routerDriverService').dispatchCommand(config.id, organizationId, command, {}, null);
+    if (result && result.status === 'success') {
+      return { status: 'success', message: `${command} sent to device #${deviceId} (driver execution #${result.execution_id})` };
+    }
+    return { status: 'failure', message: String(result?.error_message || 'The device did not accept the command').slice(0, 500) };
+  } catch (err) {
+    return { status: 'failure', message: String(err.message).slice(0, 500) };
+  }
 }
 
 /**

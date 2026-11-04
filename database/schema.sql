@@ -507,6 +507,8 @@ CREATE TABLE IF NOT EXISTS contracts (
                        COMMENT 'Soft-suspension download throttle in kbps; NULL = not soft-suspended (migration 475)',
     soft_suspend_upload_kbps INT UNSIGNED NULL DEFAULT NULL
                        COMMENT 'Soft-suspension upload throttle in kbps; NULL = not soft-suspended (migration 475)',
+    fup_throttled_month DATE NULL DEFAULT NULL
+                       COMMENT 'First day of the billing month whose FUP throttle applies; NULL or an earlier month = not throttled (migration 519)',
     escalation_enabled TINYINT(1) NOT NULL DEFAULT 1
                        COMMENT 'Master switch for AI-diagnostic auto-escalation (creates a real technician ticket) on this contract; 0 = never auto-escalate regardless of fault (migration 387)',
     escalate_on_disconnect TINYINT(1) NOT NULL DEFAULT 0
@@ -17223,8 +17225,7 @@ INSERT INTO scheduled_tasks
     (organization_id, task_name, description, cron_expression, priority, is_enabled)
 VALUES
     (NULL, 'campaign_send', 'Process queued campaign messages and dispatch them via email/SMS/WhatsApp', '*/5 * * * *', 'normal', 1),
-    (NULL, 'check_fup_thresholds', 'Apply FUP throttling to contracts that have exceeded their fair-use policy threshold', '*/15 * * * *', 'normal', 0),
-    (NULL, 'convert_expired_trials', 'Convert expired free-trial contracts to paid billing and notify the client', '0 * * * *', 'normal', 0),
+    (NULL, 'check_fup_thresholds', 'Apply FUP throttling to contracts that have exceeded their fair-use policy threshold', '*/15 * * * *', 'normal', 1),
     (NULL, 'apply_speed_windows', 'Apply active time-based speed windows via RADIUS CoA at window boundaries', '*/5 * * * *', 'normal', 1),
     (NULL, 'apply_late_fees', 'Apply configured late fees to overdue invoices', '0 2 * * *', 'normal', 1),
     (NULL, 'send_payment_reminders', 'Send payment due and overdue reminder notifications', '0 * * * *', 'normal', 1),
@@ -17261,7 +17262,7 @@ VALUES
 INSERT INTO scheduled_tasks
     (organization_id, task_name, task_type, description, cron_expression, priority, is_enabled, created_at, updated_at)
 VALUES
-    (NULL, 'fup_threshold_notify', 'notification', 'Check FUP usage thresholds and send 80/90/100% notifications', '*/15 * * * *', 'normal', 0, NOW(), NOW()),
+    (NULL, 'fup_threshold_notify', 'notification', 'Check FUP usage thresholds and send 80/90/100% notifications', '*/15 * * * *', 'normal', 1, NOW(), NOW()),
     (NULL, 'rollover_balance_accrue', 'usage_rollup', 'Monthly: accrue unused data allowance as rollover balance to next month', '0 0 1 * *', 'normal', 1, NOW(), NOW()),
     (NULL, 'subscriber_speed_test_run', 'other', 'Dispatch queued subscriber speed test jobs and record results', '*/5 * * * *', 'low', 0, NOW(), NOW());
 

@@ -3130,11 +3130,11 @@ function generateSpec() {
       // ---- §18.1 Workflow Automation ----
       '/automation-rules': {
         get: { tags: ['Automation'], summary: 'List automation rules', operationId: 'listAutomationRules', security: [{ bearerAuth: [] }], responses: r200('AutomationRule[]') },
-        post: { tags: ['Automation'], summary: 'Create automation rule', operationId: 'createAutomationRule', security: [{ bearerAuth: [] }], requestBody: jsonBody('AutomationRule'), responses: r201('AutomationRule') },
+        post: { tags: ['Automation'], summary: 'Create automation rule', description: 'The rule runs on every business event named by trigger_event (and through /execute). action_type is create_ticket (action_config: subject, description, priority, category), suspend_contract, or send_notification (action_config: channel email|sms, subject, message, message_class); {{field.path}} placeholders are filled from the event. The client, contract and invoice come from the event payload and must belong to the organization.', operationId: 'createAutomationRule', security: [{ bearerAuth: [] }], requestBody: jsonBody('AutomationRule'), responses: { ...r201('AutomationRule'), 422: errorResponse('Unknown action_type or invalid action_config') } },
       },
       '/automation-rules/{id}': {
         get: { tags: ['Automation'], summary: 'Get automation rule', operationId: 'getAutomationRule', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('AutomationRule') },
-        put: { tags: ['Automation'], summary: 'Update automation rule', operationId: 'updateAutomationRule', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('AutomationRule'), responses: r200('AutomationRule') },
+        put: { tags: ['Automation'], summary: 'Update automation rule', operationId: 'updateAutomationRule', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('AutomationRule'), responses: { ...r200('AutomationRule'), 422: errorResponse('Unknown action_type or invalid action_config') } },
         delete: { tags: ['Automation'], summary: 'Delete automation rule', operationId: 'deleteAutomationRule', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/automation-rules/{id}/execute': {
@@ -3146,7 +3146,7 @@ function generateSpec() {
 
       '/batch-jobs': {
         get: { tags: ['Automation'], summary: 'List batch jobs', operationId: 'listBatchJobs', security: [{ bearerAuth: [] }], responses: r200('BatchJob[]') },
-        post: { tags: ['Automation'], summary: 'Queue a batch subscriber job', description: 'Resolves and persists the targets (at most 10,000; more is refused) and answers 202 with the pending job, which runs in the background and resumes after a restart. An item interrupted mid-operation is recorded as a failure to check by hand, never run twice.', operationId: 'createBatchJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('BatchJob'), responses: r202('Queued batch job') },
+        post: { tags: ['Automation'], summary: 'Queue a batch subscriber job', description: 'Resolves and persists the targets (at most 10,000; more is refused) and answers 202 with the pending job, which runs in the background and resumes after a restart. An item interrupted mid-operation is recorded as a failure to check by hand, never run twice. Operations: suspend, unsuspend, change_plan (operation_params.plan_id), send_email (subject, message) and send_sms (message), which queue one outbox message per contract\'s client ({{client.name}} is filled; message_class transactional or marketing; a client without an address or whose preferences block it is a skipped item). rate_limit, send_notification, apply_tag and remove_tag are 501.', operationId: 'createBatchJob', security: [{ bearerAuth: [] }], requestBody: jsonBody('BatchJob'), responses: { ...r202('Queued batch job'), 501: errorResponse('Operation not implemented (BATCH_OPERATION_NOT_IMPLEMENTED)') } },
       },
       '/batch-jobs/{id}': {
         get: { tags: ['Automation'], summary: 'Get batch job', operationId: 'getBatchJob', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('BatchJob') },
@@ -3160,7 +3160,7 @@ function generateSpec() {
 
       '/provisioning-pipelines': {
         get: { tags: ['Automation'], summary: 'List provisioning pipeline runs', operationId: 'listProvisioningPipelines', security: [{ bearerAuth: [] }], responses: r200('ProvisioningPipeline[]') },
-        post: { tags: ['Automation'], summary: 'Trigger a provisioning pipeline run', operationId: 'createProvisioningPipeline', security: [{ bearerAuth: [] }], requestBody: jsonBody('name + contract_id + client_id'), responses: r201('ProvisioningPipeline') },
+        post: { tags: ['Automation'], summary: 'Trigger a provisioning pipeline run', description: 'Stages: assign_ip keeps the contract\'s active address or takes the next free one from ip_pool_id (skipped without either); configure_device and send_notification are not implemented and are recorded skipped; activate_contract stops the run and points to the guided activation flow.', operationId: 'createProvisioningPipeline', security: [{ bearerAuth: [] }], requestBody: jsonBody('name + contract_id + client_id + ip_pool_id'), responses: r201('ProvisioningPipeline') },
       },
       '/provisioning-pipelines/{id}': {
         get: { tags: ['Automation'], summary: 'Get provisioning pipeline with stage details', operationId: 'getProvisioningPipeline', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ProvisioningPipeline') },

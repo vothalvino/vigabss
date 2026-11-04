@@ -117,6 +117,22 @@ interface ApiList<T> { data: T[]; meta: ListMeta }
 // Helpers
 // ---------------------------------------------------------------------------
 
+// What the backend runs (ASY-36): rule actions with a handler, and the
+// remediation actions that reach a device through its driver config.
+const IMPLEMENTED_RULE_ACTIONS = new Set(['create_ticket', 'suspend_contract', 'send_notification']);
+const DISPATCHED_REMEDIATION_ACTIONS = new Set(['reboot', 'reboot_device']);
+
+function GapBadge({ label, hint }: { label: string; hint: string }) {
+  return (
+    <span title={hint} style={{
+      display: 'inline-block', marginLeft: 6, padding: '1px 6px', borderRadius: 10,
+      fontSize: 10, fontWeight: 600, color: '#fff', background: '#95a5a6',
+    }}>
+      {label}
+    </span>
+  );
+}
+
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -231,7 +247,12 @@ function AutomationRulesTab() {
                   <td style={td}>{r.id}</td>
                   <td style={td}>{r.name}</td>
                   <td style={td}><code>{r.trigger_event}</code></td>
-                  <td style={td}>{r.action_type}</td>
+                  <td style={td}>
+                    {r.action_type}
+                    {!IMPLEMENTED_RULE_ACTIONS.has(r.action_type) && (
+                      <GapBadge label={t('automation.actionNotImplemented')} hint={t('automation.actionNotImplementedHint')} />
+                    )}
+                  </td>
                   <td style={td}><StatusBadge value={r.is_enabled ? 'active' : 'disabled'} /></td>
                   <td style={td}>{r.run_count}</td>
                   <td style={td}>
@@ -476,7 +497,12 @@ function RemediationTab() {
                   <td style={td}>{r.id}</td>
                   <td style={td}>{r.name}</td>
                   <td style={td}><code>{r.condition_metric} {r.condition_operator}</code></td>
-                  <td style={td}>{r.action_type}</td>
+                  <td style={td}>
+                    {r.action_type}
+                    {!DISPATCHED_REMEDIATION_ACTIONS.has(r.action_type) && (
+                      <GapBadge label={t('automation.notDispatched')} hint={t('automation.notDispatchedHint')} />
+                    )}
+                  </td>
                   <td style={td}>{r.cooldown_minutes} {t('automation.minutes')}</td>
                   <td style={td}><StatusBadge value={r.is_enabled ? 'active' : 'disabled'} /></td>
                   <td style={td}>
@@ -524,15 +550,6 @@ function ScriptsTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  const executeScript = async (id: number) => {
-    try {
-      const res = await apiFetch<{ data: { id: number; status: string }; note: string }>(`/automation-scripts/${id}/execute`, {
-        method: 'POST', body: JSON.stringify({}),
-      });
-      alert(`${t('automation.executionQueued')}: ${res.note}`);
-    } catch (err) { alert(err instanceof Error ? err.message : t('automation.errorExecute')); }
-  };
-
   const deleteScript = async (id: number) => {
     if (!confirm(t('automation.confirmDelete'))) return;
     try {
@@ -544,7 +561,8 @@ function ScriptsTab() {
   return (
     <div>
       <h3>{t('automation.scripts')}</h3>
-      <p style={{ fontSize: 12, color: '#888' }}>{t('automation.scriptsNote')}</p>
+      {/* POST /automation-scripts/:id/execute is 501: nothing runs scripts (ASY-36). */}
+      <p style={{ fontSize: 12, color: '#888' }}>{t('automation.scriptsNotRunnable')}</p>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {loading ? <p>{t('common.loading')}</p> : (
         <>
@@ -570,8 +588,6 @@ function ScriptsTab() {
                   <td style={td}>{s.is_shared ? t('common.yes') : t('common.no')}</td>
                   <td style={td}>{new Date(s.created_at).toLocaleDateString()}</td>
                   <td style={td}>
-                    <ActionButton label={t('automation.queue')} onClick={() => executeScript(s.id)} />
-                    {' '}
                     <ActionButton label={t('common.delete')} onClick={() => deleteScript(s.id)} variant="danger" />
                   </td>
                 </tr>
