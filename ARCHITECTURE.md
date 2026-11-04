@@ -646,8 +646,14 @@ contract's FreeRADIUS rows and sends the live session a CoA at the rate now in
 force (the new plan's, with any speed window, unless a soft suspension or FUP
 throttle applies). PUT/PATCH `/contracts/:id`, an approved portal plan change
 and batch `change_plan` all call it; the batch also goes through
-`contractUpdateGuard.updateContractWithActivationGuard`, like the PUT. Only the
-portal request prorates; a staff or batch change does not.
+`contractUpdateGuard.updateContractWithActivationGuard`, like the PUT.
+
+Each of those paths also bills the rest of an already-invoiced period at the
+new price (`planChangeProrationService.prorate`, in the change's transaction):
+a one-off invoice for an upgrade, an issued credit note for a downgrade. Staff
+and batch changes take `prorate: false` for a courtesy change or a correction;
+a contract with a `price_override` pays the same whatever its plan, so it is
+never prorated.
 
 Automation rules (`src/services/automationActions.js`, ASY-36) run on every
 business event: a `*` listener on `eventBus` evaluates the organization's

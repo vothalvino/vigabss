@@ -29,6 +29,8 @@ const testWindowService = require('../services/testWindowService');
 const { assertPlanSelectable } = require('../services/planAvailability');
 const { updateContractWithActivationGuard } = require('../services/contractUpdateGuard');
 const contractPlanChangeService = require('../services/contractPlanChangeService');
+const planChangeProrationService = require('../services/planChangeProrationService');
+const businessEvents = require('../services/businessEvents');
 const Nas = require('../models/Nas');
 const auditLog = require('../services/auditLog');
 const { ValidationError, ForbiddenError, NotFoundError, AppError } = require('../utils/errors');
@@ -247,6 +249,8 @@ async function updateContractHandler(req, res, next) {
       : 'contract_connection_type_change';
     let cleanupPreparation = null;
     let record;
+    let proration = null;
+    const changesPlan = req.body.plan_id !== undefined && Number(req.body.plan_id) !== Number(old.plan_id);
     if (preparesNetworkCleanup) {
       const conn = await db.getConnection();
       try {
@@ -279,15 +283,32 @@ async function updateContractHandler(req, res, next) {
           'Contract mutation committed; external network cleanup remains pending',
         ));
       }
+    } else if (changesPlan && req.body.prorate !== false) {
+      // The rest of an already-invoiced period is billed at the new price in
+      // the same transaction as the change (prorate: false skips it, e.g. a
+      // courtesy upgrade or a correction).
+      const conn = await db.getConnection();
+      try {
+        await conn.beginTransaction();
+        record = await updateContractWithActivationGuard(old, req.body, req.orgId, conn);
+        proration = await planChangeProrationService.prorate(conn, {
+          contract: old, newPlanId: req.body.plan_id, organizationId: req.orgId, actorId: req.user?.id ?? null,
+        });
+        await conn.commit();
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+      if (proration?.invoice) await businessEvents.emitInvoiceCreated(req.orgId, proration.invoice);
     } else {
       record = await updateContractWithActivationGuard(old, req.body, req.orgId);
     }
 
     // A new plan reaches FreeRADIUS and the live session now, not at the next
     // reconnect (ASY-15).
-    if (req.body.plan_id !== undefined && Number(req.body.plan_id) !== Number(old.plan_id)) {
-      await contractPlanChangeService.pushPlanChange(record.id, req.orgId);
-    }
+    if (changesPlan) await contractPlanChangeService.pushPlanChange(record.id, req.orgId);
 
     // A PPPoE static IP is set on the contract; RADIUS sends the account's
     // ip_address as Framed-IP-Address, so keep the two in step (NPR-02).
@@ -375,7 +396,12 @@ async function updateContractHandler(req, res, next) {
     topologyContextService.invalidate(record.id, 'contract')
       .catch(err => logger.warn({ err: err.message, contractId: record.id }, 'topology invalidate failed on contract update'));
 
-    res.json({ data: provisioning ? { ...record, provisioning } : record });
+    res.json({
+      data: provisioning ? { ...record, provisioning } : record,
+      ...(proration ? {
+        proration: { net: proration.net, invoice_id: proration.invoice?.id ?? null, credit_note_id: proration.creditNoteId ?? null },
+      } : {}),
+    });
   } catch (err) { next(err); }
 }
 

@@ -23,6 +23,8 @@ const { mapped, unmapped } = mapSchemas(tables);
 // handler does with them.
 const VIRTUAL = {
   'clients.js:createContact.name': 'split into first_name and last_name',
+  'contracts.js:updateContract.prorate': 'with a plan change: bill the rest of the invoiced period (planChangeProrationService)',
+  'contracts.js:patchContract.prorate': 'with a plan change: bill the rest of the invoiced period (planChangeProrationService)',
   'creditNotes.js:createCreditNoteItem.amount': 'checked against quantity × unit_price; total is computed',
   'quotes.js:createQuoteItem.amount': 'checked against quantity × unit_price; total is computed',
   'dataPacks.js:createDataPack.status': 'written as is_active',

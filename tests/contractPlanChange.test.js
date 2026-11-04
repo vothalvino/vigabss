@@ -18,20 +18,25 @@ jest.mock('../src/services/suspensionService', () => ({
 }));
 jest.mock('../src/services/auditLog', () => ({ log: jest.fn(async () => undefined) }));
 jest.mock('../src/services/contractUpdateGuard', () => ({ updateContractWithActivationGuard: jest.fn(async () => ({})) }));
+jest.mock('../src/services/planChangeProrationService', () => ({ prorate: jest.fn(async () => null) }));
 
 const db = require('../src/config/database');
 const radiusService = require('../src/services/radiusService');
 const suspensionService = require('../src/services/suspensionService');
 const { updateContractWithActivationGuard } = require('../src/services/contractUpdateGuard');
 const { pushPlanChange } = require('../src/services/contractPlanChangeService');
+const { prorate } = require('../src/services/planChangeProrationService');
+const { mockTxConnection } = require('./fixtures/mockTxConnection');
 
 const ACTIVE = {
   id: 8, status: 'active', plan_id: 3, soft_suspend_download_kbps: null, soft_suspend_upload_kbps: null,
   fup_throttle_active: 0, radius_vendor: 'mikrotik', fup_download_speed_mbps: 5, fup_upload_speed_mbps: 1,
 };
 
+let conn;
 beforeEach(() => {
   jest.clearAllMocks();
+  conn = mockTxConnection(db);
 });
 
 describe('pushPlanChange', () => {
@@ -82,7 +87,9 @@ describe('batch change_plan', () => {
       .mockResolvedValueOnce([[{ id: 10, plan_id: 3, status: 'active' }]])
       .mockResolvedValueOnce([[{ ...ACTIVE, id: 10, plan_id: 4 }]]);
     await automationService.applyBatchOperation(1, 'change_plan', { entity_id: 10 }, { plan_id: 4 }, 7);
-    expect(updateContractWithActivationGuard).toHaveBeenCalledWith(expect.objectContaining({ id: 10, plan_id: 3 }), { plan_id: 4 }, 1);
+    expect(updateContractWithActivationGuard).toHaveBeenCalledWith(expect.objectContaining({ id: 10, plan_id: 3 }), { plan_id: 4 }, 1, conn);
+    expect(prorate).toHaveBeenCalledWith(conn, expect.objectContaining({ newPlanId: 4, organizationId: 1, actorId: 7 }));
+    expect(conn.commit).toHaveBeenCalled();
     expect(radiusService.changeOfAuth).toHaveBeenCalledWith(10, 'update', expect.any(Array));
     expect(db.query.mock.calls.some(([sql]) => /UPDATE contracts SET plan_id/.test(sql))).toBe(false);
   });
@@ -92,6 +99,8 @@ describe('batch change_plan', () => {
     updateContractWithActivationGuard.mockRejectedValueOnce(new Error('Finish or cancel the prepared/in-process installation before changing activation fields: plan_id'));
     await expect(automationService.applyBatchOperation(1, 'change_plan', { entity_id: 10 }, { plan_id: 4 }, 7))
       .rejects.toThrow(/prepared/);
+    expect(conn.rollback).toHaveBeenCalled();
+    expect(prorate).not.toHaveBeenCalled();
     expect(radiusService.changeOfAuth).not.toHaveBeenCalled();
   });
 
@@ -100,5 +109,14 @@ describe('batch change_plan', () => {
     expect(await automationService.applyBatchOperation(1, 'change_plan', { entity_id: 10 }, { plan_id: 4 }, 7))
       .toEqual({ skipped: true, message: 'Already on this plan' });
     expect(updateContractWithActivationGuard).not.toHaveBeenCalled();
+  });
+
+  test('operation_params.prorate: false changes the plan without billing it', async () => {
+    db.query
+      .mockResolvedValueOnce([[{ id: 10, plan_id: 3, status: 'active' }]])
+      .mockResolvedValueOnce([[{ ...ACTIVE, id: 10, plan_id: 4 }]]);
+    await automationService.applyBatchOperation(1, 'change_plan', { entity_id: 10 }, { plan_id: 4, prorate: false }, 7);
+    expect(updateContractWithActivationGuard).toHaveBeenCalled();
+    expect(prorate).not.toHaveBeenCalled();
   });
 });

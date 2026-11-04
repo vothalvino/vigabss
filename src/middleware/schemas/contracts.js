@@ -25,6 +25,9 @@ const createContract = {
 const updateContract = {
   client_id: { type: 'number', min: 1 },
   plan_id: { type: 'number', min: 1 },
+  // With a plan_id change: bill the rest of an invoiced period at the new
+  // price (default true); not a contract column.
+  prorate: { type: 'boolean' },
   contract_template_mx_id: { type: 'number', min: 1 },
   connection_type: { type: 'string', enum: ['pppoe', 'pppoe_dual', 'static', 'dual'] },
   start_date: { type: 'string' },

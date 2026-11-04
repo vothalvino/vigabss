@@ -13,6 +13,7 @@ const auditLog = require('./auditLog');
 const { assertPlanSelectable } = require('./planAvailability');
 const { updateContractWithActivationGuard } = require('./contractUpdateGuard');
 const contractPlanChangeService = require('./contractPlanChangeService');
+const planChangeProrationService = require('./planChangeProrationService');
 const { assertOwnedReferences } = require('../utils/ownedReferences');
 const { AppError, ValidationError } = require('../utils/errors');
 const { parseJsonColumn } = require('../utils/jsonColumn');
@@ -345,6 +346,9 @@ async function checkBatchParams(organizationId, operation, params) {
   }
   if (operation === 'change_plan') {
     if (!params.plan_id) throw new ValidationError('change_plan requires operation_params.plan_id');
+    if (params.prorate !== undefined && typeof params.prorate !== 'boolean') {
+      throw new ValidationError('operation_params.prorate must be true or false');
+    }
     await assertPlanSelectable(db, params.plan_id, organizationId);
   }
   if (operation === 'suspend' || operation === 'unsuspend') {
@@ -483,12 +487,32 @@ async function applyBatchOperation(organizationId, operation, target, params, ac
         return { skipped: true, message: 'Already on this plan' };
       }
       // The PUT /contracts/:id path (ASY-15): refused while an installation is
-      // prepared, then put on the network rather than only stored.
-      await updateContractWithActivationGuard(rows[0], { plan_id: params.plan_id }, organizationId);
+      // prepared, the rest of an invoiced period billed at the new price
+      // (operation_params.prorate: false skips it), then put on the network
+      // rather than only stored.
+      const conn = await db.getConnection();
+      let proration = null;
+      try {
+        await conn.beginTransaction();
+        await updateContractWithActivationGuard(rows[0], { plan_id: params.plan_id }, organizationId, conn);
+        if (params.prorate !== false) {
+          proration = await planChangeProrationService.prorate(conn, {
+            contract: rows[0], newPlanId: params.plan_id, organizationId, actorId,
+          });
+        }
+        await conn.commit();
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+      if (proration?.invoice) await require('./businessEvents').emitInvoiceCreated(organizationId, proration.invoice);
       const network = await contractPlanChangeService.pushPlanChange(contractId, organizationId);
       await auditLog.log({
         userId: actorId, organizationId, action: 'update', tableName: 'contracts', recordId: contractId,
-        oldValues: { plan_id: rows[0].plan_id }, newValues: { plan_id: params.plan_id, coa_sent: Boolean(network.coa_sent) },
+        oldValues: { plan_id: rows[0].plan_id },
+        newValues: { plan_id: params.plan_id, coa_sent: Boolean(network.coa_sent), proration_net: proration?.net ?? 0 },
       });
       logger.info({ organizationId, contractId, planId: params.plan_id, operation, network }, 'Batch plan change applied');
       return;

@@ -825,6 +825,8 @@
     "activate": "Activate",
     "activateHint": "Open the guided installation and activation flow",
     "editModal": {
+      "prorate": "Bill the plan change for the rest of this period",
+      "prorateHint": "An upgrade invoices the price difference for the days left in the period already invoiced; a downgrade credits it. Untick for a courtesy change or a correction.",
       "connectionFamilyHelp": "Switching between PPPoE and static service requires a dedicated reprovisioning workflow.",
       "escalationEnabled": "Auto-escalation enabled",
       "escalationEnabledHint": "When off, this contract never automatically creates a technician ticket, regardless of the fault detected.",

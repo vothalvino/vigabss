@@ -825,6 +825,8 @@
     "activate": "Activar",
     "activateHint": "Abrir el flujo guiado de instalación y activación",
     "editModal": {
+      "prorate": "Cobrar el cambio de plan por el resto de este periodo",
+      "prorateHint": "Una mejora factura la diferencia de precio por los días que quedan del periodo ya facturado; un cambio a un plan menor la abona con una nota de crédito. Desmárcalo para un cambio de cortesía o una corrección.",
       "connectionFamilyHelp": "Cambiar entre servicio PPPoE y estático requiere un flujo de reprovisión dedicado.",
       "escalationEnabled": "Auto-escalación habilitada",
       "escalationEnabledHint": "Si está desactivado, este contrato nunca creará automáticamente un ticket para técnico, sin importar la falla detectada.",

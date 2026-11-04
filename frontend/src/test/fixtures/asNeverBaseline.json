@@ -12,7 +12,7 @@
   "pages/ConfigBackupScheduleList.tsx": 1,
   "pages/ConfigComplianceRuleList.tsx": 1,
   "pages/ConfigTemplateList.tsx": 1,
-  "pages/ContractList.tsx": 2,
+  "pages/ContractList.tsx": 1,
   "pages/CpeDiagnosticsPage.tsx": 1,
   "pages/CpeInventoryPage.tsx": 3,
   "pages/CpeManagementPage.tsx": 2,
