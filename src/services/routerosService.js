@@ -1200,6 +1200,26 @@ function connFromParams(params) {
 }
 
 /**
+ * List the device's interfaces (`/interface/print`). Read-only; the driver
+ * connection test and the list_interfaces command both use it. A `!trap`
+ * (e.g. the API user lacks the read policy) is an error, not an empty list.
+ *
+ * @param {{ host: string, port?: number, user: string, password: string }} conn
+ * @returns {Promise<Array<Record<string, string>>>}
+ */
+async function listInterfaces(conn) {
+  const client = await createClient(conn);
+  try {
+    const sentences = await client.run(['/interface/print']);
+    const trap = sentences.find(s => s[0] === '!trap' || s[0] === '!fatal');
+    if (trap) throw new Error(`RouterOS interface list refused: ${parseAttrs(trap.slice(1)).message || trap[0]}`);
+    return sentences.filter(s => s[0] === '!re').map(s => parseAttrs(s.slice(1)));
+  } finally {
+    await client.close();
+  }
+}
+
+/**
  * Reboot a RouterOS device via `/system/reboot` (binary API).
  *
  * The command needs the `reboot` policy on the API user. RouterOS ACKs the
@@ -1296,6 +1316,7 @@ module.exports = {
   addressListAdd,
   addressListRemove,
   configBackup,
+  listInterfaces,
   systemReboot,
   wireguardInterfaceUpsert,
   wireguardAddressUpsert,

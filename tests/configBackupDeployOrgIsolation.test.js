@@ -199,7 +199,7 @@ describe('POST /api/v1/device-config-backups/pull', () => {
     });
     const lookup = db.query.mock.calls.find(([sql]) => /FROM router_driver_configs\b/.test(sql));
     expect(lookup[0]).toMatch(ORG_PREDICATE);
-    expect(lookup[1]).toEqual([A_DEVICE_ID, ORG_A]);
+    expect(lookup[1]).toEqual([A_DEVICE_ID, ORG_A, 'mikrotik', ['routeros_api']]);
   });
 
   test("another org's driver config for the same device id is not used", async () => {

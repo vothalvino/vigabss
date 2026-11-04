@@ -44,6 +44,9 @@ const cwmpSessionService = require('../services/cwmpSessionService');
 const cpeSessionLogService = require('../services/cpeSessionLogService');
 // §8.4
 const cpeInventoryService = require('../services/cpeInventoryService');
+const cpeFirmwareCampaignService = require('../services/cpeFirmwareCampaignService');
+
+const CAMPAIGN_EXECUTOR_COLUMNS = ['status', 'started_at', 'completed_at', 'total_devices', 'completed_devices', 'failed_devices', 'result_summary'];
 // Inventory Phase 3 (migration 391)
 const inventorySerialService = require('../services/inventorySerialService');
 const { assertOwnedReferences, ownedReferences } = require('../utils/ownedReferences');
@@ -421,6 +424,9 @@ router.get('/firmware-campaigns', requirePermission('cpe_firmware_campaigns.view
 
 router.post('/firmware-campaigns', requirePermission('cpe_firmware_campaigns.create'), validate(createCpeFirmwareCampaign, { strip: false }), async (req, res, next) => {
   try {
+    cpeFirmwareCampaignService.assertRunnable(req.body);
+    // The executor owns status and progress (NET-26).
+    for (const key of CAMPAIGN_EXECUTOR_COLUMNS) delete req.body[key];
     const record = await CpeFirmwareCampaign.create({
       ...req.body,
       organization_id: req.orgId,
@@ -432,8 +438,26 @@ router.post('/firmware-campaigns', requirePermission('cpe_firmware_campaigns.cre
 
 router.put('/firmware-campaigns/:id', requirePermission('cpe_firmware_campaigns.update'), validate(updateCpeFirmwareCampaign, { strip: false }), async (req, res, next) => {
   try {
+    cpeFirmwareCampaignService.assertRunnable(req.body);
+    for (const key of CAMPAIGN_EXECUTOR_COLUMNS) delete req.body[key];
     const record = await CpeFirmwareCampaign.update(req.params.id, req.body, req.orgId);
     res.json({ data: record });
+  } catch (err) { next(err); }
+});
+
+// POST /firmware-campaigns/:id/launch — queue a TR-069 Download for every
+// targeted CPE; each one runs at that CPE's next Inform.
+router.post('/firmware-campaigns/:id/launch', requirePermission('cpe_firmware_campaigns.update'), async (req, res, next) => {
+  try {
+    const record = await cpeFirmwareCampaignService.startCampaign(req.params.id, req.orgId, req.user?.id || null);
+    res.status(202).json({ data: record });
+  } catch (err) { next(err); }
+});
+
+// POST /firmware-campaigns/:id/cancel — drop the downloads no CPE has taken yet.
+router.post('/firmware-campaigns/:id/cancel', requirePermission('cpe_firmware_campaigns.update'), async (req, res, next) => {
+  try {
+    res.json({ data: await cpeFirmwareCampaignService.cancelCampaign(req.params.id, req.orgId) });
   } catch (err) { next(err); }
 });
 

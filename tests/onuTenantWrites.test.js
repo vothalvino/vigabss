@@ -143,4 +143,13 @@ describe('referenced rows must be the caller’s', () => {
     expect(res.status).toBe(422);
     expect(schedule).not.toHaveBeenCalled();
   });
+
+  // NET-26: the job was stored 'pending' and no processor ever upgraded an ONU.
+  test('a firmware job for an own ONU is refused with 501 and nothing is stored', async () => {
+    fixture({ owned: ['devices:4'] });
+    const res = await call('post', '/firmware-jobs', { job_type: 'firmware_upgrade', scope: 'single_onu', onu_device_id: 4, firmware_version: '2.1', firmware_url: 'https://fw.example/onu.bin' });
+    expect(res.status).toBe(501);
+    expect(res.body.error.code).toBe('ONU_ACTION_NOT_IMPLEMENTED');
+    expect(wrote(/^INSERT INTO onu_firmware_jobs/)).toBe(false);
+  });
 });

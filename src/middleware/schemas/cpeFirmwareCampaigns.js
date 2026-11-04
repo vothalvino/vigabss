@@ -20,7 +20,7 @@ const updateCpeFirmwareCampaign = {
   target_model: { type: 'string', max: 100 },
   target_profile_id: { type: 'number', min: 1 },
   target_device_ids: { type: 'object' },
-  status: { type: 'string', enum: ['scheduled', 'running', 'done', 'failed', 'cancelled'] },
+  // No status: start and cancel have their own routes (NET-26).
   scheduled_at: { type: 'string', max: 30 },
   notes: { type: 'string', max: 10000 },
 };

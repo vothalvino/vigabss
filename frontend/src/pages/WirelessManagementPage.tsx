@@ -174,7 +174,11 @@ const PAGE_SIZE = 25;
 // The values ap_sector_configs.encryption and its validator accept (FE2-06).
 const ENCRYPTION_OPTIONS = ['none', 'wpa2', 'wpa3', 'mixed'];
 const PLAN_STATUSES = ['active', 'inactive', 'draft'];
-const COMMAND_TYPES = ['power_adjust', 'frequency_change', 'channel_change', 'reboot', 'scan', 'other'];
+// Only reboot can run: it goes through the device's router driver config.
+// The radio commands (set_tx_power, set_frequency, set_channel_width) have no
+// driver and the API refuses them with 501 (NET-26); the old list also offered
+// names the API never accepted (power_adjust, frequency_change, ...).
+const COMMAND_TYPES = ['reboot'];
 const INTERFERENCE_LEVELS = ['low', 'medium', 'high', 'critical'];
 
 // ---------------------------------------------------------------------------
@@ -281,7 +285,8 @@ async function fetchApCommands(page: number): Promise<ApCommandsResponse> {
 
 async function createApCommand(body: ApCommandBody): Promise<void> {
   const res = await api.POST('/wireless/ap-commands' as never, { body: body as never } as never);
-  if ((res as { error?: unknown }).error) throw new Error('Failed to create AP command');
+  const error = (res as { error?: unknown }).error;
+  if (error) throw new Error(extractApiError(error, 'Failed to create AP command'));
 }
 
 // Jobs are not deleted: a pending or queued job is cancelled (the API has
@@ -492,7 +497,7 @@ export function WirelessManagementPage() {
     enabled: tab === 'apCommands',
   });
   const [showCmdModal, setShowCmdModal] = useState(false);
-  const [cmdForm, setCmdForm] = useState<Partial<ApCommandBody>>({ command_type: 'power_adjust' });
+  const [cmdForm, setCmdForm] = useState<Partial<ApCommandBody>>({ command_type: 'reboot' });
   const [cmdErr, setCmdErr] = useState('');
 
   const createCmdMut = useMutation({
@@ -794,7 +799,7 @@ export function WirelessManagementPage() {
       {tab === 'apCommands' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button style={styles.btnPrimary} onClick={() => { setCmdErr(''); setCmdForm({ command_type: 'power_adjust' }); setShowCmdModal(true); }}>
+            <button style={styles.btnPrimary} onClick={() => { setCmdErr(''); setCmdForm({ command_type: 'reboot' }); setShowCmdModal(true); }}>
               + {t('wirelessManagement.apCommands.new')}
             </button>
           </div>
@@ -1170,20 +1175,13 @@ export function WirelessManagementPage() {
                 {t('wirelessManagement.apCommands.commandType')} <RequiredMark />
                 <select
                   style={modalStyles.select}
-                  value={cmdForm.command_type ?? 'power_adjust'}
+                  value={cmdForm.command_type ?? 'reboot'}
                   onChange={e => setCmdForm(f => ({ ...f, command_type: e.target.value }))}
                 >
                   {COMMAND_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
                 </select>
               </label>
-              <label style={modalStyles.label}>
-                {t('wirelessManagement.apCommands.targetValue')}
-                <input
-                  style={modalStyles.input}
-                  value={cmdForm.target_value ?? ''}
-                  onChange={e => setCmdForm(f => ({ ...f, target_value: e.target.value || undefined }))}
-                />
-              </label>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#6b7280' }}>{t('wirelessManagement.apCommands.driverHint')}</p>
               <label style={modalStyles.label}>
                 {t('wirelessManagement.apCommands.notes')}
                 <input
