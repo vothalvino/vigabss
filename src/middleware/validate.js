@@ -24,7 +24,7 @@ const TIMESTAMP_MAX_MS = Date.UTC(2038, 0, 19, 3, 14, 7);
 const STRIP_BY_DEFAULT = new Set(['POST', 'PUT', 'PATCH']);
 
 function validate(schema, options = {}) {
-  return (req, _res, next) => {
+  const middleware = (req, _res, next) => {
     const errors = [];
     const body = req.body || {};
 
@@ -135,6 +135,10 @@ function validate(schema, options = {}) {
 
     next();
   };
+  // Read by the real-database write sweep, which builds a body each route
+  // accepts (tests/integration/db/tenantIsolationSweep.test.js).
+  middleware.schema = schema;
+  return middleware;
 }
 
 module.exports = { validate };
