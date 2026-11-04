@@ -534,9 +534,9 @@ async function handleBound({ phone, body, binding }) {
 
   // No active flow — parse an intent.
   switch (parseIntent(text)) {
-    case 'balance': return { reply: await cap.balanceText(orgId, clientId), clientId };
-    case 'plan': return { reply: await cap.planText(orgId, clientId), clientId };
-    case 'invoices': return { reply: await cap.invoicesText(orgId, clientId), clientId };
+    case 'balance': return { reply: await cap.balanceText(orgId, clientId, currentLocale()), clientId };
+    case 'plan': return { reply: await cap.planText(orgId, clientId, currentLocale()), clientId };
+    case 'invoices': return { reply: await cap.invoicesText(orgId, clientId, currentLocale()), clientId };
     case 'report': return { ...(await startReport(phone, orgId, clientId)), clientId };
     case 'wifi': return { ...(await startWifiReset(phone, orgId, clientId)), clientId };
     case 'visit': return { ...(await startVisit(phone, orgId, clientId)), clientId };
