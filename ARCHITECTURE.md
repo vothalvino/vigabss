@@ -607,8 +607,12 @@ target and queues a `batch-job` job (`POST /batch-jobs` and `/bulk/suspend`
 answer 202). `processBatchJob` holds the job's advisory lock
 (`src/utils/advisoryLock.js`), claims each item as `processing` before its
 operation, and records an item found still `processing` as a failure instead
-of running it twice; `resumeBatchJobs` queues unfinished jobs at startup. CSV
-imports still run in the request.
+of running it twice; `resumeBatchJobs` queues unfinished jobs at startup.
+`send_email` and `send_sms` queue one `message_outbox` row per item (dedupe key
+`batch_job_item:<org>:<item>`), and an item the client's preferences block is
+`skipped`; `rate_limit`, `send_notification`, `apply_tag` and `remove_tag` have
+no implementation and are refused (501) before a job is stored. CSV imports
+still run in the request.
 
 Automation rules (`src/services/automationActions.js`, ASY-36) run on every
 business event: a `*` listener on `eventBus` evaluates the organization's

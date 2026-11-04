@@ -248,6 +248,7 @@ module.exports = {
   ACTION_TYPES,
   actionConfigProblem,
   eventSubjects,
+  fill,
   runAction,
   onBusinessEvent,
   registerAutomationTriggers,

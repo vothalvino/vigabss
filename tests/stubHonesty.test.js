@@ -275,7 +275,9 @@ describe('automationService', () => {
   describe('unimplemented batch operations produce failure items', () => {
     // applyBatchOperation refuses them; the background job records each such
     // item as a failure (tests/batchJobsBackground.test.js, TNA-41).
-    test.each(['send_notification', 'apply_tag', 'remove_tag', 'rate_limit', 'send_email', 'send_sms'])(
+    // send_email and send_sms go through the outbox now (ASY-36,
+    // tests/batchMessages.test.js); these four are also refused at creation.
+    test.each(['send_notification', 'apply_tag', 'remove_tag', 'rate_limit'])(
       'operation "%s" is refused, never a silent success',
       async (operation) => {
         await expect(automationService.applyBatchOperation(1, operation, { entity_id: 10, entity_type: 'contract' }, {}, 1))

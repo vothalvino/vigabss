@@ -12,7 +12,7 @@ const logger = require('../utils/logger').child({ service: 'automationService' }
 const auditLog = require('./auditLog');
 const { assertPlanSelectable } = require('./planAvailability');
 const { assertOwnedReferences } = require('../utils/ownedReferences');
-const { ValidationError } = require('../utils/errors');
+const { AppError, ValidationError } = require('../utils/errors');
 const { parseJsonColumn } = require('../utils/jsonColumn');
 const { SNMP_METRICS } = require('./alertService');
 
@@ -251,7 +251,13 @@ async function processBatchJob(jobId, organizationId) {
         let status = 'success';
         let message = `${job.operation} applied`;
         try {
-          await applyBatchOperation(organizationId, job.operation, item, params, job.created_by || null);
+          const outcome = await applyBatchOperation(organizationId, job.operation, item, params, job.created_by || null);
+          if (outcome && outcome.skipped) {
+            status = 'skipped';
+            message = String(outcome.message).slice(0, 500);
+          } else if (outcome && outcome.message) {
+            message = String(outcome.message).slice(0, 500);
+          }
         } catch (err) {
           status = 'failure';
           message = String(err.message).slice(0, 500);
@@ -310,7 +316,31 @@ async function resumeBatchJobs() {
   return count;
 }
 
+// Operations with no implementation are refused before a job exists, rather
+// than failing every item (ASY-36).
+const BATCH_NOT_IMPLEMENTED = Object.freeze(['rate_limit', 'send_notification', 'apply_tag', 'remove_tag']);
+const BATCH_MESSAGE_CLASSES = Object.freeze(['transactional', 'marketing']);
+
 async function checkBatchParams(organizationId, operation, params) {
+  if (BATCH_NOT_IMPLEMENTED.includes(operation)) {
+    throw new AppError(
+      `Batch operation '${operation}' is not implemented; nothing was queued.`
+        + (operation === 'send_notification' ? ' Use send_email or send_sms.' : ''),
+      501,
+      'BATCH_OPERATION_NOT_IMPLEMENTED',
+    );
+  }
+  if (operation === 'send_email' || operation === 'send_sms') {
+    if (typeof params.message !== 'string' || !params.message.trim()) {
+      throw new ValidationError(`${operation} requires operation_params.message`);
+    }
+    if (operation === 'send_email' && (typeof params.subject !== 'string' || !params.subject.trim())) {
+      throw new ValidationError('send_email requires operation_params.subject');
+    }
+    if (params.message_class !== undefined && !BATCH_MESSAGE_CLASSES.includes(params.message_class)) {
+      throw new ValidationError(`operation_params.message_class must be one of: ${BATCH_MESSAGE_CLASSES.join(', ')}`);
+    }
+  }
   if (operation === 'change_plan') {
     if (!params.plan_id) throw new ValidationError('change_plan requires operation_params.plan_id');
     await assertPlanSelectable(db, params.plan_id, organizationId);
@@ -371,10 +401,14 @@ async function resolveBatchTargets(organizationId, operation, filterCriteria) {
  *   suspend    → suspensionService.suspendContract()
  *   unsuspend  → suspensionService.reconnectContract()
  *   change_plan → direct DB update on contract plan_id
+ *   send_email / send_sms → one message_outbox row per item for the contract's
+ *     client (dedupe key per item, so a resumed job never sends twice); a
+ *     message the client's preferences block is a 'skipped' item
  *
- * NOT IMPLEMENTED (throws to surface honest failure):
- *   rate_limit, send_notification, apply_tag, remove_tag, send_email, send_sms
- *   — these require additional service integrations not yet wired here.
+ * NOT IMPLEMENTED (refused by checkBatchParams; throws if reached):
+ *   rate_limit, send_notification, apply_tag, remove_tag
+ *
+ * @returns {Promise<void|{skipped?: boolean, message?: string}>}
  */
 async function applyBatchOperation(organizationId, operation, target, params, actorId = null) {
   const contractId = target.entity_id;
@@ -455,6 +489,10 @@ async function applyBatchOperation(organizationId, operation, target, params, ac
       return;
     }
 
+    case 'send_email':
+    case 'send_sms':
+      return sendBatchMessage(organizationId, operation, target, params);
+
     default: {
       // Not implemented — throw so createBatchJob records this item as 'failure'
       // and the operator knows the operation did not execute.
@@ -466,6 +504,45 @@ async function applyBatchOperation(organizationId, operation, target, params, ac
       throw err;
     }
   }
+}
+
+async function sendBatchMessage(organizationId, operation, target, params) {
+  const [[row]] = await db.query(
+    `SELECT c.id AS contract_id, cl.id AS client_id, cl.name, cl.email, cl.phone
+       FROM contracts c
+       JOIN clients cl ON cl.id = c.client_id AND cl.organization_id = c.organization_id AND cl.deleted_at IS NULL
+      WHERE c.id = ? AND c.organization_id = ? AND c.deleted_at IS NULL`,
+    [target.entity_id, organizationId],
+  );
+  if (!row) throw new Error(`Contract ${target.entity_id} not found in organization`);
+  const channel = operation === 'send_email' ? 'email' : 'sms';
+  const recipient = channel === 'email' ? row.email : row.phone;
+  if (!recipient) {
+    return { skipped: true, message: `Client #${row.client_id} has no ${channel === 'email' ? 'email address' : 'phone number'}` };
+  }
+  const { fill } = require('./automationActions');
+  const context = { client: { id: row.client_id, name: row.name }, contract: { id: row.contract_id } };
+  const body = fill(params.message, context).trim();
+  const queued = await require('./messageOutbox').enqueue({
+    channel,
+    organizationId,
+    clientId: row.client_id,
+    messageClass: BATCH_MESSAGE_CLASSES.includes(params.message_class) ? params.message_class : 'transactional',
+    recipient,
+    ...(channel === 'email'
+      ? {
+        subject: fill(params.subject, context).trim(),
+        bodyText: body,
+        bodyHtml: `<p>${require('./notificationService').escapeHtmlForTemplate(body)}</p>`,
+      }
+      : { bodyText: body }),
+    sourceType: 'batch_job_item',
+    sourceId: target.id ?? null,
+    // One message per item, even when an interrupted job is resumed.
+    dedupeKey: target.id ? `batch_job_item:${organizationId}:${target.id}` : null,
+  });
+  if (!queued.queued) return { skipped: true, message: `Not sent: ${queued.code || 'blocked by the client\'s communication preferences'}` };
+  return { message: `${channel === 'email' ? 'Email' : 'SMS'} queued (outbox #${queued.id})` };
 }
 
 // ---------------------------------------------------------------------------
