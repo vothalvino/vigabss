@@ -511,10 +511,9 @@ describe('taskRunner', () => {
     });
 
     test('seeded tasks without an implementation return explicit deferred stubs, never Unknown task', async () => {
+      // check_fup_thresholds and fup_threshold_notify run now, and
+      // convert_expired_trials was removed (ASY-36, migration 519).
       const deferredTasks = [
-        'check_fup_thresholds',
-        'fup_threshold_notify',
-        'convert_expired_trials',
         'subscriber_speed_test_run',
         'cpe_cwmp_task_processor',
         'cpe_firmware_campaign_processor',

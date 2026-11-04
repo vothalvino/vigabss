@@ -618,6 +618,21 @@ contract's active `ip_assignments` row or allocates from the request's
 is `skipped`. `configure_device` and `send_notification` stages remain
 unimplemented and are recorded `skipped`.
 
+The FUP throttle is state on the contract, like a soft suspension:
+`contracts.fup_throttled_month` names the billing month a contract is throttled
+for (migration 519). `check_fup_thresholds` (`fupService.checkFupThresholds`,
+every organization) throttles an active contract once its complete-day usage
+this business month reaches the plan's FUP threshold (`fup_threshold_gb`, else
+`fup_threshold_percent` of `data_cap_gb`, else the cap) plus purchased packs and
+rollover, and restores the plan rate when the month ends or a pack lifts it
+back under. Setting and clearing the column are conditional UPDATEs, so each
+contract is throttled and logged once per month. Both RADIUS paths serve the
+FUP rate while the column names the current month
+(`radiusAttributeService.effectiveThrottle`; a soft suspension's throttle wins),
+speed-window transitions skip throttled contracts, and the CoA carries the
+vendor rate attributes. `convert_expired_trials` was removed: invoices price
+the trial window themselves (`billingService.isContractInTrial`).
+
 Automation rules (`src/services/automationActions.js`, ASY-36) run on every
 business event: a `*` listener on `eventBus` evaluates the organization's
 enabled rules whose `trigger_event` matches (the set of trigger events is

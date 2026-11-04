@@ -10,7 +10,9 @@ const db = require('../config/database');
 const config = require('../config');
 const { sendRadiusDisconnect, sendRadiusCoA } = require('./suspensionService');
 const { createCircuitBreaker } = require('../utils/circuitBreaker');
-const { generateAttributes, generateThrottleAttributes, hasThrottle } = require('./radiusAttributeService');
+const {
+  generateAttributes, generateThrottleAttributes, effectiveThrottle, fupThrottleActiveSql,
+} = require('./radiusAttributeService');
 const { serializeLoginTime } = require('./radiusLoginTimeService');
 // speedWindowService requires radiusService only lazily (inside
 // applySpeedWindows), so this top-level require is cycle-free.
@@ -610,6 +612,8 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
             COALESCE(r.organization_id, c.organization_id) AS organization_id,
             c.status AS contract_status,
             c.soft_suspend_download_kbps, c.soft_suspend_upload_kbps,
+            ${fupThrottleActiveSql('c')} AS fup_throttle_active,
+            p.fup_download_speed_mbps, p.fup_upload_speed_mbps,
             CONCAT(
               DAY(c.test_window_expires_at), ' ',
               ELT(MONTH(c.test_window_expires_at),
@@ -844,16 +848,15 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
         [username, 'Simultaneous-Use', ':=', String(MAX_SESSIONS_PER_SUBSCRIPTION)],
       );
 
-      // Soft suspension (NPR-01): the throttle is a per-user reply row. The
-      // plan group's speed rows use op '=', which FreeRADIUS only adds when
-      // the user's reply has no such attribute, so this ':=' row wins on every
-      // re-authentication while the contract stays active.
-      const throttled = sub.contract_status === 'active' && hasThrottle(sub);
-      if (throttled) {
-        const throttle = generateThrottleAttributes(
-          sub.radius_vendor, sub.soft_suspend_download_kbps, sub.soft_suspend_upload_kbps,
-        );
-        for (const row of expandAttributeRows(throttle)) {
+      // Soft suspension (NPR-01) and the FUP throttle (ASY-36): the throttle
+      // is a per-user reply row. The plan group's speed rows use op '=',
+      // which FreeRADIUS only adds when the user's reply has no such
+      // attribute, so this ':=' row wins on every re-authentication while the
+      // contract stays active.
+      const throttle = sub.contract_status === 'active' ? effectiveThrottle(sub) : null;
+      if (throttle) {
+        const attrs = generateThrottleAttributes(sub.radius_vendor, throttle.downloadKbps, throttle.uploadKbps);
+        for (const row of expandAttributeRows(attrs)) {
           await db.query(
             'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
             [username, row.attribute, ':=', row.value],
@@ -1002,7 +1005,7 @@ async function syncFreeradiusTables(organizationId, { contractId = null } = {}) 
         // Rate-limit override — per-user Mikrotik-Rate-Limit wins over plan group.
         // NOTE: MikroTik-specific; for other vendors, custom radreply rows must be
         //       configured manually. Cisco sub-QoS policy mapping is not supported here.
-        if (profile.rate_limit_override && !throttled) {
+        if (profile.rate_limit_override && !throttle) {
           await db.query(
             'INSERT INTO radreply (username, attribute, op, value) VALUES (?, ?, ?, ?)',
             [username, 'Mikrotik-Rate-Limit', ':=', profile.rate_limit_override],

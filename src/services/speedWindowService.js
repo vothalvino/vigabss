@@ -227,12 +227,14 @@ async function applySpeedWindows(organizationId) {
 
       // Walled-garden contracts keep status='active' and are swept here —
       // harmless: walled garden enforces via the per-user address-list, which
-      // this CoA never touches. Soft-suspended contracts (NPR-01) are skipped:
-      // the window rate would lift their throttle.
+      // this CoA never touches. Soft-suspended (NPR-01) and FUP-throttled
+      // (ASY-36) contracts are skipped: the window rate would lift their
+      // throttle.
       const [contracts] = await db.query(
-        `SELECT id FROM contracts
-         WHERE plan_id = ? AND status = 'active' AND deleted_at IS NULL
-           AND soft_suspend_download_kbps IS NULL`,
+        `SELECT c.id FROM contracts c
+         WHERE c.plan_id = ? AND c.status = 'active' AND c.deleted_at IS NULL
+           AND c.soft_suspend_download_kbps IS NULL
+           AND NOT ${require('./radiusAttributeService').fupThrottleActiveSql('c')}`,
         [plan.id],
       );
 
