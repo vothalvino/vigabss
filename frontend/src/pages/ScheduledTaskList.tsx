@@ -86,7 +86,7 @@ const PRIORITIES = ['low', 'normal', 'high', 'critical'];
 
 async function fetchTasks(page: number): Promise<TasksResponse> {
   const query = { page, limit: DEFAULT_PAGE_SIZE };
-  const res = await api.GET('/scheduled-tasks', { params: { query: query as never } });
+  const res = await api.GET('/scheduled-tasks', { params: { query: query } });
   if (res.error) throw new Error('Failed to load scheduled tasks');
   return res.data as unknown as TasksResponse;
 }

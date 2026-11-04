@@ -329,7 +329,7 @@ function TicketsTab({ clientId }: { clientId: number }) {
   const { data: tickets = [], isLoading, error } = useQuery({
     queryKey: ['client-tickets', clientId],
     queryFn: async () => {
-      const res = await api.GET('/tickets', { params: { query: { client_id: clientId, limit: 100 } as never } });
+      const res = await api.GET('/tickets', { params: { query: { client_id: clientId, limit: 100 } } });
       if (res.error) throw new Error('Failed to load tickets');
       return (res.data as unknown as { data: ClientTicket[] }).data ?? [];
     },
@@ -478,7 +478,7 @@ function CreditNotesTab({ clientId, onEdit }: { clientId: number; onEdit: ((note
   const { data: notes = [], isLoading, error } = useQuery({
     queryKey: ['client-credit-notes', clientId],
     queryFn: async () => {
-      const res = await api.GET('/credit-notes', { params: { query: { client_id: clientId, limit: 100 } as never } });
+      const res = await api.GET('/credit-notes', { params: { query: { client_id: clientId, limit: 100 } } });
       if (res.error) throw new Error('Failed to load credit notes');
       return (res.data as unknown as { data: CreditNote[] }).data ?? [];
     },
@@ -542,9 +542,9 @@ interface AssignedEquipmentUnit {
 }
 
 async function fetchAssignedEquipment(clientId: number): Promise<AssignedEquipmentUnit[]> {
-  const res = await api.GET('/cpe-management/devices' as never, {
-    params: { query: { subscriber_id: clientId, limit: 100 } as never },
-  } as never);
+  const res = await api.GET('/cpe-management/devices', {
+    params: { query: { subscriber_id: clientId, limit: 100 } },
+  });
   if ((res as { error?: unknown }).error) return [];
   return (((res as { data: unknown }).data as { data: AssignedEquipmentUnit[] }).data) ?? [];
 }
@@ -917,7 +917,7 @@ function AddContactModal({
     if (form.phone.trim()) body.phone = form.phone.trim();
     const { error: apiError } = await api.POST('/clients/{id}/contacts', {
       params: { path: { id: Number(clientId) } },
-      body: body as never,
+      body: body,
     });
     setSaving(false);
     if (apiError) { setError(extractApiError(apiError, 'Failed to add contact.')); return; }
@@ -1021,7 +1021,7 @@ function MxProfileModal({
     if (form.curp.trim()) body.curp = form.curp.trim();
     const { error: apiError } = await api.PUT('/clients/{id}/mx-profile', {
       params: { path: { id: Number(clientId) } },
-      body: body as never,
+      body: body,
     });
     setSaving(false);
     if (apiError) { setError(extractApiError(apiError, 'Failed to save MX profile.')); return; }
@@ -1095,7 +1095,7 @@ function PortalPasswordModal({
     setError(null);
     const { data, error: apiError } = await api.PUT('/clients/{id}/portal-password', {
       params: { path: { id: Number(clientId) } },
-      body: { password } as never,
+      body: { password },
     });
     setSaving(false);
     if (apiError) { setError(extractApiError(apiError, 'Failed to set portal password.')); return; }
@@ -1195,7 +1195,7 @@ export function ClientDetail() {
   const { data: clientGroups } = useQuery({
     queryKey: ['client-groups-options'],
     queryFn: async () => {
-      const res = await api.GET('/client-groups', { params: { query: { limit: 200 } as never } });
+      const res = await api.GET('/client-groups', { params: { query: { limit: 200 } } });
       if (res.error) throw new Error('Failed to load groups');
       return (res.data as unknown as { data: { id: number; name: string }[] }).data;
     },

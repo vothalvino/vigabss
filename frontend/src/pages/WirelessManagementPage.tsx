@@ -186,32 +186,32 @@ const INTERFERENCE_LEVELS = ['low', 'medium', 'high', 'critical'];
 // ---------------------------------------------------------------------------
 
 async function fetchDevices(): Promise<DevicesResponse> {
-  const res = await api.GET('/devices' as never, {
-    params: { query: { limit: 200 } as never },
-  } as never);
+  const res = await api.GET('/devices', {
+    params: { query: { limit: 200 } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load devices');
   return (res as { data: unknown }).data as unknown as DevicesResponse;
 }
 
 async function fetchSites(): Promise<SitesResponse> {
-  const res = await api.GET('/sites' as never, {
-    params: { query: { limit: 200 } as never },
-  } as never);
+  const res = await api.GET('/sites', {
+    params: { query: { limit: 200 } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load sites');
   return (res as { data: unknown }).data as unknown as SitesResponse;
 }
 
 // AP Sectors
 async function fetchApSectors(page: number): Promise<ApSectorsResponse> {
-  const res = await api.GET('/wireless/ap-sectors' as never, {
+  const res = await api.GET('/wireless/ap-sectors', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load AP sectors');
   return (res as { data: unknown }).data as unknown as ApSectorsResponse;
 }
 
 async function createApSector(body: ApSectorBody): Promise<void> {
-  const res = await api.POST('/wireless/ap-sectors' as never, { body: body as never } as never);
+  const res = await api.POST('/wireless/ap-sectors', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create AP sector');
 }
 
@@ -221,70 +221,70 @@ async function updateApSector(id: number, body: Partial<ApSectorBody>): Promise<
   // matching route (no method-override middleware is mounted). Pre-existing
   // bug, fixed here since this page's save action is being touched anyway
   // (migration 388 adds the RF-threshold fields to this same body).
-  const res = await api.PUT('/wireless/ap-sectors/{id}' as never, {
+  const res = await api.PUT('/wireless/ap-sectors/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update AP sector');
 }
 
 async function deleteApSector(id: number): Promise<void> {
-  const res = await api.DELETE('/wireless/ap-sectors/{id}' as never, {
+  const res = await api.DELETE('/wireless/ap-sectors/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete AP sector');
 }
 
 async function fetchApClients(deviceId: number): Promise<WirelessClientsResponse> {
-  const res = await api.GET('/wireless/clients' as never, {
+  const res = await api.GET('/wireless/clients', {
     params: { query: { device_id: deviceId, limit: 100 } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load clients');
   return (res as { data: unknown }).data as unknown as WirelessClientsResponse;
 }
 
 // Channel Plans
 async function fetchChannelPlans(page: number): Promise<ChannelPlansResponse> {
-  const res = await api.GET('/wireless/channel-plans' as never, {
+  const res = await api.GET('/wireless/channel-plans', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load channel plans');
   return (res as { data: unknown }).data as unknown as ChannelPlansResponse;
 }
 
 async function createChannelPlan(body: ChannelPlanBody): Promise<void> {
-  const res = await api.POST('/wireless/channel-plans' as never, { body: body as never } as never);
+  const res = await api.POST('/wireless/channel-plans', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create channel plan');
 }
 
 async function updateChannelPlan(id: number, body: Partial<ChannelPlanBody>): Promise<void> {
   // PUT, not PATCH — see updateApSector's comment above (same pre-existing
   // route-mismatch bug, same fix).
-  const res = await api.PUT('/wireless/channel-plans/{id}' as never, {
+  const res = await api.PUT('/wireless/channel-plans/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update channel plan');
 }
 
 async function deleteChannelPlan(id: number): Promise<void> {
-  const res = await api.DELETE('/wireless/channel-plans/{id}' as never, {
+  const res = await api.DELETE('/wireless/channel-plans/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete channel plan');
 }
 
 // AP Commands
 async function fetchApCommands(page: number): Promise<ApCommandsResponse> {
-  const res = await api.GET('/wireless/ap-commands' as never, {
+  const res = await api.GET('/wireless/ap-commands', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load AP commands');
   return (res as { data: unknown }).data as unknown as ApCommandsResponse;
 }
 
 async function createApCommand(body: ApCommandBody): Promise<void> {
-  const res = await api.POST('/wireless/ap-commands' as never, { body: body as never } as never);
+  const res = await api.POST('/wireless/ap-commands', { body: body as never });
   const error = (res as { error?: unknown }).error;
   if (error) throw new Error(extractApiError(error, 'Failed to create AP command'));
 }
@@ -292,41 +292,41 @@ async function createApCommand(body: ApCommandBody): Promise<void> {
 // Jobs are not deleted: a pending or queued job is cancelled (the API has
 // no DELETE for ap-commands; the old Delete 404'd silently, NET-22).
 async function cancelApCommand(id: number): Promise<void> {
-  const res = await api.POST('/wireless/ap-commands/{id}/cancel' as never, {
+  const res = await api.POST('/wireless/ap-commands/{id}/cancel', {
     params: { path: { id } },
-  } as never);
+  });
   const error = (res as { error?: unknown }).error;
   if (error) throw new Error(extractApiError(error, 'Failed to cancel AP command'));
 }
 
 // Interference
 async function fetchInterference(page: number): Promise<InterferenceResponse> {
-  const res = await api.GET('/wireless/channel-interference' as never, {
+  const res = await api.GET('/wireless/channel-interference', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load interference records');
   return (res as { data: unknown }).data as unknown as InterferenceResponse;
 }
 
 async function createInterference(body: InterferenceBody): Promise<void> {
-  const res = await api.POST('/wireless/channel-interference' as never, { body: body as never } as never);
+  const res = await api.POST('/wireless/channel-interference', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create interference record');
 }
 
 async function updateInterference(id: number, body: Partial<InterferenceBody>): Promise<void> {
   // PUT, not PATCH — see updateApSector's comment above (same pre-existing
   // route-mismatch bug, same fix).
-  const res = await api.PUT('/wireless/channel-interference/{id}' as never, {
+  const res = await api.PUT('/wireless/channel-interference/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update interference record');
 }
 
 async function deleteInterference(id: number): Promise<void> {
-  const res = await api.DELETE('/wireless/channel-interference/{id}' as never, {
+  const res = await api.DELETE('/wireless/channel-interference/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete interference record');
 }
 

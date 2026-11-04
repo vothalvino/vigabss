@@ -58,23 +58,23 @@ const IP_VERSIONS = ['ipv4', 'ipv6'];
 async function fetchRecords(page: number, statusFilter: string): Promise<PtrRecordsResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/ptr-records' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/ptr-records', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load PTR records');
   return (res as { data: unknown }).data as unknown as PtrRecordsResponse;
 }
 
 async function createRecord(body: PtrRecordBody): Promise<void> {
-  const res = await api.POST('/ptr-records' as never, { body: body as never } as never);
+  const res = await api.POST('/ptr-records', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create PTR record');
 }
 
 async function updateRecord(id: number, body: Partial<PtrRecordBody>): Promise<void> {
-  const res = await api.PUT('/ptr-records/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/ptr-records/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update PTR record');
 }
 
 async function deleteRecord(id: number): Promise<void> {
-  const res = await api.DELETE('/ptr-records/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/ptr-records/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete PTR record');
 }
 

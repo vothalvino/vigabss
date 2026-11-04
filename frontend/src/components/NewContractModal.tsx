@@ -32,7 +32,7 @@ interface CreateContractBody {
 }
 
 async function fetchPlans(): Promise<Plan[]> {
-  const res = await api.GET('/plans', { params: { query: { limit: 200 } as never } });
+  const res = await api.GET('/plans', { params: { query: { limit: 200 } } });
   if (res.error) throw new Error('Failed to load plans');
   return (res.data as unknown as { data: Plan[] }).data ?? [];
 }

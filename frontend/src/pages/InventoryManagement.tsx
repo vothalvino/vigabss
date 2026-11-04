@@ -139,9 +139,9 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
 // ---------------------------------------------------------------------------
 
 async function fetchInventoryItems(page: number): Promise<ListResponse<InventoryItem>> {
-  const res = await api.GET('/inventory/items' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/inventory/items', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load inventory items');
   const body = (res as { data: unknown }).data as unknown as ListResponse<InventoryItem>;
   return {
@@ -154,33 +154,33 @@ async function fetchInventoryItems(page: number): Promise<ListResponse<Inventory
 }
 
 async function fetchAssets(page: number): Promise<ListResponse<Asset>> {
-  const res = await api.GET('/assets' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/assets', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load assets');
   return (res as { data: unknown }).data as unknown as ListResponse<Asset>;
 }
 
 async function fetchVendors(page: number): Promise<ListResponse<Vendor>> {
-  const res = await api.GET('/vendors' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/vendors', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load vendors');
   return (res as { data: unknown }).data as unknown as ListResponse<Vendor>;
 }
 
 async function fetchPurchaseOrders(page: number): Promise<ListResponse<PurchaseOrder>> {
-  const res = await api.GET('/purchase-orders' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/purchase-orders', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load purchase orders');
   return (res as { data: unknown }).data as unknown as ListResponse<PurchaseOrder>;
 }
 
 async function fetchRmaRequests(page: number): Promise<ListResponse<RmaRequest>> {
-  const res = await api.GET('/rma-requests' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/rma-requests', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load RMA requests');
   return (res as { data: unknown }).data as unknown as ListResponse<RmaRequest>;
 }
@@ -193,7 +193,7 @@ async function fetchInventoryTransactions(
   const query: Record<string, unknown> = { limit: PAGE_SIZE, offset };
   if (itemId) query.item_id = Number(itemId);
   if (transactionType) query.transaction_type = transactionType;
-  const res = await api.GET('/inventory/transactions' as never, { params: { query } as never } as never);
+  const res = await api.GET('/inventory/transactions', { params: { query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load inventory movements');
   return (res as { data: unknown }).data as unknown as LedgerResponse<InventoryTransaction>;
 }
@@ -201,9 +201,9 @@ async function fetchInventoryTransactions(
 // Minimal item list for the Movements tab's filter dropdown — reuses the
 // same endpoint the Stock tab does, but only the fields the filter needs.
 async function fetchInventoryItemOptions(): Promise<InventoryItemOption[]> {
-  const res = await api.GET('/inventory/items' as never, {
-    params: { query: { page: 1, limit: 500 } as never },
-  } as never);
+  const res = await api.GET('/inventory/items', {
+    params: { query: { page: 1, limit: 500 } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load inventory items');
   const body = (res as { data: unknown }).data as unknown as ListResponse<InventoryItemOption>;
   return body.data;

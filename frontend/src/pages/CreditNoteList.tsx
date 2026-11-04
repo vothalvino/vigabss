@@ -110,7 +110,7 @@ export function reasonLabel(reason: string): string {
 async function fetchCreditNotes(page: number, statusFilter: string): Promise<CreditNotesResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/credit-notes', { params: { query: query as never } });
+  const res = await api.GET('/credit-notes', { params: { query: query } });
   if (res.error) throw new Error('Failed to load credit notes');
   return res.data as unknown as CreditNotesResponse;
 }
@@ -132,7 +132,7 @@ async function createCreditNote(body: CreditNoteBody): Promise<void> {
 async function updateCreditNote(id: number, body: Partial<CreditNoteBody>): Promise<void> {
   const res = await api.PUT('/credit-notes/{id}', {
     params: { path: { id } },
-    body: body as never,
+    body: body,
   });
   // The generated PUT type has no error member (typed `never`) — widen it.
   const err = (res as { error?: unknown }).error;

@@ -68,19 +68,19 @@ async function fetchDeviceHealth(): Promise<DeviceHealthData> {
 }
 
 async function fetchWorkOrders(query: Record<string, string | number>): Promise<{ data: WorkOrderRow[]; meta: ListMeta }> {
-  const res = await api.GET('/work-orders' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/work-orders', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('work-orders');
   return (res as { data: unknown }).data as { data: WorkOrderRow[]; meta: ListMeta };
 }
 
 async function fetchAlerts(): Promise<{ data: AlertRow[]; meta?: ListMeta }> {
-  const res = await api.GET('/alerts/events' as never, { params: { query: { page: 1, limit: 8 } as never } } as never);
+  const res = await api.GET('/alerts/events', { params: { query: { page: 1, limit: 8 } as never } });
   if ((res as { error?: unknown }).error) throw new Error('alerts');
   return (res as { data: unknown }).data as { data: AlertRow[]; meta?: ListMeta };
 }
 
 async function fetchCount(path: string, query: Record<string, string | number> = {}): Promise<number> {
-  const res = await api.GET(path as never, { params: { query: { limit: 1, ...query } as never } } as never);
+  const res = await api.GET(path as never, { params: { query: { limit: 1, ...query } } } as never);
   if ((res as { error?: unknown }).error) throw new Error(path);
   const body = (res as { data: unknown }).data as { meta?: ListMeta; data?: unknown[] };
   return body.meta?.total ?? body.data?.length ?? 0;

@@ -35,23 +35,23 @@ interface RuleBody {
 const PAGE_SIZE = 25;
 
 async function fetchRules(page: number): Promise<RulesResponse> {
-  const res = await api.GET('/alerts/suppression-rules' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/alerts/suppression-rules', { params: { query: { page, limit: PAGE_SIZE } as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load suppression rules');
   return (res as { data: unknown }).data as unknown as RulesResponse;
 }
 
 async function createRule(body: RuleBody): Promise<void> {
-  const res = await api.POST('/alerts/suppression-rules' as never, { body: body as never } as never);
+  const res = await api.POST('/alerts/suppression-rules', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create suppression rule');
 }
 
 async function updateRule(id: number, body: Partial<RuleBody>): Promise<void> {
-  const res = await api.PUT('/alerts/suppression-rules/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/alerts/suppression-rules/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update suppression rule');
 }
 
 async function deleteRule(id: number): Promise<void> {
-  const res = await api.DELETE('/alerts/suppression-rules/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/alerts/suppression-rules/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete suppression rule');
 }
 

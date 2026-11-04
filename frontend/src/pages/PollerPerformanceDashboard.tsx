@@ -49,7 +49,7 @@ interface DashboardResponse {
 // ---------------------------------------------------------------------------
 
 async function fetchDashboard(hours: number): Promise<DashboardResponse> {
-  const res = await api.GET('/poller-performance/dashboard' as never, { params: { query: { hours } as never } } as never);
+  const res = await api.GET('/poller-performance/dashboard', { params: { query: { hours } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load performance data');
   return (res as { data: unknown }).data as unknown as DashboardResponse;
 }

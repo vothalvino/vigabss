@@ -60,23 +60,23 @@ const SERVER_TYPES = ['kea', 'mikrotik'];
 async function fetchServers(page: number, statusFilter: string): Promise<DhcpServersResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/dhcp-servers' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/dhcp-servers', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load DHCP servers');
   return (res as { data: unknown }).data as unknown as DhcpServersResponse;
 }
 
 async function createServer(body: DhcpServerBody): Promise<void> {
-  const res = await api.POST('/dhcp-servers' as never, { body: body as never } as never);
+  const res = await api.POST('/dhcp-servers', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create DHCP server');
 }
 
 async function updateServer(id: number, body: Partial<DhcpServerBody>): Promise<void> {
-  const res = await api.PUT('/dhcp-servers/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/dhcp-servers/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update DHCP server');
 }
 
 async function deleteServer(id: number): Promise<void> {
-  const res = await api.DELETE('/dhcp-servers/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/dhcp-servers/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete DHCP server');
 }
 

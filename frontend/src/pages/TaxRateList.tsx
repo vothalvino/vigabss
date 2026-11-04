@@ -57,7 +57,7 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchTaxRates(page: number, statusFilter: string): Promise<TaxRateResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/tax-rates', { params: { query: query as never } });
+  const res = await api.GET('/tax-rates', { params: { query: query } });
   if (res.error) throw new Error('Failed to load tax rates');
   return res.data as unknown as TaxRateResponse;
 }
@@ -68,7 +68,7 @@ async function createTaxRate(body: TaxRateBody): Promise<void> {
 }
 
 async function updateTaxRate(id: number, body: Partial<TaxRateBody>): Promise<void> {
-  const res = await api.PUT('/tax-rates/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/tax-rates/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update tax rate');
 }
 

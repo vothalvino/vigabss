@@ -78,7 +78,7 @@ const MAP_RULE_TYPES = ['map-e', 'map-t'];
 // ---------------------------------------------------------------------------
 
 async function fetchMechanisms<T>(type: string, page: number): Promise<MechResponse<T>> {
-  const res = await api.GET(`/transition-mechanisms/${type}` as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET(`/transition-mechanisms/${type}` as never, { params: { query: { page, limit: PAGE_SIZE } } } as never);
   if ((res as { error?: unknown }).error) throw new Error('Failed to load');
   return (res as { data: unknown }).data as unknown as MechResponse<T>;
 }
@@ -236,7 +236,7 @@ function SixRdTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: SixRdBody) => {
-      const res = await api.POST('/transition-mechanisms/6rd' as never, { body: body as never } as never);
+      const res = await api.POST('/transition-mechanisms/6rd', { body: body as never });
       if ((res as { error?: unknown }).error) throw new Error('Failed to create');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-6rd'] }); setShowForm(false); showMsg('ok', t('transition_mechanisms.create_success', 'Configuration created.')); },
@@ -245,7 +245,7 @@ function SixRdTab() {
 
   const updateMut = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: Partial<SixRdBody> }) => {
-      const res = await api.PUT('/transition-mechanisms/6rd/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+      const res = await api.PUT('/transition-mechanisms/6rd/{id}', { params: { path: { id } }, body: body });
       if ((res as { error?: unknown }).error) throw new Error('Failed to update');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-6rd'] }); setEditing(null); showMsg('ok', t('transition_mechanisms.update_success', 'Configuration updated.')); },
@@ -254,7 +254,7 @@ function SixRdTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await api.DELETE('/transition-mechanisms/6rd/{id}' as never, { params: { path: { id } } } as never);
+      const res = await api.DELETE('/transition-mechanisms/6rd/{id}', { params: { path: { id } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to delete');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-6rd'] }); setDeleteConfirm(null); showMsg('ok', t('transition_mechanisms.delete_success', 'Configuration deleted.')); },
@@ -436,7 +436,7 @@ function DsLiteTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: DsLiteBody) => {
-      const res = await api.POST('/transition-mechanisms/ds-lite' as never, { body: body as never } as never);
+      const res = await api.POST('/transition-mechanisms/ds-lite', { body: body as never });
       if ((res as { error?: unknown }).error) throw new Error('Failed to create');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-ds-lite'] }); setShowForm(false); showMsg('ok', t('transition_mechanisms.create_success', 'Configuration created.')); },
@@ -445,7 +445,7 @@ function DsLiteTab() {
 
   const updateMut = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: Partial<DsLiteBody> }) => {
-      const res = await api.PUT('/transition-mechanisms/ds-lite/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+      const res = await api.PUT('/transition-mechanisms/ds-lite/{id}', { params: { path: { id } }, body: body });
       if ((res as { error?: unknown }).error) throw new Error('Failed to update');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-ds-lite'] }); setEditing(null); showMsg('ok', t('transition_mechanisms.update_success', 'Configuration updated.')); },
@@ -454,7 +454,7 @@ function DsLiteTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await api.DELETE('/transition-mechanisms/ds-lite/{id}' as never, { params: { path: { id } } } as never);
+      const res = await api.DELETE('/transition-mechanisms/ds-lite/{id}', { params: { path: { id } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to delete');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-ds-lite'] }); setDeleteConfirm(null); showMsg('ok', t('transition_mechanisms.delete_success', 'Configuration deleted.')); },
@@ -654,7 +654,7 @@ function MapRulesTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: MapRuleBody) => {
-      const res = await api.POST('/transition-mechanisms/map-rules' as never, { body: body as never } as never);
+      const res = await api.POST('/transition-mechanisms/map-rules', { body: body as never });
       if ((res as { error?: unknown }).error) throw new Error('Failed to create');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-map-rules'] }); setShowForm(false); showMsg('ok', t('transition_mechanisms.create_success', 'Configuration created.')); },
@@ -663,7 +663,7 @@ function MapRulesTab() {
 
   const updateMut = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: Partial<MapRuleBody> }) => {
-      const res = await api.PUT('/transition-mechanisms/map-rules/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+      const res = await api.PUT('/transition-mechanisms/map-rules/{id}', { params: { path: { id } }, body: body });
       if ((res as { error?: unknown }).error) throw new Error('Failed to update');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-map-rules'] }); setEditing(null); showMsg('ok', t('transition_mechanisms.update_success', 'Configuration updated.')); },
@@ -672,7 +672,7 @@ function MapRulesTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await api.DELETE('/transition-mechanisms/map-rules/{id}' as never, { params: { path: { id } } } as never);
+      const res = await api.DELETE('/transition-mechanisms/map-rules/{id}', { params: { path: { id } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to delete');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-map-rules'] }); setDeleteConfirm(null); showMsg('ok', t('transition_mechanisms.delete_success', 'Configuration deleted.')); },
@@ -858,7 +858,7 @@ function XlatTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: XlatBody) => {
-      const res = await api.POST('/transition-mechanisms/464xlat' as never, { body: body as never } as never);
+      const res = await api.POST('/transition-mechanisms/464xlat', { body: body as never });
       if ((res as { error?: unknown }).error) throw new Error('Failed to create');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-464xlat'] }); setShowForm(false); showMsg('ok', t('transition_mechanisms.create_success', 'Configuration created.')); },
@@ -867,7 +867,7 @@ function XlatTab() {
 
   const updateMut = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: Partial<XlatBody> }) => {
-      const res = await api.PUT('/transition-mechanisms/464xlat/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+      const res = await api.PUT('/transition-mechanisms/464xlat/{id}', { params: { path: { id } }, body: body });
       if ((res as { error?: unknown }).error) throw new Error('Failed to update');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-464xlat'] }); setEditing(null); showMsg('ok', t('transition_mechanisms.update_success', 'Configuration updated.')); },
@@ -876,7 +876,7 @@ function XlatTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await api.DELETE('/transition-mechanisms/464xlat/{id}' as never, { params: { path: { id } } } as never);
+      const res = await api.DELETE('/transition-mechanisms/464xlat/{id}', { params: { path: { id } } });
       if ((res as { error?: unknown }).error) throw new Error('Failed to delete');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transition-464xlat'] }); setDeleteConfirm(null); showMsg('ok', t('transition_mechanisms.delete_success', 'Configuration deleted.')); },

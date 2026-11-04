@@ -719,6 +719,17 @@ function generateSpec() {
         patch: { tags: ['Devices'], summary: 'Partially update a device (e.g. assign/clear client_id)', operationId: 'patchDevice', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('devices_patchDevice'), responses: r200('Device') },
       },
       '/devices/{id}/restore': { post: { tags: ['Devices'], summary: 'Restore a soft-deleted device', operationId: 'restoreDevice', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Device') } },
+      '/devices/{id}/snmp-metrics': {
+        get: {
+          tags: ['Devices'], summary: 'SNMP metric history of a device, newest first', operationId: 'listDeviceSnmpMetrics', security: [{ bearerAuth: [] }],
+          parameters: [
+            idParam(),
+            { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 500, default: 100 } },
+            { name: 'device_level', in: 'query', required: false, schema: { type: 'string', enum: ['1'] }, description: '1: device-level rows only (interface_id IS NULL)' },
+          ],
+          responses: r200('SnmpMetric[]'),
+        },
+      },
       '/devices/{id}/reboot': { post: { tags: ['Devices'], summary: 'Reboot a device via its driver/type mechanism (422 when unsupported)', operationId: 'rebootDevice', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { 202: { description: 'Reboot issued or queued: { method, status, detail }', content: { 'application/json': { schema: { type: 'object' } } } } } } },
 
       // ---- NAS ----
@@ -960,6 +971,10 @@ function generateSpec() {
       '/dashboard/revenue': { get: { tags: ['Dashboard'], summary: 'Monthly revenue (12 months)', operationId: 'dashboardRevenue', security: [{ bearerAuth: [] }], responses: r200('Revenue') } },
       '/dashboard/mrr': { get: { tags: ['Dashboard'], summary: 'MRR and ARPU', operationId: 'dashboardMrr', security: [{ bearerAuth: [] }], responses: r200('MRR/ARPU') } },
       '/dashboard/device-health': { get: { tags: ['Dashboard'], summary: 'Device health overview', operationId: 'dashboardDeviceHealth', security: [{ bearerAuth: [] }], responses: r200('Health') } },
+      '/dashboard/throughput': { get: { tags: ['Dashboard'], summary: 'Aggregate interface throughput series', operationId: 'dashboardThroughput', security: [{ bearerAuth: [] }], parameters: [{ name: 'range', in: 'query', required: false, schema: { type: 'string', enum: ['1H', '6H', '24H', '7D'], default: '24H' } }], responses: r200('Throughput series') } },
+      '/dashboard/live-sessions': { get: { tags: ['Dashboard'], summary: 'Live RADIUS session counts', operationId: 'dashboardLiveSessions', security: [{ bearerAuth: [] }], responses: r200('Live sessions') } },
+      '/dashboard/sites-utilization': { get: { tags: ['Dashboard'], summary: 'Device counts and online share per site', operationId: 'dashboardSitesUtilization', security: [{ bearerAuth: [] }], responses: r200('Site utilization[]') } },
+      '/dashboard/network-devices': { get: { tags: ['Dashboard'], summary: 'Network devices with live session counts', operationId: 'dashboardNetworkDevices', security: [{ bearerAuth: [] }], responses: r200('Network devices[]') } },
       '/dashboard/overdue': { get: { tags: ['Dashboard'], summary: 'Overdue invoices', operationId: 'dashboardOverdue', security: [{ bearerAuth: [] }], responses: r200('Invoices') } },
 
       // ---- Reports ----
@@ -1100,11 +1115,23 @@ function generateSpec() {
       ...crudPaths('warehouses', 'Warehouses', 'Warehouse'),
 
       // ---- Inventory ----
-      // NOTE: crudPaths('inventory', ...) below documents /inventory + /inventory/{id},
-      // which do not match the real routes (/inventory/items, /inventory/items/{id},
-      // /inventory/items/{id}/stock, /inventory/transactions) — a pre-existing drift
-      // flagged in Inventory Phase 1, not fixed here (out of scope for this PR).
-      ...crudPaths('inventory', 'Inventory', 'InventoryItem'),
+      // The catalog lives under /inventory/items (routes/inventory.js); the
+      // list adds quantity_on_hand and filters on any other column (FE-23).
+      ...(() => {
+        const items = crudPaths('inventory/items', 'Inventory', 'InventoryItem');
+        items['/inventory/items'].get.parameters = [
+          pageParam(), limitParam(),
+          { name: 'status', in: 'query', required: false, schema: { type: 'string', enum: ['active', 'discontinued'] } },
+          { name: 'category', in: 'query', required: false, schema: { type: 'string', enum: ['antenna', 'cable', 'router', 'switch', 'onu', 'olt', 'cpe', 'connector', 'power_supply', 'enclosure', 'tool', 'other'] } },
+        ];
+        return items;
+      })(),
+      '/inventory/items/{id}/restore': {
+        post: { tags: ['Inventory'], summary: 'Restore a soft-deleted InventoryItem', operationId: 'restoreInventoryItem', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('InventoryItem') },
+      },
+      '/inventory/items/{id}/stock': {
+        get: { tags: ['Inventory'], summary: 'Stock levels of an item per warehouse', operationId: 'getInventoryItemStock', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('InventoryStock[]') },
+      },
       '/inventory/transactions': {
         get: {
           tags: ['Inventory'],
@@ -2093,7 +2120,16 @@ function generateSpec() {
 
       // ---- CPE Management §8.1 ----
       '/cpe-management/devices': {
-        get: { tags: ['CPE Management'], summary: 'List CPE devices', operationId: 'listCpeDevices', security: [{ bearerAuth: [] }], parameters: [searchParam(), { name: 'status', in: 'query', required: false, schema: { type: 'string' } }, { name: 'manufacturer', in: 'query', required: false, schema: { type: 'string' } }], responses: r200('CpeDevice[]') },
+        get: {
+          tags: ['CPE Management'], summary: 'List CPE devices', operationId: 'listCpeDevices', security: [{ bearerAuth: [] }],
+          parameters: [
+            pageParam(),
+            { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 200, default: 25 } },
+            ...['status', 'manufacturer', 'model_name', 'lifecycle_state'].map(name => ({ name, in: 'query', required: false, schema: { type: 'string' } })),
+            ...['inventory_item_id', 'subscriber_id', 'contract_id'].map(name => ({ name, in: 'query', required: false, schema: { type: 'integer' } })),
+          ],
+          responses: r200('CpeDevice[]'),
+        },
         post: { tags: ['CPE Management'], summary: 'Register a CPE device', operationId: 'createCpeDevice', security: [{ bearerAuth: [] }], requestBody: jsonBody('cpeDevices_createCpeDevice'), responses: r201('CpeDevice') },
       },
       '/cpe-management/devices/{id}': {
@@ -5021,7 +5057,7 @@ function crudPaths(basePath, tag, modelName, requestSchemas = {}) {
     : jsonBody(modelName);
   return {
     [`/${basePath}`]: {
-      get: { tags: [tag], summary: `List ${basePath}`, operationId: `list${modelName}s`, security: [{ bearerAuth: [] }], responses: r200(`${modelName}[]`) },
+      get: { tags: [tag], summary: `List ${basePath}`, operationId: `list${modelName}s`, security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam()], responses: r200(`${modelName}[]`) },
       post: { tags: [tag], summary: `Create a ${modelName}`, operationId: `create${modelName}`, security: [{ bearerAuth: [] }], requestBody: createBody, responses: r201(modelName) },
     },
     [`/${basePath}/{id}`]: {

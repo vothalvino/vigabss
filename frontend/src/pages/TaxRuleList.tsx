@@ -59,7 +59,7 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchTaxRules(page: number, statusFilter: string): Promise<TaxRuleResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/tax-rules', { params: { query: query as never } });
+  const res = await api.GET('/tax-rules', { params: { query: query } });
   if (res.error) throw new Error('Failed to load tax rules');
   return res.data as unknown as TaxRuleResponse;
 }
@@ -70,7 +70,7 @@ async function createTaxRule(body: TaxRuleBody): Promise<void> {
 }
 
 async function updateTaxRule(id: number, body: Partial<TaxRuleBody>): Promise<void> {
-  const res = await api.PUT('/tax-rules/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/tax-rules/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update tax rule');
 }
 

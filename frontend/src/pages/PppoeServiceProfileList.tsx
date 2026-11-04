@@ -84,7 +84,7 @@ const STATUSES = ['active', 'inactive'];
 async function fetchProfiles(page: number, statusFilter: string): Promise<ProfilesResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/pppoe-service-profiles', { params: { query: query as never } });
+  const res = await api.GET('/pppoe-service-profiles', { params: { query: query } });
   if (res.error) throw new Error('Failed to load profiles');
   return res.data as unknown as ProfilesResponse;
 }
@@ -95,7 +95,7 @@ async function createProfile(body: ProfileBody): Promise<void> {
 }
 
 async function updateProfile(id: number, body: Partial<ProfileBody>): Promise<void> {
-  const res = await api.PUT('/pppoe-service-profiles/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/pppoe-service-profiles/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update profile');
 }
 

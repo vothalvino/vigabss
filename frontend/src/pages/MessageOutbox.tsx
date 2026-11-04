@@ -36,10 +36,11 @@ interface OutboxMessage {
   created_at: string;
 }
 
-interface OutboxPage {
+// A type alias, not an interface: it takes the response's index signature.
+type OutboxPage = {
   data: OutboxMessage[];
   meta: { page: number; limit: number; total: number; totalPages: number };
-}
+};
 
 interface SummaryRow { status: OutboxStatus; channel: string; count: number }
 
@@ -66,15 +67,15 @@ async function fetchOutbox(page: number, status: string, channel: string): Promi
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (status) query.status = status;
   if (channel) query.channel = channel;
-  const res = await api.GET('/message-outbox' as never, { params: { query } as never } as never);
+  const res = await api.GET('/message-outbox', { params: { query } });
   if ((res as { error?: unknown }).error) throw new Error('load failed');
-  return (res as { data: OutboxPage }).data;
+  return (res.data as OutboxPage);
 }
 
 async function fetchSummary(): Promise<SummaryRow[]> {
-  const res = await api.GET('/message-outbox/summary' as never);
+  const res = await api.GET('/message-outbox/summary');
   if ((res as { error?: unknown }).error) throw new Error('load failed');
-  return (res as { data: { data: SummaryRow[] } }).data.data;
+  return (res.data as { data: SummaryRow[] }).data;
 }
 
 function errorMessage(res: unknown, fallback: string): string {
@@ -106,10 +107,10 @@ export function MessageOutbox() {
 
   const retry = useMutation({
     mutationFn: async (m: OutboxMessage) => {
-      const res = await api.POST('/message-outbox/{id}/retry' as never, {
-        params: { path: { id: m.id } } as never,
-        body: { confirm_possible_duplicate: m.status === 'outcome_unknown' } as never,
-      } as never);
+      const res = await api.POST('/message-outbox/{id}/retry', {
+        params: { path: { id: m.id } },
+        body: { confirm_possible_duplicate: m.status === 'outcome_unknown' },
+      });
       if ((res as { error?: unknown }).error) throw new Error(errorMessage(res, t('messageOutbox.actionFailed')));
     },
     onSuccess: refresh,
@@ -118,7 +119,7 @@ export function MessageOutbox() {
 
   const cancel = useMutation({
     mutationFn: async (m: OutboxMessage) => {
-      const res = await api.POST('/message-outbox/{id}/cancel' as never, { params: { path: { id: m.id } } as never } as never);
+      const res = await api.POST('/message-outbox/{id}/cancel', { params: { path: { id: m.id } } });
       if ((res as { error?: unknown }).error) throw new Error(errorMessage(res, t('messageOutbox.actionFailed')));
     },
     onSuccess: refresh,

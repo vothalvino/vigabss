@@ -36,23 +36,23 @@ interface ScheduleBody {
 const PAGE_SIZE = 25;
 
 async function fetchSchedules(page: number): Promise<ConfigBackupSchedulesResponse> {
-  const res = await api.GET('/config-backup-schedules' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/config-backup-schedules', { params: { query: { page, limit: PAGE_SIZE } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load backup schedules');
   return (res as { data: unknown }).data as unknown as ConfigBackupSchedulesResponse;
 }
 
 async function createSchedule(body: ScheduleBody): Promise<void> {
-  const res = await api.POST('/config-backup-schedules' as never, { body: body as never } as never);
+  const res = await api.POST('/config-backup-schedules', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create backup schedule');
 }
 
 async function updateSchedule(id: number, body: Partial<ScheduleBody>): Promise<void> {
-  const res = await api.PUT('/config-backup-schedules/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/config-backup-schedules/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update backup schedule');
 }
 
 async function deleteSchedule(id: number): Promise<void> {
-  const res = await api.DELETE('/config-backup-schedules/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/config-backup-schedules/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete backup schedule');
 }
 

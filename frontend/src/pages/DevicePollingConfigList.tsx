@@ -59,18 +59,18 @@ const PAGE_SIZE = 25;
 // ---------------------------------------------------------------------------
 
 async function fetchConfigs(page: number): Promise<DevicePollingConfigsResponse> {
-  const res = await api.GET('/device-polling-configs' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/device-polling-configs', { params: { query: { page, limit: PAGE_SIZE } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load polling configs');
   return (res as { data: unknown }).data as unknown as DevicePollingConfigsResponse;
 }
 
 async function createConfig(body: DevicePollingConfigBody): Promise<void> {
-  const res = await api.POST('/device-polling-configs' as never, { body: body as never } as never);
+  const res = await api.POST('/device-polling-configs', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create polling config');
 }
 
 async function deleteConfig(id: number): Promise<void> {
-  const res = await api.DELETE('/device-polling-configs/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/device-polling-configs/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete polling config');
 }
 

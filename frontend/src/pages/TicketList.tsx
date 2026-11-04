@@ -79,13 +79,13 @@ async function fetchTickets(
   if (statusFilter) query.status = statusFilter;
   if (priorityFilter) query.priority = priorityFilter;
   if (categoryFilter) query.category = categoryFilter;
-  const res = await api.GET('/tickets' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/tickets', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load tickets');
   return res.data as unknown as TicketsResponse;
 }
 
 async function fetchUsers(): Promise<User[]> {
-  const res = await api.GET('/users' as never, { params: { query: { limit: 200 } as never } } as never);
+  const res = await api.GET('/users', { params: { query: { limit: 200 } } });
   if ((res as { error?: unknown }).error) return [];
   return (res.data as unknown as { data: User[] }).data ?? [];
 }

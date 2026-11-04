@@ -87,14 +87,14 @@ function makeItem(type: ItemType): QuoteLineItem {
 // client, but the list returns at most 100 (the oldest), so most clients'
 // contracts never appeared (FE-04).
 async function fetchClientContracts(clientId: string): Promise<Contract[]> {
-  const res = await api.GET('/contracts', { params: { query: { client_id: clientId, limit: 100 } as never } });
+  const res = await api.GET('/contracts', { params: { query: { client_id: clientId, limit: 100 } } });
   if (res.error) throw new Error('Failed to load contracts');
   return (res.data as unknown as { data: Contract[] }).data;
 }
 
 async function generateFlexibleQuote(clientId: number, items: FlexItem[]): Promise<GeneratedQuote> {
   const { data, error: e } = await api.POST('/quotes/generate', {
-    body: { client_id: clientId, items } as never,
+    body: { client_id: clientId, items },
   });
   if (e) throw new Error(extractApiError(e, 'Failed to generate quote'));
   return (data as unknown as { data: GeneratedQuote }).data;

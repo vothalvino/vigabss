@@ -89,23 +89,23 @@ function StatusBadge({ status }: { status: string }) {
 async function fetchRaGuard(page: number, statusFilter: string): Promise<RaGuardResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/ipv6/ra-guard' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/ipv6/ra-guard', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load RA Guard policies');
   return (res as { data: unknown }).data as unknown as RaGuardResponse;
 }
 
 async function createRaGuard(body: RaGuardBody): Promise<void> {
-  const res = await api.POST('/ipv6/ra-guard' as never, { body: body as never } as never);
+  const res = await api.POST('/ipv6/ra-guard', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create RA Guard policy');
 }
 
 async function updateRaGuard(id: number, body: Partial<RaGuardBody>): Promise<void> {
-  const res = await api.PUT('/ipv6/ra-guard/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/ipv6/ra-guard/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update RA Guard policy');
 }
 
 async function deleteRaGuard(id: number): Promise<void> {
-  const res = await api.DELETE('/ipv6/ra-guard/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/ipv6/ra-guard/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete RA Guard policy');
 }
 
@@ -386,9 +386,9 @@ function SubnetPlannerTab() {
       const query: Record<string, string | number> = { network: spNetwork };
       if (spPrefixLen) query.prefix_len = Number(spPrefixLen);
       if (spSubPrefixLen) query.sub_prefix_len = Number(spSubPrefixLen);
-      const res = await api.GET('/ipv6/subnet-plan' as never, {
+      const res = await api.GET('/ipv6/subnet-plan', {
         params: { query: query as never },
-      } as never);
+      });
       if (res.error) throw new Error('Failed to plan subnets');
       const data = res.data as unknown as { data: string[] };
       setSpResults(data.data ?? []);
@@ -474,7 +474,7 @@ function ConflictsTab({ active }: { active: boolean }) {
   const conflictsQ = useQuery({
     queryKey: ['pool-conflicts'],
     queryFn: async () => {
-      const res = await api.GET('/ipv6/pool-conflicts' as never, {} as never);
+      const res = await api.GET('/ipv6/pool-conflicts', {});
       if (res.error) throw new Error('Failed to check conflicts');
       return (res.data as unknown as { data: unknown[] }).data ?? [];
     },

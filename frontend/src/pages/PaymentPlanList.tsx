@@ -146,7 +146,7 @@ function CreatePlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
 
   const mutation = useMutation({
     mutationFn: async (body: CreatePlanBody) => {
-      const { error: e } = await api.POST('/payment-plans' as never, { body: body as never } as never);
+      const { error: e } = await api.POST('/payment-plans', { body: body as never });
       if (e) throw new Error(extractApiError(e, 'Failed to create plan'));
     },
     onSuccess: () => { onSaved(); onClose(); },
@@ -238,8 +238,8 @@ function PayInstallmentModal({
   const mutation = useMutation({
     mutationFn: async () => {
       const { error: e } = await api.POST(
-        '/payment-plans/{id}/installments/{seq}/pay' as never,
-        { params: { path: { id: planId, seq } }, body: { payment_id: Number(paymentId) } as never } as never,
+        '/payment-plans/{id}/installments/{seq}/pay',
+        { params: { path: { id: planId, seq } }, body: { payment_id: Number(paymentId) } },
       );
       if (e) throw new Error(extractApiError(e, 'Failed to pay installment'));
     },
@@ -293,7 +293,7 @@ function InstallmentScheduleRow({
   const { data, isLoading, error } = useQuery({
     queryKey: ['payment-plan-detail', planId],
     queryFn: async () => {
-      const res = await api.GET('/payment-plans/{id}' as never, { params: { path: { id: planId } } } as never);
+      const res = await api.GET('/payment-plans/{id}', { params: { path: { id: planId } } });
       if (res.error) throw new Error('Failed to load plan');
       return (res.data as { data: PlanDetail }).data;
     },
@@ -379,9 +379,9 @@ export function PaymentPlanList() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['payment-plans', page],
     queryFn: async () => {
-      const res = await api.GET('/payment-plans' as never, {
-        params: { query: { page, limit: PAGE_SIZE } as never },
-      } as never);
+      const res = await api.GET('/payment-plans', {
+        params: { query: { page, limit: PAGE_SIZE } },
+      });
       if (res.error) throw new Error('Failed to load payment plans');
       return res.data as unknown as PaymentPlanResponse;
     },

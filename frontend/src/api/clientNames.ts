@@ -21,7 +21,7 @@ export function useClientNames(ids: Array<number | null | undefined>): Map<numbe
     staleTime: 60_000,
     queryFn: async () => {
       const res = await api.GET('/clients', {
-        params: { query: { ids: unique.join(','), include_deleted: 'true', limit: 100 } as never },
+        params: { query: { ids: unique.join(','), include_deleted: 'true', limit: 100 } },
       });
       if (res.error) throw new Error('Failed to load client names');
       return ((res.data as unknown as { data: Array<{ id: number; name: string }> }).data ?? []);

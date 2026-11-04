@@ -64,23 +64,23 @@ const NAT_TYPES = ['cgnat', '1to1', 'pat'];
 async function fetchPools(page: number, statusFilter: string): Promise<NatPoolsResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/nat-pools' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/nat-pools', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load NAT pools');
   return (res as { data: unknown }).data as unknown as NatPoolsResponse;
 }
 
 async function createPool(body: NatPoolBody): Promise<void> {
-  const res = await api.POST('/nat-pools' as never, { body: body as never } as never);
+  const res = await api.POST('/nat-pools', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create NAT pool');
 }
 
 async function updatePool(id: number, body: Partial<NatPoolBody>): Promise<void> {
-  const res = await api.PUT('/nat-pools/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/nat-pools/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update NAT pool');
 }
 
 async function deletePool(id: number): Promise<void> {
-  const res = await api.DELETE('/nat-pools/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/nat-pools/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete NAT pool');
 }
 

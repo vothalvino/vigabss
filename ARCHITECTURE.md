@@ -816,6 +816,14 @@ frontend/src/api/schema.d.ts  (generated TypeScript types)
 generator. It cannot discover that an Express route was omitted from the
 generator, so reviewers must compare changed routes to the spec manually.
 
+`gen:api` runs with `--empty-objects-unknown`, so a response documented only as
+`{ type: 'object' }` is typed `unknown` and a page narrows it (`unwrapList`,
+`unwrapData` in `frontend/src/api/envelope.ts`, or a cast of `res.data`).
+Document a missing path or query parameter in `src/utils/openapi.js` rather
+than casting the call `as never`: `src/test/apiContract.test.ts` checks every
+literal path against the spec, and `src/test/asNeverRatchet.test.ts` keeps any
+file from adding an `as never` (FE-23).
+
 Prefer the typed `api.GET/POST/PUT/PATCH/DELETE(...)` client from
 `frontend/src/api/client.ts`. Use `authedFetch` when raw response bodies,
 downloads, GraphQL, or a path not expressible through the generated client make

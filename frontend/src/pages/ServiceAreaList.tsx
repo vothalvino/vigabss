@@ -41,7 +41,7 @@ const STATUS_FILTER_OPTIONS = ['', 'planned', 'active', 'retired'];
 async function fetchServiceAreas(page: number, statusFilter: string): Promise<ServiceAreaResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/service-areas', { params: { query: query as never } });
+  const res = await api.GET('/service-areas', { params: { query: query } });
   if (res.error) throw new Error('Failed to load service areas');
   return res.data as unknown as ServiceAreaResponse;
 }

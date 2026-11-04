@@ -151,7 +151,7 @@ export async function deletePayment(id: number): Promise<void> {
 export async function allocatePayment(id: number, invoiceId: number, amount: number): Promise<void> {
   const { error } = await api.POST('/payments/{id}/allocate', {
     params: { path: { id } },
-    body: { invoice_id: invoiceId, amount } as never,
+    body: { invoice_id: invoiceId, amount },
   });
   if (error) throw new Error(extractApiError(error, 'Failed to allocate payment'));
 }

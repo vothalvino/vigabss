@@ -43,7 +43,7 @@ const STATUSES = ['pending', 'filed', 'accepted', 'rejected', 'overdue'];
 async function fetchFilings(page: number, status: string): Promise<FilingsResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (status) query.status = status;
-  const res = await api.GET('/regulatory-filings', { params: { query: query as never } });
+  const res = await api.GET('/regulatory-filings', { params: { query: query } });
   if (res.error) throw new Error('Failed to load regulatory filings');
   return res.data as unknown as FilingsResponse;
 }

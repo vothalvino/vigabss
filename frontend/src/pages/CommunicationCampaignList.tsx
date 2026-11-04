@@ -98,17 +98,17 @@ const CLIENT_STATUSES = ['active', 'inactive', 'suspended', 'cancelled'] as cons
 // ---------------------------------------------------------------------------
 
 async function fetchCampaigns(page: number): Promise<CampaignResponse> {
-  const res = await api.GET('/communication-campaigns' as never, {
-    params: { query: { page, limit: DEFAULT_PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/communication-campaigns', {
+    params: { query: { page, limit: DEFAULT_PAGE_SIZE } },
+  });
   if (res.error) throw new Error('Failed to load campaigns');
   return res.data as unknown as CampaignResponse;
 }
 
 async function fetchTemplates(): Promise<MessageTemplate[]> {
-  const res = await api.GET('/message-templates' as never, {
-    params: { query: { limit: 200 } as never },
-  } as never);
+  const res = await api.GET('/message-templates', {
+    params: { query: { limit: 200 } },
+  });
   if (res.error) return [];
   const d = res.data as unknown as { data: MessageTemplate[] };
   return d.data ?? [];
@@ -117,9 +117,9 @@ async function fetchTemplates(): Promise<MessageTemplate[]> {
 async function fetchMessages(campaignId: number, page: number, status?: string): Promise<MessagesResponse> {
   const query: Record<string, unknown> = { page, limit: 50 };
   if (status) query.status = status;
-  const res = await api.GET('/communication-campaigns/{id}/messages' as never, {
-    params: { path: { id: campaignId } as never, query: query as never },
-  } as never);
+  const res = await api.GET('/communication-campaigns/{id}/messages', {
+    params: { path: { id: campaignId }, query: query },
+  });
   if (res.error) throw new Error('Failed to load messages');
   return res.data as unknown as MessagesResponse;
 }
@@ -206,13 +206,13 @@ function CampaignFormModal({
   const mutation = useMutation({
     mutationFn: async (body: CampaignFormBody) => {
       if (mode === 'create') {
-        const { error: e } = await api.POST('/communication-campaigns' as never, { body: body as never } as never);
+        const { error: e } = await api.POST('/communication-campaigns', { body: body as never });
         if (e) throw new Error(extractApiError(e, t('communicationCampaigns.errors.createFailed')));
       } else {
-        const { error: e } = await api.PUT('/communication-campaigns/{id}' as never, {
-          params: { path: { id: initial!.id } as never },
+        const { error: e } = await api.PUT('/communication-campaigns/{id}', {
+          params: { path: { id: initial!.id } },
           body: body as never,
-        } as never);
+        });
         if (e) throw new Error(extractApiError(e, t('communicationCampaigns.errors.updateFailed')));
       }
     },
@@ -309,9 +309,9 @@ function DispatchConfirm({
   const [error, setError] = useState('');
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error: e } = await api.POST('/communication-campaigns/{id}/dispatch' as never, {
-        params: { path: { id: campaign.id } as never },
-      } as never);
+      const { error: e } = await api.POST('/communication-campaigns/{id}/dispatch', {
+        params: { path: { id: campaign.id } },
+      });
       if (e) throw new Error(extractApiError(e, t('communicationCampaigns.errors.dispatchFailed')));
     },
     onSuccess: () => { onDispatched(); onClose(); },
@@ -356,9 +356,9 @@ function DeleteConfirm({
   const [error, setError] = useState('');
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error: e } = await api.DELETE('/communication-campaigns/{id}' as never, {
-        params: { path: { id: campaign.id } as never },
-      } as never);
+      const { error: e } = await api.DELETE('/communication-campaigns/{id}', {
+        params: { path: { id: campaign.id } },
+      });
       if (e) throw new Error(extractApiError(e, t('communicationCampaigns.errors.deleteFailed')));
     },
     onSuccess: () => { onDeleted(); onClose(); },

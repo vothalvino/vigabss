@@ -57,23 +57,23 @@ const STATUSES = ['active', 'draining', 'maintenance', 'offline'];
 async function fetchNodes(page: number, statusFilter: string): Promise<PollerNodesResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/poller-nodes' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/poller-nodes', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load poller nodes');
   return (res as { data: unknown }).data as unknown as PollerNodesResponse;
 }
 
 async function createNode(body: PollerNodeBody): Promise<void> {
-  const res = await api.POST('/poller-nodes' as never, { body: body as never } as never);
+  const res = await api.POST('/poller-nodes', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create poller node');
 }
 
 async function updateNode(id: number, body: Partial<PollerNodeBody>): Promise<void> {
-  const res = await api.PUT('/poller-nodes/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/poller-nodes/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update poller node');
 }
 
 async function deleteNode(id: number): Promise<void> {
-  const res = await api.DELETE('/poller-nodes/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/poller-nodes/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete poller node');
 }
 

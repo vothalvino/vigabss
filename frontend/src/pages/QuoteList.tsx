@@ -73,7 +73,7 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchQuotes(page: number, pageSize: number, statusFilter: string): Promise<QuotesResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/quotes', { params: { query: query as never } });
+  const res = await api.GET('/quotes', { params: { query: query } });
   if (res.error) throw new Error('Failed to load quotes');
   return res.data as unknown as QuotesResponse;
 }

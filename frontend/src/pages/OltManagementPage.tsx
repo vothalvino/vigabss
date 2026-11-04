@@ -107,59 +107,59 @@ async function fetchPorts(page: number, portType: string, operStatus: string): P
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (portType) query.port_type = portType;
   if (operStatus) query.oper_status = operStatus;
-  const res = await api.GET('/olt-management/ports' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/olt-management/ports', { params: { query: query as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load OLT ports');
   return (res as { data: unknown }).data as unknown as OltPortsResponse;
 }
 
 async function createPort(body: OltPortBody): Promise<void> {
-  const res = await api.POST('/olt-management/{id}/ports' as never, {
+  const res = await api.POST('/olt-management/{id}/ports', {
     params: { path: { id: body.olt_device_id } },
     body: body as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create OLT port');
 }
 
 async function updatePort(portId: number, body: Partial<OltPortBody>): Promise<void> {
-  const res = await api.PUT('/olt-management/ports/{portId}' as never, {
+  const res = await api.PUT('/olt-management/ports/{portId}', {
     params: { path: { portId } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update OLT port');
 }
 
 async function deletePort(portId: number): Promise<void> {
-  const res = await api.DELETE('/olt-management/ports/{portId}' as never, {
+  const res = await api.DELETE('/olt-management/ports/{portId}', {
     params: { path: { portId } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete OLT port');
 }
 
 async function fetchSplitters(page: number, status: string): Promise<SplittersResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (status) query.status = status;
-  const res = await api.GET('/olt-management/splitters' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/olt-management/splitters', { params: { query: query as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load splitters');
   return (res as { data: unknown }).data as unknown as SplittersResponse;
 }
 
 async function createSplitter(body: SplitterBody): Promise<void> {
-  const res = await api.POST('/olt-management/splitters' as never, { body: body as never } as never);
+  const res = await api.POST('/olt-management/splitters', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create splitter');
 }
 
 async function updateSplitter(splitterId: number, body: Partial<SplitterBody>): Promise<void> {
-  const res = await api.PUT('/olt-management/splitters/{splitterId}' as never, {
+  const res = await api.PUT('/olt-management/splitters/{splitterId}', {
     params: { path: { splitterId } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update splitter');
 }
 
 async function deleteSplitter(splitterId: number): Promise<void> {
-  const res = await api.DELETE('/olt-management/splitters/{splitterId}' as never, {
+  const res = await api.DELETE('/olt-management/splitters/{splitterId}', {
     params: { path: { splitterId } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete splitter');
 }
 

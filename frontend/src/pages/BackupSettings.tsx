@@ -257,7 +257,7 @@ export function BackupSettings() {
       };
       // Write-only three-state field: blank = keep the saved secret.
       if (values.secret_key) body.secret_key = values.secret_key;
-      const res = await api.PUT('/backup-settings', { body: body as never });
+      const res = await api.PUT('/backup-settings', { body: body });
       const resErr = (res as { error?: { error?: { message?: string } } }).error;
       if (resErr) {
         throw new Error(resErr.error?.message || 'Failed to save backup settings');

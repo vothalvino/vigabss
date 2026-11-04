@@ -90,9 +90,9 @@ const STATE_COLORS: Record<string, { bg: string; color: string }> = {
 // ---------------------------------------------------------------------------
 
 async function wgDiscover(nasId: number): Promise<WgDiscoverData> {
-  const res = (await api.POST('/nas/{id}/wg/discover' as never, {
+  const res = (await api.POST('/nas/{id}/wg/discover', {
     params: { path: { id: nasId } },
-  } as never)) as {
+  })) as {
     data?: { data?: WgDiscoverData };
     error?: { error?: { message?: string } };
   };
@@ -101,17 +101,17 @@ async function wgDiscover(nasId: number): Promise<WgDiscoverData> {
 }
 
 async function wgPutRoutes(nasId: number, subnets: string[]): Promise<void> {
-  const res = (await api.PUT('/nas/{id}/wg/routes' as never, {
+  const res = (await api.PUT('/nas/{id}/wg/routes', {
     params: { path: { id: nasId } },
-    body: { subnets } as never,
-  } as never)) as { error?: { error?: { message?: string } } };
+    body: { subnets },
+  })) as { error?: { error?: { message?: string } } };
   if (res.error) throw new Error(res.error?.error?.message ?? 'Route update failed');
 }
 
 async function wgBootstrap(nasId: number): Promise<BootstrapResult> {
-  const res = (await api.POST('/nas/{id}/wg/bootstrap' as never, {
+  const res = (await api.POST('/nas/{id}/wg/bootstrap', {
     params: { path: { id: nasId } },
-  } as never)) as {
+  })) as {
     data?: { data?: BootstrapResult };
     error?: { error?: { message?: string } };
   };

@@ -217,9 +217,9 @@ interface RadiusAccount {
 }
 
 async function fetchRadiusAccounts(contractId: string): Promise<RadiusAccount[]> {
-  const res = await api.GET('/radius/contract/{contractId}' as never, {
+  const res = await api.GET('/radius/contract/{contractId}', {
     params: { path: { contractId: Number(contractId) } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load PPPoE account');
   const d = (res as { data: unknown }).data as { data?: RadiusAccount[] } | RadiusAccount[];
   return Array.isArray(d) ? d : d.data ?? [];
@@ -231,9 +231,9 @@ async function fetchRadiusAccounts(contractId: string): Promise<RadiusAccount[]>
 const RADIUS_CREDENTIALS_FORBIDDEN = 'radius_credentials_forbidden';
 
 async function fetchRadiusCredentials(contractId: string): Promise<RadiusAccount[]> {
-  const res = await api.GET('/radius/contract/{contractId}/credentials' as never, {
+  const res = await api.GET('/radius/contract/{contractId}/credentials', {
     params: { path: { contractId: Number(contractId) } },
-  } as never);
+  });
   const { error, response } = res as unknown as { error: unknown; response: { status: number } };
   if (error) {
     if (response?.status === 401 || response?.status === 403) {
@@ -412,20 +412,20 @@ function InstallEquipmentModal({ contractId, onClose, onInstalled }: {
   const itemsQ = useQuery({
     queryKey: ['inventory-items-lookup-contract'],
     queryFn: async () => {
-      const res = await api.GET('/inventory/items' as never, { params: { query: { limit: 200, status: 'active' } } } as never);
+      const res = await api.GET('/inventory/items', { params: { query: { limit: 200, status: 'active' } } });
       if ((res as { error?: unknown }).error) throw new Error('load failed');
-      return (((res as { data: { data: CatalogItem[] } }).data?.data) ?? []);
+      return (((res.data as { data: CatalogItem[] })?.data) ?? []);
     },
   });
 
   const unitsQ = useQuery({
     queryKey: ['contract-in-stock-units', itemId],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices' as never, {
+      const res = await api.GET('/cpe-management/devices', {
         params: { query: { inventory_item_id: Number(itemId), lifecycle_state: 'in_stock', limit: 200 } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('load failed');
-      return (((res as { data: { data: InStockUnit[] } }).data?.data) ?? []);
+      return (((res.data as { data: InStockUnit[] })?.data) ?? []);
     },
     enabled: itemId !== '' && serialMode === 'existing',
   });
@@ -445,7 +445,7 @@ function InstallEquipmentModal({ contractId, onClose, onInstalled }: {
     }
     setBusy(true);
     try {
-      const res = await api.POST('/cpe-management/devices/install' as never, { body: body as never } as never);
+      const res = await api.POST('/cpe-management/devices/install', { body: body });
       const e2 = (res as { error?: { error?: { message?: string } } }).error;
       if (e2) throw new Error(e2.error?.message || 'Failed to install equipment');
       onInstalled();
@@ -536,7 +536,7 @@ function NewDeviceModal({ contractId, clientId, onClose, onCreated }: {
         const v = form[k].trim();
         if (v) body[k] = v;
       });
-      const res = await api.POST('/devices' as never, { body: body as never } as never);
+      const res = await api.POST('/devices', { body: body });
       const e2 = (res as { error?: { error?: { message?: string } } }).error;
       if (e2) throw new Error(e2.error?.message || 'Could not create the device');
       onCreated();
@@ -610,11 +610,11 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
   const equipmentQ = useQuery({
     queryKey: ['contract-equipment', contractId],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices' as never, {
+      const res = await api.GET('/cpe-management/devices', {
         params: { query: { contract_id: Number(contractId), limit: 100 } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('equipment unavailable');
-      return (((res as { data: { data: InstalledUnit[] } }).data?.data) ?? []);
+      return (((res.data as { data: InstalledUnit[] })?.data) ?? []);
     },
     retry: false,
   });
@@ -623,9 +623,9 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
   const orgDevicesQ = useQuery({
     queryKey: ['org-devices-for-assign'],
     queryFn: async () => {
-      const res = await api.GET('/devices' as never, { params: { query: { limit: 200 } } } as never);
+      const res = await api.GET('/devices', { params: { query: { limit: 200 } } });
       if ((res as { error?: unknown }).error) throw new Error('load failed');
-      return (((res as { data: { data: OrgDevice[] } }).data?.data) ?? []);
+      return (((res.data as { data: OrgDevice[] })?.data) ?? []);
     },
     enabled: canManage,
   });
@@ -633,9 +633,9 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
   async function setContract(deviceId: number, contract_id: number | null) {
     setBusy(true); setErr('');
     try {
-      const res = await api.PUT('/devices/{id}' as never, {
-        params: { path: { id: deviceId } }, body: { contract_id } as never,
-      } as never);
+      const res = await api.PUT('/devices/{id}', {
+        params: { path: { id: deviceId } }, body: { contract_id },
+      });
       const e = (res as { error?: { error?: { message?: string } } }).error;
       if (e) throw new Error(e.error?.message || 'Could not update the device');
       setPickId('');

@@ -40,7 +40,7 @@ const DEFAULT_PAGE_SIZE = 50;
 
 async function fetchGateways(page: number): Promise<PaymentGatewayResponse> {
   const query = { page, limit: DEFAULT_PAGE_SIZE };
-  const res = await api.GET('/payment-gateways', { params: { query: query as never } });
+  const res = await api.GET('/payment-gateways', { params: { query: query } });
   if (res.error) throw new Error('Failed to load payment gateways');
   return res.data as unknown as PaymentGatewayResponse;
 }

@@ -104,15 +104,15 @@ async function fetchInvoice(id: string): Promise<Invoice> {
 }
 
 async function fetchItems(id: string): Promise<InvoiceItem[]> {
-  const res = await api.GET('/invoices/{id}/items' as never, { params: { path: { id: Number(id) } } } as never);
+  const res = await api.GET('/invoices/{id}/items', { params: { path: { id: Number(id) } } });
   if ((res as { error?: unknown }).error) return [];
-  return ((res as { data: { data: InvoiceItem[] } }).data?.data) ?? [];
+  return ((res.data as { data: InvoiceItem[] })?.data) ?? [];
 }
 
 async function fetchAppliedPayments(id: string): Promise<Payment[]> {
-  const res = await api.GET('/invoices/{id}/payments' as never, { params: { path: { id: Number(id) } } } as never);
+  const res = await api.GET('/invoices/{id}/payments', { params: { path: { id: Number(id) } } });
   if ((res as { error?: unknown }).error) return [];
-  return ((res as { data: { data: Payment[] } }).data?.data) ?? [];
+  return ((res.data as { data: Payment[] })?.data) ?? [];
 }
 
 async function fetchClient(id: number): Promise<Client> {
@@ -226,14 +226,14 @@ interface AddInvoiceItemBody {
 }
 
 async function addInvoiceItem(invoiceId: number, body: AddInvoiceItemBody): Promise<InvoiceItem> {
-  const res = await api.POST('/invoices/{id}/items' as never, {
+  const res = await api.POST('/invoices/{id}/items', {
     params: { path: { id: invoiceId } },
     body: body as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to add item'));
   }
-  return (res as { data: { data: InvoiceItem } }).data.data;
+  return (res.data as { data: InvoiceItem }).data;
 }
 
 // NOTE: there is deliberately no computeInvoiceTotals helper here any more.

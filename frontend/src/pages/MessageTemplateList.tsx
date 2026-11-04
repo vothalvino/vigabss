@@ -56,7 +56,7 @@ const CHANNEL_FILTER_OPTIONS = ['', ...CHANNELS];
 async function fetchTemplates(page: number, channelFilter: string): Promise<MessageTemplatesResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (channelFilter) query.channel = channelFilter;
-  const res = await api.GET('/message-templates', { params: { query: query as never } });
+  const res = await api.GET('/message-templates', { params: { query: query } });
   if (res.error) throw new Error('Failed to load message templates');
   return res.data as unknown as MessageTemplatesResponse;
 }
@@ -67,7 +67,7 @@ async function createTemplate(body: MessageTemplateBody): Promise<void> {
 }
 
 async function updateTemplate(id: number, body: Partial<MessageTemplateBody>): Promise<void> {
-  const res = await api.PUT('/message-templates/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/message-templates/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update template');
 }
 

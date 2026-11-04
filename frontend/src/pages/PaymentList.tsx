@@ -66,7 +66,7 @@ const API_BASE = '/api/v1';
 async function fetchPayments(page: number, pageSize: number, statusFilter: string, orderBy: string, order: string): Promise<PaymentsResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/payments', { params: { query: query as never } });
+  const res = await api.GET('/payments', { params: { query: query } });
   if (res.error) throw new Error('Failed to load payments');
   return res.data as unknown as PaymentsResponse;
 }

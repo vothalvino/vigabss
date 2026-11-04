@@ -72,14 +72,14 @@ function makeItem(type: ItemType): InvoiceLineItem {
 // client, but the list returns at most 100 (the oldest), so most clients'
 // contracts never appeared (FE-04).
 async function fetchClientContracts(clientId: string): Promise<Contract[]> {
-  const res = await api.GET('/contracts', { params: { query: { client_id: clientId, limit: 100 } as never } });
+  const res = await api.GET('/contracts', { params: { query: { client_id: clientId, limit: 100 } } });
   if (res.error) throw new Error('Failed to load contracts');
   return (res.data as unknown as { data: Contract[] }).data;
 }
 
 async function generateFlexibleInvoice(clientId: number, items: FlexItem[]): Promise<void> {
   const { error } = await api.POST('/invoices/generate', {
-    body: { client_id: clientId, items } as never,
+    body: { client_id: clientId, items },
   });
   if (error) throw new Error(extractApiError(error, 'Failed to generate invoice'));
 }

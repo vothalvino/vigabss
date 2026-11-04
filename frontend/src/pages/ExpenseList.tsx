@@ -73,7 +73,7 @@ const TODAY = localToday();
 async function fetchExpenses(page: number, statusFilter: string): Promise<ExpensesResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/expenses', { params: { query: query as never } });
+  const res = await api.GET('/expenses', { params: { query: query } });
   if (res.error) throw new Error('Failed to load expenses');
   return res.data as unknown as ExpensesResponse;
 }
@@ -86,7 +86,7 @@ async function createExpense(body: ExpenseBody): Promise<void> {
 async function updateExpense(id: number, body: Partial<ExpenseBody>): Promise<void> {
   const res = await api.PUT('/expenses/{id}', {
     params: { path: { id } },
-    body: body as never,
+    body: body,
   });
   if (res.error) throw new Error('Failed to update expense');
 }

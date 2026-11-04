@@ -44,7 +44,7 @@ const STATUS_FILTER_OPTIONS = ['', 'active', 'inactive'];
 async function fetchSnmpProfiles(page: number, statusFilter: string): Promise<SnmpProfileResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/snmp-profiles', { params: { query: query as never } });
+  const res = await api.GET('/snmp-profiles', { params: { query: query } });
   if (res.error) throw new Error('Failed to load SNMP profiles');
   return res.data as unknown as SnmpProfileResponse;
 }

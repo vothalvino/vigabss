@@ -42,7 +42,7 @@ const DEFAULT_PAGE_SIZE = 50;
 
 async function fetchProfiles(page: number): Promise<RecurringPaymentProfileResponse> {
   const query = { page, limit: DEFAULT_PAGE_SIZE };
-  const res = await api.GET('/recurring-payment-profiles', { params: { query: query as never } });
+  const res = await api.GET('/recurring-payment-profiles', { params: { query: query } });
   if (res.error) throw new Error('Failed to load recurring payment profiles');
   return res.data as unknown as RecurringPaymentProfileResponse;
 }

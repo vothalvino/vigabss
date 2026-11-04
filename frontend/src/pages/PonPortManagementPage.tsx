@@ -106,9 +106,9 @@ const ONU_STATES = [
 // ---------------------------------------------------------------------------
 
 async function fetchUtilization(portId: number): Promise<PonPortUtilization> {
-  const res = await api.GET('/olt-management/ports/{portId}/utilization' as never, {
+  const res = await api.GET('/olt-management/ports/{portId}/utilization', {
     params: { path: { portId } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load utilization');
   return unwrapData<PonPortUtilization>((res as { data: unknown }).data);
 }
@@ -116,9 +116,9 @@ async function fetchUtilization(portId: number): Promise<PonPortUtilization> {
 async function fetchOnus(portId: number, state: string): Promise<OnuListItem[]> {
   const query: Record<string, string | number> = {};
   if (state) query.state = state;
-  const res = await api.GET('/olt-management/ports/{portId}/onus' as never, {
-    params: { path: { portId }, query: query as never },
-  } as never);
+  const res = await api.GET('/olt-management/ports/{portId}/onus', {
+    params: { path: { portId }, query: query },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load ONUs');
   return unwrapData<OnuListItem[]>((res as { data: unknown }).data) ?? [];
 }
@@ -130,33 +130,33 @@ async function calcPowerBudget(body: {
   attenuation_per_km_db?: number;
   connector_margin_db?: number;
 }): Promise<PowerBudgetResult> {
-  const res = await api.POST('/olt-management/power-budget' as never, {
-    body: body as never,
-  } as never);
+  const res = await api.POST('/olt-management/power-budget', {
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Calculation failed');
   return unwrapData<PowerBudgetResult>((res as { data: unknown }).data);
 }
 
 async function setPortMaintenance(portId: number, enable: boolean, note: string): Promise<void> {
-  const res = await api.POST('/olt-management/ports/{portId}/shutdown' as never, {
+  const res = await api.POST('/olt-management/ports/{portId}/shutdown', {
     params: { path: { portId } },
-    body: { enable, note } as never,
-  } as never);
+    body: { enable, note },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to set maintenance mode');
 }
 
 async function configureXgsPonMode(portId: number, mode: string): Promise<void> {
-  const res = await api.POST('/olt-management/ports/{portId}/xgspon-mode' as never, {
+  const res = await api.POST('/olt-management/ports/{portId}/xgspon-mode', {
     params: { path: { portId } },
-    body: { mode } as never,
-  } as never);
+    body: { mode },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to configure mode');
 }
 
 async function fetchMigrations(page: number): Promise<MigrationsResponse> {
-  const res = await api.GET('/olt-management/onu-migrations' as never, {
+  const res = await api.GET('/olt-management/onu-migrations', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load migrations');
   return (res as { data: unknown }).data as unknown as MigrationsResponse;
 }
@@ -166,18 +166,18 @@ async function createMigration(body: {
   source_olt_port_id: number;
   target_olt_port_id: number;
 }): Promise<void> {
-  const res = await api.POST('/olt-management/onu-migrations' as never, {
-    body: body as never,
-  } as never);
+  const res = await api.POST('/olt-management/onu-migrations', {
+    body: body,
+  });
   const error = (res as { error?: unknown }).error;
   // 501 until an OLT driver exists (NET-26): show why.
   if (error) throw new Error(extractApiError(error, 'Failed to create migration'));
 }
 
 async function cancelMigration(jobId: number): Promise<void> {
-  const res = await api.POST('/olt-management/onu-migrations/{jobId}/cancel' as never, {
+  const res = await api.POST('/olt-management/onu-migrations/{jobId}/cancel', {
     params: { path: { jobId } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to cancel migration');
 }
 

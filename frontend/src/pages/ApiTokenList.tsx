@@ -70,7 +70,7 @@ function tokenStatus(t: ApiTokenItem): { label: string; bg: string; color: strin
 
 async function fetchTokens(page: number): Promise<TokensResponse> {
   const query = { page, limit: DEFAULT_PAGE_SIZE };
-  const res = await api.GET('/api-tokens', { params: { query: query as never } });
+  const res = await api.GET('/api-tokens', { params: { query: query } });
   if (res.error) throw new Error('Failed to load API tokens');
   return res.data as unknown as TokensResponse;
 }

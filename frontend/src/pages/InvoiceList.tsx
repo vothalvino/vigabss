@@ -61,7 +61,7 @@ async function fetchInvoices(
 ): Promise<InvoicesResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/invoices', { params: { query: query as never } });
+  const res = await api.GET('/invoices', { params: { query: query } });
   if (res.error) throw new Error('Failed to load invoices');
   return res.data as unknown as InvoicesResponse;
 }

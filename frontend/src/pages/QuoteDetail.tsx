@@ -81,9 +81,9 @@ async function fetchQuote(id: string): Promise<Quote> {
 }
 
 async function fetchItems(id: string): Promise<QuoteItem[]> {
-  const res = await api.GET('/quotes/{id}/items' as never, { params: { path: { id: Number(id) } } } as never);
+  const res = await api.GET('/quotes/{id}/items', { params: { path: { id: Number(id) } } });
   if ((res as { error?: unknown }).error) return [];
-  return ((res as { data: { data: QuoteItem[] } }).data?.data) ?? [];
+  return ((res.data as { data: QuoteItem[] })?.data) ?? [];
 }
 
 async function fetchClient(id: number): Promise<Client> {
@@ -120,14 +120,14 @@ interface AddItemBody {
 }
 
 async function addQuoteItem(quoteId: number, body: AddItemBody): Promise<QuoteItem> {
-  const res = await api.POST('/quotes/{id}/items' as never, {
+  const res = await api.POST('/quotes/{id}/items', {
     params: { path: { id: quoteId } },
     body: body as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to add item'));
   }
-  return (res as { data: { data: QuoteItem } }).data.data;
+  return (res.data as { data: QuoteItem }).data;
 }
 
 interface UpdateQuoteBody {

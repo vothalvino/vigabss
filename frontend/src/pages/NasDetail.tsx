@@ -158,7 +158,7 @@ export function NasDetail() {
   const { data: nas, isLoading, error } = useQuery({
     queryKey: ['nas-detail', id],
     queryFn: async () => {
-      const res = await api.GET('/nas/{id}' as never, { params: { path: { id: Number(id) } } } as never);
+      const res = await api.GET('/nas/{id}', { params: { path: { id: Number(id) } } });
       if ((res as { error?: unknown }).error) throw new Error('NAS not found');
       const d = (res as { data: unknown }).data;
       return (((d as { data?: Nas }).data) ?? d) as Nas;
@@ -170,9 +170,9 @@ export function NasDetail() {
     queryKey: ['nas-sessions', id, nas?.ip_address],
     queryFn: async () => {
       if (!nas?.ip_address) return [];
-      const res = await api.GET('/connection-logs/active' as never, {
-        params: { query: { nas_ip_address: nas.ip_address, limit: 50 } as never },
-      } as never);
+      const res = await api.GET('/connection-logs/active', {
+        params: { query: { nas_ip_address: nas.ip_address, limit: 50 } },
+      });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<ConnectionLogRow> | ConnectionLogRow[];
       return Array.isArray(d) ? d : (d as ListResp<ConnectionLogRow>).data ?? [];
@@ -183,9 +183,9 @@ export function NasDetail() {
   const { data: wgData, refetch: refetchWg } = useQuery({
     queryKey: ['nas-wg', id],
     queryFn: async () => {
-      const res = await api.GET('/nas/{id}/wg' as never, {
+      const res = await api.GET('/nas/{id}/wg', {
         params: { path: { id: Number(id) } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) return null;
       const d = (res as { data: unknown }).data;
       return (((d as { data?: WgTunnelResponse }).data) ?? d) as WgTunnelResponse;
@@ -201,9 +201,9 @@ export function NasDetail() {
     setActionResult(null);
     setActionError(null);
     try {
-      const res = await api.POST('/nas/{id}/health-check' as never, {
+      const res = await api.POST('/nas/{id}/health-check', {
         params: { path: { id: Number(id) } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) {
         const msg = ((res as { error: { error?: { message?: string } } }).error?.error?.message) ?? 'Health check failed';
         setActionError(msg);
@@ -225,9 +225,9 @@ export function NasDetail() {
     setActionResult(null);
     setActionError(null);
     try {
-      const res = await api.POST('/nas/{id}/test-connection' as never, {
+      const res = await api.POST('/nas/{id}/test-connection', {
         params: { path: { id: Number(id) } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) {
         const msg = ((res as { error: { error?: { message?: string } } }).error?.error?.message) ?? 'Connection test failed';
         setActionError(msg);
@@ -248,9 +248,9 @@ export function NasDetail() {
     setActionResult(null);
     setActionError(null);
     try {
-      const res = (await api.POST('/nas/{id}/voip/refresh' as never, {
+      const res = (await api.POST('/nas/{id}/voip/refresh', {
         params: { path: { id: Number(id) } },
-      } as never)) as {
+      })) as {
         data?: { data?: { added?: number; removed?: number; kept?: number; ranges?: number; skipped?: boolean; reason?: string } };
         error?: { error?: { message?: string } };
       };

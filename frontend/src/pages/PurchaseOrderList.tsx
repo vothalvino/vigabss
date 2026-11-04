@@ -63,21 +63,21 @@ const STATUSES = ['draft', 'sent', 'partial', 'received', 'cancelled'];
 async function fetchPurchaseOrders(page: number, pageSize: number, statusFilter: string): Promise<PurchaseOrderListResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/purchase-orders' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/purchase-orders', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load purchase orders');
   return (res as { data: unknown }).data as unknown as PurchaseOrderListResponse;
 }
 
 async function fetchVendors(): Promise<Vendor[]> {
-  const res = await api.GET('/vendors' as never, { params: { query: { limit: 200, status: 'active' } as never } } as never);
+  const res = await api.GET('/vendors', { params: { query: { limit: 200, status: 'active' } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load vendors');
-  return ((res as { data: { data: Vendor[] } }).data?.data) ?? [];
+  return ((res.data as { data: Vendor[] })?.data) ?? [];
 }
 
 async function fetchWarehouses(): Promise<Warehouse[]> {
-  const res = await api.GET('/warehouses' as never, { params: { query: { limit: 200, status: 'active' } as never } } as never);
+  const res = await api.GET('/warehouses', { params: { query: { limit: 200, status: 'active' } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load warehouses');
-  return ((res as { data: { data: Warehouse[] } }).data?.data) ?? [];
+  return ((res.data as { data: Warehouse[] })?.data) ?? [];
 }
 
 interface CreatePoBody {
@@ -91,15 +91,15 @@ interface CreatePoBody {
 }
 
 async function createPurchaseOrder(body: CreatePoBody): Promise<PurchaseOrder> {
-  const res = await api.POST('/purchase-orders' as never, { body: body as never } as never);
+  const res = await api.POST('/purchase-orders', { body: body as never });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to create purchase order'));
   }
-  return (res as { data: { data: PurchaseOrder } }).data.data;
+  return (res.data as { data: PurchaseOrder }).data;
 }
 
 async function deletePurchaseOrder(id: number): Promise<void> {
-  const res = await api.DELETE('/purchase-orders/{id}' as never, { params: { path: { id } as never } } as never);
+  const res = await api.DELETE('/purchase-orders/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete purchase order');
 }
 

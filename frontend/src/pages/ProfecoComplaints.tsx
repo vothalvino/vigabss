@@ -80,9 +80,9 @@ async function fetchComplaints(
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter)   query.status   = statusFilter;
   if (categoryFilter) query.category = categoryFilter;
-  const res = await api.GET('/profeco-complaints' as never, {
-    params: { query: query as never },
-  } as never);
+  const res = await api.GET('/profeco-complaints', {
+    params: { query: query },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load complaints');
   return res.data as unknown as ComplaintsResponse;
 }

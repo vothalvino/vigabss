@@ -59,13 +59,13 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchVlans(page: number, statusFilter: string): Promise<VlansResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/vlans', { params: { query: query as never } });
+  const res = await api.GET('/vlans', { params: { query: query } });
   if (res.error) throw new Error('Failed to load VLANs');
   return res.data as unknown as VlansResponse;
 }
 
 async function fetchSiteOptions(): Promise<SiteOption[]> {
-  const res = await api.GET('/sites', { params: { query: { limit: 500 } as never } });
+  const res = await api.GET('/sites', { params: { query: { limit: 500 } } });
   if (res.error) throw new Error('Failed to load sites');
   return (res.data as unknown as { data: SiteOption[] }).data;
 }
@@ -76,7 +76,7 @@ async function createVlan(body: VlanBody): Promise<void> {
 }
 
 async function updateVlan(id: number, body: Partial<VlanBody>): Promise<void> {
-  const res = await api.PUT('/vlans/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/vlans/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update VLAN');
 }
 

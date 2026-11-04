@@ -122,9 +122,9 @@ function DevicesTab() {
   const { data, isLoading, error } = useQuery<CpeDeviceListResponse>({
     queryKey: ['cpe-devices', page],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices' as never, {
-        params: { query: { page, limit: PAGE_SIZE } as never },
-      } as never);
+      const res = await api.GET('/cpe-management/devices', {
+        params: { query: { page, limit: PAGE_SIZE } },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load devices');
       return (res as { data: unknown }).data as unknown as CpeDeviceListResponse;
     },
@@ -132,7 +132,7 @@ function DevicesTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: typeof form) => {
-      const res = await api.POST('/cpe-management/devices' as never, { body } as never);
+      const res = await api.POST('/cpe-management/devices', { body });
       if ((res as { error?: unknown }).error) throw new Error('Create failed');
       return (res as { data: unknown }).data;
     },
@@ -149,7 +149,7 @@ function DevicesTab() {
   const [deleteError, setDeleteError] = useState('');
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await api.DELETE('/cpe-management/devices/{id}' as never, { params: { path: { id } } } as never) as { error?: { error?: { message?: string } } };
+      const { error } = await api.DELETE('/cpe-management/devices/{id}', { params: { path: { id } } }) as { error?: { error?: { message?: string } } };
       if (error) throw new Error(error.error?.message || 'Could not delete the device');
     },
     onSuccess: () => { setDeleteError(''); qc.invalidateQueries({ queryKey: ['cpe-devices'] }); },
@@ -276,9 +276,9 @@ function FirmwareTab() {
   const { data, isLoading, error } = useQuery<FirmwareVersionListResponse>({
     queryKey: ['cpe-firmware-versions', page],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/firmware-versions' as never, {
+      const res = await api.GET('/cpe-management/firmware-versions', {
         params: { query: { page, limit: PAGE_SIZE } as never },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load firmware versions');
       return (res as { data: unknown }).data as unknown as FirmwareVersionListResponse;
     },
@@ -286,7 +286,7 @@ function FirmwareTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: typeof form) => {
-      const res = await api.POST('/cpe-management/firmware-versions' as never, { body } as never);
+      const res = await api.POST('/cpe-management/firmware-versions', { body });
       if ((res as { error?: unknown }).error) throw new Error('Create failed');
       return (res as { data: unknown }).data;
     },
@@ -300,7 +300,7 @@ function FirmwareTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await api.DELETE('/cpe-management/firmware-versions/{id}' as never, { params: { path: { id } } } as never) as { error?: unknown };
+      const { error } = await api.DELETE('/cpe-management/firmware-versions/{id}', { params: { path: { id } } }) as { error?: unknown };
       if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-firmware-versions'] }),
@@ -415,9 +415,9 @@ function CampaignsTab() {
   const { data, isLoading, error } = useQuery<FirmwareCampaignListResponse>({
     queryKey: ['cpe-firmware-campaigns', page],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/firmware-campaigns' as never, {
+      const res = await api.GET('/cpe-management/firmware-campaigns', {
         params: { query: { page, limit: PAGE_SIZE } as never },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load campaigns');
       return (res as { data: unknown }).data as unknown as FirmwareCampaignListResponse;
     },
@@ -425,7 +425,7 @@ function CampaignsTab() {
 
   const createMut = useMutation({
     mutationFn: async (body: { name: string; firmware_version_id: number }) => {
-      const res = await api.POST('/cpe-management/firmware-campaigns' as never, { body } as never);
+      const res = await api.POST('/cpe-management/firmware-campaigns', { body });
       const error = (res as { error?: unknown }).error;
       if (error) throw new Error(parseApiError(error, 'Create failed'));
       return (res as { data: unknown }).data;
@@ -443,10 +443,10 @@ function CampaignsTab() {
   const [actionError, setActionError] = useState('');
   const actionMut = useMutation({
     mutationFn: async ({ id, action }: { id: number; action: 'launch' | 'cancel' }) => {
-      const opts = { params: { path: { id } } } as never;
+      const opts = { params: { path: { id } } };
       const res = action === 'launch'
-        ? await api.POST('/cpe-management/firmware-campaigns/{id}/launch' as never, opts)
-        : await api.POST('/cpe-management/firmware-campaigns/{id}/cancel' as never, opts);
+        ? await api.POST('/cpe-management/firmware-campaigns/{id}/launch', opts)
+        : await api.POST('/cpe-management/firmware-campaigns/{id}/cancel', opts);
       const error = (res as { error?: unknown }).error;
       if (error) throw new Error(parseApiError(error, t('common.error')));
     },

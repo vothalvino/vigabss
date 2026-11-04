@@ -57,7 +57,7 @@ async function searchClients(term: string, limit = 20): Promise<ClientOption[]> 
   // (order_by=created_at, order=DESC) in that case, so this doubles as the
   // "fetch newest N as the initial list" behaviour below.
   const res = await api.GET('/clients', {
-    params: { query: { search: term, limit } as never },
+    params: { query: { search: term, limit } },
   });
   if (res.error) return [];
   return (res.data as unknown as ClientsSearchResponse).data ?? [];

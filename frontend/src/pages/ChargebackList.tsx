@@ -141,7 +141,7 @@ function CreateChargebackModal({ onClose, onCreated }: { onClose: () => void; on
       if (gateway.trim()) body.gateway = gateway.trim();
       if (gatewayDisputeId.trim()) body.gateway_dispute_id = gatewayDisputeId.trim();
       if (reasonCode.trim()) body.reason_code = reasonCode.trim();
-      const { error: e } = await api.POST('/chargebacks' as never, { body: body as never } as never);
+      const { error: e } = await api.POST('/chargebacks', { body: body });
       if (e) throw new Error(extractApiError(e, 'Failed to create chargeback'));
     },
     onSuccess: () => { onCreated(); onClose(); },
@@ -227,8 +227,8 @@ function UpdateChargebackModal({
       if (outcomeNotes.trim()) body.outcome_notes = outcomeNotes.trim();
       if (dueBy) body.due_by = dueBy;
       const { error: e } = await api.PUT(
-        '/chargebacks/{id}' as never,
-        { params: { path: { id } as never }, body: body as never } as never,
+        '/chargebacks/{id}',
+        { params: { path: { id } }, body: body },
       );
       if (e) throw new Error(extractApiError(e, 'Failed to update chargeback'));
     },
@@ -291,9 +291,9 @@ export function ChargebackList() {
     queryFn: async () => {
       const query: Record<string, unknown> = { page, limit: PAGE_SIZE };
       if (statusFilter) query.status = statusFilter;
-      const res = await api.GET('/chargebacks' as never, {
-        params: { query: query as never },
-      } as never);
+      const res = await api.GET('/chargebacks', {
+        params: { query: query },
+      });
       if (res.error) throw new Error('Failed to load chargebacks');
       return res.data as unknown as ChargebacksResponse;
     },

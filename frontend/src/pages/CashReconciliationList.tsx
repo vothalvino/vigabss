@@ -113,7 +113,7 @@ function OpenSessionModal({ onClose, onOpened }: { onClose: () => void; onOpened
   const mutation = useMutation({
     mutationFn: async () => {
       const body = notes.trim() ? { notes: notes.trim() } : {};
-      const { error: e } = await api.POST('/cash-reconciliation/sessions' as never, { body: body as never } as never);
+      const { error: e } = await api.POST('/cash-reconciliation/sessions', { body: body });
       if (e) throw new Error(extractApiError(e, 'Failed to open session'));
     },
     onSuccess: () => { onOpened(); onClose(); },
@@ -162,8 +162,8 @@ function CloseSessionModal({
   const mutation = useMutation({
     mutationFn: async () => {
       const { error: e } = await api.POST(
-        '/cash-reconciliation/sessions/{id}/close' as never,
-        { params: { path: { id: sessionId } }, body: { counted_total: parseFloat(countedTotal) } as never } as never,
+        '/cash-reconciliation/sessions/{id}/close',
+        { params: { path: { id: sessionId } }, body: { counted_total: parseFloat(countedTotal) } },
       );
       if (e) throw new Error(extractApiError(e, 'Failed to close session'));
     },
@@ -211,8 +211,8 @@ function CashPaymentsRow({ sessionId, colSpan }: { sessionId: number; colSpan: n
     queryKey: ['cash-session-detail', sessionId],
     queryFn: async () => {
       const res = await api.GET(
-        '/cash-reconciliation/sessions/{id}' as never,
-        { params: { path: { id: sessionId } } } as never,
+        '/cash-reconciliation/sessions/{id}',
+        { params: { path: { id: sessionId } } },
       );
       if (res.error) throw new Error('Failed to load session detail');
       return (res.data as { data: SessionDetail }).data;
@@ -281,7 +281,7 @@ export function CashReconciliationList() {
   const approveMutation = useMutation({
     mutationFn: async (id: number) => {
       const { error: e } = await api.POST(
-        '/cash-reconciliation/sessions/{id}/approve' as never,
+        '/cash-reconciliation/sessions/{id}/approve',
         { params: { path: { id } }, body: {} as never } as never,
       );
       if (e) throw new Error(extractApiError(e, 'Failed to approve session'));
@@ -292,9 +292,9 @@ export function CashReconciliationList() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['cash-sessions', page],
     queryFn: async () => {
-      const res = await api.GET('/cash-reconciliation/sessions' as never, {
+      const res = await api.GET('/cash-reconciliation/sessions', {
         params: { query: { page, limit: PAGE_SIZE } as never },
-      } as never);
+      });
       if (res.error) throw new Error('Failed to load sessions');
       return res.data as unknown as SessionsResponse;
     },

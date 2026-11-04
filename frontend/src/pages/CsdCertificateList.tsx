@@ -45,7 +45,7 @@ const EXPIRY_WARN_DAYS = 60;
 
 async function fetchCertificates(page: number): Promise<CsdResponse> {
   const query = { page, limit: DEFAULT_PAGE_SIZE };
-  const res = await api.GET('/csd-certificates', { params: { query: query as never } });
+  const res = await api.GET('/csd-certificates', { params: { query: query } });
   if (res.error) throw new Error('Failed to load CSD certificates');
   return res.data as unknown as CsdResponse;
 }

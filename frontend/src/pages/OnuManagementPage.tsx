@@ -194,15 +194,15 @@ function JobStatusBadge({ status }: { status: string }) {
 async function fetchOnuDetails(page: number, state: string): Promise<{ data: OnuDetail[]; meta: PaginatedMeta }> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (state) query.onu_state = state;
-  const res = await api.GET('/onu-management/details' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/onu-management/details', { params: { query: query as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load ONU details');
   return (res as { data: unknown }).data as unknown as { data: OnuDetail[]; meta: PaginatedMeta };
 }
 
 async function fetchOpticalHistory(onuDetailId: number): Promise<OpticalMetric[]> {
-  const res = await api.GET('/onu-management/details/{id}/optical-metrics' as never, {
+  const res = await api.GET('/onu-management/details/{id}/optical-metrics', {
     params: { path: { id: onuDetailId } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load optical metrics');
   return ((res as { data: unknown }).data as { data: OpticalMetric[] }).data;
 }
@@ -212,23 +212,23 @@ async function fetchOpticalHistory(onuDetailId: number): Promise<OpticalMetric[]
 // ---------------------------------------------------------------------------
 
 async function fetchProfiles(page: number): Promise<{ data: OnuProfile[]; meta: PaginatedMeta }> {
-  const res = await api.GET('/onu-management/profiles' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/onu-management/profiles', { params: { query: { page, limit: PAGE_SIZE } as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load ONU profiles');
   return (res as { data: unknown }).data as unknown as { data: OnuProfile[]; meta: PaginatedMeta };
 }
 
 async function createProfile(body: Record<string, unknown>): Promise<void> {
-  const res = await api.POST('/onu-management/profiles' as never, { body: body as never } as never);
+  const res = await api.POST('/onu-management/profiles', { body: body });
   if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create ONU profile');
 }
 
 async function updateProfile(id: number, body: Record<string, unknown>): Promise<void> {
-  const res = await api.PUT('/onu-management/profiles/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/onu-management/profiles/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to update ONU profile');
 }
 
 async function deleteProfile(id: number): Promise<void> {
-  const res = await api.DELETE('/onu-management/profiles/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/onu-management/profiles/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete ONU profile');
 }
 
@@ -237,18 +237,18 @@ async function deleteProfile(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function fetchWhitelist(page: number): Promise<{ data: WhitelistEntry[]; meta: PaginatedMeta }> {
-  const res = await api.GET('/onu-management/whitelist' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/onu-management/whitelist', { params: { query: { page, limit: PAGE_SIZE } as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load whitelist');
   return (res as { data: unknown }).data as unknown as { data: WhitelistEntry[]; meta: PaginatedMeta };
 }
 
 async function createWhitelistEntry(body: Record<string, unknown>): Promise<void> {
-  const res = await api.POST('/onu-management/whitelist' as never, { body: body as never } as never);
+  const res = await api.POST('/onu-management/whitelist', { body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create whitelist entry');
 }
 
 async function deleteWhitelistEntry(id: number): Promise<void> {
-  const res = await api.DELETE('/onu-management/whitelist/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/onu-management/whitelist/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete whitelist entry');
 }
 
@@ -257,18 +257,18 @@ async function deleteWhitelistEntry(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function fetchOmciConfigs(page: number): Promise<{ data: OmciConfig[]; meta: PaginatedMeta }> {
-  const res = await api.GET('/onu-management/omci-configs' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/onu-management/omci-configs', { params: { query: { page, limit: PAGE_SIZE } as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load OMCI configs');
   return (res as { data: unknown }).data as unknown as { data: OmciConfig[]; meta: PaginatedMeta };
 }
 
 async function createOmciConfig(body: Record<string, unknown>): Promise<void> {
-  const res = await api.POST('/onu-management/omci-configs' as never, { body: body as never } as never);
+  const res = await api.POST('/onu-management/omci-configs', { body: body });
   if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create OMCI config');
 }
 
 async function deleteOmciConfig(id: number): Promise<void> {
-  const res = await api.DELETE('/onu-management/omci-configs/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/onu-management/omci-configs/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete OMCI config');
 }
 
@@ -279,21 +279,21 @@ async function deleteOmciConfig(id: number): Promise<void> {
 async function fetchFirmwareJobs(page: number, status: string): Promise<{ data: FirmwareJob[]; meta: PaginatedMeta }> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (status) query.status = status;
-  const res = await api.GET('/onu-management/firmware-jobs' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/onu-management/firmware-jobs', { params: { query: query as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load firmware jobs');
   return (res as { data: unknown }).data as unknown as { data: FirmwareJob[]; meta: PaginatedMeta };
 }
 
 async function createFirmwareJob(body: Record<string, unknown>): Promise<void> {
-  const res = await api.POST('/onu-management/firmware-jobs' as never, { body: body as never } as never);
+  const res = await api.POST('/onu-management/firmware-jobs', { body: body });
   if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create firmware job');
 }
 
 async function cancelFirmwareJob(id: number): Promise<void> {
-  const res = await api.POST('/onu-management/firmware-jobs/{id}/cancel' as never, {
+  const res = await api.POST('/onu-management/firmware-jobs/{id}/cancel', {
     params: { path: { id } },
     body: {} as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to cancel firmware job');
 }
 

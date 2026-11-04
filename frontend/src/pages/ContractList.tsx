@@ -121,7 +121,7 @@ async function fetchContracts(
   const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order };
   if (statusFilter) query.status = statusFilter;
   const res = await api.GET('/contracts', {
-    params: { query: query as never },
+    params: { query: query },
   });
   if (res.error) throw new Error('Failed to load contracts');
   return res.data as unknown as ContractsResponse;
@@ -134,7 +134,7 @@ const RADIUS_FORBIDDEN = 'radius_forbidden';
 
 async function fetchRadiusByContract(id: number): Promise<RadiusAccount[]> {
   const res = await api.GET('/radius/contract/{contractId}', {
-    params: { path: { contractId: id } as never },
+    params: { path: { contractId: id } },
   });
   // These endpoints are typed loosely, so the success/error union collapses to
   // `never` on the error branch — read `response.status` through an explicit
@@ -161,7 +161,7 @@ const RADIUS_CREDENTIALS_FORBIDDEN = 'radius_credentials_forbidden';
 
 async function fetchRadiusCredentials(id: number): Promise<RadiusAccount[]> {
   const res = await api.GET('/radius/contract/{contractId}/credentials', {
-    params: { path: { contractId: id } as never },
+    params: { path: { contractId: id } },
   });
   const { error, response } = res as unknown as {
     error: unknown;
@@ -178,7 +178,7 @@ async function fetchRadiusCredentials(id: number): Promise<RadiusAccount[]> {
 
 async function fetchPlans(): Promise<Plan[]> {
   const res = await api.GET('/plans', {
-    params: { query: { limit: 200 } as never },
+    params: { query: { limit: 200 } },
   });
   if (res.error) throw new Error('Failed to load plans');
   return (res.data as unknown as { data: Plan[] }).data;

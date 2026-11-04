@@ -51,7 +51,7 @@ const CATALOGS: CatalogOption[] = [
 // ---------------------------------------------------------------------------
 
 async function fetchCatalog(value: string, search: string): Promise<CatalogResponse> {
-  const searchQuery = { params: { query: { search } as never } };
+  const searchQuery = { params: { query: { search } } };
   let res;
   switch (value) {
     case 'regimen-fiscal': res = await api.GET('/sat-catalogs/regimen-fiscal', {}); break;

@@ -74,41 +74,41 @@ interface SlaCompliance {
 // ---------------------------------------------------------------------------
 
 async function fetchHealth(): Promise<NetworkHealth> {
-  const res = await api.GET('/noc/health' as never, {} as never);
+  const res = await api.GET('/noc/health', {});
   if ((res as { error?: unknown }).error) throw new Error('Failed to load network health');
   // The endpoint replies { data: { devices, active_alerts } }; unwrap to the inner object.
-  return (res as { data: { data: NetworkHealth } }).data.data;
+  return (res.data as { data: NetworkHealth }).data;
 }
 
 async function fetchAlarms(): Promise<AlarmSummary> {
-  const res = await api.GET('/noc/alarms' as never, {} as never);
+  const res = await api.GET('/noc/alarms', {});
   if ((res as { error?: unknown }).error) throw new Error('Failed to load alarms');
   return (res as { data: unknown }).data as unknown as AlarmSummary;
 }
 
 async function fetchOutages(): Promise<OutagesResponse> {
-  const res = await api.GET('/noc/outages' as never, {} as never);
+  const res = await api.GET('/noc/outages', {});
   if ((res as { error?: unknown }).error) throw new Error('Failed to load outages');
   return (res as { data: unknown }).data as unknown as OutagesResponse;
 }
 
 async function fetchTicketQueue(): Promise<TicketQueueResponse> {
-  const res = await api.GET('/noc/ticket-queue' as never, {} as never);
+  const res = await api.GET('/noc/ticket-queue', {});
   if ((res as { error?: unknown }).error) throw new Error('Failed to load ticket queue');
   return (res as { data: unknown }).data as unknown as TicketQueueResponse;
 }
 
 async function fetchEvents(): Promise<EventsResponse> {
-  const res = await api.GET('/noc/events' as never, {} as never);
+  const res = await api.GET('/noc/events', {});
   if ((res as { error?: unknown }).error) throw new Error('Failed to load events');
   return (res as { data: unknown }).data as unknown as EventsResponse;
 }
 
 async function fetchSlaCompliance(): Promise<SlaCompliance> {
-  const res = await api.GET('/noc/sla-compliance' as never, {} as never);
+  const res = await api.GET('/noc/sla-compliance', {});
   if ((res as { error?: unknown }).error) throw new Error('Failed to load SLA compliance');
   // The endpoint replies { data: { total, compliant, … } }; unwrap to the inner object.
-  return (res as { data: { data: SlaCompliance } }).data.data;
+  return (res.data as { data: SlaCompliance }).data;
 }
 
 // ---------------------------------------------------------------------------

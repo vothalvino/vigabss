@@ -57,7 +57,7 @@ export function NotificationBell() {
   const { data: unread = 0 } = useQuery({
     queryKey: ['notifications-unread'],
     queryFn: async () => {
-      const res = await api.GET('/notifications/unread-count' as never);
+      const res = await api.GET('/notifications/unread-count');
       if ((res as { error?: unknown }).error) return 0;
       return ((res as { data?: { data?: { count?: number } } }).data?.data?.count) ?? 0;
     },
@@ -68,7 +68,7 @@ export function NotificationBell() {
   const { data: items = [] } = useQuery({
     queryKey: ['notifications-list'],
     queryFn: async () => {
-      const res = await api.GET('/notifications' as never, { params: { query: { limit: 15 } as never } } as never);
+      const res = await api.GET('/notifications', { params: { query: { limit: 15 } } });
       if ((res as { error?: unknown }).error) return [];
       return (((res as { data?: { data?: NotificationRow[] } }).data?.data) ?? []) as NotificationRow[];
     },
@@ -82,7 +82,7 @@ export function NotificationBell() {
 
   const markRead = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await api.POST(`/notifications/{id}/read` as never, { params: { path: { id } as never } } as never) as { error?: unknown };
+      const { error } = await api.POST('/notifications/{id}/read', { params: { path: { id } } }) as { error?: unknown };
       if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSettled: refresh,
@@ -90,7 +90,7 @@ export function NotificationBell() {
 
   const markAll = useMutation({
     mutationFn: async () => {
-      const { error } = await api.POST('/notifications/read-all' as never) as { error?: unknown };
+      const { error } = await api.POST('/notifications/read-all') as { error?: unknown };
       if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSettled: refresh,

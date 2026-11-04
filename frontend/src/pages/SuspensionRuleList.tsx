@@ -68,7 +68,7 @@ const ACTIONS = ['auto_suspend', 'soft_suspend', 'walled_garden'] as const;
 
 async function fetchRules(page: number): Promise<SuspensionRuleResponse> {
   const res = await api.GET('/suspension-rules', {
-    params: { query: { page, limit: DEFAULT_PAGE_SIZE } as never },
+    params: { query: { page, limit: DEFAULT_PAGE_SIZE } },
   });
   if (res.error) throw new Error('Failed to load suspension rules');
   return res.data as unknown as SuspensionRuleResponse;

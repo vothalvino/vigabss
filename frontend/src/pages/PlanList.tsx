@@ -97,7 +97,7 @@ const STACK_TYPES = ['ipv4_only', 'ipv6_only', 'dual_stack'];
 async function fetchPlans(page: number, pageSize: number, statusFilter: string): Promise<PlansResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/plans', { params: { query: query as never } });
+  const res = await api.GET('/plans', { params: { query: query } });
   if (res.error) throw new Error('Failed to load plans');
   return res.data as unknown as PlansResponse;
 }
@@ -110,7 +110,7 @@ async function createPlan(body: PlanBody): Promise<void> {
 async function updatePlan(id: number, body: Partial<PlanBody>): Promise<void> {
   const res = await api.PUT('/plans/{id}', {
     params: { path: { id } },
-    body: body as never,
+    body: body,
   });
   if (res.error) throw new Error('Failed to update plan');
 }

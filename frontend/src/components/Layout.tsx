@@ -214,7 +214,7 @@ export function Layout() {
   const { data: allOrgs } = useQuery({
     queryKey: ['org-switcher-all'],
     queryFn: async (): Promise<{ id: number; name: string }[]> => {
-      const res = await api.GET('/organizations', { params: { query: { limit: 500 } as never } });
+      const res = await api.GET('/organizations', { params: { query: { limit: 500 } } });
       if (res.error) return [];
       return (res.data as unknown as { data?: { id: number; name: string }[] })?.data ?? [];
     },

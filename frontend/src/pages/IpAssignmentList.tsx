@@ -67,13 +67,13 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchIpAssignments(page: number, statusFilter: string): Promise<IpAssignmentsResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/ip-assignments', { params: { query: query as never } });
+  const res = await api.GET('/ip-assignments', { params: { query: query } });
   if (res.error) throw new Error('Failed to load IP assignments');
   return res.data as unknown as IpAssignmentsResponse;
 }
 
 async function fetchPoolOptions(): Promise<PoolOption[]> {
-  const res = await api.GET('/ip-pools', { params: { query: { limit: 500 } as never } });
+  const res = await api.GET('/ip-pools', { params: { query: { limit: 500 } } });
   if (res.error) throw new Error('Failed to load IP pools');
   return (res.data as unknown as { data: PoolOption[] }).data;
 }
@@ -84,7 +84,7 @@ async function createIpAssignment(body: IpAssignmentBody): Promise<void> {
 }
 
 async function updateIpAssignment(id: number, body: Partial<IpAssignmentBody>): Promise<void> {
-  const res = await api.PUT('/ip-assignments/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/ip-assignments/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update IP assignment');
 }
 

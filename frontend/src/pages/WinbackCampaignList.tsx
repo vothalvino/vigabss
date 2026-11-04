@@ -87,7 +87,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 
 async function fetchCampaigns(page: number): Promise<WinbackResponse> {
   const res = await api.GET('/winback-campaigns', {
-    params: { query: { page, limit: DEFAULT_PAGE_SIZE } as never },
+    params: { query: { page, limit: DEFAULT_PAGE_SIZE } },
   });
   if (res.error) throw new Error('Failed to load win-back campaigns');
   return res.data as unknown as WinbackResponse;

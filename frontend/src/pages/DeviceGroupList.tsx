@@ -54,23 +54,23 @@ const GROUP_TYPES = ['type', 'location', 'region', 'olt', 'custom'];
 async function fetchGroups(page: number, statusFilter: string): Promise<DeviceGroupsResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/device-groups' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/device-groups', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load device groups');
   return (res as { data: unknown }).data as unknown as DeviceGroupsResponse;
 }
 
 async function createGroup(body: DeviceGroupBody): Promise<void> {
-  const res = await api.POST('/device-groups' as never, { body: body as never } as never);
+  const res = await api.POST('/device-groups', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create device group');
 }
 
 async function updateGroup(id: number, body: Partial<DeviceGroupBody>): Promise<void> {
-  const res = await api.PUT('/device-groups/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/device-groups/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update device group');
 }
 
 async function deleteGroup(id: number): Promise<void> {
-  const res = await api.DELETE('/device-groups/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/device-groups/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete device group');
 }
 

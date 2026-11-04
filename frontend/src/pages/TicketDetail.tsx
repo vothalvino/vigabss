@@ -74,7 +74,7 @@ interface User {
 const API_BASE = '/api/v1';
 
 async function fetchTicket(id: string): Promise<Ticket> {
-  const res = await api.GET('/tickets/{id}' as never, { params: { path: { id: Number(id) } } } as never);
+  const res = await api.GET('/tickets/{id}', { params: { path: { id: Number(id) } } });
   if ((res as { error?: unknown }).error) throw new Error('Ticket not found');
   const d = res.data as unknown;
   return ((d as { data?: Ticket }).data ?? d) as Ticket;
@@ -97,7 +97,7 @@ async function fetchClient(id: number): Promise<Client> {
 }
 
 async function fetchUsers(): Promise<User[]> {
-  const res = await api.GET('/users' as never, { params: { query: { limit: 200 } as never } } as never);
+  const res = await api.GET('/users', { params: { query: { limit: 200 } } });
   if ((res as { error?: unknown }).error) return [];
   return (res.data as unknown as { data: User[] }).data ?? [];
 }
@@ -1490,7 +1490,7 @@ async function createWorkOrderFromTicket(payload: {
 interface AssignableUser { id: number; first_name: string; last_name: string }
 
 async function fetchWorkOrderAssignableUsers(): Promise<AssignableUser[]> {
-  const res = await api.GET('/work-orders/assignable-users' as never, {} as never);
+  const res = await api.GET('/work-orders/assignable-users', {});
   if ((res as { error?: unknown }).error) return [];
   return (((res as { data: unknown }).data as { data: AssignableUser[] }).data) ?? [];
 }

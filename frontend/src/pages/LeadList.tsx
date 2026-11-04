@@ -119,7 +119,7 @@ interface PlanOption { id: number; name: string }
 
 async function fetchPlansLookup(): Promise<PlanOption[]> {
   const res = await api.GET('/plans', {
-    params: { query: { limit: 200, order_by: 'name', order: 'ASC' } as never },
+    params: { query: { limit: 200, order_by: 'name', order: 'ASC' } },
   });
   if (res.error) return [];
   return (res.data as unknown as { data: PlanOption[] }).data ?? [];
@@ -285,12 +285,12 @@ function LeadFormModal({
   const mutation = useMutation({
     mutationFn: async (body: LeadSubmitBody) => {
       if (mode === 'create') {
-        const { error } = await api.POST('/leads', { body: body as never });
+        const { error } = await api.POST('/leads', { body: body });
         if (error) throw new Error(extractApiError(error, 'Failed to create lead'));
       } else {
         const { error } = await api.PUT('/leads/{id}', {
           params: { path: { id: initial!.id } },
-          body: body as never,
+          body: body,
         });
         if (error) throw new Error(extractApiError(error, 'Failed to update lead'));
       }
@@ -515,7 +515,7 @@ function StartInstallationModal({
             plan_id: Number(planId),
             order_type: 'new_install',
             ...(address.trim() ? { address: address.trim() } : {}),
-          } as never,
+          },
         });
         if (createResult.error) {
           throw new Error(extractApiError(
@@ -568,7 +568,7 @@ function StartInstallationModal({
         options: unknown,
       ) => Promise<{ data?: unknown; error?: unknown }>)('/service-orders/{id}/start', {
         params: { path: { id: orderId } },
-        body: {} as never,
+        body: {},
       });
       if (startResult.error) {
         throw new Error(extractApiError(
@@ -700,7 +700,7 @@ export function LeadList() {
 
   const convertMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { data: converted, error: e } = await api.POST('/leads/{id}/convert', { params: { path: { id } }, body: {} as never });
+      const { data: converted, error: e } = await api.POST('/leads/{id}/convert', { params: { path: { id } }, body: {} });
       if (e) throw new Error(extractApiError(e, 'Failed to convert lead'));
       return (converted as unknown as { data?: { client?: { id?: number } } })?.data?.client?.id;
     },

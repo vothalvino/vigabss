@@ -71,35 +71,35 @@ const SNMP_VERSIONS = ['v1', 'v2c', 'v3'];
 
 async function fetchScans(page: number): Promise<DiscoveryScansResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
-  const res = await api.GET('/discovery-scans' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/discovery-scans', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load discovery scans');
   return (res as { data: unknown }).data as unknown as DiscoveryScansResponse;
 }
 
 async function createScan(body: DiscoveryScanBody): Promise<void> {
-  const res = await api.POST('/discovery-scans' as never, { body: body as never } as never);
+  const res = await api.POST('/discovery-scans', { body: body as never });
   const error = (res as { error?: unknown }).error;
   // A refused range (loopback, too large) says which one.
   if (error) throw new Error(extractApiError(error, 'Failed to create discovery scan'));
 }
 
 async function cancelScan(id: number): Promise<void> {
-  const res = await api.POST('/discovery-scans/{id}/cancel' as never, { params: { path: { id } } } as never);
+  const res = await api.POST('/discovery-scans/{id}/cancel', { params: { path: { id } } });
   const error = (res as { error?: unknown }).error;
   if (error) throw new Error(extractApiError(error, 'Failed to cancel discovery scan'));
 }
 
 async function fetchResults(id: number): Promise<DiscoveryResult[]> {
-  const res = await api.GET('/discovery-scans/{id}/results' as never, { params: { path: { id } } } as never);
+  const res = await api.GET('/discovery-scans/{id}/results', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load results');
-  return ((res as { data: { data: DiscoveryResult[] } }).data?.data) ?? [];
+  return ((res.data as { data: DiscoveryResult[] })?.data) ?? [];
 }
 
 async function resolveResult(scanId: number, resultId: number, action: 'onboard' | 'ignore'): Promise<void> {
-  const params = { params: { path: { id: scanId, resultId } } } as never;
+  const params = { params: { path: { id: scanId, resultId } } };
   const res = action === 'onboard'
-    ? await api.POST('/discovery-scans/{id}/results/{resultId}/onboard' as never, params)
-    : await api.POST('/discovery-scans/{id}/results/{resultId}/ignore' as never, params);
+    ? await api.POST('/discovery-scans/{id}/results/{resultId}/onboard', params)
+    : await api.POST('/discovery-scans/{id}/results/{resultId}/ignore', params);
   const error = (res as { error?: unknown }).error;
   if (error) throw new Error(extractApiError(error, `Failed to ${action} the device`));
 }
@@ -107,7 +107,7 @@ async function resolveResult(scanId: number, resultId: number, action: 'onboard'
 const RUNNING = ['pending', 'running'];
 
 async function deleteScan(id: number): Promise<void> {
-  const res = await api.DELETE('/discovery-scans/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/discovery-scans/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete discovery scan');
 }
 

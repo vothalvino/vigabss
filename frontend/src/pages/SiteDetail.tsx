@@ -122,7 +122,7 @@ function InfoRow({ label, value, mono }: { label: string; value: string | null |
 interface WoAssignableUser { id: number; first_name: string; last_name: string }
 
 async function fetchWoAssignableUsers(): Promise<WoAssignableUser[]> {
-  const res = await api.GET('/work-orders/assignable-users' as never, {} as never);
+  const res = await api.GET('/work-orders/assignable-users', {});
   if ((res as { error?: unknown }).error) return [];
   return (((res as { data: unknown }).data as { data: WoAssignableUser[] }).data) ?? [];
 }
@@ -314,7 +314,7 @@ export function SiteDetail() {
   const { data: site, isLoading, error } = useQuery({
     queryKey: ['site-detail', id],
     queryFn: async () => {
-      const res = await api.GET('/sites/{id}' as never, { params: { path: { id: Number(id) } } } as never);
+      const res = await api.GET('/sites/{id}', { params: { path: { id: Number(id) } } });
       if ((res as { error?: unknown }).error) throw new Error('Site not found');
       const d = (res as { data: unknown }).data;
       return (((d as { data?: SiteRecord }).data) ?? d) as SiteRecord;
@@ -325,7 +325,7 @@ export function SiteDetail() {
   const { data: devices } = useQuery({
     queryKey: ['site-devices', id],
     queryFn: async () => {
-      const res = await api.GET('/devices' as never, { params: { query: { site_id: Number(id), limit: 100 } as never } } as never);
+      const res = await api.GET('/devices', { params: { query: { site_id: Number(id), limit: 100 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<DeviceRow> | DeviceRow[];
       return Array.isArray(d) ? d : (d as ListResp<DeviceRow>).data ?? [];
@@ -336,7 +336,7 @@ export function SiteDetail() {
   const { data: nasList } = useQuery({
     queryKey: ['site-nas', id],
     queryFn: async () => {
-      const res = await api.GET('/nas' as never, { params: { query: { site_id: Number(id), limit: 100 } as never } } as never);
+      const res = await api.GET('/nas', { params: { query: { site_id: Number(id), limit: 100 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<NasRow> | NasRow[];
       return Array.isArray(d) ? d : (d as ListResp<NasRow>).data ?? [];
@@ -347,7 +347,7 @@ export function SiteDetail() {
   const { data: ipPools } = useQuery({
     queryKey: ['site-ip-pools', id],
     queryFn: async () => {
-      const res = await api.GET('/ip-pools' as never, { params: { query: { site_id: Number(id), limit: 100 } as never } } as never);
+      const res = await api.GET('/ip-pools', { params: { query: { site_id: Number(id), limit: 100 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<IpPoolRow> | IpPoolRow[];
       return Array.isArray(d) ? d : (d as ListResp<IpPoolRow>).data ?? [];
@@ -358,7 +358,7 @@ export function SiteDetail() {
   const { data: workOrders } = useQuery({
     queryKey: ['site-work-orders', id],
     queryFn: async () => {
-      const res = await api.GET('/work-orders' as never, { params: { query: { site_id: Number(id), limit: 50 } as never } } as never);
+      const res = await api.GET('/work-orders', { params: { query: { site_id: Number(id), limit: 50 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<WorkOrderRow> | WorkOrderRow[];
       return Array.isArray(d) ? d : (d as ListResp<WorkOrderRow>).data ?? [];
@@ -369,7 +369,7 @@ export function SiteDetail() {
   const { data: outages } = useQuery({
     queryKey: ['site-outages', id],
     queryFn: async () => {
-      const res = await api.GET('/outages' as never, { params: { query: { site_id: Number(id), limit: 50 } as never } } as never);
+      const res = await api.GET('/outages', { params: { query: { site_id: Number(id), limit: 50 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<OutageRow> | OutageRow[];
       return Array.isArray(d) ? d : (d as ListResp<OutageRow>).data ?? [];
@@ -380,7 +380,7 @@ export function SiteDetail() {
   const { data: timeline } = useQuery({
     queryKey: ['site-timeline', id],
     queryFn: async () => {
-      const res = await api.GET('/sites/{id}/timeline' as never, { params: { path: { id: Number(id) }, query: { limit: 100 } as never } } as never);
+      const res = await api.GET('/sites/{id}/timeline', { params: { path: { id: Number(id) }, query: { limit: 100 } } });
       if ((res as { error?: unknown }).error) return [];
       return (((res as { data?: { data?: { events?: TimelineEvent[] } } }).data?.data?.events) ?? []);
     },

@@ -88,7 +88,7 @@ function fmtMoney(n: number, currency: string): string {
 }
 
 async function fetchGroups(page: number, pageSize: number): Promise<GroupsResponse> {
-  const res = await api.GET('/client-groups', { params: { query: { page, limit: pageSize } as never } });
+  const res = await api.GET('/client-groups', { params: { query: { page, limit: pageSize } } });
   if (res.error) throw new Error('Failed to load account groups');
   return res.data as unknown as GroupsResponse;
 }
@@ -108,7 +108,7 @@ function AddMembersModal({ groupId, existingIds, onClose, onSaved }: {
   const results = useQuery({
     queryKey: ['client-picker', search],
     queryFn: async () => {
-      const res = await api.GET('/clients', { params: { query: { search, limit: 20 } as never } });
+      const res = await api.GET('/clients', { params: { query: { search, limit: 20 } } });
       if (res.error) throw new Error('Failed to search clients');
       return (res.data as unknown as { data: { id: number; name: string; client_group_id: number | null }[] }).data;
     },
@@ -118,7 +118,7 @@ function AddMembersModal({ groupId, existingIds, onClose, onSaved }: {
     mutationFn: async () => {
       const ids = Object.keys(selected).map(Number);
       const { error: e } = await api.POST('/client-groups/{id}/members', {
-        params: { path: { id: groupId } }, body: { client_ids: ids } as never,
+        params: { path: { id: groupId } }, body: { client_ids: ids },
       });
       if (e) throw new Error(extractApiError(e, 'Failed to add members'));
     },
@@ -199,7 +199,7 @@ function PayGroupModal({ group, billing, onClose, onSaved }: {
           amount: Number(amount), payment_method: method, reference_number: reference || undefined,
           // One payment settles one currency; sent whenever the group has several.
           currency: payable.length > 1 ? currency : undefined,
-        } as never,
+        },
       });
       if (e) throw new Error(extractApiError(e, 'Payment failed'));
       return (data as unknown as { data: { allocated_total: number; unallocated_credit: number; settled_invoices: unknown[] } }).data;
@@ -316,7 +316,7 @@ function GroupMembersRow({ group, colSpan }: { group: ClientGroup; colSpan: numb
 
   const makePrimary = useMutation({
     mutationFn: async (clientId: number) => {
-      const { error: e } = await api.PUT('/client-groups/{id}', { params: { path: { id: groupId } }, body: { primary_client_id: clientId } as never });
+      const { error: e } = await api.PUT('/client-groups/{id}', { params: { path: { id: groupId } }, body: { primary_client_id: clientId } });
       if (e) throw new Error(extractApiError(e, 'Failed to set primary'));
     },
     onSuccess: invalidate,
@@ -440,7 +440,7 @@ function ClientSearchSelect({ valueId, valueLabel, onPick, placeholder }: {
     queryKey: ['client-search-select', search],
     enabled: open && search.trim().length > 0,
     queryFn: async () => {
-      const res = await api.GET('/clients', { params: { query: { search, limit: 10 } as never } });
+      const res = await api.GET('/clients', { params: { query: { search, limit: 10 } } });
       if (res.error) throw new Error('Failed to search clients');
       return (res.data as unknown as { data: { id: number; name: string }[] }).data;
     },

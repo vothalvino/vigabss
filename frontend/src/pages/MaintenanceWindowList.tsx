@@ -50,7 +50,7 @@ async function fetchNamed(path: '/sites' | '/devices'): Promise<NamedRow[]> {
   // than 100 sites/devices can still pick any of them (bounded at 10 pages).
   const all: NamedRow[] = [];
   for (let page = 1; page <= 10; page++) {
-    const res = await api.GET(path as never, { params: { query: { page, limit: 100 } as never } } as never);
+    const res = await api.GET(path, { params: { query: { page, limit: 100 } } });
     if ((res as { error?: unknown }).error) break;
     const rows = (((res as { data?: { data?: NamedRow[] } }).data?.data) ?? []);
     all.push(...rows);
@@ -60,23 +60,23 @@ async function fetchNamed(path: '/sites' | '/devices'): Promise<NamedRow[]> {
 }
 
 async function fetchWindows(page: number): Promise<WindowsResponse> {
-  const res = await api.GET('/alerts/maintenance-windows' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/alerts/maintenance-windows', { params: { query: { page, limit: PAGE_SIZE } as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load maintenance windows');
   return (res as { data: unknown }).data as unknown as WindowsResponse;
 }
 
 async function createWindow(body: WindowBody): Promise<void> {
-  const res = await api.POST('/alerts/maintenance-windows' as never, { body: body as never } as never);
+  const res = await api.POST('/alerts/maintenance-windows', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create maintenance window');
 }
 
 async function updateWindow(id: number, body: Partial<WindowBody>): Promise<void> {
-  const res = await api.PUT('/alerts/maintenance-windows/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/alerts/maintenance-windows/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update maintenance window');
 }
 
 async function deleteWindow(id: number): Promise<void> {
-  const res = await api.DELETE('/alerts/maintenance-windows/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/alerts/maintenance-windows/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete maintenance window');
 }
 

@@ -32,23 +32,23 @@ const PAGE_SIZE = 25;
 const CHANNEL_TYPES = ['email', 'sms', 'whatsapp', 'telegram', 'webhook'];
 
 async function fetchChannels(page: number): Promise<ChannelsResponse> {
-  const res = await api.GET('/alerts/notification-channels' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/alerts/notification-channels', { params: { query: { page, limit: PAGE_SIZE } as never } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load notification channels');
   return (res as { data: unknown }).data as unknown as ChannelsResponse;
 }
 
 async function createChannel(body: ChannelBody): Promise<void> {
-  const res = await api.POST('/alerts/notification-channels' as never, { body: body as never } as never);
+  const res = await api.POST('/alerts/notification-channels', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create notification channel');
 }
 
 async function updateChannel(id: number, body: Partial<ChannelBody>): Promise<void> {
-  const res = await api.PUT('/alerts/notification-channels/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/alerts/notification-channels/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update notification channel');
 }
 
 async function deleteChannel(id: number): Promise<void> {
-  const res = await api.DELETE('/alerts/notification-channels/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/alerts/notification-channels/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete notification channel');
 }
 

@@ -48,7 +48,7 @@ const DEFAULT_PAGE_SIZE = 50;
 
 async function fetchProviders(page: number): Promise<PacResponse> {
   const query = { page, limit: DEFAULT_PAGE_SIZE };
-  const res = await api.GET('/pac-providers', { params: { query: query as never } });
+  const res = await api.GET('/pac-providers', { params: { query: query } });
   if (res.error) throw new Error('Failed to load PAC providers');
   return res.data as unknown as PacResponse;
 }
@@ -160,8 +160,8 @@ function PacModal({ existing, onClose, onSaved }: PacModalProps) {
       if (form.token.trim()) body.token = form.token.trim();
 
       const res = existing
-        ? await api.PUT('/pac-providers/{id}', { params: { path: { id: existing.id } }, body: body as never })
-        : await api.POST('/pac-providers', { body: body as never });
+        ? await api.PUT('/pac-providers/{id}', { params: { path: { id: existing.id } }, body: body })
+        : await api.POST('/pac-providers', { body: body });
       if ((res as { error?: { error?: { message?: string } } }).error) {
         const err = (res as { error?: { error?: { message?: string } } }).error;
         throw new Error(err?.error?.message ?? 'Save failed');
@@ -293,16 +293,16 @@ function FiscalEnvironmentBar() {
   const envQ = useQuery({
     queryKey: ['pac-environment'],
     queryFn: async () => {
-      const res = await api.GET('/pac-providers/environment' as never);
+      const res = await api.GET('/pac-providers/environment');
       if ((res as { error?: unknown }).error) throw new Error('load failed');
-      const data = (res as { data: { data: { pac_environment: string; sandbox_vigente_count?: number } } }).data?.data;
+      const data = (res.data as { data: { pac_environment: string; sandbox_vigente_count?: number } })?.data;
       return { env: data?.pac_environment ?? 'sandbox', sandboxVigente: Number(data?.sandbox_vigente_count ?? 0) };
     },
   });
 
   const setEnv = useMutation({
     mutationFn: async (value: string) => {
-      const res = await api.PUT('/pac-providers/environment' as never, { body: { pac_environment: value } as never } as never);
+      const res = await api.PUT('/pac-providers/environment', { body: { pac_environment: value } });
       const e = (res as { error?: { error?: { message?: string } } }).error;
       if (e) throw new Error(e.error?.message || 'Could not change the fiscal environment.');
     },
@@ -370,14 +370,14 @@ function AutoStampBar() {
   const q = useQuery({
     queryKey: ['cfdi-auto-stamp'],
     queryFn: async () => {
-      const res = await api.GET('/pac-providers/auto-stamp' as never);
+      const res = await api.GET('/pac-providers/auto-stamp');
       if ((res as { error?: unknown }).error) throw new Error('load failed');
-      return Boolean((res as { data: { data: { cfdi_auto_stamp: boolean } } }).data?.data?.cfdi_auto_stamp);
+      return Boolean((res.data as { data: { cfdi_auto_stamp: boolean } })?.data?.cfdi_auto_stamp);
     },
   });
   const save = useMutation({
     mutationFn: async (value: boolean) => {
-      const res = await api.PUT('/pac-providers/auto-stamp' as never, { body: { cfdi_auto_stamp: value } as never } as never);
+      const res = await api.PUT('/pac-providers/auto-stamp', { body: { cfdi_auto_stamp: value } });
       const e = (res as { error?: { error?: { message?: string } } }).error;
       if (e) throw new Error(e.error?.message || t('cfdiAutoStamp.saveFailed'));
     },

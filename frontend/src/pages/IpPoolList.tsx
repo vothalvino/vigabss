@@ -118,19 +118,19 @@ const DHCPV6_MODES = ['stateful', 'stateless', 'slaac'];
 async function fetchIpPools(page: number, statusFilter: string): Promise<IpPoolsResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/ip-pools', { params: { query: query as never } });
+  const res = await api.GET('/ip-pools', { params: { query: query } });
   if (res.error) throw new Error('Failed to load IP pools');
   return res.data as unknown as IpPoolsResponse;
 }
 
 async function fetchSiteOptions(): Promise<SiteOption[]> {
-  const res = await api.GET('/sites', { params: { query: { limit: 500 } as never } });
+  const res = await api.GET('/sites', { params: { query: { limit: 500 } } });
   if (res.error) throw new Error('Failed to load sites');
   return (res.data as unknown as { data: SiteOption[] }).data;
 }
 
 async function fetchNasOptions(): Promise<NasOption[]> {
-  const res = await api.GET('/nas', { params: { query: { limit: 500 } as never } });
+  const res = await api.GET('/nas', { params: { query: { limit: 500 } } });
   if (res.error) throw new Error('Failed to load NAS options');
   return (res.data as unknown as { data: NasOption[] }).data;
 }
@@ -141,7 +141,7 @@ async function createIpPool(body: IpPoolBody): Promise<void> {
 }
 
 async function updateIpPool(id: number, body: Partial<IpPoolBody>): Promise<void> {
-  const res = await api.PUT('/ip-pools/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/ip-pools/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update IP pool');
 }
 
@@ -634,7 +634,7 @@ export function IpPoolList() {
   const utilQ = useQuery({
     queryKey: ['ip-pools-utilization'],
     queryFn: async () => {
-      const res = await api.GET('/ip-pools/utilization' as never, {} as never);
+      const res = await api.GET('/ip-pools/utilization', {});
       if (res.error) return [];
       return (res.data as unknown as { data: PoolUtilizationRow[] }).data;
     },

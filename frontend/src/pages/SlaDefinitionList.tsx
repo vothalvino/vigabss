@@ -74,13 +74,13 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchSlas(page: number, statusFilter: string): Promise<SlaResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/sla-definitions', { params: { query: query as never } });
+  const res = await api.GET('/sla-definitions', { params: { query: query } });
   if (res.error) throw new Error('Failed to load SLA definitions');
   return res.data as unknown as SlaResponse;
 }
 
 async function fetchPlanOptions(): Promise<PlanOption[]> {
-  const res = await api.GET('/plans', { params: { query: { limit: 500 } as never } });
+  const res = await api.GET('/plans', { params: { query: { limit: 500 } } });
   if (res.error) throw new Error('Failed to load plans');
   return (res.data as unknown as { data: PlanOption[] }).data;
 }
@@ -91,7 +91,7 @@ async function createSla(body: SlaBody): Promise<void> {
 }
 
 async function updateSla(id: number, body: Partial<SlaBody>): Promise<void> {
-  const res = await api.PUT('/sla-definitions/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/sla-definitions/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update SLA definition');
 }
 

@@ -84,7 +84,7 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchNas(page: number, pageSize: number, statusFilter: string): Promise<NasResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/nas', { params: { query: query as never } });
+  const res = await api.GET('/nas', { params: { query: query } });
   if (res.error) throw new Error('Failed to load NAS devices');
   return res.data as unknown as NasResponse;
 }
@@ -97,7 +97,7 @@ async function createNas(body: NasBody): Promise<Nas | null> {
 }
 
 async function updateNas(id: number, body: Partial<NasBody>): Promise<void> {
-  const res = await api.PUT('/nas/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/nas/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update NAS');
 }
 

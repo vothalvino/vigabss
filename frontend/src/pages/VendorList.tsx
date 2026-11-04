@@ -65,30 +65,30 @@ interface VendorSubmitBody {
 async function fetchVendors(page: number, pageSize: number, statusFilter: string): Promise<VendorListResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/vendors' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/vendors', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load vendors');
   return (res as { data: unknown }).data as unknown as VendorListResponse;
 }
 
 async function createVendor(body: VendorSubmitBody): Promise<void> {
-  const res = await api.POST('/vendors' as never, { body: body as never } as never);
+  const res = await api.POST('/vendors', { body: body as never });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to create vendor'));
   }
 }
 
 async function updateVendor(id: number, body: VendorSubmitBody): Promise<void> {
-  const res = await api.PUT('/vendors/{id}' as never, {
-    params: { path: { id } as never },
+  const res = await api.PUT('/vendors/{id}', {
+    params: { path: { id } },
     body: body as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to update vendor'));
   }
 }
 
 async function deleteVendor(id: number): Promise<void> {
-  const res = await api.DELETE('/vendors/{id}' as never, { params: { path: { id } as never } } as never);
+  const res = await api.DELETE('/vendors/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to delete vendor'));
   }

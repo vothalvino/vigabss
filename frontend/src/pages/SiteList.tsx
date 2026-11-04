@@ -73,7 +73,7 @@ function labelType(t: string): string {
 async function fetchSites(page: number, pageSize: number, statusFilter: string): Promise<SitesResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/sites', { params: { query: query as never } });
+  const res = await api.GET('/sites', { params: { query: query } });
   if (res.error) throw new Error('Failed to load sites');
   return res.data as unknown as SitesResponse;
 }
@@ -84,7 +84,7 @@ async function createSite(body: SiteBody): Promise<void> {
 }
 
 async function updateSite(id: number, body: Partial<SiteBody>): Promise<void> {
-  const res = await api.PUT('/sites/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/sites/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update site');
 }
 
