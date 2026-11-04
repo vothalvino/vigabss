@@ -640,6 +640,15 @@ speed-window transitions skip throttled contracts, and the CoA carries the
 vendor rate attributes. `convert_expired_trials` was removed: invoices price
 the trial window themselves (`billingService.isContractInTrial`).
 
+A plan change is not done when `contracts.plan_id` is written: call
+`contractPlanChangeService.pushPlanChange` after it commits. It rewrites the
+contract's FreeRADIUS rows and sends the live session a CoA at the rate now in
+force (the new plan's, with any speed window, unless a soft suspension or FUP
+throttle applies). PUT/PATCH `/contracts/:id`, an approved portal plan change
+and batch `change_plan` all call it; the batch also goes through
+`contractUpdateGuard.updateContractWithActivationGuard`, like the PUT. Only the
+portal request prorates; a staff or batch change does not.
+
 Automation rules (`src/services/automationActions.js`, ASY-36) run on every
 business event: a `*` listener on `eventBus` evaluates the organization's
 enabled rules whose `trigger_event` matches (the set of trigger events is

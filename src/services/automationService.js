@@ -11,6 +11,8 @@ const db = require('../config/database');
 const logger = require('../utils/logger').child({ service: 'automationService' });
 const auditLog = require('./auditLog');
 const { assertPlanSelectable } = require('./planAvailability');
+const { updateContractWithActivationGuard } = require('./contractUpdateGuard');
+const contractPlanChangeService = require('./contractPlanChangeService');
 const { assertOwnedReferences } = require('../utils/ownedReferences');
 const { AppError, ValidationError } = require('../utils/errors');
 const { parseJsonColumn } = require('../utils/jsonColumn');
@@ -400,7 +402,7 @@ async function resolveBatchTargets(organizationId, operation, filterCriteria) {
  * IMPLEMENTED for safe contract-level operations that use existing services:
  *   suspend    → suspensionService.suspendContract()
  *   unsuspend  → suspensionService.reconnectContract()
- *   change_plan → direct DB update on contract plan_id
+ *   change_plan → the contract update guard, then FreeRADIUS + CoA (pushPlanChange)
  *   send_email / send_sms → one message_outbox row per item for the contract's
  *     client (dedupe key per item, so a resumed job never sends twice); a
  *     message the client's preferences block is a 'skipped' item
@@ -471,21 +473,24 @@ async function applyBatchOperation(organizationId, operation, target, params, ac
         throw new Error('change_plan requires operation_params.plan_id');
       }
       const [rows] = await db.query(
-        'SELECT id, plan_id FROM contracts WHERE id = ? AND organization_id = ?',
+        'SELECT * FROM contracts WHERE id = ? AND organization_id = ? AND deleted_at IS NULL',
         [contractId, organizationId],
       );
       if (!rows.length) {
         throw new Error(`Contract ${contractId} not found in organization`);
       }
-      await db.query(
-        'UPDATE contracts SET plan_id = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?',
-        [params.plan_id, contractId, organizationId],
-      );
+      if (Number(rows[0].plan_id) === Number(params.plan_id)) {
+        return { skipped: true, message: 'Already on this plan' };
+      }
+      // The PUT /contracts/:id path (ASY-15): refused while an installation is
+      // prepared, then put on the network rather than only stored.
+      await updateContractWithActivationGuard(rows[0], { plan_id: params.plan_id }, organizationId);
+      const network = await contractPlanChangeService.pushPlanChange(contractId, organizationId);
       await auditLog.log({
         userId: actorId, organizationId, action: 'update', tableName: 'contracts', recordId: contractId,
-        oldValues: { plan_id: rows[0].plan_id }, newValues: { plan_id: params.plan_id },
+        oldValues: { plan_id: rows[0].plan_id }, newValues: { plan_id: params.plan_id, coa_sent: Boolean(network.coa_sent) },
       });
-      logger.info({ organizationId, contractId, planId: params.plan_id, operation }, 'Batch plan change applied');
+      logger.info({ organizationId, contractId, planId: params.plan_id, operation, network }, 'Batch plan change applied');
       return;
     }
 

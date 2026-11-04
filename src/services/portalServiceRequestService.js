@@ -600,6 +600,9 @@ async function approvePlanUpgrade(req, payload, organizationId, approvedByUserId
   }
 
   if (invoice) await require('./businessEvents').emitInvoiceCreated(organizationId, invoice);
+  if (req.contract_id && payload.new_plan_id) {
+    await require('./contractPlanChangeService').pushPlanChange(req.contract_id, organizationId);
+  }
   logger.info({
     requestId: req.id, contractId: req.contract_id, newPlanId: payload.new_plan_id,
     prorationNet: net, invoiceId: invoice?.id ?? null, creditNoteId,

@@ -103,3 +103,16 @@ test('plan options are the org or global active plans, minus the current one', a
   expect(sql).toMatch(/NOT IN \(\s*SELECT c\.plan_id FROM contracts c/);
   expect(params).toEqual([4, 12, 4]);
 });
+
+// ASY-15: approval switched plan_id and stopped; the subscriber kept the old
+// rate until they reconnected.
+test('an approved plan change is pushed to FreeRADIUS and the live session after commit', async () => {
+  const contractPlanChangeService = require('../src/services/contractPlanChangeService');
+  const push = jest.spyOn(contractPlanChangeService, 'pushPlanChange').mockResolvedValue({ pushed: true, coa_sent: true });
+  wire({ ...REQUEST, proration_net: '0' });
+  await service.approveRequest(31, 4, 2, null);
+  expect(push).toHaveBeenCalledWith(8, 4);
+  expect(conn.commit).toHaveBeenCalled();
+  expect(conn.commit.mock.invocationCallOrder[0]).toBeLessThan(push.mock.invocationCallOrder[0]);
+});
+
