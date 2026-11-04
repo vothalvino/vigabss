@@ -65,8 +65,8 @@ test('an automation rule with decoded conditions and config is evaluated', async
   };
   db.query.mockImplementation(async (sql) => (/FROM automation_rules/.test(sql) ? [[rule]] : [{ affectedRows: 1 }]));
   await automationService.evaluateAutomationRules(1, 'payment.received', { amount: 150 });
-  // The conditions parsed and matched, so the action was reached; no action
-  // has a handler yet, so it is recorded as skipped (ASY-16), not as a failure.
+  // The conditions parsed and matched, so the action was reached; set_alert
+  // has no handler, so it is recorded as skipped (ASY-16), not as a failure.
   const [, params] = db.query.mock.calls.find(([sql]) => /INSERT INTO automation_rule_executions/.test(sql));
   expect(params[4]).toBe('skipped');
   expect(params[5]).toMatch(/not implemented/);

@@ -544,13 +544,14 @@ describe('automationRules routes — additional coverage', () => {
   it('PUT /api/automation-rules/:id updates successfully with object fields', async () => {
     const updated = { id: 1, name: 'Updated', trigger_event: 'device.offline', action_type: 'send_notification' };
     db.query
-      .mockResolvedValueOnce(mockRows([{ id: 1 }]))
+      .mockResolvedValueOnce(mockRows([{ id: 1, action_type: 'send_notification', action_config: null }]))
       .mockResolvedValueOnce(mockUpdate())
       .mockResolvedValueOnce(mockRows([updated]));
     const res = await request(app).put('/api/automation-rules/1').send({
       // trigger_conditions is a list of conditions (DB-05).
       trigger_conditions: [{ field: 'status', operator: 'eq', value: 'offline' }],
-      action_config: { channel: 'email' },
+      // A send_notification rule needs its message (ASY-36).
+      action_config: { channel: 'email', message: 'Your device is offline' },
     });
     expect(res.status).toBe(200);
   });

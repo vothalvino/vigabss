@@ -3130,11 +3130,11 @@ function generateSpec() {
       // ---- §18.1 Workflow Automation ----
       '/automation-rules': {
         get: { tags: ['Automation'], summary: 'List automation rules', operationId: 'listAutomationRules', security: [{ bearerAuth: [] }], responses: r200('AutomationRule[]') },
-        post: { tags: ['Automation'], summary: 'Create automation rule', operationId: 'createAutomationRule', security: [{ bearerAuth: [] }], requestBody: jsonBody('AutomationRule'), responses: r201('AutomationRule') },
+        post: { tags: ['Automation'], summary: 'Create automation rule', description: 'The rule runs on every business event named by trigger_event (and through /execute). action_type is create_ticket (action_config: subject, description, priority, category), suspend_contract, or send_notification (action_config: channel email|sms, subject, message, message_class); {{field.path}} placeholders are filled from the event. The client, contract and invoice come from the event payload and must belong to the organization.', operationId: 'createAutomationRule', security: [{ bearerAuth: [] }], requestBody: jsonBody('AutomationRule'), responses: { ...r201('AutomationRule'), 422: errorResponse('Unknown action_type or invalid action_config') } },
       },
       '/automation-rules/{id}': {
         get: { tags: ['Automation'], summary: 'Get automation rule', operationId: 'getAutomationRule', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('AutomationRule') },
-        put: { tags: ['Automation'], summary: 'Update automation rule', operationId: 'updateAutomationRule', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('AutomationRule'), responses: r200('AutomationRule') },
+        put: { tags: ['Automation'], summary: 'Update automation rule', operationId: 'updateAutomationRule', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('AutomationRule'), responses: { ...r200('AutomationRule'), 422: errorResponse('Unknown action_type or invalid action_config') } },
         delete: { tags: ['Automation'], summary: 'Delete automation rule', operationId: 'deleteAutomationRule', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/automation-rules/{id}/execute': {

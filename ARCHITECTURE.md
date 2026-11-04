@@ -610,6 +610,17 @@ operation, and records an item found still `processing` as a failure instead
 of running it twice; `resumeBatchJobs` queues unfinished jobs at startup. CSV
 imports still run in the request.
 
+Automation rules (`src/services/automationActions.js`, ASY-36) run on every
+business event: a `*` listener on `eventBus` evaluates the organization's
+enabled rules whose `trigger_event` matches (the set of trigger events is
+cached per organization for a minute and dropped when a rule is saved).
+`create_ticket`, `suspend_contract` and `send_notification` (outbox email or
+SMS) are the only actions; saving a rule with any other `action_type` is 422,
+and an action with nothing to act on is recorded `skipped`, never `success`.
+The client, contract and invoice come from the event payload and are checked
+against the organization. An event raised while a rule's action runs
+(`AsyncLocalStorage` scope) runs no rules, so rules cannot loop.
+
 Every scheduled task run goes through `taskRunner.executeScheduledTask(task,
 via)` (ASY-28), from the inline cron path (`via = 'cron'`), the BullMQ
 `scheduled-task` worker (`'worker'`) and a manual run (`'manual'`). It records

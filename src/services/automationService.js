@@ -4,10 +4,7 @@
 // Handles workflow automation rules, batch subscriber operations, provisioning
 // pipelines, and auto-remediation rules.
 //
-// STUBS:
-//   - Batch operations against RADIUS/devices are enqueued/recorded only.
-//   - Provisioning pipeline stage "configure_device" is stubbed (no live call).
-//   - Remediation device actions (e.g. reboot) are stubbed (status = 'stubbed').
+// Rule actions and event triggers live in automationActions.js (ASY-36).
 // =============================================================================
 
 const db = require('../config/database');
@@ -63,10 +60,11 @@ async function evaluateAutomationRules(organizationId, triggerEvent, payload = {
         status = 'skipped';
         resultMessage = 'Conditions not met';
       } else {
-        const outcome = await dispatchAction(rule.action_type, parseJsonColumn(rule.action_config, {}), payload, organizationId);
+        const outcome = await dispatchAction(rule.action_type, parseJsonColumn(rule.action_config, {}), payload, organizationId, rule);
         resultMessage = outcome.message;
-        if (outcome.status === 'not_implemented') {
-          // Nothing was done, so nothing is recorded as a run (ASY-16).
+        if (outcome.status !== 'done') {
+          // Nothing was done (not implemented, or nothing to act on), so
+          // nothing is recorded as a run (ASY-16).
           status = 'skipped';
         } else {
           triggered++;
@@ -128,22 +126,20 @@ function evaluateCondition(payload, condition) {
 }
 
 /**
- * Dispatch an automation rule action.
+ * Dispatch an automation rule action (automationActions, ASY-36).
  * @param {string} actionType
  * @param {object} actionConfig
  * @param {object} payload
  * @param {number} organizationId
- * @returns {Promise<{ status: 'done'|'not_implemented', message: string }>}
+ * @param {object} [rule]  the rule row (its id and name label what the action does)
+ * @returns {Promise<{ status: 'done'|'skipped'|'not_implemented', message: string }>}
  */
-async function dispatchAction(actionType, actionConfig, payload, organizationId) {
-  // No action type has a handler yet. They used to return messages such as
-  // "Ticket creation enqueued (stub)" that were recorded as a successful run
-  // (ASY-16); say plainly that nothing happened.
-  logger.info({ organizationId, actionType }, 'Automation action is not implemented; nothing was done');
-  return {
-    status: 'not_implemented',
-    message: `Action '${actionType}' is not implemented yet; nothing was done`,
-  };
+async function dispatchAction(actionType, actionConfig, payload, organizationId, rule = {}) {
+  return require('./automationActions').runAction(
+    { ...rule, action_type: actionType, action_config: actionConfig || {} },
+    payload,
+    organizationId,
+  );
 }
 
 // ---------------------------------------------------------------------------

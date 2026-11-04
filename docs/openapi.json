@@ -56629,6 +56629,7 @@
           "Automation"
         ],
         "summary": "Create automation rule",
+        "description": "The rule runs on every business event named by trigger_event (and through /execute). action_type is create_ticket (action_config: subject, description, priority, category), suspend_contract, or send_notification (action_config: channel email|sms, subject, message, message_class); {{field.path}} placeholders are filled from the event. The client, contract and invoice come from the event payload and must belong to the organization.",
         "operationId": "createAutomationRule",
         "security": [
           {
@@ -56652,6 +56653,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown action_type or invalid action_config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -56732,6 +56760,33 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown action_type or invalid action_config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
