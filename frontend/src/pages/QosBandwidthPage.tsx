@@ -300,30 +300,30 @@ const BWT_PROTOCOLS = ['iperf3', 'speedtest_cli', 'custom'];
 // ---------------------------------------------------------------------------
 
 async function fetchQualityClasses(page: number): Promise<ListResponse<QualityClass>> {
-  const res = await api.GET('/quality-classes' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/quality-classes', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load quality classes');
   return (res as { data: unknown }).data as unknown as ListResponse<QualityClass>;
 }
 
 async function createQualityClass(body: QualityClassBody): Promise<void> {
-  const res = await api.POST('/quality-classes' as never, { body: body as never } as never);
+  const res = await api.POST('/quality-classes', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create quality class');
 }
 
 async function updateQualityClass(id: number, body: Partial<QualityClassBody>): Promise<void> {
-  const res = await api.PUT('/quality-classes/{id}' as never, {
+  const res = await api.PUT('/quality-classes/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update quality class');
 }
 
 async function deleteQualityClass(id: number): Promise<void> {
-  const res = await api.DELETE('/quality-classes/{id}' as never, {
+  const res = await api.DELETE('/quality-classes/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete quality class');
 }
 
@@ -332,35 +332,35 @@ async function deleteQualityClass(id: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function fetchQueueTreeNodes(page: number): Promise<ListResponse<QueueTreeNode>> {
-  const res = await api.GET('/queue-tree-nodes' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/queue-tree-nodes', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load queue tree nodes');
   return (res as { data: unknown }).data as unknown as ListResponse<QueueTreeNode>;
 }
 
 async function createQueueTreeNode(body: QueueTreeNodeBody): Promise<void> {
-  const res = await api.POST('/queue-tree-nodes' as never, { body: body as never } as never);
+  const res = await api.POST('/queue-tree-nodes', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create queue tree node');
 }
 
 async function updateQueueTreeNode(id: number, body: Partial<QueueTreeNodeBody>): Promise<void> {
-  const res = await api.PUT('/queue-tree-nodes/{id}' as never, {
+  const res = await api.PUT('/queue-tree-nodes/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update queue tree node');
 }
 
 async function deleteQueueTreeNode(id: number): Promise<void> {
-  const res = await api.DELETE('/queue-tree-nodes/{id}' as never, {
+  const res = await api.DELETE('/queue-tree-nodes/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete queue tree node');
 }
 
 async function exportQueueTreeConfig(): Promise<{ script: string; node_count: number }> {
-  const res = await api.GET('/queue-tree-nodes/export/config' as never, {} as never);
+  const res = await api.GET('/queue-tree-nodes/export/config', {});
   if ((res as { error?: unknown }).error) throw new Error('Failed to export queue tree config');
   return (res as { data: unknown }).data as unknown as { script: string; node_count: number };
 }
@@ -370,35 +370,35 @@ async function exportQueueTreeConfig(): Promise<{ script: string; node_count: nu
 // ---------------------------------------------------------------------------
 
 async function fetchRateLimitTemplates(page: number): Promise<ListResponse<RateLimitTemplate>> {
-  const res = await api.GET('/rate-limit-templates' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/rate-limit-templates', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load rate limit templates');
   return (res as { data: unknown }).data as unknown as ListResponse<RateLimitTemplate>;
 }
 
 async function createRateLimitTemplate(body: RateLimitTemplateBody): Promise<void> {
-  const res = await api.POST('/rate-limit-templates' as never, { body: body as never } as never);
+  const res = await api.POST('/rate-limit-templates', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create rate limit template');
 }
 
 async function updateRateLimitTemplate(id: number, body: Partial<RateLimitTemplateBody>): Promise<void> {
-  const res = await api.PUT('/rate-limit-templates/{id}' as never, {
+  const res = await api.PUT('/rate-limit-templates/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update rate limit template');
 }
 
 async function deleteRateLimitTemplate(id: number): Promise<void> {
-  const res = await api.DELETE('/rate-limit-templates/{id}' as never, {
+  const res = await api.DELETE('/rate-limit-templates/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete rate limit template');
 }
 
 async function previewRateString(body: Partial<RateLimitTemplateBody>): Promise<string> {
-  const res = await api.POST('/rate-limit-templates/preview' as never, { body: body as never } as never);
+  const res = await api.POST('/rate-limit-templates/preview', { body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to preview rate string');
   return ((res as { data: unknown }).data as { rate_string: string }).rate_string;
 }
@@ -408,35 +408,35 @@ async function previewRateString(body: Partial<RateLimitTemplateBody>): Promise<
 // ---------------------------------------------------------------------------
 
 async function fetchProtocolShapingRules(page: number): Promise<ListResponse<ProtocolShapingRule>> {
-  const res = await api.GET('/protocol-shaping-rules' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/protocol-shaping-rules', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load protocol shaping rules');
   return (res as { data: unknown }).data as unknown as ListResponse<ProtocolShapingRule>;
 }
 
 async function createProtocolShapingRule(body: ProtocolShapingRuleBody): Promise<void> {
-  const res = await api.POST('/protocol-shaping-rules' as never, { body: body as never } as never);
+  const res = await api.POST('/protocol-shaping-rules', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create protocol shaping rule');
 }
 
 async function updateProtocolShapingRule(id: number, body: Partial<ProtocolShapingRuleBody>): Promise<void> {
-  const res = await api.PUT('/protocol-shaping-rules/{id}' as never, {
+  const res = await api.PUT('/protocol-shaping-rules/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update protocol shaping rule');
 }
 
 async function deleteProtocolShapingRule(id: number): Promise<void> {
-  const res = await api.DELETE('/protocol-shaping-rules/{id}' as never, {
+  const res = await api.DELETE('/protocol-shaping-rules/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete protocol shaping rule');
 }
 
 async function exportShapingRulesConfig(): Promise<{ script: string; rule_count: number }> {
-  const res = await api.GET('/protocol-shaping-rules/export/config' as never, {} as never);
+  const res = await api.GET('/protocol-shaping-rules/export/config', {});
   if ((res as { error?: unknown }).error) throw new Error('Failed to export shaping rules config');
   return (res as { data: unknown }).data as unknown as { script: string; rule_count: number };
 }
@@ -446,37 +446,37 @@ async function exportShapingRulesConfig(): Promise<{ script: string; rule_count:
 // ---------------------------------------------------------------------------
 
 async function fetchDataPacks(page: number): Promise<ListResponse<DataPack>> {
-  const res = await api.GET('/data-packs' as never, {
+  const res = await api.GET('/data-packs', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load data packs');
   return (res as { data: unknown }).data as unknown as ListResponse<DataPack>;
 }
 
 async function createDataPack(body: DataPackBody): Promise<void> {
-  const res = await api.POST('/data-packs' as never, { body: body as never } as never);
+  const res = await api.POST('/data-packs', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create data pack');
 }
 
 async function updateDataPack(id: number, body: Partial<DataPackBody>): Promise<void> {
-  const res = await api.PUT('/data-packs/{id}' as never, {
+  const res = await api.PUT('/data-packs/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update data pack');
 }
 
 async function deleteDataPack(id: number): Promise<void> {
-  const res = await api.DELETE('/data-packs/{id}' as never, {
+  const res = await api.DELETE('/data-packs/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete data pack');
 }
 
 async function fetchFupNotifications(page: number): Promise<ListResponse<FupNotification>> {
-  const res = await api.GET('/fup/notifications' as never, {
+  const res = await api.GET('/fup/notifications', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load FUP notifications');
   return (res as { data: unknown }).data as unknown as ListResponse<FupNotification>;
 }
@@ -486,120 +486,120 @@ async function fetchFupNotifications(page: number): Promise<ListResponse<FupNoti
 // ---------------------------------------------------------------------------
 
 async function fetchInterfaceQosPolicies(page: number): Promise<ListResponse<InterfaceQosPolicy>> {
-  const res = await api.GET('/interface-qos-policies' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/interface-qos-policies', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load interface QoS policies');
   return (res as { data: unknown }).data as unknown as ListResponse<InterfaceQosPolicy>;
 }
 
 async function createInterfaceQosPolicy(body: InterfaceQosPolicyBody): Promise<void> {
-  const res = await api.POST('/interface-qos-policies' as never, { body: body as never } as never);
+  const res = await api.POST('/interface-qos-policies', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create interface QoS policy');
 }
 
 async function updateInterfaceQosPolicy(id: number, body: Partial<InterfaceQosPolicyBody>): Promise<void> {
-  const res = await api.PUT('/interface-qos-policies/{id}' as never, {
+  const res = await api.PUT('/interface-qos-policies/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update interface QoS policy');
 }
 
 async function deleteInterfaceQosPolicy(id: number): Promise<void> {
-  const res = await api.DELETE('/interface-qos-policies/{id}' as never, {
+  const res = await api.DELETE('/interface-qos-policies/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete interface QoS policy');
 }
 
 async function fetchDscpMarkingPolicies(page: number): Promise<ListResponse<DscpMarkingPolicy>> {
-  const res = await api.GET('/dscp-marking-policies' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/dscp-marking-policies', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load DSCP marking policies');
   return (res as { data: unknown }).data as unknown as ListResponse<DscpMarkingPolicy>;
 }
 
 async function createDscpMarkingPolicy(body: DscpMarkingPolicyBody): Promise<void> {
-  const res = await api.POST('/dscp-marking-policies' as never, { body: body as never } as never);
+  const res = await api.POST('/dscp-marking-policies', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create DSCP marking policy');
 }
 
 async function updateDscpMarkingPolicy(id: number, body: Partial<DscpMarkingPolicyBody>): Promise<void> {
-  const res = await api.PUT('/dscp-marking-policies/{id}' as never, {
+  const res = await api.PUT('/dscp-marking-policies/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update DSCP marking policy');
 }
 
 async function deleteDscpMarkingPolicy(id: number): Promise<void> {
-  const res = await api.DELETE('/dscp-marking-policies/{id}' as never, {
+  const res = await api.DELETE('/dscp-marking-policies/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete DSCP marking policy');
 }
 
 async function exportDscpConfig(): Promise<{ rules: unknown[] }> {
-  const res = await api.GET('/dscp-marking-policies/export/config' as never, {} as never);
+  const res = await api.GET('/dscp-marking-policies/export/config', {});
   if ((res as { error?: unknown }).error) throw new Error('Failed to export DSCP config');
   return (res as { data: unknown }).data as unknown as { rules: unknown[] };
 }
 
 async function fetchMplsVlanRules(page: number): Promise<ListResponse<MplsVlanRule>> {
-  const res = await api.GET('/mpls-vlan-prioritization' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/mpls-vlan-prioritization', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load MPLS/VLAN rules');
   return (res as { data: unknown }).data as unknown as ListResponse<MplsVlanRule>;
 }
 
 async function createMplsVlanRule(body: MplsVlanRuleBody): Promise<void> {
-  const res = await api.POST('/mpls-vlan-prioritization' as never, { body: body as never } as never);
+  const res = await api.POST('/mpls-vlan-prioritization', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create MPLS/VLAN rule');
 }
 
 async function updateMplsVlanRule(id: number, body: Partial<MplsVlanRuleBody>): Promise<void> {
-  const res = await api.PUT('/mpls-vlan-prioritization/{id}' as never, {
+  const res = await api.PUT('/mpls-vlan-prioritization/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update MPLS/VLAN rule');
 }
 
 async function deleteMplsVlanRule(id: number): Promise<void> {
-  const res = await api.DELETE('/mpls-vlan-prioritization/{id}' as never, {
+  const res = await api.DELETE('/mpls-vlan-prioritization/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete MPLS/VLAN rule');
 }
 
 async function fetchBandwidthTestServers(page: number): Promise<ListResponse<BandwidthTestServer>> {
-  const res = await api.GET('/bandwidth-test-servers' as never, {
-    params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  const res = await api.GET('/bandwidth-test-servers', {
+    params: { query: { page, limit: PAGE_SIZE } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load bandwidth test servers');
   return (res as { data: unknown }).data as unknown as ListResponse<BandwidthTestServer>;
 }
 
 async function createBandwidthTestServer(body: BandwidthTestServerBody): Promise<void> {
-  const res = await api.POST('/bandwidth-test-servers' as never, { body: body as never } as never);
+  const res = await api.POST('/bandwidth-test-servers', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create bandwidth test server');
 }
 
 async function updateBandwidthTestServer(id: number, body: Partial<BandwidthTestServerBody>): Promise<void> {
-  const res = await api.PUT('/bandwidth-test-servers/{id}' as never, {
+  const res = await api.PUT('/bandwidth-test-servers/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update bandwidth test server');
 }
 
 async function deleteBandwidthTestServer(id: number): Promise<void> {
-  const res = await api.DELETE('/bandwidth-test-servers/{id}' as never, {
+  const res = await api.DELETE('/bandwidth-test-servers/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete bandwidth test server');
 }
 

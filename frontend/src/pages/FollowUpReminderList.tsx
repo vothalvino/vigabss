@@ -65,7 +65,7 @@ function toSqlDatetime(value: string): string {
 async function fetchReminders(page: number, pageSize: number, status: string): Promise<RemindersResponse> {
   const query: Record<string, unknown> = { page, limit: pageSize, order_by: 'due_at', order: 'ASC' };
   if (status) query.status = status;
-  const res = await api.GET('/follow-up-reminders', { params: { query: query as never } });
+  const res = await api.GET('/follow-up-reminders', { params: { query: query } });
   if (res.error) throw new Error('Failed to load follow-up reminders');
   return res.data as unknown as RemindersResponse;
 }

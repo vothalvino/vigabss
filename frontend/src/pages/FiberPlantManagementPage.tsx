@@ -173,108 +173,108 @@ function apiError(res: unknown, fallback: string): Error {
 
 // Fiber Routes
 async function fetchFiberRoutes(page: number): Promise<FiberRoutesResponse> {
-  const res = await api.GET('/fiber-plant/fiber-routes' as never, {
+  const res = await api.GET('/fiber-plant/fiber-routes', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load fiber routes');
   return (res as { data: unknown }).data as unknown as FiberRoutesResponse;
 }
 
 async function createFiberRoute(body: FiberRouteBody): Promise<void> {
-  const res = await api.POST('/fiber-plant/fiber-routes' as never, { body: body as never } as never);
+  const res = await api.POST('/fiber-plant/fiber-routes', { body: body as never });
   if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create fiber route');
 }
 
 async function updateFiberRoute(id: number, body: Partial<FiberRouteBody>): Promise<void> {
-  const res = await api.PATCH('/fiber-plant/fiber-routes/{id}' as never, {
+  const res = await api.PATCH('/fiber-plant/fiber-routes/{id}', {
     params: { path: { id } },
-    body: body as never,
-  } as never);
+    body: body,
+  });
   if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to update fiber route');
 }
 
 async function deleteFiberRoute(id: number): Promise<void> {
-  const res = await api.DELETE('/fiber-plant/fiber-routes/{id}' as never, {
+  const res = await api.DELETE('/fiber-plant/fiber-routes/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete fiber route');
 }
 
 // ODF Frames
 async function fetchOdfFrames(page: number): Promise<OdfFramesResponse> {
-  const res = await api.GET('/fiber-plant/odf/frames' as never, {
+  const res = await api.GET('/fiber-plant/odf/frames', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load ODF frames');
   return (res as { data: unknown }).data as unknown as OdfFramesResponse;
 }
 
 async function fetchOdfFrameWithPorts(id: number): Promise<OdfFrame> {
-  const res = await api.GET('/fiber-plant/odf/frames/{id}' as never, {
+  const res = await api.GET('/fiber-plant/odf/frames/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load ODF frame');
   return unwrapData<OdfFrame>((res as { data: unknown }).data);
 }
 
 async function createOdfFrame(body: { name: string; location_detail?: string; port_count?: number; frame_type?: string }): Promise<void> {
-  const res = await api.POST('/fiber-plant/odf/frames' as never, { body: body as never } as never);
+  const res = await api.POST('/fiber-plant/odf/frames', { body: body });
   if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create ODF frame');
 }
 
 async function deleteOdfFrame(id: number): Promise<void> {
-  const res = await api.DELETE('/fiber-plant/odf/frames/{id}' as never, {
+  const res = await api.DELETE('/fiber-plant/odf/frames/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete ODF frame');
 }
 
 // OTDR Tests
 async function fetchOtdrTests(page: number): Promise<OtdrTestsResponse> {
-  const res = await api.GET('/fiber-plant/otdr/tests' as never, {
+  const res = await api.GET('/fiber-plant/otdr/tests', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load OTDR tests');
   return (res as { data: unknown }).data as unknown as OtdrTestsResponse;
 }
 
 async function createOtdrTest(body: OtdrTestBody): Promise<void> {
-  const res = await api.POST('/fiber-plant/otdr/tests' as never, { body: body as never } as never);
+  const res = await api.POST('/fiber-plant/otdr/tests', { body: body as never });
   if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create OTDR test');
 }
 
 async function deleteOtdrTest(id: number): Promise<void> {
-  const res = await api.DELETE('/fiber-plant/otdr/tests/{id}' as never, {
+  const res = await api.DELETE('/fiber-plant/otdr/tests/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete OTDR test');
 }
 
 // SFP Inventory
 async function fetchSfp(page: number): Promise<SfpResponse> {
-  const res = await api.GET('/fiber-plant/sfp' as never, {
+  const res = await api.GET('/fiber-plant/sfp', {
     params: { query: { page, limit: PAGE_SIZE } as never },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load SFP inventory');
   return (res as { data: unknown }).data as unknown as SfpResponse;
 }
 
 async function createSfp(body: SfpBody): Promise<void> {
-  const res = await api.POST('/fiber-plant/sfp' as never, { body: body as never } as never);
+  const res = await api.POST('/fiber-plant/sfp', { body: body as never });
   if ((res as { error?: unknown }).error) throw apiError(res, 'Failed to create SFP entry');
 }
 
 async function deleteSfp(id: number): Promise<void> {
-  const res = await api.DELETE('/fiber-plant/sfp/{id}' as never, {
+  const res = await api.DELETE('/fiber-plant/sfp/{id}', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete SFP entry');
 }
 
 async function fetchSfpDiagnostics(id: number): Promise<SfpDiagnostics> {
-  const res = await api.GET('/fiber-plant/sfp/{id}/diagnostics' as never, {
+  const res = await api.GET('/fiber-plant/sfp/{id}/diagnostics', {
     params: { path: { id } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load SFP diagnostics');
   return unwrapData<SfpDiagnostics>((res as { data: unknown }).data);
 }

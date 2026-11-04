@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, capitalize, fmtDate } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,7 +44,7 @@ const STATUSES = ['pending', 'filed', 'accepted', 'rejected', 'overdue'];
 async function fetchFilings(page: number, status: string): Promise<FilingsResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (status) query.status = status;
-  const res = await api.GET('/regulatory-filings', { params: { query: query as never } });
+  const res = await api.GET('/regulatory-filings', { params: { query: query } });
   if (res.error) throw new Error('Failed to load regulatory filings');
   return res.data as unknown as FilingsResponse;
 }
@@ -52,31 +53,13 @@ async function fetchFilings(page: number, status: string): Promise<FilingsRespon
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    pending: { bg: '#fef3c7', color: '#92400e' },
-    filed: { bg: '#dbeafe', color: '#1e40af' },
-    accepted: { bg: '#d1fae5', color: '#065f46' },
-    rejected: { bg: '#fee2e2', color: '#991b1b' },
-    overdue: { bg: '#fecaca', color: '#7f1d1d' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  pending: { bg: '#fef3c7', color: '#92400e' },
+  filed: { bg: '#dbeafe', color: '#1e40af' },
+  accepted: { bg: '#d1fae5', color: '#065f46' },
+  rejected: { bg: '#fee2e2', color: '#991b1b' },
+  overdue: { bg: '#fecaca', color: '#7f1d1d' },
+};
 
 function fmtPeriod(start: string | null, end: string | null): string {
   if (!start && !end) return '—';
@@ -154,7 +137,7 @@ export function RegulatoryFilingList() {
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>{fmtPeriod(f.period_start, f.period_end)}</td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>{f.filed_at ? fmtDate(f.filed_at) : '—'}</td>
                       <td style={{ ...styles.td, fontFamily: 'monospace' }}>{f.acknowledgement_number ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={f.status} /></td>
+                      <td style={styles.td}><StatusBadge status={f.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, maxWidth: 280, overflowWrap: 'anywhere' }}>{f.notes ?? '—'}</td>
                     </tr>
                   ))}

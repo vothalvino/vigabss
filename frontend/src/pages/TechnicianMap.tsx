@@ -57,7 +57,7 @@ async function fetchPositions(): Promise<Position[]> {
 
 async function postBreadcrumb(lat: number, lng: number, accuracy: number | null): Promise<void> {
   const res = await api.POST('/technician-tracking/breadcrumb', {
-    body: { latitude: lat, longitude: lng, accuracy_m: accuracy } as never,
+    body: { latitude: lat, longitude: lng, accuracy_m: accuracy },
   });
   if ((res as { error?: unknown }).error) throw new Error('Failed to send position');
 }

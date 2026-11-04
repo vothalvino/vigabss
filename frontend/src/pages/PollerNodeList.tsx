@@ -13,6 +13,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,23 +58,23 @@ const STATUSES = ['active', 'draining', 'maintenance', 'offline'];
 async function fetchNodes(page: number, statusFilter: string): Promise<PollerNodesResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/poller-nodes' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/poller-nodes', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load poller nodes');
   return (res as { data: unknown }).data as unknown as PollerNodesResponse;
 }
 
 async function createNode(body: PollerNodeBody): Promise<void> {
-  const res = await api.POST('/poller-nodes' as never, { body: body as never } as never);
+  const res = await api.POST('/poller-nodes', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create poller node');
 }
 
 async function updateNode(id: number, body: Partial<PollerNodeBody>): Promise<void> {
-  const res = await api.PUT('/poller-nodes/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/poller-nodes/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update poller node');
 }
 
 async function deleteNode(id: number): Promise<void> {
-  const res = await api.DELETE('/poller-nodes/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/poller-nodes/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete poller node');
 }
 
@@ -81,20 +82,12 @@ async function deleteNode(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    active:      { bg: '#d1fae5', color: '#065f46' },
-    draining:    { bg: '#fef9c3', color: '#854d0e' },
-    maintenance: { bg: '#fef3c7', color: '#92400e' },
-    offline:     { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const c = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:      { bg: '#d1fae5', color: '#065f46' },
+  draining:    { bg: '#fef9c3', color: '#854d0e' },
+  maintenance: { bg: '#fef3c7', color: '#92400e' },
+  offline:     { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Poller node form modal
@@ -291,7 +284,7 @@ export function PollerNodeList() {
                   <tr key={n.id} style={styles.tr}>
                     <td style={styles.td}><code>{n.node_identifier}</code></td>
                     <td style={styles.td}><strong>{n.name}</strong></td>
-                    <td style={styles.td}><StatusBadge status={n.status} /></td>
+                    <td style={styles.td}><StatusBadge status={n.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>{n.current_queue_depth}</td>
                     <td style={styles.td}>{n.avg_poll_duration_ms ?? '—'}</td>
                     <td style={styles.td}>{n.last_heartbeat_at ? new Date(n.last_heartbeat_at).toLocaleString() : '—'}</td>

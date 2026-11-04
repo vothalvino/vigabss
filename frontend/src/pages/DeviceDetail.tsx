@@ -11,10 +11,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
 import { api, authedFetch } from '@/api/client';
+import { unwrapData } from '@/api/envelope';
 import { ClientPicker } from '@/components/ClientPicker';
 import { extractApiError } from '@/components/ClientFormModal';
 import { fmtPct, fmtSignal, fmtLatency, fmtUptimeTicks } from './snmpMetrics/format';
 import { DeviceFormModal, type Site as DeviceSite, type Device as EditableDevice } from './DeviceMap';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -161,21 +163,13 @@ function fmtRawSnmpValue(key: string, value: unknown, t: (key: string) => string
   return `${String(value)}${SNMP_COLUMN_UNITS[key] ?? ''}`;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const colorMap: Record<string, { bg: string; color: string }> = {
-    online:      { bg: '#d1fae5', color: '#065f46' },
-    offline:     { bg: '#fee2e2', color: '#991b1b' },
-    maintenance: { bg: '#fef9c3', color: '#854d0e' },
-    active:      { bg: '#d1fae5', color: '#065f46' },
-    inactive:    { bg: '#f3f4f6', color: '#6b7280' },
-  };
-  const s = colorMap[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  online:      { bg: '#d1fae5', color: '#065f46' },
+  offline:     { bg: '#fee2e2', color: '#991b1b' },
+  maintenance: { bg: '#fef9c3', color: '#854d0e' },
+  active:      { bg: '#d1fae5', color: '#065f46' },
+  inactive:    { bg: '#f3f4f6', color: '#6b7280' },
+};
 
 // snmp_enabled is a MySQL BOOLEAN and arrives as 0/1, so comparing with
 // `false` hid the row for every device with SNMP off (FE-19).
@@ -209,7 +203,7 @@ function InfoRow({ label, value, mono, capitalize }: { label: string; value: str
 interface WoAssignableUser { id: number; first_name: string; last_name: string }
 
 async function fetchWoAssignableUsers(): Promise<WoAssignableUser[]> {
-  const res = await api.GET('/work-orders/assignable-users' as never, {} as never);
+  const res = await api.GET('/work-orders/assignable-users', {});
   if ((res as { error?: unknown }).error) return [];
   return (((res as { data: unknown }).data as { data: WoAssignableUser[] }).data) ?? [];
 }
@@ -396,9 +390,9 @@ function RfThresholdsTab({ deviceId }: { deviceId: number }) {
   const { data: sectors, isLoading } = useQuery({
     queryKey: ['device-ap-sector', deviceId],
     queryFn: async () => {
-      const res = await api.GET('/wireless/ap-sectors' as never, {
+      const res = await api.GET('/wireless/ap-sectors', {
         params: { query: { device_id: deviceId } as never },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as { data?: ApSectorRecord[] } | ApSectorRecord[];
       return Array.isArray(d) ? d : (d as { data?: ApSectorRecord[] })?.data ?? [];
@@ -431,15 +425,15 @@ function RfThresholdsTab({ deviceId }: { deviceId: number }) {
         link_capacity_min_mbps: linkCapacityMinMbps === '' ? null : Number(linkCapacityMinMbps),
       };
       if (sector) {
-        const { error: putErr } = await api.PUT('/wireless/ap-sectors/{id}' as never, {
+        const { error: putErr } = await api.PUT('/wireless/ap-sectors/{id}', {
           params: { path: { id: sector.id } },
-          body: body as never,
-        } as never);
+          body: body,
+        });
         if (putErr) throw new Error(extractApiError(putErr, t('deviceDetail.rfThresholds.saveFailed')));
       } else {
-        const { error: postErr } = await api.POST('/wireless/ap-sectors' as never, {
-          body: { device_id: deviceId, ...body } as never,
-        } as never);
+        const { error: postErr } = await api.POST('/wireless/ap-sectors', {
+          body: { device_id: deviceId, ...body },
+        });
         if (postErr) throw new Error(extractApiError(postErr, t('deviceDetail.rfThresholds.saveFailed')));
       }
     },
@@ -524,18 +518,18 @@ export function DeviceDetail() {
   const { data: sites = [] } = useQuery({
     queryKey: ['sites-for-device-edit'],
     queryFn: async () => {
-      const res = await api.GET('/sites' as never, { params: { query: { limit: 200 } } } as never);
+      const res = await api.GET('/sites', { params: { query: { limit: 200 } } });
       if ((res as { error?: unknown }).error) return [] as DeviceSite[];
-      return (((res as { data: { data: DeviceSite[] } }).data?.data) ?? []);
+      return (((res.data as { data: DeviceSite[] })?.data) ?? []);
     },
   });
 
   const { data: device, isLoading, error } = useQuery({
     queryKey: ['device-detail', id],
     queryFn: async () => {
-      const res = await api.GET('/devices/{id}' as never, { params: { path: { id: Number(id) } } } as never);
+      const res = await api.GET('/devices/{id}', { params: { path: { id: Number(id) } } });
       if ((res as { error?: unknown }).error) throw new Error('Device not found');
-      return ((res as { data: { data?: DeviceRecord } }).data?.data ?? (res as { data: DeviceRecord }).data) as DeviceRecord;
+      return unwrapData<DeviceRecord>(res.data);
     },
     enabled: Boolean(id),
   });
@@ -561,7 +555,7 @@ export function DeviceDetail() {
   const { data: linkedClient } = useQuery({
     queryKey: ['device-linked-client', device?.client_id],
     queryFn: async () => {
-      const res = await api.GET('/clients/{id}' as never, { params: { path: { id: device!.client_id! } } } as never);
+      const res = await api.GET('/clients/{id}', { params: { path: { id: device!.client_id! } } });
       if ((res as { error?: unknown }).error) return null;
       return ((res as { data: { data?: { id: number; name: string } } }).data?.data ?? null);
     },
@@ -573,7 +567,7 @@ export function DeviceDetail() {
   const { data: linkedSite } = useQuery({
     queryKey: ['device-linked-site', device?.site_id],
     queryFn: async () => {
-      const res = await api.GET('/sites/{id}' as never, { params: { path: { id: device!.site_id! } } } as never);
+      const res = await api.GET('/sites/{id}', { params: { path: { id: device!.site_id! } } });
       if ((res as { error?: unknown }).error) return null;
       const d = (res as { data: unknown }).data;
       return (((d as { data?: { id: number; name: string } }).data) ?? d ?? null) as { id: number; name: string } | null;
@@ -588,10 +582,10 @@ export function DeviceDetail() {
 
   const assignClientMutation = useMutation({
     mutationFn: async (nextClientId: number | null) => {
-      const { error: e } = await api.PATCH('/devices/{id}' as never, {
+      const { error: e } = await api.PATCH('/devices/{id}', {
         params: { path: { id: Number(id) } },
         body: { client_id: nextClientId },
-      } as never);
+      });
       if (e) throw new Error(extractApiError(e, t('deviceDetail.clientAssign.saveFailed')));
     },
     onSuccess: () => {
@@ -606,7 +600,7 @@ export function DeviceDetail() {
   const { data: snmpMetrics } = useQuery({
     queryKey: ['device-snmp-metrics', id],
     queryFn: async () => {
-      const res = await api.GET('/devices/{id}/snmp-metrics' as never, { params: { path: { id: Number(id) }, query: { limit: 50 } as never } } as never);
+      const res = await api.GET('/devices/{id}/snmp-metrics', { params: { path: { id: Number(id) }, query: { limit: 50 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<SnmpMetric> | SnmpMetric[];
       return Array.isArray(d) ? d : (d as ListResp<SnmpMetric>).data ?? [];
@@ -617,7 +611,7 @@ export function DeviceDetail() {
   const { data: configBackups } = useQuery({
     queryKey: ['device-config-backups', id],
     queryFn: async () => {
-      const res = await api.GET('/device-config-backups' as never, { params: { query: { device_id: Number(id), limit: 50 } as never } } as never);
+      const res = await api.GET('/device-config-backups', { params: { query: { device_id: Number(id), limit: 50 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<ConfigBackup> | ConfigBackup[];
       return Array.isArray(d) ? d : (d as ListResp<ConfigBackup>).data ?? [];
@@ -628,7 +622,7 @@ export function DeviceDetail() {
   const { data: workOrders } = useQuery({
     queryKey: ['device-work-orders', id],
     queryFn: async () => {
-      const res = await api.GET('/work-orders' as never, { params: { query: { device_id: Number(id), limit: 50 } as never } } as never);
+      const res = await api.GET('/work-orders', { params: { query: { device_id: Number(id), limit: 50 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<WorkOrderRecord> | WorkOrderRecord[];
       return Array.isArray(d) ? d : (d as ListResp<WorkOrderRecord>).data ?? [];
@@ -639,7 +633,7 @@ export function DeviceDetail() {
   const { data: outages } = useQuery({
     queryKey: ['device-outages', id],
     queryFn: async () => {
-      const res = await api.GET('/outages' as never, { params: { query: { device_id: Number(id), limit: 50 } as never } } as never);
+      const res = await api.GET('/outages', { params: { query: { device_id: Number(id), limit: 50 } } });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<OutageRecord> | OutageRecord[];
       return Array.isArray(d) ? d : (d as ListResp<OutageRecord>).data ?? [];
@@ -674,7 +668,7 @@ export function DeviceDetail() {
         <div>
           <h1 style={styles.title}>{device.name}</h1>
           <div style={styles.headerMeta}>
-            <StatusBadge status={device.status} />
+            <StatusBadge status={device.status} colors={STATUS_COLORS} />
             <span style={styles.idLabel}>ID #{device.id}</span>
           </div>
         </div>
@@ -815,7 +809,7 @@ export function DeviceDetail() {
             <div style={styles.infoGrid}>
               <div style={styles.infoRow}>
                 <span style={styles.infoLabel}>{t('deviceDetail.overview.status')}</span>
-                <span style={styles.infoValue}><StatusBadge status={device.status} /></span>
+                <span style={styles.infoValue}><StatusBadge status={device.status} colors={STATUS_COLORS} /></span>
               </div>
               <InfoRow label={t('deviceDetail.fields.type')} value={device.type} capitalize />
               <InfoRow
@@ -1007,7 +1001,7 @@ export function DeviceDetail() {
                         <td style={styles.td}>#{wo.id}</td>
                         <td style={styles.td}>{wo.title}</td>
                         <td style={styles.td}>{wo.work_type ?? '—'}</td>
-                        <td style={styles.td}><StatusBadge status={wo.status} /></td>
+                        <td style={styles.td}><StatusBadge status={wo.status} colors={STATUS_COLORS} /></td>
                         <td style={styles.td}>{fmt(wo.scheduled_at)}</td>
                       </tr>
                     ))}
@@ -1036,7 +1030,7 @@ export function DeviceDetail() {
                     <tr key={o.id} style={styles.tr}>
                       <td style={styles.td}>{o.title}</td>
                       <td style={styles.td}>{o.severity ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={o.status} /></td>
+                      <td style={styles.td}><StatusBadge status={o.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>{fmt(o.started_at)}</td>
                       <td style={styles.td}>{fmt(o.resolved_at)}</td>
                     </tr>

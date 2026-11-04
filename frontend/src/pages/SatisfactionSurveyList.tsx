@@ -53,7 +53,7 @@ interface SurveyMetrics {
 
 async function fetchSurveys(page: number, pageSize: number): Promise<SurveysResponse> {
   const res = await api.GET('/satisfaction-surveys', {
-    params: { query: { page, limit: pageSize, order_by: 'created_at', order: 'DESC' } as never },
+    params: { query: { page, limit: pageSize, order_by: 'created_at', order: 'DESC' } },
   });
   if (res.error) throw new Error('Failed to load surveys');
   return res.data as unknown as SurveysResponse;
@@ -90,7 +90,7 @@ function NewSurveyModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
         channel: form.channel,
       };
       if (form.ticket_id) body.ticket_id = Number(form.ticket_id);
-      const { error } = await api.POST('/satisfaction-surveys', { body: body as never });
+      const { error } = await api.POST('/satisfaction-surveys', { body: body });
       if (error) throw new Error(extractApiError(error, 'Failed to create survey'));
     },
     onSuccess: () => { onSaved(); onClose(); },
@@ -156,7 +156,7 @@ function RespondModal({ survey, onClose, onSaved }: { survey: Survey; onClose: (
       if (comment.trim()) body.comment = comment.trim();
       const { error } = await api.POST('/satisfaction-surveys/{id}/respond', {
         params: { path: { id: survey.id } },
-        body: body as never,
+        body: body,
       });
       if (error) throw new Error(extractApiError(error, 'Failed to record response'));
     },

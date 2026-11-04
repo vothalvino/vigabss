@@ -76,7 +76,7 @@ const STATUSES = ['active', 'inactive'];
 // ---------------------------------------------------------------------------
 
 async function fetchOrganizations(page: number): Promise<OrganizationsResponse> {
-  const res = await api.GET('/organizations', { params: { query: { page, limit: DEFAULT_PAGE_SIZE } as never } });
+  const res = await api.GET('/organizations', { params: { query: { page, limit: DEFAULT_PAGE_SIZE } } });
   if (res.error) throw new Error('Failed to load organizations');
   return res.data as unknown as OrganizationsResponse;
 }
@@ -87,7 +87,7 @@ async function createOrganization(body: OrganizationBody): Promise<void> {
 }
 
 async function updateOrganization(id: number, body: Partial<OrganizationBody>): Promise<void> {
-  const res = await api.PUT('/organizations/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/organizations/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update organization');
 }
 

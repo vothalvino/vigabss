@@ -57,7 +57,7 @@ async function searchLeads(term: string): Promise<LeadOption[]> {
   const query = term
     ? { search: term, limit: 20 }
     : { order_by: 'id', order: 'DESC', limit: 100 }; // browse state: newest first
-  const res = await api.GET('/leads', { params: { query: query as never } });
+  const res = await api.GET('/leads', { params: { query: query } });
   if (res.error) return [];
   const rows = (res.data as unknown as LeadsSearchResponse).data ?? [];
   return rows.filter(l => !EXCLUDED_STATUSES.includes(l.status));

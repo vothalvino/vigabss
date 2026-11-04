@@ -74,7 +74,7 @@ const TYPE_FILTER_OPTIONS = ['', ...PROMOTION_TYPES];
 async function fetchPromotions(page: number, typeFilter: string): Promise<PromotionResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (typeFilter) query.promotion_type = typeFilter;
-  const res = await api.GET('/promotions', { params: { query: query as never } });
+  const res = await api.GET('/promotions', { params: { query: query } });
   if (res.error) throw new Error('Failed to load promotions');
   return res.data as unknown as PromotionResponse;
 }
@@ -85,7 +85,7 @@ async function createPromotion(body: PromotionBody): Promise<void> {
 }
 
 async function updatePromotion(id: number, body: Partial<PromotionBody>): Promise<void> {
-  const res = await api.PUT('/promotions/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/promotions/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update promotion');
 }
 

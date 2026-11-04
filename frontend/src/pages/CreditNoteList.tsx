@@ -23,6 +23,7 @@ import {
 } from './crudStyles';
 import { ClientPicker } from '@/components/ClientPicker';
 import { useClientNames } from '@/api/clientNames';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -110,9 +111,9 @@ export function reasonLabel(reason: string): string {
 async function fetchCreditNotes(page: number, statusFilter: string): Promise<CreditNotesResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/credit-notes', { params: { query: query as never } });
+  const res = await api.GET('/credit-notes', { params: { query: query } });
   if (res.error) throw new Error('Failed to load credit notes');
-  return res.data as unknown as CreditNotesResponse;
+  return res.data;
 }
 
 // Surface the backend's own message (e.g. the totals-consistency 422) instead
@@ -132,7 +133,7 @@ async function createCreditNote(body: CreditNoteBody): Promise<void> {
 async function updateCreditNote(id: number, body: Partial<CreditNoteBody>): Promise<void> {
   const res = await api.PUT('/credit-notes/{id}', {
     params: { path: { id } },
-    body: body as never,
+    body: body,
   });
   // The generated PUT type has no error member (typed `never`) — widen it.
   const err = (res as { error?: unknown }).error;
@@ -224,20 +225,12 @@ async function stampCreditNote(id: number): Promise<StampResult> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:     { bg: '#f3f4f6', color: '#374151' },
-    issued:    { bg: '#dbeafe', color: '#1e40af' },
-    applied:   { bg: '#d1fae5', color: '#065f46' },
-    cancelled: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:     { bg: '#f3f4f6', color: '#374151' },
+  issued:    { bg: '#dbeafe', color: '#1e40af' },
+  applied:   { bg: '#d1fae5', color: '#065f46' },
+  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Credit note form modal (create + edit)
@@ -616,7 +609,7 @@ export function CreditNoteList() {
                       </td>
                       <td style={styles.td}>{n.reason ? reasonLabel(n.reason) : '—'}</td>
                       <td style={styles.td}>{fmtMoney(n.total, n.currency ?? orgCurrency)}</td>
-                      <td style={styles.td}><StatusBadge status={n.status} /></td>
+                      <td style={styles.td}><StatusBadge status={n.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditNote(n)} title="Edit this credit note">✏️ Edit</button>
                         {/* Already stamped: show the CFDI instead of offering a

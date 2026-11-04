@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,13 +68,13 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchIpAssignments(page: number, statusFilter: string): Promise<IpAssignmentsResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/ip-assignments', { params: { query: query as never } });
+  const res = await api.GET('/ip-assignments', { params: { query: query } });
   if (res.error) throw new Error('Failed to load IP assignments');
   return res.data as unknown as IpAssignmentsResponse;
 }
 
 async function fetchPoolOptions(): Promise<PoolOption[]> {
-  const res = await api.GET('/ip-pools', { params: { query: { limit: 500 } as never } });
+  const res = await api.GET('/ip-pools', { params: { query: { limit: 500 } } });
   if (res.error) throw new Error('Failed to load IP pools');
   return (res.data as unknown as { data: PoolOption[] }).data;
 }
@@ -84,7 +85,7 @@ async function createIpAssignment(body: IpAssignmentBody): Promise<void> {
 }
 
 async function updateIpAssignment(id: number, body: Partial<IpAssignmentBody>): Promise<void> {
-  const res = await api.PUT('/ip-assignments/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/ip-assignments/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update IP assignment');
 }
 
@@ -97,29 +98,11 @@ async function deleteIpAssignment(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    available: { bg: '#dbeafe', color: '#1e40af' },
-    expired: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  available: { bg: '#dbeafe', color: '#1e40af' },
+  expired: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // IP Assignment form modal (create + edit)
@@ -439,7 +422,7 @@ export function IpAssignmentList() {
                       </td>
                       <td style={styles.td}>{poolName(a.pool_id)}</td>
                       <td style={{ ...styles.td, textTransform: 'capitalize' }}>{a.type ?? '—'}</td>
-                      <td style={styles.td}><StatusBadge status={a.status} /></td>
+                      <td style={styles.td}><StatusBadge status={a.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditAssignment(a)} title="Edit this assignment">
                           ✏️ Edit

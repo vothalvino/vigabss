@@ -17,6 +17,7 @@ import { NasWireguardModal } from './NasWireguardModal';
 // Shared NAS action modals/helpers — the per-device actions live on this page now,
 // not in the list (which only navigates here).
 import { type Nas, SeedModal, NasModal, ConfirmDialog, deleteNas } from './NasList';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,21 +70,13 @@ function fmt(dateStr: string | null | undefined): string {
   return d.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const colorMap: Record<string, { bg: string; color: string }> = {
-    active:   { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#f3f4f6', color: '#6b7280' },
-    up:       { bg: '#d1fae5', color: '#065f46' },
-    down:     { bg: '#fee2e2', color: '#991b1b' },
-    unknown:  { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = colorMap[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:   { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#f3f4f6', color: '#6b7280' },
+  up:       { bg: '#d1fae5', color: '#065f46' },
+  down:     { bg: '#fee2e2', color: '#991b1b' },
+  unknown:  { bg: '#f3f4f6', color: '#374151' },
+};
 
 function WgStateBadge({ state }: { state: string | null | undefined }) {
   const colorMap: Record<string, { bg: string; color: string }> = {
@@ -158,7 +151,7 @@ export function NasDetail() {
   const { data: nas, isLoading, error } = useQuery({
     queryKey: ['nas-detail', id],
     queryFn: async () => {
-      const res = await api.GET('/nas/{id}' as never, { params: { path: { id: Number(id) } } } as never);
+      const res = await api.GET('/nas/{id}', { params: { path: { id: Number(id) } } });
       if ((res as { error?: unknown }).error) throw new Error('NAS not found');
       const d = (res as { data: unknown }).data;
       return (((d as { data?: Nas }).data) ?? d) as Nas;
@@ -170,9 +163,9 @@ export function NasDetail() {
     queryKey: ['nas-sessions', id, nas?.ip_address],
     queryFn: async () => {
       if (!nas?.ip_address) return [];
-      const res = await api.GET('/connection-logs/active' as never, {
-        params: { query: { nas_ip_address: nas.ip_address, limit: 50 } as never },
-      } as never);
+      const res = await api.GET('/connection-logs/active', {
+        params: { query: { nas_ip_address: nas.ip_address, limit: 50 } },
+      });
       if ((res as { error?: unknown }).error) return [];
       const d = (res as { data: unknown }).data as ListResp<ConnectionLogRow> | ConnectionLogRow[];
       return Array.isArray(d) ? d : (d as ListResp<ConnectionLogRow>).data ?? [];
@@ -183,9 +176,9 @@ export function NasDetail() {
   const { data: wgData, refetch: refetchWg } = useQuery({
     queryKey: ['nas-wg', id],
     queryFn: async () => {
-      const res = await api.GET('/nas/{id}/wg' as never, {
+      const res = await api.GET('/nas/{id}/wg', {
         params: { path: { id: Number(id) } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) return null;
       const d = (res as { data: unknown }).data;
       return (((d as { data?: WgTunnelResponse }).data) ?? d) as WgTunnelResponse;
@@ -201,9 +194,9 @@ export function NasDetail() {
     setActionResult(null);
     setActionError(null);
     try {
-      const res = await api.POST('/nas/{id}/health-check' as never, {
+      const res = await api.POST('/nas/{id}/health-check', {
         params: { path: { id: Number(id) } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) {
         const msg = ((res as { error: { error?: { message?: string } } }).error?.error?.message) ?? 'Health check failed';
         setActionError(msg);
@@ -225,9 +218,9 @@ export function NasDetail() {
     setActionResult(null);
     setActionError(null);
     try {
-      const res = await api.POST('/nas/{id}/test-connection' as never, {
+      const res = await api.POST('/nas/{id}/test-connection', {
         params: { path: { id: Number(id) } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) {
         const msg = ((res as { error: { error?: { message?: string } } }).error?.error?.message) ?? 'Connection test failed';
         setActionError(msg);
@@ -248,9 +241,9 @@ export function NasDetail() {
     setActionResult(null);
     setActionError(null);
     try {
-      const res = (await api.POST('/nas/{id}/voip/refresh' as never, {
+      const res = (await api.POST('/nas/{id}/voip/refresh', {
         params: { path: { id: Number(id) } },
-      } as never)) as {
+      })) as {
         data?: { data?: { added?: number; removed?: number; kept?: number; ranges?: number; skipped?: boolean; reason?: string } };
         error?: { error?: { message?: string } };
       };
@@ -317,7 +310,7 @@ export function NasDetail() {
         <div>
           <h1 style={styles.title}>{nas.name}</h1>
           <div style={styles.headerMeta}>
-            <StatusBadge status={nas.status} />
+            <StatusBadge status={nas.status} colors={STATUS_COLORS} />
             <span style={styles.idLabel}>ID #{nas.id}</span>
           </div>
         </div>
@@ -418,7 +411,7 @@ export function NasDetail() {
         {activeTab === 'health' && (
           <div style={{ padding: '1.25rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-              <StatusBadge status={nas.health_status} />
+              <StatusBadge status={nas.health_status} colors={STATUS_COLORS} />
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 {t('nasDetail.health.lastCheck')}: {fmt(nas.last_health_check_at)}
               </span>

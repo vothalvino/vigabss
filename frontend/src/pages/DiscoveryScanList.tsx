@@ -14,6 +14,7 @@ import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
 import { extractApiError } from '@/components/ClientFormModal';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,35 +72,35 @@ const SNMP_VERSIONS = ['v1', 'v2c', 'v3'];
 
 async function fetchScans(page: number): Promise<DiscoveryScansResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
-  const res = await api.GET('/discovery-scans' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/discovery-scans', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load discovery scans');
   return (res as { data: unknown }).data as unknown as DiscoveryScansResponse;
 }
 
 async function createScan(body: DiscoveryScanBody): Promise<void> {
-  const res = await api.POST('/discovery-scans' as never, { body: body as never } as never);
+  const res = await api.POST('/discovery-scans', { body: body as never });
   const error = (res as { error?: unknown }).error;
   // A refused range (loopback, too large) says which one.
   if (error) throw new Error(extractApiError(error, 'Failed to create discovery scan'));
 }
 
 async function cancelScan(id: number): Promise<void> {
-  const res = await api.POST('/discovery-scans/{id}/cancel' as never, { params: { path: { id } } } as never);
+  const res = await api.POST('/discovery-scans/{id}/cancel', { params: { path: { id } } });
   const error = (res as { error?: unknown }).error;
   if (error) throw new Error(extractApiError(error, 'Failed to cancel discovery scan'));
 }
 
 async function fetchResults(id: number): Promise<DiscoveryResult[]> {
-  const res = await api.GET('/discovery-scans/{id}/results' as never, { params: { path: { id } } } as never);
+  const res = await api.GET('/discovery-scans/{id}/results', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load results');
-  return ((res as { data: { data: DiscoveryResult[] } }).data?.data) ?? [];
+  return ((res.data as { data: DiscoveryResult[] })?.data) ?? [];
 }
 
 async function resolveResult(scanId: number, resultId: number, action: 'onboard' | 'ignore'): Promise<void> {
-  const params = { params: { path: { id: scanId, resultId } } } as never;
+  const params = { params: { path: { id: scanId, resultId } } };
   const res = action === 'onboard'
-    ? await api.POST('/discovery-scans/{id}/results/{resultId}/onboard' as never, params)
-    : await api.POST('/discovery-scans/{id}/results/{resultId}/ignore' as never, params);
+    ? await api.POST('/discovery-scans/{id}/results/{resultId}/onboard', params)
+    : await api.POST('/discovery-scans/{id}/results/{resultId}/ignore', params);
   const error = (res as { error?: unknown }).error;
   if (error) throw new Error(extractApiError(error, `Failed to ${action} the device`));
 }
@@ -107,7 +108,7 @@ async function resolveResult(scanId: number, resultId: number, action: 'onboard'
 const RUNNING = ['pending', 'running'];
 
 async function deleteScan(id: number): Promise<void> {
-  const res = await api.DELETE('/discovery-scans/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/discovery-scans/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete discovery scan');
 }
 
@@ -115,20 +116,12 @@ async function deleteScan(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    pending:   { bg: '#fef9c3', color: '#854d0e' },
-    running:   { bg: '#dbeafe', color: '#1e40af' },
-    completed: { bg: '#d1fae5', color: '#065f46' },
-    failed:    { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const c = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  pending:   { bg: '#fef9c3', color: '#854d0e' },
+  running:   { bg: '#dbeafe', color: '#1e40af' },
+  completed: { bg: '#d1fae5', color: '#065f46' },
+  failed:    { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Discovery scan form modal
@@ -328,7 +321,7 @@ export function DiscoveryScanList() {
                     <td style={styles.td}>{capitalize(s.snmp_version)} / port {s.snmp_port}</td>
                     <td style={styles.td}>{s.scanned_hosts}{s.total_hosts !== null && s.total_hosts !== undefined ? ` / ${s.total_hosts}` : ''}</td>
                     <td style={styles.td}>{s.discovered_hosts}</td>
-                    <td style={styles.td} title={s.error_message ?? undefined}><StatusBadge status={s.status} /></td>
+                    <td style={styles.td} title={s.error_message ?? undefined}><StatusBadge status={s.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>{formatDate(s.created_at)}</td>
                     <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                       <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 6 }} onClick={() => setResultsFor(s)}>
@@ -428,7 +421,7 @@ function ResultsPanel({ scan, onClose }: { scan: DiscoveryScan; onClose: () => v
                     <td style={styles.td}>{r.hostname ?? '—'}</td>
                     <td style={styles.td}>{[r.manufacturer, r.model].filter(Boolean).join(' ') || '—'}</td>
                     <td style={styles.td}>{r.device_type ?? '—'}</td>
-                    <td style={styles.td}><StatusBadge status={r.status} /></td>
+                    <td style={styles.td}><StatusBadge status={r.status} colors={STATUS_COLORS} /></td>
                     <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                       {r.status === 'pending_review' && (
                         <>

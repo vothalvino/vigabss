@@ -23,6 +23,8 @@ import {
   Payment as RestPayment,
 } from './payments/PaymentActions';
 import { formatDate } from '@/lib/dates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // GraphQL query — fetches the payment + allocations + client in one request
@@ -121,49 +123,22 @@ function fmt(dateStr: string | null | undefined): string {
   return formatDate(dateStr);
 }
 
-function fmtMoney(amount: string | null, currency = 'MXN'): string {
-  if (!amount) return '—';
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(parseFloat(amount));
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active:     { bg: '#d1fae5', color: '#065f46' },
-    paid:       { bg: '#d1fae5', color: '#065f46' },
-    pending:    { bg: '#ede9fe', color: '#5b21b6' },
-    suspended:  { bg: '#fef3c7', color: '#92400e' },
-    overdue:    { bg: '#fee2e2', color: '#991b1b' },
-    cancelled:  { bg: '#fee2e2', color: '#991b1b' },
-    terminated: { bg: '#f3f4f6', color: '#6b7280' },
-    expired:    { bg: '#fde68a', color: '#78350f' },
-    failed:     { bg: '#fee2e2', color: '#991b1b' },
-    draft:      { bg: '#f3f4f6', color: '#6b7280' },
-    inactive:   { bg: '#f3f4f6', color: '#6b7280' },
-    completed:  { bg: '#d1fae5', color: '#065f46' },
-    refunded:   { bg: '#fef3c7', color: '#92400e' },
-    partial:    { bg: '#ede9fe', color: '#5b21b6' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:     { bg: '#d1fae5', color: '#065f46' },
+  paid:       { bg: '#d1fae5', color: '#065f46' },
+  pending:    { bg: '#ede9fe', color: '#5b21b6' },
+  suspended:  { bg: '#fef3c7', color: '#92400e' },
+  overdue:    { bg: '#fee2e2', color: '#991b1b' },
+  cancelled:  { bg: '#fee2e2', color: '#991b1b' },
+  terminated: { bg: '#f3f4f6', color: '#6b7280' },
+  expired:    { bg: '#fde68a', color: '#78350f' },
+  failed:     { bg: '#fee2e2', color: '#991b1b' },
+  draft:      { bg: '#f3f4f6', color: '#6b7280' },
+  inactive:   { bg: '#f3f4f6', color: '#6b7280' },
+  completed:  { bg: '#d1fae5', color: '#065f46' },
+  refunded:   { bg: '#fef3c7', color: '#92400e' },
+  partial:    { bg: '#ede9fe', color: '#5b21b6' },
+};
 
 // ---------------------------------------------------------------------------
 // Info card helpers
@@ -209,7 +184,7 @@ function PaymentInfoCard({ payment }: { payment: Payment }) {
             </Link>
           </div>
         )}
-        <InfoRow label="Amount"     value={fmtMoney(payment.amount, payment.currency)} />
+        <InfoRow label="Amount"     value={formatMoney(payment.amount, payment.currency)} />
         <InfoRow label="Currency"   value={payment.currency} />
         <InfoRow label="Method"     value={payment.paymentMethod} capitalize />
         <InfoRow label="Reference"  value={payment.reference} mono />
@@ -276,13 +251,13 @@ function AllocationsSection({ allocations, currency, paymentId, isMxOrg }: { all
                 )}
               </td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtMoney(alloc.amount, currency)}
+                {formatMoney(alloc.amount, currency)}
               </td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {alloc.invoice ? fmtMoney(alloc.invoice.total, alloc.invoice.currency) : '—'}
+                {alloc.invoice ? formatMoney(alloc.invoice.total, alloc.invoice.currency) : '—'}
               </td>
               <td style={styles.td}>
-                {alloc.invoice ? <StatusBadge status={alloc.invoice.status} /> : '—'}
+                {alloc.invoice ? <StatusBadge status={alloc.invoice.status} colors={STATUS_COLORS} /> : '—'}
               </td>
               {isMxOrg && (
                 <td style={styles.td}>
@@ -396,8 +371,8 @@ export function PaymentDetail() {
         <div>
           <h1 style={styles.paymentTitle}>Payment #{payment.id}</h1>
           <div style={styles.headerMeta}>
-            <StatusBadge status={payment.status} />
-            <span style={styles.metaChip}>{fmtMoney(payment.amount, payment.currency)}</span>
+            <StatusBadge status={payment.status} colors={STATUS_COLORS} />
+            <span style={styles.metaChip}>{formatMoney(payment.amount, payment.currency)}</span>
             {payment.paymentMethod && (
               <span style={styles.metaChip}>{payment.paymentMethod}</span>
             )}

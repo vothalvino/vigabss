@@ -3,9 +3,10 @@
 // =============================================================================
 // The QoS & Bandwidth page saved edits with api.PATCH on eight resources whose
 // routers expose only PUT (NET-14). Every Save fell through to the 404 handler,
-// and the page test mocked api.PATCH, so it stayed green. The calls are typed
-// `as never`, so the compiler cannot catch it either. This scans the source for
-// literal method/path pairs and checks each against docs/openapi.json.
+// and the page test mocked api.PATCH, so it stayed green. Calls typed
+// `as never` escape the compiler too (asNeverRatchet.test.ts), so this scans
+// the source for literal method/path pairs and checks each against
+// docs/openapi.json.
 // =============================================================================
 
 import { describe, it, expect } from 'vitest';
@@ -21,13 +22,9 @@ const spec = JSON.parse(fs.readFileSync(path.resolve(srcDir, '../../docs/openapi
 
 // Routes that exist in Express but are missing from the spec. Shrink this list
 // when documenting one; never add to it without checking the route exists.
-const SPEC_GAPS = new Set([
-  'GET /inventory/items',
-  'GET /devices/{id}/snmp-metrics',
-  'GET /dashboard/throughput',
-  'GET /dashboard/live-sessions',
-  'GET /dashboard/sites-utilization',
-  'GET /dashboard/network-devices',
+const SPEC_GAPS = new Set<string>([
+  // (none: inventory items, device SNMP metrics and the four live-dashboard
+  // routes were documented, FE-23)
 ]);
 // Calls with no route at all (they 404 today), tracked for a fix.
 const KNOWN_MISSING_ROUTES = new Set<string>([

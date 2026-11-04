@@ -57,7 +57,7 @@ async function fetchOverdue(): Promise<OverdueInvoice[]> {
 // not break the console — fall back to an empty feed.
 async function fetchEvents(): Promise<AlertEvent[]> {
   try {
-    const res = await api.GET('/alerts/events' as never, { params: { query: { limit: 12 } as never } } as never) as { error?: unknown; data?: unknown };
+    const res = await api.GET('/alerts/events', { params: { query: { limit: 12 } as never } }) as { error?: unknown; data?: unknown };
     if (res.error) return [];
     const d = (res.data as { data?: unknown })?.data;
     return Array.isArray(d) ? (d as AlertEvent[]) : [];
@@ -70,7 +70,7 @@ async function fetchEvents(): Promise<AlertEvent[]> {
 // null on error/malformed payload so the console shows an empty state.
 async function fetchThroughput(range: Range): Promise<ThroughputSeries | null> {
   try {
-    const res = await api.GET('/dashboard/throughput' as never, { params: { query: { range } as never } } as never) as { error?: unknown; data?: unknown };
+    const res = await api.GET('/dashboard/throughput', { params: { query: { range } } }) as { error?: unknown; data?: unknown };
     if (res.error) return null;
     const d = (res.data as { data?: ThroughputSeries })?.data;
     return d && Array.isArray(d.points) ? d : null;
@@ -83,7 +83,7 @@ async function fetchThroughput(range: Range): Promise<ThroughputSeries | null> {
 // the honest best-effort empty state and the view model maps it to a placeholder.
 async function fetchSessions(): Promise<SessionsData | null> {
   try {
-    const res = await api.GET('/dashboard/live-sessions' as never, {} as never) as { error?: unknown; data?: unknown };
+    const res = await api.GET('/dashboard/live-sessions', {}) as { error?: unknown; data?: unknown };
     if (res.error) return null;
     const d = (res.data as { data?: SessionsData })?.data;
     return d && typeof d.value === 'string' ? d : null;
@@ -95,7 +95,7 @@ async function fetchSessions(): Promise<SessionsData | null> {
 // Per-site device-health for the Sites & POPs strip. Best-effort → [].
 async function fetchSites(): Promise<SiteRow[]> {
   try {
-    const res = await api.GET('/dashboard/sites-utilization' as never, {} as never) as { error?: unknown; data?: unknown };
+    const res = await api.GET('/dashboard/sites-utilization', {}) as { error?: unknown; data?: unknown };
     if (res.error) return [];
     const d = (res.data as { data?: unknown })?.data;
     return Array.isArray(d) ? (d as SiteRow[]) : [];
@@ -107,7 +107,7 @@ async function fetchSites(): Promise<SiteRow[]> {
 // Per-device operational feed for the Network Devices table. Best-effort → [].
 async function fetchNetworkDevices(): Promise<DeviceRow[]> {
   try {
-    const res = await api.GET('/dashboard/network-devices' as never, {} as never) as { error?: unknown; data?: unknown };
+    const res = await api.GET('/dashboard/network-devices', {}) as { error?: unknown; data?: unknown };
     if (res.error) return [];
     const d = (res.data as { data?: unknown })?.data;
     return Array.isArray(d) ? (d as DeviceRow[]) : [];

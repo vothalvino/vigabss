@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { LoadingState } from '@/components/FetchStates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,23 +61,23 @@ const SERVER_TYPES = ['kea', 'mikrotik'];
 async function fetchServers(page: number, statusFilter: string): Promise<DhcpServersResponse> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/dhcp-servers' as never, { params: { query: query as never } } as never);
+  const res = await api.GET('/dhcp-servers', { params: { query: query } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load DHCP servers');
   return (res as { data: unknown }).data as unknown as DhcpServersResponse;
 }
 
 async function createServer(body: DhcpServerBody): Promise<void> {
-  const res = await api.POST('/dhcp-servers' as never, { body: body as never } as never);
+  const res = await api.POST('/dhcp-servers', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create DHCP server');
 }
 
 async function updateServer(id: number, body: Partial<DhcpServerBody>): Promise<void> {
-  const res = await api.PUT('/dhcp-servers/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/dhcp-servers/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update DHCP server');
 }
 
 async function deleteServer(id: number): Promise<void> {
-  const res = await api.DELETE('/dhcp-servers/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/dhcp-servers/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete DHCP server');
 }
 
@@ -84,18 +85,10 @@ async function deleteServer(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const c = colors[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // Server form modal
@@ -304,7 +297,7 @@ export function DhcpServerList() {
                     <td style={styles.td}><strong>{s.name}</strong></td>
                     <td style={styles.td}>{capitalize(s.server_type)}</td>
                     <td style={styles.tdMono}>{s.host}:{s.port}</td>
-                    <td style={styles.td}><StatusBadge status={s.status} /></td>
+                    <td style={styles.td}><StatusBadge status={s.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>
                       <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(s)}>Edit</button>
                       <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(s.id)}>Delete</button>

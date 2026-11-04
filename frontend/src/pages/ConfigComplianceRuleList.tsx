@@ -41,28 +41,28 @@ const RULE_TYPES = ['must_contain', 'must_not_contain', 'regex_match', 'regex_no
 const SEVERITIES = ['info', 'warning', 'critical'];
 
 async function fetchRules(page: number): Promise<ConfigComplianceRulesResponse> {
-  const res = await api.GET('/config-compliance-rules' as never, { params: { query: { page, limit: PAGE_SIZE } as never } } as never);
+  const res = await api.GET('/config-compliance-rules', { params: { query: { page, limit: PAGE_SIZE } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load compliance rules');
   return (res as { data: unknown }).data as unknown as ConfigComplianceRulesResponse;
 }
 
 async function createRule(body: RuleBody): Promise<void> {
-  const res = await api.POST('/config-compliance-rules' as never, { body: body as never } as never);
+  const res = await api.POST('/config-compliance-rules', { body: body as never });
   if ((res as { error?: unknown }).error) throw new Error('Failed to create compliance rule');
 }
 
 async function updateRule(id: number, body: Partial<RuleBody>): Promise<void> {
-  const res = await api.PUT('/config-compliance-rules/{id}' as never, { params: { path: { id } }, body: body as never } as never);
+  const res = await api.PUT('/config-compliance-rules/{id}', { params: { path: { id } }, body: body });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update compliance rule');
 }
 
 async function deleteRule(id: number): Promise<void> {
-  const res = await api.DELETE('/config-compliance-rules/{id}' as never, { params: { path: { id } } } as never);
+  const res = await api.DELETE('/config-compliance-rules/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to delete compliance rule');
 }
 
 async function runAudit(backupId: number): Promise<{ total: number; passed: number; failed: number }> {
-  const res = await api.POST('/config-compliance-rules/run' as never, { body: { backup_id: backupId } as never } as never);
+  const res = await api.POST('/config-compliance-rules/run', { body: { backup_id: backupId } });
   if ((res as { error?: unknown }).error) throw new Error('Failed to run compliance audit');
   return ((res as { data: unknown }).data as { data: { total: number; passed: number; failed: number } }).data;
 }

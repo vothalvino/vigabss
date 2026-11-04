@@ -530,7 +530,7 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
   const profilesQ = useQuery({
     queryKey: ['snmp-profiles-for-device-form'],
     queryFn: async () => {
-      const res = await api.GET('/snmp-profiles', { params: { query: { limit: 100 } as never } });
+      const res = await api.GET('/snmp-profiles', { params: { query: { limit: 100 } } });
       if ((res as { error?: unknown }).error) return [] as { id: number; name: string }[];
       return (((res as unknown as { data: { data: { id: number; name: string }[] } }).data?.data) ?? []);
     },
@@ -584,8 +584,8 @@ export function DeviceFormModal({ mode, device, sites, onClose, onSaved }: Devic
     }
 
     const { error: apiError } = mode === 'create'
-      ? await api.POST('/devices', { body: body as never })
-      : await api.PUT('/devices/{id}', { params: { path: { id: device!.id } }, body: body as never });
+      ? await api.POST('/devices', { body: body })
+      : await api.PUT('/devices/{id}', { params: { path: { id: device!.id } }, body: body });
 
     setSaving(false);
     if (apiError) { setError(extractApiError(apiError, 'Failed to save device.')); return; }

@@ -136,15 +136,15 @@ const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 async function fetchWorkOrders(page: number, statusFilter: string, orderBy: string, order: string): Promise<ListResponse<WorkOrder>> {
   const query: Record<string, string | number> = { page, limit: PAGE_SIZE, order_by: orderBy, order };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/work-orders' as never, {
-    params: { query: query as never },
-  } as never);
+  const res = await api.GET('/work-orders', {
+    params: { query: query },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load work orders');
   return (res as { data: unknown }).data as unknown as ListResponse<WorkOrder>;
 }
 
 async function fetchOptions(pathname: '/sites' | '/devices'): Promise<Option[]> {
-  const res = await api.GET(pathname as never, { params: { query: { limit: 200 } as never } } as never);
+  const res = await api.GET(pathname, { params: { query: { limit: 200 } } });
   if ((res as { error?: unknown }).error) return [];
   return (((res as { data: unknown }).data as { data: Option[] }).data) ?? [];
 }
@@ -153,7 +153,7 @@ async function fetchOptions(pathname: '/sites' | '/devices'): Promise<Option[]> 
 // work_orders.update) are assignable, so the picker is populated from the
 // dedicated endpoint rather than the full /users list.
 async function fetchAssignableUsers(): Promise<UserOption[]> {
-  const res = await api.GET('/work-orders/assignable-users' as never, {} as never);
+  const res = await api.GET('/work-orders/assignable-users', {});
   if ((res as { error?: unknown }).error) return [];
   return (((res as { data: unknown }).data as { data: UserOption[] }).data) ?? [];
 }
@@ -188,9 +188,9 @@ async function patchWorkOrder(id: number, body: WorkOrderPatchBody): Promise<voi
 }
 
 async function fetchMaterials(workOrderId: number): Promise<WorkOrderMaterial[]> {
-  const res = await api.GET('/work-orders/{id}/materials' as never, {
-    params: { path: { id: workOrderId } as never },
-  } as never);
+  const res = await api.GET('/work-orders/{id}/materials', {
+    params: { path: { id: workOrderId } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load materials');
   return ((res as { data: unknown }).data as { data: WorkOrderMaterial[] }).data;
 }
@@ -357,9 +357,9 @@ interface PickupUnit {
 }
 
 async function fetchPickupItems(workOrderId: number): Promise<PickupUnit[]> {
-  const res = await api.GET('/work-orders/{id}/pickup-items' as never, {
-    params: { path: { id: workOrderId } as never },
-  } as never);
+  const res = await api.GET('/work-orders/{id}/pickup-items', {
+    params: { path: { id: workOrderId } },
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load pickup checklist');
   return ((res as { data: unknown }).data as { data: PickupUnit[] }).data ?? [];
 }

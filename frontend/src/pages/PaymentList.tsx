@@ -21,12 +21,13 @@ import { RecordPaymentModal } from '@/components/RecordPaymentModal';
 import {
   Payment,
   extractList,
-  fmtAmount,
   fetchAllocations,
   PaymentActionButtons,
 } from './payments/PaymentActions';
 import { useClientNames } from '@/api/clientNames';
 import { formatDate } from '@/lib/dates';
+import { formatMoney } from '@/lib/money';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types (local to this file — list-level concerns)
@@ -66,9 +67,9 @@ const API_BASE = '/api/v1';
 async function fetchPayments(page: number, pageSize: number, statusFilter: string, orderBy: string, order: string): Promise<PaymentsResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize, order_by: orderBy, order };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/payments', { params: { query: query as never } });
+  const res = await api.GET('/payments', { params: { query: query } });
   if (res.error) throw new Error('Failed to load payments');
-  return res.data as unknown as PaymentsResponse;
+  return res.data;
 }
 
 async function fetchGatewayTransactions(paymentId: number): Promise<GatewayTransaction[]> {
@@ -93,25 +94,13 @@ function fmt(dateStr: string | null | undefined): string {
   return formatDate(dateStr);
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    pending:   { bg: '#ede9fe', color: '#5b21b6' },
-    completed: { bg: '#d1fae5', color: '#065f46' },
-    failed:    { bg: '#fee2e2', color: '#991b1b' },
-    refunded:  { bg: '#dbeafe', color: '#1e40af' },
-    cancelled: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{
-      background: s.bg, color: s.color,
-      padding: '2px 8px', borderRadius: 12,
-      fontSize: '0.72rem', fontWeight: 600, textTransform: 'capitalize',
-    }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  pending:   { bg: '#ede9fe', color: '#5b21b6' },
+  completed: { bg: '#d1fae5', color: '#065f46' },
+  failed:    { bg: '#fee2e2', color: '#991b1b' },
+  refunded:  { bg: '#dbeafe', color: '#1e40af' },
+  cancelled: { bg: '#fef3c7', color: '#92400e' },
+};
 
 function GatewayBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
@@ -191,7 +180,7 @@ function AllocationsRow({ paymentId, currency }: AllocationsRowProps) {
                     </Link>
                   </td>
                   <td style={{ padding: '4px 8px', fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtAmount(a.amount, currency)}
+                    {formatMoney(a.amount, currency)}
                   </td>
                 </tr>
               ))}
@@ -253,7 +242,7 @@ function GatewayRow({ paymentId }: GatewayRowProps) {
                     {t.gateway_reference_id || '—'}
                   </td>
                   <td style={{ padding: '4px 8px', fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtAmount(t.amount, t.currency)}
+                    {formatMoney(t.amount, t.currency)}
                   </td>
                   <td style={{ padding: '4px 8px' }}><GatewayBadge status={t.gateway_status} /></td>
                   <td style={{ padding: '4px 8px', color: '#9ca3af' }}>{fmt(t.created_at)}</td>
@@ -300,7 +289,7 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
         </td>
         {/* Amount */}
         <td style={{ padding: '10px 14px', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: '#111827' }}>
-          {fmtAmount(payment.amount, payment.currency)}
+          {formatMoney(payment.amount, payment.currency)}
         </td>
         {/* Method */}
         <td style={{ padding: '10px 14px', textTransform: 'capitalize', color: '#4b5563' }}>
@@ -308,7 +297,7 @@ function PaymentRow({ payment, idx, clientName, onChanged }: PaymentRowProps) {
         </td>
         {/* Status */}
         <td style={{ padding: '10px 14px' }}>
-          <StatusBadge status={payment.status} />
+          <StatusBadge status={payment.status} colors={STATUS_COLORS} />
         </td>
         {/* Date */}
         <td style={{ padding: '10px 14px', color: '#6b7280' }}>

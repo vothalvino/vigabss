@@ -49,13 +49,13 @@ interface AtRiskReport {
 // ---------------------------------------------------------------------------
 
 async function fetchChurn(): Promise<ChurnReport> {
-  const res = await api.GET('/lifecycle/churn', { params: { query: { months: 12 } as never } });
+  const res = await api.GET('/lifecycle/churn', { params: { query: { months: 12 } } });
   if (res.error) throw new Error('Failed to load churn report');
   return (res.data as unknown as { data: ChurnReport }).data;
 }
 
 async function fetchAtRisk(): Promise<AtRiskReport> {
-  const res = await api.GET('/lifecycle/at-risk', { params: { query: { limit: 50 } as never } });
+  const res = await api.GET('/lifecycle/at-risk', { params: { query: { limit: 50 } } });
   if (res.error) throw new Error('Failed to load at-risk clients');
   return (res.data as unknown as { data: AtRiskReport }).data;
 }

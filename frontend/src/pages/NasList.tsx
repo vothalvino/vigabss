@@ -17,6 +17,7 @@ import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
 import { LoadingState } from '@/components/FetchStates';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -84,7 +85,7 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchNas(page: number, pageSize: number, statusFilter: string): Promise<NasResponse> {
   const query: Record<string, string | number> = { page, limit: pageSize };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/nas', { params: { query: query as never } });
+  const res = await api.GET('/nas', { params: { query: query } });
   if (res.error) throw new Error('Failed to load NAS devices');
   return res.data as unknown as NasResponse;
 }
@@ -97,7 +98,7 @@ async function createNas(body: NasBody): Promise<Nas | null> {
 }
 
 async function updateNas(id: number, body: Partial<NasBody>): Promise<void> {
-  const res = await api.PUT('/nas/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/nas/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update NAS');
 }
 
@@ -177,28 +178,10 @@ export async function seedNasDevice(id: number, body: SeedBody): Promise<SeedRes
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#fef3c7', color: '#92400e' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#fef3c7', color: '#92400e' },
+};
 
 // ---------------------------------------------------------------------------
 // Health badge
@@ -1166,7 +1149,7 @@ export function NasList() {
                           ? new Date(n.last_health_check_at).toLocaleString()
                           : '—'}
                       </td>
-                      <td style={styles.td}><StatusBadge status={n.status} /></td>
+                      <td style={styles.td}><StatusBadge status={n.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
                         {Boolean(n.maintenance_mode) ? (
                           <span

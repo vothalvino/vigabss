@@ -39,7 +39,8 @@ import {
   overlay, modalBox, errorBox, labelStyle, inputStyle, submitBtn, cancelBtn,
 } from '@/components/ClientFormModal';
 import { ClientPicker } from '@/components/ClientPicker';
-import { localToday } from '@/lib/dates';
+import { formatDate, localToday } from '@/lib/dates';
+import { formatMoney } from '@/lib/money';
 
 const API_BASE = '/api/v1';
 // Must match the backend payment_method enum exactly (src/middleware/schemas/payments.js
@@ -76,16 +77,6 @@ interface AllocateAutoResult {
   remaining_credit: number;
 }
 
-function fmtAmount(amount: string | number | null | undefined, currency: string): string {
-  if (amount === null || amount === undefined || amount === '') return '—';
-  const num = typeof amount === 'number' ? amount : parseFloat(amount);
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN' }).format(num);
-}
-
-function fmtDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' });
-}
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -305,7 +296,7 @@ export function RecordPaymentModal({
                 }}>
                   <span>{a.invoice_number || `#${a.invoice_id}`}</span>
                   <span>
-                    {fmtAmount(a.amount, form.currency)} —{' '}
+                    {formatMoney(a.amount, form.currency)} —{' '}
                     {a.fully_paid ? t('recordPayment.paidInFull') : t('recordPayment.partiallyPaid')}
                   </span>
                 </li>
@@ -314,7 +305,7 @@ export function RecordPaymentModal({
           )}
           {result && result.remaining_credit > 0 && (
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 1rem' }}>
-              {t('recordPayment.remainingCredit', { amount: fmtAmount(result.remaining_credit, form.currency) })}
+              {t('recordPayment.remainingCredit', { amount: formatMoney(result.remaining_credit, form.currency) })}
             </p>
           )}
           {(!result || result.allocations.length === 0) && (
@@ -447,12 +438,12 @@ export function RecordPaymentModal({
                       />
                     </td>
                     <td style={{ padding: '4px 6px' }}>{inv.invoice_number || `#${inv.id}`}</td>
-                    <td style={{ padding: '4px 6px' }}>{fmtDate(inv.issue_date)}</td>
+                    <td style={{ padding: '4px 6px' }}>{formatDate(inv.issue_date)}</td>
                     <td style={{ padding: '4px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtAmount(inv.total, inv.currency)}
+                      {formatMoney(inv.total, inv.currency)}
                     </td>
                     <td style={{ padding: '4px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtAmount(inv.balance_due, inv.currency)}
+                      {formatMoney(inv.balance_due, inv.currency)}
                     </td>
                   </tr>
                 ))}

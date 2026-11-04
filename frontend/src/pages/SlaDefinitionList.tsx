@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,13 +75,13 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchSlas(page: number, statusFilter: string): Promise<SlaResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/sla-definitions', { params: { query: query as never } });
+  const res = await api.GET('/sla-definitions', { params: { query: query } });
   if (res.error) throw new Error('Failed to load SLA definitions');
   return res.data as unknown as SlaResponse;
 }
 
 async function fetchPlanOptions(): Promise<PlanOption[]> {
-  const res = await api.GET('/plans', { params: { query: { limit: 500 } as never } });
+  const res = await api.GET('/plans', { params: { query: { limit: 500 } } });
   if (res.error) throw new Error('Failed to load plans');
   return (res.data as unknown as { data: PlanOption[] }).data;
 }
@@ -91,7 +92,7 @@ async function createSla(body: SlaBody): Promise<void> {
 }
 
 async function updateSla(id: number, body: Partial<SlaBody>): Promise<void> {
-  const res = await api.PUT('/sla-definitions/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/sla-definitions/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update SLA definition');
 }
 
@@ -104,28 +105,10 @@ async function deleteSla(id: number): Promise<void> {
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#f3f4f6', color: '#374151' },
+};
 
 // ---------------------------------------------------------------------------
 // SLA form modal (create + edit)
@@ -486,7 +469,7 @@ export function SlaDefinitionList() {
                       <td style={styles.td}>{planName(s.plan_id)}</td>
                       <td style={styles.td}>{s.uptime_pct}%</td>
                       <td style={{ ...styles.td, textTransform: 'capitalize' }}>{s.priority}</td>
-                      <td style={styles.td}><StatusBadge status={s.status} /></td>
+                      <td style={styles.td}><StatusBadge status={s.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditSla(s)} title="Edit this SLA">
                           ✏️ Edit

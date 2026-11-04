@@ -126,7 +126,7 @@ function CreateRefundModal({ onClose, onCreated }: { onClose: () => void; onCrea
       };
       if (paymentId.trim()) body.payment_id = parseInt(paymentId, 10);
       if (invoiceId.trim()) body.invoice_id = parseInt(invoiceId, 10);
-      const { error: e } = await api.POST('/refund-requests' as never, { body: body as never } as never);
+      const { error: e } = await api.POST('/refund-requests', { body: body });
       if (e) throw new Error(extractApiError(e, 'Failed to create refund request'));
     },
     onSuccess: () => { onCreated(); onClose(); },
@@ -204,8 +204,8 @@ function ReviewModal({
       const id = requestId;
       const reviewData = { status, review_notes: notes.trim() || undefined };
       const { error: e } = await api.POST(
-        '/refund-requests/{id}/review' as never,
-        { params: { path: { id } as never }, body: reviewData as never } as never,
+        '/refund-requests/{id}/review',
+        { params: { path: { id } }, body: reviewData },
       );
       if (e) throw new Error(extractApiError(e, 'Failed to review request'));
     },
@@ -265,8 +265,8 @@ function ProcessModal({
       const processData: Record<string, unknown> = { refund_method: refundMethod };
       if (gatewayRef.trim()) processData.gateway_refund_reference = gatewayRef.trim();
       const { error: e } = await api.POST(
-        '/refund-requests/{id}/process' as never,
-        { params: { path: { id } as never }, body: processData as never } as never,
+        '/refund-requests/{id}/process',
+        { params: { path: { id } }, body: processData },
       );
       if (e) throw new Error(extractApiError(e, 'Failed to process refund'));
     },
@@ -327,9 +327,9 @@ export function RefundRequestList() {
     queryFn: async () => {
       const query: Record<string, unknown> = { page, limit: PAGE_SIZE };
       if (statusFilter) query.status = statusFilter;
-      const res = await api.GET('/refund-requests' as never, {
-        params: { query: query as never },
-      } as never);
+      const res = await api.GET('/refund-requests', {
+        params: { query: query },
+      });
       if (res.error) throw new Error('Failed to load refund requests');
       return res.data as unknown as RefundRequestsResponse;
     },

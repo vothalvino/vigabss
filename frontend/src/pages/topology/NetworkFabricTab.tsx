@@ -178,8 +178,8 @@ export function NetworkFabricTab() {
   const { data, isLoading } = useQuery({
     queryKey: ['topology-fabric'],
     queryFn: async () => {
-      const res = await api.GET('/topology/map/fabric' as never, {} as never);
-      return (res as { data: { data: FabricData } }).data?.data as FabricData;
+      const res = await api.GET('/topology/map/fabric', {});
+      return (res.data as { data: FabricData })?.data as FabricData;
     },
     refetchInterval: 30_000,
   });
@@ -218,7 +218,7 @@ export function NetworkFabricTab() {
     try {
       // openapi-fetch resolves (never throws) on non-2xx — inspect { error,
       // response } explicitly, or a 422 "not supported" reads as success.
-      const { error, response } = await api.POST(`/devices/${selected.id}/reboot` as never, {} as never) as
+      const { error, response } = await api.POST('/devices/{id}/reboot', { params: { path: { id: selected.id } } }) as
         { error?: unknown; response?: { status: number } };
       if (error) {
         setActionMsg(response?.status === 422
@@ -237,7 +237,7 @@ export function NetworkFabricTab() {
     const next = selected.status === 'maintenance' ? 'online' : 'maintenance';
     setActionBusy(true); setActionMsg(null);
     try {
-      const { error } = await api.PUT(`/devices/${selected.id}` as never, { body: { status: next } } as never) as
+      const { error } = await api.PUT('/devices/{id}', { params: { path: { id: selected.id } }, body: { status: next } }) as
         { error?: unknown };
       if (error) {
         setActionMsg(t('topologyMap.fabric.actionError'));

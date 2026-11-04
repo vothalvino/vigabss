@@ -125,7 +125,7 @@ function CreateDisputeModal({ onClose, onCreated }: { onClose: () => void; onCre
       };
       if (invoiceId.trim()) body.invoice_id = parseInt(invoiceId, 10);
       if (paymentId.trim()) body.payment_id = parseInt(paymentId, 10);
-      const { error: e } = await api.POST('/billing-disputes' as never, { body: body as never } as never);
+      const { error: e } = await api.POST('/billing-disputes', { body: body });
       if (e) throw new Error(extractApiError(e, 'Failed to create dispute'));
     },
     onSuccess: () => { onCreated(); onClose(); },
@@ -204,8 +204,8 @@ function TransitionModal({
       const tData: Record<string, unknown> = { status };
       if (notes.trim()) tData.resolution_notes = notes.trim();
       const { error: e } = await api.POST(
-        '/billing-disputes/{id}/transition' as never,
-        { params: { path: { id } as never }, body: tData as never } as never,
+        '/billing-disputes/{id}/transition',
+        { params: { path: { id } }, body: tData },
       );
       if (e) throw new Error(extractApiError(e, 'Failed to transition dispute'));
     },
@@ -259,8 +259,8 @@ function EvidencePanel({ disputeId, colSpan }: { disputeId: number; colSpan: num
     queryFn: async () => {
       const id = disputeId;
       const res = await api.GET(
-        '/billing-disputes/{id}/evidence' as never,
-        { params: { path: { id } as never } } as never,
+        '/billing-disputes/{id}/evidence',
+        { params: { path: { id } } },
       );
       if (res.error) throw new Error('Failed to load evidence');
       return (res.data as { data: EvidenceFile[] }).data;
@@ -397,9 +397,9 @@ export function BillingDisputeList() {
     queryFn: async () => {
       const query: Record<string, unknown> = { page, limit: PAGE_SIZE };
       if (statusFilter) query.status = statusFilter;
-      const res = await api.GET('/billing-disputes' as never, {
-        params: { query: query as never },
-      } as never);
+      const res = await api.GET('/billing-disputes', {
+        params: { query: query },
+      });
       if (res.error) throw new Error('Failed to load billing disputes');
       return res.data as unknown as DisputesResponse;
     },

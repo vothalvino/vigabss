@@ -113,9 +113,9 @@ function DiagnosticsTab() {
   const { data: devicesData, isLoading: devicesLoading } = useQuery<ListResponse<CpeDevice>>({
     queryKey: ['cpe-devices-select'],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices' as never, {
-        params: { query: { limit: 200 } as never },
-      } as never);
+      const res = await api.GET('/cpe-management/devices', {
+        params: { query: { limit: 200 } },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load devices');
       return (res as { data: unknown }).data as unknown as ListResponse<CpeDevice>;
     },
@@ -126,9 +126,9 @@ function DiagnosticsTab() {
     queryKey: ['cpe-diagnostics', selectedDeviceId, diagPage],
     enabled: selectedDeviceId !== null,
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices/{id}/diagnostics' as never, {
-        params: { path: { id: selectedDeviceId }, query: { page: diagPage, limit: PAGE_SIZE } as never },
-      } as never);
+      const res = await api.GET('/cpe-management/devices/{id}/diagnostics', {
+        params: { path: { id: selectedDeviceId! }, query: { page: diagPage, limit: PAGE_SIZE } },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load diagnostics');
       return (res as { data: unknown }).data as unknown as ListResponse<CpeDiagnostic>;
     },
@@ -137,10 +137,10 @@ function DiagnosticsTab() {
   const runMut = useMutation({
     mutationFn: async () => {
       if (!selectedDeviceId) throw new Error('Select a device first');
-      const res = await api.POST('/cpe-management/devices/{id}/diagnostics' as never, {
-        params: { path: { id: selectedDeviceId } } as never,
-        body: { diag_type: diagType, target_host: targetHost || undefined } as never,
-      } as never);
+      const res = await api.POST('/cpe-management/devices/{id}/diagnostics', {
+        params: { path: { id: selectedDeviceId } },
+        body: { diag_type: diagType, target_host: targetHost || undefined },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to queue diagnostic');
       return (res as { data: unknown }).data;
     },
@@ -153,9 +153,9 @@ function DiagnosticsTab() {
 
   const deleteMut = useMutation({
     mutationFn: async (diagId: number) => {
-      const { error } = await api.DELETE('/cpe-management/devices/{id}/diagnostics/{diagId}' as never, {
+      const { error } = await api.DELETE('/cpe-management/devices/{id}/diagnostics/{diagId}', {
         params: { path: { id: selectedDeviceId, diagId } } as never,
-      } as never) as { error?: unknown };
+      }) as { error?: unknown };
       if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-diagnostics', selectedDeviceId] }),
@@ -300,9 +300,9 @@ function SessionLogsTab() {
   const { data: devicesData } = useQuery<ListResponse<CpeDevice>>({
     queryKey: ['cpe-devices-select'],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices' as never, {
-        params: { query: { limit: 200 } as never },
-      } as never);
+      const res = await api.GET('/cpe-management/devices', {
+        params: { query: { limit: 200 } },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load devices');
       return (res as { data: unknown }).data as unknown as ListResponse<CpeDevice>;
     },
@@ -312,12 +312,12 @@ function SessionLogsTab() {
     queryKey: ['cpe-session-logs', selectedDeviceId, eventType, logPage],
     enabled: selectedDeviceId !== null,
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices/{id}/session-logs' as never, {
+      const res = await api.GET('/cpe-management/devices/{id}/session-logs', {
         params: {
-          path: { id: selectedDeviceId },
-          query: { page: logPage, limit: PAGE_SIZE, event_type: eventType || undefined } as never,
+          path: { id: selectedDeviceId! },
+          query: { page: logPage, limit: PAGE_SIZE, event_type: eventType || undefined },
         },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load session logs');
       return (res as { data: unknown }).data as unknown as ListResponse<CpeSessionLog>;
     },
@@ -326,9 +326,9 @@ function SessionLogsTab() {
   const clearMut = useMutation({
     mutationFn: async () => {
       if (!selectedDeviceId) return;
-      const { error } = await api.DELETE('/cpe-management/devices/{id}/session-logs' as never, {
-        params: { path: { id: selectedDeviceId } } as never,
-      } as never) as { error?: unknown };
+      const { error } = await api.DELETE('/cpe-management/devices/{id}/session-logs', {
+        params: { path: { id: selectedDeviceId } },
+      }) as { error?: unknown };
       if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-session-logs', selectedDeviceId] }),

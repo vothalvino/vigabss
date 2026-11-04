@@ -35,6 +35,8 @@ import {
 } from '@/components/MxContractEnvironment';
 import { formatDate } from '@/lib/dates';
 import { invalidateContractViews, queryKeys } from '@/api/queryKeys';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { formatMoney } from '@/lib/money';
 
 // The markdown renderer is its own chunk (FE-21).
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
@@ -217,9 +219,9 @@ interface RadiusAccount {
 }
 
 async function fetchRadiusAccounts(contractId: string): Promise<RadiusAccount[]> {
-  const res = await api.GET('/radius/contract/{contractId}' as never, {
+  const res = await api.GET('/radius/contract/{contractId}', {
     params: { path: { contractId: Number(contractId) } },
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to load PPPoE account');
   const d = (res as { data: unknown }).data as { data?: RadiusAccount[] } | RadiusAccount[];
   return Array.isArray(d) ? d : d.data ?? [];
@@ -231,9 +233,9 @@ async function fetchRadiusAccounts(contractId: string): Promise<RadiusAccount[]>
 const RADIUS_CREDENTIALS_FORBIDDEN = 'radius_credentials_forbidden';
 
 async function fetchRadiusCredentials(contractId: string): Promise<RadiusAccount[]> {
-  const res = await api.GET('/radius/contract/{contractId}/credentials' as never, {
+  const res = await api.GET('/radius/contract/{contractId}/credentials', {
     params: { path: { contractId: Number(contractId) } },
-  } as never);
+  });
   const { error, response } = res as unknown as { error: unknown; response: { status: number } };
   if (error) {
     if (response?.status === 401 || response?.status === 403) {
@@ -269,46 +271,19 @@ function fmt(dateStr: string | null | undefined): string {
   return formatDate(dateStr);
 }
 
-function fmtMoney(amount: string | null, currency = 'MXN'): string {
-  if (!amount) return '—';
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(parseFloat(amount));
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active:     { bg: '#d1fae5', color: '#065f46' },
-    paid:       { bg: '#d1fae5', color: '#065f46' },
-    pending:    { bg: '#ede9fe', color: '#5b21b6' },
-    suspended:  { bg: '#fef3c7', color: '#92400e' },
-    overdue:    { bg: '#fee2e2', color: '#991b1b' },
-    cancelled:  { bg: '#fee2e2', color: '#991b1b' },
-    terminated: { bg: '#f3f4f6', color: '#6b7280' },
-    expired:    { bg: '#fde68a', color: '#78350f' },
-    failed:     { bg: '#fee2e2', color: '#991b1b' },
-    draft:      { bg: '#f3f4f6', color: '#6b7280' },
-    inactive:   { bg: '#f3f4f6', color: '#6b7280' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active:     { bg: '#d1fae5', color: '#065f46' },
+  paid:       { bg: '#d1fae5', color: '#065f46' },
+  pending:    { bg: '#ede9fe', color: '#5b21b6' },
+  suspended:  { bg: '#fef3c7', color: '#92400e' },
+  overdue:    { bg: '#fee2e2', color: '#991b1b' },
+  cancelled:  { bg: '#fee2e2', color: '#991b1b' },
+  terminated: { bg: '#f3f4f6', color: '#6b7280' },
+  expired:    { bg: '#fde68a', color: '#78350f' },
+  failed:     { bg: '#fee2e2', color: '#991b1b' },
+  draft:      { bg: '#f3f4f6', color: '#6b7280' },
+  inactive:   { bg: '#f3f4f6', color: '#6b7280' },
+};
 
 // ---------------------------------------------------------------------------
 // Tab types
@@ -345,11 +320,11 @@ function InvoicesTab({ invoices }: { invoices: Invoice[] }) {
                 </Link>
               </td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtMoney(inv.total, inv.currency)}
+                {formatMoney(inv.total, inv.currency)}
               </td>
               <td style={styles.td}>{fmt(inv.dueDate)}</td>
               <td style={styles.td}>{fmt(inv.paidAt)}</td>
-              <td style={styles.td}><StatusBadge status={inv.status} /></td>
+              <td style={styles.td}><StatusBadge status={inv.status} colors={STATUS_COLORS} /></td>
             </tr>
           ))}
         </tbody>
@@ -412,20 +387,20 @@ function InstallEquipmentModal({ contractId, onClose, onInstalled }: {
   const itemsQ = useQuery({
     queryKey: ['inventory-items-lookup-contract'],
     queryFn: async () => {
-      const res = await api.GET('/inventory/items' as never, { params: { query: { limit: 200, status: 'active' } } } as never);
+      const res = await api.GET('/inventory/items', { params: { query: { limit: 200, status: 'active' } } });
       if ((res as { error?: unknown }).error) throw new Error('load failed');
-      return (((res as { data: { data: CatalogItem[] } }).data?.data) ?? []);
+      return (((res.data as { data: CatalogItem[] })?.data) ?? []);
     },
   });
 
   const unitsQ = useQuery({
     queryKey: ['contract-in-stock-units', itemId],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices' as never, {
+      const res = await api.GET('/cpe-management/devices', {
         params: { query: { inventory_item_id: Number(itemId), lifecycle_state: 'in_stock', limit: 200 } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('load failed');
-      return (((res as { data: { data: InStockUnit[] } }).data?.data) ?? []);
+      return (((res.data as { data: InStockUnit[] })?.data) ?? []);
     },
     enabled: itemId !== '' && serialMode === 'existing',
   });
@@ -445,7 +420,7 @@ function InstallEquipmentModal({ contractId, onClose, onInstalled }: {
     }
     setBusy(true);
     try {
-      const res = await api.POST('/cpe-management/devices/install' as never, { body: body as never } as never);
+      const res = await api.POST('/cpe-management/devices/install', { body: body });
       const e2 = (res as { error?: { error?: { message?: string } } }).error;
       if (e2) throw new Error(e2.error?.message || 'Failed to install equipment');
       onInstalled();
@@ -536,7 +511,7 @@ function NewDeviceModal({ contractId, clientId, onClose, onCreated }: {
         const v = form[k].trim();
         if (v) body[k] = v;
       });
-      const res = await api.POST('/devices' as never, { body: body as never } as never);
+      const res = await api.POST('/devices', { body: body });
       const e2 = (res as { error?: { error?: { message?: string } } }).error;
       if (e2) throw new Error(e2.error?.message || 'Could not create the device');
       onCreated();
@@ -610,11 +585,11 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
   const equipmentQ = useQuery({
     queryKey: ['contract-equipment', contractId],
     queryFn: async () => {
-      const res = await api.GET('/cpe-management/devices' as never, {
+      const res = await api.GET('/cpe-management/devices', {
         params: { query: { contract_id: Number(contractId), limit: 100 } },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('equipment unavailable');
-      return (((res as { data: { data: InstalledUnit[] } }).data?.data) ?? []);
+      return (((res.data as { data: InstalledUnit[] })?.data) ?? []);
     },
     retry: false,
   });
@@ -623,9 +598,9 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
   const orgDevicesQ = useQuery({
     queryKey: ['org-devices-for-assign'],
     queryFn: async () => {
-      const res = await api.GET('/devices' as never, { params: { query: { limit: 200 } } } as never);
+      const res = await api.GET('/devices', { params: { query: { limit: 200 } } });
       if ((res as { error?: unknown }).error) throw new Error('load failed');
-      return (((res as { data: { data: OrgDevice[] } }).data?.data) ?? []);
+      return (((res.data as { data: OrgDevice[] })?.data) ?? []);
     },
     enabled: canManage,
   });
@@ -633,9 +608,9 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
   async function setContract(deviceId: number, contract_id: number | null) {
     setBusy(true); setErr('');
     try {
-      const res = await api.PUT('/devices/{id}' as never, {
-        params: { path: { id: deviceId } }, body: { contract_id } as never,
-      } as never);
+      const res = await api.PUT('/devices/{id}', {
+        params: { path: { id: deviceId } }, body: { contract_id },
+      });
       const e = (res as { error?: { error?: { message?: string } } }).error;
       if (e) throw new Error(e.error?.message || 'Could not update the device');
       setPickId('');
@@ -760,7 +735,7 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
                   </td>
                   <td style={{ ...styles.td, fontFamily: 'monospace' }}>{d.macAddress || '—'}</td>
                   <td style={{ ...styles.td, fontFamily: 'monospace' }}>{d.ipAddress || '—'}</td>
-                  <td style={styles.td}><StatusBadge status={d.status} /></td>
+                  <td style={styles.td}><StatusBadge status={d.status} colors={STATUS_COLORS} /></td>
                   {canManage && (
                     <td style={styles.td}>
                       <button
@@ -821,11 +796,11 @@ function AddonsTab({ addons }: { addons: ContractAddon[] }) {
               <td style={{ ...styles.td, textTransform: 'capitalize' }}>{a.addonType || '—'}</td>
               <td style={styles.td}>{a.quantity ?? '—'}</td>
               <td style={{ ...styles.td, fontVariantNumeric: 'tabular-nums' }}>
-                {a.unitPrice ? fmtMoney(a.unitPrice) : '—'}
+                {a.unitPrice ? formatMoney(a.unitPrice) : '—'}
               </td>
               <td style={styles.td}>{fmt(a.startDate)}</td>
               <td style={styles.td}>{fmt(a.endDate)}</td>
-              <td style={styles.td}><StatusBadge status={a.status} /></td>
+              <td style={styles.td}><StatusBadge status={a.status} colors={STATUS_COLORS} /></td>
             </tr>
           ))}
         </tbody>
@@ -1043,7 +1018,7 @@ function ContractInfoCard({ contract }: { contract: Contract }) {
         <InfoRow label="IP Address"  value={contract.ipAddress} mono />
         <InfoRow label="Created"     value={fmt(contract.createdAt)} />
         {contract.priceOverride && (
-          <InfoRow label="Price Override" value={fmtMoney(contract.priceOverride)} />
+          <InfoRow label="Price Override" value={formatMoney(contract.priceOverride)} />
         )}
       </div>
       {contract.notes && (
@@ -2298,7 +2273,7 @@ export function ContractDetail() {
         <div>
           <h1 style={styles.contractTitle}>Contract #{contract.id}</h1>
           <div style={styles.headerMeta}>
-            <StatusBadge status={contract.status} />
+            <StatusBadge status={contract.status} colors={STATUS_COLORS} />
             {contract.mxContractEnvironment && (
               <MxContractEnvironmentBadge environment={contract.mxContractEnvironment} />
             )}

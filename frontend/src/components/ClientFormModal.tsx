@@ -109,14 +109,14 @@ export function extractApiError(err: unknown, fallback?: string): string {
 }
 
 async function createClient(body: ClientSubmitBody): Promise<void> {
-  const { error } = await api.POST('/clients', { body: body as never });
+  const { error } = await api.POST('/clients', { body: body });
   if (error) throw new Error(extractApiError(error, 'Failed to create client'));
 }
 
 async function updateClient(id: number, body: ClientSubmitBody): Promise<void> {
   const { error } = await api.PUT('/clients/{id}', {
     params: { path: { id } },
-    body: body as never,
+    body: body,
   });
   if (error) throw new Error(extractApiError(error, 'Failed to update client'));
 }

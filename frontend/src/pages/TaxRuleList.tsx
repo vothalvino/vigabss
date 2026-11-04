@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -59,7 +60,7 @@ const STATUS_FILTER_OPTIONS = ['', ...STATUSES];
 async function fetchTaxRules(page: number, statusFilter: string): Promise<TaxRuleResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/tax-rules', { params: { query: query as never } });
+  const res = await api.GET('/tax-rules', { params: { query: query } });
   if (res.error) throw new Error('Failed to load tax rules');
   return res.data as unknown as TaxRuleResponse;
 }
@@ -70,7 +71,7 @@ async function createTaxRule(body: TaxRuleBody): Promise<void> {
 }
 
 async function updateTaxRule(id: number, body: Partial<TaxRuleBody>): Promise<void> {
-  const res = await api.PUT('/tax-rules/{id}', { params: { path: { id } }, body: body as never });
+  const res = await api.PUT('/tax-rules/{id}', { params: { path: { id } }, body: body });
   if (res.error) throw new Error('Failed to update tax rule');
 }
 
@@ -83,28 +84,10 @@ async function deleteTaxRule(id: number): Promise<void> {
 // Badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    inactive: { bg: '#f3f4f6', color: '#374151' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  inactive: { bg: '#f3f4f6', color: '#374151' },
+};
 
 function formatRate(rate: number | string): string {
   return `${(Number(rate) * 100).toFixed(2)}%`;
@@ -423,7 +406,7 @@ export function TaxRuleList() {
                       <td style={{ ...styles.td, textTransform: 'uppercase' }}>{t.tax_type?.replace(/_/g, ' ')}</td>
                       <td style={styles.td}>{formatRate(t.rate)}</td>
                       <td style={styles.td}>{t.is_default ? '⭐' : '—'}</td>
-                      <td style={styles.td}><StatusBadge status={t.status} /></td>
+                      <td style={styles.td}><StatusBadge status={t.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button style={styles.actionBtn} onClick={() => setEditTaxRule(t)} title="Edit this tax rule">
                           ✏️ Edit

@@ -92,9 +92,9 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
   const { data, isLoading, error } = useQuery<ProfileListResponse>({
     queryKey: ['cpe-profiles', page],
     queryFn: async () => {
-      const res = await api.GET('/cpe-profiles' as never, {
+      const res = await api.GET('/cpe-profiles', {
         params: { query: { page, limit: PAGE_SIZE } as never },
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load profiles');
       return (res as { data: unknown }).data as unknown as ProfileListResponse;
     },
@@ -102,7 +102,7 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
 
   const createMut = useMutation({
     mutationFn: async (body: typeof form) => {
-      const res = await api.POST('/cpe-profiles' as never, { body } as never);
+      const res = await api.POST('/cpe-profiles', { body });
       if ((res as { error?: unknown }).error) throw new Error('Create failed');
       return (res as { data: unknown }).data;
     },
@@ -116,7 +116,7 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
 
   const deleteMut = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await api.DELETE('/cpe-profiles/{id}' as never, { params: { path: { id } } } as never) as { error?: unknown };
+      const { error } = await api.DELETE('/cpe-profiles/{id}', { params: { path: { id } } }) as { error?: unknown };
       if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-profiles'] }),
@@ -260,9 +260,9 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
     queryKey: ['cpe-profile-mappings', profile?.id],
     enabled: !!profile,
     queryFn: async () => {
-      const res = await api.GET('/cpe-profiles/{id}/mappings' as never, {
-        params: { path: { id: profile!.id } as never },
-      } as never);
+      const res = await api.GET('/cpe-profiles/{id}/mappings', {
+        params: { path: { id: profile!.id } },
+      });
       if ((res as { error?: unknown }).error) throw new Error('Failed to load mappings');
       return (res as { data: unknown }).data as unknown as MappingListResponse;
     },
@@ -270,10 +270,10 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
 
   const createMut = useMutation({
     mutationFn: async (body: typeof form) => {
-      const res = await api.POST('/cpe-profiles/{id}/mappings' as never, {
-        params: { path: { id: profile!.id } as never },
+      const res = await api.POST('/cpe-profiles/{id}/mappings', {
+        params: { path: { id: profile!.id } },
         body,
-      } as never);
+      });
       if ((res as { error?: unknown }).error) throw new Error('Create failed');
       return (res as { data: unknown }).data;
     },
@@ -287,9 +287,9 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
 
   const deleteMut = useMutation({
     mutationFn: async (mappingId: number) => {
-      const { error } = await api.DELETE('/cpe-profiles/{id}/mappings/{mappingId}' as never, {
+      const { error } = await api.DELETE('/cpe-profiles/{id}/mappings/{mappingId}', {
         params: { path: { id: profile!.id, mappingId } },
-      } as never) as { error?: unknown };
+      }) as { error?: unknown };
       if (error) throw new Error(parseApiError(error, t('common.error')));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cpe-profile-mappings', profile?.id] }),

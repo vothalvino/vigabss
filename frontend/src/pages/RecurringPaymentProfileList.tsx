@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,7 +43,7 @@ const DEFAULT_PAGE_SIZE = 50;
 
 async function fetchProfiles(page: number): Promise<RecurringPaymentProfileResponse> {
   const query = { page, limit: DEFAULT_PAGE_SIZE };
-  const res = await api.GET('/recurring-payment-profiles', { params: { query: query as never } });
+  const res = await api.GET('/recurring-payment-profiles', { params: { query: query } });
   if (res.error) throw new Error('Failed to load recurring payment profiles');
   return res.data as unknown as RecurringPaymentProfileResponse;
 }
@@ -51,29 +52,11 @@ async function fetchProfiles(page: number): Promise<RecurringPaymentProfileRespo
 // Badge / formatting
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    active: { bg: '#d1fae5', color: '#065f46' },
-    expired: { bg: '#fef3c7', color: '#92400e' },
-    revoked: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '2px 8px',
-        borderRadius: 12,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'capitalize',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  active: { bg: '#d1fae5', color: '#065f46' },
+  expired: { bg: '#fef3c7', color: '#92400e' },
+  revoked: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 function formatCard(p: RecurringPaymentProfile): string {
   const brand = p.card_brand ? p.card_brand.toUpperCase() : 'Card';
@@ -135,7 +118,7 @@ export function RecurringPaymentProfileList() {
                       <td style={{ ...styles.td, fontFamily: 'monospace', fontSize: '0.8rem' }}>{formatCard(p)}</td>
                       <td style={styles.td}>{formatExpiry(p)}</td>
                       <td style={styles.td}>{p.is_default ? '⭐' : '—'}</td>
-                      <td style={styles.td}><StatusBadge status={p.status} /></td>
+                      <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                     </tr>
                   ))}
                 </tbody>

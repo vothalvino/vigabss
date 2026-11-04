@@ -24,6 +24,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import { extractApiError } from '@/components/ClientFormModal';
 import { styles as crudStyles, modalStyles, RequiredMark } from './crudStyles';
+import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { formatMoney } from '@/lib/money';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,33 +74,33 @@ interface InventoryItemOption { id: number; name: string; sku: string | null; un
 // ---------------------------------------------------------------------------
 
 async function fetchPo(id: string): Promise<PurchaseOrder> {
-  const res = await api.GET('/purchase-orders/{id}' as never, { params: { path: { id: Number(id) } as never } } as never);
+  const res = await api.GET('/purchase-orders/{id}', { params: { path: { id: Number(id) } } });
   if ((res as { error?: unknown }).error) throw new Error('Purchase order not found');
-  return (res as { data: { data: PurchaseOrder } }).data.data;
+  return (res.data as { data: PurchaseOrder }).data;
 }
 
 async function fetchPoItems(id: string): Promise<PoItem[]> {
-  const res = await api.GET('/purchase-orders/{id}/items' as never, { params: { path: { id: Number(id) } as never } } as never);
+  const res = await api.GET('/purchase-orders/{id}/items', { params: { path: { id: Number(id) } } });
   if ((res as { error?: unknown }).error) return [];
-  return ((res as { data: { data: PoItem[] } }).data?.data) ?? [];
+  return ((res.data as { data: PoItem[] })?.data) ?? [];
 }
 
 async function fetchVendor(id: number): Promise<Vendor> {
-  const res = await api.GET('/vendors/{id}' as never, { params: { path: { id } as never } } as never);
+  const res = await api.GET('/vendors/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Vendor not found');
-  return (res as { data: { data: Vendor } }).data.data;
+  return (res.data as { data: Vendor }).data;
 }
 
 async function fetchWarehouse(id: number): Promise<Warehouse> {
-  const res = await api.GET('/warehouses/{id}' as never, { params: { path: { id } as never } } as never);
+  const res = await api.GET('/warehouses/{id}', { params: { path: { id } } });
   if ((res as { error?: unknown }).error) throw new Error('Warehouse not found');
-  return (res as { data: { data: Warehouse } }).data.data;
+  return (res.data as { data: Warehouse }).data;
 }
 
 async function fetchInventoryItems(): Promise<InventoryItemOption[]> {
-  const res = await api.GET('/inventory/items' as never, { params: { query: { limit: 200, status: 'active' } as never } } as never);
+  const res = await api.GET('/inventory/items', { params: { query: { limit: 200, status: 'active' } } });
   if ((res as { error?: unknown }).error) return [];
-  return ((res as { data: { data: InventoryItemOption[] } }).data?.data) ?? [];
+  return ((res.data as { data: InventoryItemOption[] })?.data) ?? [];
 }
 
 interface AddItemBody {
@@ -109,14 +111,14 @@ interface AddItemBody {
 }
 
 async function addPoItem(poId: number, body: AddItemBody): Promise<PoItem> {
-  const res = await api.POST('/purchase-orders/{id}/items' as never, {
-    params: { path: { id: poId } as never },
+  const res = await api.POST('/purchase-orders/{id}/items', {
+    params: { path: { id: poId } },
     body: body as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to add line item'));
   }
-  return (res as { data: { data: PoItem } }).data.data;
+  return (res.data as { data: PoItem }).data;
 }
 
 interface UpdatePoBody {
@@ -125,10 +127,10 @@ interface UpdatePoBody {
 }
 
 async function updatePo(id: number, body: UpdatePoBody): Promise<void> {
-  const res = await api.PUT('/purchase-orders/{id}' as never, {
-    params: { path: { id } as never },
+  const res = await api.PUT('/purchase-orders/{id}', {
+    params: { path: { id } },
     body: body as never,
-  } as never);
+  });
   if ((res as { error?: unknown }).error) throw new Error('Failed to update purchase order');
 }
 
@@ -137,14 +139,14 @@ interface ReceiveItemInput { id: number; quantity_received: number }
 async function receivePo(id: number, items: ReceiveItemInput[], serials?: Record<number, string[]>): Promise<PurchaseOrder> {
   const body: { items: ReceiveItemInput[]; serials?: Record<number, string[]> } = { items };
   if (serials && Object.keys(serials).length > 0) body.serials = serials;
-  const res = await api.POST('/purchase-orders/{id}/receive' as never, {
-    params: { path: { id } as never },
-    body: body as never,
-  } as never);
+  const res = await api.POST('/purchase-orders/{id}/receive', {
+    params: { path: { id } },
+    body: body,
+  });
   if ((res as { error?: unknown }).error) {
     throw new Error(extractApiError((res as { error: unknown }).error, 'Failed to receive purchase order'));
   }
-  return (res as { data: { data: PurchaseOrder } }).data.data;
+  return (res.data as { data: PurchaseOrder }).data;
 }
 
 // ---------------------------------------------------------------------------
@@ -170,28 +172,13 @@ function fmt(dateStr: string | null | undefined): string {
   return new Date(dateStr).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function fmtAmount(amount: string | number | null | undefined, currency: string): string {
-  if (amount === null || amount === undefined || amount === '') return '—';
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  if (Number.isNaN(num)) return '—';
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN' }).format(num);
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string }> = {
-    draft:     { bg: '#f3f4f6', color: '#6b7280' },
-    sent:      { bg: '#dbeafe', color: '#1e40af' },
-    partial:   { bg: '#fef3c7', color: '#92400e' },
-    received:  { bg: '#d1fae5', color: '#065f46' },
-    cancelled: { bg: '#fee2e2', color: '#991b1b' },
-  };
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#374151' };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 12, fontSize: '0.78rem', fontWeight: 600, textTransform: 'capitalize' }}>
-      {status}
-    </span>
-  );
-}
+const STATUS_COLORS: StatusColors = {
+  draft:     { bg: '#f3f4f6', color: '#6b7280' },
+  sent:      { bg: '#dbeafe', color: '#1e40af' },
+  partial:   { bg: '#fef3c7', color: '#92400e' },
+  received:  { bg: '#d1fae5', color: '#065f46' },
+  cancelled: { bg: '#fee2e2', color: '#991b1b' },
+};
 
 // ---------------------------------------------------------------------------
 // Add Line Item form (inline card — the primary "build the PO" interaction)
@@ -513,11 +500,11 @@ export function PurchaseOrderDetail() {
 
           <div style={card}>
             <div style={metaGrid}>
-              <MetaRow label={t('purchaseOrderDetail.meta.status')} value={<StatusBadge status={po.status} />} />
+              <MetaRow label={t('purchaseOrderDetail.meta.status')} value={<StatusBadge status={po.status} colors={STATUS_COLORS} size="md" />} />
               <MetaRow label={t('purchaseOrderDetail.meta.warehouse')} value={warehouseQ.data?.name ?? '—'} />
-              <MetaRow label={t('purchaseOrderDetail.meta.total')} value={<strong style={{ fontSize: '1.05rem' }}>{fmtAmount(po.total, po.currency ?? 'MXN')}</strong>} />
-              <MetaRow label={t('purchaseOrderDetail.meta.subtotal')} value={fmtAmount(po.subtotal, po.currency ?? 'MXN')} />
-              <MetaRow label={t('purchaseOrderDetail.meta.tax')} value={fmtAmount(po.tax_amount, po.currency ?? 'MXN')} />
+              <MetaRow label={t('purchaseOrderDetail.meta.total')} value={<strong style={{ fontSize: '1.05rem' }}>{formatMoney(po.total, po.currency ?? 'MXN')}</strong>} />
+              <MetaRow label={t('purchaseOrderDetail.meta.subtotal')} value={formatMoney(po.subtotal, po.currency ?? 'MXN')} />
+              <MetaRow label={t('purchaseOrderDetail.meta.tax')} value={formatMoney(po.tax_amount, po.currency ?? 'MXN')} />
               <MetaRow label={t('purchaseOrderDetail.meta.orderDate')} value={fmt(po.order_date)} />
               <MetaRow label={t('purchaseOrderDetail.meta.expectedDate')} value={fmt(po.expected_date)} />
               {po.received_date && <MetaRow label={t('purchaseOrderDetail.meta.receivedDate')} value={fmt(po.received_date)} />}
@@ -560,8 +547,8 @@ export function PurchaseOrderDetail() {
                           {item.quantity_received}
                         </span>
                       </td>
-                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.unit_cost, po.currency ?? 'MXN')}</td>
-                      <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(item.total_cost, po.currency ?? 'MXN')}</td>
+                      <td style={{ padding: '8px 10px', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.unit_cost, po.currency ?? 'MXN')}</td>
+                      <td style={{ padding: '8px 10px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.total_cost, po.currency ?? 'MXN')}</td>
                     </tr>
                   ))}
                 </tbody>

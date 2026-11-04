@@ -45,7 +45,7 @@ const STATUS_FILTER_OPTIONS = ['', 'ongoing', 'resolved', 'post_mortem'];
 async function fetchOutages(page: number, statusFilter: string): Promise<OutageResponse> {
   const query: Record<string, string | number> = { page, limit: DEFAULT_PAGE_SIZE };
   if (statusFilter) query.status = statusFilter;
-  const res = await api.GET('/outages', { params: { query: query as never } });
+  const res = await api.GET('/outages', { params: { query: query } });
   if (res.error) throw new Error('Failed to load outages');
   return res.data as unknown as OutageResponse;
 }

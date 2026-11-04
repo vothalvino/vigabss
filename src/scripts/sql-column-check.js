@@ -1276,5 +1276,6 @@ if (require.main === module) {
 module.exports = {
   run, parseSchema, scanLiterals, extractFromLiteral, parseSetClause, literalValue,
   extractSelectRefs, parseFromJoinList, scanColumnRefs,
+  stripSqlComments, readBalanced, splitTopLevel, parseEnumValues, NON_COLUMN_KEYWORDS,
   KNOWN_SCHEMA_GAPS, RUNTIME_GUARDED_SELECT_EXCEPTIONS, KNOWN_MISSING_TABLES,
 };

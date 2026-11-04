@@ -89,7 +89,7 @@ async function fetchClients(
     ...(groupId ? { client_group_id: groupId } : {}),
     ...(includeDeleted ? { include_deleted: 'true' } : {}),
   };
-  const res = await api.GET('/clients', { params: { query: query as never } });
+  const res = await api.GET('/clients', { params: { query: query } });
   if (res.error) throw new Error('clientList.error');
   return res.data as unknown as ClientsResponse;
 }
@@ -97,7 +97,7 @@ async function fetchClients(
 // Account-group options for the filter dropdown + per-row group name resolution.
 // Reuses the ['client-groups-options'] cache shared with ClientProfileTabs.
 async function fetchClientGroupOptions(): Promise<ClientGroupOption[]> {
-  const res = await api.GET('/client-groups', { params: { query: { limit: 200 } as never } });
+  const res = await api.GET('/client-groups', { params: { query: { limit: 200 } } });
   if (res.error) throw new Error('clientList.error');
   return (res.data as unknown as { data: ClientGroupOption[] }).data;
 }
