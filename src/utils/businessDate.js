@@ -86,6 +86,34 @@ function endOfMonth(ymd = businessToday()) {
   return d.toISOString().slice(0, 10);
 }
 
+const offsetFormatters = new Map();
+// Minutes the zone is ahead of UTC at an instant (Mexico City: -360).
+function offsetMinutes(instant, tz) {
+  if (!offsetFormatters.has(tz)) {
+    offsetFormatters.set(tz, new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' }));
+  }
+  const name = offsetFormatters.get(tz).formatToParts(instant).find(p => p.type === 'timeZoneName')?.value || 'GMT';
+  const m = name.match(/^GMT([+-])(\d{2}):?(\d{2})?$/);
+  if (!m) return 0;
+  return (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3] || 0));
+}
+
+/**
+ * The UTC instant a business day begins: midnight of `ymd` in the business
+ * zone. For a range of TIMESTAMP columns stored in UTC, such as "paid in
+ * January" = [start of 1 Jan, start of 1 Feb).
+ * @param {string} ymd
+ */
+function businessDayStartUtc(ymd, tz = businessTimezone()) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const wall = Date.UTC(y, m - 1, d);
+  // The offset at the guess, then at the corrected instant (a DST change on
+  // that day moves it once).
+  let instant = wall - offsetMinutes(new Date(wall), tz) * 60000;
+  instant = wall - offsetMinutes(new Date(instant), tz) * 60000;
+  return new Date(instant);
+}
+
 /**
  * Today's business date as a SQL DATE literal, for comparisons such as
  * `due_date < ${sqlBusinessToday()}` in place of CURDATE() or NOW(), which
@@ -100,4 +128,5 @@ function sqlBusinessToday() {
 
 module.exports = {
   DEFAULT_TIMEZONE, businessTimezone, businessDate, businessToday, sqlBusinessToday, addDays, startOfMonth, endOfMonth, isValidTimezone,
+  businessDayStartUtc,
 };

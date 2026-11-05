@@ -677,6 +677,15 @@ function generateSpec() {
         get: { tags: ['Facturas Publicas'], summary: 'List linked invoices', operationId: 'listFacturaPublicaItems', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Item[]') },
         post: { tags: ['Facturas Publicas'], summary: 'Link an invoice', operationId: 'addFacturaPublicaItem', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('invoice_id'), responses: r201('Item') },
       },
+      '/facturas-publicas/{id}/items/{itemId}': {
+        delete: { tags: ['Facturas Publicas'], summary: 'Unlink an invoice from a draft factura pública', operationId: 'removeFacturaPublicaItem', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'itemId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r204(), 404: errorResponse('Factura or item not found'), 422: errorResponse('Not a draft (FACTURA_PUBLICA_NOT_DRAFT)') } },
+      },
+      '/facturas-publicas/{id}/items/add-eligible': {
+        post: { tags: ['Facturas Publicas'], summary: 'Link every eligible invoice of the period (paid in it, no CFDI of its own, in no other factura global)', operationId: 'addEligibleFacturaPublicaItems', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: typedJsonBody({ $ref: '#/components/schemas/facturasPublicas_addEligibleFacturaPublicaItems' }, 'Optional currency to restrict to'), responses: { ...r200('{ added }'), 422: errorResponse('Not a draft (FACTURA_PUBLICA_NOT_DRAFT)') } },
+      },
+      '/facturas-publicas/{id}/eligible-invoices': {
+        get: { tags: ['Facturas Publicas'], summary: 'List invoices that may join this factura pública, with per-currency count and sum', operationId: 'listEligibleFacturaPublicaInvoices', security: [{ bearerAuth: [] }], parameters: [idParam(), pageParam(), limitParam()], responses: r200('Invoice[] with pagination, period and byCurrency meta') },
+      },
 
       // ---- CSD Certificates ----
       ...crudPaths('csd-certificates', 'CSD Certificates', 'CsdCertificate'),

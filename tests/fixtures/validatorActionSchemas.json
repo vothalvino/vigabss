@@ -30,6 +30,7 @@
   "deviceGroups.js:addGroupMembers",
   "emailSettings.js:testEmailSettings",
   "events.js:ticketStream",
+  "facturasPublicas.js:addEligibleFacturaPublicaItems",
   "facturasPublicas.js:addFacturaPublicaItem",
   "firerelay.js:firerelayTunnelCommand",
   "import.js:importCsv",
