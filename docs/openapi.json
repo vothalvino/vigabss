@@ -80489,9 +80489,6 @@
           "prefix": {
             "type": "string"
           },
-          "target_prefix": {
-            "type": "string"
-          },
           "reason": {
             "type": "string"
           },
@@ -80500,6 +80497,7 @@
           }
         },
         "required": [
+          "prefix",
           "reason"
         ]
       },
@@ -80531,9 +80529,6 @@
             ]
           },
           "threat_feed_source": {
-            "type": "string"
-          },
-          "source": {
             "type": "string"
           },
           "is_active": {
@@ -80589,9 +80584,6 @@
           "require_special_chars": {
             "type": "boolean"
           },
-          "require_symbols": {
-            "type": "boolean"
-          },
           "max_repeated_chars": {
             "type": "string",
             "minimum": 0,
@@ -80625,16 +80617,16 @@
           "cidr": {
             "type": "string"
           },
-          "ip_address": {
-            "type": "string"
-          },
           "description": {
             "type": "string"
           },
           "is_active": {
             "type": "boolean"
           }
-        }
+        },
+        "required": [
+          "cidr"
+        ]
       },
       "security_triggerCpeScan": {
         "type": "object",

@@ -262,20 +262,15 @@ router.get('/blackhole-routes', requirePermission('blackhole_routes.view'), asyn
 });
 
 // POST /blackhole-routes — create/trigger
-// Accepts `prefix` (new schema name) or legacy `target_prefix` for backward compat.
 // Schema has no next_hop column; that field is silently ignored if sent.
 router.post('/blackhole-routes', requirePermission('blackhole_routes.create'), validate(createBlackholeRoute, { strip: false }), async (req, res, next) => {
   try {
-    const { prefix, target_prefix, reason, notes } = req.body;
-    const prefixValue = prefix ?? target_prefix;
-    if (!prefixValue) {
-      throw new ValidationError('Validation failed', [{ field: 'prefix', message: 'prefix (or target_prefix) is required' }]);
-    }
+    const { prefix, reason, notes } = req.body;
     const [result] = await db.query(
       `INSERT INTO blackhole_routes
         (organization_id, prefix, reason, is_active, triggered_by, triggered_by_user, activated_at, notes)
        VALUES (?, ?, ?, 1, 'manual', ?, NOW(), ?)`,
-      [req.orgId, prefixValue, reason, req.user.id, notes || null],
+      [req.orgId, prefix, reason, req.user.id, notes || null],
     );
     res.status(201).json({ id: result.insertId });
   } catch (err) {
@@ -329,13 +324,11 @@ router.get('/dns-blocklists', requirePermission('dns_blocklists.view'), async (r
 });
 
 // POST /dns-blocklists
-// Accepts entry_type (new) or legacy source/reason for backward compat.
 router.post('/dns-blocklists', requirePermission('dns_blocklists.create'), validate(createDnsBlocklist, { strip: false }), async (req, res, next) => {
   try {
-    const { domain, category, entry_type, threat_feed_source, source, is_active } = req.body;
-    // Map legacy `source` to threat_feed_source; default entry_type to 'manual'
+    const { domain, category, entry_type, threat_feed_source, is_active } = req.body;
     const entryTypeValue = entry_type || 'manual';
-    const feedSourceValue = threat_feed_source ?? source ?? null;
+    const feedSourceValue = threat_feed_source ?? null;
     const [result] = await db.query(
       `INSERT INTO dns_blocklists (organization_id, domain, category, entry_type, threat_feed_source, is_active, added_by)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -348,11 +341,10 @@ router.post('/dns-blocklists', requirePermission('dns_blocklists.create'), valid
 });
 
 // PUT /dns-blocklists/:id
-// Accepts entry_type (new) or legacy source for backward compat.
 router.put('/dns-blocklists/:id', requirePermission('dns_blocklists.update'), async (req, res, next) => {
   try {
-    const { domain, category, entry_type, threat_feed_source, source, is_active, expires_at } = req.body;
-    const feedSourceValue = threat_feed_source !== undefined ? threat_feed_source : (source !== undefined ? source : undefined);
+    const { domain, category, entry_type, threat_feed_source, is_active, expires_at } = req.body;
+    const feedSourceValue = threat_feed_source;
     const [result] = await db.query(
       `UPDATE dns_blocklists SET
          domain = COALESCE(?, domain),
