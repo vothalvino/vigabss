@@ -17,7 +17,7 @@ const { orgScopeFilter } = require('./organizationFanOut');
 const { parseJsonColumn } = require('../utils/jsonColumn');
 const cron = require('node-cron');
 const cronParser = require('cron-parser');
-const { ValidationError } = require('../utils/errors');
+const { NotFoundError, ValidationError } = require('../utils/errors');
 
 /**
  * The next time a schedule's cron_expression fires after `from`, in the
@@ -268,7 +268,7 @@ async function generateReportData(organizationId, reportName, params) {
     case 'interception-readiness': return reportService.interceptionReadiness(organizationId);
     case 'regulatory-export': return reportService.regulatoryExport(organizationId, { from, to });
     default:
-      throw new Error(`Unknown report: ${reportName}`);
+      throw new NotFoundError(`Report '${reportName}'`);
   }
 }
 

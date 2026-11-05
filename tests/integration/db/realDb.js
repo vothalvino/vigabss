@@ -44,7 +44,7 @@ const quote = name => `\`${String(name).replace(/`/g, '``')}\``;
 async function loadStructure(db) {
   const [columns] = await db.query(
     `SELECT TABLE_NAME AS t, COLUMN_NAME AS c, DATA_TYPE AS dt, COLUMN_TYPE AS ct, IS_NULLABLE AS nullable,
-            COLUMN_DEFAULT AS dflt, EXTRA AS extra, CHARACTER_MAXIMUM_LENGTH AS len
+            COLUMN_DEFAULT AS dflt, EXTRA AS extra, CHARACTER_MAXIMUM_LENGTH AS len, SRS_ID AS srid
        FROM information_schema.COLUMNS
       WHERE TABLE_SCHEMA = DATABASE()
       ORDER BY TABLE_NAME, ORDINAL_POSITION`,
@@ -71,8 +71,49 @@ const isGenerated = col => /GENERATED|auto_increment/i.test(col.extra || '');
 const required = col => col.nullable === 'NO' && col.dflt === null && !isGenerated(col);
 const TEXT_TYPES = new Set(['varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext']);
 
+// Geometry goes through ST_GeomFromText; insertRow expands { sql, value }.
+const GEOMETRY_WKT = {
+  point: 'POINT(1 1)',
+  linestring: 'LINESTRING(0 0, 1 1)',
+  polygon: 'POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))',
+  geometry: 'POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))',
+  multipolygon: 'MULTIPOLYGON(((0 0, 0 1, 1 1, 1 0, 0 0)))',
+};
+
+// Values the generic rules get wrong because a CHECK constraint needs them.
+// SKIP leaves a nullable column out of the full row.
+const SKIP = Symbol('skip');
+const COLUMN_VALUES = {
+  'cgnat_attribution_bindings.protocol': () => 6,
+  'factura_publica_invoices.meses': () => '01',
+  // Exactly one case: the DSAR, not the government request.
+  'preservation_holds.gov_data_request_id': () => SKIP,
+  // At most one source document per CFDI: the invoice.
+  'cfdi_documents.credit_note_id': () => SKIP,
+  'cfdi_documents.payment_id': () => SKIP,
+  // A first revision without a concession title or an approver.
+  'snii_report_batches.revision_no': () => 1,
+  'snii_report_batches.filing_year': () => 2026,
+  'snii_report_batches.concession_title_id': () => SKIP,
+  'snii_report_batches.supersession_reason': () => SKIP,
+  'snii_report_batches.approved_by': () => SKIP,
+  // A manual asset carries its payload instead of a source row.
+  'snii_asset_registry.source_type': () => 'manual',
+  'snii_asset_registry.manual_payload': () => '{}',
+  // target_type 'email': the address and nothing else.
+  'snmp_trap_forwarding_deliveries.target_type': () => 'email',
+  'snmp_trap_forwarding_deliveries.target_url': () => SKIP,
+  'snmp_trap_forwarding_deliveries.webhook_id': () => SKIP,
+  // A link joins two devices; the second is the organization's spare.
+  'network_links.device_b_id': (org, spares) => spares.get('devices')?.[org],
+};
+
+// Tables that get a second row per organization, for a row that needs two.
+const SPARE_TABLES = new Set(['devices']);
+
 function scalarFor(col, mark, table, org) {
   const dt = col.dt.toLowerCase();
+  if (GEOMETRY_WKT[dt]) return { sql: `ST_GeomFromText(?, ${Number(col.srid) || 0})`, value: GEOMETRY_WKT[dt] };
   // An end after its start satisfies CHECK (end >= start) and (end > start).
   const later = /(end|expir|until|due|_to$|finish|clos)/.test(col.c);
   if (TEXT_TYPES.has(dt)) {
@@ -98,11 +139,19 @@ function scalarFor(col, mark, table, org) {
 // A row for `org` in `table`, or null when a required value is unavailable.
 // full: also fill nullable text with the marker and nullable FKs when the
 // parent row exists, so the row is as visible as possible.
-function buildRow(table, org, seeded, globals, full) {
+function buildRow(table, org, seeded, globals, full, spares = new Map()) {
   const row = {};
   for (const col of table.columns) {
     if (isGenerated(col) || col.c === 'deleted_at') continue;
     if (col.c === 'organization_id') { row.organization_id = org; continue; }
+    const override = COLUMN_VALUES[`${table.name}.${col.c}`];
+    if (override) {
+      const value = override(org, spares);
+      if (value === SKIP) continue;
+      if (value === undefined) return null;
+      row[col.c] = value;
+      continue;
+    }
     const fk = table.fks.get(col.c);
     if (fk) {
       const parent = fk.table === 'organizations' ? org : (seeded.get(fk.table)?.[org]?.[fk.column] ?? globals.get(`${fk.table}.${fk.column}`));
@@ -150,17 +199,20 @@ async function readGlobals(db, tables) {
 
 async function insertRow(conn, tableName, row) {
   const cols = Object.keys(row);
+  const raw = v => v && typeof v === 'object' && !Buffer.isBuffer(v) && v.sql;
   const [result] = await conn.query(
-    `INSERT INTO ${quote(tableName)} (${cols.map(quote).join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
-    cols.map(c => row[c]),
+    `INSERT INTO ${quote(tableName)} (${cols.map(quote).join(', ')}) VALUES (${cols.map(c => raw(row[c]) || '?').join(', ')})`,
+    cols.map(c => (raw(row[c]) ? row[c].value : row[c])),
   );
   return result.insertId;
 }
 
-async function seedGeneric(db, tables, users) {
+// prior: the { seeded, spares } of an earlier pass, whose tables are kept.
+async function seedGeneric(db, tables, users, prior = null) {
   const globals = await readGlobals(db, tables);
   // table -> { [org]: { [column]: value } }; the admins stand in for users.
-  const seeded = new Map([['users', { [ORG_A]: { id: users[ORG_A] }, [ORG_B]: { id: users[ORG_B] } }]]);
+  const seeded = prior?.seeded || new Map([['users', { [ORG_A]: { id: users[ORG_A] }, [ORG_B]: { id: users[ORG_B] } }]]);
+  const spares = prior?.spares || new Map(); // table -> { [org]: id } of a second row
   const skipped = new Map(); // table -> reason
   const pending = [...tables.values()].filter(t => !SKIP_TABLES.has(t.name));
   const conn = await db.getConnection();
@@ -183,7 +235,7 @@ async function seedGeneric(db, tables, users) {
         for (const org of [ORG_A, ORG_B]) {
           let id = null;
           for (const full of [true, false]) {
-            const row = buildRow(table, org, seeded, globals, full);
+            const row = buildRow(table, org, seeded, globals, full, spares);
             if (!row) { error = 'a required value has no source'; break; }
             try {
               id = await insertRow(conn, table.name, row);
@@ -192,10 +244,27 @@ async function seedGeneric(db, tables, users) {
               error = null;
               break;
             } catch (err) {
-              error = `${err.code || ''} ${err.sqlMessage || err.message}`.trim();
+              // Both attempts' errors: the fallback's often only hides the first.
+              const message = `${err.code || ''} ${err.sqlMessage || err.message}`.trim();
+              error = full ? message : `${message} (full row: ${error})`;
             }
           }
           if (!ids[org]) break;
+        }
+        if (ids[ORG_A] && ids[ORG_B] && SPARE_TABLES.has(table.name)) {
+          const spare = {};
+          for (const org of [ORG_A, ORG_B]) {
+            // The same row, its text and numbers moved off any UNIQUE key.
+            const row = Object.fromEntries(Object.entries(ids[org]).filter(([c]) => c !== 'id').map(([c, v]) => {
+              const col = table.columns.find(x => x.c === c);
+              if (table.fks.has(c) || c === 'organization_id') return [c, v];
+              if (typeof v === 'string' && TEXT_TYPES.has(col.dt)) return [c, `${v}-2`.slice(-(Number(col.len) || 255))];
+              if (typeof v === 'number' && !/tinyint\(1\)/.test(col.ct)) return [c, v + 10];
+              return [c, v];
+            }));
+            spare[org] = await insertRow(conn, table.name, row);
+          }
+          spares.set(table.name, spare);
         }
         if (ids[ORG_A] && ids[ORG_B]) {
           seeded.set(table.name, ids);
@@ -211,7 +280,7 @@ async function seedGeneric(db, tables, users) {
   } finally {
     conn.release();
   }
-  return { seeded, skipped };
+  return { seeded, skipped, spares };
 }
 
 // An organization and an ordinary admin of it: a group with every
@@ -244,6 +313,22 @@ async function seedIdentities(db) {
   return users;
 }
 
+// files has no organization_id: a client's document is the file whose
+// entity is that client, so the generic seed leaves it out.
+async function seedClientFiles(db, seeded) {
+  const ids = {};
+  for (const org of [ORG_A, ORG_B]) {
+    const clientId = seeded.get('clients')[org].id;
+    const [result] = await db.query(
+      `INSERT INTO files (entity_type, entity_id, category, file_name, file_path)
+       VALUES ('client', ?, 'client_file', ?, ?)`,
+      [clientId, `${MARK[org]}-document.pdf`, `clients/${clientId}/${MARK[org]}-document.pdf`],
+    );
+    ids[org] = { id: result.insertId, entity_id: clientId };
+  }
+  seeded.set('files', ids);
+}
+
 let state = null;
 
 async function setup() {
@@ -252,13 +337,23 @@ async function setup() {
   const db = require('../../../src/config/database');
   const users = await seedIdentities(db);
   const tables = await loadStructure(db);
-  const { seeded, skipped } = await seedGeneric(db, tables, users);
+  const first = await seedGeneric(db, tables, users);
+  // The Mexican tables' triggers need an MX organization and client, and an
+  // MX organization's contracts need fields the generic seed cannot supply.
+  // So both organizations switch to MX once the first pass has seeded
+  // contracts, and a second pass fills what the triggers refused. A locale
+  // cannot go back from MX once MX rows exist, so the sweep runs as MX.
+  await db.query("UPDATE organizations SET locale = 'MX', country = 'MX' WHERE id IN (?, ?)", [ORG_A, ORG_B]);
+  await db.query("UPDATE clients SET locale = 'MX' WHERE organization_id IN (?, ?)", [ORG_A, ORG_B]);
+  const { seeded, skipped, spares } = await seedGeneric(db, tables, users, first);
+  await seedClientFiles(db, seeded);
+  skipped.delete('files');
   // The portal signs in only an active client.
   await db.query("UPDATE clients SET status = 'active' WHERE organization_id IN (?, ?)", [ORG_A, ORG_B]);
   const { signStaffAccessToken, signPortalAccessToken } = require('../../../src/utils/accessTokens');
   const staffToken = org => signStaffAccessToken({ sub: users[org], orgId: org, tv: 0 });
   const portalToken = org => signPortalAccessToken({ clientId: seeded.get('clients')[org].id, organizationId: org, tokenVersion: 0 }, 3600);
-  state = { db, tables, seeded, skipped, users, staffToken, portalToken };
+  state = { db, tables, seeded, skipped, spares, users, staffToken, portalToken };
   return state;
 }
 
