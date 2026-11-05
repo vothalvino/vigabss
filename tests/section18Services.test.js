@@ -512,46 +512,46 @@ describe('automationService — additional branch coverage', () => {
 const app = require('../src/app');
 
 describe('automationRules routes — additional coverage', () => {
-  it('GET /api/automation-rules filters by is_enabled', async () => {
+  it('GET /api/v1/automation-rules filters by is_enabled', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, name: 'R1', is_enabled: 1 }]))
       .mockResolvedValueOnce(mockCount(1));
-    const res = await request(app).get('/api/automation-rules?is_enabled=true');
+    const res = await request(app).get('/api/v1/automation-rules?is_enabled=true');
     expect(res.status).toBe(200);
   });
 
-  it('GET /api/automation-rules/:id returns rule', async () => {
+  it('GET /api/v1/automation-rules/:id returns rule', async () => {
     db.query.mockResolvedValueOnce(mockRows([{ id: 1, name: 'R1' }]));
-    const res = await request(app).get('/api/automation-rules/1');
+    const res = await request(app).get('/api/v1/automation-rules/1');
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(1);
   });
 
-  it('GET /api/automation-rules/:id returns 404', async () => {
+  it('GET /api/v1/automation-rules/:id returns 404', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).get('/api/automation-rules/9999');
+    const res = await request(app).get('/api/v1/automation-rules/9999');
     expect(res.status).toBe(404);
   });
 
-  it('PUT /api/automation-rules/:id returns 404 when not found', async () => {
+  it('PUT /api/v1/automation-rules/:id returns 404 when not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).put('/api/automation-rules/9999').send({ name: 'X' });
+    const res = await request(app).put('/api/v1/automation-rules/9999').send({ name: 'X' });
     expect(res.status).toBe(404);
   });
 
-  it('PUT /api/automation-rules/:id returns 422 when no updatable fields', async () => {
+  it('PUT /api/v1/automation-rules/:id returns 422 when no updatable fields', async () => {
     db.query.mockResolvedValueOnce(mockRows([{ id: 1 }]));
-    const res = await request(app).put('/api/automation-rules/1').send({});
+    const res = await request(app).put('/api/v1/automation-rules/1').send({});
     expect(res.status).toBe(422);
   });
 
-  it('PUT /api/automation-rules/:id updates successfully with object fields', async () => {
+  it('PUT /api/v1/automation-rules/:id updates successfully with object fields', async () => {
     const updated = { id: 1, name: 'Updated', trigger_event: 'device.offline', action_type: 'send_notification' };
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, action_type: 'send_notification', action_config: null }]))
       .mockResolvedValueOnce(mockUpdate())
       .mockResolvedValueOnce(mockRows([updated]));
-    const res = await request(app).put('/api/automation-rules/1').send({
+    const res = await request(app).put('/api/v1/automation-rules/1').send({
       // trigger_conditions is a list of conditions (DB-05).
       trigger_conditions: [{ field: 'status', operator: 'eq', value: 'offline' }],
       // A send_notification rule needs its message (ASY-36).
@@ -560,26 +560,26 @@ describe('automationRules routes — additional coverage', () => {
     expect(res.status).toBe(200);
   });
 
-  it('POST /api/automation-rules/:id/execute returns 404 when rule not found', async () => {
+  it('POST /api/v1/automation-rules/:id/execute returns 404 when rule not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).post('/api/automation-rules/9999/execute').send({});
+    const res = await request(app).post('/api/v1/automation-rules/9999/execute').send({});
     expect(res.status).toBe(404);
   });
 
-  it('POST /api/automation-rules/:id/execute triggers evaluation', async () => {
+  it('POST /api/v1/automation-rules/:id/execute triggers evaluation', async () => {
     const rule = { id: 1, trigger_event: 'device.offline' };
     db.query
       .mockResolvedValueOnce(mockRows([rule]))  // SELECT rule
       .mockResolvedValueOnce(mockRows([]));      // evaluateAutomationRules → SELECT rules (none match)
-    const res = await request(app).post('/api/automation-rules/1/execute').send({ payload: { status: 'offline' } });
+    const res = await request(app).post('/api/v1/automation-rules/1/execute').send({ payload: { status: 'offline' } });
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('rule_id', 1);
     expect(res.body.data).toHaveProperty('result');
   });
 
-  it('GET /api/automation-rules/:id/executions returns list', async () => {
+  it('GET /api/v1/automation-rules/:id/executions returns list', async () => {
     db.query.mockResolvedValueOnce(mockRows([{ id: 10, status: 'success' }]));
-    const res = await request(app).get('/api/automation-rules/1/executions');
+    const res = await request(app).get('/api/v1/automation-rules/1/executions');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
@@ -590,46 +590,46 @@ describe('automationRules routes — additional coverage', () => {
 // =============================================================================
 
 describe('analyticsAI routes — additional coverage', () => {
-  it('GET /api/analytics/anomalies filters by metric and device_id', async () => {
+  it('GET /api/v1/analytics/anomalies filters by metric and device_id', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, metric: 'cpu_usage', severity: 'high' }]))
       .mockResolvedValueOnce(mockCount(1));
-    const res = await request(app).get('/api/analytics/anomalies?metric=cpu_usage&device_id=5');
+    const res = await request(app).get('/api/v1/analytics/anomalies?metric=cpu_usage&device_id=5');
     expect(res.status).toBe(200);
   });
 
-  it('GET /api/analytics/anomalies filters by is_acknowledged=false', async () => {
+  it('GET /api/v1/analytics/anomalies filters by is_acknowledged=false', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([]))
       .mockResolvedValueOnce(mockCount(0));
-    const res = await request(app).get('/api/analytics/anomalies?is_acknowledged=false');
+    const res = await request(app).get('/api/v1/analytics/anomalies?is_acknowledged=false');
     expect(res.status).toBe(200);
   });
 
-  it('GET /api/analytics/alert-correlation accepts window_minutes param', async () => {
+  it('GET /api/v1/analytics/alert-correlation accepts window_minutes param', async () => {
     db.query.mockResolvedValueOnce(mockRows([]));
-    const res = await request(app).get('/api/analytics/alert-correlation?window_minutes=60');
+    const res = await request(app).get('/api/v1/analytics/alert-correlation?window_minutes=60');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('window_minutes', 60);
   });
 
-  it('GET /api/analytics/bandwidth-forecast accepts months param', async () => {
-    const res = await request(app).get('/api/analytics/bandwidth-forecast?months=3');
+  it('GET /api/v1/analytics/bandwidth-forecast accepts months param', async () => {
+    const res = await request(app).get('/api/v1/analytics/bandwidth-forecast?months=3');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('analytics_note');
   });
 
-  it('GET /api/analytics/churn-scores with risk_band filter', async () => {
+  it('GET /api/v1/analytics/churn-scores with risk_band filter', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, score: 80 }]))
       .mockResolvedValueOnce(mockCount(1));
-    const res = await request(app).get('/api/analytics/churn-scores?risk_band=critical');
+    const res = await request(app).get('/api/v1/analytics/churn-scores?risk_band=critical');
     expect(res.status).toBe(200);
   });
 
-  it('POST /api/analytics/anomalies/detect with window param', async () => {
+  it('POST /api/v1/analytics/anomalies/detect with window param', async () => {
     db.query.mockResolvedValueOnce(mockRows([]));  // combos
-    const res = await request(app).post('/api/analytics/anomalies/detect?window=24');
+    const res = await request(app).post('/api/v1/analytics/anomalies/detect?window=24');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('combos_checked');
   });
@@ -640,29 +640,29 @@ describe('analyticsAI routes — additional coverage', () => {
 // =============================================================================
 
 describe('provisioningPipelines routes — additional coverage', () => {
-  it('GET /api/provisioning-pipelines filters by status', async () => {
+  it('GET /api/v1/provisioning-pipelines filters by status', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, name: 'P1', status: 'completed' }]))
       .mockResolvedValueOnce(mockCount(1));
-    const res = await request(app).get('/api/provisioning-pipelines?status=completed');
+    const res = await request(app).get('/api/v1/provisioning-pipelines?status=completed');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 
-  it('GET /api/provisioning-pipelines/:id returns pipeline with stages', async () => {
+  it('GET /api/v1/provisioning-pipelines/:id returns pipeline with stages', async () => {
     const pipeline = { id: 1, name: 'P1', status: 'completed' };
     const stages   = [{ id: 10, stage_name: 'assign_ip', status: 'completed' }];
     db.query
       .mockResolvedValueOnce(mockRows([pipeline]))
       .mockResolvedValueOnce(mockRows(stages));
-    const res = await request(app).get('/api/provisioning-pipelines/1');
+    const res = await request(app).get('/api/v1/provisioning-pipelines/1');
     expect(res.status).toBe(200);
     expect(res.body.data.stages).toHaveLength(1);
   });
 
-  it('GET /api/provisioning-pipelines/:id returns 404', async () => {
+  it('GET /api/v1/provisioning-pipelines/:id returns 404', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).get('/api/provisioning-pipelines/9999');
+    const res = await request(app).get('/api/v1/provisioning-pipelines/9999');
     expect(res.status).toBe(404);
   });
 });

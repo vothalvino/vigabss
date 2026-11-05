@@ -908,7 +908,7 @@ describe('Payment Webhooks & Idempotency', () => {
     beforeEach(() => { process.env.ALLOW_UNSIGNED_WEBHOOKS = 'true'; });
     afterEach(() => { delete process.env.ALLOW_UNSIGNED_WEBHOOKS; });
 
-    test('POST /api/payment-webhooks/stripe returns 200 on valid event', async () => {
+    test('POST /api/v1/payment-webhooks/stripe returns 200 on valid event', async () => {
       db.query
         .mockResolvedValueOnce([[]])                 // No duplicate
         .mockResolvedValueOnce([{ insertId: 1 }])    // INSERT webhook_events
@@ -922,7 +922,7 @@ describe('Payment Webhooks & Idempotency', () => {
       };
 
       const res = await request(app)
-        .post('/api/payment-webhooks/stripe')
+        .post('/api/v1/payment-webhooks/stripe')
         .send(payload)
         .set('Content-Type', 'application/json');
 
@@ -930,7 +930,7 @@ describe('Payment Webhooks & Idempotency', () => {
       expect(res.body.received).toBe(true);
     });
 
-    test('POST /api/payment-webhooks/conekta returns 200 on valid event', async () => {
+    test('POST /api/v1/payment-webhooks/conekta returns 200 on valid event', async () => {
       db.query
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([{ insertId: 2 }])
@@ -944,7 +944,7 @@ describe('Payment Webhooks & Idempotency', () => {
       };
 
       const res = await request(app)
-        .post('/api/payment-webhooks/conekta')
+        .post('/api/v1/payment-webhooks/conekta')
         .send(payload)
         .set('Content-Type', 'application/json');
 
@@ -952,7 +952,7 @@ describe('Payment Webhooks & Idempotency', () => {
       expect(res.body.received).toBe(true);
     });
 
-    test('POST /api/payment-webhooks/stripe rejects invalid signature when secret is set', async () => {
+    test('POST /api/v1/payment-webhooks/stripe rejects invalid signature when secret is set', async () => {
       const originalEnv = process.env.STRIPE_WEBHOOK_SECRET;
       try {
         process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test123';
@@ -964,7 +964,7 @@ describe('Payment Webhooks & Idempotency', () => {
         };
 
         const res = await request(app)
-          .post('/api/payment-webhooks/stripe')
+          .post('/api/v1/payment-webhooks/stripe')
           .send(payload)
           .set('Content-Type', 'application/json')
           .set('Stripe-Signature', 'invalid_signature');
@@ -977,7 +977,7 @@ describe('Payment Webhooks & Idempotency', () => {
       }
     });
 
-    test('POST /api/payment-webhooks/conekta rejects invalid signature when the public key is set', async () => {
+    test('POST /api/v1/payment-webhooks/conekta rejects invalid signature when the public key is set', async () => {
       const originalEnv = process.env.CONEKTA_WEBHOOK_KEY;
       try {
         process.env.CONEKTA_WEBHOOK_KEY = CONEKTA_PUBLIC_PEM;
@@ -989,7 +989,7 @@ describe('Payment Webhooks & Idempotency', () => {
         };
 
         const res = await request(app)
-          .post('/api/payment-webhooks/conekta')
+          .post('/api/v1/payment-webhooks/conekta')
           .send(payload)
           .set('Content-Type', 'application/json')
           .set('Digest', 'invalid_digest');
@@ -1002,7 +1002,7 @@ describe('Payment Webhooks & Idempotency', () => {
       }
     });
 
-    test('POST /api/payment-webhooks/stripe returns 200 for duplicate events', async () => {
+    test('POST /api/v1/payment-webhooks/stripe returns 200 for duplicate events', async () => {
       db.query.mockResolvedValueOnce([[{ id: 10, status: 'processed' }]]);
 
       const payload = {
@@ -1012,7 +1012,7 @@ describe('Payment Webhooks & Idempotency', () => {
       };
 
       const res = await request(app)
-        .post('/api/payment-webhooks/stripe')
+        .post('/api/v1/payment-webhooks/stripe')
         .send(payload)
         .set('Content-Type', 'application/json');
 
@@ -1020,7 +1020,7 @@ describe('Payment Webhooks & Idempotency', () => {
       expect(res.body.status).toBe('duplicate');
     });
 
-    test('POST /api/payment-webhooks/stripe returns 500 on processing error', async () => {
+    test('POST /api/v1/payment-webhooks/stripe returns 500 on processing error', async () => {
       db.query
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([{ insertId: 99 }])
@@ -1034,7 +1034,7 @@ describe('Payment Webhooks & Idempotency', () => {
       };
 
       const res = await request(app)
-        .post('/api/payment-webhooks/stripe')
+        .post('/api/v1/payment-webhooks/stripe')
         .send(payload)
         .set('Content-Type', 'application/json');
 
@@ -1051,7 +1051,7 @@ describe('Payment Webhooks & Idempotency', () => {
       delete process.env.STRIPE_WEBHOOK_SECRET;                // no secret
       try {
         const res = await request(app)
-          .post('/api/payment-webhooks/stripe')
+          .post('/api/v1/payment-webhooks/stripe')
           .send({ id: 'evt_noconf', type: 'payment_intent.succeeded', data: { object: {} } })
           .set('Content-Type', 'application/json');
 
@@ -1070,7 +1070,7 @@ describe('Payment Webhooks & Idempotency', () => {
       delete process.env.CONEKTA_WEBHOOK_KEY;
       try {
         const res = await request(app)
-          .post('/api/payment-webhooks/conekta')
+          .post('/api/v1/payment-webhooks/conekta')
           .send({ id: 'evt_noconf_c', type: 'order.paid', data: { object: {} } })
           .set('Content-Type', 'application/json');
 
@@ -1091,7 +1091,7 @@ describe('Payment Webhooks & Idempotency', () => {
 
       try {
         const res = await request(app)
-          .post('/api/payment-webhooks/stripe')
+          .post('/api/v1/payment-webhooks/stripe')
           .send({ id: 'evt_prod_unsigned', type: 'payment_intent.succeeded', data: { object: {} } })
           .set('Content-Type', 'application/json');
 
@@ -1124,7 +1124,7 @@ describe('Payment Webhooks & Idempotency', () => {
         const sig = crypto.createHmac('sha256', secret).update(`${ts}.${body}`, 'utf8').digest('hex');
 
         const res = await request(app)
-          .post('/api/payment-webhooks/stripe')
+          .post('/api/v1/payment-webhooks/stripe')
           .set('Content-Type', 'application/json')
           .set('Stripe-Signature', `t=${ts},v1=${sig}`)
           .send(body);   // send the exact string so req.rawBody matches the signature
@@ -1144,7 +1144,7 @@ describe('Payment Webhooks & Idempotency', () => {
       // opt-in ON (from beforeEach), no secret — reaches the shape check
       delete process.env.STRIPE_WEBHOOK_SECRET;
       const res = await request(app)
-        .post('/api/payment-webhooks/stripe')
+        .post('/api/v1/payment-webhooks/stripe')
         .send({ foo: 'bar' })
         .set('Content-Type', 'application/json');
 
@@ -1156,7 +1156,7 @@ describe('Payment Webhooks & Idempotency', () => {
     test('Conekta rejects a malformed payload with 400', async () => {
       delete process.env.CONEKTA_WEBHOOK_KEY;
       const res = await request(app)
-        .post('/api/payment-webhooks/conekta')
+        .post('/api/v1/payment-webhooks/conekta')
         .send([1, 2, 3])   // array, not an event object
         .set('Content-Type', 'application/json');
 
@@ -1185,7 +1185,7 @@ describe('Payment Webhooks & Idempotency', () => {
         const digest = conektaDigest(body);
 
         const res = await request(app)
-          .post('/api/payment-webhooks/conekta')
+          .post('/api/v1/payment-webhooks/conekta')
           .set('Content-Type', 'application/json')
           .set('Digest', digest)     // real RSA-SHA256 signature over the exact rawBody
           .send(body);
@@ -1212,7 +1212,7 @@ describe('Payment Webhooks & Idempotency', () => {
         const sig = crypto.createHmac('sha256', secret).update(`${ts}.${body}`, 'utf8').digest('hex');
 
         const res = await request(app)
-          .post('/api/payment-webhooks/stripe')
+          .post('/api/v1/payment-webhooks/stripe')
           .set('Content-Type', 'application/json')
           .set('Stripe-Signature', `t=${ts},v1=${sig}`)
           .send(body);
@@ -1256,7 +1256,7 @@ describe('Payment Webhooks & Idempotency', () => {
       const sig = crypto.createHmac('sha256', 'whsec_gw7').update(`${ts}.${body}`, 'utf8').digest('hex');
 
       const res = await request(app)
-        .post('/api/payment-webhooks/stripe/7')
+        .post('/api/v1/payment-webhooks/stripe/7')
         .set('Content-Type', 'application/json')
         .set('Stripe-Signature', `t=${ts},v1=${sig}`)
         .send(body);
@@ -1275,7 +1275,7 @@ describe('Payment Webhooks & Idempotency', () => {
     test('unknown / inactive gateway → 404, nothing processed', async () => {
       db.query.mockImplementation(async (sql) => (/FROM payment_gateways/.test(sql) ? [[]] : [[]]));
       const res = await request(app)
-        .post('/api/payment-webhooks/stripe/999')
+        .post('/api/v1/payment-webhooks/stripe/999')
         .send({ id: 'evt_x', type: 'payment_intent.succeeded', data: { object: { id: 'pi_x' } } })
         .set('Content-Type', 'application/json');
 
@@ -1287,7 +1287,7 @@ describe('Payment Webhooks & Idempotency', () => {
     test('non-numeric gatewayId → 404 without touching the database', async () => {
       db.query.mockImplementation(async () => [[]]);
       const res = await request(app)
-        .post('/api/payment-webhooks/stripe/not-a-number')
+        .post('/api/v1/payment-webhooks/stripe/not-a-number')
         .send({ id: 'evt_x', type: 'payment_intent.succeeded', data: { object: { id: 'pi_x' } } })
         .set('Content-Type', 'application/json');
 
@@ -1300,7 +1300,7 @@ describe('Payment Webhooks & Idempotency', () => {
       db.query.mockImplementation(async (sql) => (/FROM payment_gateways/.test(sql)
         ? [[{ id: 7, organization_id: 5, webhook_secret_encrypted: null }]] : [[]]));
       const res = await request(app)
-        .post('/api/payment-webhooks/stripe/7')
+        .post('/api/v1/payment-webhooks/stripe/7')
         .send({ id: 'evt_x', type: 'payment_intent.succeeded', data: { object: { id: 'pi_x' } } })
         .set('Content-Type', 'application/json');
 
@@ -1313,7 +1313,7 @@ describe('Payment Webhooks & Idempotency', () => {
       db.query.mockImplementation(async (sql) => (/FROM payment_gateways/.test(sql)
         ? [[{ id: 7, organization_id: 5, webhook_secret_encrypted: 'whsec_gw7' }]] : [[]]));
       const res = await request(app)
-        .post('/api/payment-webhooks/stripe/7')
+        .post('/api/v1/payment-webhooks/stripe/7')
         .send({ id: 'evt_x', type: 'payment_intent.succeeded', data: { object: { id: 'pi_x' } } })
         .set('Content-Type', 'application/json')
         .set('Stripe-Signature', 't=1,v1=deadbeef');
@@ -1337,7 +1337,7 @@ describe('Payment Webhooks & Idempotency', () => {
       const digest = conektaDigest(body);
 
       const res = await request(app)
-        .post('/api/payment-webhooks/conekta/9')
+        .post('/api/v1/payment-webhooks/conekta/9')
         .set('Content-Type', 'application/json')
         .set('Digest', digest)
         .send(body);
@@ -1351,7 +1351,7 @@ describe('Payment Webhooks & Idempotency', () => {
     test('Conekta unknown gateway → 404', async () => {
       db.query.mockImplementation(async () => [[]]);
       const res = await request(app)
-        .post('/api/payment-webhooks/conekta/404')
+        .post('/api/v1/payment-webhooks/conekta/404')
         .send({ id: 'evt_x', type: 'order.paid', data: { object: { id: 'ord_x' } } })
         .set('Content-Type', 'application/json');
       expect(res.status).toBe(404);
@@ -1362,7 +1362,7 @@ describe('Payment Webhooks & Idempotency', () => {
       db.query.mockImplementation(async (sql) => (/FROM payment_gateways/.test(sql)
         ? [[{ id: 9, organization_id: 6, webhook_secret_encrypted: null }]] : [[]]));
       const res = await request(app)
-        .post('/api/payment-webhooks/conekta/9')
+        .post('/api/v1/payment-webhooks/conekta/9')
         .send({ id: 'evt_x', type: 'order.paid', data: { object: { id: 'ord_x' } } })
         .set('Content-Type', 'application/json');
       expect(res.status).toBe(503);
@@ -1374,7 +1374,7 @@ describe('Payment Webhooks & Idempotency', () => {
       db.query.mockImplementation(async (sql) => (/FROM payment_gateways/.test(sql)
         ? [[{ id: 9, organization_id: 6, webhook_secret_encrypted: CONEKTA_PUBLIC_PEM }]] : [[]]));
       const res = await request(app)
-        .post('/api/payment-webhooks/conekta/9')
+        .post('/api/v1/payment-webhooks/conekta/9')
         .send({ id: 'evt_x', type: 'order.paid', data: { object: { id: 'ord_x' } } })
         .set('Content-Type', 'application/json')
         .set('Digest', 'not-a-valid-digest');
@@ -1388,7 +1388,7 @@ describe('Payment Webhooks & Idempotency', () => {
       const intruder = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
       const body = JSON.stringify({ id: 'evt_forged', type: 'order.paid', data: { object: { id: 'ord_x' } } });
       const res = await request(app)
-        .post('/api/payment-webhooks/conekta/9')
+        .post('/api/v1/payment-webhooks/conekta/9')
         .set('Content-Type', 'application/json')
         .set('Digest', crypto.sign('RSA-SHA256', Buffer.from(body), intruder.privateKey).toString('base64'))
         .send(body);
@@ -1404,7 +1404,7 @@ describe('Payment Webhooks & Idempotency', () => {
         ? [[{ id: 9, organization_id: 6, webhook_secret_encrypted: 'conekta_gw9' }]] : [[]]));
       const body = JSON.stringify({ id: 'evt_x', type: 'order.paid', data: { object: { id: 'ord_x' } } });
       const res = await request(app)
-        .post('/api/payment-webhooks/conekta/9')
+        .post('/api/v1/payment-webhooks/conekta/9')
         .set('Content-Type', 'application/json')
         .set('Digest', crypto.createHmac('sha256', 'conekta_gw9').update(body, 'utf8').digest('hex'))
         .send(body);

@@ -88,15 +88,15 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// GET /api/report-definitions
+// GET /api/v1/report-definitions
 // =============================================================================
 
-describe('GET /api/report-definitions', () => {
+describe('GET /api/v1/report-definitions', () => {
   it('returns 200 with list of definitions', async () => {
     db.queryReplica.mockResolvedValueOnce([[sampleDef]]);
 
     const res = await request(app)
-      .get('/api/report-definitions')
+      .get('/api/v1/report-definitions')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1');
 
@@ -107,15 +107,15 @@ describe('GET /api/report-definitions', () => {
 });
 
 // =============================================================================
-// GET /api/report-definitions/:id
+// GET /api/v1/report-definitions/:id
 // =============================================================================
 
-describe('GET /api/report-definitions/:id', () => {
+describe('GET /api/v1/report-definitions/:id', () => {
   it('returns 200 with a single definition', async () => {
     db.queryReplica.mockResolvedValueOnce([[sampleDef]]);
 
     const res = await request(app)
-      .get('/api/report-definitions/1')
+      .get('/api/v1/report-definitions/1')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1');
 
@@ -127,7 +127,7 @@ describe('GET /api/report-definitions/:id', () => {
     db.queryReplica.mockResolvedValueOnce([[]]); // empty
 
     const res = await request(app)
-      .get('/api/report-definitions/999')
+      .get('/api/v1/report-definitions/999')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1');
 
@@ -136,17 +136,17 @@ describe('GET /api/report-definitions/:id', () => {
 });
 
 // =============================================================================
-// POST /api/report-definitions
+// POST /api/v1/report-definitions
 // =============================================================================
 
-describe('POST /api/report-definitions', () => {
+describe('POST /api/v1/report-definitions', () => {
   it('creates a user-defined definition and returns 201', async () => {
     const newDef = { ...sampleDef, id: 2, organization_id: 1, is_system: 0, name: 'custom-monthly' };
     db.query.mockResolvedValueOnce([{ insertId: 2 }]);
     db.query.mockResolvedValueOnce([[newDef]]);
 
     const res = await request(app)
-      .post('/api/report-definitions')
+      .post('/api/v1/report-definitions')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1')
       .send({ name: 'custom-monthly', category: 'financial', description: 'My report' });
@@ -157,7 +157,7 @@ describe('POST /api/report-definitions', () => {
 
   it('returns 422 when name is missing', async () => {
     const res = await request(app)
-      .post('/api/report-definitions')
+      .post('/api/v1/report-definitions')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1')
       .send({ category: 'financial' });
@@ -167,7 +167,7 @@ describe('POST /api/report-definitions', () => {
 
   it('returns 422 when category is invalid', async () => {
     const res = await request(app)
-      .post('/api/report-definitions')
+      .post('/api/v1/report-definitions')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1')
       .send({ name: 'bad', category: 'invalid_cat' });
@@ -177,10 +177,10 @@ describe('POST /api/report-definitions', () => {
 });
 
 // =============================================================================
-// PUT /api/report-definitions/:id
+// PUT /api/v1/report-definitions/:id
 // =============================================================================
 
-describe('PUT /api/report-definitions/:id', () => {
+describe('PUT /api/v1/report-definitions/:id', () => {
   it('updates a user-created definition and returns 200', async () => {
     const userDef = { ...sampleDef, id: 2, organization_id: 1, is_system: 0, name: 'custom-monthly' };
     // Mutations read from the primary (DB-12): existence, update, re-read.
@@ -190,7 +190,7 @@ describe('PUT /api/report-definitions/:id', () => {
       .mockResolvedValueOnce([[{ ...userDef, description: 'Updated' }]]); // re-read after update
 
     const res = await request(app)
-      .put('/api/report-definitions/2')
+      .put('/api/v1/report-definitions/2')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1')
       .send({ description: 'Updated' });
@@ -202,7 +202,7 @@ describe('PUT /api/report-definitions/:id', () => {
     db.query.mockResolvedValueOnce([[]]); // not found
 
     const res = await request(app)
-      .put('/api/report-definitions/1')
+      .put('/api/v1/report-definitions/1')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1')
       .send({ description: 'Attempt to edit system def' });
@@ -212,17 +212,17 @@ describe('PUT /api/report-definitions/:id', () => {
 });
 
 // =============================================================================
-// DELETE /api/report-definitions/:id
+// DELETE /api/v1/report-definitions/:id
 // =============================================================================
 
-describe('DELETE /api/report-definitions/:id', () => {
+describe('DELETE /api/v1/report-definitions/:id', () => {
   it('soft-deletes a user-created definition and returns 204', async () => {
     const userDef = { ...sampleDef, id: 2, organization_id: 1, is_system: 0 };
     db.query.mockResolvedValueOnce([[userDef]]);
     db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
 
     const res = await request(app)
-      .delete('/api/report-definitions/2')
+      .delete('/api/v1/report-definitions/2')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1');
 
@@ -233,7 +233,7 @@ describe('DELETE /api/report-definitions/:id', () => {
     db.query.mockResolvedValueOnce([[]]); // not found
 
     const res = await request(app)
-      .delete('/api/report-definitions/999')
+      .delete('/api/v1/report-definitions/999')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1');
 
@@ -242,15 +242,15 @@ describe('DELETE /api/report-definitions/:id', () => {
 });
 
 // =============================================================================
-// POST /api/reports/generate  (reports.generate permission)
+// POST /api/v1/reports/generate  (reports.generate permission)
 // =============================================================================
 
-describe('POST /api/reports/generate', () => {
+describe('POST /api/v1/reports/generate', () => {
   it('returns 202 with generated_reports row on success', async () => {
     db.query.mockResolvedValueOnce([[sampleGenerated]]);
 
     const res = await request(app)
-      .post('/api/reports/generate')
+      .post('/api/v1/reports/generate')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1')
       .send({ report_def_name: 'aging', format: 'csv', parameters: {} });
@@ -262,7 +262,7 @@ describe('POST /api/reports/generate', () => {
 
   it('returns 422 when report_def_name is missing', async () => {
     const res = await request(app)
-      .post('/api/reports/generate')
+      .post('/api/v1/reports/generate')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1')
       .send({ format: 'csv' });
@@ -272,7 +272,7 @@ describe('POST /api/reports/generate', () => {
 
   it('returns 422 when format is invalid', async () => {
     const res = await request(app)
-      .post('/api/reports/generate')
+      .post('/api/v1/reports/generate')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1')
       .send({ report_def_name: 'aging', format: 'docx' });
@@ -282,10 +282,10 @@ describe('POST /api/reports/generate', () => {
 });
 
 // =============================================================================
-// POST /api/scheduled-reports/:id/run  (reports.generate permission)
+// POST /api/v1/scheduled-reports/:id/run  (reports.generate permission)
 // =============================================================================
 
-describe('POST /api/scheduled-reports/:id/run', () => {
+describe('POST /api/v1/scheduled-reports/:id/run', () => {
   const sampleSchedule = {
     id: 5,
     organization_id: 1,
@@ -304,7 +304,7 @@ describe('POST /api/scheduled-reports/:id/run', () => {
       .mockResolvedValueOnce([[{ ...sampleGenerated, scheduled_report_id: 5 }]]); // re-read generated
 
     const res = await request(app)
-      .post('/api/scheduled-reports/5/run')
+      .post('/api/v1/scheduled-reports/5/run')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1');
 
@@ -316,7 +316,7 @@ describe('POST /api/scheduled-reports/:id/run', () => {
     db.query.mockResolvedValueOnce([[]]); // not found
 
     const res = await request(app)
-      .post('/api/scheduled-reports/999/run')
+      .post('/api/v1/scheduled-reports/999/run')
       .set('Authorization', 'Bearer test')
       .set('X-Org-Id', '1');
 

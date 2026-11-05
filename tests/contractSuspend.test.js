@@ -1,7 +1,7 @@
 // =============================================================================
 // VigaBSS 5.0 — Contract Suspend / Unsuspend Route Tests
 // =============================================================================
-// Covers POST /api/contracts/:id/suspend and POST /api/contracts/:id/unsuspend.
+// Covers POST /api/v1/contracts/:id/suspend and POST /api/v1/contracts/:id/unsuspend.
 // These endpoints call suspensionService which sends RADIUS CoA Disconnect /
 // CoA-Request to immediately kick or re-enable the subscriber's active session.
 // =============================================================================
@@ -58,16 +58,16 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// POST /api/contracts/:id/suspend
+// POST /api/v1/contracts/:id/suspend
 // =============================================================================
-describe('POST /api/contracts/:id/suspend', () => {
+describe('POST /api/v1/contracts/:id/suspend', () => {
   test('suspends an active contract and calls suspensionService', async () => {
     mockAuthUser();
     db.query.mockResolvedValueOnce([[{ id: 5, status: 'active', organization_id: 1 }]]);
     suspensionService.suspendContract.mockResolvedValueOnce(undefined);
 
     const res = await request(app)
-      .post('/api/contracts/5/suspend')
+      .post('/api/v1/contracts/5/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -83,7 +83,7 @@ describe('POST /api/contracts/:id/suspend', () => {
     suspensionService.suspendContract.mockResolvedValueOnce(undefined);
 
     await request(app)
-      .post('/api/contracts/7/suspend')
+      .post('/api/v1/contracts/7/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ rule_id: 3, invoice_id: 42 });
 
@@ -95,7 +95,7 @@ describe('POST /api/contracts/:id/suspend', () => {
     db.query.mockResolvedValueOnce([[]]); // no contract rows
 
     const res = await request(app)
-      .post('/api/contracts/999/suspend')
+      .post('/api/v1/contracts/999/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -109,7 +109,7 @@ describe('POST /api/contracts/:id/suspend', () => {
     db.query.mockResolvedValueOnce([[{ id: 5, status: 'suspended', organization_id: 1 }]]);
 
     const res = await request(app)
-      .post('/api/contracts/5/suspend')
+      .post('/api/v1/contracts/5/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -120,7 +120,7 @@ describe('POST /api/contracts/:id/suspend', () => {
 
   test('returns 401 without a valid auth token', async () => {
     const res = await request(app)
-      .post('/api/contracts/5/suspend')
+      .post('/api/v1/contracts/5/suspend')
       .send({});
 
     expect(res.status).toBe(401);
@@ -132,7 +132,7 @@ describe('POST /api/contracts/:id/suspend', () => {
     suspensionService.suspendContract.mockRejectedValueOnce(new Error('DB error'));
 
     const res = await request(app)
-      .post('/api/contracts/5/suspend')
+      .post('/api/v1/contracts/5/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -141,16 +141,16 @@ describe('POST /api/contracts/:id/suspend', () => {
 });
 
 // =============================================================================
-// POST /api/contracts/:id/unsuspend
+// POST /api/v1/contracts/:id/unsuspend
 // =============================================================================
-describe('POST /api/contracts/:id/unsuspend', () => {
+describe('POST /api/v1/contracts/:id/unsuspend', () => {
   test('unsuspends a suspended contract and calls suspensionService', async () => {
     mockAuthUser();
     db.query.mockResolvedValueOnce([[{ id: 5, status: 'suspended', organization_id: 1 }]]);
     suspensionService.reconnectContract.mockResolvedValueOnce(undefined);
 
     const res = await request(app)
-      .post('/api/contracts/5/unsuspend')
+      .post('/api/v1/contracts/5/unsuspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -166,7 +166,7 @@ describe('POST /api/contracts/:id/unsuspend', () => {
     suspensionService.reconnectContract.mockResolvedValueOnce(undefined);
 
     await request(app)
-      .post('/api/contracts/8/unsuspend')
+      .post('/api/v1/contracts/8/unsuspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ invoice_id: 55 });
 
@@ -183,7 +183,7 @@ describe('POST /api/contracts/:id/unsuspend', () => {
     });
 
     const res = await request(app)
-      .post('/api/contracts/9/unsuspend')
+      .post('/api/v1/contracts/9/unsuspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -198,7 +198,7 @@ describe('POST /api/contracts/:id/unsuspend', () => {
     db.query.mockResolvedValueOnce([[]]); // no contract rows
 
     const res = await request(app)
-      .post('/api/contracts/999/unsuspend')
+      .post('/api/v1/contracts/999/unsuspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -212,7 +212,7 @@ describe('POST /api/contracts/:id/unsuspend', () => {
     db.query.mockResolvedValueOnce([[{ id: 5, status: 'active', organization_id: 1 }]]);
 
     const res = await request(app)
-      .post('/api/contracts/5/unsuspend')
+      .post('/api/v1/contracts/5/unsuspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -223,7 +223,7 @@ describe('POST /api/contracts/:id/unsuspend', () => {
 
   test('returns 401 without a valid auth token', async () => {
     const res = await request(app)
-      .post('/api/contracts/5/unsuspend')
+      .post('/api/v1/contracts/5/unsuspend')
       .send({});
 
     expect(res.status).toBe(401);
@@ -235,7 +235,7 @@ describe('POST /api/contracts/:id/unsuspend', () => {
     suspensionService.reconnectContract.mockRejectedValueOnce(new Error('CoA failed'));
 
     const res = await request(app)
-      .post('/api/contracts/5/unsuspend')
+      .post('/api/v1/contracts/5/unsuspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 

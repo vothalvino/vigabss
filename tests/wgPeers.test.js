@@ -107,9 +107,9 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// POST /api/wg-peers — create peer
+// POST /api/v1/wg-peers — create peer
 // =============================================================================
-describe('POST /api/wg-peers', () => {
+describe('POST /api/v1/wg-peers', () => {
   test('201 returns config+QR; data.private_key_encrypted is absent', async () => {
     mockAdminUser();
 
@@ -127,7 +127,7 @@ describe('POST /api/wg-peers', () => {
     });
 
     const res = await request(app)
-      .post('/api/wg-peers')
+      .post('/api/v1/wg-peers')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Laptop' });
 
@@ -157,7 +157,7 @@ describe('POST /api/wg-peers', () => {
     });
 
     const res = await request(app)
-      .post('/api/wg-peers')
+      .post('/api/v1/wg-peers')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Phone' });
 
@@ -170,7 +170,7 @@ describe('POST /api/wg-peers', () => {
     mockAdminUser();
 
     const res = await request(app)
-      .post('/api/wg-peers')
+      .post('/api/v1/wg-peers')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({});
 
@@ -182,7 +182,7 @@ describe('POST /api/wg-peers', () => {
     mockAdminUser();
 
     const res = await request(app)
-      .post('/api/wg-peers')
+      .post('/api/v1/wg-peers')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: '' });
 
@@ -191,7 +191,7 @@ describe('POST /api/wg-peers', () => {
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).post('/api/wg-peers').send({ name: 'Laptop' });
+    const res = await request(app).post('/api/v1/wg-peers').send({ name: 'Laptop' });
     expect(res.status).toBe(401);
   });
 
@@ -200,7 +200,7 @@ describe('POST /api/wg-peers', () => {
     User.getPermissions.mockResolvedValue([]); // no permissions at all
 
     const res = await request(app)
-      .post('/api/wg-peers')
+      .post('/api/v1/wg-peers')
       .set('Authorization', `Bearer ${techToken}`)
       .send({ name: 'Laptop' });
 
@@ -210,16 +210,16 @@ describe('POST /api/wg-peers', () => {
 });
 
 // =============================================================================
-// GET /api/wg-peers — list own peers
+// GET /api/v1/wg-peers — list own peers
 // =============================================================================
-describe('GET /api/wg-peers', () => {
+describe('GET /api/v1/wg-peers', () => {
   test('200 returns peer list; key columns absent from every row', async () => {
     mockAdminUser();
     // The route queries DB directly and applies redactPeer to each row
     db.query.mockResolvedValueOnce([[mockPeerRow, { ...mockPeerRow, id: 11 }]]);
 
     const res = await request(app)
-      .get('/api/wg-peers')
+      .get('/api/v1/wg-peers')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -236,7 +236,7 @@ describe('GET /api/wg-peers', () => {
     db.query.mockResolvedValueOnce([[]]); // no rows
 
     const res = await request(app)
-      .get('/api/wg-peers')
+      .get('/api/v1/wg-peers')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -244,7 +244,7 @@ describe('GET /api/wg-peers', () => {
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).get('/api/wg-peers');
+    const res = await request(app).get('/api/v1/wg-peers');
     expect(res.status).toBe(401);
   });
 
@@ -253,7 +253,7 @@ describe('GET /api/wg-peers', () => {
     User.getPermissions.mockResolvedValue([]);
 
     const res = await request(app)
-      .get('/api/wg-peers')
+      .get('/api/v1/wg-peers')
       .set('Authorization', `Bearer ${techToken}`);
 
     expect(res.status).toBe(403);
@@ -265,7 +265,7 @@ describe('GET /api/wg-peers', () => {
     db.query.mockResolvedValueOnce([[]]); // no peers yet
 
     const res = await request(app)
-      .get('/api/wg-peers')
+      .get('/api/v1/wg-peers')
       .set('Authorization', `Bearer ${techToken}`);
 
     expect(res.status).toBe(200);
@@ -273,9 +273,9 @@ describe('GET /api/wg-peers', () => {
 });
 
 // =============================================================================
-// GET /api/wg-peers/:id/config — profile re-download (owner-scoped)
+// GET /api/v1/wg-peers/:id/config — profile re-download (owner-scoped)
 // =============================================================================
-describe('GET /api/wg-peers/:id/config', () => {
+describe('GET /api/v1/wg-peers/:id/config', () => {
   test('200 returns .conf text for the peer owner', async () => {
     mockAdminUser();
 
@@ -285,7 +285,7 @@ describe('GET /api/wg-peers/:id/config', () => {
     userTunnelService.buildConfig.mockReturnValue('[Interface]\nPrivateKey = PLAINTEXTPRIVKEY==\nAddress    = 10.99.0.5/32\n[Peer]\n');
 
     const res = await request(app)
-      .get('/api/wg-peers/10/config')
+      .get('/api/v1/wg-peers/10/config')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -312,7 +312,7 @@ describe('GET /api/wg-peers/:id/config', () => {
     );
 
     const res = await request(app)
-      .get('/api/wg-peers/10/config?format=qr')
+      .get('/api/v1/wg-peers/10/config?format=qr')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -329,7 +329,7 @@ describe('GET /api/wg-peers/:id/config', () => {
     userTunnelService.buildConfig.mockReturnValue('[Interface]\n');
 
     const res = await request(app)
-      .get('/api/wg-peers/10/config?download=1')
+      .get('/api/v1/wg-peers/10/config?download=1')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -344,7 +344,7 @@ describe('GET /api/wg-peers/:id/config', () => {
     db.query.mockResolvedValueOnce([[]]); // no row found for this user
 
     const res = await request(app)
-      .get('/api/wg-peers/10/config')
+      .get('/api/v1/wg-peers/10/config')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(404);
@@ -354,15 +354,15 @@ describe('GET /api/wg-peers/:id/config', () => {
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).get('/api/wg-peers/10/config');
+    const res = await request(app).get('/api/v1/wg-peers/10/config');
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// DELETE /api/wg-peers/:id — self-revoke (owner only)
+// DELETE /api/v1/wg-peers/:id — self-revoke (owner only)
 // =============================================================================
-describe('DELETE /api/wg-peers/:id', () => {
+describe('DELETE /api/v1/wg-peers/:id', () => {
   test('204 on successful self-revoke', async () => {
     mockAdminUser();
 
@@ -370,7 +370,7 @@ describe('DELETE /api/wg-peers/:id', () => {
     userTunnelService.revokePeer.mockResolvedValue(true);
 
     const res = await request(app)
-      .delete('/api/wg-peers/10')
+      .delete('/api/v1/wg-peers/10')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(204);
@@ -384,7 +384,7 @@ describe('DELETE /api/wg-peers/:id', () => {
     db.query.mockResolvedValueOnce([[]]); // no peer for this user
 
     const res = await request(app)
-      .delete('/api/wg-peers/10')
+      .delete('/api/v1/wg-peers/10')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(404);
@@ -393,15 +393,15 @@ describe('DELETE /api/wg-peers/:id', () => {
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).delete('/api/wg-peers/10');
+    const res = await request(app).delete('/api/v1/wg-peers/10');
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// GET /api/wg-peers/admin/all — admin list (all org peers + live stats)
+// GET /api/v1/wg-peers/admin/all — admin list (all org peers + live stats)
 // =============================================================================
-describe('GET /api/wg-peers/admin/all', () => {
+describe('GET /api/v1/wg-peers/admin/all', () => {
   test('200 returns paginated peer list; key columns absent', async () => {
     mockAdminUser();
 
@@ -412,7 +412,7 @@ describe('GET /api/wg-peers/admin/all', () => {
     wireguardServerService.readPeerHandshakes.mockResolvedValue({});
 
     const res = await request(app)
-      .get('/api/wg-peers/admin/all')
+      .get('/api/v1/wg-peers/admin/all')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -440,7 +440,7 @@ describe('GET /api/wg-peers/admin/all', () => {
     });
 
     const res = await request(app)
-      .get('/api/wg-peers/admin/all')
+      .get('/api/v1/wg-peers/admin/all')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -459,7 +459,7 @@ describe('GET /api/wg-peers/admin/all', () => {
     wireguardServerService.readPeerHandshakes.mockRejectedValue(new Error('wg not installed'));
 
     const res = await request(app)
-      .get('/api/wg-peers/admin/all')
+      .get('/api/v1/wg-peers/admin/all')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -471,28 +471,28 @@ describe('GET /api/wg-peers/admin/all', () => {
     User.getPermissions.mockResolvedValue(['wireguard.peers.view']); // not admin perm
 
     const res = await request(app)
-      .get('/api/wg-peers/admin/all')
+      .get('/api/v1/wg-peers/admin/all')
       .set('Authorization', `Bearer ${techToken}`);
 
     expect(res.status).toBe(403);
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).get('/api/wg-peers/admin/all');
+    const res = await request(app).get('/api/v1/wg-peers/admin/all');
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// DELETE /api/wg-peers/admin/:id — admin revoke any peer
+// DELETE /api/v1/wg-peers/admin/:id — admin revoke any peer
 // =============================================================================
-describe('DELETE /api/wg-peers/admin/:id', () => {
+describe('DELETE /api/v1/wg-peers/admin/:id', () => {
   test('204 on successful admin revoke', async () => {
     mockAdminUser();
     userTunnelService.revokePeer.mockResolvedValue(true);
 
     const res = await request(app)
-      .delete('/api/wg-peers/admin/10')
+      .delete('/api/v1/wg-peers/admin/10')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(204);
@@ -505,7 +505,7 @@ describe('DELETE /api/wg-peers/admin/:id', () => {
     User.getPermissions.mockResolvedValue([]);
 
     const res = await request(app)
-      .delete('/api/wg-peers/admin/10')
+      .delete('/api/v1/wg-peers/admin/10')
       .set('Authorization', `Bearer ${techToken}`);
 
     expect(res.status).toBe(403);
@@ -513,15 +513,15 @@ describe('DELETE /api/wg-peers/admin/:id', () => {
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).delete('/api/wg-peers/admin/10');
+    const res = await request(app).delete('/api/v1/wg-peers/admin/10');
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// POST /api/wg-peers/admin/:id/rotate — replace keypair (admin)
+// POST /api/v1/wg-peers/admin/:id/rotate — replace keypair (admin)
 // =============================================================================
-describe('POST /api/wg-peers/admin/:id/rotate', () => {
+describe('POST /api/v1/wg-peers/admin/:id/rotate', () => {
   test('200 returns redacted peer with new public key; key columns absent', async () => {
     mockAdminUser();
 
@@ -533,7 +533,7 @@ describe('POST /api/wg-peers/admin/:id/rotate', () => {
     userTunnelService.rotatePeer.mockResolvedValue(rotatedPeer);
 
     const res = await request(app)
-      .post('/api/wg-peers/admin/10/rotate')
+      .post('/api/v1/wg-peers/admin/10/rotate')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -550,7 +550,7 @@ describe('POST /api/wg-peers/admin/:id/rotate', () => {
     userTunnelService.rotatePeer.mockResolvedValue({ ...mockPeerRow });
 
     const res = await request(app)
-      .post('/api/wg-peers/admin/10/rotate')
+      .post('/api/v1/wg-peers/admin/10/rotate')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -563,7 +563,7 @@ describe('POST /api/wg-peers/admin/:id/rotate', () => {
     User.getPermissions.mockResolvedValue([]);
 
     const res = await request(app)
-      .post('/api/wg-peers/admin/10/rotate')
+      .post('/api/v1/wg-peers/admin/10/rotate')
       .set('Authorization', `Bearer ${techToken}`);
 
     expect(res.status).toBe(403);
@@ -572,9 +572,9 @@ describe('POST /api/wg-peers/admin/:id/rotate', () => {
 });
 
 // =============================================================================
-// GET /api/wg-peers/admin/assignments/:userId — view current scopes
+// GET /api/v1/wg-peers/admin/assignments/:userId — view current scopes
 // =============================================================================
-describe('GET /api/wg-peers/admin/assignments/:userId', () => {
+describe('GET /api/v1/wg-peers/admin/assignments/:userId', () => {
   test('200 returns assignment rows + computed subnets', async () => {
     mockAdminUser();
 
@@ -585,7 +585,7 @@ describe('GET /api/wg-peers/admin/assignments/:userId', () => {
     userTunnelScopeService.getScopedSubnets.mockResolvedValue(['192.168.10.0/24']);
 
     const res = await request(app)
-      .get('/api/wg-peers/admin/assignments/42')
+      .get('/api/v1/wg-peers/admin/assignments/42')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -598,7 +598,7 @@ describe('GET /api/wg-peers/admin/assignments/:userId', () => {
     User.getPermissions.mockResolvedValue([]);
 
     const res = await request(app)
-      .get('/api/wg-peers/admin/assignments/42')
+      .get('/api/v1/wg-peers/admin/assignments/42')
       .set('Authorization', `Bearer ${techToken}`);
 
     expect(res.status).toBe(403);
@@ -606,9 +606,9 @@ describe('GET /api/wg-peers/admin/assignments/:userId', () => {
 });
 
 // =============================================================================
-// PUT /api/wg-peers/admin/assignments/:userId — replace scopes + live-refresh
+// PUT /api/v1/wg-peers/admin/assignments/:userId — replace scopes + live-refresh
 // =============================================================================
-describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
+describe('PUT /api/v1/wg-peers/admin/assignments/:userId', () => {
   test('200 replaces scopes and triggers refreshUserPeers for the target user', async () => {
     mockAdminUser();
 
@@ -627,7 +627,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     userTunnelService.refreshUserPeers.mockResolvedValue(undefined);
 
     const res = await request(app)
-      .put('/api/wg-peers/admin/assignments/42')
+      .put('/api/v1/wg-peers/admin/assignments/42')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         scopes: [
@@ -653,7 +653,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     userTunnelService.refreshUserPeers.mockResolvedValue(undefined);
 
     const res = await request(app)
-      .put('/api/wg-peers/admin/assignments/42')
+      .put('/api/v1/wg-peers/admin/assignments/42')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ scopes: [] });
 
@@ -669,7 +669,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     db.query.mockResolvedValueOnce([[]]); // membership lookup: not a member
 
     const res = await request(app)
-      .put('/api/wg-peers/admin/assignments/99')
+      .put('/api/v1/wg-peers/admin/assignments/99')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ scopes: [] });
 
@@ -683,7 +683,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     mockAdminUser();
 
     const res = await request(app)
-      .put('/api/wg-peers/admin/assignments/42')
+      .put('/api/v1/wg-peers/admin/assignments/42')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({});
 
@@ -695,7 +695,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     mockAdminUser();
 
     const res = await request(app)
-      .put('/api/wg-peers/admin/assignments/42')
+      .put('/api/v1/wg-peers/admin/assignments/42')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ scopes: [{ scope_type: 'region', scope_id: 1 }] });
 
@@ -707,7 +707,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     mockAdminUser();
 
     const res = await request(app)
-      .put('/api/wg-peers/admin/assignments/42')
+      .put('/api/v1/wg-peers/admin/assignments/42')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ scopes: [{ scope_type: 'nas', scope_id: 0 }] });
 
@@ -720,7 +720,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     User.getPermissions.mockResolvedValue(['wireguard.peers.view']); // unrelated perm
 
     const res = await request(app)
-      .put('/api/wg-peers/admin/assignments/42')
+      .put('/api/v1/wg-peers/admin/assignments/42')
       .set('Authorization', `Bearer ${techToken}`)
       .send({ scopes: [{ scope_type: 'nas', scope_id: 1 }] });
 
@@ -730,7 +730,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
 
   test('401 without auth token', async () => {
     const res = await request(app)
-      .put('/api/wg-peers/admin/assignments/42')
+      .put('/api/v1/wg-peers/admin/assignments/42')
       .send({ scopes: [] });
     expect(res.status).toBe(401);
   });

@@ -113,7 +113,7 @@ working. New documentation uses the VigaBSS names.
 - In-app changelog panel — paginated, filterable release history surfaced in the admin sidebar for operators who need to track what changed without leaving the UI
 - Kubernetes-ready health probes — `/health/live` (liveness), `/health/ready` (readiness with DB + Redis checks), `/health?detail=true` (detailed)
 - CSP nonce-based inline style protection (per-request nonce replaces `unsafe-inline`)
-- API versioning with deprecation headers (`Deprecation`, `Sunset`, `Link`) on unversioned `/api/` routes
+- URL-versioned API under `/api/v1/`
 - IETF draft-7 `RateLimit-*` response headers for API consumers
 - Optimistic concurrency control on critical financial records (invoices, contracts, payments, clients)
 - Default application settings seeded on install (currency, SMTP, SNMP, security, automation flags)

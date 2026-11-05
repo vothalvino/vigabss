@@ -56,10 +56,10 @@ beforeEach(() => {
 // Power budget calculator (pure calculation — no DB)
 // ---------------------------------------------------------------------------
 
-describe('POST /api/olt-management/power-budget', () => {
+describe('POST /api/v1/olt-management/power-budget', () => {
   it('returns budget result for a standard 1:32 splitter', async () => {
     const res = await request(app)
-      .post('/api/olt-management/power-budget')
+      .post('/api/v1/olt-management/power-budget')
       .set('Authorization', 'Bearer test')
       .send({ olt_tx_power_dbm: 3.0, splitter_ratio: '1:32', fiber_length_m: 5000 });
 
@@ -74,7 +74,7 @@ describe('POST /api/olt-management/power-budget', () => {
 
   it('returns 400 when required fields are missing', async () => {
     const res = await request(app)
-      .post('/api/olt-management/power-budget')
+      .post('/api/v1/olt-management/power-budget')
       .set('Authorization', 'Bearer test')
       .send({ splitter_ratio: '1:32' }); // missing olt_tx_power_dbm and fiber_length_m
 
@@ -84,7 +84,7 @@ describe('POST /api/olt-management/power-budget', () => {
   it('marks result as exceeded when total loss > 28 dB', async () => {
     // 20km fiber + 1:64 splitter should exceed budget
     const res = await request(app)
-      .post('/api/olt-management/power-budget')
+      .post('/api/v1/olt-management/power-budget')
       .set('Authorization', 'Bearer test')
       .send({ olt_tx_power_dbm: 3.0, splitter_ratio: '1:64', fiber_length_m: 20000 });
 
@@ -97,7 +97,7 @@ describe('POST /api/olt-management/power-budget', () => {
 // Port utilization dashboard
 // ---------------------------------------------------------------------------
 
-describe('GET /api/olt-management/ports/:portId/utilization', () => {
+describe('GET /api/v1/olt-management/ports/:portId/utilization', () => {
   it('returns port utilization with ONU counts and optical summary', async () => {
     db.query
       .mockResolvedValueOnce([[{
@@ -108,7 +108,7 @@ describe('GET /api/olt-management/ports/:portId/utilization', () => {
       .mockResolvedValueOnce([[{ avg_rx_dbm: -22.5, min_rx_dbm: -25.1, max_rx_dbm: -19.8, avg_tx_dbm: 2.1 }]]);
 
     const res = await request(app)
-      .get('/api/olt-management/ports/1/utilization')
+      .get('/api/v1/olt-management/ports/1/utilization')
       .set('Authorization', 'Bearer test');
 
     expect(res.status).toBe(200);
@@ -120,7 +120,7 @@ describe('GET /api/olt-management/ports/:portId/utilization', () => {
   it('returns 404 for unknown port', async () => {
     db.query.mockResolvedValueOnce([[]]); // no port row
     const res = await request(app)
-      .get('/api/olt-management/ports/9999/utilization')
+      .get('/api/v1/olt-management/ports/9999/utilization')
       .set('Authorization', 'Bearer test');
     expect(res.status).toBe(404);
   });
@@ -130,7 +130,7 @@ describe('GET /api/olt-management/ports/:portId/utilization', () => {
 // ONUs per port list
 // ---------------------------------------------------------------------------
 
-describe('GET /api/olt-management/ports/:portId/onus', () => {
+describe('GET /api/v1/olt-management/ports/:portId/onus', () => {
   it('returns list of ONUs on the port', async () => {
     db.query.mockResolvedValueOnce([[
       { id: 10, name: 'ONU-001', onu_state: 'online', onu_id: 1 },
@@ -138,7 +138,7 @@ describe('GET /api/olt-management/ports/:portId/onus', () => {
     ]]);
 
     const res = await request(app)
-      .get('/api/olt-management/ports/1/onus')
+      .get('/api/v1/olt-management/ports/1/onus')
       .set('Authorization', 'Bearer test');
 
     expect(res.status).toBe(200);
@@ -149,7 +149,7 @@ describe('GET /api/olt-management/ports/:portId/onus', () => {
     db.query.mockResolvedValueOnce([[{ id: 10, name: 'ONU-001', onu_state: 'online' }]]);
 
     const res = await request(app)
-      .get('/api/olt-management/ports/1/onus?state=online')
+      .get('/api/v1/olt-management/ports/1/onus?state=online')
       .set('Authorization', 'Bearer test');
 
     expect(res.status).toBe(200);
@@ -165,7 +165,7 @@ describe('GET /api/olt-management/ports/:portId/onus', () => {
 // Port shutdown (maintenance mode)
 // ---------------------------------------------------------------------------
 
-describe('POST /api/olt-management/ports/:portId/shutdown', () => {
+describe('POST /api/v1/olt-management/ports/:portId/shutdown', () => {
   it('enables maintenance mode', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1 }]]) // check exists
@@ -173,7 +173,7 @@ describe('POST /api/olt-management/ports/:portId/shutdown', () => {
       .mockResolvedValueOnce([[{ id: 1, maintenance_mode: 1, maintenance_note: 'fiber replacement' }]]);
 
     const res = await request(app)
-      .post('/api/olt-management/ports/1/shutdown')
+      .post('/api/v1/olt-management/ports/1/shutdown')
       .set('Authorization', 'Bearer test')
       .send({ enable: true, note: 'fiber replacement' });
 
@@ -188,7 +188,7 @@ describe('POST /api/olt-management/ports/:portId/shutdown', () => {
       .mockResolvedValueOnce([[{ id: 1, maintenance_mode: 0 }]]);
 
     const res = await request(app)
-      .post('/api/olt-management/ports/1/shutdown')
+      .post('/api/v1/olt-management/ports/1/shutdown')
       .set('Authorization', 'Bearer test')
       .send({ enable: false });
 
@@ -201,7 +201,7 @@ describe('POST /api/olt-management/ports/:portId/shutdown', () => {
 // XGS-PON mode configuration
 // ---------------------------------------------------------------------------
 
-describe('POST /api/olt-management/ports/:portId/xgspon-mode', () => {
+describe('POST /api/v1/olt-management/ports/:portId/xgspon-mode', () => {
   it('sets xgspon_10g mode on a valid port', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, port_type: 'xgspon', manufacturer: 'Huawei', model: 'MA5800-X7' }]])
@@ -210,7 +210,7 @@ describe('POST /api/olt-management/ports/:portId/xgspon-mode', () => {
       .mockResolvedValueOnce([[{ id: 1, xgspon_mode: 'xgspon_10g', xgspon_mode_validated: 1 }]]);
 
     const res = await request(app)
-      .post('/api/olt-management/ports/1/xgspon-mode')
+      .post('/api/v1/olt-management/ports/1/xgspon-mode')
       .set('Authorization', 'Bearer test')
       .send({ mode: 'xgspon_10g' });
 
@@ -220,7 +220,7 @@ describe('POST /api/olt-management/ports/:portId/xgspon-mode', () => {
 
   it('returns 400 for missing mode', async () => {
     const res = await request(app)
-      .post('/api/olt-management/ports/1/xgspon-mode')
+      .post('/api/v1/olt-management/ports/1/xgspon-mode')
       .set('Authorization', 'Bearer test')
       .send({});
     expect(res.status).toBe(400);
@@ -232,7 +232,7 @@ describe('POST /api/olt-management/ports/:portId/xgspon-mode', () => {
 // ---------------------------------------------------------------------------
 
 describe('ONU Migration Jobs', () => {
-  describe('GET /api/olt-management/onu-migrations', () => {
+  describe('GET /api/v1/olt-management/onu-migrations', () => {
     it('returns paginated migration jobs', async () => {
       db.query
         .mockResolvedValueOnce([[{ total: 2 }]])
@@ -242,7 +242,7 @@ describe('ONU Migration Jobs', () => {
         ]]);
 
       const res = await request(app)
-        .get('/api/olt-management/onu-migrations')
+        .get('/api/v1/olt-management/onu-migrations')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);
@@ -251,12 +251,12 @@ describe('ONU Migration Jobs', () => {
     });
   });
 
-  describe('POST /api/olt-management/onu-migrations', () => {
+  describe('POST /api/v1/olt-management/onu-migrations', () => {
     // NET-26: the job was stored 'pending' and nothing ever moved the ONU.
     // With no OLT driver the request is refused and nothing is stored.
     it('refuses with 501 and stores no job', async () => {
       const res = await request(app)
-        .post('/api/olt-management/onu-migrations')
+        .post('/api/v1/olt-management/onu-migrations')
         .set('Authorization', 'Bearer test')
         .send({ onu_device_id: 5, source_olt_port_id: 1, target_olt_port_id: 2 });
 
@@ -266,7 +266,7 @@ describe('ONU Migration Jobs', () => {
     });
   });
 
-  describe('POST /api/olt-management/onu-migrations/:jobId/cancel', () => {
+  describe('POST /api/v1/olt-management/onu-migrations/:jobId/cancel', () => {
     it('cancels a pending job', async () => {
       db.query
         .mockResolvedValueOnce([[{ id: 1, status: 'pending' }]])   // check
@@ -274,7 +274,7 @@ describe('ONU Migration Jobs', () => {
         .mockResolvedValueOnce([[{ id: 1, status: 'cancelled' }]]); // SELECT result
 
       const res = await request(app)
-        .post('/api/olt-management/onu-migrations/1/cancel')
+        .post('/api/v1/olt-management/onu-migrations/1/cancel')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);
@@ -285,7 +285,7 @@ describe('ONU Migration Jobs', () => {
       db.query.mockResolvedValueOnce([[{ id: 1, status: 'completed' }]]);
 
       const res = await request(app)
-        .post('/api/olt-management/onu-migrations/1/cancel')
+        .post('/api/v1/olt-management/onu-migrations/1/cancel')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(409);

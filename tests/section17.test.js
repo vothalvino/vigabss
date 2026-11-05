@@ -357,7 +357,7 @@ describe('POST /api/v1/security-admin/admin-ip-allowlist', () => {
       .post('/api/v1/security-admin/admin-ip-allowlist')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ ip_address: '192.168.1.100', description: 'VPN gateway' });
+      .send({ cidr: '192.168.1.100', description: 'VPN gateway' });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
     const insertCall = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO admin_ip_allowlist'));
@@ -369,7 +369,7 @@ describe('POST /api/v1/security-admin/admin-ip-allowlist', () => {
       .post('/api/v1/security-admin/admin-ip-allowlist')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ ip_address: '127.0.0.1/32', description: 'Current operator', is_active: true });
+      .send({ cidr: '127.0.0.1/32', description: 'Current operator', is_active: true });
     expect(res.status).toBe(201);
     const insertCall = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO admin_ip_allowlist'));
     expect(insertCall[1][3]).toBe(1);
@@ -380,7 +380,7 @@ describe('POST /api/v1/security-admin/admin-ip-allowlist', () => {
       .post('/api/v1/security-admin/admin-ip-allowlist')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ ip_address: '10.0.0.0/8', is_active: true });
+      .send({ cidr: '10.0.0.0/8', is_active: true });
     expect(res.status).toBe(422);
     expect(res.body.error.message).toMatch(/exclude your current IP/i);
   });
@@ -566,7 +566,7 @@ describe('POST /api/v1/network-security/blackhole-routes', () => {
       .post('/api/v1/network-security/blackhole-routes')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ target_prefix: '198.51.100.0/24', reason: 'DDoS source' });
+      .send({ prefix: '198.51.100.0/24', reason: 'DDoS source' });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
   });
@@ -811,7 +811,7 @@ describe('GET /api/v1/data-security/encryption-keys', () => {
         return Promise.resolve([[{ id: 1, email: 'admin@test.com', role: 'admin', status: 'active', organization_id: 1 }]]);
       }
       if (typeof sql === 'string' && sql.includes('encryption_key_metadata')) {
-        return Promise.resolve([[{ id: 1, key_alias: 'master-key', algorithm: 'AES-256-GCM', status: 'active' }]]);
+        return Promise.resolve([[{ id: 1, key_id: 'master-key', algorithm: 'AES-256-GCM', status: 'active' }]]);
       }
       return Promise.resolve([[]]);
     });
@@ -1056,7 +1056,7 @@ describe('PUT /api/v1/security-admin/admin-ip-allowlist/:id', () => {
       .put('/api/v1/security-admin/admin-ip-allowlist/1')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ ip_address: '10.1.1.1', description: 'Updated VPN' });
+      .send({ cidr: '10.1.1.1', description: 'Updated VPN' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
   });
@@ -1075,7 +1075,7 @@ describe('PUT /api/v1/security-admin/admin-ip-allowlist/:id', () => {
       .put('/api/v1/security-admin/admin-ip-allowlist/999')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ ip_address: '10.1.1.1' });
+      .send({ cidr: '10.1.1.1' });
     expect(res.status).toBe(404);
   });
 });
@@ -1425,7 +1425,7 @@ describe('POST /api/v1/data-security/encryption-keys', () => {
       .post('/api/v1/data-security/encryption-keys')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ key_alias: 'primary-key', algorithm: 'AES-256-GCM', purpose: 'pii', status: 'active' });
+      .send({ key_id: 'primary-key', algorithm: 'AES-256-GCM', purpose: 'pii', status: 'active' });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
   });
@@ -1623,7 +1623,7 @@ describe('Error paths — networkSecurity catch blocks', () => {
       .post('/api/v1/network-security/blackhole-routes')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ target_prefix: '192.168.1.0/24', reason: 'abuse' });
+      .send({ prefix: '192.168.1.0/24', reason: 'abuse' });
     expect(res.status).toBe(500);
   });
 
@@ -1687,7 +1687,7 @@ describe('Error paths — dataSecurity catch blocks', () => {
       .post('/api/v1/data-security/encryption-keys')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ key_alias: 'test-key', algorithm: 'AES-256-GCM' });
+      .send({ key_id: 'test-key', algorithm: 'AES-256-GCM' });
     expect(res.status).toBe(500);
   });
 
@@ -1696,7 +1696,7 @@ describe('Error paths — dataSecurity catch blocks', () => {
       .put('/api/v1/data-security/encryption-keys/1')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ key_alias: 'new-alias' });
+      .send({ key_id: 'new-alias' });
     expect(res.status).toBe(500);
   });
 
@@ -1760,7 +1760,7 @@ describe('Error paths — securityAdmin catch blocks', () => {
       .post('/api/v1/security-admin/admin-ip-allowlist')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ ip_address: '10.0.0.1' });
+      .send({ cidr: '10.0.0.1' });
     expect(res.status).toBe(500);
   });
 

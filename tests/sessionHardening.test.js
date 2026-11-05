@@ -34,7 +34,7 @@ describe('Session hardening', () => {
 
     it.each([
       '/api/v1/auth/me',
-      '/api/auth/me',
+      '/api/v1/auth/me',
       '/api/v1/auth/refresh',
       '/api/v1/auth/logout',
       '/api/v1/auth/switch-organization',

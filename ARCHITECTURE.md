@@ -101,10 +101,10 @@ server, and drains them on shutdown.
 
 `src/app.js` owns the HTTP security and routing stack. Important surfaces are:
 
-- `/api/v1/*` is the canonical REST and GraphQL prefix.
-- `/api/*` is a backward-compatible mount of the same router. It emits
-  deprecation metadata and currently advertises a 2027-06-01 sunset. New code
-  and frontend calls must use `/api/v1`.
+- `/api/v1/*` is the only REST and GraphQL prefix. There is no unversioned
+  `/api/*` copy of the router (removed before the first install); limiters and
+  guards are mounted on the `/api/v1` paths only. `/api/docs` is the one route
+  outside it.
 - `/api/v1/graphql` is GraphQL Yoga behind authentication, organization scope,
   API-token scope checks, and per-root-field permission checks.
 - `/health`, `/healthz`, `/health/live`, and `/health/ready` are health surfaces

@@ -112,10 +112,6 @@ const ORG_DAILY_DELIVERY_LIMIT = boundedEnvInt(
 const GLOBAL_DAILY_DELIVERY_LIMIT = boundedEnvInt(
   'SNMP_TRAP_GLOBAL_DAILY_DELIVERY_LIMIT', 100000, 1, 10000000,
 );
-// Backward-compatible export aliases; new code and deployment config use the
-// explicit organization/global names above.
-const DAILY_TRAP_ROW_LIMIT = ORG_DAILY_TRAP_ROW_LIMIT;
-const DAILY_VARBIND_BYTE_LIMIT = ORG_DAILY_VARBIND_BYTE_LIMIT;
 
 // OID present in every SNMPv2c/v3 TrapV2-PDU — carries the actual trap OID value
 const SNMP_TRAP_OID_VARBIND = '1.3.6.1.6.3.1.1.4.1.0';
@@ -1456,8 +1452,6 @@ module.exports = {
   MAX_VARBIND_COUNT,
   MAX_VARBIND_VALUE_BYTES,
   MAX_VARBINDS_JSON_BYTES,
-  DAILY_TRAP_ROW_LIMIT,
-  DAILY_VARBIND_BYTE_LIMIT,
   ORG_DAILY_TRAP_ROW_LIMIT,
   GLOBAL_DAILY_TRAP_ROW_LIMIT,
   ORG_DAILY_VARBIND_BYTE_LIMIT,

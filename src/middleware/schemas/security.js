@@ -36,9 +36,7 @@ const createDdosRule = {
 };
 
 const createBlackholeRoute = {
-  // Accepts `prefix` (new schema column) or legacy `target_prefix` — route maps either.
-  prefix: {},
-  target_prefix: {},
+  prefix: { required: true },
   reason: { required: true },
   notes: {},
 };
@@ -46,10 +44,8 @@ const createBlackholeRoute = {
 const createDnsBlocklist = {
   domain: { required: true },
   category: { required: true, enum: ['malware', 'phishing', 'ads', 'spam', 'adult', 'gambling', 'botnet', 'other'] },
-  // New schema columns; legacy `source` also accepted by the route handler.
   entry_type: { enum: ['manual', 'auto_import', 'threat_feed'] },
   threat_feed_source: {},
-  source: {},
   is_active: { type: 'boolean' },
 };
 
@@ -66,9 +62,7 @@ const updatePasswordPolicy = {
   require_uppercase: { type: 'boolean' },
   require_lowercase: { type: 'boolean' },
   require_digits: { type: 'boolean' },
-  // New schema column name; legacy require_symbols also accepted by the route handler.
   require_special_chars: { type: 'boolean' },
-  require_symbols: { type: 'boolean' },
   // 0 turns the limit off (stored as NULL).
   max_repeated_chars: { type: 'integer', min: 0, max: 128 },
   rotation_days: { type: 'integer', min: 0, max: 3650 },
@@ -79,9 +73,7 @@ const updatePasswordPolicy = {
 };
 
 const createAdminIpAllowlist = {
-  // Accepts `cidr` (new schema column) or legacy `ip_address` — route maps either.
-  cidr: {},
-  ip_address: {},
+  cidr: { required: true },
   description: {},
   is_active: { type: 'boolean' },
 };

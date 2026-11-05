@@ -104,7 +104,7 @@ function describePatch(name, path, mockRecord, patchBody, updatedRecord, { owner
       // the lookup and answers 403, deliberately, so a tenant cannot probe
       // which organisation ids exist (j56/j67). Asserting the exact status per
       // resource keeps this from quietly accepting either answer everywhere.
-      expect(res.status).toBe(path === '/api/organizations' ? 403 : 404);
+      expect(res.status).toBe(path === '/api/v1/organizations' ? 403 : 404);
     });
 
     test('returns 401 without auth header', async () => {
@@ -134,7 +134,7 @@ function describePatch(name, path, mockRecord, patchBody, updatedRecord, { owner
 // =============================================================================
 describePatch(
   'Client',
-  '/api/clients',
+  '/api/v1/clients',
   { id: 1, organization_id: 1, name: 'Acme Corp', email: 'acme@test.com', status: 'active' },
   { name: 'Acme Updated' },
   { id: 1, organization_id: 1, name: 'Acme Updated', email: 'acme@test.com', status: 'active' },
@@ -145,7 +145,7 @@ describePatch(
 // =============================================================================
 describePatch(
   'Contract',
-  '/api/contracts',
+  '/api/v1/contracts',
   { id: 1, organization_id: 1, client_id: 10, plan_id: 5, status: 'active' },
   { status: 'suspended' },
   { id: 1, organization_id: 1, client_id: 10, plan_id: 5, status: 'suspended' },
@@ -156,7 +156,7 @@ describePatch(
 // =============================================================================
 describePatch(
   'Invoice',
-  '/api/invoices',
+  '/api/v1/invoices',
   { id: 1, organization_id: 1, client_id: 10, subtotal: 100, total: 116, status: 'draft' },
   { status: 'issued' },
   { id: 1, organization_id: 1, client_id: 10, subtotal: 100, total: 116, status: 'issued' },
@@ -167,7 +167,7 @@ describePatch(
 // =============================================================================
 describePatch(
   'Device',
-  '/api/devices',
+  '/api/v1/devices',
   { id: 1, organization_id: 1, name: 'Router-1', type: 'router', status: 'active' },
   { name: 'Router-1-Updated' },
   { id: 1, organization_id: 1, name: 'Router-1-Updated', type: 'router', status: 'active' },
@@ -178,7 +178,7 @@ describePatch(
 // =============================================================================
 describePatch(
   'Payment',
-  '/api/payments',
+  '/api/v1/payments',
   { id: 1, organization_id: 1, client_id: 10, amount: 500, status: 'pending' },
   { status: 'completed' },
   { id: 1, organization_id: 1, client_id: 10, amount: 500, status: 'completed' },
@@ -191,7 +191,7 @@ describePatch(
 // =============================================================================
 describePatch(
   'Ticket',
-  '/api/tickets',
+  '/api/v1/tickets',
   { id: 1, organization_id: 1, subject: 'No internet', priority: 'high', status: 'open' },
   { priority: 'critical' },
   { id: 1, organization_id: 1, subject: 'No internet', priority: 'critical', status: 'open' },
@@ -203,7 +203,7 @@ describePatch(
 // =============================================================================
 describePatch(
   'Plan',
-  '/api/plans',
+  '/api/v1/plans',
   { id: 1, organization_id: 1, name: '50Mbps', price: 499, status: 'active' },
   { price: 599 },
   { id: 1, organization_id: 1, name: '50Mbps', price: 599, status: 'active' },
@@ -212,7 +212,7 @@ describePatch(
 // =============================================================================
 // 8. USERS (User model is fully mocked — need special handling)
 // =============================================================================
-describe('PATCH /api/users/:id', () => {
+describe('PATCH /api/v1/users/:id', () => {
   const mockUserRecord = {
     id: 2,
     organization_id: 1,
@@ -239,7 +239,7 @@ describe('PATCH /api/users/:id', () => {
     User.update.mockResolvedValue({ ...mockUserRecord, first_name: 'Jane' });
 
     const res = await request(app)
-      .patch('/api/users/2')
+      .patch('/api/v1/users/2')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ first_name: 'Jane' });
 
@@ -253,7 +253,7 @@ describe('PATCH /api/users/:id', () => {
     User.findByIdOrFail.mockRejectedValue(new NotFoundError('users'));
 
     const res = await request(app)
-      .patch('/api/users/999')
+      .patch('/api/v1/users/999')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ first_name: 'Jane' });
 
@@ -262,7 +262,7 @@ describe('PATCH /api/users/:id', () => {
 
   test('returns 401 without auth header', async () => {
     const res = await request(app)
-      .patch('/api/users/2')
+      .patch('/api/v1/users/2')
       .send({ first_name: 'Jane' });
 
     expect(res.status).toBe(401);
@@ -272,7 +272,7 @@ describe('PATCH /api/users/:id', () => {
     mockAuthUser();
 
     const res = await request(app)
-      .patch('/api/users/2')
+      .patch('/api/v1/users/2')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ status: 12345 });
 
@@ -285,7 +285,7 @@ describe('PATCH /api/users/:id', () => {
 // =============================================================================
 describePatch(
   'Organization',
-  '/api/organizations',
+  '/api/v1/organizations',
   { id: 1, name: 'Test ISP', status: 'active' },
   { name: 'Updated ISP' },
   { id: 1, name: 'Updated ISP', status: 'active' },
@@ -296,7 +296,7 @@ describePatch(
 // =============================================================================
 describePatch(
   'Site',
-  '/api/sites',
+  '/api/v1/sites',
   { id: 1, organization_id: 1, name: 'Main POP', site_type: 'pop', status: 'active' },
   { name: 'Primary POP' },
   { id: 1, organization_id: 1, name: 'Primary POP', site_type: 'pop', status: 'active' },

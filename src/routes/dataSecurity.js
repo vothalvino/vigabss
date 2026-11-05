@@ -35,23 +35,19 @@ router.get('/encryption-keys', requirePermission('encryption_keys.view'), async 
 });
 
 // POST /encryption-keys — register key metadata
-// Accepts key_id (new schema name) or legacy key_alias for backward compat;
-// accepts key_length_bits (new) or legacy key_size for backward compat.
 router.post('/encryption-keys', requirePermission('encryption_keys.update'), async (req, res, next) => {
   try {
-    const { key_id, key_alias, algorithm, key_length_bits, key_size, key_reference, purpose, status, version, expires_at, next_rotation_at, notes } = req.body;
-    const keyIdValue = key_id ?? key_alias;
-    const keyLenValue = key_length_bits ?? key_size ?? null;
+    const { key_id, algorithm, key_length_bits, key_reference, purpose, status, version, expires_at, next_rotation_at, notes } = req.body;
     const [result] = await db.query(
       `INSERT INTO encryption_key_metadata
         (organization_id, key_id, purpose, algorithm, key_length_bits, key_reference, status, version, expires_at, next_rotation_at, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.orgId,
-        keyIdValue || null,
+        key_id || null,
         purpose || null,
         algorithm || null,
-        keyLenValue,
+        key_length_bits ?? null,
         key_reference || null,
         status || 'active',
         version || 1,
@@ -67,21 +63,16 @@ router.post('/encryption-keys', requirePermission('encryption_keys.update'), asy
 });
 
 // PUT /encryption-keys/:id — update key metadata, supports rotate action
-// Accepts key_id/key_alias and key_length_bits/key_size for backward compat.
 router.put('/encryption-keys/:id', requirePermission('encryption_keys.update'), async (req, res, next) => {
   try {
-    const { key_id, key_alias, algorithm, key_length_bits, key_size, key_reference, purpose, status, version, expires_at, next_rotation_at, notes, action } = req.body;
+    const { key_id, algorithm, key_length_bits, key_reference, purpose, status, version, expires_at, next_rotation_at, notes, action } = req.body;
 
     const updates = [];
     const params = [];
 
-    // Accept key_id (new) or key_alias (old) for backward compat
-    const keyIdValue = key_id !== undefined ? key_id : key_alias;
-    if (keyIdValue !== undefined) { updates.push('key_id = ?'); params.push(keyIdValue); }
+    if (key_id !== undefined) { updates.push('key_id = ?'); params.push(key_id); }
     if (algorithm !== undefined) { updates.push('algorithm = ?'); params.push(algorithm); }
-    // Accept key_length_bits (new) or key_size (old) for backward compat
-    const keyLenValue = key_length_bits !== undefined ? key_length_bits : key_size;
-    if (keyLenValue !== undefined) { updates.push('key_length_bits = ?'); params.push(keyLenValue); }
+    if (key_length_bits !== undefined) { updates.push('key_length_bits = ?'); params.push(key_length_bits); }
     if (key_reference !== undefined) { updates.push('key_reference = ?'); params.push(key_reference); }
     if (purpose !== undefined) { updates.push('purpose = ?'); params.push(purpose); }
     if (status !== undefined) { updates.push('status = ?'); params.push(status); }
