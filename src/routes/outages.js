@@ -12,7 +12,7 @@ const { validate } = require('../middleware/validate');
 const { createOutage, updateOutage } = require('../middleware/schemas/outages');
 const db = require('../config/database');
 const eventBus = require('../services/eventBus');
-const { visibleToOrg, rejectOrgReassignment, adoptUnattributed } = require('../utils/orgAdoption');
+const { rejectOrgReassignment } = require('../middleware/rejectOrgReassignment');
 const logger = require('../utils/logger').child({ service: 'routes/outages' });
 
 const router = Router();
@@ -56,9 +56,9 @@ const ctrl = crudController(Outage, {
 router.use(authenticate);
 router.use(orgScope);
 
-// Theirs, or an unattributed legacy row. See src/utils/orgAdoption.js for why
-// BaseModel cannot express this.
-const VISIBLE = visibleToOrg('o');
+// Every outage has an owner: the API stamps the caller's organization and
+// alertService the alert rule's.
+const VISIBLE = 'o.organization_id = ?';
 
 router.get('/', requirePermission('outages.view'), async (req, res, next) => {
   try {
@@ -73,10 +73,8 @@ router.get('/', requirePermission('outages.view'), async (req, res, next) => {
     const safePage = Math.max(1, parseInt(page, 10) || 1);
     const clause = `WHERE ${where.join(' AND ')}`;
 
-    // is_unattributed tells the UI why a row it can see has no owner, and is
-    // the same idea as is_shared (#566) and is_global (#582).
     const [rows] = await db.query(
-      `SELECT o.*, (o.organization_id IS NULL) AS is_unattributed
+      `SELECT o.*
          FROM outages o ${clause}
         ORDER BY o.started_at DESC
         LIMIT ${safeLimit} OFFSET ${(safePage - 1) * safeLimit}`,
@@ -95,8 +93,8 @@ router.get('/', requirePermission('outages.view'), async (req, res, next) => {
 router.get('/:id', requirePermission('outages.view'), async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      `SELECT o.*, (o.organization_id IS NULL) AS is_unattributed
-         FROM outages o WHERE o.id = ? AND ${VISIBLE} AND o.deleted_at IS NULL LIMIT 1`,
+      `SELECT o.*
+         FROM outages o WHERE o.id = ? AND o.organization_id = ? AND o.deleted_at IS NULL LIMIT 1`,
       [req.params.id, req.orgId],
     );
     if (!rows[0]) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Outage not found' } });
@@ -104,15 +102,10 @@ router.get('/:id', requirePermission('outages.view'), async (req, res, next) => 
   } catch (err) { next(err); }
 });
 
-// From migration 437 on nothing new is unattributed, so adoption only ever
-// shrinks the legacy set. Without it a legacy 'ongoing' outage would sit
-// un-resolvable on every tenant's NOC dashboard.
-const rejectMove = rejectOrgReassignment('outage');
-const adopt = adoptUnattributed('outages', 'outage');
 
 router.post('/', requirePermission('outages.create'), validate(createOutage, { strip: false }), ctrl.create);
-router.put('/:id', requirePermission('outages.update'), rejectMove, validate(updateOutage, { strip: false }), adopt, ctrl.update);
-router.delete('/:id', requirePermission('outages.delete'), adopt, ctrl.destroy);
-router.post('/:id/restore', requirePermission('outages.update'), adopt, ctrl.restore);
+router.put('/:id', requirePermission('outages.update'), rejectOrgReassignment, validate(updateOutage, { strip: false }), ctrl.update);
+router.delete('/:id', requirePermission('outages.delete'), ctrl.destroy);
+router.post('/:id/restore', requirePermission('outages.update'), ctrl.restore);
 
 module.exports = router;

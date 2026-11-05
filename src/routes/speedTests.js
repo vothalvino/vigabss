@@ -11,7 +11,7 @@ const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { createSpeedTest, updateSpeedTest } = require('../middleware/schemas/speedTests');
 const db = require('../config/database');
-const { visibleToOrg, rejectOrgReassignment, adoptUnattributed } = require('../utils/orgAdoption');
+const { rejectOrgReassignment } = require('../middleware/rejectOrgReassignment');
 const { ValidationError } = require('../utils/errors');
 
 const router = Router();
@@ -20,10 +20,9 @@ const ctrl = crudController(SpeedTest);
 router.use(authenticate);
 router.use(orgScope);
 
-// Theirs, or an unattributed legacy row. See src/utils/orgAdoption.js for why
-// BaseModel cannot express this and why hiding the NULL-org rows would be
-// worse than the leak it replaces.
-const VISIBLE = visibleToOrg('st');
+// Every speed test has an owner: the API stamps the caller's organization and
+// commissioning the work order's.
+const VISIBLE = 'st.organization_id = ?';
 
 router.get('/', requirePermission('speed_tests.view'), async (req, res, next) => {
   try {
@@ -41,10 +40,8 @@ router.get('/', requirePermission('speed_tests.view'), async (req, res, next) =>
     const safePage = Math.max(1, parseInt(page, 10) || 1);
     const clause = `WHERE ${where.join(' AND ')}`;
 
-    // is_unattributed tells the UI why a row it can see has no owner — the
-    // same idea as is_shared (#566), is_global (#582) and outages (#599).
     const [rows] = await db.query(
-      `SELECT st.*, (st.organization_id IS NULL) AS is_unattributed
+      `SELECT st.*
          FROM speed_tests st ${clause}
         ORDER BY st.tested_at DESC
         LIMIT ${safeLimit} OFFSET ${(safePage - 1) * safeLimit}`,
@@ -63,8 +60,8 @@ router.get('/', requirePermission('speed_tests.view'), async (req, res, next) =>
 router.get('/:id', requirePermission('speed_tests.view'), async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      `SELECT st.*, (st.organization_id IS NULL) AS is_unattributed
-         FROM speed_tests st WHERE st.id = ? AND ${VISIBLE} AND st.deleted_at IS NULL LIMIT 1`,
+      `SELECT st.*
+         FROM speed_tests st WHERE st.id = ? AND st.organization_id = ? AND st.deleted_at IS NULL LIMIT 1`,
       [req.params.id, req.orgId],
     );
     if (!rows[0]) {
@@ -103,12 +100,9 @@ async function assertOwnedReferences(req, res, next) {
       const value = req.body?.[field];
       if (value === undefined || value === null) continue;
       const [rows] = await db.query(
-        // Admits NULL-org parents so a single-tenant install still works, the
-        // same rule the read predicate uses.
         `SELECT id FROM ${table}
-          WHERE id = ? AND (organization_id = ? OR (? IS NULL AND organization_id IS NULL))
-            AND deleted_at IS NULL LIMIT 1`,
-        [value, req.orgId, req.orgId],
+          WHERE id = ? AND organization_id = ? AND deleted_at IS NULL LIMIT 1`,
+        [value, req.orgId],
       );
       if (!rows.length) {
         throw new ValidationError(`${field} does not belong to this organization`);
@@ -118,11 +112,6 @@ async function assertOwnedReferences(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// From migration 438 on nothing new is unattributed, so adoption only ever
-// shrinks the legacy set. Without it those rows would be permanently
-// undeletable — visible on every tenant's list with no way to clear them.
-const rejectMove = rejectOrgReassignment('speed test');
-const adopt = adoptUnattributed('speed_tests', 'speed test');
 
 function rejectCommissioningBinding(req, _res, next) {
   if (Object.prototype.hasOwnProperty.call(req.body || {}, 'work_order_id')) {
@@ -137,7 +126,7 @@ async function rejectBoundCommissioningMutation(req, _res, next) {
   try {
     const [rows] = await db.query(
       `SELECT st.work_order_id FROM speed_tests st
-        WHERE st.id = ? AND ${VISIBLE}
+        WHERE st.id = ? AND st.organization_id = ?
         LIMIT 1`,
       [req.params.id, req.orgId],
     );
@@ -151,8 +140,8 @@ async function rejectBoundCommissioningMutation(req, _res, next) {
 }
 
 router.post('/', requirePermission('speed_tests.create'), rejectCommissioningBinding, validate(createSpeedTest, { strip: false }), assertOwnedReferences, ctrl.create);
-router.put('/:id', requirePermission('speed_tests.update'), rejectBoundCommissioningMutation, rejectMove, validate(updateSpeedTest, { strip: false }), assertOwnedReferences, adopt, ctrl.update);
-router.delete('/:id', requirePermission('speed_tests.delete'), rejectBoundCommissioningMutation, adopt, ctrl.destroy);
-router.post('/:id/restore', requirePermission('speed_tests.update'), rejectBoundCommissioningMutation, adopt, ctrl.restore);
+router.put('/:id', requirePermission('speed_tests.update'), rejectBoundCommissioningMutation, rejectOrgReassignment, validate(updateSpeedTest, { strip: false }), assertOwnedReferences, ctrl.update);
+router.delete('/:id', requirePermission('speed_tests.delete'), rejectBoundCommissioningMutation, ctrl.destroy);
+router.post('/:id/restore', requirePermission('speed_tests.update'), rejectBoundCommissioningMutation, ctrl.restore);
 
 module.exports = router;

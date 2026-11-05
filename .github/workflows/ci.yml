@@ -512,6 +512,15 @@ jobs:
           if [ -n "$WRONG" ]; then echo "Tables with another collation:"; echo "$WRONG"; exit 1; fi
           echo "✓ Every table is utf8mb4_unicode_ci"
 
+      - name: Every shipped SNMP profile is a system profile
+        # One with no owner and is_system = 0 could be adopted by the first
+        # tenant to write it and vanish for every other (migration 525).
+        run: |
+          WRONG=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N fireisp_runner_test -e \
+            "SELECT CONCAT(id, ' ', name) FROM snmp_profiles WHERE organization_id IS NULL AND is_system = 0;")
+          if [ -n "$WRONG" ]; then echo "Owner-less SNMP profiles that are not system:"; echo "$WRONG"; exit 1; fi
+          echo "✓ Every owner-less SNMP profile is a system profile"
+
       - name: Re-run migrate.js and assert it is idempotent
         run: |
           BEFORE=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
@@ -686,6 +695,15 @@ jobs:
             --execute="SELECT CONCAT(table_name, ' ', table_collation) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' AND table_collation <> 'utf8mb4_unicode_ci';")
           if [ -n "$WRONG" ]; then echo "Tables with another collation:"; echo "$WRONG"; exit 1; fi
           echo "✓ Every table is utf8mb4_unicode_ci"
+
+      - name: Every shipped SNMP profile is a system profile
+        run: |
+          WRONG=$(docker exec ci-mariadb mariadb \
+            --protocol=socket --user=root --password=fireisp_test \
+            --batch --skip-column-names --database="$DB_NAME" \
+            --execute="SELECT CONCAT(id, ' ', name) FROM snmp_profiles WHERE organization_id IS NULL AND is_system = 0;")
+          if [ -n "$WRONG" ]; then echo "Owner-less SNMP profiles that are not system:"; echo "$WRONG"; exit 1; fi
+          echo "✓ Every owner-less SNMP profile is a system profile"
 
       - name: Roll back migration 458 and reapply
         run: |
