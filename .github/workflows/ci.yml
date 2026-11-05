@@ -258,9 +258,20 @@ jobs:
           for f in $(ls database/migrations/*.sql | sort -V); do
             mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_migrate_test < "$f"
           done
-          # Count tables and compare to schema.sql. schema.sql also declares
-          # schema_migrations, which the runner (not a migration) creates.
-          SCHEMA_TABLES=$(( $(grep -c "CREATE TABLE" database/schema.sql) - 1 ))
+          # migrate.js creates schema_migrations before the first migration;
+          # this loop bypasses it, so create it the way the runner does
+          # (src/scripts/migrate.js), as every install has it.
+          mysql -h 127.0.0.1 -u root -pfireisp_test fireisp_migrate_test -e "
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+              id         BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
+              filename   VARCHAR(255)     NOT NULL,
+              applied_at TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              checksum   CHAR(64)         NULL,
+              UNIQUE KEY uq_schema_migrations_filename (filename)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+          # Count tables and compare to schema.sql
+          SCHEMA_TABLES=$(grep -c "CREATE TABLE" database/schema.sql)
           MIGRATED_TABLES=$(mysql -h 127.0.0.1 -u root -pfireisp_test -N -e \
             "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='fireisp_migrate_test' AND table_type='BASE TABLE';")
           echo "schema.sql declares $SCHEMA_TABLES tables, migrations created $MIGRATED_TABLES tables"
