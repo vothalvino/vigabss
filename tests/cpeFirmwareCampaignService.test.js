@@ -45,7 +45,9 @@ describe('launch', () => {
     expect(insertSql).toMatch(/VALUES \?/);
     expect(rows.map(r => r[1])).toEqual([71, 72]);
     expect(rows[0].slice(0, 3)).toEqual([ORG, 71, 'download']);
-    expect(JSON.parse(rows[0][3])).toEqual({ url: VERSION.firmware_url, fileType: '1 Firmware Upgrade Image', fileSize: 1024, _campaignId: 5 });
+    expect(JSON.parse(rows[0][3])).toEqual({
+      url: VERSION.firmware_url, fileType: '1 Firmware Upgrade Image', fileSize: 1024, _campaignId: 5, _targetVersion: VERSION.version,
+    });
     expect(conn.commit).toHaveBeenCalled();
   });
 

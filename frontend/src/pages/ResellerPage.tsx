@@ -8,17 +8,19 @@
 //   4. Resources      — IP pool, bandwidth quota, OLT port allocations
 //   5. Billing        — per-reseller billing entity configuration
 //   6. Portal         — reseller portal dashboard & customer management
+//   7. Staff access   — staff users confined to a reseller's subtree
 // =============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/api/apiFetch';
+import { ResellerUserBindingsTab } from './ResellerUserBindingsTab';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type Tab = 'resellers' | 'planPrices' | 'commissions' | 'resources' | 'billing' | 'portal';
+type Tab = 'resellers' | 'planPrices' | 'commissions' | 'resources' | 'billing' | 'portal' | 'staffAccess';
 
 interface Reseller {
   id: number;
@@ -656,6 +658,7 @@ const TABS: { key: Tab; labelKey: string }[] = [
   { key: 'resources', labelKey: 'reseller.tabResources' },
   { key: 'billing', labelKey: 'reseller.tabBilling' },
   { key: 'portal', labelKey: 'reseller.tabPortal' },
+  { key: 'staffAccess', labelKey: 'resellerAccess.tab' },
 ];
 
 export default function ResellerPage() {
@@ -692,6 +695,7 @@ export default function ResellerPage() {
       {activeTab === 'resources' && <ResourcesTab />}
       {activeTab === 'billing' && <BillingEntitiesTab />}
       {activeTab === 'portal' && <PortalTab />}
+      {activeTab === 'staffAccess' && <ResellerUserBindingsTab />}
     </div>
   );
 }

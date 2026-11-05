@@ -9748,5 +9748,28 @@
       "rep": "REP",
       "satStatus": "Status SAT"
     }
+  },
+  "resellerAccess": {
+    "tab": "Acesso da equipe",
+    "title": "Equipe limitada a um revendedor",
+    "description": "Um usuário da equipe vinculado a um revendedor vê apenas os clientes, faturas e sub-revendedores desse revendedor. Só um administrador da organização pode alterar os vínculos, e não para a própria conta.",
+    "reseller": "Revendedor",
+    "selectReseller": "— Escolha um revendedor —",
+    "addUser": "Adicionar um usuário da equipe",
+    "selectUser": "— Escolha um usuário —",
+    "bind": "Vincular a este revendedor",
+    "unbind": "Remover",
+    "none": "Nenhum usuário da equipe está vinculado a este revendedor.",
+    "loadError": "Não foi possível carregar os vínculos.",
+    "actionFailed": "Não foi possível salvar a alteração.",
+    "confirmBind": "Limitar este usuário à subárvore deste revendedor? Ele perde o acesso a tudo fora dela.",
+    "confirmUnbind": "Remover este vínculo? O usuário recupera o acesso que seu papel dá em toda a organização.",
+    "col": {
+      "user": "Usuário",
+      "email": "E-mail",
+      "status": "Status",
+      "since": "Vinculado desde",
+      "actions": "Ações"
+    }
   }
 }

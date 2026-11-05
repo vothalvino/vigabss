@@ -110,16 +110,38 @@ test('an unknown session cookie does not stand in for credentials', async () => 
   expect(cwmpSessionService.processTaskResponse).not.toHaveBeenCalled();
 });
 
+// A TransferComplete is the CPE's own request (a Download it applied later).
+// It went unanswered, so the CPE sent it again every session and the
+// download's outcome was never recorded (migration 523).
+test('a TransferComplete in the session is recorded and answered with TransferCompleteResponse', async () => {
+  const campaigns = require('../src/services/cpeFirmwareCampaignService');
+  const onTransferComplete = jest.spyOn(campaigns, 'onTransferComplete').mockResolvedValue(true);
+  const inform = await post(INFORM, { Authorization: shared() });
+  const cookie = inform.headers['set-cookie'][0].split(';')[0];
+
+  const res = await post(envelope(`<cwmp:TransferComplete><CommandKey>DL-12</CommandKey>
+      <FaultStruct><FaultCode>0</FaultCode><FaultString></FaultString></FaultStruct></cwmp:TransferComplete>`), { Cookie: cookie });
+
+  expect(res.status).toBe(200);
+  expect(res.text).toContain('<cwmp:TransferCompleteResponse/>');
+  expect(onTransferComplete).toHaveBeenCalledWith(expect.objectContaining({ id: 5 }), expect.objectContaining({ commandKey: 'DL-12', faultCode: '0' }));
+  // It is not taken for the answer to a task the ACS sent.
+  expect(cwmpSessionService.processTaskResponse).not.toHaveBeenCalled();
+  onTransferComplete.mockRestore();
+});
+
 describe('reapStuckTasks', () => {
   test('fails tasks left in_progress and settles a waiting Wi-Fi request', async () => {
     db.query.mockImplementation(async (sql) => {
       if (/^SELECT id, task_type, parameters, organization_id FROM cpe_tasks/.test(sql.trim())) {
         return [[{ id: 41, task_type: 'set_parameter_values' }, { id: 42, task_type: 'reboot' }]];
       }
+      // No download is waiting for its confirmation.
+      if (/status = 'awaiting_transfer'/.test(sql)) return [[]];
       return [{ affectedRows: 1 }];
     });
     const res = await acsService.reapStuckTasks(1);
-    expect(res).toEqual({ reaped: 2 });
+    expect(res).toEqual({ reaped: 2, unconfirmed: 0 });
     const [selectSql, selectParams] = db.query.mock.calls[0];
     expect(selectSql).toMatch(/status = 'in_progress'\s+AND started_at < \(NOW\(\) - INTERVAL \? MINUTE\)/);
     expect(selectParams).toEqual([1, 30]);

@@ -3308,7 +3308,7 @@ function generateSpec() {
 
       // ---- §19 Resellers ----
       '/resellers': {
-        get: { tags: ['Resellers'], summary: 'List resellers', operationId: 'listResellers', security: [{ bearerAuth: [] }], responses: r200('Reseller[]') },
+        get: { tags: ['Resellers'], summary: 'List resellers', operationId: 'listResellers', security: [{ bearerAuth: [] }], parameters: [pageParam(), limitParam(), { name: 'status', in: 'query', schema: { type: 'string' } }, { name: 'parent_id', in: 'query', schema: { type: 'integer' } }], responses: r200('Reseller[]') },
         post: { tags: ['Resellers'], summary: 'Create reseller', operationId: 'createReseller', security: [{ bearerAuth: [] }], requestBody: jsonBody('Reseller'), responses: r201('Reseller') },
       },
       '/resellers/{id}': {
@@ -3358,8 +3358,8 @@ function generateSpec() {
         get: { tags: ['Resellers'], summary: 'List users bound to the reseller (confined to its subtree)', operationId: 'listResellerUserBindings', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('ResellerUserBinding[]') },
       },
       '/resellers/{id}/users/{userId}': {
-        put: { tags: ['Resellers'], summary: 'Bind a staff user to the reseller (org-level admins only; requires resellers.update and users.update)', operationId: 'bindResellerUser', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r200('ResellerUserBinding') },
-        delete: { tags: ['Resellers'], summary: 'Remove a staff user binding from the reseller', operationId: 'unbindResellerUser', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }], responses: r200('Deleted') },
+        put: { tags: ['Resellers'], summary: 'Bind a staff user to the reseller (org-level admins only; requires resellers.update and users.update)', operationId: 'bindResellerUser', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r200('ResellerUserBinding'), 403: errorResponse('Reseller-bound callers cannot manage bindings'), 404: errorResponse('Reseller or user not found'), 422: errorResponse('Cannot bind your own account') } },
+        delete: { tags: ['Resellers'], summary: 'Remove a staff user binding from the reseller', operationId: 'unbindResellerUser', security: [{ bearerAuth: [] }], parameters: [idParam(), { name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { ...r200('Deleted'), 403: errorResponse('Reseller-bound callers cannot manage bindings'), 404: errorResponse('Binding not found') } },
       },
 
       // ---- §19.3 Reseller Portal ----

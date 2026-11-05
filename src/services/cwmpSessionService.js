@@ -53,6 +53,10 @@ async function handleInform(cpeDevice, informPayload, orgId) {
     }
   }
 
+  // A download the CPE said it applied is done once it reports the version.
+  await require('./cpeFirmwareCampaignService').onInform(cpeDevice)
+    .catch(err => logger.warn({ err: err.message, cpeDeviceId: cpeDevice.id }, 'Could not confirm pending downloads'));
+
   // Zero-touch provisioning on first boot
   if (wasNew) {
     applyZeroTouchProvisioning(cpeDevice, orgId).catch(err =>
@@ -181,6 +185,13 @@ async function processTaskResponse(task, responsePayload) {
         [task.cpe_device_id, task.organization_id, param.name, param.value || null],
       );
     }
+  }
+
+  // A download is not done when the CPE accepts it: it waits for the CPE to
+  // confirm the install (cpeFirmwareCampaignService, migration 523).
+  if (task.task_type === 'download') {
+    await require('./cpeFirmwareCampaignService').onDownloadResponse(task, responsePayload);
+    return;
   }
 
   await db.query(
