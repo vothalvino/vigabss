@@ -444,14 +444,6 @@ describe('reconcilePayment() posts a real payment', () => {
     expect(state.allocations).toHaveLength(1);
   });
 
-  test('skips a transaction reconciled by the pre-472 code (legacy payment_transaction credit)', async () => {
-    addTx({ id: 9 });
-    state.ledger.push({ id: 1, reference_type: 'payment_transaction', reference_id: 9, entry_type: 'credit', amount: 500 });
-    const res = await paymentGatewayService.reconcilePayment(9);
-    expect(res.status).toBe('legacy_reconciled');
-    expect(state.payments).toHaveLength(0);
-  });
-
   test('does nothing for a transaction that has not succeeded', async () => {
     addTx({ id: 10, gateway_status: 'pending' });
     expect((await paymentGatewayService.reconcilePayment(10)).status).toBe('not_succeeded');

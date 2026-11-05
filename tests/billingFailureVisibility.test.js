@@ -115,14 +115,14 @@ describe('admin views', () => {
     await expect(paymentGatewayService.listWebhookEvents(42, { status: 'lost' })).rejects.toMatchObject({ statusCode: 422 });
   });
 
-  test('unsettled transactions are succeeded captures with no payment and no ledger credit', async () => {
+  test('unsettled transactions are succeeded captures with no payment', async () => {
     db.query.mockResolvedValueOnce([[{ id: 8 }]]).mockResolvedValueOnce([[{ total: 1 }]]);
 
     await paymentGatewayService.listUnsettledTransactions(42);
 
     const [sql, params] = db.query.mock.calls[0];
     expect(sql).toMatch(/gateway_status = 'succeeded' AND pt.payment_id IS NULL/);
-    expect(sql).toMatch(/NOT EXISTS \(SELECT 1 FROM client_balance_ledger/);
+    expect(sql).toMatch(/pt\.organization_id = \?/);
     expect(params).toEqual([42]);
   });
 

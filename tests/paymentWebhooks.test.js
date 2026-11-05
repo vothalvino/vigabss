@@ -566,13 +566,14 @@ describe('Payment Webhooks & Idempotency', () => {
       expect(result.newStatus).toBe('failed');
     });
 
-    test('a FULL Stripe charge.refunded reverses the settled invoice', async () => {
+    test('a FULL Stripe charge.refunded reverses the payment it was reconciled into', async () => {
       const payload = {
         id: 'evt_stripe_3',
         type: 'charge.refunded',
         data: { object: { id: 'ch_refund123', payment_intent: 'pi_original', refunded: true, amount: 50000, amount_refunded: 50000 } },
       };
-      const tx = { id: 102, client_id: 5, organization_id: 42, settled_invoice_id: 60, amount: '500.00', currency: 'MXN', gateway_reference_id: 'pi_original' };
+      const tx = { id: 102, client_id: 5, organization_id: 42, payment_id: 7, settled_invoice_id: 60, amount: '500.00', currency: 'MXN', gateway_reference_id: 'pi_original' };
+      const payment = { id: 7, client_id: 5, organization_id: 42, status: 'completed', amount: '500.00', currency: 'MXN', reference_number: 'pi_original', deleted_at: null };
 
       db.query
         .mockResolvedValueOnce([[]])
@@ -583,9 +584,9 @@ describe('Payment Webhooks & Idempotency', () => {
 
       mockConnection.execute
         .mockResolvedValueOnce([[tx]])                 // reverseRefund: SELECT tx FOR UPDATE
-        .mockResolvedValueOnce([[{ id: 1 }]])          // credit exists
-        .mockResolvedValueOnce([[]])                   // no prior debit
-        .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE invoices -> issued
+        .mockResolvedValueOnce([[payment]])            // SELECT payment FOR UPDATE
+        .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE payments -> refunded
+        .mockResolvedValueOnce([[]])                   // no live allocations
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // INSERT ledger debit
 
       const result = await paymentGatewayService.handleWebhookEvent({
@@ -594,9 +595,11 @@ describe('Payment Webhooks & Idempotency', () => {
 
       expect(result.status).toBe('processed');
       expect(result.newStatus).toBe('refunded');
-      const revert = mockConnection.execute.mock.calls.find((c) => /UPDATE invoices SET status = 'issued'/.test(c[0]));
-      expect(revert).toBeTruthy();
-      expect(revert[1]).toEqual([60]); // the invoice this tx settled
+      const refunded = mockConnection.execute.mock.calls.find((c) => /UPDATE payments SET status = 'refunded'/.test(c[0]));
+      expect(refunded[1]).toEqual([7]);
+      const debit = mockConnection.execute.mock.calls.find((c) => /INSERT INTO client_balance_ledger/.test(c[0]));
+      expect(debit[0]).toMatch(/'debit'/);
+      expect(debit[0]).toMatch(/'payment'/);
     });
 
     test('a PARTIAL Stripe charge.refunded is ignored (no full-invoice reversal)', async () => {
