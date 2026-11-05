@@ -26,4 +26,4 @@ CREATE TABLE IF NOT EXISTS organization_database_configs (
     CONSTRAINT fk_organization_database_configs_org
         FOREIGN KEY (organization_id) REFERENCES organizations (id)
         ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

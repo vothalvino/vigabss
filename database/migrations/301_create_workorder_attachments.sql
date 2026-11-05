@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS work_order_attachments (
   CONSTRAINT fk_wo_attachments_work_order FOREIGN KEY (work_order_id)   REFERENCES work_orders(id)   ON DELETE CASCADE,
   CONSTRAINT fk_wo_attachments_uploader   FOREIGN KEY (uploaded_by)     REFERENCES users(id),
   CONSTRAINT fk_wo_attachments_org        FOREIGN KEY (organization_id)  REFERENCES organizations(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO permissions (name, description, module)
 SELECT 'work_order_attachments.view', 'View work order attachments', 'work_orders'
