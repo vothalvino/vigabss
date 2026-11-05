@@ -17,6 +17,9 @@
 // change B's data nor link A's data to it, and a write addressed to B's id
 // may not succeed.
 //
+// Every parameterised route must resolve: a parameter the name guess cannot
+// place goes in PATH_PARAMS, one naming an install-wide row in INSTALL_WIDE.
+//
 // Runs only in CI's db-integration job (DB_INTEGRATION=1).
 // =============================================================================
 
@@ -86,6 +89,97 @@ function candidates(segments, index) {
   return [...new Set(out)];
 }
 
+// Path parameters the name guess cannot place, keyed by the path up to and
+// including the parameter (without /api/v1). A string names the table whose
+// B id fills it; { table, column } takes that column of B's row instead; a
+// { value } is a fixed name the route expects.
+const PATH_PARAMS = {
+  '/interactions/:id': 'client_interactions',
+  '/escalations/:id': 'ticket_escalations',
+  '/discovery-scans/:id/results/:resultId': 'discovery_results',
+  '/trap-forwarding-rules/:id': 'snmp_trap_forwarding_rules',
+  '/connection-logs/cgnat-attribution/exporters/:id': 'cgnat_exporter_configs',
+  '/cfdi-documents/:id': 'cfdi_documents',
+  '/cfdi/:id': 'cfdi_documents',
+  '/cfdi/payment-complement/:id': 'cfdi_payment_complements',
+  '/pdf/cfdi/:id': 'cfdi_documents',
+  '/snii-reporting/batches/:id': 'snii_report_batches',
+  '/snii-reporting/artifacts/:id': 'snii_report_artifacts',
+  '/snii-reporting/filing-events/:id': 'snii_filing_events',
+  '/snii-reporting/profile/applicability/:elementType': { table: 'snii_element_applicability', column: 'element_type' },
+  '/facturas-publicas/:id': 'factura_publica_invoices',
+  '/portal/kb/:slugOrId': 'portal_kb_articles',
+  '/portal/chat/:token': { table: 'portal_chat_sessions', column: 'session_token' },
+  '/olt-management/:id': 'devices',
+  '/olt-management/ports/:portId': 'olt_ports',
+  '/olt-management/splitters/:splitterId': 'olt_splitters',
+  '/olt-management/onu-migrations/:jobId': 'onu_migration_jobs',
+  '/onu-management/details/:id': 'onu_details',
+  '/onu-management/profiles/:id': 'onu_profiles',
+  '/onu-management/whitelist/:id': 'onu_whitelist',
+  '/onu-management/omci-configs/:id': 'onu_omci_configs',
+  '/onu-management/firmware-jobs/:id': 'onu_firmware_jobs',
+  '/cpe-management/firmware-versions/:id': 'cpe_firmware_versions',
+  '/cpe-management/firmware-campaigns/:id': 'cpe_firmware_campaigns',
+  '/cpe-management/devices/:id/diagnostics/:diagId': 'cpe_diagnostics',
+  '/cpe-profiles/:id/mappings/:mappingId': 'cpe_parameter_mappings',
+  '/wireless/ap-sectors/:id': 'ap_sector_configs',
+  '/wireless/channel-plans/:id': 'ap_channel_plans',
+  '/wireless/ap-commands/:id': 'ap_command_jobs',
+  '/wireless/link-planning/:id': 'link_planning_calcs',
+  '/wireless/network-links/:id': 'network_links',
+  '/wireless/spectrum-scans/:id': 'spectrum_scan_results',
+  '/mpls-vlan-prioritization/:id': 'mpls_vlan_prioritization_rules',
+  '/consumer-protection/service-modifications/:id': 'service_modification_notices',
+  '/network-security/ddos-protection/:id': 'ddos_protection_rules',
+  '/router-drivers/:id': 'router_driver_configs',
+  '/reseller-portal/:id': 'resellers',
+  '/reseller-portal/:id/clients/:cId': 'clients',
+  '/support/kb/:id': 'kb_articles',
+  '/support/channels/:channel': { table: 'support_channel_configs', column: 'channel' },
+  '/wg-peers/:id': 'wg_user_peers',
+  '/wg-peers/admin/:id': 'wg_user_peers',
+  '/radius/:id/routes/:routeId': 'radius_account_routes',
+  '/subscriber-certificates/radius-account/:radiusAccountId': 'radius',
+  '/topology/geofences/:id': 'map_geofences',
+  '/topology/infrastructure/:id': 'map_infrastructure_points',
+  '/topology/dependencies/:id': 'device_dependency_edges',
+  '/portal-kb/:id': 'portal_kb_articles',
+  '/clients/:clientId/dnd/:channel': { value: 'email' },
+  '/clients/:id/documents/:fileId': 'files',
+  '/ai/phrases/:id': 'ai_phrase_library',
+  '/dhcp-servers/reservations/:rid': 'dhcp_static_reservations',
+  '/ipv6/ra-guard/:id': 'ra_guard_policies',
+  '/transition-mechanisms/6rd/:id': 'tunnel_6rd_configs',
+  '/transition-mechanisms/ds-lite/:id': 'ds_lite_configs',
+  '/transition-mechanisms/464xlat/:id': 'xlat464_configs',
+  '/fiber-plant/otdr/tests/:id': 'otdr_test_results',
+  '/fiber-plant/sfp/:id': 'sfp_inventory',
+  '/fiber-plant/fiber-routes/port/:portId': 'olt_ports',
+  '/regulatory-compliance/consent/:id': 'subscriber_consents',
+  '/regulatory-compliance/identity-verification/:id': 'identity_verification_records',
+  '/regulatory-compliance/preservation-holds/:id': 'preservation_holds',
+  '/numbering-management/phone-numbers/:id': 'phone_number_inventory',
+  '/numbering-management/portability/:id': 'number_portability_records',
+  '/universal-service/rural-coverage/:id': 'rural_coverage_reports',
+  '/alerts/escalation-chains/:id/steps/:stepId': 'alert_escalation_steps',
+  '/billing-disputes/:id/evidence/:evidenceId': 'dispute_evidence',
+  '/device-config-backups/diff/:id': 'device_config_backups',
+  '/sso/:orgId': 'organizations',
+  '/reports/:report': { value: 'aging' },
+};
+
+// Routes whose parameter names an install-wide row, not one organization's:
+// there is no B row to aim at. Each needs the reason.
+const INSTALL_WIDE = {
+  '/roles/:id': 'roles and their permissions are install-wide',
+  '/roles/:id/permissions/:permissionId': 'roles and their permissions are install-wide',
+  '/poller-nodes/:id': 'poller nodes are install infrastructure',
+  '/settings/:key': 'the settings table is install-level configuration',
+  '/backup-settings/download/:filename': 'backups are install-level',
+  '/integrations/providers/:id': 'integration providers are an install-wide catalog',
+};
+
 describeDb('tenant isolation against a real database', () => {
   let ctx;
   let app;
@@ -109,14 +203,28 @@ describeDb('tenant isolation against a real database', () => {
     return ctx.seeded.get(table)?.[ORG_B]?.id;
   }
 
+  function paramValue(segments, i) {
+    const key = segments.slice(0, i + 1).join('/').replace(/^\/api\/v1/, '');
+    const mapped = PATH_PARAMS[key];
+    if (mapped?.value !== undefined) return mapped.value;
+    if (mapped?.table) return ctx.seeded.get(mapped.table)?.[ORG_B]?.[mapped.column];
+    if (mapped) return idFor(mapped);
+    const table = candidates(segments, i).find(t => idFor(t) !== undefined);
+    return table && idFor(table);
+  }
+
   function resolvePath(routePath) {
     const segments = routePath.split('/');
+    for (let i = 0; i < segments.length; i++) {
+      const key = segments.slice(0, i + 1).join('/').replace(/^\/api\/v1/, '');
+      if (INSTALL_WIDE[key]) return { installWide: INSTALL_WIDE[key] };
+    }
     const unresolved = [];
     const filled = segments.map((seg, i) => {
       if (!seg.startsWith(':')) return seg;
-      const table = candidates(segments, i).find(t => idFor(t) !== undefined);
-      if (!table) { unresolved.push(seg); return null; }
-      return String(idFor(table));
+      const value = paramValue(segments, i);
+      if (value === undefined || value === null) { unresolved.push(seg); return null; }
+      return encodeURIComponent(String(value));
     });
     return unresolved.length ? { unresolved } : { url: filled.join('/') };
   }
@@ -181,6 +289,7 @@ describeDb('tenant isolation against a real database', () => {
         continue;
       }
       const resolved = resolvePath(route.path);
+      if (resolved.installWide) continue;
       if (resolved.unresolved) unresolved.push(`${route.path} (${resolved.unresolved.join(', ')})`);
       else jobs.push({ method: 'GET', route: route.path, url: resolved.url, token });
     }
@@ -202,6 +311,9 @@ describeDb('tenant isolation against a real database', () => {
     console.log(`swept ${results.length} requests ${JSON.stringify(byStatus)}; ${unresolved.length} parameterised routes had no seeded table; failed: ${failed.join(', ')}`);
 
     expect(leaks).toEqual([]);
+    // Every parameterised route is reached: a new one needs a seeded table or
+    // a PATH_PARAMS entry.
+    expect(unresolved).toEqual([]);
     expect(failed.filter(f => !REVIEWED_FAILURES[f.replace(/\?<B filters>/, '').replace(/ -> .*/, '')])).toEqual([]);
     // The sweep must stay meaningful: most requests are answered, not refused
     // by authentication or rate limits.
@@ -324,6 +436,7 @@ describeDb('tenant isolation against a real database', () => {
     const linked = [];
     const accepted = [];
     const unresolved = [];
+    const installWide = [];
     const byStatus = {};
     // Deletes last, so the other writes still find B's rows.
     const order = { POST: 0, PUT: 1, PATCH: 1, DELETE: 2 };
@@ -333,7 +446,8 @@ describeDb('tenant isolation against a real database', () => {
     for (const route of routes) {
       const token = route.path.startsWith('/api/v1/portal/') ? portal : staff;
       const resolved = route.path.includes(':') ? resolvePath(route.path) : { url: route.path };
-      if (resolved.unresolved) { unresolved.push(`${route.method} ${route.path}`); continue; }
+      if (resolved.installWide) { installWide.push(`${route.method} ${route.path}`); continue; }
+      if (resolved.unresolved) { unresolved.push(`${route.method} ${route.path} (${resolved.unresolved.join(', ')})`); continue; }
       const key = `${route.method} ${route.path}`;
       const { status } = await write(route.method, resolved.url, token, bodyFor(route));
       byStatus[status] = (byStatus[status] || 0) + 1;
@@ -349,7 +463,10 @@ describeDb('tenant isolation against a real database', () => {
       before = after;
     }
 
-    const report = { requests: routes.length - unresolved.length, byStatus, changed, linked, accepted, unresolved, initialLinks };
+    const report = {
+      requests: routes.length - unresolved.length - installWide.length,
+      byStatus, changed, linked, accepted, unresolved, installWide, initialLinks,
+    };
     const out = process.env.DB_INTEGRATION_REPORT
       ? process.env.DB_INTEGRATION_REPORT.replace(/\.json$/, '-writes.json')
       : path.join(__dirname, '../../../coverage/db-isolation-writes-report.json');
@@ -357,7 +474,9 @@ describeDb('tenant isolation against a real database', () => {
     console.log(`swept ${report.requests} writes ${JSON.stringify(byStatus)}; ${unresolved.length} unresolved`);
 
     // One comparison, so a failing run reports every kind of finding.
-    expect({ initialLinks, changed, linked, accepted }).toEqual({ initialLinks: [], changed: [], linked: [], accepted: [] });
+    expect({ initialLinks, changed, linked, accepted, unresolved }).toEqual({
+      initialLinks: [], changed: [], linked: [], accepted: [], unresolved: [],
+    });
     // The sweep must stay meaningful: the session survives to the end.
     expect((await call('GET', '/api/v1/clients', staff)).status).toBe(200);
     expect(byStatus[401] || 0).toBeLessThan(routes.length * 0.05);
