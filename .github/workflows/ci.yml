@@ -179,11 +179,14 @@ jobs:
         # calls (HTTP 410 "This endpoint is being retired"), so `pnpm audit` can no
         # longer function. Trivy scans the pnpm lockfile against its own regularly
         # updated vuln DB, with no dependency on npm's audit API — a real, blocking
-        # gate again. Reuses the same pinned action, DB version, HIGH,CRITICAL
-        # threshold, ignore-unfixed policy and .trivyignore file as the image scan
-        # below, so suppressions live in one place. Scoped to PRODUCTION
-        # dependencies (Trivy's default for lockfiles), matching the shipped-image
-        # scan; dev/build-tooling advisories are out of this gate's scope.
+        # gate again. Reuses the same pinned action, DB version, ignore-unfixed
+        # policy and .trivyignore file as the image scan below, so suppressions
+        # live in one place. Scoped to PRODUCTION dependencies (Trivy's default
+        # for lockfiles); dev/build-tooling advisories are out of this gate's
+        # scope. Unlike the image scan it also blocks on MEDIUM: eight moderate
+        # advisories in production packages (Sentry's OpenTelemetry
+        # instrumentations, glob, minimatch) passed a HIGH,CRITICAL gate
+        # unnoticed, and a fixed library advisory is a version bump away.
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           scan-type: fs
@@ -191,7 +194,7 @@ jobs:
           format: table
           version: v0.71.1
           scanners: vuln
-          severity: HIGH,CRITICAL
+          severity: MEDIUM,HIGH,CRITICAL
           exit-code: 1
           ignore-unfixed: true
           trivyignores: .trivyignore
