@@ -99,9 +99,7 @@ async function createApSectorConfig(orgId, data) {
     [device_id, orgId],
   );
   if (!devRows.length) {
-    const err = new Error('Device not found');
-    err.statusCode = 404;
-    throw err;
+    throw new NotFoundError('Device');
   }
   if (!['ptmp_ap', 'ptp', 'outdoor_cpe', 'indoor_cpe'].includes(devRows[0].type)) {
     const err = new Error('Device must be of type ptmp_ap, ptp, outdoor_cpe, or indoor_cpe');
@@ -124,9 +122,7 @@ async function createApSectorConfig(orgId, data) {
 async function updateApSectorConfig(id, orgId, data) {
   const existing = await getApSectorConfig(id, orgId);
   if (!existing) {
-    const err = new Error('AP sector config not found');
-    err.statusCode = 404;
-    throw err;
+    throw new NotFoundError('AP sector config');
   }
 
   const { organization_id: _o, id: _i, created_at: _c, deleted_at: _d, ...fields } = data;
@@ -145,9 +141,7 @@ async function updateApSectorConfig(id, orgId, data) {
 async function deleteApSectorConfig(id, orgId) {
   const existing = await getApSectorConfig(id, orgId);
   if (!existing) {
-    const err = new Error('AP sector config not found');
-    err.statusCode = 404;
-    throw err;
+    throw new NotFoundError('AP sector config');
   }
   await db.query(
     'UPDATE ap_sector_configs SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?',
@@ -232,9 +226,7 @@ async function createApChannelPlan(orgId, data) {
 async function updateApChannelPlan(id, orgId, data) {
   const existing = await getApChannelPlan(id, orgId);
   if (!existing) {
-    const err = new Error('AP channel plan not found');
-    err.statusCode = 404;
-    throw err;
+    throw new NotFoundError('AP channel plan');
   }
 
   const { organization_id: _o, id: _i, created_at: _c, deleted_at: _d, ...fields } = data;
@@ -253,9 +245,7 @@ async function updateApChannelPlan(id, orgId, data) {
 async function deleteApChannelPlan(id, orgId) {
   const existing = await getApChannelPlan(id, orgId);
   if (!existing) {
-    const err = new Error('AP channel plan not found');
-    err.statusCode = 404;
-    throw err;
+    throw new NotFoundError('AP channel plan');
   }
   await db.query(
     'UPDATE ap_channel_plans SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?',
@@ -435,9 +425,7 @@ async function updateChannelInterference(id, orgId, data) {
     [id, orgId],
   );
   if (!existing.length) {
-    const err = new Error('Channel interference record not found');
-    err.statusCode = 404;
-    throw err;
+    throw new NotFoundError('Channel interference record');
   }
 
   const { organization_id: _o, id: _i, created_at: _c, deleted_at: _d, ...fields } = data;
@@ -518,9 +506,7 @@ async function getApCommandJob(id, orgId) {
 async function cancelApCommandJob(id, orgId) {
   const existing = await getApCommandJob(id, orgId);
   if (!existing) {
-    const err = new Error('AP command job not found');
-    err.statusCode = 404;
-    throw err;
+    throw new NotFoundError('AP command job');
   }
   if (!['pending', 'queued'].includes(existing.status)) {
     const err = new Error('Only pending or queued jobs can be cancelled');
@@ -753,11 +739,7 @@ async function getCalc(id, orgId) {
  */
 async function updateCalc(id, orgId, body) {
   const existing = await getCalc(id, orgId);
-  if (!existing) {
-    const err = new Error('Link planning calc not found');
-    err.statusCode = 404;
-    throw err;
-  }
+  if (!existing) throw new NotFoundError('Link planning calc');
 
   const merged = { ...existing, ...body };
   const { coordA, coordB } = await _resolveCalcCoords(orgId, merged);
@@ -788,11 +770,7 @@ async function updateCalc(id, orgId, body) {
  */
 async function deleteCalc(id, orgId) {
   const existing = await getCalc(id, orgId);
-  if (!existing) {
-    const err = new Error('Link planning calc not found');
-    err.statusCode = 404;
-    throw err;
-  }
+  if (!existing) throw new NotFoundError('Link planning calc');
   await db.query(
     'UPDATE link_planning_calcs SET deleted_at = NOW() WHERE id = ? AND organization_id <=> ?',
     [id, orgId],
@@ -995,9 +973,7 @@ async function createSpectrumScan(body, orgId) {
     [body.device_id, orgId],
   );
   if (!devRows.length) {
-    const err = new Error('Device not found');
-    err.statusCode = 404;
-    throw err;
+    throw new NotFoundError('Device');
   }
 
   const { organization_id: _o, id: _i, created_at: _c, updated_at: _u, deleted_at: _d, ...fields } = body;

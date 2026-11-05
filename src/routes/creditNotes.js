@@ -18,6 +18,7 @@ const creditNoteLedgerService = require('../services/creditNoteLedgerService');
 const creditNoteApplicationService = require('../services/creditNoteApplicationService');
 const { AppError, NotFoundError, ValidationError } = require('../utils/errors');
 const db = require('../config/database');
+const { businessToday } = require('../utils/businessDate');
 
 // Header-amounts consistency: a credit note's total drives the client balance
 // (an issued note posts a client_balance_ledger credit) and the CFDI de Egreso, but the
@@ -362,13 +363,45 @@ router.post('/', requirePermission('credit_notes.create'), validate(createCredit
       }
       req.body.currency = invoiceCurrency || await Organization.getCurrency(req.orgId);
     }
-    const creditNote = await CreditNote.create(req.body);
+    // credit_notes.credit_note_number is NOT NULL and the form leaves it
+    // blank to have one generated; nothing generated it, so the create failed
+    // with a 500. The number is drawn on the insert's own transaction, as for
+    // quotes, so a failed create does not burn one.
+    const conn = await db.getConnection();
+    let creditNote;
+    try {
+      await conn.beginTransaction();
+      if (!req.body.credit_note_number) {
+        req.body.credit_note_number = await billingService.nextCreditNoteNumber(conn, req.orgId);
+      }
+      const row = {};
+      for (const key of CreditNote.fillable) {
+        if (req.body[key] !== undefined) row[key] = req.body[key];
+      }
+      if (row.issue_date === undefined || row.issue_date === null) row.issue_date = businessToday();
+      const cols = Object.keys(row);
+      const [result] = await conn.execute(
+        `INSERT INTO credit_notes (${cols.map(c => `\`${c}\``).join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+        Object.values(row),
+      );
+      const [[inserted]] = await conn.execute(
+        'SELECT * FROM `credit_notes` WHERE id = ? AND organization_id <=> ?', [result.insertId, req.orgId],
+      );
+      creditNote = inserted;
 
-    // Credit the client balance ledger only for a note created already
-    // issued/applied. A draft (the default) posts at its issue transition.
-    if (POSTED_STATUSES.has(creditNote.status)) {
-      await creditNoteLedgerService.syncCreditNoteLedger(db.query.bind(db), creditNote, req.orgId);
-      await creditNoteApplicationService.syncApplication(db.query.bind(db), creditNote, req.orgId);
+      // Credit the client balance ledger only for a note created already
+      // issued/applied. A draft (the default) posts at its issue transition.
+      if (POSTED_STATUSES.has(creditNote.status)) {
+        const exec = conn.query.bind(conn);
+        await creditNoteLedgerService.syncCreditNoteLedger(exec, creditNote, req.orgId);
+        await creditNoteApplicationService.syncApplication(exec, creditNote, req.orgId);
+      }
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback().catch(() => {});
+      throw err;
+    } finally {
+      conn.release();
     }
 
     res.status(201).json({ data: creditNote });

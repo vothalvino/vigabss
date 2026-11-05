@@ -494,7 +494,11 @@ function stripeRequest(secretKey, method, path, body) {
         let parsed = {};
         try { parsed = data ? JSON.parse(data) : {}; } catch (_e) { /* non-JSON */ }
         if (res.statusCode >= 400 || parsed.error) {
-          return reject(new Error(parsed.error?.message || `Stripe HTTP ${res.statusCode}`));
+          // A provider refusal (a revoked key, a bad request) is a 502, not
+          // an unhandled 500. Stripe's own message goes to the log only: it
+          // can name part of the key, and the portal shows errors to clients.
+          logger.warn({ path, statusCode: res.statusCode, stripeError: parsed.error?.message, type: parsed.error?.type }, 'Stripe request refused');
+          return reject(new PaymentGatewayError(`The payment provider refused the request (HTTP ${res.statusCode})`));
         }
         resolve(parsed);
       });

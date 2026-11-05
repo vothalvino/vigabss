@@ -8,6 +8,9 @@ const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
+const { validate } = require('../middleware/validate');
+const { saveDataResidency } = require('../middleware/schemas/dataResidency');
+const { NotFoundError } = require('../utils/errors');
 
 const router = Router();
 
@@ -30,7 +33,7 @@ router.get('/', requirePermission('data_residency.view'), async (req, res, next)
 });
 
 // POST / — create/upsert config
-router.post('/', requirePermission('data_residency.manage'), async (req, res, next) => {
+router.post('/', requirePermission('data_residency.manage'), validate(saveDataResidency), async (req, res, next) => {
   try {
     const {
       primary_storage_country,
@@ -58,7 +61,7 @@ router.post('/', requirePermission('data_residency.manage'), async (req, res, ne
          dr_site_region = VALUES(dr_site_region),
          notes = VALUES(notes),
          updated_at = NOW()`,
-      [req.orgId, primary_storage_country, primary_storage_region || null, backup_storage_country || null, backup_storage_region || null, cross_border_transfers_allowed ? 1 : 0, cross_border_destinations || null, dr_site_country || null, dr_site_region || null, notes || null],
+      [req.orgId, primary_storage_country || 'MX', primary_storage_region || null, backup_storage_country || null, backup_storage_region || null, cross_border_transfers_allowed ? 1 : 0, cross_border_destinations ? JSON.stringify(cross_border_destinations) : null, dr_site_country || null, dr_site_region || null, notes || null],
     );
 
     res.status(201).json({ id: result.insertId || null });
@@ -68,7 +71,7 @@ router.post('/', requirePermission('data_residency.manage'), async (req, res, ne
 });
 
 // PUT / — update config
-router.put('/', requirePermission('data_residency.manage'), async (req, res, next) => {
+router.put('/', requirePermission('data_residency.manage'), validate(saveDataResidency), async (req, res, next) => {
   try {
     const {
       primary_storage_country,
@@ -82,11 +85,13 @@ router.put('/', requirePermission('data_residency.manage'), async (req, res, nex
       notes,
     } = req.body;
 
-    await db.query(
+    const [result] = await db.query(
       `UPDATE data_residency_config SET primary_storage_country = ?, primary_storage_region = ?, backup_storage_country = ?, backup_storage_region = ?, cross_border_transfers_allowed = ?, cross_border_destinations = ?, dr_site_country = ?, dr_site_region = ?, notes = ?, updated_at = NOW()
        WHERE organization_id = ?`,
-      [primary_storage_country, primary_storage_region || null, backup_storage_country || null, backup_storage_region || null, cross_border_transfers_allowed ? 1 : 0, cross_border_destinations || null, dr_site_country || null, dr_site_region || null, notes || null, req.orgId],
+      [primary_storage_country || 'MX', primary_storage_region || null, backup_storage_country || null, backup_storage_region || null, cross_border_transfers_allowed ? 1 : 0, cross_border_destinations ? JSON.stringify(cross_border_destinations) : null, dr_site_country || null, dr_site_region || null, notes || null, req.orgId],
     );
+    // Nothing to update until POST / has created the organization's config.
+    if (!result.affectedRows) throw new NotFoundError('Data residency config');
 
     res.json({ success: true });
   } catch (err) {

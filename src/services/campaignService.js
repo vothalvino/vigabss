@@ -12,7 +12,7 @@ const logger = require('../utils/logger');
 const { escapeHtmlForTemplate } = require('./notificationService');
 const { buildBulkValues } = require('../utils/sqlBuild');
 const communicationPreferences = require('./clientCommunicationPreferenceService');
-const { ValidationError } = require('../utils/errors');
+const { ConflictError, NotFoundError, ValidationError } = require('../utils/errors');
 
 const TEMPLATE_MISSING = 'Template missing or inactive; message not sent';
 
@@ -182,7 +182,7 @@ async function buildRecipientList(campaign, run = db.query.bind(db)) {
  */
 async function dispatchCampaign(campaignId, organizationId) {
   const owner = await communicationPreferences.getOrganizationDeliveryState(organizationId);
-  if (!owner.active) throw new Error('Organization is not active');
+  if (!owner.active) throw new ConflictError('Organization is not active');
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -198,9 +198,9 @@ async function dispatchCampaign(campaignId, organizationId) {
     );
 
     const campaign = campaignRows[0];
-    if (!campaign) throw new Error(`Campaign ${campaignId} not found`);
+    if (!campaign) throw new NotFoundError(`Campaign ${campaignId}`);
     if (!['draft', 'failed', 'cancelled'].includes(campaign.status)) {
-      throw new Error(`Campaign ${campaignId} cannot be dispatched from status '${campaign.status}'`);
+      throw new ConflictError(`Campaign ${campaignId} cannot be dispatched from status '${campaign.status}'`);
     }
     await assertUsableTemplate(organizationId, campaign.channel, campaign.template_id,
       (sql, params) => conn.execute(sql, params));
@@ -218,7 +218,7 @@ async function dispatchCampaign(campaignId, organizationId) {
         'Provider invocation started; delivery outcome is unknown'],
     );
     if (unresolvedRows[0]) {
-      throw new Error(`Campaign ${campaignId} has an unresolved provider outcome and cannot be redispatched`);
+      throw new ConflictError(`Campaign ${campaignId} has an unresolved provider outcome and cannot be redispatched`);
     }
 
     // A cancelled/failed campaign can be dispatched again. Retire any rows
@@ -243,7 +243,7 @@ async function dispatchCampaign(campaignId, organizationId) {
       [nextStatus, recipients.length, campaignId, organizationId, campaign.status],
     );
     if (transition.affectedRows !== 1) {
-      throw new Error(`Campaign ${campaignId} cannot be dispatched because its state changed`);
+      throw new ConflictError(`Campaign ${campaignId} cannot be dispatched because its state changed`);
     }
 
     if (recipients.length > 0) {

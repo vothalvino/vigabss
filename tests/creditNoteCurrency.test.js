@@ -70,7 +70,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
     const res = await request(app)
       .post('/api/v1/credit-notes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ client_id: 9, invoice_id: 7, total: 100, status: 'issued' });
+      .send({ client_id: 9, reason: 'billing_error', credit_note_number: 'CN-0001', invoice_id: 7, total: 100, status: 'issued' });
 
     expect(res.status).toBe(201);
     const ledgerInsert = db.query.mock.calls.find((c) => c[0].includes('INSERT INTO client_balance_ledger'));
@@ -96,7 +96,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
     const res = await request(app)
       .post('/api/v1/credit-notes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ client_id: 9, total: 50, status: 'issued' });
+      .send({ client_id: 9, reason: 'billing_error', credit_note_number: 'CN-0001', total: 50, status: 'issued' });
 
     expect(res.status).toBe(201);
     const ledgerInsert = db.query.mock.calls.find((c) => c[0].includes('INSERT INTO client_balance_ledger'));
@@ -118,7 +118,7 @@ describe('POST /api/v1/credit-notes — currency defaulting', () => {
     const res = await request(app)
       .post('/api/v1/credit-notes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ client_id: 9, invoice_id: 7, total: 100, currency: 'EUR', status: 'issued' });
+      .send({ client_id: 9, reason: 'billing_error', credit_note_number: 'CN-0001', invoice_id: 7, total: 100, currency: 'EUR', status: 'issued' });
 
     expect(res.status).toBe(201);
     // The invoice is still checked for org ownership (assertCreditNoteFks);
@@ -151,7 +151,7 @@ describe('credit note totals-consistency guard', () => {
     const res = await request(app)
       .post('/api/v1/credit-notes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ client_id: 9, invoice_id: 7, subtotal: 100, tax_amount: 16, total: 300 });
+      .send({ client_id: 9, reason: 'billing_error', credit_note_number: 'CN-0001', invoice_id: 7, subtotal: 100, tax_amount: 16, total: 300 });
 
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('CREDIT_NOTE_TOTALS_INCONSISTENT');
@@ -174,7 +174,7 @@ describe('credit note totals-consistency guard', () => {
     const res = await request(app)
       .post('/api/v1/credit-notes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ client_id: 9, invoice_id: 7, subtotal: 100, tax_amount: 16, total: 116 });
+      .send({ client_id: 9, reason: 'billing_error', credit_note_number: 'CN-0001', invoice_id: 7, subtotal: 100, tax_amount: 16, total: 116 });
 
     expect(res.status).toBe(201);
   });
@@ -195,7 +195,7 @@ describe('credit note totals-consistency guard', () => {
     const res = await request(app)
       .post('/api/v1/credit-notes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ client_id: 9, total: 75 });
+      .send({ client_id: 9, reason: 'billing_error', credit_note_number: 'CN-0001', total: 75 });
 
     expect(res.status).toBe(201);
   });

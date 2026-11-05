@@ -56,7 +56,7 @@ router.post('/firewall-rules', requirePermission('firewall_rules.create'), valid
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         req.orgId,
-        name || null,
+        name,
         description || null,
         action,
         protocol,

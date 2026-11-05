@@ -103,6 +103,9 @@
     "plan_id": "plans",
     "site_id": "sites"
   },
+  "coverage_zones": {
+    "service_area_id": "service_areas"
+  },
   "cpe_devices": {
     "contract_id": "contracts",
     "device_id": "devices",

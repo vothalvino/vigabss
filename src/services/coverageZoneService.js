@@ -13,6 +13,10 @@
 const db = require('../config/database');
 const { AppError } = require('../utils/errors');
 const auditLog = require('./auditLog');
+const { assertOwnedReferences } = require('../utils/ownedReferences');
+
+// A zone belongs to one of the organization's service areas.
+const ZONE_REFS = { service_area_id: 'service_areas' };
 
 // ---------------------------------------------------------------------------
 // Column list (scalar — boundary returned separately as GeoJSON)
@@ -116,6 +120,12 @@ async function createZone(orgId, body, userId) {
   if (!name) {
     throw new AppError('name is required', 422, 'VALIDATION_ERROR');
   }
+  // coverage_zones.service_area_id is NOT NULL: a zone without one failed the
+  // INSERT with a 500. The area must be the organization's own.
+  if (!service_area_id) {
+    throw new AppError('service_area_id is required', 422, 'VALIDATION_ERROR');
+  }
+  await assertOwnedReferences(body, orgId, ZONE_REFS);
   validateGeoJsonPolygon(boundary);
 
   const boundaryJson = JSON.stringify(boundary);
@@ -126,7 +136,7 @@ async function createZone(orgId, body, userId) {
         boundary, max_download_mbps, max_upload_mbps, color, status)
      VALUES (?, ?, ?, ?, ?, ST_GeomFromGeoJSON(?, 1, 4326), ?, ?, ?, ?)`,
     [
-      orgId, service_area_id || null, name, description || null, zone_type,
+      orgId, service_area_id, name, description || null, zone_type,
       boundaryJson, max_download_mbps || null, max_upload_mbps || null,
       color || null, status,
     ],
@@ -161,6 +171,10 @@ async function updateZone(id, orgId, body, userId) {
   if (boundary !== undefined) {
     validateGeoJsonPolygon(boundary);
   }
+  if (service_area_id === null) {
+    throw new AppError('service_area_id cannot be cleared', 422, 'VALIDATION_ERROR');
+  }
+  await assertOwnedReferences(body, orgId, ZONE_REFS);
 
   const setClauses = [];
   const params = [];
@@ -256,6 +270,7 @@ async function restoreZone(id, orgId, userId) {
 }
 
 module.exports = {
+  validateGeoJsonPolygon,
   listZones,
   getZone,
   createZone,

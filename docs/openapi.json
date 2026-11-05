@@ -34740,7 +34740,7 @@
           }
         ],
         "requestBody": {
-          "description": "transitionMechanisms_createTransitionMechanism",
+          "description": "transitionMechanisms_createTunnel6rdConfig",
           "content": {
             "application/json": {
               "schema": {
@@ -34820,7 +34820,7 @@
           }
         ],
         "requestBody": {
-          "description": "transitionMechanisms_updateTransitionMechanism",
+          "description": "transitionMechanisms_updateTunnel6rdConfig",
           "content": {
             "application/json": {
               "schema": {
@@ -34907,7 +34907,7 @@
           }
         ],
         "requestBody": {
-          "description": "transitionMechanisms_createTransitionMechanism",
+          "description": "transitionMechanisms_createDsLiteConfig",
           "content": {
             "application/json": {
               "schema": {
@@ -34987,7 +34987,7 @@
           }
         ],
         "requestBody": {
-          "description": "transitionMechanisms_updateTransitionMechanism",
+          "description": "transitionMechanisms_updateDsLiteConfig",
           "content": {
             "application/json": {
               "schema": {
@@ -35074,7 +35074,7 @@
           }
         ],
         "requestBody": {
-          "description": "transitionMechanisms_createTransitionMechanism",
+          "description": "transitionMechanisms_createMapRule",
           "content": {
             "application/json": {
               "schema": {
@@ -35154,7 +35154,7 @@
           }
         ],
         "requestBody": {
-          "description": "transitionMechanisms_updateTransitionMechanism",
+          "description": "transitionMechanisms_updateMapRule",
           "content": {
             "application/json": {
               "schema": {
@@ -35241,7 +35241,7 @@
           }
         ],
         "requestBody": {
-          "description": "transitionMechanisms_createTransitionMechanism",
+          "description": "transitionMechanisms_createXlat464Config",
           "content": {
             "application/json": {
               "schema": {
@@ -35321,7 +35321,7 @@
           }
         ],
         "requestBody": {
-          "description": "transitionMechanisms_updateTransitionMechanism",
+          "description": "transitionMechanisms_updateXlat464Config",
           "content": {
             "application/json": {
               "schema": {
@@ -63768,7 +63768,14 @@
             "maximum": 255
           },
           "channel_type": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "whatsapp",
+              "telegram",
+              "webhook"
+            ]
           },
           "is_enabled": {
             "type": "boolean"
@@ -63788,7 +63795,14 @@
             "maximum": 255
           },
           "channel_type": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "whatsapp",
+              "telegram",
+              "webhook"
+            ]
           },
           "is_enabled": {
             "type": "boolean"
@@ -66508,10 +66522,12 @@
             "minimum": 0
           },
           "start_date": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
           },
           "end_date": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
           }
         },
         "required": [
@@ -67327,7 +67343,8 @@
           }
         },
         "required": [
-          "client_id"
+          "client_id",
+          "reason"
         ]
       },
       "creditNotes_updateCreditNote": {
@@ -67572,6 +67589,45 @@
           },
           "is_active": {
             "type": "boolean"
+          }
+        }
+      },
+      "dataResidency_saveDataResidency": {
+        "type": "object",
+        "properties": {
+          "primary_storage_country": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "primary_storage_region": {
+            "type": "string",
+            "maximum": 100
+          },
+          "backup_storage_country": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "backup_storage_region": {
+            "type": "string",
+            "maximum": 100
+          },
+          "cross_border_transfers_allowed": {
+            "type": "boolean"
+          },
+          "cross_border_destinations": {
+            "type": "string"
+          },
+          "dr_site_country": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "dr_site_region": {
+            "type": "string",
+            "maximum": 100
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 65535
           }
         }
       },
@@ -68862,7 +68918,8 @@
             "maximum": 500
           },
           "expense_date": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
           },
           "notes": {
             "type": "string",
@@ -68871,7 +68928,8 @@
         },
         "required": [
           "category",
-          "amount"
+          "amount",
+          "expense_date"
         ]
       },
       "expenses_updateExpense": {
@@ -68898,7 +68956,8 @@
             "maximum": 500
           },
           "expense_date": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
           },
           "notes": {
             "type": "string",
@@ -71212,6 +71271,73 @@
           }
         }
       },
+      "lateFeeRules_createLateFeeRule": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 255
+          },
+          "fee_type": {
+            "type": "string",
+            "enum": [
+              "flat",
+              "percent"
+            ]
+          },
+          "fee_amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "grace_period_days": {
+            "type": "number",
+            "minimum": 0
+          },
+          "max_applications": {
+            "type": "number",
+            "minimum": 1
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "lateFeeRules_updateLateFeeRule": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 255
+          },
+          "fee_type": {
+            "type": "string",
+            "enum": [
+              "flat",
+              "percent"
+            ]
+          },
+          "fee_amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "grace_period_days": {
+            "type": "number",
+            "minimum": 0
+          },
+          "max_applications": {
+            "type": "number",
+            "minimum": 1
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        }
+      },
       "leads_createLead": {
         "type": "object",
         "properties": {
@@ -71786,6 +71912,128 @@
           },
           "3": {
             "type": "string"
+          }
+        }
+      },
+      "linkPlanning_createLinkPlanningCalc": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "site_a_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "site_b_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "lat_a": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon_a": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "lat_b": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon_b": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "frequency_mhz": {
+            "type": "number",
+            "minimum": 1
+          },
+          "tx_power_dbm": {
+            "type": "number"
+          },
+          "antenna_gain_a_dbi": {
+            "type": "number"
+          },
+          "antenna_gain_b_dbi": {
+            "type": "number"
+          },
+          "cable_loss_db": {
+            "type": "number",
+            "minimum": 0
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "name",
+          "frequency_mhz"
+        ]
+      },
+      "linkPlanning_updateLinkPlanningCalc": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "site_a_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "site_b_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "lat_a": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon_a": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "lat_b": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon_b": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "frequency_mhz": {
+            "type": "number",
+            "minimum": 1
+          },
+          "tx_power_dbm": {
+            "type": "number"
+          },
+          "antenna_gain_a_dbi": {
+            "type": "number"
+          },
+          "antenna_gain_b_dbi": {
+            "type": "number"
+          },
+          "cable_loss_db": {
+            "type": "number",
+            "minimum": 0
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 65535
           }
         }
       },
@@ -78930,22 +79178,29 @@
             "type": "string"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "minimum": 1,
+            "maximum": 150
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "maximum": 65535
           },
           "src_ip": {
-            "type": "string"
+            "type": "string",
+            "maximum": 50
           },
           "src_port": {
-            "type": "string"
+            "type": "string",
+            "maximum": 50
           },
           "dst_ip": {
-            "type": "string"
+            "type": "string",
+            "maximum": 50
           },
           "dst_port": {
-            "type": "string"
+            "type": "string",
+            "maximum": 50
           },
           "direction": {
             "type": "string",
@@ -78958,7 +79213,8 @@
         },
         "required": [
           "action",
-          "protocol"
+          "protocol",
+          "name"
         ]
       },
       "security_createDdosRule": {
@@ -79198,15 +79454,14 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 255
+            "maximum": 150
           },
           "description": {
             "type": "string",
             "maximum": 5000
           },
           "boundary": {
-            "type": "string",
-            "maximum": 65000
+            "type": "object"
           },
           "color": {
             "type": "string",
@@ -79222,7 +79477,8 @@
           }
         },
         "required": [
-          "name"
+          "name",
+          "boundary"
         ]
       },
       "serviceAreas_updateServiceArea": {
@@ -79231,15 +79487,14 @@
           "name": {
             "type": "string",
             "minimum": 1,
-            "maximum": 255
+            "maximum": 150
           },
           "description": {
             "type": "string",
             "maximum": 5000
           },
           "boundary": {
-            "type": "string",
-            "maximum": 65000
+            "type": "object"
           },
           "color": {
             "type": "string",
@@ -80119,6 +80374,7 @@
           }
         },
         "required": [
+          "plan_id",
           "name"
         ]
       },
@@ -82139,7 +82395,7 @@
           "child_device_id"
         ]
       },
-      "transitionMechanisms_createTransitionMechanism": {
+      "transitionMechanisms_createTunnel6rdConfig": {
         "type": "object",
         "properties": {
           "name": {
@@ -82160,10 +82416,12 @@
           },
           "border_relay_ip": {
             "type": "string",
+            "minimum": 1,
             "maximum": 45
           },
           "ipv6_prefix": {
             "type": "string",
+            "minimum": 1,
             "maximum": 50
           },
           "ipv4_mask_len": {
@@ -82175,14 +82433,147 @@
             "type": "number",
             "minimum": 576,
             "maximum": 9000
+          }
+        },
+        "required": [
+          "name",
+          "border_relay_ip",
+          "ipv6_prefix"
+        ]
+      },
+      "transitionMechanisms_updateTunnel6rdConfig": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          },
+          "border_relay_ip": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 45
+          },
+          "ipv6_prefix": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "ipv4_mask_len": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 32
+          },
+          "mtu": {
+            "type": "number",
+            "minimum": 576,
+            "maximum": 9000
+          }
+        }
+      },
+      "transitionMechanisms_createDsLiteConfig": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
           },
           "aftr_address": {
             "type": "string",
+            "minimum": 1,
             "maximum": 45
           },
           "b4_address_range": {
             "type": "string",
             "maximum": 50
+          },
+          "mtu": {
+            "type": "number",
+            "minimum": 576,
+            "maximum": 9000
+          }
+        },
+        "required": [
+          "name",
+          "aftr_address"
+        ]
+      },
+      "transitionMechanisms_updateDsLiteConfig": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          },
+          "aftr_address": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 45
+          },
+          "b4_address_range": {
+            "type": "string",
+            "maximum": 50
+          },
+          "mtu": {
+            "type": "number",
+            "minimum": 576,
+            "maximum": 9000
+          }
+        }
+      },
+      "transitionMechanisms_createMapRule": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
           },
           "rule_type": {
             "type": "string",
@@ -82191,8 +82582,14 @@
               "map-t"
             ]
           },
+          "ipv6_prefix": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 50
+          },
           "ipv4_prefix": {
             "type": "string",
+            "minimum": 1,
             "maximum": 50
           },
           "ea_bits_len": {
@@ -82202,10 +82599,87 @@
           },
           "br_address": {
             "type": "string",
+            "minimum": 1,
             "maximum": 45
+          }
+        },
+        "required": [
+          "name",
+          "ipv6_prefix",
+          "ipv4_prefix",
+          "br_address"
+        ]
+      },
+      "transitionMechanisms_updateMapRule": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
+          },
+          "rule_type": {
+            "type": "string",
+            "enum": [
+              "map-e",
+              "map-t"
+            ]
+          },
+          "ipv6_prefix": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "ipv4_prefix": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "ea_bits_len": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 48
+          },
+          "br_address": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 45
+          }
+        }
+      },
+      "transitionMechanisms_createXlat464Config": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 5000
           },
           "plat_prefix": {
             "type": "string",
+            "minimum": 1,
             "maximum": 50
           },
           "clat_prefix": {
@@ -82218,10 +82692,11 @@
           }
         },
         "required": [
-          "name"
+          "name",
+          "plat_prefix"
         ]
       },
-      "transitionMechanisms_updateTransitionMechanism": {
+      "transitionMechanisms_updateXlat464Config": {
         "type": "object",
         "properties": {
           "name": {
@@ -82240,54 +82715,9 @@
             "type": "string",
             "maximum": 5000
           },
-          "border_relay_ip": {
-            "type": "string",
-            "maximum": 45
-          },
-          "ipv6_prefix": {
-            "type": "string",
-            "maximum": 50
-          },
-          "ipv4_mask_len": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 32
-          },
-          "mtu": {
-            "type": "number",
-            "minimum": 576,
-            "maximum": 9000
-          },
-          "aftr_address": {
-            "type": "string",
-            "maximum": 45
-          },
-          "b4_address_range": {
-            "type": "string",
-            "maximum": 50
-          },
-          "rule_type": {
-            "type": "string",
-            "enum": [
-              "map-e",
-              "map-t"
-            ]
-          },
-          "ipv4_prefix": {
-            "type": "string",
-            "maximum": 50
-          },
-          "ea_bits_len": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 48
-          },
-          "br_address": {
-            "type": "string",
-            "maximum": 45
-          },
           "plat_prefix": {
             "type": "string",
+            "minimum": 1,
             "maximum": 50
           },
           "clat_prefix": {
@@ -82439,6 +82869,249 @@
             "maximum": 1024
           }
         }
+      },
+      "universalService_createUsoObligation": {
+        "type": "object",
+        "properties": {
+          "obligation_type": {
+            "type": "string",
+            "enum": [
+              "universal_service",
+              "rural_deployment",
+              "social_coverage",
+              "network_expansion"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "target_metric": {
+            "type": "string",
+            "maximum": 100
+          },
+          "target_value": {
+            "type": "number"
+          },
+          "period_start": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "period_end": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "authority_ref": {
+            "type": "string",
+            "maximum": 100
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "obligation_type",
+          "description",
+          "period_start",
+          "period_end"
+        ]
+      },
+      "universalService_updateUsoObligation": {
+        "type": "object",
+        "properties": {
+          "obligation_type": {
+            "type": "string",
+            "enum": [
+              "universal_service",
+              "rural_deployment",
+              "social_coverage",
+              "network_expansion"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "target_metric": {
+            "type": "string",
+            "maximum": 100
+          },
+          "target_value": {
+            "type": "number"
+          },
+          "period_start": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "period_end": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "authority_ref": {
+            "type": "string",
+            "maximum": 100
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 65535
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "met",
+              "partially_met",
+              "missed",
+              "reported"
+            ]
+          }
+        },
+        "required": [
+          "obligation_type",
+          "description",
+          "period_start",
+          "period_end"
+        ]
+      },
+      "universalService_reportUsoObligation": {
+        "type": "object",
+        "properties": {
+          "actual_value": {
+            "type": "number"
+          }
+        }
+      },
+      "universalService_createRuralCoverage": {
+        "type": "object",
+        "properties": {
+          "report_period": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+          },
+          "locality_name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 255
+          },
+          "inegi_code": {
+            "type": "string",
+            "maximum": 10
+          },
+          "state": {
+            "type": "string",
+            "maximum": 100
+          },
+          "municipality": {
+            "type": "string",
+            "maximum": 100
+          },
+          "homes_passed": {
+            "type": "number",
+            "minimum": 0
+          },
+          "homes_connected": {
+            "type": "number",
+            "minimum": 0
+          },
+          "service_type": {
+            "type": "string",
+            "enum": [
+              "broadband",
+              "mobile",
+              "fixed_wireless",
+              "fiber",
+              "satellite"
+            ]
+          },
+          "download_speed_mbps": {
+            "type": "number",
+            "minimum": 0
+          },
+          "upload_speed_mbps": {
+            "type": "number",
+            "minimum": 0
+          },
+          "is_underserved": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "report_period",
+          "locality_name",
+          "service_type"
+        ]
+      },
+      "universalService_updateRuralCoverage": {
+        "type": "object",
+        "properties": {
+          "report_period": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+          },
+          "locality_name": {
+            "type": "string",
+            "minimum": 1,
+            "maximum": 255
+          },
+          "inegi_code": {
+            "type": "string",
+            "maximum": 10
+          },
+          "state": {
+            "type": "string",
+            "maximum": 100
+          },
+          "municipality": {
+            "type": "string",
+            "maximum": 100
+          },
+          "homes_passed": {
+            "type": "number",
+            "minimum": 0
+          },
+          "homes_connected": {
+            "type": "number",
+            "minimum": 0
+          },
+          "service_type": {
+            "type": "string",
+            "enum": [
+              "broadband",
+              "mobile",
+              "fixed_wireless",
+              "fiber",
+              "satellite"
+            ]
+          },
+          "download_speed_mbps": {
+            "type": "number",
+            "minimum": 0
+          },
+          "upload_speed_mbps": {
+            "type": "number",
+            "minimum": 0
+          },
+          "is_underserved": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string",
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "report_period",
+          "locality_name",
+          "service_type"
+        ]
       },
       "usage_usage": {
         "type": "object",
@@ -82749,7 +83422,8 @@
         },
         "required": [
           "vlan_id",
-          "name"
+          "name",
+          "site_id"
         ]
       },
       "vlans_updateVlan": {

@@ -12,7 +12,9 @@ const { Router } = require('express');
 const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
+const { validate } = require('../middleware/validate');
 const { AppError } = require('../utils/errors');
+const { createLateFeeRule, updateLateFeeRule } = require('../middleware/schemas/lateFeeRules');
 const lateFeeService = require('../services/lateFeeService');
 
 const router = Router();
@@ -33,6 +35,7 @@ router.get('/',
 
 router.post('/',
   requirePermission('late_fees.manage'),
+  validate(createLateFeeRule),
   async (req, res, next) => {
     try {
       const rule = await lateFeeService.createLateFeeRule(req.orgId, req.body);
@@ -58,6 +61,7 @@ router.get('/:id',
 
 router.put('/:id',
   requirePermission('late_fees.manage'),
+  validate(updateLateFeeRule),
   async (req, res, next) => {
     try {
       const rule = await lateFeeService.updateLateFeeRule(req.orgId, req.params.id, req.body);
