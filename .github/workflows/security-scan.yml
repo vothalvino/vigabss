@@ -26,12 +26,12 @@ jobs:
       security-events: write  # publish SARIF to code scanning
       issues: write           # open an issue when a blocking finding appears
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Scan the lockfile (production dependencies)
         id: fs
         continue-on-error: true
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -46,7 +46,7 @@ jobs:
       - name: Scan the published image
         id: image
         continue-on-error: true
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.RELEASE_IMAGE }}:latest
           format: table
@@ -60,7 +60,7 @@ jobs:
 
       - name: Full image report (SARIF)
         if: always()
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.RELEASE_IMAGE }}:latest
           format: sarif
@@ -74,7 +74,7 @@ jobs:
 
       - name: Publish SARIF to code scanning
         if: always() && hashFiles('trivy-scheduled.sarif') != ''
-        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-scheduled.sarif
           category: trivy-scheduled
@@ -108,7 +108,7 @@ jobs:
     outputs:
       images: ${{ steps.list.outputs.images }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: List the third-party images
         id: list
         run: |
@@ -139,7 +139,7 @@ jobs:
         run: echo "slug=$(echo "${IMAGE%%@*}" | tr '/:.' '---')" >> "$GITHUB_OUTPUT"
 
       - name: Scan ${{ matrix.image }}
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ matrix.image }}
           format: sarif
@@ -152,7 +152,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Publish SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-third-party.sarif
           category: trivy-${{ steps.name.outputs.slug }}
