@@ -132,8 +132,9 @@ describe('billing', () => {
     expect(nav.billing.hub).toBe(true);
     // Full billing family incl. demoted config pages. 23 → 24 with /data-import
     // (j45), which is a Configuration CARD row, not a rail row — the rail list
-    // asserted above is deliberately unchanged.
-    expect(nav.billing.count).toBe(24);
+    // asserted above is deliberately unchanged. 24 → 25 with /payment-problems,
+    // a Processing card row, likewise off the rail.
+    expect(nav.billing.count).toBe(25);
   });
   it('gets retention + quotes in Clients', () => {
     expect(nav.clients.items).toContain('/quotes');
