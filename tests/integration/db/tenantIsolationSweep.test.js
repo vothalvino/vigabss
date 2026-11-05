@@ -20,12 +20,16 @@
 // Every parameterised route must resolve: a parameter the name guess cannot
 // place goes in PATH_PARAMS, one naming an install-wide row in INSTALL_WIDE.
 //
+// DB_SWEEP_LOCALE picks the organizations' locale (MX by default). CI runs
+// both: as global, a route whose parameter names a Mexican table has no B
+// row to aim at and is listed as MX-only instead.
+//
 // Runs only in CI's db-integration job (DB_INTEGRATION=1).
 // =============================================================================
 
 const fs = require('fs');
 const path = require('path');
-const { describeDb, ORG_A, ORG_B, LEAK_RE, setup, teardown, relaxLimits } = require('./realDb');
+const { describeDb, SWEEP_LOCALE, ORG_A, ORG_B, LEAK_RE, setup, teardown, relaxLimits } = require('./realDb');
 
 // Routes that are not a single request/response.
 const NOT_SWEPT = [
@@ -183,7 +187,7 @@ const INSTALL_WIDE = {
   '/integrations/providers/:id': 'integration providers are an install-wide catalog',
 };
 
-describeDb('tenant isolation against a real database', () => {
+describeDb(`tenant isolation against a real database (${SWEEP_LOCALE})`, () => {
   let ctx;
   let app;
   let inventory;
@@ -216,6 +220,14 @@ describeDb('tenant isolation against a real database', () => {
     return table && idFor(table);
   }
 
+  // The parameter names a table a global organization cannot hold.
+  function mxOnlyParam(segments, i) {
+    const key = segments.slice(0, i + 1).join('/').replace(/^\/api\/v1/, '');
+    const mapped = PATH_PARAMS[key];
+    const tables = mapped ? [typeof mapped === 'string' ? mapped : mapped.table] : candidates(segments, i);
+    return tables.some(t => ctx.mxOnly.has(t));
+  }
+
   function resolvePath(routePath) {
     const segments = routePath.split('/');
     for (let i = 0; i < segments.length; i++) {
@@ -223,13 +235,19 @@ describeDb('tenant isolation against a real database', () => {
       if (INSTALL_WIDE[key]) return { installWide: INSTALL_WIDE[key] };
     }
     const unresolved = [];
+    let mxOnly = false;
     const filled = segments.map((seg, i) => {
       if (!seg.startsWith(':')) return seg;
       const value = paramValue(segments, i);
-      if (value === undefined || value === null) { unresolved.push(seg); return null; }
+      if (value === undefined || value === null) {
+        if (mxOnlyParam(segments, i)) mxOnly = true;
+        else unresolved.push(seg);
+        return null;
+      }
       return encodeURIComponent(String(value));
     });
-    return unresolved.length ? { unresolved } : { url: filled.join('/') };
+    if (unresolved.length) return { unresolved };
+    return mxOnly ? { mxOnly } : { url: filled.join('/') };
   }
 
   async function call(method, url, token) {
@@ -284,6 +302,7 @@ describeDb('tenant isolation against a real database', () => {
 
     const jobs = [];
     const unresolved = [];
+    const mxOnlyRoutes = [];
     for (const route of routes) {
       const token = route.path.startsWith('/api/v1/portal/') ? portal : staff;
       if (!route.path.includes(':')) {
@@ -293,6 +312,7 @@ describeDb('tenant isolation against a real database', () => {
       }
       const resolved = resolvePath(route.path);
       if (resolved.installWide) continue;
+      if (resolved.mxOnly) { mxOnlyRoutes.push(route.path); continue; }
       if (resolved.unresolved) unresolved.push(`${route.path} (${resolved.unresolved.join(', ')})`);
       else jobs.push({ method: 'GET', route: route.path, url: resolved.url, token });
     }
@@ -307,7 +327,10 @@ describeDb('tenant isolation against a real database', () => {
     const failed = results
       .filter(r => r.status === 'timeout' || r.status === 'error' || r.status >= 500)
       .map(r => `${r.route} -> ${r.status}`);
-    const report = { requests: results.length, byStatus, failed, unresolved, leaks, skippedTables: Object.fromEntries(ctx.skipped) };
+    const report = {
+      locale: SWEEP_LOCALE, requests: results.length, byStatus, failed, unresolved, mxOnly: mxOnlyRoutes, leaks,
+      skippedTables: Object.fromEntries(ctx.skipped),
+    };
     const out = process.env.DB_INTEGRATION_REPORT || path.join(__dirname, '../../../coverage/db-isolation-report.json');
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, JSON.stringify(report, null, 2));
@@ -440,6 +463,7 @@ describeDb('tenant isolation against a real database', () => {
     const accepted = [];
     const unresolved = [];
     const installWide = [];
+    const mxOnlyRoutes = [];
     const byStatus = {};
     // Deletes last, so the other writes still find B's rows.
     const order = { POST: 0, PUT: 1, PATCH: 1, DELETE: 2 };
@@ -450,6 +474,7 @@ describeDb('tenant isolation against a real database', () => {
       const token = route.path.startsWith('/api/v1/portal/') ? portal : staff;
       const resolved = route.path.includes(':') ? resolvePath(route.path) : { url: route.path };
       if (resolved.installWide) { installWide.push(`${route.method} ${route.path}`); continue; }
+      if (resolved.mxOnly) { mxOnlyRoutes.push(`${route.method} ${route.path}`); continue; }
       if (resolved.unresolved) { unresolved.push(`${route.method} ${route.path} (${resolved.unresolved.join(', ')})`); continue; }
       const key = `${route.method} ${route.path}`;
       const { status } = await write(route.method, resolved.url, token, bodyFor(route));
@@ -467,8 +492,9 @@ describeDb('tenant isolation against a real database', () => {
     }
 
     const report = {
-      requests: routes.length - unresolved.length - installWide.length,
-      byStatus, changed, linked, accepted, unresolved, installWide, initialLinks,
+      locale: SWEEP_LOCALE,
+      requests: routes.length - unresolved.length - installWide.length - mxOnlyRoutes.length,
+      byStatus, changed, linked, accepted, unresolved, installWide, mxOnly: mxOnlyRoutes, initialLinks,
     };
     const out = process.env.DB_INTEGRATION_REPORT
       ? process.env.DB_INTEGRATION_REPORT.replace(/\.json$/, '-writes.json')
