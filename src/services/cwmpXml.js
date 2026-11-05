@@ -177,7 +177,7 @@ function xmlEscape(str) {
 
 const MESSAGE_TYPES = [
   'Inform', 'GetParameterValuesResponse', 'SetParameterValuesResponse',
-  'GetParameterNamesResponse', 'DownloadResponse', 'TransferCompleteResponse', 'Fault',
+  'GetParameterNamesResponse', 'DownloadResponse', 'TransferCompleteResponse', 'TransferComplete', 'Fault',
 ];
 const MESSAGE_TYPE_BY_NAME = new Map(MESSAGE_TYPES.map(t => [t.toLowerCase(), t]));
 
@@ -225,7 +225,38 @@ function parseInform(node) {
     commandKey: textOf(block, 'CommandKey') || '',
   }));
 
-  return { deviceId, events, parameters: parseParameterValues(node) };
+  const parameters = parseParameterValues(node);
+  // TR-069's DeviceIdStruct carries no versions: a CPE reports them in the
+  // forced Inform parameters (InternetGatewayDevice.DeviceInfo.* or
+  // Device.DeviceInfo.*). A SoftwareVersion element, when a CPE sends one,
+  // still wins.
+  const reported = suffix => parameters.find(p => p.name.endsWith(`.DeviceInfo.${suffix}`))?.value || '';
+  if (!deviceId.swVersion) deviceId.swVersion = reported('SoftwareVersion');
+  if (!deviceId.hwVersion) deviceId.hwVersion = reported('HardwareVersion');
+
+  return { deviceId, events, parameters };
+}
+
+// DownloadResponse Status: 0 = downloaded and applied, 1 = it will be applied
+// later and a TransferComplete reports how it went.
+function parseDownloadResponse(node) {
+  return {
+    status: Number.parseInt(textOf(node, 'Status') || '0', 10) || 0,
+    startTime: textOf(node, 'StartTime') || null,
+    completeTime: textOf(node, 'CompleteTime') || null,
+  };
+}
+
+// A CPE's report on a Download it applied later: FaultCode 0 is success.
+function parseTransferComplete(node) {
+  const fault = findFirst(node, 'FaultStruct') || node;
+  return {
+    commandKey: textOf(node, 'CommandKey') || '',
+    faultCode: textOf(fault, 'FaultCode') || '0',
+    faultString: textOf(fault, 'FaultString') || '',
+    startTime: textOf(node, 'StartTime') || null,
+    completeTime: textOf(node, 'CompleteTime') || null,
+  };
 }
 
 function parseGetParameterValuesResponse(node) {
@@ -288,6 +319,12 @@ function parseCwmpEnvelope(xmlString) {
       break;
     case 'GetParameterNamesResponse':
       payload = parseGetParameterNamesResponse(node);
+      break;
+    case 'DownloadResponse':
+      payload = parseDownloadResponse(node);
+      break;
+    case 'TransferComplete':
+      payload = parseTransferComplete(node);
       break;
     case 'Fault':
       payload = parseFault(node);
@@ -426,6 +463,12 @@ function buildEmpty(messageId) {
   return wrapEnvelope(messageId, '');
 }
 
+// The ACS's answer to a CPE's TransferComplete; without it the CPE sends the
+// TransferComplete again at every session.
+function buildTransferCompleteResponse(messageId) {
+  return wrapEnvelope(messageId, '<cwmp:TransferCompleteResponse/>');
+}
+
 // ---------------------------------------------------------------------------
 // Public: buildCwmpResponse
 // ---------------------------------------------------------------------------
@@ -436,7 +479,7 @@ function buildEmpty(messageId) {
  * @param {string} type - 'InformResponse'|'GetParameterValues'|'SetParameterValues'|
  *                        'GetParameterNames'|'Download'|'Reboot'|'FactoryReset'|
  *                        'StartPingDiagnostic'|'StartTracerouteDiagnostic'|
- *                        'GetDiagnosticResults'|'Empty'
+ *                        'GetDiagnosticResults'|'TransferCompleteResponse'|'Empty'
  * @param {object} [params]
  * @returns {string}
  */
@@ -452,6 +495,7 @@ function buildCwmpResponse(messageId, type, params = {}) {
     case 'StartPingDiagnostic':         return buildStartPingDiagnostic(messageId, params);
     case 'StartTracerouteDiagnostic':   return buildStartTracerouteDiagnostic(messageId, params);
     case 'GetDiagnosticResults':        return buildGetDiagnosticResults(messageId, params);
+    case 'TransferCompleteResponse':    return buildTransferCompleteResponse(messageId);
     case 'Empty':
     default:                            return buildEmpty(messageId);
   }
