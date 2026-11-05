@@ -187,12 +187,12 @@ jobs:
         # advisories in production packages (Sentry's OpenTelemetry
         # instrumentations, glob, minimatch) passed a HIGH,CRITICAL gate
         # unnoticed, and a fixed library advisory is a version bump away.
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           format: table
-          version: v0.71.1
+          version: v0.76.1
           scanners: vuln
           severity: MEDIUM,HIGH,CRITICAL
           exit-code: 1
@@ -993,12 +993,12 @@ jobs:
       # HIGH/CRITICAL release gate.
       - name: Scan image with Trivy (SARIF report)
         if: steps.warm.outcome == 'success'
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
           format: sarif
           output: trivy-results.sarif
-          version: v0.71.1
+          version: v0.76.1
           severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
           exit-code: 0
           vuln-type: os,library
@@ -1010,11 +1010,11 @@ jobs:
       # only a fixable HIGH/CRITICAL vulnerability blocks a PR or publication.
       - name: Scan image with Trivy (blocking)
         if: steps.warm.outcome == 'success'
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: vigabss/vigabss:ci-${{ github.sha }}-${{ matrix.arch }}
           format: table
-          version: v0.71.1
+          version: v0.76.1
           scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: 1

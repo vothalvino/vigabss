@@ -31,12 +31,12 @@ jobs:
       - name: Scan the lockfile (production dependencies)
         id: fs
         continue-on-error: true
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           format: table
-          version: v0.71.1
+          version: v0.76.1
           scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: 1
@@ -46,11 +46,11 @@ jobs:
       - name: Scan the published image
         id: image
         continue-on-error: true
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.RELEASE_IMAGE }}:latest
           format: table
-          version: v0.71.1
+          version: v0.76.1
           scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: 1
@@ -60,12 +60,12 @@ jobs:
 
       - name: Full image report (SARIF)
         if: always()
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.RELEASE_IMAGE }}:latest
           format: sarif
           output: trivy-scheduled.sarif
-          version: v0.71.1
+          version: v0.76.1
           severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
           exit-code: 0
           vuln-type: os,library
@@ -139,12 +139,12 @@ jobs:
         run: echo "slug=$(echo "${IMAGE%%@*}" | tr '/:.' '---')" >> "$GITHUB_OUTPUT"
 
       - name: Scan ${{ matrix.image }}
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ matrix.image }}
           format: sarif
           output: trivy-third-party.sarif
-          version: v0.71.1
+          version: v0.76.1
           severity: HIGH,CRITICAL
           limit-severities-for-sarif: true
           exit-code: 0
