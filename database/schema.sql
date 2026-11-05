@@ -13066,7 +13066,7 @@ CREATE TABLE IF NOT EXISTS ticket_attachments (
   CONSTRAINT fk_ticket_attachments_ticket   FOREIGN KEY (ticket_id)       REFERENCES tickets(id)       ON DELETE CASCADE,
   CONSTRAINT fk_ticket_attachments_uploader FOREIGN KEY (uploaded_by)     REFERENCES users(id),
   CONSTRAINT fk_ticket_attachments_org      FOREIGN KEY (organization_id)  REFERENCES organizations(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
 -- Table: work_order_attachments (migration 301 — §12)
@@ -13088,7 +13088,7 @@ CREATE TABLE IF NOT EXISTS work_order_attachments (
   CONSTRAINT fk_wo_attachments_work_order FOREIGN KEY (work_order_id)    REFERENCES work_orders(id)   ON DELETE CASCADE,
   CONSTRAINT fk_wo_attachments_uploader   FOREIGN KEY (uploaded_by)      REFERENCES users(id),
   CONSTRAINT fk_wo_attachments_org        FOREIGN KEY (organization_id)  REFERENCES organizations(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 -- ---------------------------------------------------------------------------

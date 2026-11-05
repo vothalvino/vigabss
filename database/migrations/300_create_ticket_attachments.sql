@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS ticket_attachments (
   CONSTRAINT fk_ticket_attachments_ticket  FOREIGN KEY (ticket_id)        REFERENCES tickets(id)       ON DELETE CASCADE,
   CONSTRAINT fk_ticket_attachments_uploader FOREIGN KEY (uploaded_by)     REFERENCES users(id),
   CONSTRAINT fk_ticket_attachments_org     FOREIGN KEY (organization_id)  REFERENCES organizations(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO permissions (name, description, module)
 SELECT 'ticket_attachments.view', 'View ticket attachments', 'tickets'
