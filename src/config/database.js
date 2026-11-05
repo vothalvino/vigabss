@@ -126,6 +126,35 @@ const replicaPool = process.env.DB_REPLICA_HOST
 
   : null;
 
+// RADIUS accounting arrives in bursts (a NAS reboots and every session sends
+// Start or Interim at once) and used to draw from `pool`, so a burst queued
+// staff requests behind it and one slow accounting statement could exhaust
+// the API. Work inside withAccountingPool uses its own pool, sized by
+// DB_ACCOUNTING_POOL_SIZE: a burst waits for accounting connections only.
+// Only the primary pool is swapped; an isolated tenant's pool is still used.
+const poolLane = new AsyncLocalStorage();
+let accountingPool = null;
+
+function getAccountingPool() {
+  if (!accountingPool) {
+    accountingPool = pinSessionToUtc(mysql.createPool({
+      ...baseConnectionConfig,
+      maxPreparedStatements: MAX_PREPARED_STATEMENTS,
+      waitForConnections: true,
+      connectionLimit: parseIntEnv('DB_ACCOUNTING_POOL_SIZE', 5),
+      queueLimit: parseIntEnv('DB_QUEUE_LIMIT', DEFAULT_QUEUE_LIMIT),
+      enableKeepAlive: true,
+      keepAliveInitialDelay: parseIntEnv('DB_KEEP_ALIVE_MS', 30000),
+    }));
+  }
+  return accountingPool;
+}
+
+/** Run `callback` with primary-database work on the accounting pool. */
+function withAccountingPool(callback) {
+  return poolLane.run({ lane: 'accounting' }, callback);
+}
+
 function withTenantContext(orgId, callback) {
   return tenantContext.run({ orgId }, callback);
 }
@@ -347,7 +376,8 @@ async function getCurrentPool({ preferReplica = false } = {}) {
     const tenantPool = await getTenantPool(store.orgId);
     if (tenantPool) return tenantPool;
   }
-  return preferReplica ? (replicaPool || pool) : pool;
+  if (preferReplica) return replicaPool || pool;
+  return poolLane.getStore()?.lane === 'accounting' ? getAccountingPool() : pool;
 }
 
 async function invalidateTenantDbConfig(orgId) {
@@ -405,6 +435,7 @@ function poolExhausted(poolName, reason) {
 function poolName(targetPool) {
   if (targetPool === pool) return 'primary';
   if (targetPool === replicaPool) return 'replica';
+  if (targetPool && targetPool === accountingPool) return 'accounting';
   return 'tenant';
 }
 
@@ -535,7 +566,7 @@ function readPool(name, targetPool) {
 }
 
 registerPoolStats(() => {
-  const stats = [readPool('primary', pool), readPool('replica', replicaPool), readPool('lock', lockPool)];
+  const stats = [readPool('primary', pool), readPool('replica', replicaPool), readPool('lock', lockPool), readPool('accounting', accountingPool)];
   const tenants = [...tenantPoolCache.values()].map(entry => readPool('tenant', entry.pool)).filter(Boolean);
   if (tenants.length) {
     stats.push(tenants.reduce((sum, t) => ({
@@ -553,6 +584,8 @@ async function close() {
   if (replicaPool) tasks.push(replicaPool.end());
   if (lockPool) tasks.push(lockPool.end());
   lockPool = null;
+  if (accountingPool) tasks.push(accountingPool.end());
+  accountingPool = null;
   for (const entry of tenantPoolCache.values()) tasks.push(entry.pool.end());
   tenantPoolCache.clear();
   tenantConfigGenerations.clear();
@@ -573,6 +606,7 @@ module.exports = {
   baseConnectionConfig,
   withTenantContext,
   withPrimaryContext,
+  withAccountingPool,
   getTenantConnectionConfig,
   invalidateTenantDbConfig,
   testTenantConnection,

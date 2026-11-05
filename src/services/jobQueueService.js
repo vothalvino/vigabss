@@ -79,7 +79,7 @@ function withAddDeadline(promise, name) {
 // ---------------------------------------------------------------------------
 // Only queues something enqueues (ASY-34): cfdi-stamp, config-backup,
 // ai-backfill-embeddings and ai-cost-rollup had handlers but no producer.
-const QUEUE_NAMES = ['scheduled-task', 'webhook-delivery', 'trap-forwarding-delivery', 'message-outbox', 'ai-triage', 'batch-job', 'discovery-scan', 'ap-command'];
+const QUEUE_NAMES = ['scheduled-task', 'webhook-delivery', 'trap-forwarding-delivery', 'message-outbox', 'ai-triage', 'batch-job', 'discovery-scan', 'ap-command', 'csv-import'];
 
 // ---------------------------------------------------------------------------
 // In-process queue (fallback when BullMQ is not available)
@@ -185,9 +185,10 @@ class InProcessQueue {
   async getStats() {
     const counts = new Map();
     for (const job of this.pending) counts.set(job.name, (counts.get(job.name) || 0) + 1);
+    const names = new Set([...counts.keys(), ...this.activeByName.keys()]);
     return {
       mode: 'in-process',
-      queues: [...counts].map(([name, waiting]) => ({ name, waiting })),
+      queues: [...names].map(name => ({ name, waiting: counts.get(name) || 0, active: this.activeByName.get(name) || 0 })),
       active: this.running,
       pending: this.pending.length,
     };

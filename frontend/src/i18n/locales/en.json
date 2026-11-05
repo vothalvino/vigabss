@@ -315,6 +315,7 @@
     "taxRules": "Tax Rules",
     "taxRates": "Tax Rates",
     "paymentGateways": "Payment Gateways",
+    "paymentProblems": "Payment problems",
     "paymentTransactions": "Payment Transactions",
     "recurringPaymentProfiles": "Recurring Payments",
     "users": "Users",
@@ -9708,6 +9709,50 @@
       "16": "16 · July–August",
       "17": "17 · September–October",
       "18": "18 · November–December"
+    }
+  },
+  "paymentProblems": {
+    "title": "Payment problems",
+    "description": "What went wrong between your payment providers and the books: events that could not be processed, charges with no payment posted, and refunds a payment complement (REP) still reports to SAT.",
+    "tab": {
+      "webhooks": "Webhook events",
+      "unsettled": "Charges not posted",
+      "refunds": "Refunds with a live REP"
+    },
+    "webhooksHelp": "A failed event is processed again when the provider sends it again; most providers retry for several days. An event that matched no transaction may belong to another account or be a test.",
+    "unsettledHelp": "The provider charged these, but no payment was posted. The reconcile_gateway_payments task retries them; one still listed after a day needs a look.",
+    "refundsHelp": "Refunded in the provider's dashboard after a REP reported the payment to SAT. Cancel each REP at SAT (motivo 02); it leaves this list once SAT confirms.",
+    "status": "Status",
+    "webhookStatus": {
+      "failed": "Failed",
+      "no_match": "No matching transaction",
+      "all": "All",
+      "received": "Received",
+      "processing": "Processing",
+      "processed": "Processed",
+      "ignored": "Ignored"
+    },
+    "noWebhooks": "No webhook events in this view.",
+    "noUnsettled": "Every succeeded charge has its payment.",
+    "noRefunds": "No refunded payment is reported by a live REP.",
+    "loadError": "This list could not be loaded.",
+    "prev": "← Previous",
+    "next": "Next →",
+    "pageOf": "Page {{page}} of {{total}}",
+    "col": {
+      "received": "Received",
+      "provider": "Provider",
+      "event": "Event",
+      "transaction": "Transaction",
+      "error": "Error",
+      "charged": "Charged",
+      "reference": "Provider reference",
+      "client": "Client",
+      "invoice": "Invoice",
+      "amount": "Amount",
+      "payment": "Payment",
+      "rep": "REP",
+      "satStatus": "SAT status"
     }
   }
 }

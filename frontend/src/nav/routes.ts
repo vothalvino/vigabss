@@ -162,6 +162,7 @@ export const ROUTES: RouteDef[] = [
   { path: '/refund-requests', labelKey: 'nav.refundRequests', section: 'billing', guard: 'billing', card: 'collections', roles: ['billing'], viewPermissions: ['refund_requests.view'] },
   { path: '/chargebacks', labelKey: 'nav.chargebacks', section: 'billing', guard: 'billing', card: 'collections', roles: ['billing'], viewPermissions: ['chargebacks.view'] },
   { path: '/payment-gateways', labelKey: 'nav.paymentGateways', section: 'billing', guard: 'billing', card: 'processing', roles: ['billing'], viewPermissions: ['payment_gateways.view'] },
+  { path: '/payment-problems', keywords: ['webhooks', 'conciliacion', 'pagos', 'reembolsos', 'rep'], labelKey: 'nav.paymentProblems', section: 'billing', guard: 'billing', card: 'processing', roles: ['billing'], viewPermissions: ['payment_gateways.view'] },
   { path: '/payment-transactions', labelKey: 'nav.paymentTransactions', section: 'billing', guard: 'billing', card: 'processing', roles: ['billing'], viewPermissions: ['payment_transactions.view'] },
   { path: '/recurring-payment-profiles', labelKey: 'nav.recurringPaymentProfiles', section: 'billing', guard: 'billing', card: 'processing', roles: ['billing'], viewPermissions: ['recurring_payment_profiles.view'] },
   { path: '/tax-reports', keywords: ['iva', 'impuestos', 'fiscal'], labelKey: 'nav.taxReports', section: 'billing', guard: 'billing', card: 'reportsAnalytics', roles: ['billing'], viewPermissions: ['billing.tax_reports'] },

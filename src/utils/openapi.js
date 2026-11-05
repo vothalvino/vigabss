@@ -1263,9 +1263,18 @@ function generateSpec() {
       '/export/payments': { get: { tags: ['Export'], summary: 'Export payments as CSV', operationId: 'exportPayments', security: [{ bearerAuth: [] }], parameters: [{ name: 'include_deleted', in: 'query', required: false, schema: { type: 'boolean' }, description: 'Include soft-deleted rows (default false)' }], responses: r200File('text/csv') } },
 
       // ---- Import ----
-      '/import/clients': { post: { tags: ['Import'], summary: 'Bulk import clients from CSV', operationId: 'importClients', security: [{ bearerAuth: [] }], requestBody: jsonBody('csv'), responses: r200('ImportResult') } },
-      '/import/devices': { post: { tags: ['Import'], summary: 'Bulk import devices from CSV', operationId: 'importDevices', security: [{ bearerAuth: [] }], requestBody: jsonBody('csv'), responses: r200('ImportResult') } },
-      '/import/contracts': { post: { tags: ['Import'], summary: 'Bulk import contracts from CSV (optional pppoe_username/pppoe_password columns carry over pre-existing PPPoE credentials instead of auto-generating them)', operationId: 'importContracts', security: [{ bearerAuth: [] }], requestBody: jsonBody('csv'), responses: r200('ImportResult') } },
+      // Every import is a background job (migration 522): 202 with the job, then
+      // GET /import/jobs/{id} until it is completed or failed.
+      ...Object.fromEntries(['clients', 'devices', 'contracts', 'invoices', 'payments'].flatMap(entity => [
+        [`/import/${entity}`, { post: { tags: ['Import'], summary: `Queue a CSV import of ${entity} (CSV in the body)${entity === 'contracts' ? '; optional pppoe_username/pppoe_password columns carry over pre-existing PPPoE credentials' : ''}`, operationId: `import${entity[0].toUpperCase()}${entity.slice(1)}`, security: [{ bearerAuth: [] }], requestBody: jsonBody('csv'), responses: { ...r202('ImportJob'), 422: errorResponse('No CSV') } } }],
+        [`/import/${entity}/upload`, { post: { tags: ['Import'], summary: `Queue a CSV import of ${entity} (multipart file field "file", .csv)`, operationId: `import${entity[0].toUpperCase()}${entity.slice(1)}File`, security: [{ bearerAuth: [] }], responses: { ...r202('ImportJob'), 422: errorResponse('No file, or not a .csv') } } }],
+      ])),
+      '/import/jobs': {
+        get: { tags: ['Import'], summary: 'The caller\'s recent imports of the entities they may import, newest first', operationId: 'listImportJobs', security: [{ bearerAuth: [] }], parameters: [limitParam()], responses: r200('ImportJob[]') },
+      },
+      '/import/jobs/{id}': {
+        get: { tags: ['Import'], summary: 'An import job: status, row counts and row errors (never the CSV)', operationId: 'getImportJob', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: { ...r200('ImportJob'), 403: errorResponse('No permission to import this entity'), 404: errorResponse('Not found') } },
+      },
 
       // ---- Files ----
 

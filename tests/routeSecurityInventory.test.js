@@ -32,6 +32,8 @@ const REVIEWED = {
   'GET /auth/me': 'the caller\'s own session',
   'POST /auth/change-password': 'the caller\'s own account',
   'PUT /regulatory-compliance/preservation-holds/:id/release': 'the handler requires the manage permission of the hold\'s own case (gov_data_requests.manage or dsar_requests.manage)',
+  'GET /import/jobs': 'lists only the entities the caller may import (each entity\'s create permission)',
+  'GET /import/jobs/:id': 'the handler requires the create permission of the job\'s entity',
   'POST /auth/verify-email/resend': 'the caller\'s own account',
   'POST /auth/switch-organization': 'membership is checked by the handler',
   'GET /auth/sessions': 'the caller\'s own sessions',

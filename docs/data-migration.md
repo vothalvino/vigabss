@@ -29,7 +29,7 @@ databases and backup prefixes do not need to be renamed.
 
 ## Overview
 
-VigaBSS 0.1.0-alpha.1 exposes bulk-import API endpoints that accept **CSV** files. Each endpoint inserts rows independently — errors in individual rows do not abort the entire import; instead they are collected and returned in the response.
+VigaBSS 0.1.0-alpha.1 exposes bulk-import API endpoints that accept **CSV** files. Each import runs as a background job: the request stores the CSV and answers `202` with the job, and `GET /api/v1/import/jobs/<id>` reports its progress and result. Rows are inserted independently — errors in individual rows do not abort the entire import; instead they are collected and returned with the job's result. The stored CSV is deleted when the job ends.
 
 ### Import endpoints summary
 
@@ -131,18 +131,38 @@ curl -X POST http://localhost:3000/api/v1/import/clients \
 
 ### Response
 
+The request answers `202 Accepted` with the queued job:
+
+```json
+{ "data": { "id": 31, "entity": "clients", "status": "queued", "total_rows": null, "imported_rows": null, "row_errors": [] } }
+```
+
+Poll the job until its `status` is `completed` or `failed`:
+
+```bash
+curl http://localhost:3000/api/v1/import/jobs/31 \
+  -H "Authorization: Bearer <token>" \
+  -H "X-Org-Id: <org_id>"
+```
+
 ```json
 {
   "data": {
-    "imported": 150,
-    "total": 152,
-    "errors": [
+    "id": 31,
+    "entity": "clients",
+    "status": "completed",
+    "total_rows": 152,
+    "imported_rows": 150,
+    "row_errors": [
       { "row": 23, "error": "name is required" },
       { "row": 89, "error": "Duplicate entry 'juan@ejemplo.com' for key 'email'" }
-    ]
+    ],
+    "error_message": null
   }
 }
 ```
+
+A `failed` job carries `error_message`. A job interrupted by a restart is failed rather than run again, because rows it had already created stay: check what was imported before sending the file again. `GET /api/v1/import/jobs` lists your recent imports.
 
 Review every error before proceeding. Fix the source file and re-run only the failing rows (they will not duplicate rows that already succeeded).
 

@@ -175,8 +175,27 @@ function metricsMiddleware(req, res, next) {
  * GET /metrics
  * Prometheus-compatible metrics endpoint.
  */
-router.get('/', (req, res) => {
+// Read the queue's job counts for job_queue_jobs. Bounded: a slow Redis
+// leaves the last counts in place rather than holding the scrape.
+const QUEUE_STATS_TIMEOUT_MS = 2000;
+async function refreshQueueDepth() {
+  let timer;
+  try {
+    const stats = await Promise.race([
+      require('../services/jobQueueService').getStats(),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), QUEUE_STATS_TIMEOUT_MS); }),
+    ]);
+    if (Array.isArray(stats?.queues)) require('../utils/opsMetrics').noteQueueDepth(stats.queues);
+  } catch {
+    // Keep the previous counts.
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+router.get('/', async (req, res) => {
   if (!metricsAccessAllowed(req)) return res.status(404).json({ error: 'Not found' });
+  await refreshQueueDepth();
   res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
   res.send(registry.render());
 });

@@ -10,7 +10,9 @@ const { requirePermission } = require('../middleware/rbac');
 const { uploadLimiter } = require('../middleware/rateLimit');
 const { validate } = require('../middleware/validate');
 const importSchemas = require('../middleware/schemas/import');
-const importController = require('../controllers/importController');
+const importJobService = require('../services/importJobService');
+const rbac = require('../middleware/rbac');
+const { ForbiddenError, ValidationError } = require('../utils/errors');
 
 const router = Router();
 router.use(authenticate);
@@ -49,24 +51,62 @@ function uploadImportFile(req, res, next) {
 }
 
 // ---------------------------------------------------------------------------
-// JSON body routes (CSV string in request body — backward compatible)
+// Every import runs as a background job (migration 522): the request stores
+// the CSV, queues it and answers 202 with the job. GET /import/jobs/:id
+// reports its progress and result.
 // ---------------------------------------------------------------------------
-router.post('/clients', requirePermission('clients.create'), validate(importSchemas.importCsv, { strip: false }), importController.importClients);
-router.post('/devices', requirePermission('devices.create'), validate(importSchemas.importCsv, { strip: false }), importController.importDevices);
-router.post('/contracts', requirePermission('contracts.create'), validate(importSchemas.importCsv, { strip: false }), importController.importContracts);
-router.post('/invoices', requirePermission('invoices.create'), validate(importSchemas.importCsv, { strip: false }), importController.importInvoices);
-router.post('/payments', requirePermission('payments.create'), validate(importSchemas.importCsv, { strip: false }), importController.importPayments);
 
-// ---------------------------------------------------------------------------
-// File upload routes (multipart/form-data, field "file", .csv only)
-// ---------------------------------------------------------------------------
-// uploadLimiter mounted first (before requirePermission), matching bulk.js's
-// bulkEmailLimiter convention — reject cheaply before the potentially
-// expensive file parse, and before any permission-check DB work.
-router.post('/clients/upload', uploadLimiter, requirePermission('clients.create'), uploadImportFile, importController.importClientsFile);
-router.post('/devices/upload', uploadLimiter, requirePermission('devices.create'), uploadImportFile, importController.importDevicesFile);
-router.post('/contracts/upload', uploadLimiter, requirePermission('contracts.create'), uploadImportFile, importController.importContractsFile);
-router.post('/invoices/upload', uploadLimiter, requirePermission('invoices.create'), uploadImportFile, importController.importInvoicesFile);
-router.post('/payments/upload', uploadLimiter, requirePermission('payments.create'), uploadImportFile, importController.importPaymentsFile);
+function queueImport(entity, source) {
+  return async (req, res, next) => {
+    try {
+      const csv = source === 'file' ? req.file?.buffer?.toString('utf8') : req.body.csv;
+      if (!csv) throw new ValidationError(source === 'file' ? 'file is required' : 'csv field is required');
+      const job = await importJobService.createImportJob({
+        organizationId: req.orgId, entity, csv, userId: req.user?.id ?? null,
+      });
+      res.status(202).json({ data: job });
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+// The caller's recent imports of the entities they may import.
+router.get('/jobs', async (req, res, next) => {
+  try {
+    const allowed = [];
+    for (const entity of importJobService.ENTITIES) {
+      if (await rbac.userHasPermission(req, importJobService.ENTITY_PERMISSION[entity])) allowed.push(entity);
+    }
+    res.json({ data: await importJobService.listImportJobs(req.orgId, allowed, req.query) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/jobs/:id', async (req, res, next) => {
+  try {
+    const job = await importJobService.getImportJob(req.params.id, req.orgId);
+    if (!await rbac.userHasPermission(req, importJobService.ENTITY_PERMISSION[job.entity])) {
+      throw new ForbiddenError(`Insufficient permissions. Required: ${importJobService.ENTITY_PERMISSION[job.entity]}`);
+    }
+    res.json({ data: job });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// CSV string in a JSON body.
+for (const entity of importJobService.ENTITIES) {
+  router.post(`/${entity}`, requirePermission(importJobService.ENTITY_PERMISSION[entity]), validate(importSchemas.importCsv, { strip: false }), queueImport(entity, 'body'));
+}
+
+// File upload (multipart/form-data, field "file", .csv only). uploadLimiter
+// is mounted first (before requirePermission), matching bulk.js's
+// bulkEmailLimiter convention: reject cheaply before the file parse and
+// before any permission-check DB work.
+for (const entity of importJobService.ENTITIES) {
+  router.post(`/${entity}/upload`, uploadLimiter, requirePermission(importJobService.ENTITY_PERMISSION[entity]), uploadImportFile, queueImport(entity, 'file'));
+}
 
 module.exports = router;

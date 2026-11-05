@@ -111,6 +111,17 @@ function registerWorkers() {
     return typeof db.withTenantContext === 'function' ? db.withTenantContext(organizationId, run) : run();
   });
 
+  // ---- CSV imports (migration 522) -----------------------------------------
+  // The job row holds the CSV before it is queued; one the queue loses is
+  // queued again at the next start (importJobService.resumeImportJobs).
+  jobQueue.process('csv-import', async (job) => {
+    const importJobService = require('../services/importJobService');
+    const db = require('../config/database');
+    const { jobId, organizationId } = job.data;
+    const run = () => importJobService.processImportJob(jobId, organizationId);
+    return typeof db.withTenantContext === 'function' ? db.withTenantContext(organizationId, run) : run();
+  });
+
   // ---- Network jobs (NET-26) ---------------------------------------------
   // The scan or command row is durable before its job is queued; one the
   // queue loses is queued again at the next start.
