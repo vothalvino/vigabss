@@ -1396,8 +1396,7 @@ function resolveGatewayPaymentMethod(provider, webhookPayload) {
  *
  * Idempotent: a transaction that already has payment_id (a replayed webhook,
  * both checkout.session.completed and payment_intent.succeeded, the sweep) is a
- * no-op, as is one reconciled by the pre-migration-472 code (it carries a
- * 'payment_transaction' ledger credit and was settled without a payment row).
+ * no-op.
  *
  * Throws when posting fails, after rolling back, so the caller can retry: the
  * webhook answers 500 (the provider redelivers) and the sweep counts a failure.
@@ -1436,16 +1435,6 @@ async function reconcilePayment(transactionId) {
     // this transaction waited.
     await paymentAllocationService.lockInvoicesForAllocation(exec, tx.organization_id,
       tx.invoice_id ? { invoiceIds: [tx.invoice_id] } : { clientIds: [tx.client_id] });
-    const [legacy] = await exec(
-      `SELECT id FROM client_balance_ledger
-        WHERE reference_type = 'payment_transaction' AND reference_id = ? AND entry_type = 'credit' LIMIT 1`,
-      [tx.id],
-    );
-    if (legacy.length > 0) {
-      await conn.rollback();
-      return { status: 'legacy_reconciled' };
-    }
-
     const orgId = tx.organization_id;
     const [gwRows] = await exec(
       'SELECT provider FROM payment_gateways WHERE id = ? AND organization_id = ? LIMIT 1',
@@ -1561,13 +1550,12 @@ async function refreshInvoicePaidStatusOn(exec, invoiceId) {
  * an offsetting ledger debit. The computed balance counts only completed
  * payments, so the refunded money stops counting either as a settlement or as
  * client credit.
+ * A transaction never reconciled (no payment_id) touched no invoice or ledger,
+ * so there is nothing to reverse.
  *
- * Legacy (reconciled before migration 472, a 'payment_transaction' ledger
- * credit and no payment): re-open settled_invoice_id and append the debit.
- *
- * Idempotent: a payment already 'refunded', or a legacy transaction that
- * already has its reversal debit, is left alone, so refund() + charge.refunded
- * (or a redelivery) never double-reverse. Best-effort — logs, never throws.
+ * Idempotent: a payment already 'refunded' is left alone, so refund() +
+ * charge.refunded (or a redelivery) never double-reverse. Best-effort — logs,
+ * never throws.
  */
 async function reverseRefund(transactionId) {
   const conn = await db.getConnection();
@@ -1576,77 +1564,40 @@ async function reverseRefund(transactionId) {
     const exec = conn.execute.bind(conn);
     const [txRows] = await exec('SELECT * FROM payment_transactions WHERE id = ? FOR UPDATE', [transactionId]);
     const tx = txRows[0];
-    if (!tx) { await conn.rollback(); return; }
+    if (!tx || !tx.payment_id) { await conn.rollback(); return; }
 
-    if (tx.payment_id) {
-      const [payRows] = await exec(
-        'SELECT * FROM payments WHERE id = ? AND organization_id <=> ? FOR UPDATE',
-        [tx.payment_id, tx.organization_id],
-      );
-      const payment = payRows[0];
-      if (!payment || payment.status === 'refunded') { await conn.commit(); return; }
+    const [payRows] = await exec(
+      'SELECT * FROM payments WHERE id = ? AND organization_id <=> ? FOR UPDATE',
+      [tx.payment_id, tx.organization_id],
+    );
+    const payment = payRows[0];
+    if (!payment || payment.status === 'refunded') { await conn.commit(); return; }
 
-      await exec("UPDATE payments SET status = 'refunded' WHERE id = ?", [payment.id]);
-      const [allocs] = await exec(
-        'SELECT DISTINCT invoice_id FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
-        [payment.id],
-      );
-      if (allocs.length > 0) {
-        await exec('UPDATE payment_allocations SET deleted_at = NOW() WHERE payment_id = ? AND deleted_at IS NULL', [payment.id]);
-        for (const { invoice_id: invoiceId } of allocs) {
-          await refreshInvoicePaidStatusOn(exec, invoiceId);
-        }
+    await exec("UPDATE payments SET status = 'refunded' WHERE id = ?", [payment.id]);
+    const [allocs] = await exec(
+      'SELECT DISTINCT invoice_id FROM payment_allocations WHERE payment_id = ? AND deleted_at IS NULL',
+      [payment.id],
+    );
+    if (allocs.length > 0) {
+      await exec('UPDATE payment_allocations SET deleted_at = NOW() WHERE payment_id = ? AND deleted_at IS NULL', [payment.id]);
+      for (const { invoice_id: invoiceId } of allocs) {
+        await refreshInvoicePaidStatusOn(exec, invoiceId);
       }
-      // A soft-deleted payment already had its ledger credit removed by the
-      // payments DELETE hook; only offset a credit that still stands.
-      if (!payment.deleted_at) {
-        await exec(
-          `INSERT INTO client_balance_ledger
-             (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
-           VALUES (?, ?, 'debit', ?, ?, 'payment', ?, ?, ?)`,
-          [payment.client_id, payment.organization_id, payment.amount, payment.currency, payment.id,
-            `Refund of gateway payment ${payment.reference_number || payment.id}`, businessToday()],
-        );
-      }
-      await conn.commit();
-      logger.info({ transactionId, paymentId: payment.id }, 'Refund reversed the gateway payment and its allocations');
-      await flagLiveRep(payment);
-      return;
     }
-
-    // Legacy path: only reverse a payment we actually reconciled (a credit
-    // ledger entry exists)...
-    const [credits] = await exec(
-      `SELECT id FROM client_balance_ledger
-        WHERE reference_type = 'payment_transaction' AND reference_id = ? AND entry_type = 'credit' LIMIT 1`,
-      [tx.id],
-    );
-    // ...and only once (no prior reversal debit for this tx).
-    const [debits] = await exec(
-      `SELECT id FROM client_balance_ledger
-        WHERE reference_type = 'payment_transaction' AND reference_id = ? AND entry_type = 'debit' LIMIT 1`,
-      [tx.id],
-    );
-    if (credits.length === 0 || debits.length > 0) { await conn.commit(); return; }
-
-    // Re-open ONLY the invoice this payment actually settled. When
-    // settled_invoice_id is NULL the payment settled nothing (a standing
-    // credit), so there is nothing to re-open — we still write the debit.
-    if (tx.settled_invoice_id) {
+    // A soft-deleted payment already had its ledger credit removed by the
+    // payments DELETE hook; only offset a credit that still stands.
+    if (!payment.deleted_at) {
       await exec(
-        "UPDATE invoices SET status = 'issued' WHERE id = ? AND status = 'paid'",
-        [tx.settled_invoice_id],
+        `INSERT INTO client_balance_ledger
+           (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
+         VALUES (?, ?, 'debit', ?, ?, 'payment', ?, ?, ?)`,
+        [payment.client_id, payment.organization_id, payment.amount, payment.currency, payment.id,
+          `Refund of gateway payment ${payment.reference_number || payment.id}`, businessToday()],
       );
     }
-    await exec(
-      `INSERT INTO client_balance_ledger
-         (client_id, organization_id, entry_type, amount, currency, reference_type, reference_id, description, entry_date)
-       VALUES (?, ?, 'debit', ?, ?, 'payment_transaction', ?, ?, ?)`,
-      [tx.client_id, tx.organization_id, tx.amount, tx.currency, tx.id,
-        `Refund reversal of gateway payment ${tx.gateway_reference_id}`, businessToday()],
-    );
     await conn.commit();
-    logger.info({ transactionId, invoiceId: tx.settled_invoice_id ?? null }, 'Refund reversed the settled invoice + ledger');
+    logger.info({ transactionId, paymentId: payment.id }, 'Refund reversed the gateway payment and its allocations');
+    await flagLiveRep(payment);
   } catch (err) {
     await conn.rollback();
     logger.error({ err, transactionId }, 'Refund reversal failed');
@@ -1725,16 +1676,12 @@ async function listWebhookEvents(orgId, { status, provider, page, limit } = {}) 
 }
 
 /**
- * Succeeded gateway transactions with no payment and no ledger credit: money
- * the provider collected that no invoice shows (the reconcile sweep's
- * candidates).
+ * Succeeded gateway transactions with no payment: money the provider
+ * collected that no invoice shows (the reconcile sweep's candidates).
  */
 async function listUnsettledTransactions(orgId, { page, limit } = {}) {
   const { limitNum, pageNum, offset } = pageOf({ page, limit });
-  const unsettled = `pt.organization_id = ? AND pt.gateway_status = 'succeeded' AND pt.payment_id IS NULL
-        AND NOT EXISTS (SELECT 1 FROM client_balance_ledger l
-                         WHERE l.reference_type = 'payment_transaction' AND l.reference_id = pt.id
-                           AND l.entry_type = 'credit')`;
+  const unsettled = "pt.organization_id = ? AND pt.gateway_status = 'succeeded' AND pt.payment_id IS NULL";
   const [rows] = await db.query(
     `SELECT pt.id, pt.payment_gateway_id, pt.client_id, pt.invoice_id, pt.gateway_reference_id,
             pt.amount, pt.currency, pt.created_at, pt.updated_at
@@ -1785,9 +1732,6 @@ async function reconcileOutstandingForOrganization(orgId, limit = RECONCILE_SWEE
   const [rows] = await db.query(
     `SELECT pt.id FROM payment_transactions pt
       WHERE pt.organization_id = ? AND pt.gateway_status = 'succeeded' AND pt.payment_id IS NULL
-        AND NOT EXISTS (SELECT 1 FROM client_balance_ledger l
-                         WHERE l.reference_type = 'payment_transaction' AND l.reference_id = pt.id
-                           AND l.entry_type = 'credit')
       ORDER BY pt.id ASC
       LIMIT ${safeLimit}`,
     [orgId],
