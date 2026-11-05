@@ -1163,61 +1163,61 @@ const app = require('../src/app');
 // §18.1 remediationRules.js — uncovered branches
 // ---------------------------------------------------------------------------
 describe('remediationRules routes — extended coverage', () => {
-  it('GET /api/remediation-rules filters by is_enabled', async () => {
+  it('GET /api/v1/remediation-rules filters by is_enabled', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, name: 'R1', is_enabled: 1 }]))
       .mockResolvedValueOnce(mockCount(1));
-    const res = await request(app).get('/api/remediation-rules?is_enabled=true');
+    const res = await request(app).get('/api/v1/remediation-rules?is_enabled=true');
     expect(res.status).toBe(200);
   });
 
-  it('GET /api/remediation-rules/:id returns rule', async () => {
+  it('GET /api/v1/remediation-rules/:id returns rule', async () => {
     db.query.mockResolvedValueOnce(mockRows([{ id: 1, name: 'R1' }]));
-    const res = await request(app).get('/api/remediation-rules/1');
+    const res = await request(app).get('/api/v1/remediation-rules/1');
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(1);
   });
 
-  it('GET /api/remediation-rules/:id returns 404', async () => {
+  it('GET /api/v1/remediation-rules/:id returns 404', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).get('/api/remediation-rules/9999');
+    const res = await request(app).get('/api/v1/remediation-rules/9999');
     expect(res.status).toBe(404);
   });
 
-  it('PUT /api/remediation-rules/:id returns 404 for missing rule', async () => {
+  it('PUT /api/v1/remediation-rules/:id returns 404 for missing rule', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).put('/api/remediation-rules/9999').send({ name: 'X' });
+    const res = await request(app).put('/api/v1/remediation-rules/9999').send({ name: 'X' });
     expect(res.status).toBe(404);
   });
 
-  it('PUT /api/remediation-rules/:id returns 422 when no updatable fields', async () => {
+  it('PUT /api/v1/remediation-rules/:id returns 422 when no updatable fields', async () => {
     db.query.mockResolvedValueOnce(mockRows([{ id: 1 }]));
-    const res = await request(app).put('/api/remediation-rules/1').send({});
+    const res = await request(app).put('/api/v1/remediation-rules/1').send({});
     expect(res.status).toBe(422);
   });
 
-  it('PUT /api/remediation-rules/:id updates successfully', async () => {
+  it('PUT /api/v1/remediation-rules/:id updates successfully', async () => {
     const updated = { id: 1, name: 'Updated', condition_metric: 'cpu', condition_operator: 'gt', action_type: 'reboot_device' };
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1 }]))  // existing check
       .mockResolvedValueOnce(mockUpdate())             // UPDATE
       .mockResolvedValueOnce(mockRows([updated]));     // SELECT
-    const res = await request(app).put('/api/remediation-rules/1').send({ name: 'Updated' });
+    const res = await request(app).put('/api/v1/remediation-rules/1').send({ name: 'Updated' });
     expect(res.status).toBe(200);
     expect(res.body.data.name).toBe('Updated');
   });
 
-  it('GET /api/remediation-rules/:id/executions returns list', async () => {
+  it('GET /api/v1/remediation-rules/:id/executions returns list', async () => {
     db.query.mockResolvedValueOnce(mockRows([{ id: 10, action_type: 'reboot_device', status: 'stubbed' }]));
-    const res = await request(app).get('/api/remediation-rules/1/executions');
+    const res = await request(app).get('/api/v1/remediation-rules/1/executions');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 
-  it('POST /api/remediation-rules/evaluate triggers evaluation', async () => {
+  it('POST /api/v1/remediation-rules/evaluate triggers evaluation', async () => {
     // automationService.evaluateRemediationRules → rules query = empty
     db.query.mockResolvedValueOnce(mockRows([]));
-    const res = await request(app).post('/api/remediation-rules/evaluate');
+    const res = await request(app).post('/api/v1/remediation-rules/evaluate');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('evaluated');
   });
@@ -1229,83 +1229,83 @@ describe('remediationRules routes — extended coverage', () => {
 describe('routerDrivers routes — extended coverage', () => {
   const { encrypt } = require('../src/utils/encryption');
 
-  it('GET /api/router-drivers filters by vendor', async () => {
+  it('GET /api/v1/router-drivers filters by vendor', async () => {
     const rows = [{ id: 1, vendor: 'cisco_ios', has_password: false, has_api_token: false, encrypted_password: null, api_token: null }];
     db.query
       .mockResolvedValueOnce(mockRows(rows))
       .mockResolvedValueOnce(mockCount(1));
-    const res = await request(app).get('/api/router-drivers?vendor=cisco_ios');
+    const res = await request(app).get('/api/v1/router-drivers?vendor=cisco_ios');
     expect(res.status).toBe(200);
   });
 
-  it('GET /api/router-drivers filters by is_active', async () => {
+  it('GET /api/v1/router-drivers filters by is_active', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([]))
       .mockResolvedValueOnce(mockCount(0));
-    const res = await request(app).get('/api/router-drivers?is_active=true');
+    const res = await request(app).get('/api/v1/router-drivers?is_active=true');
     expect(res.status).toBe(200);
   });
 
-  it('GET /api/router-drivers/:id returns 404', async () => {
+  it('GET /api/v1/router-drivers/:id returns 404', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).get('/api/router-drivers/9999');
+    const res = await request(app).get('/api/v1/router-drivers/9999');
     expect(res.status).toBe(404);
   });
 
-  it('GET /api/router-drivers/:id returns config (sanitized)', async () => {
+  it('GET /api/v1/router-drivers/:id returns config (sanitized)', async () => {
     const raw = { id: 1, vendor: 'mikrotik', host: '10.0.0.1', encrypted_password: null, api_token: null };
     db.query.mockResolvedValueOnce(mockRows([raw]));
-    const res = await request(app).get('/api/router-drivers/1');
+    const res = await request(app).get('/api/v1/router-drivers/1');
     expect(res.status).toBe(200);
     expect(res.body.data).not.toHaveProperty('encrypted_password');
   });
 
-  it('PUT /api/router-drivers/:id returns 404 when service returns null', async () => {
+  it('PUT /api/v1/router-drivers/:id returns 404 when service returns null', async () => {
     // updateDriverConfig → no fields provided → reads config → not found
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).put('/api/router-drivers/9999').send({});
+    const res = await request(app).put('/api/v1/router-drivers/9999').send({});
     expect(res.status).toBe(404);
   });
 
-  it('PUT /api/router-drivers/:id updates successfully', async () => {
+  it('PUT /api/v1/router-drivers/:id updates successfully', async () => {
     const raw = { id: 1, vendor: 'mikrotik', host: '10.0.0.2', encrypted_password: null, api_token: null };
     db.query
       .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockResolvedValueOnce(mockRows([raw]));
-    const res = await request(app).put('/api/router-drivers/1').send({ host: '10.0.0.2' });
+    const res = await request(app).put('/api/v1/router-drivers/1').send({ host: '10.0.0.2' });
     expect(res.status).toBe(200);
   });
 
-  it('POST /api/router-drivers/:id/test returns 404 when not found', async () => {
+  it('POST /api/v1/router-drivers/:id/test returns 404 when not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).post('/api/router-drivers/9999/test');
+    const res = await request(app).post('/api/v1/router-drivers/9999/test');
     expect(res.status).toBe(404);
   });
 
-  it('POST /api/router-drivers/:id/test returns 501 not_implemented for non-mikrotik', async () => {
+  it('POST /api/v1/router-drivers/:id/test returns 501 not_implemented for non-mikrotik', async () => {
     const config = { id: 1, vendor: 'cisco_ios', host: '10.0.0.1', encrypted_password: null };
     db.query
       .mockResolvedValueOnce(mockRows([config]))
       .mockResolvedValueOnce(mockUpdate());  // UPDATE last_tested_at
-    const res = await request(app).post('/api/router-drivers/1/test');
+    const res = await request(app).post('/api/v1/router-drivers/1/test');
     expect(res.status).toBe(501);
     expect(res.body.data.status).toBe('not_implemented');
   });
 
-  it('GET /api/router-drivers/command-executions/list returns list', async () => {
+  it('GET /api/v1/router-drivers/command-executions/list returns list', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, command: 'list_interfaces', status: 'success' }]))
       .mockResolvedValueOnce(mockCount(1));
-    const res = await request(app).get('/api/router-drivers/command-executions/list');
+    const res = await request(app).get('/api/v1/router-drivers/command-executions/list');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 
-  it('GET /api/router-drivers/command-executions/list filters by vendor and status', async () => {
+  it('GET /api/v1/router-drivers/command-executions/list filters by vendor and status', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([]))
       .mockResolvedValueOnce(mockCount(0));
-    const res = await request(app).get('/api/router-drivers/command-executions/list?vendor=mikrotik&status=success');
+    const res = await request(app).get('/api/v1/router-drivers/command-executions/list?vendor=mikrotik&status=success');
     expect(res.status).toBe(200);
   });
 });
@@ -1316,49 +1316,49 @@ describe('routerDrivers routes — extended coverage', () => {
 describe('automationScripts routes — extended coverage', () => {
   const scriptingService = require('../src/services/scriptingService');
 
-  it('GET /api/automation-scripts calls scriptingService.listScripts', async () => {
+  it('GET /api/v1/automation-scripts calls scriptingService.listScripts', async () => {
     scriptingService.listScripts.mockResolvedValueOnce({ data: [], meta: { total: 0 } });
-    const res = await request(app).get('/api/automation-scripts');
+    const res = await request(app).get('/api/v1/automation-scripts');
     expect(res.status).toBe(200);
     expect(scriptingService.listScripts).toHaveBeenCalled();
   });
 
-  it('GET /api/automation-scripts/:id returns 404', async () => {
+  it('GET /api/v1/automation-scripts/:id returns 404', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).get('/api/automation-scripts/9999');
+    const res = await request(app).get('/api/v1/automation-scripts/9999');
     expect(res.status).toBe(404);
   });
 
-  it('GET /api/automation-scripts/:id returns script', async () => {
+  it('GET /api/v1/automation-scripts/:id returns script', async () => {
     db.query.mockResolvedValueOnce(mockRows([{ id: 1, name: 'test.sh', language: 'bash' }]));
-    const res = await request(app).get('/api/automation-scripts/1');
+    const res = await request(app).get('/api/v1/automation-scripts/1');
     expect(res.status).toBe(200);
     expect(res.body.data.name).toBe('test.sh');
   });
 
-  it('PUT /api/automation-scripts/:id returns 404 when updateScript returns null', async () => {
+  it('PUT /api/v1/automation-scripts/:id returns 404 when updateScript returns null', async () => {
     scriptingService.updateScript.mockResolvedValueOnce(null);
-    const res = await request(app).put('/api/automation-scripts/9999').send({ name: 'x', language: 'bash' });
+    const res = await request(app).put('/api/v1/automation-scripts/9999').send({ name: 'x', language: 'bash' });
     expect(res.status).toBe(404);
   });
 
-  it('PUT /api/automation-scripts/:id updates successfully', async () => {
+  it('PUT /api/v1/automation-scripts/:id updates successfully', async () => {
     const updated = { id: 1, name: 'updated.sh', language: 'bash' };
     scriptingService.updateScript.mockResolvedValueOnce(updated);
-    const res = await request(app).put('/api/automation-scripts/1').send({ name: 'updated.sh' });
+    const res = await request(app).put('/api/v1/automation-scripts/1').send({ name: 'updated.sh' });
     expect(res.status).toBe(200);
     expect(res.body.data.name).toBe('updated.sh');
   });
 
-  it('GET /api/automation-scripts/executions/list returns executions', async () => {
+  it('GET /api/v1/automation-scripts/executions/list returns executions', async () => {
     scriptingService.listExecutions.mockResolvedValueOnce({ data: [{ id: 1, status: 'queued' }], meta: { total: 1 } });
-    const res = await request(app).get('/api/automation-scripts/executions/list');
+    const res = await request(app).get('/api/v1/automation-scripts/executions/list');
     expect(res.status).toBe(200);
   });
 
-  it('GET /api/automation-scripts/:id/executions returns script executions', async () => {
+  it('GET /api/v1/automation-scripts/:id/executions returns script executions', async () => {
     scriptingService.listExecutions.mockResolvedValueOnce({ data: [], meta: { total: 0 } });
-    const res = await request(app).get('/api/automation-scripts/1/executions');
+    const res = await request(app).get('/api/v1/automation-scripts/1/executions');
     expect(res.status).toBe(200);
   });
 });
@@ -1367,42 +1367,42 @@ describe('automationScripts routes — extended coverage', () => {
 // §18.1 batchJobs.js — uncovered branches
 // ---------------------------------------------------------------------------
 describe('batchJobs routes — extended coverage', () => {
-  it('GET /api/batch-jobs filters by status and operation', async () => {
+  it('GET /api/v1/batch-jobs filters by status and operation', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, operation: 'suspend', status: 'completed' }]))
       .mockResolvedValueOnce(mockCount(1));
-    const res = await request(app).get('/api/batch-jobs?status=completed&operation=suspend');
+    const res = await request(app).get('/api/v1/batch-jobs?status=completed&operation=suspend');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 
-  it('GET /api/batch-jobs/:id returns job', async () => {
+  it('GET /api/v1/batch-jobs/:id returns job', async () => {
     db.query.mockResolvedValueOnce(mockRows([{ id: 1, name: 'BJ1', status: 'completed' }]));
-    const res = await request(app).get('/api/batch-jobs/1');
+    const res = await request(app).get('/api/v1/batch-jobs/1');
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(1);
   });
 
-  it('GET /api/batch-jobs/:id returns 404', async () => {
+  it('GET /api/v1/batch-jobs/:id returns 404', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).get('/api/batch-jobs/9999');
+    const res = await request(app).get('/api/v1/batch-jobs/9999');
     expect(res.status).toBe(404);
   });
 
-  it('GET /api/batch-jobs/:id/items returns items', async () => {
+  it('GET /api/v1/batch-jobs/:id/items returns items', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, entity_id: 10, status: 'success' }]))
       .mockResolvedValueOnce(mockCount(1));
-    const res = await request(app).get('/api/batch-jobs/1/items');
+    const res = await request(app).get('/api/v1/batch-jobs/1/items');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 
-  it('GET /api/batch-jobs/:id/items filters by status', async () => {
+  it('GET /api/v1/batch-jobs/:id/items filters by status', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([]))
       .mockResolvedValueOnce(mockCount(0));
-    const res = await request(app).get('/api/batch-jobs/1/items?status=failure');
+    const res = await request(app).get('/api/v1/batch-jobs/1/items?status=failure');
     expect(res.status).toBe(200);
   });
 });

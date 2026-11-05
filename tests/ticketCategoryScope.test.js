@@ -54,11 +54,11 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 // Create: category is required and constrained
 // ---------------------------------------------------------------------------
-describe('POST /api/tickets — category taxonomy', () => {
+describe('POST /api/v1/tickets — category taxonomy', () => {
   test('422s without a category', async () => {
     mockAuthUser('admin', []);
     const res = await request(app)
-      .post('/api/tickets')
+      .post('/api/v1/tickets')
       .set('Authorization', `Bearer ${tokenFor('admin')}`)
       .send({ subject: 'No category' });
     expect(res.status).toBe(422);
@@ -68,7 +68,7 @@ describe('POST /api/tickets — category taxonomy', () => {
   test('422s on a value outside the taxonomy', async () => {
     mockAuthUser('admin', []);
     const res = await request(app)
-      .post('/api/tickets')
+      .post('/api/v1/tickets')
       .set('Authorization', `Bearer ${tokenFor('admin')}`)
       .send({ subject: 'Bad category', category: 'connectivity' });
     expect(res.status).toBe(422);
@@ -81,7 +81,7 @@ describe('POST /api/tickets — category taxonomy', () => {
       .mockResolvedValueOnce([{ insertId: 7 }]) // INSERT
       .mockResolvedValueOnce([[{ id: 7, organization_id: 1, subject: 'ok', category: 'technical', description: null }]]); // findById
     const res = await request(app)
-      .post('/api/tickets')
+      .post('/api/v1/tickets')
       .set('Authorization', `Bearer ${tokenFor('admin')}`)
       .send({ subject: 'ok', category: 'technical', client_id: 37 });
     expect(res.status).toBe(201);
@@ -92,14 +92,14 @@ describe('POST /api/tickets — category taxonomy', () => {
 // ---------------------------------------------------------------------------
 // List + stats: exclusion for roles without tickets.view_billing
 // ---------------------------------------------------------------------------
-describe('GET /api/tickets — billing-category scoping', () => {
+describe('GET /api/v1/tickets — billing-category scoping', () => {
   test('technician (no tickets.view_billing) gets the exclusion clause', async () => {
     mockAuthUser('technician', ['tickets.view', 'ticket_relations.view']);
     db.query
       .mockResolvedValueOnce([[{ id: 1, subject: 'net down', category: 'technical' }]]) // rows
       .mockResolvedValueOnce([[{ total: 1 }]]); // count
     const res = await request(app)
-      .get('/api/tickets')
+      .get('/api/v1/tickets')
       .set('Authorization', `Bearer ${tokenFor('technician')}`);
     expect(res.status).toBe(200);
     const listCall = db.query.mock.calls.find(([sql]) => /^SELECT \* FROM tickets/.test(sql));
@@ -114,7 +114,7 @@ describe('GET /api/tickets — billing-category scoping', () => {
       .mockResolvedValueOnce([[{ id: 2, subject: 'refund?', category: 'billing' }]]) // findAll
       .mockResolvedValueOnce([[{ total: 1 }]]); // count
     const res = await request(app)
-      .get('/api/tickets')
+      .get('/api/v1/tickets')
       .set('Authorization', `Bearer ${tokenFor('support')}`);
     expect(res.status).toBe(200);
     const sqls = db.query.mock.calls.map(([sql]) => sql).join('\n');
@@ -125,7 +125,7 @@ describe('GET /api/tickets — billing-category scoping', () => {
     mockAuthUser('technician', ['tickets.view']);
     db.query.mockResolvedValueOnce([[{ status: 'open', count: 3 }]]);
     const res = await request(app)
-      .get('/api/tickets/stats')
+      .get('/api/v1/tickets/stats')
       .set('Authorization', `Bearer ${tokenFor('technician')}`);
     expect(res.status).toBe(200);
     const statsCall = db.query.mock.calls.find(([sql]) => /GROUP BY status/.test(sql));
@@ -136,12 +136,12 @@ describe('GET /api/tickets — billing-category scoping', () => {
 // ---------------------------------------------------------------------------
 // Detail + subresources: the router.param chokepoint
 // ---------------------------------------------------------------------------
-describe('GET /api/tickets/:id — billing tickets are 404 without the permission', () => {
+describe('GET /api/v1/tickets/:id — billing tickets are 404 without the permission', () => {
   test('technician gets 404 on a billing ticket', async () => {
     mockAuthUser('technician', ['tickets.view']);
     db.query.mockResolvedValueOnce([[{ category: 'billing' }]]); // param guard lookup
     const res = await request(app)
-      .get('/api/tickets/5')
+      .get('/api/v1/tickets/5')
       .set('Authorization', `Bearer ${tokenFor('technician')}`);
     expect(res.status).toBe(404);
   });
@@ -150,7 +150,7 @@ describe('GET /api/tickets/:id — billing tickets are 404 without the permissio
     mockAuthUser('technician', ['tickets.view']);
     db.query.mockResolvedValueOnce([[{ category: 'billing' }]]); // param guard lookup
     const res = await request(app)
-      .get('/api/tickets/5/comments')
+      .get('/api/v1/tickets/5/comments')
       .set('Authorization', `Bearer ${tokenFor('technician')}`);
     expect(res.status).toBe(404);
   });
@@ -161,7 +161,7 @@ describe('GET /api/tickets/:id — billing tickets are 404 without the permissio
       .mockResolvedValueOnce([[{ category: 'technical' }]]) // param guard lookup
       .mockResolvedValueOnce([[{ id: 5, organization_id: 1, subject: 'fiber cut', category: 'technical' }]]); // findByIdOrFail
     const res = await request(app)
-      .get('/api/tickets/5')
+      .get('/api/v1/tickets/5')
       .set('Authorization', `Bearer ${tokenFor('technician')}`);
     expect(res.status).toBe(200);
     expect(res.body.data.category).toBe('technical');
@@ -175,7 +175,7 @@ describe('GET /api/tickets/:id — billing tickets are 404 without the permissio
       .mockResolvedValueOnce([[{ id: 5, category: 'billing' }]]) // ownership guard lookup
       .mockResolvedValueOnce([[{ id: 5, organization_id: 1, subject: 'refund?', category: 'billing' }]]); // findByIdOrFail
     const res = await request(app)
-      .get('/api/tickets/5')
+      .get('/api/v1/tickets/5')
       .set('Authorization', `Bearer ${tokenFor('support')}`);
     expect(res.status).toBe(200);
     const guardCall = db.query.mock.calls.find(([sql]) => /^SELECT category FROM tickets/.test(sql));
@@ -187,7 +187,7 @@ describe('GET /api/tickets/:id — billing tickets are 404 without the permissio
     // non-billing ids: the guard runs after requirePermission.
     mockAuthUser('billing', []);
     const res = await request(app)
-      .get('/api/tickets/5')
+      .get('/api/v1/tickets/5')
       .set('Authorization', `Bearer ${tokenFor('billing')}`);
     expect(res.status).toBe(403);
     const guardCall = db.query.mock.calls.find(([sql]) => /^SELECT category FROM tickets/.test(sql));
@@ -199,7 +199,7 @@ describe('GET /api/tickets/:id — billing tickets are 404 without the permissio
 // Editing: category + internal notes are PATCHable (notes used to be silently
 // dropped — column existed but the schema never declared it)
 // ---------------------------------------------------------------------------
-describe('PATCH /api/tickets/:id — editing', () => {
+describe('PATCH /api/v1/tickets/:id — editing', () => {
   test('updates category and notes', async () => {
     mockAuthUser('admin', []);
     db.query
@@ -208,7 +208,7 @@ describe('PATCH /api/tickets/:id — editing', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE
       .mockResolvedValueOnce([[{ id: 5, organization_id: 1, subject: 'x', status: 'open', category: 'installation', notes: 'ladder required' }]]); // fresh
     const res = await request(app)
-      .patch('/api/tickets/5')
+      .patch('/api/v1/tickets/5')
       .set('Authorization', `Bearer ${tokenFor('admin')}`)
       .send({ category: 'installation', notes: 'ladder required' });
     expect(res.status).toBe(200);
@@ -222,7 +222,7 @@ describe('PATCH /api/tickets/:id — editing', () => {
     mockAuthUser('admin', []);
     db.query.mockResolvedValueOnce([[{ id: 5, category: 'general' }]]); // ownership guard lookup
     const res = await request(app)
-      .patch('/api/tickets/5')
+      .patch('/api/v1/tickets/5')
       .set('Authorization', `Bearer ${tokenFor('admin')}`)
       .send({ category: 'hardware' });
     expect(res.status).toBe(422);
@@ -242,7 +242,7 @@ describe('billing-category exclusion on sideways surfaces', () => {
         { id: 2, ticket_id_a: 5, ticket_id_b: 7, ticket_a_subject: 'net', ticket_b_subject: 'fiber cut', ticket_a_category: 'technical', ticket_b_category: 'technical' },
       ]]);
     const res = await request(app)
-      .get('/api/tickets/5/relations')
+      .get('/api/v1/tickets/5/relations')
       .set('Authorization', `Bearer ${tokenFor('technician')}`);
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
@@ -256,7 +256,7 @@ describe('billing-category exclusion on sideways surfaces', () => {
       .mockResolvedValueOnce([[{ id: 5, category: 'technical' }]]) // ownership guard lookup (target)
       .mockResolvedValueOnce([[]]); // source lookup: not in this org
     const res = await request(app)
-      .post('/api/tickets/5/merge')
+      .post('/api/v1/tickets/5/merge')
       .set('Authorization', `Bearer ${tokenFor('admin')}`)
       .send({ source_ticket_id: 999 });
     expect(res.status).toBe(404);
@@ -269,7 +269,7 @@ describe('billing-category exclusion on sideways surfaces', () => {
     mockAuthUser('technician', ['noc.view']);
     db.query.mockResolvedValueOnce([[{ status: 'open', count: 2 }]]);
     const res = await request(app)
-      .get('/api/noc/ticket-queue')
+      .get('/api/v1/noc/ticket-queue')
       .set('Authorization', `Bearer ${tokenFor('technician')}`);
     expect(res.status).toBe(200);
     const call = db.query.mock.calls.find(([sql]) => /FROM tickets t/.test(sql));
@@ -310,7 +310,7 @@ describe('billing-category exclusion on sideways surfaces', () => {
 // any ticket query runs.
 // ---------------------------------------------------------------------------
 describe('non-numeric ticket ids', () => {
-  test.each(['/api/tickets/12abc', '/api/tickets/12%20', '/api/tickets/12abc/comments'])('%s is 404 without reading a ticket', async (path) => {
+  test.each(['/api/v1/tickets/12abc', '/api/v1/tickets/12%20', '/api/v1/tickets/12abc/comments'])('%s is 404 without reading a ticket', async (path) => {
     mockAuthUser('technician', ['tickets.view']);
     db.query.mockResolvedValue([[{ id: 12, category: 'billing', organization_id: 1, subject: 'Refund' }]]);
     const res = await request(app).get(path).set('Authorization', `Bearer ${tokenFor('technician')}`);

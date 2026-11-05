@@ -4,10 +4,10 @@
 // Supertest HTTP-level coverage for the NAS WireGuard endpoints in
 // src/routes/nas.js:
 //
-//   GET  /api/nas/:id/wg             — fetch tunnel state (redacted)
-//   POST /api/nas/:id/wg/bootstrap   — push config or return snippet
-//   POST /api/nas/:id/wg/discover    — read connected subnets (read-only)
-//   PUT  /api/nas/:id/wg/routes      — confirm + store routed CIDRs
+//   GET  /api/v1/nas/:id/wg             — fetch tunnel state (redacted)
+//   POST /api/v1/nas/:id/wg/bootstrap   — push config or return snippet
+//   POST /api/v1/nas/:id/wg/discover    — read connected subnets (read-only)
+//   PUT  /api/v1/nas/:id/wg/routes      — confirm + store routed CIDRs
 //
 // Test matrix:
 //   (a) On routerUnreachable, bootstrap returns HTTP 200 with {method:'snippet', snippet}
@@ -107,16 +107,16 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// GET /api/nas/:id/wg — fetch tunnel state (redacted)
+// GET /api/v1/nas/:id/wg — fetch tunnel state (redacted)
 // =============================================================================
-describe('GET /api/nas/:id/wg', () => {
+describe('GET /api/v1/nas/:id/wg', () => {
   test('200 returns tunnel data with nas_private_key_encrypted stripped', async () => {
     mockAdminUser();
     Nas.findByIdOrFail.mockResolvedValue(mockNas);
     db.query.mockResolvedValueOnce([[mockTunnelRow]]);
 
     const res = await request(app)
-      .get('/api/nas/7/wg')
+      .get('/api/v1/nas/7/wg')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -136,7 +136,7 @@ describe('GET /api/nas/:id/wg', () => {
     db.query.mockResolvedValueOnce([[]]); // no tunnel row
 
     const res = await request(app)
-      .get('/api/nas/7/wg')
+      .get('/api/v1/nas/7/wg')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -150,7 +150,7 @@ describe('GET /api/nas/:id/wg', () => {
     Nas.findByIdOrFail.mockRejectedValue(new NotFoundError('nas'));
 
     const res = await request(app)
-      .get('/api/nas/999/wg')
+      .get('/api/v1/nas/999/wg')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(404);
@@ -158,15 +158,15 @@ describe('GET /api/nas/:id/wg', () => {
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).get('/api/nas/7/wg');
+    const res = await request(app).get('/api/v1/nas/7/wg');
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// POST /api/nas/:id/wg/bootstrap — push WG config or return snippet
+// POST /api/v1/nas/:id/wg/bootstrap — push WG config or return snippet
 // =============================================================================
-describe('POST /api/nas/:id/wg/bootstrap', () => {
+describe('POST /api/v1/nas/:id/wg/bootstrap', () => {
   test('(a) routerUnreachable → HTTP 200 with method:snippet + tunnel state manual', async () => {
     mockAdminUser();
     Nas.findByIdOrFail.mockResolvedValue(mockNas);
@@ -180,7 +180,7 @@ describe('POST /api/nas/:id/wg/bootstrap', () => {
     });
 
     const res = await request(app)
-      .post('/api/nas/7/wg/bootstrap')
+      .post('/api/v1/nas/7/wg/bootstrap')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -209,7 +209,7 @@ describe('POST /api/nas/:id/wg/bootstrap', () => {
     });
 
     const res = await request(app)
-      .post('/api/nas/7/wg/bootstrap')
+      .post('/api/v1/nas/7/wg/bootstrap')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -225,7 +225,7 @@ describe('POST /api/nas/:id/wg/bootstrap', () => {
     User.getPermissions.mockResolvedValue(['devices.view']);
 
     const res = await request(app)
-      .post('/api/nas/7/wg/bootstrap')
+      .post('/api/v1/nas/7/wg/bootstrap')
       .set('Authorization', `Bearer ${techToken}`);
 
     expect(res.status).toBe(403);
@@ -242,7 +242,7 @@ describe('POST /api/nas/:id/wg/bootstrap', () => {
     );
 
     const res = await request(app)
-      .post('/api/nas/7/wg/bootstrap')
+      .post('/api/v1/nas/7/wg/bootstrap')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(502);
@@ -255,7 +255,7 @@ describe('POST /api/nas/:id/wg/bootstrap', () => {
     Nas.findByIdOrFail.mockRejectedValue(new NotFoundError('nas'));
 
     const res = await request(app)
-      .post('/api/nas/999/wg/bootstrap')
+      .post('/api/v1/nas/999/wg/bootstrap')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(404);
@@ -263,15 +263,15 @@ describe('POST /api/nas/:id/wg/bootstrap', () => {
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).post('/api/nas/7/wg/bootstrap');
+    const res = await request(app).post('/api/v1/nas/7/wg/bootstrap');
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// POST /api/nas/:id/wg/discover — read connected subnets (read-only)
+// POST /api/v1/nas/:id/wg/discover — read connected subnets (read-only)
 // =============================================================================
-describe('POST /api/nas/:id/wg/discover', () => {
+describe('POST /api/v1/nas/:id/wg/discover', () => {
   test('200 returns proposed subnets from router topology', async () => {
     mockAdminUser();
     Nas.findByIdOrFail.mockResolvedValue(mockNas);
@@ -282,7 +282,7 @@ describe('POST /api/nas/:id/wg/discover', () => {
     });
 
     const res = await request(app)
-      .post('/api/nas/7/wg/discover')
+      .post('/api/v1/nas/7/wg/discover')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
@@ -294,7 +294,7 @@ describe('POST /api/nas/:id/wg/discover', () => {
     User.getPermissions.mockResolvedValue(['devices.view']);
 
     const res = await request(app)
-      .post('/api/nas/7/wg/discover')
+      .post('/api/v1/nas/7/wg/discover')
       .set('Authorization', `Bearer ${techToken}`);
 
     expect(res.status).toBe(403);
@@ -309,7 +309,7 @@ describe('POST /api/nas/:id/wg/discover', () => {
     );
 
     const res = await request(app)
-      .post('/api/nas/7/wg/discover')
+      .post('/api/v1/nas/7/wg/discover')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(502);
@@ -317,15 +317,15 @@ describe('POST /api/nas/:id/wg/discover', () => {
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).post('/api/nas/7/wg/discover');
+    const res = await request(app).post('/api/v1/nas/7/wg/discover');
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// PUT /api/nas/:id/wg/routes — confirm + store routed CIDRs
+// PUT /api/v1/nas/:id/wg/routes — confirm + store routed CIDRs
 // =============================================================================
-describe('PUT /api/nas/:id/wg/routes', () => {
+describe('PUT /api/v1/nas/:id/wg/routes', () => {
   test('200 confirms routes and returns updated tunnel (key column stripped)', async () => {
     mockAdminUser();
     Nas.findByIdOrFail.mockResolvedValue(mockNas);
@@ -339,7 +339,7 @@ describe('PUT /api/nas/:id/wg/routes', () => {
     });
 
     const res = await request(app)
-      .put('/api/nas/7/wg/routes')
+      .put('/api/v1/nas/7/wg/routes')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ subnets: ['192.168.10.0/24'] });
 
@@ -356,7 +356,7 @@ describe('PUT /api/nas/:id/wg/routes', () => {
     User.getPermissions.mockResolvedValue(['devices.view']);
 
     const res = await request(app)
-      .put('/api/nas/7/wg/routes')
+      .put('/api/v1/nas/7/wg/routes')
       .set('Authorization', `Bearer ${techToken}`)
       .send({ subnets: ['192.168.10.0/24'] });
 
@@ -368,7 +368,7 @@ describe('PUT /api/nas/:id/wg/routes', () => {
     mockAdminUser();
 
     const res = await request(app)
-      .put('/api/nas/7/wg/routes')
+      .put('/api/v1/nas/7/wg/routes')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({});
 
@@ -377,7 +377,7 @@ describe('PUT /api/nas/:id/wg/routes', () => {
   });
 
   test('401 without auth token', async () => {
-    const res = await request(app).put('/api/nas/7/wg/routes');
+    const res = await request(app).put('/api/v1/nas/7/wg/routes');
     expect(res.status).toBe(401);
   });
 });

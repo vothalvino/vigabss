@@ -18,12 +18,11 @@ const relayConfig = require('../config/firerelay');
 const logger = require('../utils/logger');
 
 /**
- * Extract a client_id from a request path like /api/clients/123 or
- * /api/v1/clients/123.  Returns null if the path does not target a
- * specific client resource.
+ * Extract a client_id from a request path like /api/v1/clients/123.
+ * Returns null if the path does not target a specific client resource.
  */
 function extractClientId(urlPath) {
-  const match = urlPath.match(/\/api(?:\/v1)?\/clients\/(\d+)/);
+  const match = urlPath.match(/\/api\/v1\/clients\/(\d+)/);
   return match ? parseInt(match[1], 10) : null;
 }
 
@@ -33,8 +32,8 @@ function extractClientId(urlPath) {
  */
 function isFanOutRequest(method, urlPath) {
   if (method !== 'GET') return false;
-  // Collection endpoints: /api/clients, /api/v1/clients (no trailing id)
-  return /\/api(?:\/v1)?\/clients\/?(\?|$)/.test(urlPath);
+  // The collection endpoint /api/v1/clients (no trailing id)
+  return /\/api\/v1\/clients\/?(\?|$)/.test(urlPath);
 }
 
 /**

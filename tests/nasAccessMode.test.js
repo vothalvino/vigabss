@@ -111,7 +111,7 @@ beforeEach(() => {
 // =============================================================================
 // (a) NATed NAS create: no ip_address from client → ip_address = tunnel IP
 // =============================================================================
-describe('POST /api/nas — access_mode=nated', () => {
+describe('POST /api/v1/nas — access_mode=nated', () => {
   test('(a) succeeds without ip_address; returned NAS has ip_address = allocated tunnel IP', async () => {
     mockAdminUser();
 
@@ -123,7 +123,7 @@ describe('POST /api/nas — access_mode=nated', () => {
     });
 
     const res = await request(app)
-      .post('/api/nas')
+      .post('/api/v1/nas')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({
@@ -149,7 +149,7 @@ describe('POST /api/nas — access_mode=nated', () => {
     wireguardServerService.allocateTunnelIp.mockRejectedValue(new Error('Pool exhausted'));
 
     const res = await request(app)
-      .post('/api/nas')
+      .post('/api/v1/nas')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({
@@ -168,12 +168,12 @@ describe('POST /api/nas — access_mode=nated', () => {
 // =============================================================================
 // (b) Direct NAS create without ip_address → 422
 // =============================================================================
-describe('POST /api/nas — access_mode=direct validation', () => {
+describe('POST /api/v1/nas — access_mode=direct validation', () => {
   test('(b) direct mode without ip_address → 422 validation error', async () => {
     mockAdminUser();
 
     const res = await request(app)
-      .post('/api/nas')
+      .post('/api/v1/nas')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({
@@ -193,7 +193,7 @@ describe('POST /api/nas — access_mode=direct validation', () => {
     mockAdminUser();
 
     const res = await request(app)
-      .post('/api/nas')
+      .post('/api/v1/nas')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({
@@ -209,13 +209,13 @@ describe('POST /api/nas — access_mode=direct validation', () => {
 // =============================================================================
 // (c) Direct NAS create with ip_address — existing behavior unchanged
 // =============================================================================
-describe('POST /api/nas — access_mode=direct (existing behavior)', () => {
+describe('POST /api/v1/nas — access_mode=direct (existing behavior)', () => {
   test('(c) direct mode with ip_address → 201', async () => {
     mockAdminUser();
     Nas.createOrRestore.mockResolvedValue({ ...mockDirectNas });
 
     const res = await request(app)
-      .post('/api/nas')
+      .post('/api/v1/nas')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({
@@ -238,7 +238,7 @@ describe('POST /api/nas — access_mode=direct (existing behavior)', () => {
     Nas.createOrRestore.mockResolvedValue({ ...mockDirectNas, access_mode: 'direct' });
 
     const res = await request(app)
-      .post('/api/nas')
+      .post('/api/v1/nas')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({
@@ -259,7 +259,7 @@ describe('POST /api/nas — access_mode=direct (existing behavior)', () => {
     });
 
     const res = await request(app)
-      .post('/api/nas')
+      .post('/api/v1/nas')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({
@@ -280,7 +280,7 @@ describe('POST /api/nas — access_mode=direct (existing behavior)', () => {
 // =============================================================================
 // (d) NATed NAS with no tunnel → test-connection → 422 clear error
 // =============================================================================
-describe('POST /api/nas/:id/test-connection — nated with no tunnel', () => {
+describe('POST /api/v1/nas/:id/test-connection — nated with no tunnel', () => {
   test('(d) NATed NAS missing WG tunnel → 422 with clear message', async () => {
     mockAdminUser();
     Nas.findByIdOrFail.mockResolvedValue({ ...mockNatedNas });
@@ -288,7 +288,7 @@ describe('POST /api/nas/:id/test-connection — nated with no tunnel', () => {
     db.query.mockResolvedValueOnce([[]]); // empty result for tunnel lookup
 
     const res = await request(app)
-      .post('/api/nas/11/test-connection')
+      .post('/api/v1/nas/11/test-connection')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1');
 
@@ -308,7 +308,7 @@ describe('POST /api/nas/:id/test-connection — nated with no tunnel', () => {
     Nas.findByIdOrFail.mockResolvedValue({ ...mockDirectNas });
 
     const res = await request(app)
-      .post('/api/nas/10/test-connection')
+      .post('/api/v1/nas/10/test-connection')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1');
 
@@ -326,7 +326,7 @@ describe('POST /api/nas/:id/test-connection — nated with no tunnel', () => {
 // =============================================================================
 // (e) NATed NAS with no tunnel → seed → 422 clear error
 // =============================================================================
-describe('POST /api/nas/:id/seed — nated with no tunnel', () => {
+describe('POST /api/v1/nas/:id/seed — nated with no tunnel', () => {
   test('(e) NATed NAS missing WG tunnel → 422 with clear message', async () => {
     mockAdminUser();
     Nas.findByIdOrFail.mockResolvedValue({ ...mockNatedNas });
@@ -334,7 +334,7 @@ describe('POST /api/nas/:id/seed — nated with no tunnel', () => {
     db.query.mockResolvedValueOnce([[]]); // empty result for tunnel lookup
 
     const res = await request(app)
-      .post('/api/nas/11/seed')
+      .post('/api/v1/nas/11/seed')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({ radiusAddress: '10.255.0.1' });
@@ -348,13 +348,13 @@ describe('POST /api/nas/:id/seed — nated with no tunnel', () => {
 // =============================================================================
 // access_mode is immutable after registration (crudController beforeUpdate guard)
 // =============================================================================
-describe('PUT /api/nas/:id — access_mode is immutable', () => {
+describe('PUT /api/v1/nas/:id — access_mode is immutable', () => {
   test('(f) rejects changing access_mode (direct → nated) with 422 and does not update', async () => {
     mockAdminUser();
     Nas.findByIdOrFail.mockResolvedValue({ ...mockDirectNas });
 
     const res = await request(app)
-      .put('/api/nas/10')
+      .put('/api/v1/nas/10')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({ name: 'Direct-RB', access_mode: 'nated' });
@@ -370,7 +370,7 @@ describe('PUT /api/nas/:id — access_mode is immutable', () => {
     Nas.update.mockResolvedValue({ ...mockDirectNas, name: 'Renamed' });
 
     const res = await request(app)
-      .put('/api/nas/10')
+      .put('/api/v1/nas/10')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({ name: 'Renamed', access_mode: 'direct' });
@@ -388,7 +388,7 @@ describe('PUT /api/nas/:id — access_mode is immutable', () => {
     });
 
     const res = await request(app)
-      .put('/api/nas/10')
+      .put('/api/v1/nas/10')
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Org-Id', '1')
       .send({ maintenance_mode: true });

@@ -80,13 +80,13 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// POST /api/bulk/suspend
+// POST /api/v1/bulk/suspend
 // =============================================================================
-describe('POST /api/bulk/suspend', () => {
+describe('POST /api/v1/bulk/suspend', () => {
   test('rejects empty body → 400', async () => {
     mockAuthUser();
     const res = await request(app)
-      .post('/api/bulk/suspend')
+      .post('/api/v1/bulk/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -102,7 +102,7 @@ describe('POST /api/bulk/suspend', () => {
     db.query.mockResolvedValue([[{ id: 10, status: 'pending', operation: 'suspend', organization_id: 1 }]]);
 
     const res = await request(app)
-      .post('/api/bulk/suspend')
+      .post('/api/v1/bulk/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ contract_ids: [10, 20], reason: 'Non-payment' });
 
@@ -116,7 +116,7 @@ describe('POST /api/bulk/suspend', () => {
   test('rejects more than 500 contracts → 400', async () => {
     mockAuthUser();
     const res = await request(app)
-      .post('/api/bulk/suspend')
+      .post('/api/v1/bulk/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ contract_ids: Array.from({ length: 501 }, (_, i) => i + 1) });
     expect(res.status).toBe(400);
@@ -124,13 +124,13 @@ describe('POST /api/bulk/suspend', () => {
 });
 
 // =============================================================================
-// POST /api/bulk/email
+// POST /api/v1/bulk/email
 // =============================================================================
-describe('POST /api/bulk/email', () => {
+describe('POST /api/v1/bulk/email', () => {
   test('missing subject → 422', async () => {
     mockAuthUser();
     const res = await request(app)
-      .post('/api/bulk/email')
+      .post('/api/v1/bulk/email')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ client_ids: [1], body: 'Hello' });
 
@@ -141,7 +141,7 @@ describe('POST /api/bulk/email', () => {
   test('missing body → 422', async () => {
     mockAuthUser();
     const res = await request(app)
-      .post('/api/bulk/email')
+      .post('/api/v1/bulk/email')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ client_ids: [1], subject: 'Hi' });
 
@@ -156,7 +156,7 @@ describe('POST /api/bulk/email', () => {
     ]]);
 
     const res = await request(app)
-      .post('/api/bulk/email')
+      .post('/api/v1/bulk/email')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ client_ids: [1], subject: 'Notice', body: 'Service update' });
 
@@ -168,7 +168,7 @@ describe('POST /api/bulk/email', () => {
     mockAuthUser();
     const longSubject = 'x'.repeat(501);
     const res = await request(app)
-      .post('/api/bulk/email')
+      .post('/api/v1/bulk/email')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ client_ids: [1], subject: longSubject, body: 'Hello' });
 
@@ -193,7 +193,7 @@ describe('POST /api/bulk/email', () => {
       cacheService.get.mockResolvedValue({ count: 5000, resetAt: Date.now() + 60 * 60 * 1000 });
 
       const res = await request(app)
-        .post('/api/bulk/email')
+        .post('/api/v1/bulk/email')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_ids: [1], subject: 'Notice', body: 'Service update' });
 
@@ -211,7 +211,7 @@ describe('POST /api/bulk/email', () => {
       cacheService.get.mockResolvedValue(null);
 
       const res = await request(app)
-        .post('/api/bulk/email')
+        .post('/api/v1/bulk/email')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_ids: [1, 2], subject: 'Notice', body: 'Service update' });
 
@@ -247,7 +247,7 @@ describe('POST /api/bulk/email', () => {
         .mockResolvedValueOnce({ success: true, messageId: '<ok>' });
 
       const res = await request(app)
-        .post('/api/bulk/email')
+        .post('/api/v1/bulk/email')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_ids: [1, 2], subject: 'Notice', body: 'Service update' });
 
@@ -262,7 +262,7 @@ describe('POST /api/bulk/email', () => {
       db.query.mockResolvedValue([[]]); // no matching clients in this org
 
       const res = await request(app)
-        .post('/api/bulk/email')
+        .post('/api/v1/bulk/email')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_ids: [999], subject: 'Notice', body: 'Service update' });
 
@@ -288,7 +288,7 @@ describe('bulkEmailLimiter does not leak onto other /bulk routes', () => {
     db.query.mockResolvedValue([[{ id: 10, status: 'active', organization_id: 1 }]]);
     suspensionService.suspendContract.mockResolvedValue(undefined);
     const suspendRes = await request(app)
-      .post('/api/bulk/suspend')
+      .post('/api/v1/bulk/suspend')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ contract_ids: [10] });
     // 202: queued as a batch job (TNA-41).

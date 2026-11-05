@@ -33,10 +33,10 @@ function isPublicV1Route(method, path) {
   return PUBLIC_V1_ROUTES.some(([m, pattern]) => (m === '*' || m === method) && pattern.test(path));
 }
 
-// The path below the v1 mount: /api/v1/clients and /api/clients are /clients.
+// The path below the v1 mount: /api/v1/clients is /clients.
 function v1Path(req) {
   const path = (req.originalUrl || req.url).split('?')[0];
-  const match = /^\/api(\/v1)?(?=\/|$)/.exec(path);
+  const match = /^\/api\/v1(?=\/|$)/.exec(path);
   return match ? path.slice(match[0].length) || '/' : path;
 }
 

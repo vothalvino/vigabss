@@ -69,9 +69,9 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// POST /api/nas/:id/test-connection
+// POST /api/v1/nas/:id/test-connection
 // =============================================================================
-describe('POST /api/nas/:id/test-connection', () => {
+describe('POST /api/v1/nas/:id/test-connection', () => {
   test('returns 200 with connection data on success', async () => {
     mockAuthUser();
     db.query.mockResolvedValueOnce([[mockNas]]); // Nas.findByIdOrFail
@@ -86,7 +86,7 @@ describe('POST /api/nas/:id/test-connection', () => {
     });
 
     const res = await request(app)
-      .post('/api/nas/7/test-connection')
+      .post('/api/v1/nas/7/test-connection')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -112,10 +112,10 @@ describe('POST /api/nas/:id/test-connection', () => {
     });
 
     const connection = await request(app)
-      .post('/api/nas/7/test-connection')
+      .post('/api/v1/nas/7/test-connection')
       .set('Authorization', `Bearer ${authToken}`);
     const seed = await request(app)
-      .post('/api/nas/7/seed')
+      .post('/api/v1/nas/7/seed')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ radiusAddress: '203.0.113.10' });
 
@@ -136,7 +136,7 @@ describe('POST /api/nas/:id/test-connection', () => {
     );
 
     const res = await request(app)
-      .post('/api/nas/7/test-connection')
+      .post('/api/v1/nas/7/test-connection')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(502);
@@ -157,7 +157,7 @@ describe('POST /api/nas/:id/test-connection', () => {
     );
 
     const res = await request(app)
-      .post('/api/nas/7/test-connection')
+      .post('/api/v1/nas/7/test-connection')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(422);
@@ -169,7 +169,7 @@ describe('POST /api/nas/:id/test-connection', () => {
     db.query.mockResolvedValueOnce([[]]); // Nas.findByIdOrFail -> NotFound
 
     const res = await request(app)
-      .post('/api/nas/999/test-connection')
+      .post('/api/v1/nas/999/test-connection')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(404);
@@ -177,15 +177,15 @@ describe('POST /api/nas/:id/test-connection', () => {
   });
 
   test('returns 401 without auth header', async () => {
-    const res = await request(app).post('/api/nas/7/test-connection');
+    const res = await request(app).post('/api/v1/nas/7/test-connection');
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// POST /api/nas/:id/seed
+// POST /api/v1/nas/:id/seed
 // =============================================================================
-describe('POST /api/nas/:id/seed', () => {
+describe('POST /api/v1/nas/:id/seed', () => {
   test('returns 200 with the per-step seed report on success', async () => {
     mockAuthUser();
     db.query.mockResolvedValueOnce([[mockNas]]); // Nas.findByIdOrFail
@@ -202,7 +202,7 @@ describe('POST /api/nas/:id/seed', () => {
     });
 
     const res = await request(app)
-      .post('/api/nas/7/seed')
+      .post('/api/v1/nas/7/seed')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ radiusAddress: '203.0.113.10' });
 
@@ -220,7 +220,7 @@ describe('POST /api/nas/:id/seed', () => {
     mockAuthUser();
 
     const res = await request(app)
-      .post('/api/nas/7/seed')
+      .post('/api/v1/nas/7/seed')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -237,7 +237,7 @@ describe('POST /api/nas/:id/seed', () => {
     );
 
     const res = await request(app)
-      .post('/api/nas/7/seed')
+      .post('/api/v1/nas/7/seed')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ radiusAddress: '203.0.113.10' });
 
@@ -255,7 +255,7 @@ describe('POST /api/nas/:id/seed', () => {
     );
 
     const res = await request(app)
-      .post('/api/nas/7/seed')
+      .post('/api/v1/nas/7/seed')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ radiusAddress: '203.0.113.10' });
 
@@ -279,7 +279,7 @@ describe('POST /api/nas/:id/seed', () => {
     });
 
     const res = await request(app)
-      .post('/api/nas/7/seed')
+      .post('/api/v1/nas/7/seed')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ radiusAddress: '203.0.113.10' });
 
@@ -303,7 +303,7 @@ describe('POST /api/nas/:id/seed', () => {
     });
 
     const res = await request(app)
-      .post('/api/nas/7/seed')
+      .post('/api/v1/nas/7/seed')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ radiusAddress: '203.0.113.10' });
 
@@ -317,7 +317,7 @@ describe('POST /api/nas/:id/seed', () => {
     db.query.mockResolvedValueOnce([[]]); // Nas.findByIdOrFail -> NotFound
 
     const res = await request(app)
-      .post('/api/nas/999/seed')
+      .post('/api/v1/nas/999/seed')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ radiusAddress: '203.0.113.10' });
 
@@ -326,15 +326,15 @@ describe('POST /api/nas/:id/seed', () => {
   });
 
   test('returns 401 without auth header', async () => {
-    const res = await request(app).post('/api/nas/7/seed').send({ radiusAddress: '203.0.113.10' });
+    const res = await request(app).post('/api/v1/nas/7/seed').send({ radiusAddress: '203.0.113.10' });
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// POST /api/nas/:id/voip/refresh
+// POST /api/v1/nas/:id/voip/refresh
 // =============================================================================
-describe('POST /api/nas/:id/voip/refresh', () => {
+describe('POST /api/v1/nas/:id/voip/refresh', () => {
   test('returns 200 with the reconcile result', async () => {
     mockAuthUser();
     db.query.mockResolvedValueOnce([[mockNas]]); // Nas.findByIdOrFail
@@ -344,7 +344,7 @@ describe('POST /api/nas/:id/voip/refresh', () => {
     routerProvisioningService.syncVoipAddressList.mockResolvedValue({ added: 2, removed: 0, kept: 0, desired: 2 });
 
     const res = await request(app)
-      .post('/api/nas/7/voip/refresh')
+      .post('/api/v1/nas/7/voip/refresh')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -362,7 +362,7 @@ describe('POST /api/nas/:id/voip/refresh', () => {
     voipRangesService.resolveRanges.mockResolvedValue({ ranges: [], sources: [{ url: 'z', ok: false }], capped: false });
 
     const res = await request(app)
-      .post('/api/nas/7/voip/refresh')
+      .post('/api/v1/nas/7/voip/refresh')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(502);
@@ -377,7 +377,7 @@ describe('POST /api/nas/:id/voip/refresh', () => {
     routerProvisioningService.syncVoipAddressList.mockRejectedValue(new Error('connect ETIMEDOUT'));
 
     const res = await request(app)
-      .post('/api/nas/7/voip/refresh')
+      .post('/api/v1/nas/7/voip/refresh')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(502);
@@ -389,7 +389,7 @@ describe('POST /api/nas/:id/voip/refresh', () => {
     db.query.mockResolvedValueOnce([[]]); // findByIdOrFail -> NotFound
 
     const res = await request(app)
-      .post('/api/nas/999/voip/refresh')
+      .post('/api/v1/nas/999/voip/refresh')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(404);
@@ -397,16 +397,16 @@ describe('POST /api/nas/:id/voip/refresh', () => {
   });
 
   test('returns 401 without auth header', async () => {
-    const res = await request(app).post('/api/nas/7/voip/refresh');
+    const res = await request(app).post('/api/v1/nas/7/voip/refresh');
     expect(res.status).toBe(401);
   });
 });
 
 // =============================================================================
-// POST/PUT /api/nas — api_password_encrypted must never be returned
+// POST/PUT /api/v1/nas — api_password_encrypted must never be returned
 // =============================================================================
 describe('NAS create/update responses redact api_password_encrypted', () => {
-  test('POST /api/nas does not include api_password_encrypted', async () => {
+  test('POST /api/v1/nas does not include api_password_encrypted', async () => {
     mockAuthUser();
     // Nas.createOrRestore: soft-deleted lookup -> (none) -> INSERT ->
     // findByIdIncludingDeleted, then auditLog.log
@@ -417,7 +417,7 @@ describe('NAS create/update responses redact api_password_encrypted', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }]);             // auditLog
 
     const res = await request(app)
-      .post('/api/nas')
+      .post('/api/v1/nas')
       .set('Authorization', `Bearer ${authToken}`)
       .send({
         name: 'Core-RB',
@@ -436,7 +436,7 @@ describe('NAS create/update responses redact api_password_encrypted', () => {
     expect(res.body.data.api_username).toBe('fireisp');
   });
 
-  test('POST /api/nas restores a soft-deleted row for the same IP (createOrRestore)', async () => {
+  test('POST /api/v1/nas restores a soft-deleted row for the same IP (createOrRestore)', async () => {
     mockAuthUser();
     // createOrRestore finds a soft-deleted row -> UPDATE (restore) -> findById -> auditLog.
     // No INSERT: the archived row id (9) is reused, preserving history.
@@ -447,7 +447,7 @@ describe('NAS create/update responses redact api_password_encrypted', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }]);                   // auditLog
 
     const res = await request(app)
-      .post('/api/nas')
+      .post('/api/v1/nas')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ name: 'Core-RB', ip_address: '10.10.0.1', secret: 'radsecret', type: 'mikrotik' });
 
@@ -459,7 +459,7 @@ describe('NAS create/update responses redact api_password_encrypted', () => {
     expect(db.query.mock.calls[1][0]).toMatch(/deleted_at = NULL/);
   });
 
-  test('PUT /api/nas/:id does not include api_password_encrypted', async () => {
+  test('PUT /api/v1/nas/:id does not include api_password_encrypted', async () => {
     mockAuthUser();
     // crudController.update: findByIdOrFail -> Nas.update (UPDATE -> findById) -> auditLog
     db.query
@@ -469,7 +469,7 @@ describe('NAS create/update responses redact api_password_encrypted', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }]);                   // auditLog
 
     const res = await request(app)
-      .put('/api/nas/7')
+      .put('/api/v1/nas/7')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ api_username: 'newuser', api_password: 'rotated-secret' });
 

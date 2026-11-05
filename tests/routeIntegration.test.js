@@ -92,15 +92,15 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// AUTH ROUTES — /api/auth
+// AUTH ROUTES — /api/v1/auth
 // =============================================================================
-describe('Auth Routes — /api/auth', () => {
+describe('Auth Routes — /api/v1/auth', () => {
 
   // SEC-12: there is no public self-registration; staff are created via POST /users.
-  describe('POST /api/auth/register', () => {
+  describe('POST /api/v1/auth/register', () => {
     test('is not a route and creates no user', async () => {
       const res = await request(app)
-        .post('/api/auth/register')
+        .post('/api/v1/auth/register')
         .send({ firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', password: 'securepass1' });
 
       expect(res.status).toBe(404);
@@ -109,7 +109,7 @@ describe('Auth Routes — /api/auth', () => {
     });
   });
 
-  describe('POST /api/auth/login', () => {
+  describe('POST /api/v1/auth/login', () => {
     test('success — returns accessToken, refreshToken and user', async () => {
       User.findByEmail.mockResolvedValue({
         id: 1,
@@ -126,7 +126,7 @@ describe('Auth Routes — /api/auth', () => {
       db.query.mockResolvedValue([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .post('/api/auth/login')
+        .post('/api/v1/auth/login')
         .send({ email: 'test@example.com', password: 'password123' });
 
       expect(res.status).toBe(200);
@@ -138,13 +138,13 @@ describe('Auth Routes — /api/auth', () => {
     });
   });
 
-  describe('POST /api/auth/logout', () => {
+  describe('POST /api/v1/auth/logout', () => {
     test('success — logs out with valid token', async () => {
       mockAuthUser();
       db.query.mockResolvedValue([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .post('/api/auth/logout')
+        .post('/api/v1/auth/logout')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -152,7 +152,7 @@ describe('Auth Routes — /api/auth', () => {
     });
   });
 
-  describe('GET /api/auth/me', () => {
+  describe('GET /api/v1/auth/me', () => {
     test('success — returns current user + organizations', async () => {
       mockAuthUser();
       User.findById.mockResolvedValue({
@@ -171,7 +171,7 @@ describe('Auth Routes — /api/auth', () => {
       ]);
 
       const res = await request(app)
-        .get('/api/auth/me')
+        .get('/api/v1/auth/me')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -203,7 +203,7 @@ describe('Auth Routes — /api/auth', () => {
       ]);
 
       const res = await request(app)
-        .get('/api/auth/me')
+        .get('/api/v1/auth/me')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -211,7 +211,7 @@ describe('Auth Routes — /api/auth', () => {
     });
   });
 
-  describe('POST /api/auth/password-reset/request', () => {
+  describe('POST /api/v1/auth/password-reset/request', () => {
     test('success — returns message and emails the reset link', async () => {
       User.findByEmail.mockResolvedValue({
         id: 1,
@@ -222,7 +222,7 @@ describe('Auth Routes — /api/auth', () => {
       db.query.mockResolvedValue([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .post('/api/auth/password-reset/request')
+        .post('/api/v1/auth/password-reset/request')
         .send({ email: 'test@example.com' });
 
       expect(res.status).toBe(200);
@@ -236,7 +236,7 @@ describe('Auth Routes — /api/auth', () => {
       User.findByEmail.mockResolvedValue(null);
 
       const res = await request(app)
-        .post('/api/auth/password-reset/request')
+        .post('/api/v1/auth/password-reset/request')
         .send({ email: 'nobody@example.com' });
 
       expect(res.status).toBe(200);
@@ -245,7 +245,7 @@ describe('Auth Routes — /api/auth', () => {
     });
   });
 
-  describe('POST /api/auth/verify-email/resend', () => {
+  describe('POST /api/v1/auth/verify-email/resend', () => {
     test('no-op fast path when already verified — does not send an email', async () => {
       mockAuthUser();
       User.findById.mockResolvedValue({
@@ -258,7 +258,7 @@ describe('Auth Routes — /api/auth', () => {
       });
 
       const res = await request(app)
-        .post('/api/auth/verify-email/resend')
+        .post('/api/v1/auth/verify-email/resend')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -281,7 +281,7 @@ describe('Auth Routes — /api/auth', () => {
       db.query.mockResolvedValue([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .post('/api/auth/verify-email/resend')
+        .post('/api/v1/auth/verify-email/resend')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -291,7 +291,7 @@ describe('Auth Routes — /api/auth', () => {
     });
   });
 
-  describe('POST /api/auth/change-password', () => {
+  describe('POST /api/v1/auth/change-password', () => {
     test('success — changes password for authenticated user', async () => {
       mockAuthUser();
       // Second call inside authService.changePassword
@@ -306,7 +306,7 @@ describe('Auth Routes — /api/auth', () => {
       db.query.mockResolvedValue([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .post('/api/auth/change-password')
+        .post('/api/v1/auth/change-password')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ currentPassword: 'password123', newPassword: 'newSecure99' });
 
@@ -317,11 +317,11 @@ describe('Auth Routes — /api/auth', () => {
 });
 
 // =============================================================================
-// CLIENT ROUTES — /api/clients
+// CLIENT ROUTES — /api/v1/clients
 // =============================================================================
-describe('Client Routes — /api/clients', () => {
+describe('Client Routes — /api/v1/clients', () => {
 
-  describe('GET /api/clients', () => {
+  describe('GET /api/v1/clients', () => {
     test('authenticated list returns data + meta', async () => {
       mockAuthUser();
       db.query
@@ -329,7 +329,7 @@ describe('Client Routes — /api/clients', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);                         // count
 
       const res = await request(app)
-        .get('/api/clients')
+        .get('/api/v1/clients')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -338,7 +338,7 @@ describe('Client Routes — /api/clients', () => {
     });
   });
 
-  describe('POST /api/clients', () => {
+  describe('POST /api/v1/clients', () => {
     test('create with valid body returns 201', async () => {
       mockAuthUser();
       // Model.create: first query = INSERT, second = findById
@@ -351,7 +351,7 @@ describe('Client Routes — /api/clients', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .post('/api/clients')
+        .post('/api/v1/clients')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'New Client' });
 
@@ -373,7 +373,7 @@ describe('Client Routes — /api/clients', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // auditLog.log
 
       const res = await request(app)
-        .post('/api/clients')
+        .post('/api/v1/clients')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: "O'Brien & Sons" });
 
@@ -386,13 +386,13 @@ describe('Client Routes — /api/clients', () => {
     });
   });
 
-  describe('GET /api/clients/:id', () => {
+  describe('GET /api/v1/clients/:id', () => {
     test('returns client by id', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[{ id: 3, name: 'Client C', organization_id: 1 }]]);
 
       const res = await request(app)
-        .get('/api/clients/3')
+        .get('/api/v1/clients/3')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -400,7 +400,7 @@ describe('Client Routes — /api/clients', () => {
     });
   });
 
-  describe('PUT /api/clients/:id', () => {
+  describe('PUT /api/v1/clients/:id', () => {
     test('update returns updated record', async () => {
       mockAuthUser();
       db.query
@@ -414,7 +414,7 @@ describe('Client Routes — /api/clients', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .put('/api/clients/3')
+        .put('/api/v1/clients/3')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Updated' });
 
@@ -423,7 +423,7 @@ describe('Client Routes — /api/clients', () => {
     });
   });
 
-  describe('DELETE /api/clients/:id', () => {
+  describe('DELETE /api/v1/clients/:id', () => {
     test('delete returns 204', async () => {
       mockAuthUser();
       db.query
@@ -439,7 +439,7 @@ describe('Client Routes — /api/clients', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .delete('/api/clients/3')
+        .delete('/api/v1/clients/3')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -448,11 +448,11 @@ describe('Client Routes — /api/clients', () => {
 });
 
 // =============================================================================
-// BILLING ROUTES — /api/billing
+// BILLING ROUTES — /api/v1/billing
 // =============================================================================
-describe('Billing Routes — /api/billing', () => {
+describe('Billing Routes — /api/v1/billing', () => {
 
-  describe('POST /api/billing/generate-period', () => {
+  describe('POST /api/v1/billing/generate-period', () => {
     test('generates a billing period', async () => {
       mockAuthUser();
       db.query
@@ -468,7 +468,7 @@ describe('Billing Routes — /api/billing', () => {
         .mockResolvedValueOnce([[{ id: 100, contract_id: 1, status: 'pending' }]]);
 
       const res = await request(app)
-        .post('/api/billing/generate-period')
+        .post('/api/v1/billing/generate-period')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ contract_id: 1 });
 
@@ -477,7 +477,7 @@ describe('Billing Routes — /api/billing', () => {
     });
   });
 
-  describe('POST /api/billing/generate-invoice', () => {
+  describe('POST /api/v1/billing/generate-invoice', () => {
     test('generates invoice for a contract', async () => {
       mockAuthUser();
       const conn = mockConnection();
@@ -523,7 +523,7 @@ describe('Billing Routes — /api/billing', () => {
       db.query.mockResolvedValueOnce([[{ id: 200, invoice_number: 'INV-000006', total: 499.00, status: 'issued' }]]);
 
       const res = await request(app)
-        .post('/api/billing/generate-invoice')
+        .post('/api/v1/billing/generate-invoice')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ contract_id: 1 });
 
@@ -535,11 +535,11 @@ describe('Billing Routes — /api/billing', () => {
 });
 
 // =============================================================================
-// DASHBOARD ROUTES — /api/dashboard
+// DASHBOARD ROUTES — /api/v1/dashboard
 // =============================================================================
-describe('Dashboard Routes — /api/dashboard', () => {
+describe('Dashboard Routes — /api/v1/dashboard', () => {
 
-  describe('GET /api/dashboard/summary', () => {
+  describe('GET /api/v1/dashboard/summary', () => {
     test('returns aggregated KPIs', async () => {
       mockAuthUser();
       db.queryReplica
@@ -550,7 +550,7 @@ describe('Dashboard Routes — /api/dashboard', () => {
         .mockResolvedValueOnce([[{ total: 50, monitored: 40 }]]);  // devices
 
       const res = await request(app)
-        .get('/api/dashboard/summary')
+        .get('/api/v1/dashboard/summary')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -560,7 +560,7 @@ describe('Dashboard Routes — /api/dashboard', () => {
     });
   });
 
-  describe('GET /api/dashboard/revenue', () => {
+  describe('GET /api/v1/dashboard/revenue', () => {
     test('returns monthly revenue', async () => {
       mockAuthUser();
       db.queryReplica.mockResolvedValueOnce([[
@@ -568,7 +568,7 @@ describe('Dashboard Routes — /api/dashboard', () => {
       ]]);
 
       const res = await request(app)
-        .get('/api/dashboard/revenue')
+        .get('/api/v1/dashboard/revenue')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -577,7 +577,7 @@ describe('Dashboard Routes — /api/dashboard', () => {
     });
   });
 
-  describe('GET /api/dashboard/mrr', () => {
+  describe('GET /api/v1/dashboard/mrr', () => {
     test('returns MRR data', async () => {
       mockAuthUser();
       db.queryReplica.mockResolvedValueOnce([[
@@ -585,7 +585,7 @@ describe('Dashboard Routes — /api/dashboard', () => {
       ]]);
 
       const res = await request(app)
-        .get('/api/dashboard/mrr')
+        .get('/api/v1/dashboard/mrr')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -596,11 +596,11 @@ describe('Dashboard Routes — /api/dashboard', () => {
 });
 
 // =============================================================================
-// EXPORT ROUTES — /api/export
+// EXPORT ROUTES — /api/v1/export
 // =============================================================================
-describe('Export Routes — /api/export', () => {
+describe('Export Routes — /api/v1/export', () => {
 
-  describe('GET /api/export/clients', () => {
+  describe('GET /api/v1/export/clients', () => {
     test('returns CSV content', async () => {
       mockAuthUser();
       db.query
@@ -611,7 +611,7 @@ describe('Export Routes — /api/export', () => {
       ]]);
 
       const res = await request(app)
-        .get('/api/export/clients')
+        .get('/api/v1/export/clients')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -621,7 +621,7 @@ describe('Export Routes — /api/export', () => {
     });
   });
 
-  describe('GET /api/export/invoices', () => {
+  describe('GET /api/v1/export/invoices', () => {
     test('returns CSV content', async () => {
       mockAuthUser();
       db.query
@@ -632,7 +632,7 @@ describe('Export Routes — /api/export', () => {
       ]]);
 
       const res = await request(app)
-        .get('/api/export/invoices')
+        .get('/api/v1/export/invoices')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -643,11 +643,11 @@ describe('Export Routes — /api/export', () => {
 });
 
 // =============================================================================
-// IMPORT ROUTES — /api/import
+// IMPORT ROUTES — /api/v1/import
 // =============================================================================
-describe('Import Routes — /api/import', () => {
+describe('Import Routes — /api/v1/import', () => {
 
-  describe('POST /api/import/clients', () => {
+  describe('POST /api/v1/import/clients', () => {
     // Imports run as background jobs (migration 522): the request queues the
     // CSV and answers 202; tests/importJobs.test.js covers the worker.
     test('queues an import of clients from a CSV string', async () => {
@@ -659,7 +659,7 @@ describe('Import Routes — /api/import', () => {
       const csvData = 'name,email,phone\nAlice Smith,alice@test.com,555-0001\nBob Jones,bob@test.com,555-0002';
 
       const res = await request(app)
-        .post('/api/import/clients')
+        .post('/api/v1/import/clients')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ csv: csvData });
 
@@ -726,9 +726,9 @@ describe('IFT Statistical Reports — /api/v1/ift-statistical-reports', () => {
 // =============================================================================
 describe('Validation Tests', () => {
 
-  test('POST /api/auth/login with missing fields returns 422', async () => {
+  test('POST /api/v1/auth/login with missing fields returns 422', async () => {
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'only@email.com' });
 
     expect(res.status).toBe(422);
@@ -737,11 +737,11 @@ describe('Validation Tests', () => {
     expect(res.body.error.details.length).toBeGreaterThan(0);
   });
 
-  test('POST /api/billing/generate-period with invalid contract_id returns 422', async () => {
+  test('POST /api/v1/billing/generate-period with invalid contract_id returns 422', async () => {
     mockAuthUser();
 
     const res = await request(app)
-      .post('/api/billing/generate-period')
+      .post('/api/v1/billing/generate-period')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ contract_id: 'not-a-number' });
 
@@ -749,11 +749,11 @@ describe('Validation Tests', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  test('POST /api/import/clients without csv field returns 422', async () => {
+  test('POST /api/v1/import/clients without csv field returns 422', async () => {
     mockAuthUser();
 
     const res = await request(app)
-      .post('/api/import/clients')
+      .post('/api/v1/import/clients')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 

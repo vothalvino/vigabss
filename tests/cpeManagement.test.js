@@ -55,10 +55,10 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/cpe-management/devices
+// GET /api/v1/cpe-management/devices
 // ---------------------------------------------------------------------------
 
-describe('GET /api/cpe-management/devices', () => {
+describe('GET /api/v1/cpe-management/devices', () => {
   it('returns paginated CPE devices with 200', async () => {
     db.query
       .mockResolvedValueOnce([[
@@ -74,7 +74,7 @@ describe('GET /api/cpe-management/devices', () => {
       .mockResolvedValueOnce([[{ total: 1 }]]);
 
     const res = await request(app)
-      .get('/api/cpe-management/devices')
+      .get('/api/v1/cpe-management/devices')
       .set('Authorization', 'Bearer test');
 
     expect(res.status).toBe(200);
@@ -85,10 +85,10 @@ describe('GET /api/cpe-management/devices', () => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/cpe-management/devices
+// POST /api/v1/cpe-management/devices
 // ---------------------------------------------------------------------------
 
-describe('POST /api/cpe-management/devices', () => {
+describe('POST /api/v1/cpe-management/devices', () => {
   it('creates a CPE device and returns 201', async () => {
     db.query
       .mockResolvedValueOnce([{ insertId: 5 }])
@@ -103,7 +103,7 @@ describe('POST /api/cpe-management/devices', () => {
       }]]);
 
     const res = await request(app)
-      .post('/api/cpe-management/devices')
+      .post('/api/v1/cpe-management/devices')
       .set('Authorization', 'Bearer test')
       .send({
         serial_number: 'SN002',
@@ -119,10 +119,10 @@ describe('POST /api/cpe-management/devices', () => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/cpe-management/devices/:id/tasks
+// POST /api/v1/cpe-management/devices/:id/tasks
 // ---------------------------------------------------------------------------
 
-describe('POST /api/cpe-management/devices/:id/tasks', () => {
+describe('POST /api/v1/cpe-management/devices/:id/tasks', () => {
   it('queues a task for a CPE device and returns 201', async () => {
     // findByIdOrFail mock
     db.query
@@ -139,7 +139,7 @@ describe('POST /api/cpe-management/devices/:id/tasks', () => {
       }]]);
 
     const res = await request(app)
-      .post('/api/cpe-management/devices/1/tasks')
+      .post('/api/v1/cpe-management/devices/1/tasks')
       .set('Authorization', 'Bearer test')
       .send({ task_type: 'reboot' });
 
@@ -150,10 +150,10 @@ describe('POST /api/cpe-management/devices/:id/tasks', () => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/cpe-management/devices/batch-parameter-push
+// POST /api/v1/cpe-management/devices/batch-parameter-push
 // ---------------------------------------------------------------------------
 
-describe('POST /api/cpe-management/devices/batch-parameter-push', () => {
+describe('POST /api/v1/cpe-management/devices/batch-parameter-push', () => {
   it('queues set_parameter_values tasks for multiple CPEs and returns 200', async () => {
     // findById for cpe_id=1
     db.query
@@ -178,7 +178,7 @@ describe('POST /api/cpe-management/devices/batch-parameter-push', () => {
       }]]);
 
     const res = await request(app)
-      .post('/api/cpe-management/devices/batch-parameter-push')
+      .post('/api/v1/cpe-management/devices/batch-parameter-push')
       .set('Authorization', 'Bearer test')
       .send({
         cpe_ids: [1, 2],
@@ -192,7 +192,7 @@ describe('POST /api/cpe-management/devices/batch-parameter-push', () => {
 
   it('returns 422 when cpe_ids is missing', async () => {
     const res = await request(app)
-      .post('/api/cpe-management/devices/batch-parameter-push')
+      .post('/api/v1/cpe-management/devices/batch-parameter-push')
       .set('Authorization', 'Bearer test')
       .send({ parameters: [{ name: 'x', value: 'y' }] });
 
@@ -201,14 +201,14 @@ describe('POST /api/cpe-management/devices/batch-parameter-push', () => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/cpe-management/devices/:id/lifecycle/transition
+// POST /api/v1/cpe-management/devices/:id/lifecycle/transition
 // Inventory Phase 3 hardening: a manual transition across the in_stock
 // boundary must be rejected for a TRACKED unit (inventory_item_id set) —
 // only the install/pickup flows are allowed to move stock. Non-boundary
 // transitions and non-linked units are unaffected.
 // ---------------------------------------------------------------------------
 
-describe('POST /api/cpe-management/devices/:id/lifecycle/transition', () => {
+describe('POST /api/v1/cpe-management/devices/:id/lifecycle/transition', () => {
   function mockTransitionSuccess({ id, fromState, toState, inventoryItemId = null }) {
     db.query
       // CpeDevice.findByIdOrFail
@@ -227,7 +227,7 @@ describe('POST /api/cpe-management/devices/:id/lifecycle/transition', () => {
     db.query.mockResolvedValueOnce([[{ id: 10, organization_id: 1, lifecycle_state: 'in_stock', inventory_item_id: 5 }]]);
 
     const res = await request(app)
-      .post('/api/cpe-management/devices/10/lifecycle/transition')
+      .post('/api/v1/cpe-management/devices/10/lifecycle/transition')
       .set('Authorization', 'Bearer test')
       .send({ to_state: 'assigned' });
 
@@ -239,7 +239,7 @@ describe('POST /api/cpe-management/devices/:id/lifecycle/transition', () => {
     db.query.mockResolvedValueOnce([[{ id: 10, organization_id: 1, lifecycle_state: 'assigned', inventory_item_id: 5 }]]);
 
     const res = await request(app)
-      .post('/api/cpe-management/devices/10/lifecycle/transition')
+      .post('/api/v1/cpe-management/devices/10/lifecycle/transition')
       .set('Authorization', 'Bearer test')
       .send({ to_state: 'in_stock' });
 
@@ -251,7 +251,7 @@ describe('POST /api/cpe-management/devices/:id/lifecycle/transition', () => {
     mockTransitionSuccess({ id: 10, fromState: 'assigned', toState: 'active', inventoryItemId: 5 });
 
     const res = await request(app)
-      .post('/api/cpe-management/devices/10/lifecycle/transition')
+      .post('/api/v1/cpe-management/devices/10/lifecycle/transition')
       .set('Authorization', 'Bearer test')
       .send({ to_state: 'active' });
 
@@ -263,7 +263,7 @@ describe('POST /api/cpe-management/devices/:id/lifecycle/transition', () => {
     mockTransitionSuccess({ id: 11, fromState: 'in_stock', toState: 'assigned', inventoryItemId: null });
 
     const res = await request(app)
-      .post('/api/cpe-management/devices/11/lifecycle/transition')
+      .post('/api/v1/cpe-management/devices/11/lifecycle/transition')
       .set('Authorization', 'Bearer test')
       .send({ to_state: 'assigned' });
 

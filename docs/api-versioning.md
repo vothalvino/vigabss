@@ -8,18 +8,11 @@ VigaBSS 0.1.0-alpha.1 uses URL-based API versioning. All endpoints are mounted u
 
 | Prefix | Status | Notes |
 |--------|--------|-------|
-| `/api/v1/` | **Active** | Primary, fully supported |
-| `/api/` | **Deprecated** | Backward-compatible alias for `/api/v1/` — emits `Deprecation` headers |
+| `/api/v1/` | **Active** | The only version |
 
-Requests to `/api/<resource>` (without the version prefix) are transparently served by the same v1 handlers but include the following response headers to signal deprecation:
-
-```
-Deprecation: true
-Sunset: 2027-06-01
-Link: </api/v1/{path}>; rel="successor-version"
-```
-
-Clients should migrate to the `/api/v1/` prefix at their earliest convenience.
+There is no unversioned alias: `/api/<resource>` returns 404. (An alias
+existed during development and was removed before the first install, so no
+client ever depended on it.)
 
 ---
 

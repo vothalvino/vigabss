@@ -333,7 +333,7 @@ describe('RequestId in Error Responses', () => {
   const app = require('../src/app');
 
   test('404 response includes requestId', async () => {
-    const res = await request(app).get('/api/nonexistent');
+    const res = await request(app).get('/api/v1/nonexistent');
     expect(res.status).toBe(404);
     expect(res.body.error.requestId).toBeDefined();
     expect(typeof res.body.error.requestId).toBe('string');
@@ -341,27 +341,27 @@ describe('RequestId in Error Responses', () => {
 
   test('422 validation error includes requestId', async () => {
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({});
     expect(res.status).toBe(422);
     expect(res.body.error.requestId).toBeDefined();
   });
 
   test('401 auth error includes requestId', async () => {
-    const res = await request(app).get('/api/clients');
+    const res = await request(app).get('/api/v1/clients');
     expect(res.status).toBe(401);
     expect(res.body.error.requestId).toBeDefined();
   });
 
   test('requestId matches X-Request-Id header', async () => {
-    const res = await request(app).get('/api/nonexistent');
+    const res = await request(app).get('/api/v1/nonexistent');
     expect(res.body.error.requestId).toBe(res.headers['x-request-id']);
   });
 
   test('custom X-Request-Id header is reflected in error response', async () => {
     const customId = 'my-trace-id-12345';
     const res = await request(app)
-      .get('/api/nonexistent')
+      .get('/api/v1/nonexistent')
       .set('X-Request-Id', customId);
     expect(res.body.error.requestId).toBe(customId);
   });
@@ -391,9 +391,9 @@ describe('FireRelay Models', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FireRelay Route — /api/firerelay/health
+// FireRelay Route — /api/v1/firerelay/health
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FireRelay Route — /api/firerelay/health', () => {
+describe('FireRelay Route — /api/v1/firerelay/health', () => {
   const db = require('../src/config/database');
   const app = require('../src/app');
   const relayConfig = require('../src/config/firerelay');
@@ -407,14 +407,14 @@ describe('FireRelay Route — /api/firerelay/health', () => {
 
   afterAll(() => { relayConfig.authToken = originalAuthToken; });
 
-  test('GET /api/firerelay/health returns node metrics with the cluster token', async () => {
+  test('GET /api/v1/firerelay/health returns node metrics with the cluster token', async () => {
     db.query
       .mockResolvedValueOnce([[{ cnt: 100 }]])    // clients
       .mockResolvedValueOnce([[{ cnt: 25 }]])     // devices
       .mockResolvedValueOnce([[{ size_mb: 512 }]]); // db size
 
     const res = await request(app)
-      .get('/api/firerelay/health')
+      .get('/api/v1/firerelay/health')
       .set('X-Relay-Token', validAuthToken);
     expect(res.status).toBe(200);
     expect(res.body.node_id).toBeDefined();
@@ -429,11 +429,11 @@ describe('FireRelay Route — /api/firerelay/health', () => {
     expect(typeof res.body.memory_percent).toBe('number');
   });
 
-  test('GET /api/firerelay/health returns zeros if DB fails', async () => {
+  test('GET /api/v1/firerelay/health returns zeros if DB fails', async () => {
     db.query.mockRejectedValueOnce(new Error('DB down'));
 
     const res = await request(app)
-      .get('/api/firerelay/health')
+      .get('/api/v1/firerelay/health')
       .set('X-Relay-Token', validAuthToken);
     expect(res.status).toBe(200);
     expect(res.body.client_count).toBe(0);
@@ -445,7 +445,7 @@ describe('FireRelay Route — /api/firerelay/health', () => {
     ['missing', undefined],
     ['incorrect', 'b'.repeat(64)],
   ])('rejects a %s cluster token before querying the database', async (_label, token) => {
-    const req = request(app).get('/api/firerelay/health');
+    const req = request(app).get('/api/v1/firerelay/health');
     if (token) req.set('X-Relay-Token', token);
     const res = await req;
 
@@ -457,7 +457,7 @@ describe('FireRelay Route — /api/firerelay/health', () => {
   test('fails closed before querying the database when no cluster token is configured', async () => {
     relayConfig.authToken = '';
     const res = await request(app)
-      .get('/api/firerelay/health')
+      .get('/api/v1/firerelay/health')
       .set('X-Relay-Token', 'any-value');
 
     expect(res.status).toBe(503);
@@ -468,7 +468,7 @@ describe('FireRelay Route — /api/firerelay/health', () => {
   test('treats a weak or placeholder cluster token as unconfigured', async () => {
     relayConfig.authToken = 'CHANGE_ME_64_char_random_hex_string';
     const res = await request(app)
-      .get('/api/firerelay/health')
+      .get('/api/v1/firerelay/health')
       .set('X-Relay-Token', relayConfig.authToken);
 
     expect(res.status).toBe(503);
@@ -478,33 +478,33 @@ describe('FireRelay Route — /api/firerelay/health', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FireRelay Route — /api/firerelay/nodes (auth-protected)
+// FireRelay Route — /api/v1/firerelay/nodes (auth-protected)
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FireRelay Route — /api/firerelay/nodes', () => {
+describe('FireRelay Route — /api/v1/firerelay/nodes', () => {
   const app = require('../src/app');
 
-  test('GET /api/firerelay/nodes without auth returns 401', async () => {
-    const res = await request(app).get('/api/firerelay/nodes');
+  test('GET /api/v1/firerelay/nodes without auth returns 401', async () => {
+    const res = await request(app).get('/api/v1/firerelay/nodes');
     expect(res.status).toBe(401);
   });
 
-  test('POST /api/firerelay/nodes without auth returns 401', async () => {
+  test('POST /api/v1/firerelay/nodes without auth returns 401', async () => {
     const res = await request(app)
-      .post('/api/firerelay/nodes')
+      .post('/api/v1/firerelay/nodes')
       .send({ id: 'node2', api_url: 'https://node2.fireisp.com' });
     expect(res.status).toBe(401);
   });
 
-  test('PUT /api/firerelay/nodes/node2 without auth returns 401', async () => {
+  test('PUT /api/v1/firerelay/nodes/node2 without auth returns 401', async () => {
     const res = await request(app)
-      .put('/api/firerelay/nodes/node2')
+      .put('/api/v1/firerelay/nodes/node2')
       .send({ status: 'active' });
     expect(res.status).toBe(401);
   });
 
-  test('DELETE /api/firerelay/nodes/node2 without auth returns 401', async () => {
+  test('DELETE /api/v1/firerelay/nodes/node2 without auth returns 401', async () => {
     const res = await request(app)
-      .delete('/api/firerelay/nodes/node2');
+      .delete('/api/v1/firerelay/nodes/node2');
     expect(res.status).toBe(401);
   });
 });
@@ -516,8 +516,8 @@ describe('FireRelay Middleware Helpers', () => {
   const { extractClientId, isFanOutRequest } = require('../src/middleware/firerelay');
 
   describe('extractClientId()', () => {
-    test('extracts id from /api/clients/123', () => {
-      expect(extractClientId('/api/clients/123')).toBe(123);
+    test('extracts id from /api/v1/clients/123', () => {
+      expect(extractClientId('/api/v1/clients/123')).toBe(123);
     });
 
     test('extracts id from /api/v1/clients/456', () => {
@@ -525,41 +525,41 @@ describe('FireRelay Middleware Helpers', () => {
     });
 
     test('returns null for collection path', () => {
-      expect(extractClientId('/api/clients')).toBeNull();
+      expect(extractClientId('/api/v1/clients')).toBeNull();
     });
 
     test('returns null for non-client paths', () => {
-      expect(extractClientId('/api/invoices/123')).toBeNull();
+      expect(extractClientId('/api/v1/invoices/123')).toBeNull();
     });
 
     test('returns null for client path with trailing slash', () => {
-      expect(extractClientId('/api/clients/')).toBeNull();
+      expect(extractClientId('/api/v1/clients/')).toBeNull();
     });
   });
 
   describe('isFanOutRequest()', () => {
-    test('returns true for GET /api/clients', () => {
-      expect(isFanOutRequest('GET', '/api/clients')).toBe(true);
+    test('returns true for GET /api/v1/clients', () => {
+      expect(isFanOutRequest('GET', '/api/v1/clients')).toBe(true);
     });
 
     test('returns true for GET /api/v1/clients', () => {
       expect(isFanOutRequest('GET', '/api/v1/clients')).toBe(true);
     });
 
-    test('returns true for GET /api/clients?search=John', () => {
-      expect(isFanOutRequest('GET', '/api/clients?search=John')).toBe(true);
+    test('returns true for GET /api/v1/clients?search=John', () => {
+      expect(isFanOutRequest('GET', '/api/v1/clients?search=John')).toBe(true);
     });
 
-    test('returns false for POST /api/clients', () => {
-      expect(isFanOutRequest('POST', '/api/clients')).toBe(false);
+    test('returns false for POST /api/v1/clients', () => {
+      expect(isFanOutRequest('POST', '/api/v1/clients')).toBe(false);
     });
 
-    test('returns false for GET /api/clients/123', () => {
-      expect(isFanOutRequest('GET', '/api/clients/123')).toBe(false);
+    test('returns false for GET /api/v1/clients/123', () => {
+      expect(isFanOutRequest('GET', '/api/v1/clients/123')).toBe(false);
     });
 
-    test('returns false for GET /api/invoices', () => {
-      expect(isFanOutRequest('GET', '/api/invoices')).toBe(false);
+    test('returns false for GET /api/v1/invoices', () => {
+      expect(isFanOutRequest('GET', '/api/v1/invoices')).toBe(false);
     });
   });
 });

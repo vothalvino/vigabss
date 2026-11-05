@@ -107,15 +107,15 @@ const makeLimiter = (name, max, msg, { failClosed = false, ...extra } = {}) => r
 // and given their own per-IP budget — otherwise a chatty dashboard exhausts
 // the shared budget and the resulting 429 on /auth/refresh bounces an active
 // user to the login screen.
-const SESSION_PATH_RE = /^\/api(?:\/v1)?\/(?:auth|portal\/auth)\/(?:me|refresh|logout|switch-organization)\/?$/;
+const SESSION_PATH_RE = /^\/api\/v1\/(?:auth|portal\/auth)\/(?:me|refresh|logout|switch-organization)\/?$/;
 const isSessionPath = (req) => SESSION_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
-const COLLECTOR_PATH_RE = /^\/api(?:\/v1)?\/(?:radius\/accounting(?:\/tenant)?|connection-logs\/cgnat-attribution\/bindings\/ingest|pppoe\/events(?:\/tenant)?)\/?$/;
+const COLLECTOR_PATH_RE = /^\/api\/v1\/(?:radius\/accounting(?:\/tenant)?|connection-logs\/cgnat-attribution\/bindings\/ingest|pppoe\/events(?:\/tenant)?)\/?$/;
 // Collectors only POST. GET /pppoe/events is the staff event list and stays
 // in the general API bucket.
 const isCollectorPath = req => (req.method || 'POST').toUpperCase() === 'POST'
   && COLLECTOR_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
 // Signed provider callbacks have their own limiter (webhookLimiter below).
-const WEBHOOK_PATH_RE = /^\/api(?:\/v1)?\/(?:payment-webhooks|whatsapp\/webhook)(?:\/|$)/;
+const WEBHOOK_PATH_RE = /^\/api\/v1\/(?:payment-webhooks|whatsapp\/webhook)(?:\/|$)/;
 const isWebhookPath = req => WEBHOOK_PATH_RE.test((req.originalUrl || req.url || '').split('?')[0]);
 
 /**
