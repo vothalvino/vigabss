@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { authedFetch, tokenStore } from '@/api/client';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -155,6 +156,7 @@ interface WarehouseFormModalProps {
 }
 
 function WarehouseFormModal({ warehouse, onClose, onSaved }: WarehouseFormModalProps) {
+  const { t } = useTranslation();
   const isEdit = !!warehouse;
   const qc = useQueryClient();
   const [form, setForm] = useState<WarehouseFormValues>(
@@ -208,49 +210,49 @@ function WarehouseFormModal({ warehouse, onClose, onSaved }: WarehouseFormModalP
         <h3 style={{ margin: '0 0 1rem' }}>{isEdit ? 'Edit Warehouse' : 'New Warehouse'}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Name *</label>
+          <label style={labelStyle}>{t('ui.warehouseList.name')}</label>
           <input style={inputStyle} required value={form.name}
-            onChange={e => set('name', e.target.value)} placeholder="e.g. Main Warehouse" />
+            onChange={e => set('name', e.target.value)} placeholder={t('ui.warehouseList.eGMainWarehouse')} />
 
-          <label style={labelStyle}>Address</label>
+          <label style={labelStyle}>{t('ui.warehouseList.address')}</label>
           <input style={inputStyle} value={form.address}
-            onChange={e => set('address', e.target.value)} placeholder="Street and number" />
+            onChange={e => set('address', e.target.value)} placeholder={t('ui.warehouseList.streetAndNumber')} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
             <div>
-              <label style={labelStyle}>City</label>
+              <label style={labelStyle}>{t('ui.warehouseList.city')}</label>
               <input style={inputStyle} value={form.city}
                 onChange={e => set('city', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>State</label>
+              <label style={labelStyle}>{t('ui.warehouseList.state')}</label>
               <input style={inputStyle} value={form.state}
                 onChange={e => set('state', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>ZIP Code</label>
+              <label style={labelStyle}>{t('ui.warehouseList.zipCode')}</label>
               <input style={inputStyle} value={form.zip_code}
                 onChange={e => set('zip_code', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>Country</label>
+              <label style={labelStyle}>{t('ui.warehouseList.country')}</label>
               <input style={inputStyle} value={form.country}
                 onChange={e => set('country', e.target.value)} placeholder="MX" />
             </div>
           </div>
 
-          <label style={labelStyle}>Status</label>
+          <label style={labelStyle}>{t('ui.warehouseList.status')}</label>
           <select style={inputStyle} value={form.status} onChange={e => set('status', e.target.value)}>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="active">{t('ui.warehouseList.active')}</option>
+            <option value="inactive">{t('ui.warehouseList.inactive')}</option>
           </select>
 
-          <label style={labelStyle}>Notes</label>
+          <label style={labelStyle}>{t('ui.warehouseList.notes')}</label>
           <textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={form.notes}
-            onChange={e => set('notes', e.target.value)} placeholder="Optional notes…" />
+            onChange={e => set('notes', e.target.value)} placeholder={t('ui.warehouseList.optionalNotes')} />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '0.75rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>Dismiss</button>
+            <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>{t('ui.warehouseList.dismiss')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Warehouse'}
             </button>
@@ -271,6 +273,7 @@ interface WarehouseStockModalProps {
 }
 
 function WarehouseStockModal({ warehouse, onClose }: WarehouseStockModalProps) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
 
   const { data, isLoading, isError } = useQuery({
@@ -292,27 +295,27 @@ function WarehouseStockModal({ warehouse, onClose }: WarehouseStockModalProps) {
   return (
     <div style={overlay}>
       <div style={{ ...modalBox, maxWidth: 640, maxHeight: '85vh' }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Stock — {warehouse.name}</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.warehouseList.stock')}{warehouse.name}</h3>
         <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
           {warehouse.city ? `${warehouse.city}, ` : ''}{warehouse.state ?? ''}
-          &nbsp;|&nbsp; {totalItems} SKUs &nbsp;|&nbsp;
+          {t('ui.warehouseList.text')}{totalItems} {t('ui.warehouseList.skus')}
           <span style={{ color: lowStockCount > 0 ? '#dc2626' : '#065f46' }}>
-            {lowStockCount} out of stock
+            {lowStockCount} {t('ui.warehouseList.outOfStock')}
           </span>
         </p>
 
         <input
           style={{ ...inputStyle, marginBottom: '0.75rem' }}
-          placeholder="Search by item name or SKU…"
+          placeholder={t('ui.warehouseList.searchByItemNameOr')}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
 
-        {isLoading && <p style={{ color: '#6b7280' }}>Loading…</p>}
-        {isError && <p style={{ color: '#dc2626' }}>Failed to load stock data.</p>}
+        {isLoading && <p style={{ color: '#6b7280' }}>{t('ui.warehouseList.loading')}</p>}
+        {isError && <p style={{ color: '#dc2626' }}>{t('ui.warehouseList.failedToLoadStockData')}</p>}
 
         {data && filtered.length === 0 && (
-          <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No stock records found.</p>
+          <p style={{ color: '#6b7280', fontStyle: 'italic' }}>{t('ui.warehouseList.noStockRecordsFound')}</p>
         )}
 
         {filtered.length > 0 && (
@@ -348,7 +351,7 @@ function WarehouseStockModal({ warehouse, onClose }: WarehouseStockModalProps) {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button onClick={onClose} style={cancelBtn}>Close</button>
+          <button onClick={onClose} style={cancelBtn}>{t('ui.warehouseList.close')}</button>
         </div>
       </div>
     </div>
@@ -360,6 +363,7 @@ function WarehouseStockModal({ warehouse, onClose }: WarehouseStockModalProps) {
 // ---------------------------------------------------------------------------
 
 export function WarehouseList() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('active');
@@ -396,13 +400,13 @@ export function WarehouseList() {
     <div style={{ padding: '1.5rem', fontFamily: 'var(--font-sans)' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ margin: 0, fontSize: '1.4rem' }}>🏭 Warehouses</h1>
-        <button style={primaryBtn} onClick={() => setShowNewModal(true)}>+ New Warehouse</button>
+        <h1 style={{ margin: 0, fontSize: '1.4rem' }}>{t('ui.warehouseList.warehouses')}</h1>
+        <button style={primaryBtn} onClick={() => setShowNewModal(true)}>{t('ui.warehouseList.newWarehouse')}</button>
       </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>Status:</span>
+        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>{t('ui.warehouseList.status2')}</span>
         {[['', 'All'], ['active', 'Active'], ['inactive', 'Inactive']].map(([v, l]) => (
           <button
             key={v}
@@ -415,8 +419,8 @@ export function WarehouseList() {
       </div>
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#6b7280' }}>Loading warehouses…</p>}
-      {isError && <p style={{ color: '#dc2626' }}>Failed to load warehouses. Please try again.</p>}
+      {isLoading && <p style={{ color: '#6b7280' }}>{t('ui.warehouseList.loadingWarehouses')}</p>}
+      {isError && <p style={{ color: '#dc2626' }}>{t('ui.warehouseList.failedToLoadWarehousesPlease')}</p>}
 
       {data && (
         <>
@@ -433,7 +437,7 @@ export function WarehouseList() {
                 {data.data.length === 0 && (
                   <tr>
                     <td colSpan={7} style={{ ...td, color: '#6b7280', fontStyle: 'italic', textAlign: 'center' }}>
-                      No warehouses found.
+                      {t('ui.warehouseList.noWarehousesFound')}
                     </td>
                   </tr>
                 )}
@@ -453,16 +457,16 @@ export function WarehouseList() {
                     <td style={td}>{wh.zip_code ?? '—'}</td>
                     <td style={td}><StatusBadge status={wh.status} colors={STATUS_COLORS} /></td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                      <button style={actionBtn} onClick={() => setEditWarehouse(wh)}>Edit</button>
+                      <button style={actionBtn} onClick={() => setEditWarehouse(wh)}>{t('ui.warehouseList.edit')}</button>
                       {' '}
-                      <button style={actionBtn} onClick={() => setStockWarehouse(wh)}>Stock</button>
+                      <button style={actionBtn} onClick={() => setStockWarehouse(wh)}>{t('ui.warehouseList.stock2')}</button>
                       {' '}
                       <button
                         style={deleteBtn}
                         onClick={() => handleDelete(wh)}
                         disabled={deleteMutation.isPending}
                       >
-                        Delete
+                        {t('ui.warehouseList.delete')}
                       </button>
                     </td>
                   </tr>
@@ -473,9 +477,9 @@ export function WarehouseList() {
 
           {/* Pagination */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: '1rem', color: '#6b7280', fontSize: '0.85rem' }}>
-            <button style={pageBtn} disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
-            <span>Page {page} of {totalPages} ({data.meta.total} warehouses)</span>
-            <button style={pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
+            <button style={pageBtn} disabled={page === 1} onClick={() => setPage(p => p - 1)}>{t('ui.warehouseList.prev')}</button>
+            <span>{t('ui.warehouseList.page')}{page} {t('ui.warehouseList.of')}{totalPages} ({data.meta.total} {t('ui.warehouseList.warehouses2')}</span>
+            <button style={pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.warehouseList.next')}</button>
           </div>
         </>
       )}

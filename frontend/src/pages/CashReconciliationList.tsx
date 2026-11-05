@@ -129,7 +129,7 @@ function OpenSessionModal({ onClose, onOpened }: { onClose: () => void; onOpened
           <label style={labelStyle}>{t('cashReconciliation.notes')}</label>
           <input style={inputStyle} type="text" value={notes} autoFocus
             onChange={e => setNotes(e.target.value)}
-            placeholder="Optional notes for this session" />
+            placeholder={t('ui.cashReconciliationList.optionalNotesForThisSession')} />
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
             <button type="button" onClick={onClose} style={cancelBtn}>{t('common.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
@@ -225,7 +225,7 @@ function CashPaymentsRow({ sessionId, colSpan }: { sessionId: number; colSpan: n
     <tr>
       <td colSpan={colSpan} style={{ padding: '8px 20px 12px', background: '#f8faff' }}>
         {isLoading && <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>{t('common.loading')}</p>}
-        {error && <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>Failed to load payments.</p>}
+        {error && <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>{t('ui.cashReconciliationList.failedToLoadPayments')}</p>}
         {!isLoading && !error && (
           <>
             <p style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 600, color: '#374151' }}>
@@ -241,7 +241,7 @@ function CashPaymentsRow({ sessionId, colSpan }: { sessionId: number; colSpan: n
               </thead>
               <tbody>
                 {payments.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: '8px', color: '#9ca3af' }}>No cash payments in this session.</td></tr>
+                  <tr><td colSpan={5} style={{ padding: '8px', color: '#9ca3af' }}>{t('ui.cashReconciliationList.noCashPaymentsInThis')}</td></tr>
                 )}
                 {payments.map(p => (
                   <tr key={p.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
@@ -322,7 +322,7 @@ export function CashReconciliationList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('cashReconciliation.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.cashReconciliationList.total')}</span>}
         {canCreate && (
           <button type="button" style={{ ...styles.btnPrimary, marginLeft: 'auto' }}
             onClick={() => setShowOpen(true)}>
@@ -335,9 +335,9 @@ export function CashReconciliationList() {
         {isLoading ? (
           <p style={styles.msg}>{t('common.loading')}</p>
         ) : isError ? (
-          <p style={styles.msgError}>Failed to load reconciliation sessions.</p>
+          <p style={styles.msgError}>{t('ui.cashReconciliationList.failedToLoadReconciliationSessions')}</p>
         ) : sessions.length === 0 ? (
-          <p style={styles.msg}>No sessions found.</p>
+          <p style={styles.msg}>{t('ui.cashReconciliationList.noSessionsFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -401,11 +401,11 @@ export function CashReconciliationList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.cashReconciliationList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.cashReconciliationList.page')}{page} {t('ui.cashReconciliationList.of')}{totalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                  Next →
+                  {t('ui.cashReconciliationList.next')}
                 </button>
               </div>
             )}

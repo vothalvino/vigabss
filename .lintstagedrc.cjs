@@ -19,8 +19,13 @@
 
 module.exports = {
   'src/**/*.js': 'eslint --fix',
+  // One command per entry, run in order: lint-staged runs them without a
+  // shell, so a '&&' became arguments of the script before it. It reached
+  // openapi-typescript as extra arguments (schema.d.ts came out without
+  // --empty-objects-unknown) and tsc never ran.
   'frontend/src/**/*.{ts,tsx}': () => [
-    'pnpm --dir frontend run gen:api && pnpm --dir frontend exec tsc --noEmit',
+    'pnpm --dir frontend run gen:api',
+    'pnpm --dir frontend exec tsc --noEmit',
     'pnpm --dir frontend run i18n:check',
   ],
   'frontend/src/i18n/locales/*.json': () => 'pnpm --dir frontend run i18n:check',

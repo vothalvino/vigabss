@@ -69,7 +69,7 @@ export function MacMoveEvents() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('mac_move_events.title', 'MAC Move Events')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.macMoveEvents.total')}</span>}
       </div>
 
       <div style={styles.tableCard}>
@@ -113,15 +113,15 @@ export function MacMoveEvents() {
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
                 >
-                  &larr; Prev
+                  {t('ui.macMoveEvents.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.macMoveEvents.page')}{page} {t('ui.macMoveEvents.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                 >
-                  Next &rarr;
+                  {t('ui.macMoveEvents.next')}
                 </button>
               </div>
             )}

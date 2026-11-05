@@ -56,7 +56,7 @@
   "src/services/alertService.js": 2,
   "src/services/analyticsService.js": 7,
   "src/services/authService.js": 2,
-  "src/services/automationService.js": 4,
+  "src/services/automationService.js": 3,
   "src/services/billingService.js": 7,
   "src/services/businessEvents.js": 5,
   "src/services/cacheService.js": 1,

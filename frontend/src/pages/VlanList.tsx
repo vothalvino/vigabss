@@ -13,6 +13,7 @@ import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,6 +109,7 @@ interface VlanModalProps {
 }
 
 function VlanModal({ vlan, sites, onClose, onSaved }: VlanModalProps) {
+  const { t } = useTranslation();
   const isEdit = vlan !== null;
   const [form, setForm] = useState({
     vlan_id: vlan?.vlan_id != null ? String(vlan.vlan_id) : '',
@@ -170,7 +172,7 @@ function VlanModal({ vlan, sites, onClose, onSaved }: VlanModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit VLAN #${vlan.id}` : '🔌 New VLAN'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.vlanList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
@@ -188,33 +190,33 @@ function VlanModal({ vlan, sites, onClose, onSaved }: VlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.vlanList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={255}
               value={form.name}
               onChange={e => setField('name', e.target.value)}
-              placeholder='e.g. "Client-Data", "Management", "VoIP"'
+              placeholder={t('ui.vlanList.eGClientDataManagement')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Site <RequiredMark />
+            {t('ui.vlanList.site')}<RequiredMark />
             <select
               style={modalStyles.select}
               value={form.site_id}
               onChange={e => setField('site_id', e.target.value)}
               required
             >
-              <option value="">— Select a site —</option>
+              <option value="">{t('ui.vlanList.selectASite')}</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </label>
 
           <label style={modalStyles.label}>
-            Status
+            {t('ui.vlanList.status')}
             <select
               style={modalStyles.select}
               value={form.status}
@@ -225,7 +227,7 @@ function VlanModal({ vlan, sites, onClose, onSaved }: VlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Description
+            {t('ui.vlanList.description')}
             <textarea
               style={{ ...modalStyles.input, minHeight: 60, resize: 'vertical' }}
               maxLength={5000}
@@ -238,7 +240,7 @@ function VlanModal({ vlan, sites, onClose, onSaved }: VlanModalProps) {
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.vlanList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create VLAN'}
@@ -261,18 +263,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.vlanList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.vlanList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.vlanList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -284,6 +287,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function VlanList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -324,15 +328,15 @@ export function VlanList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🔌 VLANs</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.vlanList.vlans')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.vlanList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New VLAN
+          {t('ui.vlanList.newVlan')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.vlanList.status2')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -344,24 +348,24 @@ export function VlanList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.vlanList.clearFilter')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.vlanList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {vlansQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.vlanList.loading')}</p>
         ) : vlansQ.error ? (
-          <p style={styles.msgError}>Failed to load VLANs.</p>
+          <p style={styles.msgError}>{t('ui.vlanList.failedToLoadVlans')}</p>
         ) : vlans.length === 0 ? (
-          <p style={styles.msg}>No VLANs found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.vlanList.noVlansFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -382,15 +386,15 @@ export function VlanList() {
                       <td style={styles.td}>{siteName(v.site_id)}</td>
                       <td style={styles.td}><StatusBadge status={v.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <button style={styles.actionBtn} onClick={() => setEditVlan(v)} title="Edit this VLAN">
-                          ✏️ Edit
+                        <button style={styles.actionBtn} onClick={() => setEditVlan(v)} title={t('ui.vlanList.editThisVlan')}>
+                          {t('ui.vlanList.edit')}
                         </button>
                         <button
                           style={{ ...styles.actionBtn, color: '#991b1b' }}
                           onClick={() => setDeleteId(v.id)}
-                          title="Delete this VLAN"
+                          title={t('ui.vlanList.deleteThisVlan')}
                         >
-                          🗑 Delete
+                          {t('ui.vlanList.delete')}
                         </button>
                       </td>
                     </tr>
@@ -402,15 +406,15 @@ export function VlanList() {
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.vlanList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.vlanList.page')}{page} {t('ui.vlanList.of')}{meta.totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                 >
-                  Next →
+                  {t('ui.vlanList.next')}
                 </button>
               </div>
             )}

@@ -142,7 +142,7 @@ export function UpdateAvailableBanner() {
         })}
       </span>
       <div style={styles.actions}>
-        <code style={styles.command}>sudo redeploy</code>
+        <code style={styles.command}>{t('ui.updateAvailableBanner.sudoRedeploy')}</code>
         <button
           type="button"
           style={styles.dismissBtn}

@@ -85,7 +85,7 @@ function ScheduleForm({ initial, onSave, onClose, saving, editMode }: ScheduleFo
       <div style={{ ...modalStyles.panel, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('config_backup_schedules.edit') : t('config_backup_schedules.new')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.configBackupScheduleList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -94,7 +94,7 @@ function ScheduleForm({ initial, onSave, onClose, saving, editMode }: ScheduleFo
           </div>
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={modalStyles.label}>{t('config_backup_schedules.device_id')}</label>
-            <input style={inp} type="number" min="1" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="Device ID (optional)" />
+            <input style={inp} type="number" min="1" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder={t('ui.configBackupScheduleList.deviceIdOptional')} />
           </div>
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={modalStyles.label}>{t('config_backup_schedules.cron_expression')}</label>
@@ -105,7 +105,7 @@ function ScheduleForm({ initial, onSave, onClose, saving, editMode }: ScheduleFo
             <label htmlFor="is_enabled_sched" style={{ cursor: 'pointer' }}>{t('config_backup_schedules.is_enabled')}</label>
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.configBackupScheduleList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -160,7 +160,7 @@ export function ConfigBackupScheduleList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('config_backup_schedules.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.configBackupScheduleList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('config_backup_schedules.new')}
         </button>
@@ -198,8 +198,8 @@ export function ConfigBackupScheduleList() {
                     <td style={styles.td}>{s.last_run_at ? new Date(s.last_run_at).toLocaleString() : '—'}</td>
                     <td style={styles.td}>{s.last_status ?? '—'}</td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(s)}>Edit</button>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(s.id)}>Delete</button>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(s)}>{t('ui.configBackupScheduleList.edit')}</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(s.id)}>{t('ui.configBackupScheduleList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -211,9 +211,9 @@ export function ConfigBackupScheduleList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.configBackupScheduleList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.configBackupScheduleList.page')}{page} {t('ui.configBackupScheduleList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.configBackupScheduleList.next')}</button>
         </div>
       )}
 
@@ -225,8 +225,8 @@ export function ConfigBackupScheduleList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('config_backup_schedules.delete_confirm')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.configBackupScheduleList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.configBackupScheduleList.delete')}</button>
             </div>
           </div>
         </div>

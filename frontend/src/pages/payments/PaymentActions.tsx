@@ -333,16 +333,16 @@ function EditPaymentModal({ payment, onClose, onSaved }: EditPaymentModalProps) 
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Edit Payment">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('paymentActions.editPayment')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 1rem' }}>Edit Payment #{payment.id}</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('paymentActions.editPayment2')}{payment.id}</h3>
         {mutation.isError && (
           <div style={errorBox}>{(mutation.error as Error).message}</div>
         )}
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             <div>
-              <label style={labelStyle}>Amount *</label>
+              <label style={labelStyle}>{t('paymentActions.amount')}</label>
               <input
                 type="number" step="0.01" min="0.01"
                 style={inputStyle}
@@ -352,7 +352,7 @@ function EditPaymentModal({ payment, onClose, onSaved }: EditPaymentModalProps) 
               />
             </div>
             <div>
-              <label style={labelStyle}>Currency</label>
+              <label style={labelStyle}>{t('paymentActions.currency')}</label>
               <input
                 type="text" maxLength={3}
                 style={inputStyle}
@@ -363,7 +363,7 @@ function EditPaymentModal({ payment, onClose, onSaved }: EditPaymentModalProps) 
             </div>
           </div>
 
-          <label style={labelStyle}>Payment Method</label>
+          <label style={labelStyle}>{t('paymentActions.paymentMethod')}</label>
           <select
             style={inputStyle}
             value={form.payment_method}
@@ -374,7 +374,7 @@ function EditPaymentModal({ payment, onClose, onSaved }: EditPaymentModalProps) 
             ))}
           </select>
 
-          <label style={labelStyle}>Status</label>
+          <label style={labelStyle}>{t('paymentActions.status')}</label>
           <select
             style={inputStyle}
             value={form.status}
@@ -385,16 +385,16 @@ function EditPaymentModal({ payment, onClose, onSaved }: EditPaymentModalProps) 
             ))}
           </select>
 
-          <label style={labelStyle}>Reference / Folio (optional)</label>
+          <label style={labelStyle}>{t('paymentActions.referenceFolioOptional')}</label>
           <input
             type="text" style={inputStyle}
             value={form.reference_number}
             onChange={e => setField('reference_number', e.target.value)}
-            placeholder="e.g. transfer ID, check number"
+            placeholder={t('paymentActions.eGTransferIdCheck')}
           />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('paymentActions.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : 'Save Changes'}
             </button>
@@ -416,6 +416,7 @@ interface AllocateModalProps {
 }
 
 function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
+  const { t } = useTranslation();
   const [invoiceId, setInvoiceId] = useState('');
   const [amount, setAmount] = useState('');
 
@@ -456,15 +457,15 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Allocate Payment">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('paymentActions.allocatePayment')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Allocate Payment #{payment.id}</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('paymentActions.allocatePayment2')}{payment.id}</h3>
         <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#6b7280' }}>
-          Apply this payment to an open invoice. Excludes paid, void, cancelled, and draft invoices.
+          {t('paymentActions.applyThisPaymentToAn')}
         </p>
 
         {loadingAllocs && (
-          <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>Computing unallocated balance…</p>
+          <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>{t('paymentActions.computingUnallocatedBalance')}</p>
         )}
 
         {!loadingAllocs && (
@@ -484,7 +485,7 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
         )}
 
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Invoice *</label>
+          <label style={labelStyle}>{t('paymentActions.invoice')}</label>
           <select
             style={inputStyle}
             value={invoiceId}
@@ -492,7 +493,7 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
             disabled={loadingInvoices || isFullyAllocated}
             required
           >
-            <option value="">— select invoice —</option>
+            <option value="">{t('paymentActions.selectInvoice')}</option>
             {applicableInvoices.map(inv => (
               <option key={inv.id} value={inv.id}>
                 {inv.invoice_number || `#${inv.id}`} — {formatMoney(inv.total, payment.currency)}
@@ -501,16 +502,16 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
           </select>
           {loadingInvoices && (
             <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '4px 0 0' }}>
-              Loading invoices…
+              {t('paymentActions.loadingInvoices')}
             </p>
           )}
           {!loadingInvoices && applicableInvoices.length === 0 && (
             <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '4px 0 0' }}>
-              No applicable invoices for this client.
+              {t('paymentActions.noApplicableInvoicesForThis')}
             </p>
           )}
 
-          <label style={labelStyle}>Amount *</label>
+          <label style={labelStyle}>{t('paymentActions.amount')}</label>
           <input
             type="number" step="0.01" min="0.01"
             style={inputStyle}
@@ -521,7 +522,7 @@ function AllocateModal({ payment, onClose, onAllocated }: AllocateModalProps) {
           />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('paymentActions.cancel')}</button>
             <button
               type="submit"
               style={{ ...submitBtn, ...(isFullyAllocated ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
@@ -547,6 +548,7 @@ interface ReallocateModalProps {
 }
 
 function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalProps) {
+  const { t } = useTranslation();
   const [fromInvoiceId, setFromInvoiceId] = useState('');
   const [toInvoiceId, setToInvoiceId] = useState('');
   const [amount, setAmount] = useState(payment.amount);
@@ -584,17 +586,17 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Reallocate Payment">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('paymentActions.reallocatePayment')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Reallocate Payment #{payment.id}</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('paymentActions.reallocatePayment2')}{payment.id}</h3>
         <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#6b7280' }}>
-          Move this payment's allocation from one invoice to another (same client only).
+          {t('paymentActions.moveThisPaymentSAllocation')}
         </p>
         {mutation.isError && (
           <div style={errorBox}>{(mutation.error as Error).message}</div>
         )}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>From Invoice (current allocation) *</label>
+          <label style={labelStyle}>{t('paymentActions.fromInvoiceCurrentAllocation')}</label>
           <select
             style={inputStyle}
             value={fromInvoiceId}
@@ -602,20 +604,20 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
             disabled={loadingAllocs}
             required
           >
-            <option value="">— select allocation —</option>
+            <option value="">{t('paymentActions.selectAllocation')}</option>
             {allocs.map(a => (
               <option key={a.id} value={a.invoice_id}>
-                Invoice #{a.invoice_id} — {formatMoney(a.amount, payment.currency)}
+                {t('paymentActions.invoice2')}{a.invoice_id} — {formatMoney(a.amount, payment.currency)}
               </option>
             ))}
           </select>
           {!loadingAllocs && allocs.length === 0 && (
             <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '4px 0 0' }}>
-              No current allocations for this payment.
+              {t('paymentActions.noCurrentAllocationsForThis')}
             </p>
           )}
 
-          <label style={labelStyle}>To Invoice *</label>
+          <label style={labelStyle}>{t('paymentActions.toInvoice')}</label>
           <select
             style={inputStyle}
             value={toInvoiceId}
@@ -623,7 +625,7 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
             disabled={loadingInvoices}
             required
           >
-            <option value="">— select target invoice —</option>
+            <option value="">{t('paymentActions.selectTargetInvoice')}</option>
             {clientInvoices
               .filter(inv => String(inv.id) !== fromInvoiceId)
               .map(inv => (
@@ -633,7 +635,7 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
               ))}
           </select>
 
-          <label style={labelStyle}>Amount *</label>
+          <label style={labelStyle}>{t('paymentActions.amount')}</label>
           <input
             type="number" step="0.01" min="0.01"
             style={inputStyle}
@@ -643,7 +645,7 @@ function ReallocateModal({ payment, onClose, onReallocated }: ReallocateModalPro
           />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('paymentActions.cancel')}</button>
             <button
               type="submit"
               style={submitBtn}
@@ -669,6 +671,7 @@ interface ReassignModalProps {
 }
 
 function ReassignModal({ payment, onClose, onReassigned }: ReassignModalProps) {
+  const { t } = useTranslation();
   // Search-based picker: the old <select> held only the newest 100 clients (FE-04).
   const [newClientId, setNewClientId] = useState<number | ''>('');
   const [newClientName, setNewClientName] = useState('');
@@ -692,21 +695,20 @@ function ReassignModal({ payment, onClose, onReassigned }: ReassignModalProps) {
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Reassign Payment">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('paymentActions.reassignPayment')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Reassign Payment #{payment.id}</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('paymentActions.reassignPayment2')}{payment.id}</h3>
         <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#6b7280' }}>
-          Move this payment to a different client. The payment must be unallocated first.
+          {t('paymentActions.moveThisPaymentToA')}
         </p>
 
         {loadingAllocs && (
-          <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>Checking allocations…</p>
+          <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>{t('paymentActions.checkingAllocations')}</p>
         )}
 
         {!loadingAllocs && isBlocked && (
           <div style={{ background: '#fef3c7', color: '#92400e', padding: '10px 12px', borderRadius: 6, marginBottom: '1rem', fontSize: '0.85rem' }}>
-            This payment is applied to {allocs.length} invoice{allocs.length !== 1 ? 's' : ''}.
-            Un-apply it from all invoices before reassigning.
+            {t('paymentActions.appliedToInvoices', { count: allocs.length })}
           </div>
         )}
 
@@ -716,18 +718,18 @@ function ReassignModal({ payment, onClose, onReassigned }: ReassignModalProps) {
 
         <form onSubmit={handleSubmit}>
           <ClientPicker
-            label="New Client"
+            label={t('paymentActions.newClient')}
             value={newClientId}
             initialName={newClientName}
             disabled={isBlocked}
             onChange={(id, name) => { setNewClientId(id || ''); setNewClientName(name); }}
           />
           {newClientId === payment.client_id && (
-            <div style={errorBox}>This payment already belongs to that client.</div>
+            <div style={errorBox}>{t('paymentActions.thisPaymentAlreadyBelongsTo')}</div>
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('paymentActions.cancel')}</button>
             <button
               type="submit"
               style={{ ...submitBtn, ...(isBlocked ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
@@ -753,6 +755,7 @@ interface UnapplyModalProps {
 }
 
 function UnapplyModal({ payment, onClose, onUnapplied }: UnapplyModalProps) {
+  const { t } = useTranslation();
   const { data: allocs = [], isLoading } = useQuery({
     queryKey: ['payment-allocs', payment.id],
     queryFn: () => fetchAllocations(payment.id),
@@ -764,20 +767,20 @@ function UnapplyModal({ payment, onClose, onUnapplied }: UnapplyModalProps) {
   });
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Un-apply Payment">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('paymentActions.unApplyPayment')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Un-apply Payment #{payment.id}</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('paymentActions.unApplyPayment2')}{payment.id}</h3>
         <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#6b7280' }}>
-          Remove this payment from a specific invoice. The payment credit stays on the client account as an unallocated balance.
+          {t('paymentActions.removeThisPaymentFromA')}
         </p>
 
         {isLoading && (
-          <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>Loading allocations…</p>
+          <p style={{ fontSize: '0.82rem', color: '#9ca3af' }}>{t('paymentActions.loadingAllocations')}</p>
         )}
 
         {!isLoading && allocs.length === 0 && (
           <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-            This payment has no live allocations.
+            {t('paymentActions.thisPaymentHasNoLive')}
           </p>
         )}
 
@@ -785,8 +788,8 @@ function UnapplyModal({ payment, onClose, onUnapplied }: UnapplyModalProps) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', marginBottom: '1rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #e5e7eb', color: '#6b7280', textAlign: 'left' }}>
-                <th style={{ padding: '6px 8px' }}>Invoice #</th>
-                <th style={{ padding: '6px 8px', textAlign: 'right' }}>Amount</th>
+                <th style={{ padding: '6px 8px' }}>{t('paymentActions.invoice2')}</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right' }}>{t('paymentActions.amount2')}</th>
                 <th style={{ padding: '6px 8px' }}></th>
               </tr>
             </thead>
@@ -817,7 +820,7 @@ function UnapplyModal({ payment, onClose, onUnapplied }: UnapplyModalProps) {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-          <button type="button" onClick={onClose} style={cancelBtn}>Close</button>
+          <button type="button" onClick={onClose} style={cancelBtn}>{t('paymentActions.close')}</button>
         </div>
       </div>
     </div>
@@ -846,6 +849,7 @@ export interface PaymentActionButtonsProps {
 }
 
 export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentActionButtonsProps) {
+  const { t } = useTranslation();
   const [editOpen, setEditOpen] = useState(false);
   const [allocateOpen, setAllocateOpen] = useState(false);
   const [reallocateOpen, setReallocateOpen] = useState(false);
@@ -896,8 +900,8 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
         <button
           style={{ ...iconBtn, background: '#dbeafe', color: '#1e40af' }}
           onClick={handleDownloadReceipt}
-          title="Download receipt PDF"
-          aria-label="Download receipt PDF"
+          title={t('paymentActions.downloadReceiptPdf')}
+          aria-label={t('paymentActions.downloadReceiptPdf')}
         >
           🧾
         </button>
@@ -906,8 +910,8 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
             style={{ ...iconBtn, background: '#fef3c7', color: '#92400e' }}
             onClick={() => sendReceiptMut.mutate()}
             disabled={sendingReceipt}
-            title="Send receipt email to client"
-            aria-label="Send receipt email to client"
+            title={t('paymentActions.sendReceiptEmailToClient')}
+            aria-label={t('paymentActions.sendReceiptEmailToClient')}
           >
             {sendingReceipt ? '…' : '📧'}
           </button>
@@ -916,8 +920,8 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
           <button
             style={{ ...iconBtn, background: '#e0f2fe', color: '#075985' }}
             onClick={() => setAllocateOpen(true)}
-            title="Allocate payment to an invoice"
-            aria-label="Allocate payment to an invoice"
+            title={t('paymentActions.allocatePaymentToAnInvoice')}
+            aria-label={t('paymentActions.allocatePaymentToAnInvoice')}
           >
             ➕
           </button>
@@ -926,8 +930,8 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
           <button
             style={{ ...iconBtn, background: '#ede9fe', color: '#5b21b6' }}
             onClick={() => setReallocateOpen(true)}
-            title="Move allocation from one invoice to another (same client)"
-            aria-label="Reallocate payment"
+            title={t('paymentActions.moveAllocationFromOneInvoice')}
+            aria-label={t('paymentActions.reallocatePayment3')}
           >
             ↔
           </button>
@@ -936,8 +940,8 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
           <button
             style={{ ...iconBtn, background: '#fee2e2', color: '#991b1b' }}
             onClick={() => setUnapplyOpen(true)}
-            title="Remove this payment from an invoice (keeps credit on account)"
-            aria-label="Un-apply payment from an invoice"
+            title={t('paymentActions.removeThisPaymentFromAn')}
+            aria-label={t('paymentActions.unApplyPaymentFromAn')}
           >
             ✕
           </button>
@@ -946,8 +950,8 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
           <button
             style={{ ...iconBtn, background: '#fef9c3', color: '#854d0e' }}
             onClick={() => setReassignOpen(true)}
-            title="Reassign payment to a different client (unallocated only)"
-            aria-label="Reassign payment to a different client"
+            title={t('paymentActions.reassignPaymentToADifferent')}
+            aria-label={t('paymentActions.reassignPaymentToADifferent2')}
           >
             ↗
           </button>
@@ -956,8 +960,8 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
           <button
             style={{ ...iconBtn, background: '#f3f4f6', color: '#374151' }}
             onClick={() => setEditOpen(true)}
-            title="Edit payment"
-            aria-label="Edit payment"
+            title={t('paymentActions.editPayment3')}
+            aria-label={t('paymentActions.editPayment3')}
           >
             ✏️
           </button>
@@ -966,8 +970,8 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
           <button
             style={{ ...iconBtn, background: '#fee2e2', color: '#991b1b' }}
             onClick={() => setDeleteOpen(true)}
-            title="Delete payment"
-            aria-label="Delete payment"
+            title={t('paymentActions.deletePayment')}
+            aria-label={t('paymentActions.deletePayment')}
           >
             🗑
           </button>
@@ -1030,16 +1034,16 @@ export function PaymentActionButtons({ payment, onChanged, onDeleted }: PaymentA
 
       {/* ── Delete confirmation ── */}
       {deleteOpen && (
-        <div style={overlay} role="alertdialog" aria-modal="true" aria-label="Delete Payment">
+        <div style={overlay} role="alertdialog" aria-modal="true" aria-label={t('paymentActions.deletePayment2')}>
           <div style={modalBox}>
-            <h3 style={{ margin: '0 0 0.75rem' }}>Delete Payment #{payment.id}?</h3>
+            <h3 style={{ margin: '0 0 0.75rem' }}>{t('paymentActions.deletePayment3')}{payment.id}?</h3>
             <p style={{ margin: '0 0 1.25rem', color: '#4b5563', fontSize: '0.9rem' }}>
-              This will permanently remove payment of{' '}
-              {formatMoney(payment.amount, payment.currency)}. This action cannot be undone.
+              {t('paymentActions.thisWillPermanentlyRemovePayment')}{' '}
+              {formatMoney(payment.amount, payment.currency)}{t('paymentActions.thisActionCannotBeUndone')}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setDeleteOpen(false)} style={cancelBtn}>
-                Cancel
+                {t('paymentActions.cancel')}
               </button>
               <button
                 type="button"

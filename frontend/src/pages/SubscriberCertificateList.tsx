@@ -19,6 +19,7 @@ import { useState, type CSSProperties, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/api/apiFetch';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -103,6 +104,7 @@ interface IssueFormProps {
 }
 
 function IssueForm({ onClose, onSuccess }: IssueFormProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<CreateCertPayload>({
     common_name: '',
     serial_number: '',
@@ -152,11 +154,9 @@ function IssueForm({ onClose, onSuccess }: IssueFormProps) {
   return (
     <div style={s.overlay}>
       <div style={s.dialog}>
-        <h3 style={s.dialogTitle}>Register Certificate</h3>
+        <h3 style={s.dialogTitle}>{t('ui.subscriberCertificateList.registerCertificate')}</h3>
         <p style={s.note}>
-          VigaBSS is a metadata registry only — it does not generate or sign certificates.
-          Issue the certificate from your CA (easy-rsa, step-ca, etc.) and paste the
-          metadata below.
+          {t('ui.subscriberCertificateList.vigabssIsAMetadataRegistry')}
         </p>
         <form onSubmit={handleSubmit}>
           {field('Common Name (CN)', 'common_name', 'text', true)}
@@ -168,7 +168,7 @@ function IssueForm({ onClose, onSuccess }: IssueFormProps) {
           {field('Client ID (optional)', 'client_id')}
           {error && <p style={s.errorText}>{error}</p>}
           <div style={s.dialogActions}>
-            <button type="button" onClick={onClose} style={s.cancelBtn} disabled={saving}>Cancel</button>
+            <button type="button" onClick={onClose} style={s.cancelBtn} disabled={saving}>{t('ui.subscriberCertificateList.cancel')}</button>
             <button type="submit" style={s.confirmBtn} disabled={saving}>
               {saving ? 'Saving…' : 'Register'}
             </button>
@@ -184,6 +184,7 @@ function IssueForm({ onClose, onSuccess }: IssueFormProps) {
 // ---------------------------------------------------------------------------
 
 export function SubscriberCertificateList() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [showIssue, setShowIssue] = useState(false);
@@ -223,22 +224,21 @@ export function SubscriberCertificateList() {
   return (
     <div style={s.page}>
       <div style={s.header}>
-        <h1 style={s.title}>Subscriber Certificates</h1>
+        <h1 style={s.title}>{t('ui.subscriberCertificateList.subscriberCertificates')}</h1>
         <button onClick={() => setShowIssue(true)} style={s.issueBtn}>
-          + Register Certificate
+          {t('ui.subscriberCertificateList.registerCertificate2')}
         </button>
       </div>
 
       <p style={s.subtitle}>
-        EAP-TLS subscriber certificate registry. VigaBSS stores certificate metadata only —
-        certificates are issued and signed by your external CA.
+        {t('ui.subscriberCertificateList.eapTlsSubscriberCertificateRegistry')}
       </p>
 
-      {isLoading && <p style={s.loading}>Loading…</p>}
-      {error && <p style={s.errorText}>Failed to load certificates.</p>}
+      {isLoading && <p style={s.loading}>{t('ui.subscriberCertificateList.loading')}</p>}
+      {error && <p style={s.errorText}>{t('ui.subscriberCertificateList.failedToLoadCertificates')}</p>}
 
       {!isLoading && certs.length === 0 && (
-        <p style={s.empty}>No subscriber certificates registered. Use the button above to register a certificate.</p>
+        <p style={s.empty}>{t('ui.subscriberCertificateList.noSubscriberCertificatesRegisteredUse')}</p>
       )}
 
       {certs.length > 0 && (
@@ -246,12 +246,12 @@ export function SubscriberCertificateList() {
           <table style={s.table}>
             <thead>
               <tr>
-                <th style={s.th}>Common Name</th>
-                <th style={s.th}>Serial</th>
-                <th style={s.th}>Valid From</th>
-                <th style={s.th}>Valid Until</th>
-                <th style={s.th}>Status</th>
-                <th style={s.th}>Actions</th>
+                <th style={s.th}>{t('ui.subscriberCertificateList.commonName')}</th>
+                <th style={s.th}>{t('ui.subscriberCertificateList.serial')}</th>
+                <th style={s.th}>{t('ui.subscriberCertificateList.validFrom')}</th>
+                <th style={s.th}>{t('ui.subscriberCertificateList.validUntil')}</th>
+                <th style={s.th}>{t('ui.subscriberCertificateList.status')}</th>
+                <th style={s.th}>{t('ui.subscriberCertificateList.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -279,7 +279,7 @@ export function SubscriberCertificateList() {
                           onClick={() => { setRevokeTarget(cert); setRevokeError(''); setRevokeReason(''); }}
                           style={s.revokeBtn}
                         >
-                          Revoke
+                          {t('ui.subscriberCertificateList.revoke')}
                         </button>
                       )}
                       {cert.status === 'revoked' && cert.revocation_reason && (
@@ -299,11 +299,11 @@ export function SubscriberCertificateList() {
       {totalPages > 1 && (
         <div style={s.pagination}>
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} style={s.pageBtn}>
-            Prev
+            {t('ui.subscriberCertificateList.prev')}
           </button>
-          <span style={s.pageInfo}>Page {page} / {totalPages} ({total} total)</span>
+          <span style={s.pageInfo}>{t('ui.subscriberCertificateList.page')}{page} / {totalPages} ({total} {t('ui.subscriberCertificateList.total')}</span>
           <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={s.pageBtn}>
-            Next
+            {t('ui.subscriberCertificateList.next')}
           </button>
         </div>
       )}
@@ -321,24 +321,24 @@ export function SubscriberCertificateList() {
       {revokeTarget && (
         <div style={s.overlay}>
           <div style={s.dialog}>
-            <h3 style={s.dialogTitle}>Revoke Certificate</h3>
+            <h3 style={s.dialogTitle}>{t('ui.subscriberCertificateList.revokeCertificate')}</h3>
             <p style={s.dialogBody}>
-              Revoke certificate for <strong>{revokeTarget.common_name}</strong>?
-              <br />Serial: <code>{revokeTarget.serial_number}</code>
+              {t('ui.subscriberCertificateList.revokeCertificateFor')}<strong>{revokeTarget.common_name}</strong>?
+              <br />{t('ui.subscriberCertificateList.serial2')}<code>{revokeTarget.serial_number}</code>
             </p>
             <div style={s.field}>
-              <label style={s.label}>Reason (optional)</label>
+              <label style={s.label}>{t('ui.subscriberCertificateList.reasonOptional')}</label>
               <input
                 type="text"
                 value={revokeReason}
                 onChange={e => setRevokeReason(e.target.value)}
                 style={s.input}
-                placeholder="e.g. Key compromised"
+                placeholder={t('ui.subscriberCertificateList.eGKeyCompromised')}
               />
             </div>
             {revokeError && <p style={s.errorText}>{revokeError}</p>}
             <div style={s.dialogActions}>
-              <button onClick={() => setRevokeTarget(null)} style={s.cancelBtn} disabled={revoking}>Cancel</button>
+              <button onClick={() => setRevokeTarget(null)} style={s.cancelBtn} disabled={revoking}>{t('ui.subscriberCertificateList.cancel')}</button>
               <button onClick={handleRevoke} style={{ ...s.confirmBtn, background: '#dc2626' }} disabled={revoking}>
                 {revoking ? 'Revoking…' : 'Revoke'}
               </button>

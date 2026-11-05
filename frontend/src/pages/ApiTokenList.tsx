@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, fmtDate } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -113,6 +114,7 @@ function StatusBadge({ token }: { token: ApiTokenItem }) {
 // ---------------------------------------------------------------------------
 
 function TokenResultDialog({ token, onClose }: { token: string; onClose: () => void }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -131,15 +133,15 @@ function TokenResultDialog({ token, onClose }: { token: string; onClose: () => v
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="API token created"
+        aria-label={t('ui.apiTokenList.apiTokenCreated')}
       >
         <div style={modalStyles.header}>
-          <h2 style={modalStyles.title}>🔑 Token Created</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <h2 style={modalStyles.title}>{t('ui.apiTokenList.tokenCreated')}</h2>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.apiTokenList.close')}>✕</button>
         </div>
         <div style={{ padding: '0 0 0.5rem' }}>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Copy this token now — it will not be shown again.
+            {t('ui.apiTokenList.copyThisTokenNowIt')}
           </p>
           <code
             style={{
@@ -160,7 +162,7 @@ function TokenResultDialog({ token, onClose }: { token: string; onClose: () => v
               {copied ? 'Copied!' : 'Copy to clipboard'}
             </button>
             <button type="button" style={styles.btnPrimary} onClick={onClose}>
-              Done
+              {t('ui.apiTokenList.done')}
             </button>
           </div>
         </div>
@@ -179,6 +181,7 @@ interface TokenModalProps {
 }
 
 function TokenModal({ onClose, onCreated }: TokenModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ name: '', scopes: '', expires_at: '' });
   const [error, setError] = useState('');
 
@@ -226,41 +229,41 @@ function TokenModal({ onClose, onCreated }: TokenModalProps) {
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="New API token"
+        aria-label={t('ui.apiTokenList.newApiToken')}
       >
         <div style={modalStyles.header}>
-          <h2 style={modalStyles.title}>🔑 New API Token</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <h2 style={modalStyles.title}>{t('ui.apiTokenList.newApiToken2')}</h2>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.apiTokenList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.apiTokenList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={255}
               value={form.name}
               onChange={e => setField('name', e.target.value)}
-              placeholder='e.g. "Grafana read-only"'
+              placeholder={t('ui.apiTokenList.eGGrafanaReadOnly')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Scopes (comma or space separated; *:write for full access)
+            {t('ui.apiTokenList.scopesCommaOrSpaceSeparated')}
             <input
               style={modalStyles.input}
               type="text"
               value={form.scopes}
               onChange={e => setField('scopes', e.target.value)}
-              placeholder="clients:read, invoices:read"
+              placeholder={t('ui.apiTokenList.clientsReadInvoicesRead')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Expires at
+            {t('ui.apiTokenList.expiresAt')}
             <input
               style={modalStyles.input}
               type="date"
@@ -273,7 +276,7 @@ function TokenModal({ onClose, onCreated }: TokenModalProps) {
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.apiTokenList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Creating…' : 'Create Token'}
@@ -296,18 +299,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.apiTokenList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.apiTokenList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.apiTokenList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -319,6 +323,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function ApiTokenList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [showNew, setShowNew] = useState(false);
@@ -345,26 +350,26 @@ export function ApiTokenList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🔑 API Tokens</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.apiTokenList.apiTokens')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.apiTokenList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New Token
+          {t('ui.apiTokenList.newToken')}
         </button>
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.apiTokenList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {tokensQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.apiTokenList.loading')}</p>
         ) : tokensQ.error ? (
-          <p style={styles.msgError}>Failed to load API tokens.</p>
+          <p style={styles.msgError}>{t('ui.apiTokenList.failedToLoadApiTokens')}</p>
         ) : tokens.length === 0 ? (
-          <p style={styles.msg}>No API tokens found.</p>
+          <p style={styles.msg}>{t('ui.apiTokenList.noApiTokensFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -377,21 +382,21 @@ export function ApiTokenList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tokens.map(t => (
-                    <tr key={t.id} style={styles.tr}>
-                      <td style={styles.td}>#{t.id}</td>
-                      <td style={{ ...styles.td, fontWeight: 500 }}>{t.name}</td>
-                      <td style={{ ...styles.td, maxWidth: 260, overflowWrap: 'anywhere' }}>{scopesToString(t.scopes)}</td>
-                      <td style={styles.td}>{t.last_used_at ? fmtDate(t.last_used_at) : 'Never'}</td>
-                      <td style={styles.td}>{t.expires_at ? fmtDate(t.expires_at) : 'Never'}</td>
-                      <td style={styles.td}><StatusBadge token={t} /></td>
+                  {tokens.map(tok => (
+                    <tr key={tok.id} style={styles.tr}>
+                      <td style={styles.td}>#{tok.id}</td>
+                      <td style={{ ...styles.td, fontWeight: 500 }}>{tok.name}</td>
+                      <td style={{ ...styles.td, maxWidth: 260, overflowWrap: 'anywhere' }}>{scopesToString(tok.scopes)}</td>
+                      <td style={styles.td}>{tok.last_used_at ? fmtDate(tok.last_used_at) : 'Never'}</td>
+                      <td style={styles.td}>{tok.expires_at ? fmtDate(tok.expires_at) : 'Never'}</td>
+                      <td style={styles.td}><StatusBadge token={tok} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
                         <button
                           style={{ ...styles.actionBtn, color: '#991b1b' }}
-                          onClick={() => setDeleteId(t.id)}
-                          title="Revoke this token"
+                          onClick={() => setDeleteId(tok.id)}
+                          title={t('ui.apiTokenList.revokeThisToken')}
                         >
-                          🗑 Revoke
+                          {t('ui.apiTokenList.revoke')}
                         </button>
                       </td>
                     </tr>
@@ -403,15 +408,15 @@ export function ApiTokenList() {
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.apiTokenList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.apiTokenList.page')}{page} {t('ui.apiTokenList.of')}{meta.totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                 >
-                  Next →
+                  {t('ui.apiTokenList.next')}
                 </button>
               </div>
             )}

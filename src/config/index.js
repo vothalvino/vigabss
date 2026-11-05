@@ -354,6 +354,10 @@ function validateEnv(logger) {
     const msg = 'ENCRYPTION_KEY must be a 64-character hex string (256 bits)';
     if (!allowInsecureSecret) errors.push(msg); else warnings.push(msg);
   }
+  const previousKeys = String(process.env.ENCRYPTION_KEYS_PREVIOUS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (previousKeys.some(k => !HEX_64_RE.test(k))) {
+    errors.push('ENCRYPTION_KEYS_PREVIOUS must list 64-character hex keys, comma-separated');
+  }
 
   // Links in emails, OAuth redirects and the Secure cookie flag assume HTTPS;
   // an http APP_URL in production sends portal and reset links in clear text.

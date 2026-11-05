@@ -139,6 +139,38 @@
       "morning": "manhã",
       "afternoon": "tarde",
       "evening": "noite"
+    },
+    "capability": {
+      "balanceOwing": "💳 O saldo da sua conta é {{amount}}.{{due}}",
+      "balanceNextDue": " Seu próximo pagamento vence em {{date}}.",
+      "balanceWithCredit": "{{owing}}, com um crédito de {{credit}}",
+      "and": " e ",
+      "payLink": "💳 Pague a fatura *{{number}}* ({{amount}}) com segurança aqui:\n{{url}}\n\n_O link é pessoal, por favor não o encaminhe._",
+      "paidUpCredit": "✅ Você está em dia: tem um crédito de {{credit}}.",
+      "paidUp": "✅ Você está em dia. Saldo: *{{amount}}*.",
+      "planNone": "Você não tem um serviço ativo cadastrado. Se isso for inesperado, responda 4 para relatar.",
+      "planOne": "📶 Seu serviço:\n{{lines}}",
+      "planMany": "📶 Seus serviços:\n{{lines}}",
+      "invoicesNone": "Você ainda não tem faturas cadastradas.",
+      "invoicesList": "🧾 Suas faturas recentes:\n{{lines}}\n\nResponda 1 para ver seu saldo atual.",
+      "invoiceDue": " (vence em {{date}})",
+      "contractStatus": {
+        "active": "ativo",
+        "pending": "pendente",
+        "suspended": "suspenso",
+        "cancelled": "cancelado",
+        "terminated": "encerrado",
+        "expired": "expirado"
+      },
+      "invoiceStatus": {
+        "draft": "rascunho",
+        "issued": "emitida",
+        "sent": "enviada",
+        "paid": "paga",
+        "overdue": "vencida",
+        "cancelled": "cancelada",
+        "void": "anulada"
+      }
     }
   }
 }

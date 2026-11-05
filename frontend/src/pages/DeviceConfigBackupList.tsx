@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,6 +75,7 @@ function methodLabel(method: string): string {
 // ---------------------------------------------------------------------------
 
 export function DeviceConfigBackupList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [methodFilter, setMethodFilter] = useState('');
 
@@ -94,12 +96,12 @@ export function DeviceConfigBackupList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>💾 Device Config Backups</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.deviceConfigBackupList.deviceConfigBackups')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.deviceConfigBackupList.total')}</span>}
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Capture method:</label>
+        <label style={styles.filterLabel}>{t('ui.deviceConfigBackupList.captureMethod')}</label>
         <select
           style={styles.filterSelect}
           value={methodFilter}
@@ -111,18 +113,18 @@ export function DeviceConfigBackupList() {
         </select>
         {methodFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.deviceConfigBackupList.clearFilter')}
           </button>
         )}
       </div>
 
       <div style={styles.tableCard}>
         {backupsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.deviceConfigBackupList.loading')}</p>
         ) : backupsQ.error ? (
-          <p style={styles.msgError}>Failed to load device config backups.</p>
+          <p style={styles.msgError}>{t('ui.deviceConfigBackupList.failedToLoadDeviceConfig')}</p>
         ) : backups.length === 0 ? (
-          <p style={styles.msg}>No device config backups found{methodFilter ? ` via "${methodLabel(methodFilter)}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.deviceConfigBackupList.noDeviceConfigBackupsFound')}{methodFilter ? ` via "${methodLabel(methodFilter)}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -156,15 +158,15 @@ export function DeviceConfigBackupList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.deviceConfigBackupList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.deviceConfigBackupList.page')}{page} {t('ui.deviceConfigBackupList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.deviceConfigBackupList.next')}
                 </button>
               </div>
             )}

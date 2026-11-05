@@ -346,12 +346,12 @@ export function NocDashboard() {
               </div>
               <div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{slaQ.data.total}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('ui.nocDashboard.total')}</div>
               </div>
               {slaQ.data.non_compliant > 0 && (
                 <div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#dc2626' }}>{slaQ.data.non_compliant}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Breached</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('ui.nocDashboard.breached')}</div>
                 </div>
               )}
             </div>

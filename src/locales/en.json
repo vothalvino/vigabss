@@ -139,6 +139,38 @@
       "morning": "morning",
       "afternoon": "afternoon",
       "evening": "evening"
+    },
+    "capability": {
+      "balanceOwing": "💳 Your account balance is {{amount}}.{{due}}",
+      "balanceNextDue": " Your next payment is due {{date}}.",
+      "balanceWithCredit": "{{owing}}, with a credit of {{credit}}",
+      "and": " and ",
+      "payLink": "💳 Pay invoice *{{number}}* ({{amount}}) securely here:\n{{url}}\n\n_The link is personal to you — please do not forward it._",
+      "paidUpCredit": "✅ You're all paid up — you have a credit of {{credit}}.",
+      "paidUp": "✅ You're all paid up. Balance: *{{amount}}*.",
+      "planNone": "You don't have an active service on file. If that's unexpected, reply 4 to report it.",
+      "planOne": "📶 Your service:\n{{lines}}",
+      "planMany": "📶 Your services:\n{{lines}}",
+      "invoicesNone": "You have no invoices on file yet.",
+      "invoicesList": "🧾 Your recent invoices:\n{{lines}}\n\nReply 1 for your current balance.",
+      "invoiceDue": " (due {{date}})",
+      "contractStatus": {
+        "active": "active",
+        "pending": "pending",
+        "suspended": "suspended",
+        "cancelled": "cancelled",
+        "terminated": "terminated",
+        "expired": "expired"
+      },
+      "invoiceStatus": {
+        "draft": "draft",
+        "issued": "issued",
+        "sent": "sent",
+        "paid": "paid",
+        "overdue": "overdue",
+        "cancelled": "cancelled",
+        "void": "void"
+      }
     }
   }
 }

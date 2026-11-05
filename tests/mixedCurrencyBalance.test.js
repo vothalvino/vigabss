@@ -32,7 +32,7 @@ beforeEach(() => {
 });
 
 test('WhatsApp quotes each currency separately', async () => {
-  const text = await whatsapp.balanceText(4, 12);
+  const text = await whatsapp.balanceText(4, 12, 'en');
   expect(text).toContain('balance is *500.00 MXN*, with a credit of *20.00 USD*');
   expect(text).not.toMatch(/480/);
 });

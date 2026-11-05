@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -142,6 +143,7 @@ interface WebhookModalProps {
 }
 
 function WebhookModal({ webhook, onClose, onSaved }: WebhookModalProps) {
+  const { t } = useTranslation();
   const isEdit = webhook !== null;
   const [form, setForm] = useState({
     url: webhook?.url ?? '',
@@ -201,12 +203,12 @@ function WebhookModal({ webhook, onClose, onSaved }: WebhookModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit Webhook #${webhook.id}` : '🔗 New Webhook'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.webhookList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Target URL <RequiredMark />
+            {t('ui.webhookList.targetUrl')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="url"
@@ -219,32 +221,32 @@ function WebhookModal({ webhook, onClose, onSaved }: WebhookModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Events (comma-separated) <RequiredMark />
+            {t('ui.webhookList.eventsCommaSeparated')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={2000}
               value={form.events}
               onChange={e => setField('events', e.target.value)}
-              placeholder="invoice.created, payment.received"
+              placeholder={t('ui.webhookList.invoiceCreatedPaymentReceived')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Signing secret {isEdit && '(leave blank to keep current)'}
+            {t('ui.webhookList.signingSecret')}{isEdit && '(leave blank to keep current)'}
             <input
               style={modalStyles.input}
               type="text"
               maxLength={255}
               value={form.secret}
               onChange={e => setField('secret', e.target.value)}
-              placeholder="HMAC signing secret"
+              placeholder={t('ui.webhookList.hmacSigningSecret')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Max retries
+            {t('ui.webhookList.maxRetries')}
             <input
               style={modalStyles.input}
               type="number"
@@ -256,7 +258,7 @@ function WebhookModal({ webhook, onClose, onSaved }: WebhookModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Timeout (seconds)
+            {t('ui.webhookList.timeoutSeconds')}
             <input
               style={modalStyles.input}
               type="number"
@@ -273,14 +275,14 @@ function WebhookModal({ webhook, onClose, onSaved }: WebhookModalProps) {
               checked={form.is_active}
               onChange={e => setField('is_active', e.target.checked)}
             />
-            Enabled
+            {t('ui.webhookList.enabled')}
           </label>
 
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.webhookList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Webhook'}
@@ -303,18 +305,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.webhookList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.webhookList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.webhookList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -326,6 +329,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function WebhookList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [showNew, setShowNew] = useState(false);
@@ -367,31 +371,31 @@ export function WebhookList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🔗 Webhooks</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.webhookList.webhooks')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.webhookList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New Webhook
+          {t('ui.webhookList.newWebhook')}
         </button>
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.webhookList.actionFailedPleaseTryAgain')}
         </p>
       )}
       {configurationError && (
         <p role="alert" style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          The editable destination could not be loaded. Nothing was changed. Try again.
+          {t('ui.webhookList.theEditableDestinationCouldNot')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {webhooksQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.webhookList.loading')}</p>
         ) : webhooksQ.error ? (
-          <p style={styles.msgError}>Failed to load webhooks.</p>
+          <p style={styles.msgError}>{t('ui.webhookList.failedToLoadWebhooks')}</p>
         ) : webhooks.length === 0 ? (
-          <p style={styles.msg}>No webhooks found.</p>
+          <p style={styles.msg}>{t('ui.webhookList.noWebhooksFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -413,15 +417,15 @@ export function WebhookList() {
                       <td style={styles.td}>{eventsToString(w.events)}</td>
                       <td style={styles.td}><EnabledBadge enabled={isEnabled(w)} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <button style={styles.actionBtn} onClick={() => openEditor(w)} title="Edit this webhook" disabled={editingLoadingId !== null}>
+                        <button style={styles.actionBtn} onClick={() => openEditor(w)} title={t('ui.webhookList.editThisWebhook')} disabled={editingLoadingId !== null}>
                           {editingLoadingId === w.id ? 'Loading…' : '✏️ Edit'}
                         </button>
                         <button
                           style={{ ...styles.actionBtn, color: '#991b1b' }}
                           onClick={() => setDeleteId(w.id)}
-                          title="Delete this webhook"
+                          title={t('ui.webhookList.deleteThisWebhook')}
                         >
-                          🗑 Delete
+                          {t('ui.webhookList.delete')}
                         </button>
                       </td>
                     </tr>
@@ -433,15 +437,15 @@ export function WebhookList() {
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.webhookList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.webhookList.page')}{page} {t('ui.webhookList.of')}{meta.totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                 >
-                  Next →
+                  {t('ui.webhookList.next')}
                 </button>
               </div>
             )}

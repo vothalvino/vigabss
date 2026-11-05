@@ -278,12 +278,12 @@ function ConnectionsTab({ onViewLogs }: { onViewLogs: (conn: IntegrationConnecti
             </div>
             <div>
               <label style={{ fontSize: 13 }}>{t('integration.credentials')} ({t('integration.jsonFormat')})</label>
-              <textarea value={form.credentials} onChange={e => setForm(f => ({ ...f, credentials: e.target.value }))} rows={3} placeholder='{"api_key":"..."}' style={{ display: 'block', width: '100%', padding: '4px 8px', marginTop: 2, fontFamily: 'monospace', fontSize: 12 }} />
+              <textarea value={form.credentials} onChange={e => setForm(f => ({ ...f, credentials: e.target.value }))} rows={3} placeholder={t('ui.integrationsPage.apiKey')} style={{ display: 'block', width: '100%', padding: '4px 8px', marginTop: 2, fontFamily: 'monospace', fontSize: 12 }} />
               <small style={{ color: '#6b7280' }}>{t('integration.credentialsHint')}</small>
             </div>
             <div>
               <label style={{ fontSize: 13 }}>{t('integration.configJson')}</label>
-              <textarea value={form.config_json} onChange={e => setForm(f => ({ ...f, config_json: e.target.value }))} rows={2} placeholder='{"base_url":"..."}' style={{ display: 'block', width: '100%', padding: '4px 8px', marginTop: 2, fontFamily: 'monospace', fontSize: 12 }} />
+              <textarea value={form.config_json} onChange={e => setForm(f => ({ ...f, config_json: e.target.value }))} rows={2} placeholder={t('ui.integrationsPage.baseUrl')} style={{ display: 'block', width: '100%', padding: '4px 8px', marginTop: 2, fontFamily: 'monospace', fontSize: 12 }} />
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               <ActionButton onClick={handleCreate} label={t('integration.create')} disabled={!form.provider_id || !form.name || creating} />

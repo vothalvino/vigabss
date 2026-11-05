@@ -159,8 +159,8 @@ export function AuditLogList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📜 Audit Logs</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.auditLogList.auditLogs')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.auditLogList.total')}</span>}
         <button type="button" style={styles.btnSecondary} disabled={verify.isPending} onClick={() => verify.mutate()}>
           {verify.isPending ? t('auditLogs.verifying') : t('auditLogs.verify')}
         </button>
@@ -197,27 +197,27 @@ export function AuditLogList() {
       )}
 
       <div style={{ ...styles.filterRow, flexWrap: 'wrap' }}>
-        <label style={styles.filterLabel}>Action:</label>
+        <label style={styles.filterLabel}>{t('ui.auditLogList.action')}</label>
         <select
           style={styles.filterSelect}
           value={filters.action}
           onChange={e => setFilter('action', e.target.value)}
         >
-          <option value="">All</option>
+          <option value="">{t('ui.auditLogList.all')}</option>
           {ACTIONS.map(a => <option key={a} value={a}>{capitalize(a)}</option>)}
         </select>
 
-        <label style={styles.filterLabel}>User ID:</label>
+        <label style={styles.filterLabel}>{t('ui.auditLogList.userId')}</label>
         <input
           style={{ ...styles.filterSelect, width: 90 }}
           type="number"
           min={1}
           value={filters.user_id}
           onChange={e => setFilter('user_id', e.target.value)}
-          placeholder="Any"
+          placeholder={t('ui.auditLogList.any')}
         />
 
-        <label style={styles.filterLabel}>From:</label>
+        <label style={styles.filterLabel}>{t('ui.auditLogList.from')}</label>
         <input
           style={styles.filterSelect}
           type="date"
@@ -225,7 +225,7 @@ export function AuditLogList() {
           onChange={e => setFilter('date_from', e.target.value)}
         />
 
-        <label style={styles.filterLabel}>To:</label>
+        <label style={styles.filterLabel}>{t('ui.auditLogList.to')}</label>
         <input
           style={styles.filterSelect}
           type="date"
@@ -235,18 +235,18 @@ export function AuditLogList() {
 
         {hasFilters && (
           <button type="button" style={styles.btnSecondary} onClick={clearFilters}>
-            Clear filters
+            {t('ui.auditLogList.clearFilters')}
           </button>
         )}
       </div>
 
       <div style={styles.tableCard}>
         {logsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.auditLogList.loading')}</p>
         ) : logsQ.error ? (
-          <p style={styles.msgError}>Failed to load audit logs.</p>
+          <p style={styles.msgError}>{t('ui.auditLogList.failedToLoadAuditLogs')}</p>
         ) : logs.length === 0 ? (
-          <p style={styles.msg}>No audit log entries found{hasFilters ? ' for the selected filters' : ''}.</p>
+          <p style={styles.msg}>{t('ui.auditLogList.noAuditLogEntriesFound')}{hasFilters ? ' for the selected filters' : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -277,15 +277,15 @@ export function AuditLogList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.auditLogList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.auditLogList.page')}{page} {t('ui.auditLogList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.auditLogList.next')}
                 </button>
               </div>
             )}

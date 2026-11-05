@@ -228,7 +228,7 @@ function ChatTab() {
             type="number"
             value={newClientId}
             onChange={e => setNewClientId(e.target.value)}
-            placeholder="Client ID"
+            placeholder={t('ui.aiSupportPage.clientId')}
             style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 13 }}
           />
           <input
@@ -495,11 +495,11 @@ function KbTab() {
               </div>
             </div>
             <div>
-              <label style={{ fontSize: 13 }}>{t('aiSupport.kb.tags')} (comma-separated)</label>
+              <label style={{ fontSize: 13 }}>{t('aiSupport.kb.tags')} {t('ui.aiSupportPage.commaSeparated')}</label>
               <input
                 value={form.tags}
                 onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-                placeholder="billing, service, outage"
+                placeholder={t('ui.aiSupportPage.billingServiceOutage')}
                 style={{ display: 'block', width: '100%', padding: '4px 8px', marginTop: 2 }}
               />
             </div>
@@ -514,7 +514,7 @@ function KbTab() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <ActionButton onClick={handleCreate} label={t('aiSupport.kb.create')} disabled={!form.title || !form.body || creating} />
-              <ActionButton onClick={() => setShowCreate(false)} label="Cancel" variant="secondary" />
+              <ActionButton onClick={() => setShowCreate(false)} label={t('ui.aiSupportPage.cancel')} variant="secondary" />
             </div>
           </div>
         </div>
@@ -530,7 +530,7 @@ function KbTab() {
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.kb.category')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.kb.locale')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.kb.published')}</th>
-              <th style={{ padding: '8px', textAlign: 'left' }}>Actions</th>
+              <th style={{ padding: '8px', textAlign: 'left' }}>{t('ui.aiSupportPage.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -642,7 +642,7 @@ function MetricsTab() {
           onChange={e => setTo(e.target.value)}
           style={{ padding: '4px 8px', fontSize: 13 }}
         />
-        <ActionButton onClick={load} label="Apply" variant="secondary" disabled={loading} />
+        <ActionButton onClick={load} label={t('ui.aiSupportPage.apply')} variant="secondary" disabled={loading} />
       </div>
 
       {error && <div style={{ color: '#dc2626', marginBottom: 8 }}>{error}</div>}
@@ -783,7 +783,7 @@ function NocInsightsTab() {
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.noc.confidence')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.noc.summary')}</th>
               <th style={{ padding: '8px', textAlign: 'left' }}>{t('aiSupport.noc.recommendation')}</th>
-              <th style={{ padding: '8px', textAlign: 'left' }}>Time</th>
+              <th style={{ padding: '8px', textAlign: 'left' }}>{t('ui.aiSupportPage.time')}</th>
             </tr>
           </thead>
           <tbody>

@@ -502,7 +502,7 @@ function ResourcesTab() {
                 <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{p.pool_name ?? p.ip_pool_id}</td>
                   <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{p.network}/{p.subnet_mask}</td>
-                  <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>IPv{p.ip_version}</td>
+                  <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{t('ui.resellerPage.ipv')}{p.ip_version}</td>
                   <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>
                     <ActionButton label={t('reseller.remove')} onClick={() => handleRemovePool(p.id)} variant="danger" />
                   </td>

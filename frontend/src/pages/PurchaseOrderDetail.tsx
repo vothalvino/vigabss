@@ -323,7 +323,7 @@ function ReceiveModal({ po, items, onClose, onReceived }: ReceiveModalProps) {
       <div style={{ ...modalStyles.panel, maxWidth: 640 }}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{t('purchaseOrderDetail.receiveModal.title')}</h3>
-          <button type="button" style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.purchaseOrderDetail.close')}>✕</button>
         </div>
         {error && <p style={modalStyles.error}>{error}</p>}
         <form onSubmit={handleSubmit}>

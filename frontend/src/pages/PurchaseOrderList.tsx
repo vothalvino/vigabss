@@ -176,7 +176,7 @@ function NewPoModal({ onClose, onCreated }: NewPoModalProps) {
       <div style={modalStyles.panel}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{t('purchaseOrders.newTitle')}</h3>
-          <button type="button" style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.purchaseOrderList.close')}>✕</button>
         </div>
         {error && <p style={modalStyles.error}>{error}</p>}
         <form onSubmit={handleSubmit} style={modalStyles.form}>
@@ -249,7 +249,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onCo
   const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
-      <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()} role="alertdialog" aria-label="Confirm">
+      <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()} role="alertdialog" aria-label={t('ui.purchaseOrderList.confirm')}>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
           <button onClick={onCancel} style={styles.btnSecondary}>{t('purchaseOrders.actions.cancel')}</button>

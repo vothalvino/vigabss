@@ -179,6 +179,7 @@ router.put(
       const targetUserId = req.params.userId;
       const { scopes } = req.body;
 
+
       // validate.js checks that scopes is an array; we validate each element here
       const VALID_SCOPE_TYPES = ['site', 'nas'];
       for (const [i, scope] of scopes.entries()) {
@@ -194,6 +195,17 @@ router.put(
         }
         scope.scope_id = sid; // normalise
       }
+
+      // Only a member of this organization can be scoped: without this check
+      // an admin of one organization replaced the assignments of another
+      // organization's user and re-scoped their live tunnels (TNA-37 write
+      // sweep). Same membership check as the GET above.
+      const [members] = await db.query(
+        `SELECT ou.user_id FROM organization_users ou
+          WHERE ou.user_id = ? AND ou.organization_id = ? AND ou.deleted_at IS NULL LIMIT 1`,
+        [targetUserId, req.orgId],
+      );
+      if (!members[0]) return next(new NotFoundError('user'));
 
       // Validate each scope_id belongs to req.orgId before mutating anything.
       for (const [i, scope] of scopes.entries()) {

@@ -26,6 +26,7 @@ import {
   cancelBtn,
   dangerBtn,
 } from '@/components/ClientFormModal';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -116,6 +117,7 @@ function RuleFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<RuleFormBody>({
     name: initial?.name ?? '',
     days_past_due: initial?.days_past_due ?? 15,
@@ -174,57 +176,57 @@ function RuleFormModal({
         <h3 style={{ margin: '0 0 1rem' }}>{title}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Rule name *</label>
+          <label style={labelStyle}>{t('ui.suspensionRuleList.ruleName')}</label>
           <input style={inputStyle} type="text" value={form.name} autoFocus required
             onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
 
-          <label style={labelStyle}>Days past due (trigger threshold) *</label>
+          <label style={labelStyle}>{t('ui.suspensionRuleList.daysPastDueTriggerThreshold')}</label>
           <input style={inputStyle} type="number" min={1} value={form.days_past_due} required
             onChange={e => setForm(p => ({ ...p, days_past_due: Number(e.target.value) }))} />
           <p style={{ margin: '0 0 0.75rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            Rule fires when an invoice is this many days overdue.
+            {t('ui.suspensionRuleList.ruleFiresWhenAnInvoice')}
           </p>
 
-          <label style={labelStyle}>Grace period (additional days before action executes)</label>
+          <label style={labelStyle}>{t('ui.suspensionRuleList.gracePeriodAdditionalDaysBefore')}</label>
           <input style={inputStyle} type="number" min={0} value={form.grace_period_days}
             onChange={e => setForm(p => ({ ...p, grace_period_days: Number(e.target.value) }))} />
           <p style={{ margin: '0 0 0.75rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            Client has this many extra days after the trigger threshold before the action runs. Set 0 for immediate action.
+            {t('ui.suspensionRuleList.clientHasThisManyExtra')}
           </p>
 
-          <label style={labelStyle}>Action</label>
+          <label style={labelStyle}>{t('ui.suspensionRuleList.action')}</label>
           <select style={inputStyle} value={form.action}
             onChange={e => setForm(p => ({ ...p, action: e.target.value }))}>
             {ACTIONS.map(a => <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>)}
             {!(ACTIONS as readonly string[]).includes(form.action) && (
-              <option value={form.action} disabled>{form.action.replace(/_/g, ' ')} (not enforced)</option>
+              <option value={form.action} disabled>{form.action.replace(/_/g, ' ')} {t('ui.suspensionRuleList.notEnforced')}</option>
             )}
           </select>
 
           {form.action === 'soft_suspend' && (
             <>
-              <label style={labelStyle}>Throttled download speed (kbps)</label>
+              <label style={labelStyle}>{t('ui.suspensionRuleList.throttledDownloadSpeedKbps')}</label>
               <input style={inputStyle} type="number" min={1} value={form.soft_suspend_download_kbps ?? 128}
                 onChange={e => setForm(p => ({ ...p, soft_suspend_download_kbps: Number(e.target.value) }))} />
 
-              <label style={labelStyle}>Throttled upload speed (kbps)</label>
+              <label style={labelStyle}>{t('ui.suspensionRuleList.throttledUploadSpeedKbps')}</label>
               <input style={inputStyle} type="number" min={1} value={form.soft_suspend_upload_kbps ?? 128}
                 onChange={e => setForm(p => ({ ...p, soft_suspend_upload_kbps: Number(e.target.value) }))} />
             </>
           )}
 
-          <label style={labelStyle}>Advance notice (days before suspension to notify, blank = none)</label>
+          <label style={labelStyle}>{t('ui.suspensionRuleList.advanceNoticeDaysBeforeSuspension')}</label>
           <input style={inputStyle} type="number" min={0} value={form.notify_before_days ?? ''}
             onChange={e => setForm(p => ({ ...p, notify_before_days: e.target.value ? Number(e.target.value) : undefined }))} />
 
           <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={!!form.is_active}
               onChange={e => setForm(p => ({ ...p, is_active: e.target.checked }))} />
-            Rule enabled
+            {t('ui.suspensionRuleList.ruleEnabled')}
           </label>
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.suspensionRuleList.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : mode === 'create' ? 'Create' : 'Save'}
             </button>
@@ -240,6 +242,7 @@ function RuleFormModal({
 // ---------------------------------------------------------------------------
 
 function DeleteConfirm({ rule, onClose, onDeleted }: { rule: SuspensionRule; onClose: () => void; onDeleted: () => void }) {
+  const { t } = useTranslation();
   const [error, setError] = useState('');
   const mutation = useMutation({
     mutationFn: async () => {
@@ -253,10 +256,10 @@ function DeleteConfirm({ rule, onClose, onDeleted }: { rule: SuspensionRule; onC
   return (
     <div style={overlay} role="alertdialog" aria-modal="true">
       <div style={{ ...modalBox, width: 400 }}>
-        <p style={{ margin: '0 0 1rem' }}>Delete rule <strong>{rule.name}</strong>? This cannot be undone.</p>
+        <p style={{ margin: '0 0 1rem' }}>{t('ui.suspensionRuleList.deleteRule')}<strong>{rule.name}</strong>{t('ui.suspensionRuleList.thisCannotBeUndone')}</p>
         {error && <div style={errorBox}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>Cancel</button>
+          <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>{t('ui.suspensionRuleList.cancel')}</button>
           <button type="button" onClick={() => mutation.mutate()} style={dangerBtn} disabled={mutation.isPending}>
             {mutation.isPending ? 'Deleting…' : 'Delete'}
           </button>
@@ -271,6 +274,7 @@ function DeleteConfirm({ rule, onClose, onDeleted }: { rule: SuspensionRule; onC
 // ---------------------------------------------------------------------------
 
 export function SuspensionRuleList() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
@@ -292,25 +296,25 @@ export function SuspensionRuleList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>⛔ Suspension Rules</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.suspensionRuleList.suspensionRules')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.suspensionRuleList.total')}</span>}
         {canCreate && (
           <button type="button" style={{ ...styles.btnPrimary, marginLeft: 'auto' }}
-            onClick={() => setShowCreate(true)}>+ New Rule</button>
+            onClick={() => setShowCreate(true)}>{t('ui.suspensionRuleList.newRule')}</button>
         )}
       </div>
 
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '0 0 1rem' }}>
-        Configure automated dunning and grace-period policies. Each rule defines when overdue clients are suspended or notified based on invoice age.
+        {t('ui.suspensionRuleList.configureAutomatedDunningAndGrace')}
       </p>
 
       <div style={styles.tableCard}>
         {rulesQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.suspensionRuleList.loading')}</p>
         ) : rulesQ.error ? (
-          <p style={styles.msgError}>Failed to load suspension rules.</p>
+          <p style={styles.msgError}>{t('ui.suspensionRuleList.failedToLoadSuspensionRules')}</p>
         ) : rules.length === 0 ? (
-          <p style={styles.msg}>No suspension rules configured.</p>
+          <p style={styles.msg}>{t('ui.suspensionRuleList.noSuspensionRulesConfigured')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -327,9 +331,9 @@ export function SuspensionRuleList() {
                     <tr key={r.id} style={styles.tr}>
                       <td style={styles.td}>#{r.id}</td>
                       <td style={{ ...styles.td, fontWeight: 500 }}>{r.name}</td>
-                      <td style={styles.td}>{r.days_past_due} days</td>
+                      <td style={styles.td}>{r.days_past_due} {t('ui.suspensionRuleList.days')}</td>
                       <td style={{ ...styles.td, fontWeight: r.grace_period_days > 0 ? 600 : undefined }}>
-                        {r.grace_period_days} days
+                        {r.grace_period_days} {t('ui.suspensionRuleList.days')}
                       </td>
                       <td style={styles.td}>{r.notify_before_days != null ? `${r.notify_before_days} days` : '—'}</td>
                       <td style={styles.td}><ActionBadge action={r.action} /></td>
@@ -338,12 +342,12 @@ export function SuspensionRuleList() {
                         {canUpdate && (
                           <button type="button"
                             style={{ ...cancelBtn, padding: '4px 10px', marginRight: 6 }}
-                            onClick={() => setEditRule(r)}>Edit</button>
+                            onClick={() => setEditRule(r)}>{t('ui.suspensionRuleList.edit')}</button>
                         )}
                         {canDelete && (
                           <button type="button"
                             style={{ ...dangerBtn, padding: '4px 10px' }}
-                            onClick={() => setDeleteRule(r)}>Delete</button>
+                            onClick={() => setDeleteRule(r)}>{t('ui.suspensionRuleList.delete')}</button>
                         )}
                       </td>
                     </tr>
@@ -355,11 +359,11 @@ export function SuspensionRuleList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.suspensionRuleList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.suspensionRuleList.page')}{page} {t('ui.suspensionRuleList.of')}{totalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                  Next →
+                  {t('ui.suspensionRuleList.next')}
                 </button>
               </div>
             )}

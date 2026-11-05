@@ -321,12 +321,12 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `Edit NAS #${nas.id}` : 'New NAS'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.nasList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.nasList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
@@ -386,7 +386,7 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
           )}
 
           <label style={modalStyles.label}>
-            IPv6 Address
+            {t('ui.nasList.ipv6Address')}
             <input
               style={modalStyles.input}
               type="text"
@@ -397,7 +397,7 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            RADIUS Shared Secret {!isEdit && <RequiredMark />}
+            {t('ui.nasList.radiusSharedSecret')}{!isEdit && <RequiredMark />}
             <input
               style={modalStyles.input}
               type="password"
@@ -410,19 +410,19 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Type
+            {t('ui.nasList.type')}
             <input
               style={modalStyles.input}
               type="text"
               maxLength={50}
               value={form.type}
               onChange={e => setField('type', e.target.value)}
-              placeholder="e.g. mikrotik, cisco, ubiquiti"
+              placeholder={t('ui.nasList.eGMikrotikCiscoUbiquiti')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Ports
+            {t('ui.nasList.ports')}
             <input
               style={modalStyles.input}
               type="number"
@@ -433,7 +433,7 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            CoA Port
+            {t('ui.nasList.coaPort')}
             <input
               style={modalStyles.input}
               type="number"
@@ -441,36 +441,36 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
               max={65535}
               value={form.coa_port}
               onChange={e => setField('coa_port', e.target.value)}
-              aria-label="CoA Port"
+              aria-label={t('ui.nasList.coaPort')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Location
+            {t('ui.nasList.location')}
             <input
               style={modalStyles.input}
               type="text"
               maxLength={200}
               value={form.location}
               onChange={e => setField('location', e.target.value)}
-              aria-label="Location"
+              aria-label={t('ui.nasList.location')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Failover NAS ID
+            {t('ui.nasList.failoverNasId')}
             <input
               style={modalStyles.input}
               type="number"
               min={1}
               value={form.secondary_nas_id}
               onChange={e => setField('secondary_nas_id', e.target.value)}
-              aria-label="Failover NAS ID"
+              aria-label={t('ui.nasList.failoverNasId')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Description
+            {t('ui.nasList.description')}
             <textarea
               style={{ ...modalStyles.input, minHeight: 60, resize: 'vertical' }}
               maxLength={5000}
@@ -480,7 +480,7 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Status
+            {t('ui.nasList.status')}
             <select
               style={modalStyles.select}
               value={form.status}
@@ -509,7 +509,7 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            RouterOS API Port
+            {t('ui.nasList.routerosApiPort')}
             <input
               style={modalStyles.input}
               type="number"
@@ -518,12 +518,12 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
               value={form.api_port}
               onChange={e => setField('api_port', e.target.value)}
               placeholder="8728"
-              aria-label="RouterOS API Port"
+              aria-label={t('ui.nasList.routerosApiPort')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            RouterOS API Username
+            {t('ui.nasList.routerosApiUsername')}
             <input
               style={modalStyles.input}
               type="text"
@@ -535,14 +535,14 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            RouterOS API Password
+            {t('ui.nasList.routerosApiPassword')}
             <input
               style={modalStyles.input}
               type="password"
               maxLength={255}
               value={form.api_password}
               onChange={e => setField('api_password', e.target.value)}
-              placeholder="Leave blank to keep current"
+              placeholder={t('ui.nasList.leaveBlankToKeepCurrent')}
               autoComplete="new-password"
             />
           </label>
@@ -558,16 +558,16 @@ export function NasModal({ nas, onClose, onSaved, onCreated }: NasModalProps) {
                 // if it's still on the plain-API default (8728).
                 if (on && form.api_port === '8728') setField('api_port', '8729');
               }}
-              aria-label="Use TLS for RouterOS API"
+              aria-label={t('ui.nasList.useTlsForRouterosApi')}
             />
-            Use TLS for RouterOS API
+            {t('ui.nasList.useTlsForRouterosApi')}
           </label>
 
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.nasList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create NAS'}
@@ -590,18 +590,19 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.nasList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.nasList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.nasList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -647,6 +648,7 @@ function isIpAddress(v: string): boolean {
 }
 
 export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     // Prefill the VigaBSS hub's WireGuard tunnel IP (an IP literal, which RouterOS's
     // /radius `address` requires — a hostname trips a cryptic device error). Routing
@@ -765,8 +767,8 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
         aria-label={`Seed NAS ${nas.name}`}
       >
         <div style={modalStyles.header}>
-          <h2 style={modalStyles.title}>Seed NAS #{nas.id} — {nas.name}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <h2 style={modalStyles.title}>{t('ui.nasList.seedNas')}{nas.id} — {nas.name}</h2>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.nasList.close')}>✕</button>
         </div>
 
         {result ? (
@@ -797,22 +799,19 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
             </div>
             <div style={modalStyles.actions}>
               <button type="button" onClick={() => setResult(null)} style={styles.btnSecondary}>
-                Run again
+                {t('ui.nasList.runAgain')}
               </button>
-              <button type="button" onClick={onClose} style={styles.btnPrimary}>Done</button>
+              <button type="button" onClick={onClose} style={styles.btnPrimary}>{t('ui.nasList.done')}</button>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={modalStyles.form}>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              Pushes the VigaBSS RADIUS client, PPP AAA and CoA listener to this MikroTik over its
-              RouterOS API, plus optional fq-codel queue types, priority queues, a PPPoE server, a
-              walled garden and real-time/VoIP prioritisation. Idempotent — safe to re-run. The NAS
-              shared secret is used automatically.
+              {t('ui.nasList.pushesTheVigabssRadiusClient')}
             </p>
 
             <label style={modalStyles.label}>
-              VigaBSS RADIUS Address <RequiredMark />
+              {t('ui.nasList.vigabssRadiusAddress')}<RequiredMark />
               <input
                 style={modalStyles.input}
                 type="text"
@@ -823,120 +822,119 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
                 required
               />
               <span style={{ fontWeight: 400, fontSize: 12, color: '#6b7280' }}>
-                The IP the router uses to reach VigaBSS's RADIUS. Must be an IP address —
-                RouterOS's /radius does not accept a hostname.
+                {t('ui.nasList.theIpTheRouterUses')}
               </span>
             </label>
 
             <div style={{ display: 'flex', gap: 10 }}>
               <label style={{ ...modalStyles.label, flex: 1 }}>
-                Auth Port
+                {t('ui.nasList.authPort')}
                 <input style={modalStyles.input} type="number" min={1} max={65535}
-                  value={form.authPort} onChange={e => setField('authPort', e.target.value)} aria-label="Auth Port" />
+                  value={form.authPort} onChange={e => setField('authPort', e.target.value)} aria-label={t('ui.nasList.authPort')} />
               </label>
               <label style={{ ...modalStyles.label, flex: 1 }}>
-                Acct Port
+                {t('ui.nasList.acctPort')}
                 <input style={modalStyles.input} type="number" min={1} max={65535}
-                  value={form.acctPort} onChange={e => setField('acctPort', e.target.value)} aria-label="Accounting Port" />
+                  value={form.acctPort} onChange={e => setField('acctPort', e.target.value)} aria-label={t('ui.nasList.accountingPort')} />
               </label>
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
               <label style={{ ...modalStyles.label, flex: 1 }}>
-                CoA Port
+                {t('ui.nasList.coaPort')}
                 <input style={modalStyles.input} type="number" min={1} max={65535}
-                  value={form.coaPort} onChange={e => setField('coaPort', e.target.value)} aria-label="CoA Port" />
+                  value={form.coaPort} onChange={e => setField('coaPort', e.target.value)} aria-label={t('ui.nasList.coaPort')} />
               </label>
               <label style={{ ...modalStyles.label, flex: 1 }}>
-                Interim-Update
+                {t('ui.nasList.interimUpdate')}
                 <input style={modalStyles.input} type="text" maxLength={16}
                   value={form.interimUpdate} onChange={e => setField('interimUpdate', e.target.value)}
-                  placeholder="5m" aria-label="Interim Update" />
+                  placeholder="5m" aria-label={t('ui.nasList.interimUpdate2')} />
               </label>
             </div>
 
             <label style={{ ...modalStyles.label, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={form.seedQueueTypes}
-                onChange={e => setField('seedQueueTypes', e.target.checked)} aria-label="Seed fq-codel queue types" />
-              Enable fq-codel queue types (bufferbloat prevention)
+                onChange={e => setField('seedQueueTypes', e.target.checked)} aria-label={t('ui.nasList.seedFqCodelQueueTypes')} />
+              {t('ui.nasList.enableFqCodelQueueTypes')}
             </label>
 
             <label style={{ ...modalStyles.label, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={form.seedQueueTree}
-                onChange={e => setField('seedQueueTree', e.target.checked)} aria-label="Seed queue tree" />
-              Seed global queue-tree skeleton
+                onChange={e => setField('seedQueueTree', e.target.checked)} aria-label={t('ui.nasList.seedQueueTree')} />
+              {t('ui.nasList.seedGlobalQueueTreeSkeleton')}
             </label>
             {form.seedQueueTree && (
               <label style={{ ...modalStyles.label }}>
-                Queue-tree Parent
+                {t('ui.nasList.queueTreeParent')}
                 <input style={modalStyles.input} type="text" maxLength={64}
                   value={form.queueParent} onChange={e => setField('queueParent', e.target.value)}
-                  placeholder="global" aria-label="Queue parent" />
+                  placeholder={t('ui.nasList.global')} aria-label={t('ui.nasList.queueParent')} />
               </label>
             )}
 
             <label style={{ ...modalStyles.label, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={form.seedPriorityQueues}
-                onChange={e => setField('seedPriorityQueues', e.target.checked)} aria-label="Seed priority queues" />
-              Seed Business / Residential priority queues
+                onChange={e => setField('seedPriorityQueues', e.target.checked)} aria-label={t('ui.nasList.seedPriorityQueues')} />
+              {t('ui.nasList.seedBusinessResidentialPriorityQueues')}
             </label>
 
             {(form.seedQueueTree || form.seedPriorityQueues) && (
               <div style={{ display: 'flex', gap: 10 }}>
                 <label style={{ ...modalStyles.label, flex: 1 }}>
-                  POP Total Down (Mbps)
+                  {t('ui.nasList.popTotalDownMbps')}
                   <input style={modalStyles.input} type="number" min={0}
                     value={form.totalDownloadMbps} onChange={e => setField('totalDownloadMbps', e.target.value)}
-                    aria-label="Total download Mbps" />
+                    aria-label={t('ui.nasList.totalDownloadMbps')} />
                 </label>
                 <label style={{ ...modalStyles.label, flex: 1 }}>
-                  POP Total Up (Mbps)
+                  {t('ui.nasList.popTotalUpMbps')}
                   <input style={modalStyles.input} type="number" min={0}
                     value={form.totalUploadMbps} onChange={e => setField('totalUploadMbps', e.target.value)}
-                    aria-label="Total upload Mbps" />
+                    aria-label={t('ui.nasList.totalUploadMbps')} />
                 </label>
               </div>
             )}
 
             <label style={{ ...modalStyles.label, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={form.seedPppoeServer}
-                onChange={e => setField('seedPppoeServer', e.target.checked)} aria-label="Seed PPPoE server" />
-              Seed PPPoE server + base profile
+                onChange={e => setField('seedPppoeServer', e.target.checked)} aria-label={t('ui.nasList.seedPppoeServer')} />
+              {t('ui.nasList.seedPppoeServerBaseProfile')}
             </label>
             {form.seedPppoeServer && (
               <>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    Interface <RequiredMark />
+                    {t('ui.nasList.interface')}<RequiredMark />
                     <input style={modalStyles.input} type="text" maxLength={64}
                       value={form.pppoeInterface} onChange={e => setField('pppoeInterface', e.target.value)}
-                      placeholder="ether2" aria-label="PPPoE interface" />
+                      placeholder={t('ui.nasList.ether2')} aria-label={t('ui.nasList.pppoeInterface')} />
                   </label>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    Service Name
+                    {t('ui.nasList.serviceName')}
                     <input style={modalStyles.input} type="text" maxLength={64}
                       value={form.pppoeServiceName} onChange={e => setField('pppoeServiceName', e.target.value)}
-                      placeholder="VigaBSS-Internet" aria-label="PPPoE service name" />
+                      placeholder={t('ui.nasList.vigabssInternet')} aria-label={t('ui.nasList.pppoeServiceName')} />
                   </label>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    Profile Name
+                    {t('ui.nasList.profileName')}
                     <input style={modalStyles.input} type="text" maxLength={64}
                       value={form.pppoeProfileName} onChange={e => setField('pppoeProfileName', e.target.value)}
-                      placeholder="fireisp-pppoe" aria-label="PPPoE profile name" />
+                      placeholder={t('ui.nasList.fireispPppoe')} aria-label={t('ui.nasList.pppoeProfileName')} />
                   </label>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    Local Address
+                    {t('ui.nasList.localAddress')}
                     <input style={modalStyles.input} type="text" maxLength={45}
                       value={form.pppoeLocalAddress} onChange={e => setField('pppoeLocalAddress', e.target.value)}
-                      placeholder="10.0.0.1 (gateway)" aria-label="PPPoE local address" />
+                      placeholder={t('ui.nasList.t10001Gateway')} aria-label={t('ui.nasList.pppoeLocalAddress')} />
                   </label>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    Parent Queue
+                    {t('ui.nasList.parentQueue')}
                     <input style={modalStyles.input} type="text" maxLength={64}
                       value={form.pppoeParentQueue} onChange={e => setField('pppoeParentQueue', e.target.value)}
-                      placeholder={form.seedPriorityQueues ? '01-GLOBAL-POP-LIMIT' : '(none)'} aria-label="PPPoE parent queue" />
+                      placeholder={form.seedPriorityQueues ? '01-GLOBAL-POP-LIMIT' : '(none)'} aria-label={t('ui.nasList.pppoeParentQueue')} />
                   </label>
                 </div>
               </>
@@ -944,49 +942,49 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
 
             <label style={{ ...modalStyles.label, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={form.seedWalledGarden}
-                onChange={e => setField('seedWalledGarden', e.target.checked)} aria-label="Seed walled garden" />
-              Seed suspended-user walled garden
+                onChange={e => setField('seedWalledGarden', e.target.checked)} aria-label={t('ui.nasList.seedWalledGarden')} />
+              {t('ui.nasList.seedSuspendedUserWalledGarden')}
             </label>
             {form.seedWalledGarden && (
               <>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    Suspended Address-List
+                    {t('ui.nasList.suspendedAddressList')}
                     <input style={modalStyles.input} type="text" maxLength={64}
                       value={form.suspendedListName} onChange={e => setField('suspendedListName', e.target.value)}
-                      placeholder="fireisp-suspended" aria-label="Suspended address list" />
+                      placeholder={t('ui.nasList.fireispSuspended')} aria-label={t('ui.nasList.suspendedAddressList2')} />
                   </label>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    Portal Address (optional)
+                    {t('ui.nasList.portalAddressOptional')}
                     <input style={modalStyles.input} type="text" maxLength={255}
                       value={form.portalAddress} onChange={e => setField('portalAddress', e.target.value)}
-                      placeholder="redirect target IP" aria-label="Portal address" />
+                      placeholder={t('ui.nasList.redirectTargetIp')} aria-label={t('ui.nasList.portalAddress')} />
                   </label>
                 </div>
                 {form.portalAddress && (
                   <>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <label style={{ ...modalStyles.label, flex: 1 }}>
-                        Redirect Ports
+                        {t('ui.nasList.redirectPorts')}
                         <input style={modalStyles.input} type="text" maxLength={64}
                           value={form.redirectPorts} onChange={e => setField('redirectPorts', e.target.value)}
-                          placeholder="80,443" aria-label="Redirect ports" />
+                          placeholder="80,443" aria-label={t('ui.nasList.redirectPorts2')} />
                       </label>
                       <label style={{ ...modalStyles.label, flex: 1 }}>
-                        Portal Listen Port
+                        {t('ui.nasList.portalListenPort')}
                         <input style={modalStyles.input} type="number" min={1} max={65535}
                           value={form.redirectToPort} onChange={e => setField('redirectToPort', e.target.value)}
-                          placeholder="80" aria-label="Portal listen port" />
+                          placeholder="80" aria-label={t('ui.nasList.portalListenPort2')} />
                       </label>
                     </div>
                     <label style={{ ...modalStyles.label, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <input type="checkbox" checked={form.redirectEnabled}
-                        onChange={e => setField('redirectEnabled', e.target.checked)} aria-label="Enable redirect on create" />
-                      Lay the redirect down enabled (permanent). Uncheck to create it disabled for manual ordering.
+                        onChange={e => setField('redirectEnabled', e.target.checked)} aria-label={t('ui.nasList.enableRedirectOnCreate')} />
+                      {t('ui.nasList.layTheRedirectDownEnabled')}
                     </label>
                     {form.redirectEnabled && form.redirectPorts.includes('443') && (
                       <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Note: redirecting 443 to a plaintext portal triggers a browser TLS warning before the portal loads.
+                        {t('ui.nasList.noteRedirecting443ToA')}
                       </p>
                     )}
                   </>
@@ -996,47 +994,46 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
 
             <label style={{ ...modalStyles.label, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={form.seedRealtimePriority}
-                onChange={e => setField('seedRealtimePriority', e.target.checked)} aria-label="Seed realtime priority" />
-              Prioritise real-time / VoIP & calling traffic
+                onChange={e => setField('seedRealtimePriority', e.target.checked)} aria-label={t('ui.nasList.seedRealtimePriority')} />
+              {t('ui.nasList.prioritiseRealTimeVoipCalling')}
             </label>
             {form.seedRealtimePriority && (
               <>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    SIP/RTP Ports (UDP)
+                    {t('ui.nasList.sipRtpPortsUdp')}
                     <input style={modalStyles.input} type="text" maxLength={128}
                       value={form.sipRtpPorts} onChange={e => setField('sipRtpPorts', e.target.value)}
-                      placeholder="5060,5061,10000-20000" aria-label="SIP RTP ports" />
+                      placeholder="5060,5061,10000-20000" aria-label={t('ui.nasList.sipRtpPorts')} />
                   </label>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    Realtime Queue Parent
+                    {t('ui.nasList.realtimeQueueParent')}
                     <input style={modalStyles.input} type="text" maxLength={64}
                       value={form.realtimeParent} onChange={e => setField('realtimeParent', e.target.value)}
-                      placeholder="global" aria-label="Realtime queue parent" />
+                      placeholder={t('ui.nasList.global')} aria-label={t('ui.nasList.realtimeQueueParent2')} />
                   </label>
                   <label style={{ ...modalStyles.label, flex: 1 }}>
-                    Cap (Mbps, optional)
+                    {t('ui.nasList.capMbpsOptional')}
                     <input style={modalStyles.input} type="number" min={0}
                       value={form.realtimeMaxMbps} onChange={e => setField('realtimeMaxMbps', e.target.value)}
-                      aria-label="Realtime cap Mbps" />
+                      aria-label={t('ui.nasList.realtimeCapMbps')} />
                   </label>
                 </div>
                 <label style={{ ...modalStyles.label }}>
-                  OTT Provider Networks (fireisp-voip list)
+                  {t('ui.nasList.ottProviderNetworksFireispVoip')}
                   <textarea style={{ ...modalStyles.input, minHeight: 44, fontFamily: 'monospace' }}
                     maxLength={2000}
                     value={form.voipNetworks} onChange={e => setField('voipNetworks', e.target.value)}
-                    placeholder="CIDRs for WhatsApp/Meet/Zoom media, e.g. 157.240.0.0/16, 142.250.0.0/15"
-                    aria-label="VoIP networks" />
+                    placeholder={t('ui.nasList.cidrsForWhatsappMeetZoom')}
+                    aria-label={t('ui.nasList.voipNetworks')} />
                 </label>
                 <label style={{ ...modalStyles.label, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <input type="checkbox" checked={form.trustClientDscp}
-                    onChange={e => setField('trustClientDscp', e.target.checked)} aria-label="Trust client DSCP" />
-                  Trust client-set DSCP EF (spoofable — recommend setting a cap above)
+                    onChange={e => setField('trustClientDscp', e.target.checked)} aria-label={t('ui.nasList.trustClientDscp')} />
+                  {t('ui.nasList.trustClientSetDscpEf')}
                 </label>
                 <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  SIP/RTP is matched by port; encrypted OTT calls (WhatsApp, FaceTime, Meet) can only be matched by
-                  the provider address-list above. fq-codel queue types are the foundation — enable them too.
+                  {t('ui.nasList.sipRtpIsMatchedBy')}
                 </p>
               </>
             )}
@@ -1045,7 +1042,7 @@ export function SeedModal({ nas, onClose, defaultRadiusAddress }: SeedModalProps
 
             <div style={modalStyles.actions}>
               <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-                Cancel
+                {t('ui.nasList.cancel')}
               </button>
               <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
                 {mutation.isPending ? 'Seeding...' : 'Seed Device'}
@@ -1091,15 +1088,15 @@ export function NasList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>NAS Devices</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.nasList.nasDevices')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.nasList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New NAS
+          {t('ui.nasList.newNas')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.nasList.status2')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -1111,7 +1108,7 @@ export function NasList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.nasList.clearFilter')}
           </button>
         )}
       </div>
@@ -1120,9 +1117,9 @@ export function NasList() {
         {nasQ.isLoading ? (
           <LoadingState />
         ) : nasQ.error ? (
-          <p style={styles.msgError}>Failed to load NAS devices.</p>
+          <p style={styles.msgError}>{t('ui.nasList.failedToLoadNasDevices')}</p>
         ) : devices.length === 0 ? (
-          <p style={styles.msg}>No NAS devices found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.nasList.noNasDevicesFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -1172,9 +1169,9 @@ export function NasList() {
                         <Link
                           to={`/nas/${n.id}`}
                           style={{ ...styles.actionBtn, textDecoration: 'none', display: 'inline-block' }}
-                          title="Open this NAS to test, seed, configure WireGuard, refresh VoIP, edit or delete"
+                          title={t('ui.nasList.openThisNasToTest')}
                         >
-                          Manage →
+                          {t('ui.nasList.manage')}
                         </Link>
                       </td>
                     </tr>

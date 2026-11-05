@@ -227,7 +227,7 @@ function LifecycleTab() {
             <div>
               <label style={styles.label}>{t('cpeInventory.lifecycle.toState')} <RequiredMark /></label>
               <select style={styles.input} value={toState} onChange={e => setToState(e.target.value)}>
-                <option value="">— select —</option>
+                <option value="">{t('ui.cpeInventoryPage.select')}</option>
                 {LIFECYCLE_STATES.map(s => (
                   <option key={s} value={s}>{t(`cpeInventory.lifecycle.states.${s}`)}</option>
                 ))}
@@ -365,7 +365,7 @@ function SubscriberTab() {
           <div style={{ marginBottom: 12 }}>
             <strong>{t('cpeInventory.subscribers.current')}:</strong>{' '}
             {device.subscriber_id ? (
-              <span>#{device.subscriber_id} (linked {device.subscriber_linked_at ? new Date(device.subscriber_linked_at).toLocaleDateString() : ''})</span>
+              <span>#{device.subscriber_id} {t('ui.cpeInventoryPage.linked')}{device.subscriber_linked_at ? new Date(device.subscriber_linked_at).toLocaleDateString() : ''})</span>
             ) : (
               <span style={{ color: '#9ca3af' }}>{t('cpeInventory.subscribers.notLinked')}</span>
             )}
@@ -377,7 +377,7 @@ function SubscriberTab() {
                 style={{ ...styles.input, width: 140 }}
                 type="number"
                 min={1}
-                placeholder="Client ID"
+                placeholder={t('ui.cpeInventoryPage.clientId')}
                 value={subscriberId}
                 onChange={e => setSubscriberId(e.target.value)}
               />
@@ -469,7 +469,7 @@ function SwapTab() {
             value={oldDeviceId}
             onChange={e => setOldDeviceId(e.target.value)}
           >
-            <option value="">— select active/assigned device —</option>
+            <option value="">{t('ui.cpeInventoryPage.selectActiveAssignedDevice')}</option>
             {activeDevices.map(d => (
               <option key={d.id} value={d.id}>
                 #{d.id} — {d.serial_number} [{d.lifecycle_state}]
@@ -485,7 +485,7 @@ function SwapTab() {
             value={newDeviceId}
             onChange={e => setNewDeviceId(e.target.value)}
           >
-            <option value="">— select in-stock device —</option>
+            <option value="">{t('ui.cpeInventoryPage.selectInStockDevice')}</option>
             {stockDevices.map(d => (
               <option key={d.id} value={d.id}>
                 #{d.id} — {d.serial_number}{d.manufacturer ? ` (${d.manufacturer})` : ''}
@@ -499,7 +499,7 @@ function SwapTab() {
             style={{ ...styles.input, width: '100%' }}
             value={swapReason}
             onChange={e => setSwapReason(e.target.value)}
-            placeholder="CPE swap"
+            placeholder={t('ui.cpeInventoryPage.cpeSwap')}
           />
         </div>
         <button

@@ -1099,6 +1099,7 @@ async function sendWithFailover(nas, code, username, extraAttributes = []) {
 
 module.exports = {
   ENFORCED_RULE_ACTIONS,
+  planRateAttributes,
   evaluateRules,
   findOverdueContracts,
   rulePlanIds,

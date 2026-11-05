@@ -326,7 +326,7 @@ export function ProfecoComplaints() {
                   style={styles.input}
                   value={form.folio_profeco ?? ''}
                   onChange={e => setForm(f => ({ ...f, folio_profeco: e.target.value }))}
-                  placeholder="CONCILIANET-2026-XXXX"
+                  placeholder={t('ui.profecoComplaints.concilianet2026Xxxx')}
                 />
               </div>
 

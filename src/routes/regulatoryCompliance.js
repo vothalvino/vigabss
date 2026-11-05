@@ -372,10 +372,11 @@ router.put('/dsar-requests/:id/fulfill', requirePermission('dsar_requests.manage
     const { id } = req.params;
     const { notes } = req.body;
 
-    await db.query(
+    const [result] = await db.query(
       'UPDATE dsar_requests SET status = \'fulfilled\', fulfilled_at = NOW(), fulfilled_by = ?, notes = ? WHERE id = ? AND organization_id = ?',
       [req.user.id, notes || null, id, req.orgId],
     );
+    if (!result.affectedRows) throw new NotFoundError('DSAR request');
 
     res.json({ success: true });
   } catch (err) {
@@ -388,10 +389,11 @@ router.put('/dsar-requests/:id/reject', requirePermission('dsar_requests.manage'
     const { id } = req.params;
     const { notes } = req.body;
 
-    await db.query(
+    const [result] = await db.query(
       'UPDATE dsar_requests SET status = \'rejected\', notes = ? WHERE id = ? AND organization_id = ?',
       [notes || null, id, req.orgId],
     );
+    if (!result.affectedRows) throw new NotFoundError('DSAR request');
 
     res.json({ success: true });
   } catch (err) {

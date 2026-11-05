@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, capitalize, fmtDate } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,6 +74,7 @@ function fmtPeriod(start: string | null, end: string | null): string {
 // ---------------------------------------------------------------------------
 
 export function RegulatoryFilingList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
 
@@ -93,29 +95,29 @@ export function RegulatoryFilingList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🏛️ Regulatory Filings</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.regulatoryFilingList.regulatoryFilings')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.regulatoryFilingList.total')}</span>}
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.regulatoryFilingList.status')}</label>
         <select
           style={styles.filterSelect}
           value={status}
           onChange={e => setStatusFilter(e.target.value)}
         >
-          <option value="">All</option>
+          <option value="">{t('ui.regulatoryFilingList.all')}</option>
           {STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
         </select>
       </div>
 
       <div style={styles.tableCard}>
         {filingsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.regulatoryFilingList.loading')}</p>
         ) : filingsQ.error ? (
-          <p style={styles.msgError}>Failed to load regulatory filings.</p>
+          <p style={styles.msgError}>{t('ui.regulatoryFilingList.failedToLoadRegulatoryFilings')}</p>
         ) : filings.length === 0 ? (
-          <p style={styles.msg}>No regulatory filings found{status ? ' for the selected status' : ''}.</p>
+          <p style={styles.msg}>{t('ui.regulatoryFilingList.noRegulatoryFilingsFound')}{status ? ' for the selected status' : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -148,15 +150,15 @@ export function RegulatoryFilingList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.regulatoryFilingList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.regulatoryFilingList.page')}{page} {t('ui.regulatoryFilingList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.regulatoryFilingList.next')}
                 </button>
               </div>
             )}

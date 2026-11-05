@@ -8,6 +8,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 const { createSchedule, updateSchedule } = require('../middleware/schemas/configBackupSchedules');
 const { NotFoundError } = require('../utils/errors');
 
@@ -33,7 +34,7 @@ router.get('/', requirePermission('config_backup_schedules.view'), async (req, r
   } catch (err) { next(err); }
 });
 
-router.post('/', requirePermission('config_backup_schedules.create'), validate(createSchedule, { strip: false }), async (req, res, next) => {
+router.post('/', requirePermission('config_backup_schedules.create'), validate(createSchedule, { strip: false }), ownedReferences({ device_id: 'devices' }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { schedule_name, device_id, cron_expression, is_enabled } = req.body;
@@ -47,7 +48,7 @@ router.post('/', requirePermission('config_backup_schedules.create'), validate(c
   } catch (err) { next(err); }
 });
 
-router.put('/:id', requirePermission('config_backup_schedules.update'), validate(updateSchedule, { strip: false }), async (req, res, next) => {
+router.put('/:id', requirePermission('config_backup_schedules.update'), validate(updateSchedule, { strip: false }), ownedReferences({ device_id: 'devices' }), async (req, res, next) => {
   try {
     const orgId = req.orgId;
     const { id } = req.params;

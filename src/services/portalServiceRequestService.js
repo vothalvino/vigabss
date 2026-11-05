@@ -11,10 +11,9 @@
 // =============================================================================
 
 const crypto = require('crypto');
-const { businessToday } = require('../utils/businessDate');
 const db = require('../config/database');
 const billingService = require('./billingService');
-const creditNoteLedgerService = require('./creditNoteLedgerService');
+const { issueProrationCreditNote } = require('./planChangeProrationService');
 
 const { calculateProration } = billingService;
 const { NotFoundError, ValidationError } = require('../utils/errors');
@@ -588,7 +587,10 @@ async function approvePlanUpgrade(req, payload, organizationId, approvedByUserId
         description, amount: net, conn,
       });
     } else if (net < 0) {
-      creditNoteId = await issueProrationCreditNote(exec, req, organizationId, -net, description, approvedByUserId);
+      creditNoteId = await issueProrationCreditNote(exec, {
+        organizationId, clientId: req.client_id, contractId: req.contract_id, number: `PCN-${req.id}`,
+        amount: -net, description, createdBy: approvedByUserId,
+      });
     }
 
     await conn.commit();
@@ -600,34 +602,13 @@ async function approvePlanUpgrade(req, payload, organizationId, approvedByUserId
   }
 
   if (invoice) await require('./businessEvents').emitInvoiceCreated(organizationId, invoice);
+  if (req.contract_id && payload.new_plan_id) {
+    await require('./contractPlanChangeService').pushPlanChange(req.contract_id, organizationId);
+  }
   logger.info({
     requestId: req.id, contractId: req.contract_id, newPlanId: payload.new_plan_id,
     prorationNet: net, invoiceId: invoice?.id ?? null, creditNoteId,
   }, 'Plan upgrade applied via portal request');
-}
-
-/** An issued credit note for a downgrade's unused days, posted to the ledger. */
-async function issueProrationCreditNote(exec, req, organizationId, amount, description, createdBy) {
-  const tax = await billingService.resolveTaxContext(exec, { orgId: organizationId, clientId: req.client_id });
-  const subtotal = Math.round(amount * 100) / 100;
-  const taxAmount = Math.round(subtotal * tax.rate * 100) / 100;
-  const total = Math.round((subtotal + taxAmount) * 100) / 100;
-  const currency = await require('../models/Organization').getCurrency(organizationId);
-  const number = `PCN-${req.id}`;
-
-  const [result] = await exec(
-    `INSERT INTO credit_notes
-       (organization_id, client_id, contract_id, credit_note_number, issue_date, reason,
-        subtotal, tax_rate, tax_amount, total, currency, tax_rate_id, notes, status, created_by)
-     VALUES (?, ?, ?, ?, ?, 'other', ?, ?, ?, ?, ?, ?, ?, 'issued', ?)`,
-    [organizationId, req.client_id, req.contract_id || null, number, businessToday(), subtotal, tax.rate, taxAmount,
-      total, currency, tax.taxRateId || null, description, createdBy || null],
-  );
-  await creditNoteLedgerService.syncCreditNoteLedger(exec, {
-    id: result.insertId, client_id: req.client_id, credit_note_number: number,
-    total, currency, status: 'issued',
-  }, organizationId);
-  return result.insertId;
 }
 
 /**

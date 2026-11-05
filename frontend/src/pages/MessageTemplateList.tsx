@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -116,6 +117,7 @@ interface TemplateModalProps {
 }
 
 function TemplateModal({ template, onClose, onSaved }: TemplateModalProps) {
+  const { t } = useTranslation();
   const isEdit = template !== null;
   const [form, setForm] = useState({
     name: template?.name ?? '',
@@ -173,25 +175,25 @@ function TemplateModal({ template, onClose, onSaved }: TemplateModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit Template #${template.id}` : '✉️ New Template'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.messageTemplateList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.messageTemplateList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={200}
               value={form.name}
               onChange={e => setField('name', e.target.value)}
-              placeholder='e.g. "invoice_reminder", "welcome_email"'
+              placeholder={t('ui.messageTemplateList.eGInvoiceReminderWelcome')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Channel <RequiredMark />
+            {t('ui.messageTemplateList.channel')}<RequiredMark />
             <select
               style={modalStyles.select}
               value={form.channel}
@@ -202,19 +204,19 @@ function TemplateModal({ template, onClose, onSaved }: TemplateModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Subject
+            {t('ui.messageTemplateList.subject')}
             <input
               style={modalStyles.input}
               type="text"
               maxLength={500}
               value={form.subject}
               onChange={e => setField('subject', e.target.value)}
-              placeholder="Email subject (leave blank for SMS / WhatsApp)"
+              placeholder={t('ui.messageTemplateList.emailSubjectLeaveBlankFor')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Body <RequiredMark /> <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(use {'{{variable}}'} placeholders)</span>
+            {t('ui.messageTemplateList.body')}<RequiredMark /> <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{t('ui.messageTemplateList.use')}{'{{variable}}'} {t('ui.messageTemplateList.placeholders')}</span>
             <textarea
               style={{ ...modalStyles.input, minHeight: 140, resize: 'vertical' }}
               value={form.body}
@@ -224,14 +226,14 @@ function TemplateModal({ template, onClose, onSaved }: TemplateModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Variables (comma-separated list)
+            {t('ui.messageTemplateList.variablesCommaSeparatedList')}
             <input
               style={modalStyles.input}
               type="text"
               maxLength={2000}
               value={form.variables}
               onChange={e => setField('variables', e.target.value)}
-              placeholder="e.g. client_name, invoice_total"
+              placeholder={t('ui.messageTemplateList.eGClientNameInvoice')}
             />
           </label>
 
@@ -239,7 +241,7 @@ function TemplateModal({ template, onClose, onSaved }: TemplateModalProps) {
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.messageTemplateList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Template'}
@@ -262,18 +264,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.messageTemplateList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.messageTemplateList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.messageTemplateList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -285,6 +288,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function MessageTemplateList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [channelFilter, setChannelFilter] = useState('');
@@ -317,15 +321,15 @@ export function MessageTemplateList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>✉️ Message Templates</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.messageTemplateList.messageTemplates')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.messageTemplateList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New Template
+          {t('ui.messageTemplateList.newTemplate')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Channel:</label>
+        <label style={styles.filterLabel}>{t('ui.messageTemplateList.channel2')}</label>
         <select
           style={styles.filterSelect}
           value={channelFilter}
@@ -337,24 +341,24 @@ export function MessageTemplateList() {
         </select>
         {channelFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.messageTemplateList.clearFilter')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.messageTemplateList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {templatesQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.messageTemplateList.loading')}</p>
         ) : templatesQ.error ? (
-          <p style={styles.msgError}>Failed to load message templates.</p>
+          <p style={styles.msgError}>{t('ui.messageTemplateList.failedToLoadMessageTemplates')}</p>
         ) : templates.length === 0 ? (
-          <p style={styles.msg}>No templates found{channelFilter ? ` for channel "${channelFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.messageTemplateList.noTemplatesFound')}{channelFilter ? ` for channel "${channelFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -367,24 +371,24 @@ export function MessageTemplateList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {templates.map(t => (
-                    <tr key={t.id} style={styles.tr}>
-                      <td style={styles.td}>#{t.id}</td>
-                      <td style={{ ...styles.td, fontWeight: 500 }}>{t.name}</td>
-                      <td style={styles.td}><ChannelBadge channel={t.channel} /></td>
+                  {templates.map(tpl => (
+                    <tr key={tpl.id} style={styles.tr}>
+                      <td style={styles.td}>#{tpl.id}</td>
+                      <td style={{ ...styles.td, fontWeight: 500 }}>{tpl.name}</td>
+                      <td style={styles.td}><ChannelBadge channel={tpl.channel} /></td>
                       <td style={{ ...styles.td, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t.subject || '—'}
+                        {tpl.subject || '—'}
                       </td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <button style={styles.actionBtn} onClick={() => setEditTemplate(t)} title="Edit this template">
-                          ✏️ Edit
+                        <button style={styles.actionBtn} onClick={() => setEditTemplate(tpl)} title={t('ui.messageTemplateList.editThisTemplate')}>
+                          {t('ui.messageTemplateList.edit')}
                         </button>
                         <button
                           style={{ ...styles.actionBtn, color: '#991b1b' }}
-                          onClick={() => setDeleteId(t.id)}
-                          title="Delete this template"
+                          onClick={() => setDeleteId(tpl.id)}
+                          title={t('ui.messageTemplateList.deleteThisTemplate')}
                         >
-                          🗑 Delete
+                          {t('ui.messageTemplateList.delete')}
                         </button>
                       </td>
                     </tr>
@@ -396,15 +400,15 @@ export function MessageTemplateList() {
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.messageTemplateList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.messageTemplateList.page')}{page} {t('ui.messageTemplateList.of')}{meta.totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                 >
-                  Next →
+                  {t('ui.messageTemplateList.next')}
                 </button>
               </div>
             )}

@@ -6,15 +6,17 @@
 
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { usePortalAuth } from '@/auth/PortalAuthContext';
+import { useTranslation } from 'react-i18next';
 
 export function PortalRoute() {
+  const { t } = useTranslation();
   const { client, loading, initialized } = usePortalAuth();
   const location = useLocation();
 
   if (loading || !initialized) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'sans-serif', color: '#555' }}>
-        Loading…
+        {t('ui.portalRoute.loading')}
       </div>
     );
   }

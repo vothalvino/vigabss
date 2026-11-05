@@ -106,7 +106,7 @@ export function PortalTicketDetail() {
             <p style={styles.meta}>
               #{ticket.id} · {t('portalTicketDetail.priority', { priority: t(`portalCommon.ticketPriority.${ticket.priority}`, { defaultValue: ticket.priority }) })}
               {ticket.category ? ` · ${ticket.category}` : ''}
-              &nbsp;· {t('portalTicketDetail.opened', { date: ticket.created_at.slice(0, 10) })}
+              {t('ui.portalTicketDetail.text')}{t('portalTicketDetail.opened', { date: ticket.created_at.slice(0, 10) })}
             </p>
           </div>
           <span style={{ ...styles.badge, ...(STATUS_COLORS[ticket.status] ?? {}) }}>

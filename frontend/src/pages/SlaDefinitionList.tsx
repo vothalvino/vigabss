@@ -13,6 +13,7 @@ import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -122,6 +123,7 @@ interface SlaModalProps {
 }
 
 function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
+  const { t } = useTranslation();
   const isEdit = sla !== null;
   const [form, setForm] = useState({
     plan_id: sla?.plan_id != null ? String(sla.plan_id) : '',
@@ -191,38 +193,38 @@ function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit SLA #${sla.id}` : '📐 New SLA'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.slaDefinitionList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.slaDefinitionList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={255}
               value={form.name}
               onChange={e => setField('name', e.target.value)}
-              placeholder='e.g. "Gold SLA", "Enterprise 99.99%"'
+              placeholder={t('ui.slaDefinitionList.eGGoldSlaEnterprise')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Plan <RequiredMark />
+            {t('ui.slaDefinitionList.plan')}<RequiredMark />
             <select
               style={modalStyles.select}
               value={form.plan_id}
               onChange={e => setField('plan_id', e.target.value)}
               required
             >
-              <option value="">— Select a plan —</option>
+              <option value="">{t('ui.slaDefinitionList.selectAPlan')}</option>
               {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </label>
 
           <label style={modalStyles.label}>
-            Guaranteed uptime (%)
+            {t('ui.slaDefinitionList.guaranteedUptime')}
             <input
               style={modalStyles.input}
               type="number"
@@ -235,7 +237,7 @@ function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Max response (minutes)
+            {t('ui.slaDefinitionList.maxResponseMinutes')}
             <input
               style={modalStyles.input}
               type="number"
@@ -246,7 +248,7 @@ function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Max resolution (minutes)
+            {t('ui.slaDefinitionList.maxResolutionMinutes')}
             <input
               style={modalStyles.input}
               type="number"
@@ -257,7 +259,7 @@ function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Measurement period
+            {t('ui.slaDefinitionList.measurementPeriod')}
             <select
               style={modalStyles.select}
               value={form.measurement_period}
@@ -268,7 +270,7 @@ function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Compensation type
+            {t('ui.slaDefinitionList.compensationType')}
             <select
               style={modalStyles.select}
               value={form.compensation_type}
@@ -281,7 +283,7 @@ function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Compensation value
+            {t('ui.slaDefinitionList.compensationValue')}
             <input
               style={modalStyles.input}
               type="number"
@@ -293,7 +295,7 @@ function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Priority
+            {t('ui.slaDefinitionList.priority')}
             <select
               style={modalStyles.select}
               value={form.priority}
@@ -304,7 +306,7 @@ function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Status
+            {t('ui.slaDefinitionList.status')}
             <select
               style={modalStyles.select}
               value={form.status}
@@ -320,14 +322,14 @@ function SlaModal({ sla, plans, onClose, onSaved }: SlaModalProps) {
               checked={form.exclude_maintenance}
               onChange={e => setField('exclude_maintenance', e.target.checked)}
             />
-            Exclude planned maintenance from uptime
+            {t('ui.slaDefinitionList.excludePlannedMaintenanceFromUptime')}
           </label>
 
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.slaDefinitionList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create SLA'}
@@ -350,18 +352,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.slaDefinitionList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.slaDefinitionList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.slaDefinitionList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -373,6 +376,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function SlaDefinitionList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -412,15 +416,15 @@ export function SlaDefinitionList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📐 SLA Definitions</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.slaDefinitionList.slaDefinitions')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.slaDefinitionList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New SLA
+          {t('ui.slaDefinitionList.newSla')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.slaDefinitionList.status2')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -432,24 +436,24 @@ export function SlaDefinitionList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.slaDefinitionList.clearFilter')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.slaDefinitionList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {slasQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.slaDefinitionList.loading')}</p>
         ) : slasQ.error ? (
-          <p style={styles.msgError}>Failed to load SLA definitions.</p>
+          <p style={styles.msgError}>{t('ui.slaDefinitionList.failedToLoadSlaDefinitions')}</p>
         ) : slas.length === 0 ? (
-          <p style={styles.msg}>No SLA definitions found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.slaDefinitionList.noSlaDefinitionsFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -471,15 +475,15 @@ export function SlaDefinitionList() {
                       <td style={{ ...styles.td, textTransform: 'capitalize' }}>{s.priority}</td>
                       <td style={styles.td}><StatusBadge status={s.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <button style={styles.actionBtn} onClick={() => setEditSla(s)} title="Edit this SLA">
-                          ✏️ Edit
+                        <button style={styles.actionBtn} onClick={() => setEditSla(s)} title={t('ui.slaDefinitionList.editThisSla')}>
+                          {t('ui.slaDefinitionList.edit')}
                         </button>
                         <button
                           style={{ ...styles.actionBtn, color: '#991b1b' }}
                           onClick={() => setDeleteId(s.id)}
-                          title="Delete this SLA"
+                          title={t('ui.slaDefinitionList.deleteThisSla')}
                         >
-                          🗑 Delete
+                          {t('ui.slaDefinitionList.delete')}
                         </button>
                       </td>
                     </tr>
@@ -491,15 +495,15 @@ export function SlaDefinitionList() {
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.slaDefinitionList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.slaDefinitionList.page')}{page} {t('ui.slaDefinitionList.of')}{meta.totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                 >
-                  Next →
+                  {t('ui.slaDefinitionList.next')}
                 </button>
               </div>
             )}

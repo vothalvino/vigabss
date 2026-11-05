@@ -25,6 +25,7 @@ import {
 import { formatDate } from '@/lib/dates';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 import { formatMoney } from '@/lib/money';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // GraphQL query — fetches the payment + allocations + client in one request
@@ -173,23 +174,24 @@ function InfoRow({
 }
 
 function PaymentInfoCard({ payment }: { payment: Payment }) {
+  const { t } = useTranslation();
   return (
     <div style={styles.infoCard}>
       <div style={styles.infoGrid}>
         {payment.client && (
           <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Client</span>
+            <span style={styles.infoLabel}>{t('ui.paymentDetail.client')}</span>
             <Link to={`/clients/${payment.client.id}`} style={styles.infoLink}>
               {payment.client.name}
             </Link>
           </div>
         )}
-        <InfoRow label="Amount"     value={formatMoney(payment.amount, payment.currency)} />
-        <InfoRow label="Currency"   value={payment.currency} />
-        <InfoRow label="Method"     value={payment.paymentMethod} capitalize />
-        <InfoRow label="Reference"  value={payment.reference} mono />
-        <InfoRow label="Date"       value={fmt(payment.paymentDate || payment.createdAt)} />
-        <InfoRow label="Created"    value={fmt(payment.createdAt)} />
+        <InfoRow label={t('ui.paymentDetail.amount')}     value={formatMoney(payment.amount, payment.currency)} />
+        <InfoRow label={t('ui.paymentDetail.currency')}   value={payment.currency} />
+        <InfoRow label={t('ui.paymentDetail.method')}     value={payment.paymentMethod} capitalize />
+        <InfoRow label={t('ui.paymentDetail.reference')}  value={payment.reference} mono />
+        <InfoRow label={t('ui.paymentDetail.date')}       value={fmt(payment.paymentDate || payment.createdAt)} />
+        <InfoRow label={t('ui.paymentDetail.created')}    value={fmt(payment.createdAt)} />
       </div>
     </div>
   );
@@ -214,6 +216,7 @@ async function generateRep(paymentId: number, invoiceId: number): Promise<{ uuid
 }
 
 function AllocationsSection({ allocations, currency, paymentId, isMxOrg }: { allocations: PaymentAllocation[]; currency: string; paymentId: number; isMxOrg: boolean }) {
+  const { t } = useTranslation();
   // Per-row, severity-aware REP feedback — a shared banner couldn't tell WHICH
   // allocation succeeded/failed when a payment covers several invoices.
   const [repMsgs, setRepMsgs] = useState<Record<string, { ok: boolean; text: string }>>({});
@@ -226,7 +229,7 @@ function AllocationsSection({ allocations, currency, paymentId, isMxOrg }: { all
     onError: (err: Error, { invoiceId }) =>
       setRepMsgs(m => ({ ...m, [invoiceId]: { ok: false, text: err.message } })),
   });
-  if (!allocations.length) return <p style={styles.msg}>No invoice allocations for this payment.</p>;
+  if (!allocations.length) return <p style={styles.msg}>{t('ui.paymentDetail.noInvoiceAllocationsForThis')}</p>;
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
@@ -265,9 +268,9 @@ function AllocationsSection({ allocations, currency, paymentId, isMxOrg }: { all
                     onClick={() => repMutation.mutate({ invoiceId: Number(alloc.invoiceId) })}
                     disabled={repMutation.isPending}
                     style={{ background: 'transparent', border: '1px solid var(--border-strong, #d1d5db)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-secondary)' }}
-                    title="Generate the Complemento de Pago (REP) for this allocation — needs a vigente PPD CFDI on the invoice"
+                    title={t('ui.paymentDetail.generateTheComplementoDePago')}
                   >
-                    Generate REP
+                    {t('ui.paymentDetail.generateRep')}
                   </button>
                   {repMsgs[alloc.invoiceId] && (
                     <div style={{ fontSize: '0.72rem', marginTop: 4, color: repMsgs[alloc.invoiceId].ok ? '#065f46' : '#991b1b', maxWidth: 220 }}>
@@ -307,6 +310,7 @@ function toRestPayment(p: Payment): RestPayment {
 // ---------------------------------------------------------------------------
 
 export function PaymentDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -324,8 +328,8 @@ export function PaymentDetail() {
   if (!canView) {
     return (
       <div style={styles.page}>
-        <p style={styles.msgError}>You do not have permission to view payments.</p>
-        <Link to="/payments" style={styles.backLink}>Back to Payments</Link>
+        <p style={styles.msgError}>{t('ui.paymentDetail.youDoNotHavePermission')}</p>
+        <Link to="/payments" style={styles.backLink}>{t('ui.paymentDetail.backToPayments')}</Link>
       </div>
     );
   }
@@ -333,7 +337,7 @@ export function PaymentDetail() {
   if (isLoading) {
     return (
       <div style={styles.page}>
-        <p style={styles.msg}>Loading payment…</p>
+        <p style={styles.msg}>{t('ui.paymentDetail.loadingPayment')}</p>
       </div>
     );
   }
@@ -341,8 +345,8 @@ export function PaymentDetail() {
   if (error || !payment) {
     return (
       <div style={styles.page}>
-        <p style={styles.msgError}>Payment not found.</p>
-        <Link to="/payments" style={styles.backLink}>Back to Payments</Link>
+        <p style={styles.msgError}>{t('ui.paymentDetail.paymentNotFound')}</p>
+        <Link to="/payments" style={styles.backLink}>{t('ui.paymentDetail.backToPayments')}</Link>
       </div>
     );
   }
@@ -353,7 +357,7 @@ export function PaymentDetail() {
     <div style={styles.page}>
       {/* Breadcrumb */}
       <div style={styles.breadcrumb}>
-        <Link to="/payments" style={styles.breadcrumbLink}>Payments</Link>
+        <Link to="/payments" style={styles.breadcrumbLink}>{t('ui.paymentDetail.payments')}</Link>
         <span style={styles.breadcrumbSep}>›</span>
         {payment.client && (
           <>
@@ -363,13 +367,13 @@ export function PaymentDetail() {
             <span style={styles.breadcrumbSep}>›</span>
           </>
         )}
-        <span style={styles.breadcrumbCurrent}>Payment #{payment.id}</span>
+        <span style={styles.breadcrumbCurrent}>{t('ui.paymentDetail.payment')}{payment.id}</span>
       </div>
 
       {/* Header */}
       <div style={styles.paymentHeader}>
         <div>
-          <h1 style={styles.paymentTitle}>Payment #{payment.id}</h1>
+          <h1 style={styles.paymentTitle}>{t('ui.paymentDetail.payment')}{payment.id}</h1>
           <div style={styles.headerMeta}>
             <StatusBadge status={payment.status} colors={STATUS_COLORS} />
             <span style={styles.metaChip}>{formatMoney(payment.amount, payment.currency)}</span>
@@ -393,7 +397,7 @@ export function PaymentDetail() {
 
       {/* Allocations */}
       <div style={styles.sectionHeader}>
-        <h2 style={styles.sectionTitle}>Invoice Allocations</h2>
+        <h2 style={styles.sectionTitle}>{t('ui.paymentDetail.invoiceAllocations')}</h2>
       </div>
       <div style={styles.sectionContent}>
         <AllocationsSection allocations={payment.allocations} currency={payment.currency} paymentId={Number(payment.id)} isMxOrg={user?.organization_locale === 'MX'} />

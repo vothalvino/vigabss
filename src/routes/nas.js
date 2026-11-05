@@ -315,7 +315,10 @@ router.get('/:id/health', requirePermission('nas.health'), async (req, res, next
 router.post('/:id/health-check', requirePermission('nas.health_check'), async (req, res, next) => {
   try {
     const { runHealthChecks } = require('../services/nasHealthService');
-    const result = await runHealthChecks(req.orgId);
+    // The NAS in the path, the caller's own: the check ran every NAS of the
+    // organization whatever id was given, another organization's too (TNA-37).
+    const nas = await Nas.findByIdOrFail(req.params.id, req.orgId);
+    const result = await runHealthChecks(req.orgId, { nasId: nas.id });
     res.json({ data: result });
   } catch (err) {
     next(err);

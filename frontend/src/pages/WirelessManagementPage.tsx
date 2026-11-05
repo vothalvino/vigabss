@@ -704,11 +704,11 @@ export function WirelessManagementPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setApPage(p => Math.max(1, p - 1))} disabled={apPage <= 1}>
-                  &laquo; {t('wirelessManagement.prev')}
+                  {t('ui.wirelessManagementPage.laquo')}{t('wirelessManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{apPage} / {apTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setApPage(p => p + 1)} disabled={apPage >= apTotalPages}>
-                  {t('wirelessManagement.next')} &raquo;
+                  {t('wirelessManagement.next')} {t('ui.wirelessManagementPage.raquo')}
                 </button>
               </div>
             </>
@@ -781,11 +781,11 @@ export function WirelessManagementPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setCpPage(p => Math.max(1, p - 1))} disabled={cpPage <= 1}>
-                  &laquo; {t('wirelessManagement.prev')}
+                  {t('ui.wirelessManagementPage.laquo')}{t('wirelessManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{cpPage} / {cpTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setCpPage(p => p + 1)} disabled={cpPage >= cpTotalPages}>
-                  {t('wirelessManagement.next')} &raquo;
+                  {t('wirelessManagement.next')} {t('ui.wirelessManagementPage.raquo')}
                 </button>
               </div>
             </>
@@ -861,11 +861,11 @@ export function WirelessManagementPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setCmdPage(p => Math.max(1, p - 1))} disabled={cmdPage <= 1}>
-                  &laquo; {t('wirelessManagement.prev')}
+                  {t('ui.wirelessManagementPage.laquo')}{t('wirelessManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{cmdPage} / {cmdTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setCmdPage(p => p + 1)} disabled={cmdPage >= cmdTotalPages}>
-                  {t('wirelessManagement.next')} &raquo;
+                  {t('wirelessManagement.next')} {t('ui.wirelessManagementPage.raquo')}
                 </button>
               </div>
             </>
@@ -938,11 +938,11 @@ export function WirelessManagementPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setIntPage(p => Math.max(1, p - 1))} disabled={intPage <= 1}>
-                  &laquo; {t('wirelessManagement.prev')}
+                  {t('ui.wirelessManagementPage.laquo')}{t('wirelessManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{intPage} / {intTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setIntPage(p => p + 1)} disabled={intPage >= intTotalPages}>
-                  {t('wirelessManagement.next')} &raquo;
+                  {t('wirelessManagement.next')} {t('ui.wirelessManagementPage.raquo')}
                 </button>
               </div>
             </>

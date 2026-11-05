@@ -13,6 +13,7 @@ import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -102,6 +103,7 @@ interface TaxRateModalProps {
 }
 
 function TaxRateModal({ taxRate, onClose, onSaved }: TaxRateModalProps) {
+  const { t } = useTranslation();
   const isEdit = taxRate !== null;
   const [form, setForm] = useState({
     name: taxRate?.name ?? '',
@@ -160,25 +162,25 @@ function TaxRateModal({ taxRate, onClose, onSaved }: TaxRateModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit Tax Rate #${taxRate.id}` : '🧮 New Tax Rate'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.taxRateList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.taxRateList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={100}
               value={form.name}
               onChange={e => setField('name', e.target.value)}
-              placeholder='e.g. "VAT 20%", "IVA 16%", "GST 5%"'
+              placeholder={t('ui.taxRateList.eGVat20Iva')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Rate (decimal, e.g. 0.16 = 16%) <RequiredMark />
+            {t('ui.taxRateList.rateDecimalEG0')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="number"
@@ -192,19 +194,19 @@ function TaxRateModal({ taxRate, onClose, onSaved }: TaxRateModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Description
+            {t('ui.taxRateList.description')}
             <input
               style={modalStyles.input}
               type="text"
               maxLength={5000}
               value={form.description}
               onChange={e => setField('description', e.target.value)}
-              placeholder="Optional explanation or legal reference"
+              placeholder={t('ui.taxRateList.optionalExplanationOrLegalReference')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Status
+            {t('ui.taxRateList.status')}
             <select
               style={modalStyles.select}
               value={form.status}
@@ -220,14 +222,14 @@ function TaxRateModal({ taxRate, onClose, onSaved }: TaxRateModalProps) {
               checked={form.is_default}
               onChange={e => setField('is_default', e.target.checked)}
             />
-            Default rate (applied to new invoices/quotes when none is selected)
+            {t('ui.taxRateList.defaultRateAppliedToNew')}
           </label>
 
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.taxRateList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Tax Rate'}
@@ -250,18 +252,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.taxRateList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.taxRateList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.taxRateList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -273,6 +276,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function TaxRateList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -305,15 +309,15 @@ export function TaxRateList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🧮 Tax Rates</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.taxRateList.taxRates')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.taxRateList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New Tax Rate
+          {t('ui.taxRateList.newTaxRate')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.taxRateList.status2')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -325,24 +329,24 @@ export function TaxRateList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.taxRateList.clearFilter')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.taxRateList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {taxRatesQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.taxRateList.loading')}</p>
         ) : taxRatesQ.error ? (
-          <p style={styles.msgError}>Failed to load tax rates.</p>
+          <p style={styles.msgError}>{t('ui.taxRateList.failedToLoadTaxRates')}</p>
         ) : taxRates.length === 0 ? (
-          <p style={styles.msg}>No tax rates found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.taxRateList.noTaxRatesFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -355,40 +359,40 @@ export function TaxRateList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {taxRates.map(t => (
-                    <tr key={t.id} style={styles.tr}>
-                      <td style={styles.td}>#{t.id}</td>
+                  {taxRates.map(rate => (
+                    <tr key={rate.id} style={styles.tr}>
+                      <td style={styles.td}>#{rate.id}</td>
                       <td style={{ ...styles.td, fontWeight: 500 }}>
-                        {t.name}
-                        {Boolean(t.is_shared) && (
+                        {rate.name}
+                        {Boolean(rate.is_shared) && (
                           <span
                             style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 8, fontSize: '0.7rem', background: 'var(--bg-subtle)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                            title="Shared across every organization on this install — read-only. Create your own rate to customize."
+                            title={t('ui.taxRateList.sharedAcrossEveryOrganizationOn')}
                           >
-                            shared
+                            {t('ui.taxRateList.shared')}
                           </span>
                         )}
                       </td>
-                      <td style={styles.td}>{formatRate(t.rate)}</td>
-                      <td style={{ ...styles.td, maxWidth: 320, overflowWrap: 'anywhere' }}>{t.description ?? '—'}</td>
-                      <td style={styles.td}>{t.is_default ? '⭐' : '—'}</td>
-                      <td style={styles.td}><StatusBadge status={t.status} colors={STATUS_COLORS} /></td>
+                      <td style={styles.td}>{formatRate(rate.rate)}</td>
+                      <td style={{ ...styles.td, maxWidth: 320, overflowWrap: 'anywhere' }}>{rate.description ?? '—'}</td>
+                      <td style={styles.td}>{rate.is_default ? '⭐' : '—'}</td>
+                      <td style={styles.td}><StatusBadge status={rate.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        {Boolean(t.is_shared) ? (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }} title="Shared rates cannot be edited or deleted from one organization.">
-                            read-only
+                        {Boolean(rate.is_shared) ? (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }} title={t('ui.taxRateList.sharedRatesCannotBeEdited')}>
+                            {t('ui.taxRateList.readOnly')}
                           </span>
                         ) : (
                           <>
-                            <button style={styles.actionBtn} onClick={() => setEditTaxRate(t)} title="Edit this tax rate">
-                              ✏️ Edit
+                            <button style={styles.actionBtn} onClick={() => setEditTaxRate(rate)} title={t('ui.taxRateList.editThisTaxRate')}>
+                              {t('ui.taxRateList.edit')}
                             </button>
                             <button
                               style={{ ...styles.actionBtn, color: '#991b1b' }}
-                              onClick={() => setDeleteId(t.id)}
-                              title="Delete this tax rate"
+                              onClick={() => setDeleteId(rate.id)}
+                              title={t('ui.taxRateList.deleteThisTaxRate')}
                             >
-                              🗑 Delete
+                              {t('ui.taxRateList.delete')}
                             </button>
                           </>
                         )}
@@ -402,15 +406,15 @@ export function TaxRateList() {
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.taxRateList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.taxRateList.page')}{page} {t('ui.taxRateList.of')}{meta.totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                 >
-                  Next →
+                  {t('ui.taxRateList.next')}
                 </button>
               </div>
             )}

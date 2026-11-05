@@ -511,24 +511,24 @@ function NewUserModal({ onClose, onCreated, groups, organizations, currentOrgId,
   return (
     <div style={modalOverlay}>
       <div style={modalBox}>
-        <h3 style={{ margin: '0 0 1rem' }}>New User</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.userList.newUser')}</h3>
         {err && <div style={errStyle}>{err}</div>}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <div>
-            <label style={labelStyle}>First Name *</label>
-            <input style={inputStyle} value={form.first_name} onChange={set('first_name')} placeholder="First name" />
+            <label style={labelStyle}>{t('ui.userList.firstName')}</label>
+            <input style={inputStyle} value={form.first_name} onChange={set('first_name')} placeholder={t('ui.userList.firstName2')} />
           </div>
           <div>
-            <label style={labelStyle}>Last Name *</label>
-            <input style={inputStyle} value={form.last_name} onChange={set('last_name')} placeholder="Last name" />
+            <label style={labelStyle}>{t('ui.userList.lastName')}</label>
+            <input style={inputStyle} value={form.last_name} onChange={set('last_name')} placeholder={t('ui.userList.lastName2')} />
           </div>
         </div>
 
-        <label style={labelStyle}>Email *</label>
+        <label style={labelStyle}>{t('ui.userList.email')}</label>
         <input style={inputStyle} type="email" value={form.email} onChange={set('email')} placeholder="user@example.com" />
 
-        <label style={labelStyle}>Password * (min 8 characters)</label>
+        <label style={labelStyle}>{t('ui.userList.passwordMin8Characters')}</label>
         <input style={inputStyle} type="password" value={form.password} onChange={set('password')} placeholder="••••••••" />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -545,15 +545,15 @@ function NewUserModal({ onClose, onCreated, groups, organizations, currentOrgId,
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Status</label>
+            <label style={labelStyle}>{t('ui.userList.status')}</label>
             <select style={inputStyle} value={form.status} onChange={set('status')}>
               {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         </div>
 
-        <label style={labelStyle}>Phone</label>
-        <input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder="+52 55 1234 5678 (optional)" />
+        <label style={labelStyle}>{t('ui.userList.phone')}</label>
+        <input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder={t('ui.userList.t525512345678Optional')} />
 
         {showOrganizationSelector && (
           <>
@@ -564,7 +564,7 @@ function NewUserModal({ onClose, onCreated, groups, organizations, currentOrgId,
         {usesAutomaticOrganizationAccess && <AutomaticOrganizationAccessNotice />}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button style={btnSecondary} onClick={onClose}>Cancel</button>
+          <button style={btnSecondary} onClick={onClose}>{t('ui.userList.cancel')}</button>
           <button
             style={btnPrimary}
             onClick={() => mutation.mutate()}
@@ -679,21 +679,21 @@ function EditUserModal({ user, onClose, onSaved, groups, organizations, canManag
   return (
     <div style={modalOverlay}>
       <div style={modalBox}>
-        <h3 style={{ margin: '0 0 1rem' }}>Edit User</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.userList.editUser')}</h3>
         {err && <div style={errStyle}>{err}</div>}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <div>
-            <label style={labelStyle}>First Name</label>
+            <label style={labelStyle}>{t('ui.userList.firstName3')}</label>
             <input style={inputStyle} value={form.first_name} onChange={set('first_name')} />
           </div>
           <div>
-            <label style={labelStyle}>Last Name</label>
+            <label style={labelStyle}>{t('ui.userList.lastName3')}</label>
             <input style={inputStyle} value={form.last_name} onChange={set('last_name')} />
           </div>
         </div>
 
-        <label style={labelStyle}>Email</label>
+        <label style={labelStyle}>{t('ui.userList.email2')}</label>
         <input style={inputStyle} type="email" value={form.email} onChange={set('email')} />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -710,15 +710,15 @@ function EditUserModal({ user, onClose, onSaved, groups, organizations, canManag
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Status</label>
+            <label style={labelStyle}>{t('ui.userList.status')}</label>
             <select style={inputStyle} value={form.status} onChange={set('status')}>
               {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         </div>
 
-        <label style={labelStyle}>Phone</label>
-        <input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder="+52 55 1234 5678 (optional)" />
+        <label style={labelStyle}>{t('ui.userList.phone')}</label>
+        <input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder={t('ui.userList.t525512345678Optional')} />
 
         {showOrganizationSelector && <label style={labelStyle}>{t('userList.editUserModal.orgAccess')}</label>}
         {showOrganizationSelector && orgsQuery.isError && (
@@ -746,7 +746,7 @@ function EditUserModal({ user, onClose, onSaved, groups, organizations, canManag
         {usesAutomaticOrganizationAccess && <AutomaticOrganizationAccessNotice />}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button style={btnSecondary} onClick={onClose}>Cancel</button>
+          <button style={btnSecondary} onClick={onClose}>{t('ui.userList.cancel')}</button>
           <button
             style={btnPrimary}
             onClick={() => mutation.mutate()}
@@ -1043,6 +1043,7 @@ interface TwoFASetupModalProps {
 type SetupStep = 'init' | 'scan' | 'verify' | 'done';
 
 function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<SetupStep>('init');
   const [setupData, setSetupData] = useState<TwoFASetupData | null>(null);
@@ -1086,15 +1087,13 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
       <div style={{ ...modalBox, maxWidth: 480 }}>
         {step === 'init' && (
           <>
-            <h3 style={{ margin: '0 0 0.75rem' }}>🔐 Enable Two-Factor Authentication</h3>
+            <h3 style={{ margin: '0 0 0.75rem' }}>{t('ui.userList.enableTwoFactorAuthentication')}</h3>
             <p style={{ color: '#555', fontSize: '0.88rem', lineHeight: 1.6 }}>
-              Two-factor authentication adds an extra layer of security to your account.
-              Once enabled, you'll need an authenticator app (Google Authenticator, Authy, etc.)
-              to sign in.
+              {t('ui.userList.twoFactorAuthenticationAddsAn')}
             </p>
             {err && <div style={errStyle}>{err}</div>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-              <button style={btnSecondary} onClick={onClose}>Cancel</button>
+              <button style={btnSecondary} onClick={onClose}>{t('ui.userList.cancel')}</button>
               <button style={btnPrimary} onClick={handleSetup} disabled={loading}>
                 {loading ? 'Generating…' : 'Continue →'}
               </button>
@@ -1104,10 +1103,9 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
 
         {step === 'scan' && setupData && (
           <>
-            <h3 style={{ margin: '0 0 0.75rem' }}>📱 Scan or copy the secret</h3>
+            <h3 style={{ margin: '0 0 0.75rem' }}>{t('ui.userList.scanOrCopyTheSecret')}</h3>
             <p style={{ color: '#555', fontSize: '0.85rem', lineHeight: 1.5 }}>
-              Open your authenticator app and either scan the QR code (if supported) or
-              add the account manually using the secret key below.
+              {t('ui.userList.openYourAuthenticatorAppAnd')}
             </p>
 
             <div style={{
@@ -1115,7 +1113,7 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
               borderRadius: 8, padding: '0.75rem', marginBottom: '0.75rem',
             }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>
-                Secret key (manual entry):
+                {t('ui.userList.secretKeyManualEntry')}
               </div>
               <div style={{
                 fontFamily: 'monospace', fontSize: '0.95rem', letterSpacing: 1,
@@ -1130,7 +1128,7 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
               borderRadius: 8, padding: '0.75rem', marginBottom: '1rem',
             }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>
-                OTPAuth URL (for QR scanning):
+                {t('ui.userList.otpauthUrlForQrScanning')}
               </div>
               <div style={{ fontSize: '0.75rem', wordBreak: 'break-all', color: '#374151' }}>
                 {setupData.uri}
@@ -1139,11 +1137,11 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
                 style={{ ...btnSecondary, marginTop: 6, fontSize: '0.75rem', padding: '4px 10px' }}
                 onClick={() => navigator.clipboard.writeText(setupData.uri).catch(() => undefined)}
               >
-                Copy URL
+                {t('ui.userList.copyUrl')}
               </button>
             </div>
 
-            <label style={labelStyle}>Enter the 6-digit code from your app *</label>
+            <label style={labelStyle}>{t('ui.userList.enterThe6DigitCode')}</label>
             <input
               style={inputStyle}
               value={code}
@@ -1155,7 +1153,7 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
             {err && <div style={{ ...errStyle, marginTop: 6 }}>{err}</div>}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-              <button style={btnSecondary} onClick={onClose}>Cancel</button>
+              <button style={btnSecondary} onClick={onClose}>{t('ui.userList.cancel')}</button>
               <button
                 style={btnPrimary}
                 onClick={handleVerify}
@@ -1169,10 +1167,9 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
 
         {step === 'done' && (
           <>
-            <h3 style={{ margin: '0 0 0.75rem', color: '#065f46' }}>✅ 2FA Enabled</h3>
+            <h3 style={{ margin: '0 0 0.75rem', color: '#065f46' }}>{t('ui.userList.t2faEnabled')}</h3>
             <p style={{ color: '#555', fontSize: '0.88rem', lineHeight: 1.6 }}>
-              Two-factor authentication is now active on your account.
-              Save these backup codes in a safe place — each can only be used once if you lose access to your authenticator app.
+              {t('ui.userList.twoFactorAuthenticationIsNow')}
             </p>
             {backupCodes.length > 0 && (
               <div style={{
@@ -1180,7 +1177,7 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
                 borderRadius: 8, padding: '0.75rem', marginBottom: '1rem',
               }}>
                 <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>
-                  Backup codes (save these now):
+                  {t('ui.userList.backupCodesSaveTheseNow')}
                 </div>
                 <div style={{
                   display: 'grid', gridTemplateColumns: '1fr 1fr',
@@ -1195,7 +1192,7 @@ function TwoFASetupModal({ onClose, onEnabled }: TwoFASetupModalProps) {
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
-              <button style={btnPrimary} onClick={() => { onEnabled(); onClose(); }}>Done</button>
+              <button style={btnPrimary} onClick={() => { onEnabled(); onClose(); }}>{t('ui.userList.done')}</button>
             </div>
           </>
         )}
@@ -1214,6 +1211,7 @@ interface TwoFADisableModalProps {
 }
 
 function TwoFADisableModal({ onClose, onDisabled }: TwoFADisableModalProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [code, setCode] = useState('');
   const [err, setErr] = useState('');
@@ -1231,11 +1229,11 @@ function TwoFADisableModal({ onClose, onDisabled }: TwoFADisableModalProps) {
   return (
     <div style={modalOverlay}>
       <div style={{ ...modalBox, maxWidth: 420 }}>
-        <h3 style={{ margin: '0 0 0.75rem' }}>Disable Two-Factor Authentication</h3>
+        <h3 style={{ margin: '0 0 0.75rem' }}>{t('ui.userList.disableTwoFactorAuthentication')}</h3>
         <p style={{ color: '#555', fontSize: '0.88rem', lineHeight: 1.6 }}>
-          Enter the current 6-digit code from your authenticator app to disable 2FA on your account.
+          {t('ui.userList.enterTheCurrent6Digit')}
         </p>
-        <label style={labelStyle}>Current TOTP code *</label>
+        <label style={labelStyle}>{t('ui.userList.currentTotpCode')}</label>
         <input
           style={inputStyle}
           value={code}
@@ -1246,7 +1244,7 @@ function TwoFADisableModal({ onClose, onDisabled }: TwoFADisableModalProps) {
         />
         {err && <div style={{ ...errStyle, marginTop: 6 }}>{err}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button style={btnSecondary} onClick={onClose}>Cancel</button>
+          <button style={btnSecondary} onClick={onClose}>{t('ui.userList.cancel')}</button>
           <button
             style={{ ...btnPrimary, background: '#dc2626' }}
             onClick={() => mutation.mutate()}
@@ -1367,8 +1365,7 @@ export function UserList() {
         borderRadius: 6, padding: '8px 12px', marginBottom: '1rem',
         fontSize: '0.8rem', color: '#92400e',
       }}>
-        💡 <strong>Two-factor authentication</strong> is self-service — each user sets up or disables 2FA for their own account.
-        Use the buttons above to manage 2FA for your account.
+        💡 <strong>{t('ui.userList.twoFactorAuthentication')}</strong> {t('ui.userList.isSelfServiceEachUser')}
       </div>
 
       {/* Sub-tabs */}
@@ -1464,7 +1461,7 @@ export function UserList() {
                         {u.first_name} {u.last_name}
                       </span>
                       {u.id === currentUser?.id && (
-                        <span style={{ marginLeft: 6, fontSize: '0.72rem', color: '#6b7280' }}>(you)</span>
+                        <span style={{ marginLeft: 6, fontSize: '0.72rem', color: '#6b7280' }}>{t('ui.userList.you')}</span>
                       )}
                       {Boolean(u.has_global_organization_access) && (
                         <span

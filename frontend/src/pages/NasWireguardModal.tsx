@@ -300,7 +300,7 @@ export function NasWireguardModal({ nas, onClose }: NasWireguardModalProps) {
           <h2 style={modalStyles.title}>
             {t('nasWireguard.title')} — {nas.name}
           </h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.nasWireguardModal.close')}>✕</button>
         </div>
 
         {/* ── IDLE ─────────────────────────────────────── */}

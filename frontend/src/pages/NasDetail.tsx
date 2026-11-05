@@ -300,7 +300,7 @@ export function NasDetail() {
     <div style={styles.page}>
       {/* Breadcrumb */}
       <div style={styles.breadcrumb}>
-        <Link to="/nas" style={styles.breadcrumbLink}>NAS Devices</Link>
+        <Link to="/nas" style={styles.breadcrumbLink}>{t('ui.nasDetail.nasDevices')}</Link>
         <span style={styles.breadcrumbSep}>›</span>
         <span style={styles.breadcrumbCurrent}>{nas.name}</span>
       </div>
@@ -317,23 +317,23 @@ export function NasDetail() {
         {/* Per-device actions (moved here from the NAS list) */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' as const }}>
           {canManage && (
-            <button style={styles.actionBtn} onClick={() => setShowSeed(true)} title="Seed RADIUS, PPP AAA, CoA + optional QoS / walled-garden / VoIP onto this MikroTik">
-              Seed
+            <button style={styles.actionBtn} onClick={() => setShowSeed(true)} title={t('ui.nasDetail.seedRadiusPppAaaCoa')}>
+              {t('ui.nasDetail.seed')}
             </button>
           )}
           {canManage && (
-            <button style={styles.actionBtn} onClick={runVoipRefresh} disabled={actionPending !== null} title="Refresh the fireisp-voip RTC/VoIP address-list from provider ranges">
+            <button style={styles.actionBtn} onClick={runVoipRefresh} disabled={actionPending !== null} title={t('ui.nasDetail.refreshTheFireispVoipRtc')}>
               {actionPending === 'voip-refresh' ? 'VoIP…' : 'VoIP'}
             </button>
           )}
           {canManage && (
-            <button style={styles.actionBtn} onClick={() => setShowEdit(true)} title="Edit this NAS">
-              Edit
+            <button style={styles.actionBtn} onClick={() => setShowEdit(true)} title={t('ui.nasDetail.editThisNas')}>
+              {t('ui.nasDetail.edit')}
             </button>
           )}
           {canDelete && (
-            <button style={{ ...styles.actionBtn, color: '#991b1b', borderColor: '#fecaca' }} onClick={() => setShowDelete(true)} title="Delete this NAS">
-              Delete
+            <button style={{ ...styles.actionBtn, color: '#991b1b', borderColor: '#fecaca' }} onClick={() => setShowDelete(true)} title={t('ui.nasDetail.deleteThisNas')}>
+              {t('ui.nasDetail.delete')}
             </button>
           )}
         </div>
@@ -507,7 +507,7 @@ export function NasDetail() {
                   {/* Key-value details */}
                   <div style={styles.infoGrid}>
                     <InfoRow label={t('nasDetail.tunnel.tunnelIp')}      value={wgTunnel.tunnel_address}   mono />
-                    <InfoRow label="VigaBSS Hub IP"                     value={serverTunnelIp}            mono />
+                    <InfoRow label={t('ui.nasDetail.vigabssHubIp')}                     value={serverTunnelIp}            mono />
                     <InfoRow label={t('nasDetail.tunnel.configMethod')}    value={wgTunnel.nas_config_method} />
                     <InfoRow label={t('nasDetail.tunnel.serverPublicKey')} value={serverPublicKey}            mono />
                     <InfoRow label={t('nasDetail.tunnel.endpoint')}        value={serverEndpoint}            mono />

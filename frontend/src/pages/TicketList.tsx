@@ -184,20 +184,20 @@ function NewTicketModal({ users, onClose, onCreated }: NewTicketModalProps) {
     setForm(f => ({ ...f, [k]: e.target.value }));
 
   return (
-    <div style={modalOverlay} role="dialog" aria-modal="true" aria-label="New Ticket">
+    <div style={modalOverlay} role="dialog" aria-modal="true" aria-label={t('ui.ticketList.newTicket')}>
       <div style={modalBox}>
-        <h3 style={{ margin: '0 0 1rem' }}>New Ticket</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.ticketList.newTicket')}</h3>
         {err && <div style={errStyle}>{err}</div>}
 
-        <label style={labelStyle}>Subject *</label>
-        <input style={inputStyle} value={form.subject} onChange={set('subject')} placeholder="Brief description of the issue" />
+        <label style={labelStyle}>{t('ui.ticketList.subject')}</label>
+        <input style={inputStyle} value={form.subject} onChange={set('subject')} placeholder={t('ui.ticketList.briefDescriptionOfTheIssue')} />
 
-        <label style={labelStyle}>Description</label>
+        <label style={labelStyle}>{t('ui.ticketList.description')}</label>
         <textarea
           style={{ ...inputStyle, height: 80, resize: 'vertical' }}
           value={form.description}
           onChange={set('description')}
-          placeholder="Detailed description (optional)"
+          placeholder={t('ui.ticketList.detailedDescriptionOptional')}
         />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -205,40 +205,40 @@ function NewTicketModal({ users, onClose, onCreated }: NewTicketModalProps) {
             {/* tickets.client_id is NOT NULL. Search, not a <select>: the list
                 endpoint returns at most 100 clients (FE-04). */}
             <ClientPicker
-              label="Client"
+              label={t('ui.ticketList.client')}
               value={form.client_id ? Number(form.client_id) : ''}
               onChange={id => setForm(f => ({ ...f, client_id: id ? String(id) : '' }))}
             />
           </div>
           <div>
-            <label style={labelStyle}>Assign to</label>
+            <label style={labelStyle}>{t('ui.ticketList.assignTo')}</label>
             <select style={inputStyle} value={form.assigned_to} onChange={set('assigned_to')}>
-              <option value="">— unassigned —</option>
+              <option value="">{t('ui.ticketList.unassigned')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Priority</label>
+            <label style={labelStyle}>{t('ui.ticketList.priority')}</label>
             <select style={inputStyle} value={form.priority} onChange={set('priority')}>
               {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Status</label>
+            <label style={labelStyle}>{t('ui.ticketList.status')}</label>
             <select style={inputStyle} value={form.status} onChange={set('status')}>
               {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
             </select>
           </div>
         </div>
 
-        <label style={labelStyle}>Category *</label>
+        <label style={labelStyle}>{t('ui.ticketList.category')}</label>
         <select style={inputStyle} value={form.category} onChange={set('category')}>
           <option value="" disabled>{t('ticketList.selectCategory')}</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{t(`ticketCategory.${c}`)}</option>)}
         </select>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button style={btnSecondary} onClick={onClose}>Cancel</button>
+          <button style={btnSecondary} onClick={onClose}>{t('ui.ticketList.cancel')}</button>
           <button
             style={btnPrimary}
             onClick={() => mutation.mutate()}

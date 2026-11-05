@@ -172,7 +172,7 @@ router.get('/infrastructure', requirePermission('mapping.infrastructure'), async
 });
 
 // POST /topology/infrastructure
-router.post('/infrastructure', requirePermission('mapping.infrastructure_manage'), validate(createInfrastructure, { strip: false }), async (req, res, next) => {
+router.post('/infrastructure', requirePermission('mapping.infrastructure_manage'), validate(createInfrastructure, { strip: false }), ownedReferences({ site_id: 'sites' }), async (req, res, next) => {
   try {
     const row = await svc.createInfrastructurePoint(req.orgId, req.body);
     res.status(201).json({ data: row });
@@ -189,7 +189,7 @@ router.get('/infrastructure/:id', requirePermission('mapping.infrastructure'), a
 });
 
 // PUT /topology/infrastructure/:id
-router.put('/infrastructure/:id', requirePermission('mapping.infrastructure_manage'), validate(updateInfrastructure, { strip: false }), async (req, res, next) => {
+router.put('/infrastructure/:id', requirePermission('mapping.infrastructure_manage'), validate(updateInfrastructure, { strip: false }), ownedReferences({ site_id: 'sites' }), async (req, res, next) => {
   try {
     const row = await svc.updateInfrastructurePoint(req.orgId, parseInt(req.params.id, 10), req.body);
     if (!row) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Infrastructure point not found' } });

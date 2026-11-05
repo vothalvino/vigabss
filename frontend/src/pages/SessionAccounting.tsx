@@ -17,6 +17,7 @@ import { useState } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/api/apiFetch';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -210,6 +211,7 @@ function DailyBarChart({ rows, dateFrom, dateTo }: { rows: DailyRow[]; dateFrom:
 // ---------------------------------------------------------------------------
 
 export function SessionAccounting() {
+  const { t } = useTranslation();
   const def = defaultRange();
 
   // Filter inputs (controlled)
@@ -288,21 +290,21 @@ export function SessionAccounting() {
 
   return (
     <div style={s.page}>
-      <h1 style={s.title}>📊 Session Accounting</h1>
+      <h1 style={s.title}>{t('ui.sessionAccounting.sessionAccounting')}</h1>
       <p style={s.subtitle}>
-        Data usage per client per day — {appliedFrom} to {appliedTo}
+        {t('ui.sessionAccounting.dataUsagePerClientPer')}{appliedFrom} {t('ui.sessionAccounting.to')}{appliedTo}
       </p>
 
       {/* Filters */}
       <form onSubmit={handleApply} style={s.filterBar}>
-        <label style={s.filterLabel}>From</label>
+        <label style={s.filterLabel}>{t('ui.sessionAccounting.from')}</label>
         <input
           type="date"
           value={dateFrom}
           onChange={e => setDateFrom(e.target.value)}
           style={s.filterInput}
         />
-        <label style={s.filterLabel}>To</label>
+        <label style={s.filterLabel}>{t('ui.sessionAccounting.to2')}</label>
         <input
           type="date"
           value={dateTo}
@@ -311,43 +313,43 @@ export function SessionAccounting() {
         />
         <input
           type="number"
-          placeholder="Client ID (optional)"
+          placeholder={t('ui.sessionAccounting.clientIdOptional')}
           value={clientIdInput}
           onChange={e => setClientIdInput(e.target.value)}
           style={{ ...s.filterInput, width: 160 }}
           min={1}
         />
-        <button type="submit" style={s.applyBtn}>Apply</button>
-        <button type="button" onClick={handleClear} style={s.clearBtn}>Clear</button>
+        <button type="submit" style={s.applyBtn}>{t('ui.sessionAccounting.apply')}</button>
+        <button type="button" onClick={handleClear} style={s.clearBtn}>{t('ui.sessionAccounting.clear')}</button>
       </form>
 
       {/* Summary bar */}
       <div style={s.summaryBar}>
         <div style={s.summaryCard}>
           <div style={s.summaryValue}>{topRows.length}</div>
-          <div style={s.summaryLabel}>Active Clients</div>
+          <div style={s.summaryLabel}>{t('ui.sessionAccounting.activeClients')}</div>
         </div>
         <div style={s.summaryCard}>
           <div style={s.summaryValue}>{formatBytes(totalBytesIn)}</div>
-          <div style={s.summaryLabel}>↓ Total Download</div>
+          <div style={s.summaryLabel}>{t('ui.sessionAccounting.totalDownload')}</div>
         </div>
         <div style={s.summaryCard}>
           <div style={s.summaryValue}>{formatBytes(totalBytesOut)}</div>
-          <div style={s.summaryLabel}>↑ Total Upload</div>
+          <div style={s.summaryLabel}>{t('ui.sessionAccounting.totalUpload')}</div>
         </div>
         <div style={s.summaryCard}>
           <div style={s.summaryValue}>{formatBytes(totalBytesIn + totalBytesOut)}</div>
-          <div style={s.summaryLabel}>Combined Traffic</div>
+          <div style={s.summaryLabel}>{t('ui.sessionAccounting.combinedTraffic')}</div>
         </div>
         <div style={s.summaryCard}>
           <div style={s.summaryValue}>{totalSessions.toLocaleString()}</div>
-          <div style={s.summaryLabel}>Sessions</div>
+          <div style={s.summaryLabel}>{t('ui.sessionAccounting.sessions')}</div>
         </div>
       </div>
 
       {/* Daily bar chart */}
       <div style={s.chartCard}>
-        <h2 style={s.sectionTitle}>Daily Traffic (current page)</h2>
+        <h2 style={s.sectionTitle}>{t('ui.sessionAccounting.dailyTrafficCurrentPage')}</h2>
         {rows.length > 0 ? (
           <DailyBarChart rows={rows} dateFrom={appliedFrom} dateTo={appliedTo} />
         ) : (
@@ -357,27 +359,27 @@ export function SessionAccounting() {
 
       {/* Top consumers */}
       <div style={s.card}>
-        <h2 style={s.sectionTitle}>Top 10 Consumers — {appliedFrom} to {appliedTo}</h2>
+        <h2 style={s.sectionTitle}>{t('ui.sessionAccounting.top10Consumers')}{appliedFrom} {t('ui.sessionAccounting.to')}{appliedTo}</h2>
         <div style={s.tableWrap}>
           <table style={s.table}>
             <thead>
               <tr>
                 <th style={s.th}>#</th>
-                <th style={s.th}>Username</th>
-                <th style={s.th}>Client ID</th>
-                <th style={s.th}>Contract ID</th>
-                <th style={s.th}>Active Days</th>
-                <th style={s.th}>Sessions</th>
-                <th style={s.th}>↓ Download</th>
-                <th style={s.th}>↑ Upload</th>
-                <th style={s.th}>Total</th>
-                <th style={s.th}>Duration</th>
+                <th style={s.th}>{t('ui.sessionAccounting.username')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.clientId')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.contractId')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.activeDays')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.sessions')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.download')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.upload')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.total')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.duration')}</th>
               </tr>
             </thead>
             <tbody>
               {topRows.length === 0 && (
                 <tr>
-                  <td colSpan={10} style={s.emptyCell}>No data for this period.</td>
+                  <td colSpan={10} style={s.emptyCell}>{t('ui.sessionAccounting.noDataForThisPeriod')}</td>
                 </tr>
               )}
               {topRows.map((r, i) => (
@@ -403,27 +405,27 @@ export function SessionAccounting() {
 
       {/* Per-day breakdown */}
       <div style={s.card}>
-        <h2 style={s.sectionTitle}>Daily Breakdown</h2>
-        {dailyFetching && rows.length === 0 && <p style={s.empty}>Loading…</p>}
+        <h2 style={s.sectionTitle}>{t('ui.sessionAccounting.dailyBreakdown')}</h2>
+        {dailyFetching && rows.length === 0 && <p style={s.empty}>{t('ui.sessionAccounting.loading')}</p>}
         <div style={s.tableWrap}>
           <table style={s.table}>
             <thead>
               <tr>
-                <th style={s.th}>Date</th>
-                <th style={s.th}>Username</th>
-                <th style={s.th}>Client ID</th>
-                <th style={s.th}>Contract ID</th>
-                <th style={s.th}>Sessions</th>
-                <th style={s.th}>↓ Download</th>
-                <th style={s.th}>↑ Upload</th>
-                <th style={s.th}>Total</th>
-                <th style={s.th}>Duration</th>
+                <th style={s.th}>{t('ui.sessionAccounting.date')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.username')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.clientId')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.contractId')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.sessions')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.download')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.upload')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.total')}</th>
+                <th style={s.th}>{t('ui.sessionAccounting.duration')}</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && !dailyFetching && (
                 <tr>
-                  <td colSpan={9} style={s.emptyCell}>No data for this period.</td>
+                  <td colSpan={9} style={s.emptyCell}>{t('ui.sessionAccounting.noDataForThisPeriod')}</td>
                 </tr>
               )}
               {rows.map((r, i) => (
@@ -451,15 +453,15 @@ export function SessionAccounting() {
               disabled={page <= 1}
               style={s.pageBtn}
             >
-              ← Prev
+              {t('ui.sessionAccounting.prev')}
             </button>
-            <span style={s.pageInfo}>Page {page} / {totalPages} ({total} rows)</span>
+            <span style={s.pageInfo}>{t('ui.sessionAccounting.page')}{page} / {totalPages} ({total} {t('ui.sessionAccounting.rows')}</span>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
               style={s.pageBtn}
             >
-              Next →
+              {t('ui.sessionAccounting.next')}
             </button>
           </div>
         )}

@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,6 +70,7 @@ function deviceTypeLabel(type: string | null): string {
 // ---------------------------------------------------------------------------
 
 export function SnmpProfileList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -89,12 +91,12 @@ export function SnmpProfileList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📶 SNMP Profiles</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.snmpProfileList.snmpProfiles')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.snmpProfileList.total')}</span>}
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.snmpProfileList.status')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -106,18 +108,18 @@ export function SnmpProfileList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.snmpProfileList.clearFilter')}
           </button>
         )}
       </div>
 
       <div style={styles.tableCard}>
         {profilesQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.snmpProfileList.loading')}</p>
         ) : profilesQ.error ? (
-          <p style={styles.msgError}>Failed to load SNMP profiles.</p>
+          <p style={styles.msgError}>{t('ui.snmpProfileList.failedToLoadSnmpProfiles')}</p>
         ) : profiles.length === 0 ? (
-          <p style={styles.msg}>No SNMP profiles found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.snmpProfileList.noSnmpProfilesFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -150,15 +152,15 @@ export function SnmpProfileList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.snmpProfileList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.snmpProfileList.page')}{page} {t('ui.snmpProfileList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.snmpProfileList.next')}
                 </button>
               </div>
             )}

@@ -10,7 +10,7 @@
 // REST endpoints via postContractAction (same helper as ContractList).
 // =============================================================================
 
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
@@ -37,6 +37,7 @@ import { formatDate } from '@/lib/dates';
 import { invalidateContractViews, queryKeys } from '@/api/queryKeys';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
 import { formatMoney } from '@/lib/money';
+import { ActivationSignatureCanvas } from './contracts/ActivationSignatureCanvas';
 
 // The markdown renderer is its own chunk (FE-21).
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
@@ -302,7 +303,8 @@ const BASE_TABS: { id: TabId; label: string }[] = [
 // ---------------------------------------------------------------------------
 
 function InvoicesTab({ invoices }: { invoices: Invoice[] }) {
-  if (!invoices.length) return <p style={styles.msg}>No invoices found.</p>;
+  const { t } = useTranslation();
+  if (!invoices.length) return <p style={styles.msg}>{t('ui.contractDetail.noInvoicesFound')}</p>;
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
@@ -376,6 +378,7 @@ interface InStockUnit { id: number; serial_number: string }
 function InstallEquipmentModal({ contractId, onClose, onInstalled }: {
   contractId: string; onClose: () => void; onInstalled: () => void;
 }) {
+  const { t } = useTranslation();
   const [itemId, setItemId] = useState('');
   const [serialMode, setSerialMode] = useState<'existing' | 'new'>('existing');
   const [cpeDeviceId, setCpeDeviceId] = useState('');
@@ -435,27 +438,27 @@ function InstallEquipmentModal({ contractId, onClose, onInstalled }: {
   const selStyle = { display: 'block', width: '100%', marginTop: 2, padding: '6px 8px', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, background: 'var(--bg-primary, #fff)', color: 'inherit' } as const;
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Install equipment">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.contractDetail.installEquipment')}>
       <div style={{ ...modalBox, width: 460, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Install equipment — contract #{contractId}</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.contractDetail.installEquipmentContract')}{contractId}</h3>
         <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          Draws the unit from inventory: stock and ledger update, a sold unit raises its invoice, and TR-069 links by serial.
+          {t('ui.contractDetail.drawsTheUnitFromInventory')}
         </p>
         <form onSubmit={submit}>
           <label style={{ display: 'block', marginBottom: 8, fontSize: '0.85rem' }}>
-            Product
+            {t('ui.contractDetail.product')}
             <select style={selStyle} value={itemId} onChange={e => { setItemId(e.target.value); setCpeDeviceId(''); }}>
               <option value="">{itemsQ.isLoading ? 'Loading…' : '— select product —'}</option>
               {(itemsQ.data ?? []).map(i => <option key={i.id} value={i.id}>{i.name}{i.sku ? ` (${i.sku})` : ''}</option>)}
             </select>
           </label>
           <div style={{ display: 'flex', gap: 14, marginBottom: 8, fontSize: '0.85rem' }}>
-            <label><input type="radio" checked={serialMode === 'existing'} onChange={() => setSerialMode('existing')} /> Pick in-stock serial</label>
-            <label><input type="radio" checked={serialMode === 'new'} onChange={() => setSerialMode('new')} /> Type a new serial</label>
+            <label><input type="radio" checked={serialMode === 'existing'} onChange={() => setSerialMode('existing')} /> {t('ui.contractDetail.pickInStockSerial')}</label>
+            <label><input type="radio" checked={serialMode === 'new'} onChange={() => setSerialMode('new')} /> {t('ui.contractDetail.typeANewSerial')}</label>
           </div>
           {serialMode === 'existing' ? (
             <label style={{ display: 'block', marginBottom: 8, fontSize: '0.85rem' }}>
-              Serial
+              {t('ui.contractDetail.serial')}
               <select style={selStyle} value={cpeDeviceId} onChange={e => setCpeDeviceId(e.target.value)} disabled={!itemId}>
                 <option value="">{!itemId ? '— select a product first —' : unitsQ.isLoading ? 'Loading…' : (unitsQ.data ?? []).length ? '— select serial —' : 'No in-stock serials for this product'}</option>
                 {(unitsQ.data ?? []).map(u => <option key={u.id} value={u.id}>{u.serial_number}</option>)}
@@ -463,18 +466,18 @@ function InstallEquipmentModal({ contractId, onClose, onInstalled }: {
             </label>
           ) : (
             <label style={{ display: 'block', marginBottom: 8, fontSize: '0.85rem' }}>
-              New serial number
-              <input style={selStyle} value={newSerial} placeholder="Read from the box"
+              {t('ui.contractDetail.newSerialNumber')}
+              <input style={selStyle} value={newSerial} placeholder={t('ui.contractDetail.readFromTheBox')}
                 onChange={e => setNewSerial(e.target.value)} />
             </label>
           )}
           <div style={{ display: 'flex', gap: 14, marginBottom: 8, fontSize: '0.85rem' }}>
-            <label><input type="radio" checked={ownership === 'rented'} onChange={() => setOwnership('rented')} /> Rented (no invoice)</label>
-            <label><input type="radio" checked={ownership === 'sold'} onChange={() => setOwnership('sold')} /> Sold (raises an invoice)</label>
+            <label><input type="radio" checked={ownership === 'rented'} onChange={() => setOwnership('rented')} /> {t('ui.contractDetail.rentedNoInvoice')}</label>
+            <label><input type="radio" checked={ownership === 'sold'} onChange={() => setOwnership('sold')} /> {t('ui.contractDetail.soldRaisesAnInvoice')}</label>
           </div>
           {err && <p style={{ color: '#991b1b', fontSize: '0.82rem', margin: '4px 0' }}>{err}</p>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-            <button type="button" style={cancelBtn} onClick={onClose} disabled={busy}>Cancel</button>
+            <button type="button" style={cancelBtn} onClick={onClose} disabled={busy}>{t('ui.contractDetail.cancel')}</button>
             <button type="submit" disabled={busy}
               style={{ padding: '6px 14px', border: 'none', borderRadius: 6, background: 'var(--accent, #ea580c)', color: '#fff', fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
               {busy ? 'Installing…' : 'Install equipment'}
@@ -492,6 +495,7 @@ function InstallEquipmentModal({ contractId, onClose, onInstalled }: {
 function NewDeviceModal({ contractId, clientId, onClose, onCreated }: {
   contractId: string; clientId: string | null; onClose: () => void; onCreated: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ name: '', type: 'indoor_cpe', manufacturer: '', model: '', serial_number: '', mac_address: '', ip_address: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -535,13 +539,13 @@ function NewDeviceModal({ contractId, clientId, onClose, onCreated }: {
   );
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="New device">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.contractDetail.newDevice')}>
       <div style={{ ...modalBox, width: 440, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 1rem' }}>New device — contract #{contractId}</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.contractDetail.newDeviceContract')}{contractId}</h3>
         <form onSubmit={submit}>
           {field('Name *', 'name', 'RGEW1300G — living room')}
           <label style={{ display: 'block', marginBottom: 8, fontSize: '0.85rem' }}>
-            Type *
+            {t('ui.contractDetail.type')}
             <select
               style={{ display: 'block', width: '100%', marginTop: 2, padding: '6px 8px', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, background: 'var(--bg-primary, #fff)', color: 'inherit' }}
               value={form.type}
@@ -557,7 +561,7 @@ function NewDeviceModal({ contractId, clientId, onClose, onCreated }: {
           {field('IP address', 'ip_address')}
           {err && <p style={{ color: '#991b1b', fontSize: '0.82rem', margin: '4px 0' }}>{err}</p>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-            <button type="button" style={cancelBtn} onClick={onClose} disabled={busy}>Cancel</button>
+            <button type="button" style={cancelBtn} onClick={onClose} disabled={busy}>{t('ui.contractDetail.cancel')}</button>
             <button type="submit" disabled={busy}
               style={{ padding: '6px 14px', border: 'none', borderRadius: 6, background: 'var(--accent, #ea580c)', color: '#fff', fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
               {busy ? 'Creating…' : 'Create device'}
@@ -572,6 +576,7 @@ function NewDeviceModal({ contractId, clientId, onClose, onCreated }: {
 function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onChanged }: {
   devices: Device[]; contractId: string; clientId: string | null; canManage: boolean; canCreate: boolean; onChanged: () => void;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [pickId, setPickId] = useState('');
   const [busy, setBusy] = useState(false);
@@ -632,19 +637,19 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
       {!equipmentQ.isError && (
         <div style={{ marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.5rem' }}>
-            <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Installed equipment</h3>
+            <h3 style={{ margin: 0, fontSize: '0.95rem' }}>{t('ui.contractDetail.installedEquipment')}</h3>
             <button
               type="button"
               onClick={() => setShowInstall(true)}
               style={{ padding: '4px 12px', border: 'none', borderRadius: 6, background: 'var(--accent, #ea580c)', color: '#fff', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
             >
-              + Install equipment
+              {t('ui.contractDetail.installEquipment2')}
             </button>
           </div>
           {equipmentQ.isLoading ? (
-            <p style={styles.msg}>Loading…</p>
+            <p style={styles.msg}>{t('ui.contractDetail.loading')}</p>
           ) : !equipment.length ? (
-            <p style={styles.msg}>No equipment installed on this contract yet — units assigned through the service-order Equipment flow appear here automatically.</p>
+            <p style={styles.msg}>{t('ui.contractDetail.noEquipmentInstalledOnThis')}</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={styles.table}>
@@ -671,9 +676,9 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
         </div>
       )}
 
-      <h3 style={{ margin: '0 0 0.25rem', fontSize: '0.95rem' }}>Network devices</h3>
+      <h3 style={{ margin: '0 0 0.25rem', fontSize: '0.95rem' }}>{t('ui.contractDetail.networkDevices')}</h3>
       <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-        Monitoring/topology records (SNMP, maps). For stock-tracked routers and ONUs use Install equipment above — it draws from inventory.
+        {t('ui.contractDetail.monitoringTopologyRecordsSnmpMaps')}
       </p>
       {canCreate && (
         <div style={{ marginBottom: '0.5rem' }}>
@@ -682,7 +687,7 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
             onClick={() => setShowNew(true)}
             style={{ padding: '6px 14px', border: 'none', borderRadius: 6, background: 'var(--accent, #ea580c)', color: '#fff', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
           >
-            + New network device
+            {t('ui.contractDetail.newNetworkDevice')}
           </button>
         </div>
       )}
@@ -714,7 +719,7 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
       )}
 
       {!devices.length ? (
-        <p style={styles.msg}>No devices linked to this contract{canManage ? ' — assign one above.' : '.'}</p>
+        <p style={styles.msg}>{t('ui.contractDetail.noDevicesLinkedToThis')}{canManage ? ' — assign one above.' : '.'}</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={styles.table}>
@@ -743,9 +748,9 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
                         disabled={busy}
                         onClick={() => setContract(Number(d.id), null)}
                         style={{ padding: '3px 10px', border: '1px solid #fca5a5', borderRadius: 6, background: 'transparent', color: '#991b1b', fontSize: '0.78rem', cursor: busy ? 'not-allowed' : 'pointer' }}
-                        title="Unlink this device from the contract"
+                        title={t('ui.contractDetail.unlinkThisDeviceFromThe')}
                       >
-                        Unassign
+                        {t('ui.contractDetail.unassign')}
                       </button>
                     </td>
                   )}
@@ -780,7 +785,8 @@ function DevicesTab({ devices, contractId, clientId, canManage, canCreate, onCha
 }
 
 function AddonsTab({ addons }: { addons: ContractAddon[] }) {
-  if (!addons.length) return <p style={styles.msg}>No add-ons found.</p>;
+  const { t } = useTranslation();
+  if (!addons.length) return <p style={styles.msg}>{t('ui.contractDetail.noAddOnsFound')}</p>;
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
@@ -826,6 +832,7 @@ function CredField({
   reveal?: boolean;
   onToggle?: () => void;
 }) {
+  const { t } = useTranslation();
   const shown = secret && !reveal ? '••••••••••' : value;
   return (
     <div style={styles.infoRow}>
@@ -841,13 +848,14 @@ function CredField({
         style={styles.linkBtn}
         onClick={() => { void navigator.clipboard?.writeText(value); }}
       >
-        Copy
+        {t('ui.contractDetail.copy')}
       </button>
     </div>
   );
 }
 
 function PppoeTab({ contractId, canEdit }: { contractId: string; canEdit: boolean }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [reveal, setReveal] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -873,11 +881,11 @@ function PppoeTab({ contractId, canEdit }: { contractId: string; canEdit: boolea
   });
   const credentialsForbidden = credentialsQ.error instanceof Error && credentialsQ.error.message === RADIUS_CREDENTIALS_FORBIDDEN;
 
-  if (isLoading) return <p style={styles.msg}>Loading PPPoE account…</p>;
-  if (error) return <p style={styles.msg}>Unable to load PPPoE credentials (no account, or insufficient permission).</p>;
+  if (isLoading) return <p style={styles.msg}>{t('ui.contractDetail.loadingPppoeAccount')}</p>;
+  if (error) return <p style={styles.msg}>{t('ui.contractDetail.unableToLoadPppoeCredentials')}</p>;
 
   if (!account) {
-    return <p style={styles.msg}>No PPPoE account for this contract. Use “Renew” to provision one.</p>;
+    return <p style={styles.msg}>{t('ui.contractDetail.noPppoeAccountForThis')}</p>;
   }
 
   // A freshly-regenerated password (from POST .../regenerate-pppoe, gated by
@@ -907,21 +915,21 @@ function PppoeTab({ contractId, canEdit }: { contractId: string; canEdit: boolea
   return (
     <div style={{ padding: '1.25rem' }}>
       <div style={styles.infoGrid}>
-        <CredField label="Username" value={account.username} />
+        <CredField label={t('ui.contractDetail.username')} value={account.username} />
         {!regenerated && credentialsForbidden ? (
           <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Password</span>
+            <span style={styles.infoLabel}>{t('ui.contractDetail.password')}</span>
             <span style={{ ...styles.infoValue, color: 'var(--text-dimmed)' }}>
-              Insufficient permission to view the password (requires radius.credentials.view).
+              {t('ui.contractDetail.insufficientPermissionToViewThe')}
             </span>
           </div>
         ) : password === undefined ? (
           <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Password</span>
-            <span style={styles.infoValue}>Loading…</span>
+            <span style={styles.infoLabel}>{t('ui.contractDetail.password')}</span>
+            <span style={styles.infoValue}>{t('ui.contractDetail.loading')}</span>
           </div>
         ) : (
-          <CredField label="Password" value={password} secret reveal={reveal} onToggle={() => setReveal(v => !v)} />
+          <CredField label={t('ui.contractDetail.password')} value={password} secret reveal={reveal} onToggle={() => setReveal(v => !v)} />
         )}
       </div>
 
@@ -932,7 +940,7 @@ function PppoeTab({ contractId, canEdit }: { contractId: string; canEdit: boolea
           </button>
           {regenerated && (
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              New password generated{regenerated.pushed ? ' and pushed to the NAS' : ' — reconfigure the CPE'}.
+              {t('ui.contractDetail.newPasswordGenerated')}{regenerated.pushed ? ' and pushed to the NAS' : ' — reconfigure the CPE'}.
             </span>
           )}
         </div>
@@ -941,20 +949,18 @@ function PppoeTab({ contractId, canEdit }: { contractId: string; canEdit: boolea
       {regenError && <div style={{ ...styles.errorBanner, marginTop: '1rem' }}>{regenError}</div>}
 
       <p style={{ fontSize: '0.78rem', color: 'var(--text-dimmed)', marginTop: '1rem' }}>
-        Rotating the password requires reconfiguring the subscriber’s CPE with the new credentials.
+        {t('ui.contractDetail.rotatingThePasswordRequiresReconfiguring')}
       </p>
 
       {confirmOpen && (
-        <div style={overlay} role="dialog" aria-modal="true" aria-label="Confirm password regeneration">
+        <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.contractDetail.confirmPasswordRegeneration')}>
           <div style={modalBox}>
-            <h3 style={{ margin: '0 0 0.75rem' }}>Regenerate PPPoE password?</h3>
+            <h3 style={{ margin: '0 0 0.75rem' }}>{t('ui.contractDetail.regeneratePppoePassword')}</h3>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginTop: 0 }}>
-              This generates a new password for <strong>{account.username}</strong> and invalidates the
-              current one. The subscriber will be offline until their CPE is reconfigured with the new
-              credentials. This cannot be undone.
+              {t('ui.contractDetail.thisGeneratesANewPassword')}<strong>{account.username}</strong> {t('ui.contractDetail.andInvalidatesTheCurrentOne')}
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
-              <button type="button" style={cancelBtn} onClick={() => setConfirmOpen(false)}>Cancel</button>
+              <button type="button" style={cancelBtn} onClick={() => setConfirmOpen(false)}>{t('ui.contractDetail.cancel')}</button>
               <button type="button" style={dangerBtn} onClick={handleRegenerate} disabled={regenerating}>
                 {regenerating ? 'Regenerating…' : 'Regenerate password'}
               </button>
@@ -999,31 +1005,32 @@ function InfoRow({
 }
 
 function ContractInfoCard({ contract }: { contract: Contract }) {
+  const { t } = useTranslation();
   return (
     <div style={styles.infoCard}>
       <div style={styles.infoGrid}>
         {contract.client && (
           <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Client</span>
+            <span style={styles.infoLabel}>{t('ui.contractDetail.client')}</span>
             <Link to={`/clients/${contract.client.id}`} style={styles.infoLink}>
               {contract.client.name}
             </Link>
           </div>
         )}
-        <InfoRow label="Plan"        value={contract.planId ? `Plan #${contract.planId}` : null} />
-        <InfoRow label="Type"        value={contract.connectionType} capitalize />
-        <InfoRow label="Start Date"  value={fmt(contract.startDate)} />
-        <InfoRow label="End Date"    value={fmt(contract.endDate)} />
-        <InfoRow label="Billing Day" value={contract.billingDay != null ? String(contract.billingDay) : null} />
-        <InfoRow label="IP Address"  value={contract.ipAddress} mono />
-        <InfoRow label="Created"     value={fmt(contract.createdAt)} />
+        <InfoRow label={t('ui.contractDetail.plan')}        value={contract.planId ? `Plan #${contract.planId}` : null} />
+        <InfoRow label={t('ui.contractDetail.type2')}        value={contract.connectionType} capitalize />
+        <InfoRow label={t('ui.contractDetail.startDate')}  value={fmt(contract.startDate)} />
+        <InfoRow label={t('ui.contractDetail.endDate')}    value={fmt(contract.endDate)} />
+        <InfoRow label={t('ui.contractDetail.billingDay')} value={contract.billingDay != null ? String(contract.billingDay) : null} />
+        <InfoRow label={t('ui.contractDetail.ipAddress')}  value={contract.ipAddress} mono />
+        <InfoRow label={t('ui.contractDetail.created')}     value={fmt(contract.createdAt)} />
         {contract.priceOverride && (
-          <InfoRow label="Price Override" value={formatMoney(contract.priceOverride)} />
+          <InfoRow label={t('ui.contractDetail.priceOverride')} value={formatMoney(contract.priceOverride)} />
         )}
       </div>
       {contract.notes && (
         <div style={styles.notesRow}>
-          <span style={styles.noteLabel}>Notes: </span>
+          <span style={styles.noteLabel}>{t('ui.contractDetail.notes')}</span>
           {contract.notes}
         </div>
       )}
@@ -1165,76 +1172,6 @@ async function postActivationState(
   if (!response.ok) throw new Error(await activationError(response, fallback));
   const json = await response.json().catch(() => null) as { data?: ContractActivationState } | null;
   return json?.data ?? null;
-}
-
-function ActivationSignatureCanvas({ onChange }: { onChange: (value: string | null) => void }) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawing = useRef(false);
-  const dirty = useRef(false);
-
-  function point(event: React.PointerEvent<HTMLCanvasElement>) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    return {
-      x: (event.clientX - rect.left) * (rect.width ? event.currentTarget.width / rect.width : 1),
-      y: (event.clientY - rect.top) * (rect.height ? event.currentTarget.height / rect.height : 1),
-    };
-  }
-
-  function start(event: React.PointerEvent<HTMLCanvasElement>) {
-    drawing.current = true;
-    const context = canvasRef.current?.getContext('2d');
-    if (!context) return;
-    const { x, y } = point(event);
-    context.beginPath();
-    context.moveTo(x, y);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function move(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawing.current) return;
-    const context = canvasRef.current?.getContext('2d');
-    if (!context) return;
-    const { x, y } = point(event);
-    context.lineWidth = 2;
-    context.lineCap = 'round';
-    context.strokeStyle = '#111';
-    context.lineTo(x, y);
-    context.stroke();
-    dirty.current = true;
-  }
-
-  function end() {
-    drawing.current = false;
-    if (dirty.current && canvasRef.current) onChange(canvasRef.current.toDataURL('image/png'));
-  }
-
-  function clear() {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext('2d');
-    if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
-    dirty.current = false;
-    onChange(null);
-  }
-
-  const { t } = useTranslation();
-  return (
-    <div>
-      <canvas
-        ref={canvasRef}
-        width={420}
-        height={140}
-        data-testid="activation-signature-canvas"
-        style={{ border: '1px dashed var(--border-strong, #9ca3af)', borderRadius: 8, background: '#fff', touchAction: 'none', width: '100%', maxWidth: 420 }}
-        onPointerDown={start}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerLeave={end}
-      />
-      <button type="button" style={{ ...cancelBtn, marginTop: 4, padding: '3px 10px' }} onClick={clear}>
-        {t('contractActivation.clearSignature')}
-      </button>
-    </div>
-  );
 }
 
 function ActivationSignModal({ documentId, onClose, onSigned }: {
@@ -2231,7 +2168,7 @@ export function ContractDetail() {
   if (isLoading) {
     return (
       <div style={styles.page}>
-        <p style={styles.msg}>Loading contract…</p>
+        <p style={styles.msg}>{t('ui.contractDetail.loadingContract')}</p>
       </div>
     );
   }
@@ -2239,8 +2176,8 @@ export function ContractDetail() {
   if (error || !contract) {
     return (
       <div style={styles.page}>
-        <p style={styles.msgError}>Contract not found.</p>
-        <Link to="/contracts" style={styles.backLink}>Back to Contracts</Link>
+        <p style={styles.msgError}>{t('ui.contractDetail.contractNotFound')}</p>
+        <Link to="/contracts" style={styles.backLink}>{t('ui.contractDetail.backToContracts')}</Link>
       </div>
     );
   }
@@ -2255,7 +2192,7 @@ export function ContractDetail() {
     <div style={styles.page}>
       {/* Breadcrumb */}
       <div style={styles.breadcrumb}>
-        <Link to="/contracts" style={styles.breadcrumbLink}>Contracts</Link>
+        <Link to="/contracts" style={styles.breadcrumbLink}>{t('ui.contractDetail.contracts')}</Link>
         <span style={styles.breadcrumbSep}>›</span>
         {contract.client && (
           <>
@@ -2265,13 +2202,13 @@ export function ContractDetail() {
             <span style={styles.breadcrumbSep}>›</span>
           </>
         )}
-        <span style={styles.breadcrumbCurrent}>Contract #{contract.id}</span>
+        <span style={styles.breadcrumbCurrent}>{t('ui.contractDetail.contract')}{contract.id}</span>
       </div>
 
       {/* Contract header */}
       <div style={styles.contractHeader}>
         <div>
-          <h1 style={styles.contractTitle}>Contract #{contract.id}</h1>
+          <h1 style={styles.contractTitle}>{t('ui.contractDetail.contract')}{contract.id}</h1>
           <div style={styles.headerMeta}>
             <StatusBadge status={contract.status} colors={STATUS_COLORS} />
             {contract.mxContractEnvironment && (
@@ -2281,7 +2218,7 @@ export function ContractDetail() {
               <span style={styles.metaChip}>{contract.connectionType}</span>
             )}
             {contract.planId && (
-              <span style={styles.metaChip}>Plan #{contract.planId}</span>
+              <span style={styles.metaChip}>{t('ui.contractDetail.plan2')}{contract.planId}</span>
             )}
           </div>
         </div>
@@ -2293,7 +2230,7 @@ export function ContractDetail() {
                 style={styles.actionBtn}
                 onClick={() => handleAction('renew')}
               >
-                Renew
+                {t('ui.contractDetail.renew')}
               </button>
             )}
             {canSuspend && (
@@ -2302,7 +2239,7 @@ export function ContractDetail() {
                 style={{ ...styles.actionBtn, color: '#92400e' }}
                 onClick={() => handleAction('suspend')}
               >
-                Suspend
+                {t('ui.contractDetail.suspend')}
               </button>
             )}
             {canUnsuspend && (
@@ -2311,7 +2248,7 @@ export function ContractDetail() {
                 style={styles.actionBtn}
                 onClick={() => handleAction('unsuspend')}
               >
-                Unsuspend
+                {t('ui.contractDetail.unsuspend')}
               </button>
             )}
             {canTerminate && (
@@ -2320,7 +2257,7 @@ export function ContractDetail() {
                 style={{ ...styles.actionBtn, color: '#991b1b' }}
                 onClick={() => handleAction('terminate')}
               >
-                Terminate
+                {t('ui.contractDetail.terminate')}
               </button>
             )}
           </div>

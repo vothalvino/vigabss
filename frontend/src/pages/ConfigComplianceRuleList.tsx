@@ -100,7 +100,7 @@ function RuleForm({ initial, onSave, onClose, saving, editMode }: RuleFormProps)
       <div style={{ ...modalStyles.panel, maxWidth: 520 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('config_compliance.edit') : t('config_compliance.new')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.configComplianceRuleList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -127,18 +127,18 @@ function RuleForm({ initial, onSave, onClose, saving, editMode }: RuleFormProps)
           </div>
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={modalStyles.label}>{t('config_compliance.pattern')}<RequiredMark /></label>
-            <input style={{ ...inp, fontFamily: 'monospace' }} value={pattern} onChange={e => setPattern(e.target.value)} required placeholder="e.g. no telnet or ^ip route" />
+            <input style={{ ...inp, fontFamily: 'monospace' }} value={pattern} onChange={e => setPattern(e.target.value)} required placeholder={t('ui.configComplianceRuleList.eGNoTelnetOr')} />
           </div>
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={modalStyles.label}>{t('config_compliance.applies_to_device_type')}</label>
-            <input style={inp} value={appliesToDeviceType} onChange={e => setAppliesToDeviceType(e.target.value)} placeholder="e.g. router (leave blank for all)" />
+            <input style={inp} value={appliesToDeviceType} onChange={e => setAppliesToDeviceType(e.target.value)} placeholder={t('ui.configComplianceRuleList.eGRouterLeaveBlank')} />
           </div>
           <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="checkbox" id="is_enabled_rule" checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} />
             <label htmlFor="is_enabled_rule" style={{ cursor: 'pointer' }}>{t('config_compliance.is_enabled')}</label>
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.configComplianceRuleList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -155,6 +155,7 @@ interface AuditDialogProps {
 }
 
 function AuditDialog({ onRun, onClose, running, result }: AuditDialogProps) {
+  const { t } = useTranslation();
   const [backupId, setBackupId] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
@@ -168,27 +169,27 @@ function AuditDialog({ onRun, onClose, running, result }: AuditDialogProps) {
     <div style={modalStyles.backdrop} onClick={onClose}>
       <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
-          <h3 style={modalStyles.title}>Run Compliance Audit</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <h3 style={modalStyles.title}>{t('ui.configComplianceRuleList.runComplianceAudit')}</h3>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.configComplianceRuleList.close')}>x</button>
         </div>
         {result ? (
           <div>
-            <p style={{ marginBottom: '0.5rem', fontWeight: 600 }}>Audit complete</p>
-            <p>Total rules: {result.total}</p>
-            <p style={{ color: '#065f46' }}>Passed: {result.passed}</p>
-            <p style={{ color: result.failed > 0 ? '#991b1b' : '#374151' }}>Failed: {result.failed}</p>
+            <p style={{ marginBottom: '0.5rem', fontWeight: 600 }}>{t('ui.configComplianceRuleList.auditComplete')}</p>
+            <p>{t('ui.configComplianceRuleList.totalRules')}{result.total}</p>
+            <p style={{ color: '#065f46' }}>{t('ui.configComplianceRuleList.passed')}{result.passed}</p>
+            <p style={{ color: result.failed > 0 ? '#991b1b' : '#374151' }}>{t('ui.configComplianceRuleList.failed')}{result.failed}</p>
             <div style={{ ...modalStyles.actions, marginTop: '1rem' }}>
-              <button style={styles.btnPrimary} onClick={onClose}>Close</button>
+              <button style={styles.btnPrimary} onClick={onClose}>{t('ui.configComplianceRuleList.close')}</button>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '1rem' }}>
-              <label style={modalStyles.label}>Backup ID<RequiredMark /></label>
+              <label style={modalStyles.label}>{t('ui.configComplianceRuleList.backupId')}<RequiredMark /></label>
               <input style={inp} type="number" min="1" value={backupId} onChange={e => setBackupId(e.target.value)} required />
             </div>
             <div style={modalStyles.actions}>
-              <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+              <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.configComplianceRuleList.cancel')}</button>
               <button type="submit" style={styles.btnPrimary} disabled={running}>{running ? 'Running...' : 'Run Audit'}</button>
             </div>
           </form>
@@ -257,7 +258,7 @@ export function ConfigComplianceRuleList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('config_compliance.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.configComplianceRuleList.total')}</span>}
         <button style={{ ...styles.btnSecondary, marginLeft: 'auto', marginRight: 8 }} onClick={() => setShowAudit(true)}>
           {t('config_compliance.run_audit')}
         </button>
@@ -296,8 +297,8 @@ export function ConfigComplianceRuleList() {
                     <td style={styles.td}>{rule.applies_to_device_type ?? 'All'}</td>
                     <td style={styles.td}>{rule.is_enabled ? 'Yes' : 'No'}</td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(rule)}>Edit</button>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(rule.id)}>Delete</button>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(rule)}>{t('ui.configComplianceRuleList.edit')}</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(rule.id)}>{t('ui.configComplianceRuleList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -309,9 +310,9 @@ export function ConfigComplianceRuleList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.configComplianceRuleList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.configComplianceRuleList.page')}{page} {t('ui.configComplianceRuleList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.configComplianceRuleList.next')}</button>
         </div>
       )}
 
@@ -332,8 +333,8 @@ export function ConfigComplianceRuleList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('config_compliance.delete_confirm')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.configComplianceRuleList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.configComplianceRuleList.delete')}</button>
             </div>
           </div>
         </div>

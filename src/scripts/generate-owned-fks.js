@@ -8,7 +8,8 @@
 // guess from its name. Only targets assertOwnedReferences knows are listed.
 // The check is strict (the caller's organization only); a route whose module
 // treats NULL-organization rows as shared passes { table, allowShared: true }
-// for that field in its own ownedRefs option, which wins.
+// for that field in its own ownedRefs option, which wins. A target in
+// SHARED_TABLES (NULL-organization defaults) is listed with allowShared.
 // tests/ownedForeignKeys.test.js fails when the committed file is stale.
 //   node src/scripts/generate-owned-fks.js          # print
 //   node src/scripts/generate-owned-fks.js --write  # update the file
@@ -16,7 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { OWNED_TABLES } = require('../utils/ownedReferences');
+const { OWNED_TABLES, SHARED_TABLES } = require('../utils/ownedReferences');
 
 const ROOT = path.join(__dirname, '..', '..');
 const OUT = path.join(ROOT, 'src', 'models', 'ownedForeignKeys.json');
@@ -40,7 +41,7 @@ function generate(schema = fs.readFileSync(path.join(ROOT, 'database', 'schema.s
       const [, column, target] = fk;
       if (column === 'organization_id' || !OWNED_TABLES.has(target)) continue;
       map[table] = map[table] || {};
-      map[table][column] = target;
+      map[table][column] = SHARED_TABLES.has(target) ? { table: target, allowShared: true } : target;
     }
   }
   return Object.fromEntries(Object.entries(map).sort(([a], [b]) => a.localeCompare(b))

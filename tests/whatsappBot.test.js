@@ -85,19 +85,19 @@ describe('bound-client capabilities', () => {
 
   it('answers balance for intent 1', async () => {
     const { reply } = await bot.handleInbound({ phone: PHONE, body: '1' });
-    expect(cap.balanceText).toHaveBeenCalledWith(3, 7);
+    expect(cap.balanceText).toHaveBeenCalledWith(3, 7, 'en');
     expect(reply).toMatch(/account balance/i);
   });
 
   it('answers plan for the keyword "plan"', async () => {
     const { reply } = await bot.handleInbound({ phone: PHONE, body: 'plan' });
-    expect(cap.planText).toHaveBeenCalledWith(3, 7);
+    expect(cap.planText).toHaveBeenCalledWith(3, 7, 'en');
     expect(reply).toMatch(/your service/i);
   });
 
   it('answers invoices for the Spanish keyword "factura"', async () => {
     await bot.handleInbound({ phone: PHONE, body: 'factura' });
-    expect(cap.invoicesText).toHaveBeenCalledWith(3, 7);
+    expect(cap.invoicesText).toHaveBeenCalledWith(3, 7, 'en');
   });
 
   it('opens a human-handoff ticket for intent 7', async () => {

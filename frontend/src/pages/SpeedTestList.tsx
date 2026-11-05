@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,6 +73,7 @@ function sourceLabel(source: string): string {
 // ---------------------------------------------------------------------------
 
 export function SpeedTestList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [sourceFilter, setSourceFilter] = useState('');
 
@@ -92,12 +94,12 @@ export function SpeedTestList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>⚡ Speed Tests</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.speedTestList.speedTests')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.speedTestList.total')}</span>}
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Source:</label>
+        <label style={styles.filterLabel}>{t('ui.speedTestList.source')}</label>
         <select
           style={styles.filterSelect}
           value={sourceFilter}
@@ -109,18 +111,18 @@ export function SpeedTestList() {
         </select>
         {sourceFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.speedTestList.clearFilter')}
           </button>
         )}
       </div>
 
       <div style={styles.tableCard}>
         {testsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.speedTestList.loading')}</p>
         ) : testsQ.error ? (
-          <p style={styles.msgError}>Failed to load speed tests.</p>
+          <p style={styles.msgError}>{t('ui.speedTestList.failedToLoadSpeedTests')}</p>
         ) : tests.length === 0 ? (
-          <p style={styles.msg}>No speed tests found{sourceFilter ? ` from "${sourceLabel(sourceFilter)}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.speedTestList.noSpeedTestsFound')}{sourceFilter ? ` from "${sourceLabel(sourceFilter)}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -154,15 +156,15 @@ export function SpeedTestList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.speedTestList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.speedTestList.page')}{page} {t('ui.speedTestList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.speedTestList.next')}
                 </button>
               </div>
             )}

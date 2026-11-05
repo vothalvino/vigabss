@@ -89,17 +89,17 @@ export function PollerPerformanceDashboard() {
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('poller_performance.title', 'Poller Performance')}</h1>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: '0.85rem', color: '#6b7280' }}>Lookback:</label>
+          <label style={{ fontSize: '0.85rem', color: '#6b7280' }}>{t('ui.pollerPerformanceDashboard.lookback')}</label>
           <select
             style={{ padding: '0.35rem 0.6rem', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.85rem' }}
             value={hours}
             onChange={e => setHours(parseInt(e.target.value, 10))}
           >
-            <option value={1}>1 hour</option>
-            <option value={6}>6 hours</option>
-            <option value={24}>24 hours</option>
-            <option value={72}>3 days</option>
-            <option value={168}>7 days</option>
+            <option value={1}>{t('ui.pollerPerformanceDashboard.t1Hour')}</option>
+            <option value={6}>{t('ui.pollerPerformanceDashboard.t6Hours')}</option>
+            <option value={24}>{t('ui.pollerPerformanceDashboard.t24Hours')}</option>
+            <option value={72}>{t('ui.pollerPerformanceDashboard.t3Days')}</option>
+            <option value={168}>{t('ui.pollerPerformanceDashboard.t7Days')}</option>
           </select>
         </div>
       </div>
@@ -126,7 +126,7 @@ export function PollerPerformanceDashboard() {
                   <thead>
                     <tr>
                       <th style={styles.th}>{t('poller_performance.snapshot_at', 'Snapshot Time')}</th>
-                      <th style={styles.th}>Node</th>
+                      <th style={styles.th}>{t('ui.pollerPerformanceDashboard.node')}</th>
                       <th style={styles.th}>{t('poller_performance.devices_polled', 'Polled')}</th>
                       <th style={styles.th}>{t('poller_performance.devices_failed', 'Failed')}</th>
                       <th style={styles.th}>{t('poller_performance.avg_poll_duration', 'Avg (ms)')}</th>

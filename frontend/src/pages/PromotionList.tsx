@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -131,6 +132,7 @@ interface PromotionModalProps {
 }
 
 function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
+  const { t } = useTranslation();
   const isEdit = promotion !== null;
   const [form, setForm] = useState({
     name: promotion?.name ?? '',
@@ -206,37 +208,37 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit Promotion #${promotion.id}` : '🏷️ New Promotion'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.promotionList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.promotionList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={150}
               value={form.name}
               onChange={e => setField('name', e.target.value)}
-              placeholder='e.g. "Summer 2026 – 20% off"'
+              placeholder={t('ui.promotionList.eGSummer202620')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Coupon code
+            {t('ui.promotionList.couponCode')}
             <input
               style={modalStyles.input}
               type="text"
               maxLength={50}
               value={form.code}
               onChange={e => setField('code', e.target.value)}
-              placeholder="e.g. SUMMER20 (leave blank for auto-applied)"
+              placeholder={t('ui.promotionList.eGSummer20LeaveBlank')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Description
+            {t('ui.promotionList.description')}
             <input
               style={modalStyles.input}
               type="text"
@@ -247,7 +249,7 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Discount type
+            {t('ui.promotionList.discountType')}
             <select
               style={modalStyles.select}
               value={form.discount_type}
@@ -258,7 +260,7 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Discount value <RequiredMark />
+            {t('ui.promotionList.discountValue')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="number"
@@ -271,7 +273,7 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Promotion type
+            {t('ui.promotionList.promotionType')}
             <select
               style={modalStyles.select}
               value={form.promotion_type}
@@ -282,7 +284,7 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Applies to
+            {t('ui.promotionList.appliesTo')}
             <select
               style={modalStyles.select}
               value={form.applies_to}
@@ -293,31 +295,31 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Max total uses
+            {t('ui.promotionList.maxTotalUses')}
             <input
               style={modalStyles.input}
               type="number"
               min={0}
               value={form.max_uses}
               onChange={e => setField('max_uses', e.target.value)}
-              placeholder="Blank = unlimited"
+              placeholder={t('ui.promotionList.blankUnlimited')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Max uses per client
+            {t('ui.promotionList.maxUsesPerClient')}
             <input
               style={modalStyles.input}
               type="number"
               min={0}
               value={form.max_uses_per_client}
               onChange={e => setField('max_uses_per_client', e.target.value)}
-              placeholder="Blank = unlimited"
+              placeholder={t('ui.promotionList.blankUnlimited')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Minimum order value
+            {t('ui.promotionList.minimumOrderValue')}
             <input
               style={modalStyles.input}
               type="number"
@@ -325,12 +327,12 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
               step="0.01"
               value={form.min_order_value}
               onChange={e => setField('min_order_value', e.target.value)}
-              placeholder="Blank = no minimum"
+              placeholder={t('ui.promotionList.blankNoMinimum')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Duration (months)
+            {t('ui.promotionList.durationMonths')}
             <input
               style={modalStyles.input}
               type="number"
@@ -338,12 +340,12 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
               max={255}
               value={form.duration_months}
               onChange={e => setField('duration_months', e.target.value)}
-              placeholder="Blank = one-time / perpetual"
+              placeholder={t('ui.promotionList.blankOneTimePerpetual')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Starts at
+            {t('ui.promotionList.startsAt')}
             <input
               style={modalStyles.input}
               type="date"
@@ -353,7 +355,7 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Ends at
+            {t('ui.promotionList.endsAt')}
             <input
               style={modalStyles.input}
               type="date"
@@ -368,14 +370,14 @@ function PromotionModal({ promotion, onClose, onSaved }: PromotionModalProps) {
               checked={form.is_active}
               onChange={e => setField('is_active', e.target.checked)}
             />
-            Active
+            {t('ui.promotionList.active')}
           </label>
 
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.promotionList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Promotion'}
@@ -398,18 +400,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.promotionList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.promotionList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.promotionList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -421,6 +424,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function PromotionList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState('');
@@ -453,15 +457,15 @@ export function PromotionList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🏷️ Promotions</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.promotionList.promotions')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.promotionList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New Promotion
+          {t('ui.promotionList.newPromotion')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Type:</label>
+        <label style={styles.filterLabel}>{t('ui.promotionList.type')}</label>
         <select
           style={styles.filterSelect}
           value={typeFilter}
@@ -473,24 +477,24 @@ export function PromotionList() {
         </select>
         {typeFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.promotionList.clearFilter')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.promotionList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {promotionsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.promotionList.loading')}</p>
         ) : promotionsQ.error ? (
-          <p style={styles.msgError}>Failed to load promotions.</p>
+          <p style={styles.msgError}>{t('ui.promotionList.failedToLoadPromotions')}</p>
         ) : promotions.length === 0 ? (
-          <p style={styles.msg}>No promotions found{typeFilter ? ` of type "${typeFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.promotionList.noPromotionsFound')}{typeFilter ? ` of type "${typeFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -513,15 +517,15 @@ export function PromotionList() {
                       <td style={{ ...styles.td, textTransform: 'capitalize' }}>{p.applies_to}</td>
                       <td style={styles.td}><ActiveBadge active={Boolean(p.is_active)} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <button style={styles.actionBtn} onClick={() => setEditPromotion(p)} title="Edit this promotion">
-                          ✏️ Edit
+                        <button style={styles.actionBtn} onClick={() => setEditPromotion(p)} title={t('ui.promotionList.editThisPromotion')}>
+                          {t('ui.promotionList.edit')}
                         </button>
                         <button
                           style={{ ...styles.actionBtn, color: '#991b1b' }}
                           onClick={() => setDeleteId(p.id)}
-                          title="Delete this promotion"
+                          title={t('ui.promotionList.deleteThisPromotion')}
                         >
-                          🗑 Delete
+                          {t('ui.promotionList.delete')}
                         </button>
                       </td>
                     </tr>
@@ -533,15 +537,15 @@ export function PromotionList() {
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.promotionList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.promotionList.page')}{page} {t('ui.promotionList.of')}{meta.totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                 >
-                  Next →
+                  {t('ui.promotionList.next')}
                 </button>
               </div>
             )}

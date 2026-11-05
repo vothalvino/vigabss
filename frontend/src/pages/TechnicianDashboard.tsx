@@ -193,7 +193,7 @@ export function TechnicianDashboard() {
           <h1 style={styles.pageTitle}>{t('technicianDashboard.title')}</h1>
           <p style={styles.welcomeMsg}>
             {t('dashboard.welcome', { name: user?.name ?? user?.email })}
-            <> &nbsp;·&nbsp; <span style={styles.roleBadge}>{t('technicianDashboard.subtitle')}</span></>
+            <> {t('ui.technicianDashboard.text')}<span style={styles.roleBadge}>{t('technicianDashboard.subtitle')}</span></>
           </p>
         </div>
       </div>

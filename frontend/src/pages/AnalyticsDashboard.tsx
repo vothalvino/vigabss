@@ -143,7 +143,7 @@ function AgingSummaryWidget({ title }: { title: string }) {
           <div style={{ ...widgetStyles.kpiValue, color: '#e74c3c' }}>
             {currency(data.data.total_outstanding ?? 0)}
           </div>
-          <div style={widgetStyles.muted}>{data.data.invoice_count} invoices</div>
+          <div style={widgetStyles.muted}>{data.data.invoice_count} {t('ui.analyticsDashboard.invoices')}</div>
         </div>
       )}
     </div>
@@ -170,7 +170,7 @@ function CapacityForecastWidget({ title }: { title: string }) {
           <table style={widgetStyles.table}>
             <thead>
               <tr>
-                <th style={widgetStyles.th}>Month</th>
+                <th style={widgetStyles.th}>{t('ui.analyticsDashboard.month')}</th>
                 <th style={widgetStyles.th}>{t('analyticsDashboard.predicted')}</th>
               </tr>
             </thead>

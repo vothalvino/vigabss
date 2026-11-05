@@ -66339,6 +66339,9 @@
             "type": "number",
             "minimum": 1
           },
+          "prorate": {
+            "type": "boolean"
+          },
           "contract_template_mx_id": {
             "type": "number",
             "minimum": 1
@@ -66417,6 +66420,9 @@
           "plan_id": {
             "type": "number",
             "minimum": 1
+          },
+          "prorate": {
+            "type": "boolean"
           },
           "contract_template_mx_id": {
             "type": "number",

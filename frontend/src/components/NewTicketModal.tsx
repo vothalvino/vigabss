@@ -74,46 +74,46 @@ export function NewTicketModal({ lockedClientId, lockedClientName, onClose, onCr
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="New Ticket">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.newTicketModal.newTicket')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 1rem' }}>New Ticket</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.newTicketModal.newTicket')}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label htmlFor={`${fieldId}-1`} style={labelStyle}>Client</label>
+          <label htmlFor={`${fieldId}-1`} style={labelStyle}>{t('ui.newTicketModal.client')}</label>
           <input id={`${fieldId}-1`} style={{ ...inputStyle, background: 'var(--bg-body)', color: 'var(--text-muted)' }}
             value={lockedClientName ?? `Client #${lockedClientId}`} disabled />
 
-          <label htmlFor={`${fieldId}-2`} style={labelStyle}>Subject *</label>
+          <label htmlFor={`${fieldId}-2`} style={labelStyle}>{t('ui.newTicketModal.subject')}</label>
           <input id={`${fieldId}-2`} style={inputStyle} value={form.subject} onChange={set('subject')}
-            placeholder="Brief description of the issue" required />
+            placeholder={t('ui.newTicketModal.briefDescriptionOfTheIssue')} required />
 
-          <label htmlFor={`${fieldId}-3`} style={labelStyle}>Description</label>
+          <label htmlFor={`${fieldId}-3`} style={labelStyle}>{t('ui.newTicketModal.description')}</label>
           <textarea id={`${fieldId}-3`} style={{ ...inputStyle, height: 80, resize: 'vertical' }}
-            value={form.description} onChange={set('description')} placeholder="Detailed description (optional)" />
+            value={form.description} onChange={set('description')} placeholder={t('ui.newTicketModal.detailedDescriptionOptional')} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             <div>
-              <label htmlFor={`${fieldId}-4`} style={labelStyle}>Priority</label>
+              <label htmlFor={`${fieldId}-4`} style={labelStyle}>{t('ui.newTicketModal.priority')}</label>
               <select id={`${fieldId}-4`} style={inputStyle} value={form.priority} onChange={set('priority')}>
                 {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
               </select>
             </div>
             <div>
-              <label htmlFor={`${fieldId}-5`} style={labelStyle}>Status</label>
+              <label htmlFor={`${fieldId}-5`} style={labelStyle}>{t('ui.newTicketModal.status')}</label>
               <select id={`${fieldId}-5`} style={inputStyle} value={form.status} onChange={set('status')}>
                 {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>)}
               </select>
             </div>
           </div>
 
-          <label htmlFor={`${fieldId}-6`} style={labelStyle}>Category *</label>
+          <label htmlFor={`${fieldId}-6`} style={labelStyle}>{t('ui.newTicketModal.category')}</label>
           <select id={`${fieldId}-6`} style={inputStyle} value={form.category} onChange={set('category')} required>
             <option value="" disabled>{t('ticketList.selectCategory')}</option>
             {CATEGORIES.map(c => <option key={c} value={c}>{t(`ticketCategory.${c}`)}</option>)}
           </select>
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1.25rem' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.newTicketModal.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={submitting || !form.subject.trim() || !form.category}>
               {submitting ? 'Creating…' : 'Create Ticket'}
             </button>

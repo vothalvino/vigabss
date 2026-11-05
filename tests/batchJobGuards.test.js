@@ -15,6 +15,9 @@ jest.mock('../src/config/database', () => ({
   pool: { end: jest.fn() },
 }));
 jest.mock('../src/services/auditLog', () => ({ log: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/services/contractUpdateGuard', () => ({ updateContractWithActivationGuard: jest.fn(async () => ({})) }));
+jest.mock('../src/services/contractPlanChangeService', () => ({ pushPlanChange: jest.fn(async () => ({ pushed: true, coa_sent: true })) }));
+jest.mock('../src/services/planChangeProrationService', () => ({ prorate: jest.fn(async () => ({ net: -12.5, creditNoteId: 3 })) }));
 
 const db = require('../src/config/database');
 const auditLog = require('../src/services/auditLog');
@@ -53,13 +56,12 @@ test('batch suspend is attributed to the job creator, not body ids', async () =>
 });
 
 test('a batch plan change is audited', async () => {
-  db.query
-    .mockResolvedValueOnce([[{ id: 10, plan_id: 3 }]])
-    .mockResolvedValueOnce([{ affectedRows: 1 }]);
+  require('./fixtures/mockTxConnection').mockTxConnection(db);
+  db.query.mockResolvedValueOnce([[{ id: 10, plan_id: 3 }]]);
   await automationService.applyBatchOperation(1, 'change_plan', { entity_id: 10 }, { plan_id: 4 }, 7);
   expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({
     userId: 7, organizationId: 1, tableName: 'contracts', recordId: 10,
-    oldValues: { plan_id: 3 }, newValues: { plan_id: 4 },
+    oldValues: { plan_id: 3 }, newValues: { plan_id: 4, coa_sent: true, proration_net: -12.5 },
   }));
 });
 
