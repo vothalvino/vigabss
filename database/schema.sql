@@ -1188,6 +1188,30 @@ CREATE TABLE IF NOT EXISTS cash_reconciliation_sessions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
+-- Table: cash_reconciliation_session_payments (migration 521)
+-- Purpose: The cash payments a closed session summed into expected_total,
+--          frozen at close so the session's detail keeps adding up.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cash_reconciliation_session_payments (
+    session_id      BIGINT UNSIGNED NOT NULL COMMENT 'The closed session',
+    payment_id      BIGINT UNSIGNED NOT NULL COMMENT 'A cash payment counted in its expected_total',
+    organization_id BIGINT UNSIGNED NULL     COMMENT 'Owning tenant organisation (the session''s)',
+    amount          DECIMAL(12,2)   NOT NULL COMMENT 'The payment amount as summed at close',
+    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (session_id, payment_id),
+    KEY idx_cash_recon_payments_payment (payment_id),
+    KEY idx_cash_recon_payments_org (organization_id),
+    CONSTRAINT fk_cash_recon_payments_session FOREIGN KEY (session_id)
+        REFERENCES cash_reconciliation_sessions (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_cash_recon_payments_payment FOREIGN KEY (payment_id)
+        REFERENCES payments (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_cash_recon_payments_org FOREIGN KEY (organization_id)
+        REFERENCES organizations (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='The payments a closed cash reconciliation session counted (migration 521)';
+
+-- ---------------------------------------------------------------------------
 -- Table: quotes
 -- Purpose: Service estimates and proposals for prospective or existing clients
 -- ---------------------------------------------------------------------------

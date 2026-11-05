@@ -42,6 +42,9 @@
   "campaign_messages": {
     "client_id": "clients"
   },
+  "cash_reconciliation_session_payments": {
+    "payment_id": "payments"
+  },
   "cfdi_documents": {
     "client_id": "clients",
     "invoice_id": "invoices",
