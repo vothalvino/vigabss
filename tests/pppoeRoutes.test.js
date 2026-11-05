@@ -8,7 +8,8 @@ const request = require('supertest');
 jest.mock('../src/config/database', () => ({ query: jest.fn() }));
 jest.mock('../src/middleware/auth', () => ({
   authenticate: (req, _res, next) => {
-    req.user = { id: 1, role: 'admin', organizationId: 77 };
+    // A collector token: the only credential POST /events/tenant accepts.
+    req.user = { id: 1, role: 'admin', organizationId: 77, apiTokenId: 3, scopes: ['pppoe_events:ingest'] };
     next();
   },
 }));
@@ -46,8 +47,7 @@ app.use((err, _req, res, _next) => {
 describe('PPPoE routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.PPPOE_EVENTS_SECRET = 'test-pppoe-secret';
-    db.query.mockResolvedValue([[{ id: 5, organization_id: 44 }]]);
+    db.query.mockResolvedValue([[{ id: 5, organization_id: 77 }]]);
     diagnostics.parseRouterOsLogLine.mockReturnValue({
       stage: 'AUTH', severity: 'error', reason_code: 'auth_failed',
     });
@@ -55,20 +55,16 @@ describe('PPPoE routes', () => {
     PppoeEventLog.create.mockImplementation(async (data) => ({ id: 1, ...data }));
   });
 
-  afterAll(() => { delete process.env.PPPOE_EVENTS_SECRET; });
-
   test('raw ingest parses the line, derives tenant from NAS, and omits a missing timestamp', async () => {
     const res = await request(app)
-      .post('/pppoe/events')
-      .set('X-Pppoe-Secret', 'test-pppoe-secret')
+      .post('/pppoe/events/tenant')
       .send({ nas_id: 5, line: 'alice: login incorrect from AA:BB:CC:DD:EE:FF' });
 
     expect(res.status).toBe(201);
-    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('FROM nas'), [5]);
+    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('FROM nas'), [5, 77]);
     expect(db.query.mock.calls[0][0]).toContain("status = 'active'");
-    expect(db.query.mock.calls[0][0]).toContain("odc.isolation_mode = 'isolated'");
     expect(PppoeEventLog.create).toHaveBeenCalledWith({
-      organization_id: 44,
+      organization_id: 77,
       nas_id: 5,
       username: 'alice',
       mac: 'AA:BB:CC:DD:EE:FF',
@@ -82,8 +78,7 @@ describe('PPPoE routes', () => {
 
   test('structured ingest accepts a valid timestamp/MAC and still derives tenant from NAS', async () => {
     const res = await request(app)
-      .post('/pppoe/events')
-      .set('Authorization', 'Bearer test-pppoe-secret')
+      .post('/pppoe/events/tenant')
       .send({
         nas_id: 5,
         message: 'custom event',
@@ -98,7 +93,7 @@ describe('PPPoE routes', () => {
 
     expect(res.status).toBe(201);
     expect(PppoeEventLog.create.mock.calls[0][0]).toMatchObject({
-      organization_id: 44, nas_id: 5, username: 'bob', mac: 'AA:BB:CC:DD:EE:FF',
+      organization_id: 77, nas_id: 5, username: 'bob', mac: 'AA:BB:CC:DD:EE:FF',
       stage: 'LCP', severity: 'warning', reason_code: 'peer_timeout',
       logged_at: expect.any(Date),
     });
@@ -112,8 +107,7 @@ describe('PPPoE routes', () => {
     [{ nas_id: 5, message: 'x', organization_id: 999 }, 'organization_id'],
   ])('rejects invalid or non-contract payload field with 422 (%s)', async (payload, field) => {
     const res = await request(app)
-      .post('/pppoe/events')
-      .set('X-Pppoe-Secret', 'test-pppoe-secret')
+      .post('/pppoe/events/tenant')
       .send(payload);
 
     expect(res.status).toBe(422);
@@ -123,19 +117,12 @@ describe('PPPoE routes', () => {
     expect(PppoeEventLog.create).not.toHaveBeenCalled();
   });
 
-  test('rejects an unknown NAS and an invalid shared secret', async () => {
+  test('rejects a NAS outside the token organization', async () => {
     db.query.mockResolvedValueOnce([[]]);
     const unknown = await request(app)
-      .post('/pppoe/events')
-      .set('X-Pppoe-Secret', 'test-pppoe-secret')
+      .post('/pppoe/events/tenant')
       .send({ nas_id: 999, message: 'event' });
     expect(unknown.status).toBe(422);
-
-    const unauthorized = await request(app)
-      .post('/pppoe/events')
-      .set('X-Pppoe-Secret', 'wrong')
-      .send({ nas_id: 5, message: 'event' });
-    expect(unauthorized.status).toBe(401);
   });
 
   test('authenticated readiness route returns the exact service envelope for the request tenant', async () => {

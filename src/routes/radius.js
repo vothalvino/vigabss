@@ -25,7 +25,7 @@ const radiusService = require('../services/radiusService');
 const {
   exportCdr, listMacMoveEvents, ingestAccounting, recordInfrastructureAccounting,
 } = require('../services/radiusAccountingService');
-const { normalizeAccountingBody } = require('./radiusAccounting');
+const { normalizeAccountingBody } = require('../utils/radiusAccountingBody');
 const { sendRadiusPacket } = require('../services/suspensionService');
 const radiusServerService = require('../services/radiusServerService');
 const auditLog = require('../services/auditLog');
@@ -118,11 +118,25 @@ router.get('/server-status', requirePermission('devices.view'), (_req, res) => {
   res.json({ data: radiusServerService.getStatus() });
 });
 
-// Recommended tenant-explicit machine path. Unlike the compatibility shared-
-// secret endpoint, the API token fixes the organization before NAS lookup.
-// Shared-primary NAS addresses remain installation-wide unique; isolated
-// tenant databases may reuse RFC1918 values without making this lookup ambiguous.
-router.post('/accounting/tenant', accountingIngestLimiter, apiTokenConfiguredLimiter, requirePermission('connection_logs.ingest'), async (req, res, next) => {
+// FreeRADIUS accounting ingest. The organization API token fixes the
+// organization before the NAS lookup, so isolated tenant databases may reuse
+// RFC1918 NAS addresses without making the lookup ambiguous.
+//
+// The ingest runs on the accounting pool (database.js): a burst of accounting
+// waits for its own connections, not the API's. Every answered request counts
+// in radius_accounting_requests_total{status_type,result}.
+router.post('/accounting/tenant', accountingIngestLimiter, apiTokenConfiguredLimiter, requirePermission('connection_logs.ingest'), (req, res, next) => {
+  res.on('finish', () => {
+    let statusType = '';
+    try { statusType = String(normalizeAccountingBody(req.body || {}).acctStatusType || '').trim(); } catch { /* malformed body */ }
+    require('../utils/opsMetrics').noteRadiusAccounting(statusType, res.statusCode);
+  });
+  return typeof db.withAccountingPool === 'function'
+    ? db.withAccountingPool(() => ingestTenantAccounting(req, res, next))
+    : ingestTenantAccounting(req, res, next);
+});
+
+async function ingestTenantAccounting(req, res, next) {
   try {
     if (!req.user.apiTokenId) {
       throw new ForbiddenError('Tenant accounting ingest requires an organization API token (X-API-Key)');
@@ -183,7 +197,7 @@ router.post('/accounting/tenant', accountingIngestLimiter, apiTokenConfiguredLim
   } catch (err) {
     return next(err);
   }
-});
+}
 
 // -----------------------------------------------------------------------------
 // MAC Move Events (item 21)

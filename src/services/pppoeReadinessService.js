@@ -130,8 +130,10 @@ function buildRouterSource(stats, coveredNas, totalNas, maintenanceNas = 0) {
   };
 }
 
-function buildAccountingSource(stats, embedded, isolatedDatabase = false) {
-  const externalConfigured = !isolatedDatabase && Boolean(process.env.RADIUS_ACCOUNTING_SECRET);
+// collectorTokens: the organization's live connection_logs:ingest tokens, the
+// credential an external FreeRADIUS uses for POST /radius/accounting/tenant.
+function buildAccountingSource(stats, embedded, isolatedDatabase = false, collectorTokens = 0) {
+  const externalConfigured = collectorTokens > 0;
   const configured = (!isolatedDatabase && embedded.enabled) || externalConfigured || Boolean(stats.lastReceivedAt);
   let status;
   let detail;
@@ -151,8 +153,8 @@ function buildAccountingSource(stats, embedded, isolatedDatabase = false) {
   } else {
     status = 'not_configured';
     detail = isolatedDatabase
-      ? 'No accounting records have reached this isolated database. Use a tenant-local accounting feed; install-wide embedded and shared-secret endpoints resolve NAS devices only in the primary database.'
-      : 'No accounting feed is configured. Enable embedded RADIUS or configure the shared-secret FreeRADIUS accounting endpoint.';
+      ? 'No accounting records have reached this isolated database. Use a tenant-local accounting feed; the install-wide embedded listener resolves NAS devices only in the primary database.'
+      : 'No accounting feed is configured. Enable embedded RADIUS, or create a connection_logs:ingest API token for FreeRADIUS.';
     detailCode = isolatedDatabase
       ? 'accounting_not_configured_isolated'
       : 'accounting_not_configured';
@@ -172,7 +174,7 @@ async function getReadiness(organizationId) {
   const isolationPromise = typeof db.getTenantConnectionConfig === 'function'
     ? db.getTenantConnectionConfig(organizationId).then(Boolean)
     : Promise.resolve(false);
-  const [authResult, routerEventResult, accountingResult, nasResult, isolatedDatabase] = await Promise.all([
+  const [authResult, routerEventResult, accountingResult, nasResult, isolatedDatabase, collector] = await Promise.all([
     db.query(
       `SELECT MAX(authdate) AS last_received_at,
               COUNT(CASE WHEN authdate >= DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 END) AS events_24h
@@ -223,6 +225,7 @@ async function getReadiness(organizationId) {
       [organizationId],
     ),
     isolationPromise,
+    require('./connectionLoggingReadinessService').tokenState(organizationId, false),
   ]);
 
   const embedded = radiusServerService.getStatus();
@@ -252,7 +255,9 @@ async function getReadiness(organizationId) {
       eligibleNasRows.length,
       maintenanceNas,
     ),
-    accounting: buildAccountingSource(statsFromRow(accountingResult[0][0]), embedded, isolatedDatabase),
+    accounting: buildAccountingSource(
+      statsFromRow(accountingResult[0][0]), embedded, isolatedDatabase, Number(collector?.session_tokens || 0),
+    ),
   };
 
   return { overall: overallStatus(sources), sources };

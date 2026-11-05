@@ -262,8 +262,6 @@ const config = {
 // Shared secrets that authenticate machine-to-machine ingest (WHK-15). A
 // short or sample value lets a collector endpoint be guessed online.
 const MACHINE_SECRETS = [
-  ['RADIUS_ACCOUNTING_SECRET', 'POST /api/v1/radius/accounting (shared-secret collector path)'],
-  ['PPPOE_EVENTS_SECRET', 'POST /api/v1/pppoe/events'],
   ['FIRERELAY_TUNNEL_SECRET', 'FireRelay tunnel agents'],
   ['STRIPE_WEBHOOK_SECRET', 'POST /api/v1/payment-webhooks/stripe (install-wide secret)'],
 ];
@@ -287,10 +285,6 @@ function checkMachineSecrets(errors, warnings, isProduction, logger) {
       if (isProduction) errors.push(msg); else warnings.push(msg);
     }
     live.push(endpoint);
-  }
-  // PPPoE events fall back to the accounting secret when they have none.
-  if (!process.env.PPPOE_EVENTS_SECRET && process.env.RADIUS_ACCOUNTING_SECRET) {
-    live.push('POST /api/v1/pppoe/events (using RADIUS_ACCOUNTING_SECRET)');
   }
   // Conekta signs with a key pair; the variable holds the public key PEM.
   if (process.env.CONEKTA_WEBHOOK_KEY) {

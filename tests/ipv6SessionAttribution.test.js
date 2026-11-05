@@ -26,7 +26,7 @@ jest.mock('../src/services/auditLog', () => ({ log: jest.fn().mockResolvedValue(
 
 const db = require('../src/config/database');
 const { containingIpv6Prefixes } = require('../src/utils/ipAddress');
-const { normalizeAccountingBody } = require('../src/routes/radiusAccounting');
+const { normalizeAccountingBody } = require('../src/utils/radiusAccountingBody');
 const codec = require('../src/services/radiusServerCodec');
 
 beforeEach(() => jest.clearAllMocks());

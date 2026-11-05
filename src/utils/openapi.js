@@ -786,8 +786,7 @@ function generateSpec() {
         put: { tags: ['RADIUS'], summary: 'Update org walled garden settings', operationId: 'updateWalledGardenSettings', security: [{ bearerAuth: [] }], requestBody: jsonBody('radius_updateWalledGarden'), responses: r200('WalledGardenSettings') },
       },
       '/radius/kick-sessions': { post: { tags: ['RADIUS'], summary: 'Trigger manual duplicate-session kick for org', operationId: 'kickDuplicateSessions', security: [{ bearerAuth: [] }], responses: r200('Kick result') } },
-      '/radius/accounting': { post: { tags: ['RADIUS'], summary: 'Compatibility accounting ingest for a trusted central collector; NAS IP must be globally unambiguous', operationId: 'ingestRadiusAccounting', security: [{ radiusAccountingSecret: [] }], requestBody: typedJsonBody({ $ref: '#/components/schemas/RadiusAccountingRequest' }, 'RADIUS accounting attributes'), responses: accountingIngestResponses() } },
-      '/radius/accounting/tenant': { post: { tags: ['RADIUS'], summary: 'Recommended organization-bound accounting ingest', description: 'Requires a dedicated organization API token whose only scope is connection_logs:ingest. The NAS is resolved only inside the token organization.', operationId: 'ingestTenantRadiusAccounting', security: [{ apiKeyAuth: [] }], requestBody: typedJsonBody({ $ref: '#/components/schemas/RadiusAccountingRequest' }, 'RADIUS accounting attributes'), responses: accountingIngestResponses() } },
+      '/radius/accounting/tenant': { post: { tags: ['RADIUS'], summary: 'Organization-bound FreeRADIUS accounting ingest', description: 'Requires a dedicated organization API token whose only scope is connection_logs:ingest. The NAS is resolved only inside the token organization.', operationId: 'ingestTenantRadiusAccounting', security: [{ apiKeyAuth: [] }], requestBody: typedJsonBody({ $ref: '#/components/schemas/RadiusAccountingRequest' }, 'RADIUS accounting attributes'), responses: accountingIngestResponses() } },
       '/radius/cdr': { get: { tags: ['RADIUS'], summary: 'Export CDR session records from connection_logs', operationId: 'exportRadiusCdr', security: [{ bearerAuth: [] }], parameters: [{ name: 'from', in: 'query', required: true, schema: { type: 'string', format: 'date' } }, { name: 'to', in: 'query', required: true, schema: { type: 'string', format: 'date' } }, { name: 'username', in: 'query', schema: { type: 'string' } }, { name: 'format', in: 'query', schema: { type: 'string', enum: ['json', 'csv'] } }], responses: r200('CDR rows or CSV') } },
       '/radius/coa': { post: { tags: ['RADIUS'], summary: 'Send dynamic CoA-Request to NAS for a subscriber', operationId: 'sendDynamicCoA', security: [{ bearerAuth: [] }], requestBody: jsonBody('Dynamic CoA request'), responses: r200('CoA result') } },
       '/radius/mac-move-events': { get: {
@@ -1696,25 +1695,6 @@ function generateSpec() {
             { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 } },
           ],
           responses: pppoeEventsResponse(),
-        },
-        post: {
-          tags: ['PPPoE'],
-          summary: 'Ingest a raw or structured PPPoE event for a registered NAS (install-wide shared secret, no JWT)',
-          operationId: 'ingestPppoeEvent',
-          security: [],
-          parameters: [{
-            name: 'X-Pppoe-Secret',
-            in: 'header',
-            required: false,
-            schema: { type: 'string' },
-            description: 'Install-wide PPPOE_EVENTS_SECRET; Authorization: Bearer is also accepted',
-          }],
-          requestBody: pppoeEventIngestBody(),
-          responses: {
-            ...pppoeEventIngestResponse(),
-            401: { description: 'Invalid or missing ingest secret' },
-            422: { description: 'Invalid raw or structured event payload' },
-          },
         },
       },
       '/pppoe/events/tenant': {
@@ -3513,7 +3493,6 @@ function generateSpec() {
       securitySchemes: {
         bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
         apiKeyAuth: { type: 'apiKey', in: 'header', name: 'X-API-Key' },
-        radiusAccountingSecret: { type: 'apiKey', in: 'header', name: 'X-Radius-Secret' },
         relayTokenAuth: { type: 'apiKey', in: 'header', name: 'X-Relay-Token' },
       },
       schemas: {
