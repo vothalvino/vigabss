@@ -9754,5 +9754,28 @@
       "rep": "REP",
       "satStatus": "SAT status"
     }
+  },
+  "resellerAccess": {
+    "tab": "Staff access",
+    "title": "Staff confined to a reseller",
+    "description": "A staff user bound to a reseller sees only that reseller's clients, invoices and sub-resellers. Only an organization-level administrator can change bindings, and not for their own account.",
+    "reseller": "Reseller",
+    "selectReseller": "— Choose a reseller —",
+    "addUser": "Add a staff user",
+    "selectUser": "— Choose a user —",
+    "bind": "Bind to this reseller",
+    "unbind": "Remove",
+    "none": "No staff user is bound to this reseller.",
+    "loadError": "The bindings could not be loaded.",
+    "actionFailed": "The change could not be saved.",
+    "confirmBind": "Confine this user to this reseller's subtree? They lose access to everything outside it.",
+    "confirmUnbind": "Remove this binding? The user regains the access their role gives across the organization.",
+    "col": {
+      "user": "User",
+      "email": "Email",
+      "status": "Status",
+      "since": "Bound since",
+      "actions": "Actions"
+    }
   }
 }

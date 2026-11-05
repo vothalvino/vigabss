@@ -9748,5 +9748,28 @@
       "rep": "REP",
       "satStatus": "Estado SAT"
     }
+  },
+  "resellerAccess": {
+    "tab": "Acceso del personal",
+    "title": "Personal limitado a un revendedor",
+    "description": "Un usuario del personal vinculado a un revendedor solo ve los clientes, facturas y sub-revendedores de ese revendedor. Solo un administrador de la organización puede cambiar los vínculos, y no para su propia cuenta.",
+    "reseller": "Revendedor",
+    "selectReseller": "— Elige un revendedor —",
+    "addUser": "Agregar un usuario del personal",
+    "selectUser": "— Elige un usuario —",
+    "bind": "Vincular a este revendedor",
+    "unbind": "Quitar",
+    "none": "Ningún usuario del personal está vinculado a este revendedor.",
+    "loadError": "No se pudieron cargar los vínculos.",
+    "actionFailed": "No se pudo guardar el cambio.",
+    "confirmBind": "¿Limitar a este usuario al subárbol de este revendedor? Pierde el acceso a todo lo que está fuera de él.",
+    "confirmUnbind": "¿Quitar este vínculo? El usuario recupera el acceso que su rol le da en toda la organización.",
+    "col": {
+      "user": "Usuario",
+      "email": "Correo",
+      "status": "Estado",
+      "since": "Vinculado desde",
+      "actions": "Acciones"
+    }
   }
 }
