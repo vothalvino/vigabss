@@ -201,7 +201,7 @@ async function pollNodeHealth(node) {
   try {
     const { status, data } = await breaker.call(() =>
       httpRequest(node.api_url, {
-        path: '/api/firerelay/health',
+        path: '/api/v1/firerelay/health',
         headers: relayConfig.authToken ? { 'X-Relay-Token': relayConfig.authToken } : {},
       }),
     );

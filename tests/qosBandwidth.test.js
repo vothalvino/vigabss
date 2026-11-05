@@ -57,7 +57,7 @@ beforeEach(() => {
 // Quality Classes (§10.1)
 // ===========================================================================
 
-describe('GET /api/quality-classes', () => {
+describe('GET /api/v1/quality-classes', () => {
   it('returns list of quality classes with 200', async () => {
     const rows = [
       { id: 1, organization_id: null, name: 'VoIP', traffic_type: 'voip', priority: 1, dscp_mark: 'EF', status: 'active' },
@@ -67,21 +67,21 @@ describe('GET /api/quality-classes', () => {
     db.query
       .mockResolvedValueOnce([rows])              // findAll
       .mockResolvedValueOnce([[{ total: 2 }]]);   // count
-    const res = await request(app).get('/api/quality-classes').set('X-Org-Id', '1');
+    const res = await request(app).get('/api/v1/quality-classes').set('X-Org-Id', '1');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
     expect(res.body.data[0].name).toBe('VoIP');
   });
 });
 
-describe('POST /api/quality-classes', () => {
+describe('POST /api/v1/quality-classes', () => {
   it('creates a quality class and returns 201', async () => {
     const newClass = { id: 5, organization_id: 1, name: 'Gaming', traffic_type: 'web', priority: 3, dscp_mark: 'AF31', status: 'active' };
     db.query
       .mockResolvedValueOnce([{ insertId: 5 }])
       .mockResolvedValueOnce([[newClass]]);
     const res = await request(app)
-      .post('/api/quality-classes')
+      .post('/api/v1/quality-classes')
       .set('X-Org-Id', '1')
       .send({ name: 'Gaming', traffic_type: 'web', priority: 3, dscp_mark: 'AF31' });
     expect(res.status).toBe(201);
@@ -90,28 +90,28 @@ describe('POST /api/quality-classes', () => {
 
   it('returns 422 when name is missing', async () => {
     const res = await request(app)
-      .post('/api/quality-classes')
+      .post('/api/v1/quality-classes')
       .set('X-Org-Id', '1')
       .send({ traffic_type: 'voip' });
     expect(res.status).toBe(422);
   });
 });
 
-describe('GET /api/quality-classes/:id', () => {
+describe('GET /api/v1/quality-classes/:id', () => {
   it('returns 404 for non-existent class', async () => {
     db.query.mockResolvedValueOnce([[]]);
-    const res = await request(app).get('/api/quality-classes/999').set('X-Org-Id', '1');
+    const res = await request(app).get('/api/v1/quality-classes/999').set('X-Org-Id', '1');
     expect(res.status).toBe(404);
   });
 });
 
-describe('DELETE /api/quality-classes/:id', () => {
+describe('DELETE /api/v1/quality-classes/:id', () => {
   it('soft-deletes and returns 204', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, name: 'VoIP', organization_id: 1, deleted_at: null }]]) // findByIdOrFail
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // soft delete UPDATE
       .mockResolvedValueOnce([{ insertId: 99 }]);   // auditLog.log INSERT
-    const res = await request(app).delete('/api/quality-classes/1').set('X-Org-Id', '1');
+    const res = await request(app).delete('/api/v1/quality-classes/1').set('X-Org-Id', '1');
     expect(res.status).toBe(204);
   });
 });
@@ -120,25 +120,25 @@ describe('DELETE /api/quality-classes/:id', () => {
 // Queue Tree Nodes (§10.1)
 // ===========================================================================
 
-describe('GET /api/queue-tree-nodes', () => {
+describe('GET /api/v1/queue-tree-nodes', () => {
   it('returns list of queue tree nodes with 200', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, name: 'Global', queue_type: 'tree', max_limit_mbps: 1000, priority: 1, status: 'active' }]])
       .mockResolvedValueOnce([[{ total: 1 }]]);
-    const res = await request(app).get('/api/queue-tree-nodes').set('X-Org-Id', '1');
+    const res = await request(app).get('/api/v1/queue-tree-nodes').set('X-Org-Id', '1');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 });
 
-describe('POST /api/queue-tree-nodes', () => {
+describe('POST /api/v1/queue-tree-nodes', () => {
   it('creates a queue tree node and returns 201', async () => {
     const newNode = { id: 3, organization_id: 1, name: 'ISP-Main', queue_type: 'tree', max_limit_mbps: 500, status: 'active' };
     db.query
       .mockResolvedValueOnce([{ insertId: 3 }])
       .mockResolvedValueOnce([[newNode]]);
     const res = await request(app)
-      .post('/api/queue-tree-nodes')
+      .post('/api/v1/queue-tree-nodes')
       .set('X-Org-Id', '1')
       .send({ name: 'ISP-Main', queue_type: 'tree', max_limit_mbps: 500 });
     expect(res.status).toBe(201);
@@ -147,20 +147,20 @@ describe('POST /api/queue-tree-nodes', () => {
 
   it('returns 422 when name is missing', async () => {
     const res = await request(app)
-      .post('/api/queue-tree-nodes')
+      .post('/api/v1/queue-tree-nodes')
       .set('X-Org-Id', '1')
       .send({ queue_type: 'tree' });
     expect(res.status).toBe(422);
   });
 });
 
-describe('GET /api/queue-tree-nodes/export/config', () => {
+describe('GET /api/v1/queue-tree-nodes/export/config', () => {
   it('returns JSON export with script and node_count', async () => {
     db.query.mockResolvedValueOnce([[
       { id: 1, name: 'Global', queue_type: 'tree', max_limit_mbps: 1000, burst_limit_mbps: null, burst_threshold_mbps: null, burst_time_seconds: null, priority: 1, queue_kind: 'pcq', parent_name: null },
     ]]);
     const res = await request(app)
-      .get('/api/queue-tree-nodes/export/config')
+      .get('/api/v1/queue-tree-nodes/export/config')
       .set('X-Org-Id', '1');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('script');
@@ -173,25 +173,25 @@ describe('GET /api/queue-tree-nodes/export/config', () => {
 // Rate Limit Templates (§10.2)
 // ===========================================================================
 
-describe('GET /api/rate-limit-templates', () => {
+describe('GET /api/v1/rate-limit-templates', () => {
   it('returns list with 200', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, name: 'Basic 10M', service_type: 'pppoe', radius_vendor: 'mikrotik', download_mbps: 10, upload_mbps: 5, rate_string: '5M/10M 10M/20M 5M/10M 8', status: 'active' }]])
       .mockResolvedValueOnce([[{ total: 1 }]]);
-    const res = await request(app).get('/api/rate-limit-templates').set('X-Org-Id', '1');
+    const res = await request(app).get('/api/v1/rate-limit-templates').set('X-Org-Id', '1');
     expect(res.status).toBe(200);
     expect(res.body.data[0].name).toBe('Basic 10M');
   });
 });
 
-describe('POST /api/rate-limit-templates', () => {
+describe('POST /api/v1/rate-limit-templates', () => {
   it('creates a template with auto-rendered rate_string', async () => {
     const tmpl = { id: 2, organization_id: 1, name: 'PPPoE 20M', service_type: 'pppoe', radius_vendor: 'mikrotik', download_mbps: 20, upload_mbps: 10, rate_string: '10M/20M 20M/40M 10M/20M 8', status: 'active' };
     db.query
       .mockResolvedValueOnce([{ insertId: 2 }])
       .mockResolvedValueOnce([[tmpl]]);
     const res = await request(app)
-      .post('/api/rate-limit-templates')
+      .post('/api/v1/rate-limit-templates')
       .set('X-Org-Id', '1')
       .send({ name: 'PPPoE 20M', service_type: 'pppoe', radius_vendor: 'mikrotik', download_mbps: 20, upload_mbps: 10 });
     expect(res.status).toBe(201);
@@ -200,17 +200,17 @@ describe('POST /api/rate-limit-templates', () => {
 
   it('returns 422 when download_mbps or upload_mbps is missing', async () => {
     const res = await request(app)
-      .post('/api/rate-limit-templates')
+      .post('/api/v1/rate-limit-templates')
       .set('X-Org-Id', '1')
       .send({ name: 'Missing speeds', service_type: 'pppoe' });
     expect(res.status).toBe(422);
   });
 });
 
-describe('POST /api/rate-limit-templates/preview', () => {
+describe('POST /api/v1/rate-limit-templates/preview', () => {
   it('returns rendered rate string for mikrotik', async () => {
     const res = await request(app)
-      .post('/api/rate-limit-templates/preview')
+      .post('/api/v1/rate-limit-templates/preview')
       .set('X-Org-Id', '1')
       .send({ radius_vendor: 'mikrotik', download_mbps: 50, upload_mbps: 25, burst_download_mbps: 100, burst_upload_mbps: 50, burst_threshold_mbps: 40, burst_time_seconds: 12 });
     expect(res.status).toBe(200);
@@ -219,7 +219,7 @@ describe('POST /api/rate-limit-templates/preview', () => {
 
   it('returns rendered rate string with default burst values', async () => {
     const res = await request(app)
-      .post('/api/rate-limit-templates/preview')
+      .post('/api/v1/rate-limit-templates/preview')
       .set('X-Org-Id', '1')
       .send({ radius_vendor: 'mikrotik', download_mbps: 10, upload_mbps: 5 });
     expect(res.status).toBe(200);
@@ -232,25 +232,25 @@ describe('POST /api/rate-limit-templates/preview', () => {
 // Protocol Shaping Rules (§10.2)
 // ===========================================================================
 
-describe('GET /api/protocol-shaping-rules', () => {
+describe('GET /api/v1/protocol-shaping-rules', () => {
   it('returns list with 200', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 1, name: 'BitTorrent Throttle', protocol: 'tcp', dst_port_range: '6881-6889', action: 'throttle', enabled: 0, preset: 'bittorrent_throttle' }]])
       .mockResolvedValueOnce([[{ total: 1 }]]);
-    const res = await request(app).get('/api/protocol-shaping-rules').set('X-Org-Id', '1');
+    const res = await request(app).get('/api/v1/protocol-shaping-rules').set('X-Org-Id', '1');
     expect(res.status).toBe(200);
     expect(res.body.data[0].preset).toBe('bittorrent_throttle');
   });
 });
 
-describe('POST /api/protocol-shaping-rules', () => {
+describe('POST /api/v1/protocol-shaping-rules', () => {
   it('creates a shaping rule and returns 201', async () => {
     const rule = { id: 5, organization_id: 1, name: 'Custom Throttle', protocol: 'tcp', action: 'throttle', enabled: 1 };
     db.query
       .mockResolvedValueOnce([{ insertId: 5 }])
       .mockResolvedValueOnce([[rule]]);
     const res = await request(app)
-      .post('/api/protocol-shaping-rules')
+      .post('/api/v1/protocol-shaping-rules')
       .set('X-Org-Id', '1')
       .send({ name: 'Custom Throttle', protocol: 'tcp', action: 'throttle', enabled: true });
     expect(res.status).toBe(201);
@@ -259,20 +259,20 @@ describe('POST /api/protocol-shaping-rules', () => {
 
   it('returns 422 when name is missing', async () => {
     const res = await request(app)
-      .post('/api/protocol-shaping-rules')
+      .post('/api/v1/protocol-shaping-rules')
       .set('X-Org-Id', '1')
       .send({ protocol: 'tcp', action: 'throttle' });
     expect(res.status).toBe(422);
   });
 });
 
-describe('GET /api/protocol-shaping-rules/export/config', () => {
+describe('GET /api/v1/protocol-shaping-rules/export/config', () => {
   it('returns JSON export with script and rule_count', async () => {
     db.query.mockResolvedValueOnce([[
       { id: 1, name: 'VoIP Priority', protocol: 'udp', direction: 'both', dst_port_range: '16384-32767', action: 'mark', dscp_mark: 'EF', priority: 1, enabled: 1, limit_download_mbps: null, limit_upload_mbps: null },
     ]]);
     const res = await request(app)
-      .get('/api/protocol-shaping-rules/export/config')
+      .get('/api/v1/protocol-shaping-rules/export/config')
       .set('X-Org-Id', '1');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('script');

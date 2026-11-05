@@ -31,9 +31,8 @@ This guide covers everything a developer needs to integrate with the VigaBSS RES
 https://your-domain.com/api/v1/
 ```
 
-The canonical REST API is versioned under `/api/v1/`. The legacy unversioned
-`/api/` mount remains temporarily available with deprecation headers, but new
-clients must use `/api/v1/`. Health endpoints and the Swagger UI at `/api/docs`
+The REST API is served only under `/api/v1/`; unversioned `/api/<resource>`
+paths return 404. Health endpoints and the Swagger UI at `/api/docs`
 are intentionally outside the versioned REST prefix. The current application
 release is `0.1.0-alpha.1`.
 

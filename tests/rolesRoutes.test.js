@@ -133,9 +133,9 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/roles
+// POST /api/v1/roles
 // ---------------------------------------------------------------------------
-describe('POST /api/roles', () => {
+describe('POST /api/v1/roles', () => {
   test('creates a role and persists kind', async () => {
     const created = { id: 10, name: 'noc_lead', description: 'NOC shift lead', kind: 'technician', is_system: 0 };
     mockQuery
@@ -143,7 +143,7 @@ describe('POST /api/roles', () => {
       .mockResolvedValueOnce([[created]]);                          // SELECT
 
     const res = await request(app)
-      .post('/api/roles')
+      .post('/api/v1/roles')
       .send({ name: 'noc_lead', description: 'NOC shift lead', kind: 'technician' });
 
     expect(res.status).toBe(201);
@@ -157,7 +157,7 @@ describe('POST /api/roles', () => {
 
   test('rejects kind "admin" with 422 (custom groups may not bypass RBAC)', async () => {
     const res = await request(app)
-      .post('/api/roles')
+      .post('/api/v1/roles')
       .send({ name: 'sneaky_admin', description: 'x', kind: 'admin' });
 
     expect(res.status).toBe(422);
@@ -166,7 +166,7 @@ describe('POST /api/roles', () => {
 
   test('rejects a missing kind with 422', async () => {
     const res = await request(app)
-      .post('/api/roles')
+      .post('/api/v1/roles')
       .send({ name: 'no_kind', description: 'x' });
 
     expect(res.status).toBe(422);
@@ -175,13 +175,13 @@ describe('POST /api/roles', () => {
 });
 
 // ---------------------------------------------------------------------------
-// PUT /api/roles/:id
+// PUT /api/v1/roles/:id
 // ---------------------------------------------------------------------------
-describe('PUT /api/roles/:id', () => {
+describe('PUT /api/v1/roles/:id', () => {
   test('renaming an is_system role returns 403', async () => {
     mockQuery.mockResolvedValueOnce([[SYSTEM_ADMIN_ROLE]]); // SELECT existing
 
-    const res = await request(app).put('/api/roles/1').send({ name: 'superadmin' });
+    const res = await request(app).put('/api/v1/roles/1').send({ name: 'superadmin' });
 
     expect(res.status).toBe(403);
     expect(mockQuery).toHaveBeenCalledTimes(1); // never reached the UPDATE
@@ -190,7 +190,7 @@ describe('PUT /api/roles/:id', () => {
   test('changing kind of an is_system role returns 403', async () => {
     mockQuery.mockResolvedValueOnce([[SYSTEM_ADMIN_ROLE]]);
 
-    const res = await request(app).put('/api/roles/1').send({ kind: 'billing' });
+    const res = await request(app).put('/api/v1/roles/1').send({ kind: 'billing' });
 
     expect(res.status).toBe(403);
     expect(mockQuery).toHaveBeenCalledTimes(1);
@@ -202,7 +202,7 @@ describe('PUT /api/roles/:id', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }])                                    // UPDATE
       .mockResolvedValueOnce([[{ ...SYSTEM_ADMIN_ROLE, description: 'Updated text' }]]); // SELECT after
 
-    const res = await request(app).put('/api/roles/1').send({ description: 'Updated text' });
+    const res = await request(app).put('/api/v1/roles/1').send({ description: 'Updated text' });
 
     expect(res.status).toBe(200);
     expect(res.body.data.description).toBe('Updated text');
@@ -218,7 +218,7 @@ describe('PUT /api/roles/:id', () => {
       .mockResolvedValueOnce([{ affectedRows: 2 }])   // ... and non-owner membership rows
       .mockResolvedValueOnce([[updated]]);
 
-    const res = await request(app).put('/api/roles/5').send({ name: 'ar_lead', kind: 'support' });
+    const res = await request(app).put('/api/v1/roles/5').send({ name: 'ar_lead', kind: 'support' });
 
     expect(res.status).toBe(200);
     expect(res.body.data.name).toBe('ar_lead');
@@ -228,20 +228,20 @@ describe('PUT /api/roles/:id', () => {
   test('returns 404 when the role does not exist', async () => {
     mockQuery.mockResolvedValueOnce([[]]);
 
-    const res = await request(app).put('/api/roles/999').send({ description: 'ghost' });
+    const res = await request(app).put('/api/v1/roles/999').send({ description: 'ghost' });
 
     expect(res.status).toBe(404);
   });
 });
 
 // ---------------------------------------------------------------------------
-// DELETE /api/roles/:id
+// DELETE /api/v1/roles/:id
 // ---------------------------------------------------------------------------
-describe('DELETE /api/roles/:id', () => {
+describe('DELETE /api/v1/roles/:id', () => {
   test('rejects deleting an is_system role with 403', async () => {
     mockQuery.mockResolvedValueOnce([[SYSTEM_ADMIN_ROLE]]);
 
-    const res = await request(app).delete('/api/roles/1');
+    const res = await request(app).delete('/api/v1/roles/1');
 
     expect(res.status).toBe(403);
     expect(mockQuery).toHaveBeenCalledTimes(1);
@@ -252,7 +252,7 @@ describe('DELETE /api/roles/:id', () => {
       .mockResolvedValueOnce([[CUSTOM_BILLING_ROLE]])   // SELECT role
       .mockResolvedValueOnce([[{ cnt: 3 }]]);             // COUNT(*) users WHERE group_id = ?
 
-    const res = await request(app).delete('/api/roles/5');
+    const res = await request(app).delete('/api/v1/roles/5');
 
     expect(res.status).toBe(422);
     expect(res.body.error.message).toMatch(/reassign/i);
@@ -264,7 +264,7 @@ describe('DELETE /api/roles/:id', () => {
       .mockResolvedValueOnce([[{ cnt: 0 }]])
       .mockResolvedValueOnce([{ affectedRows: 1 }]);      // soft-delete UPDATE
 
-    const res = await request(app).delete('/api/roles/5');
+    const res = await request(app).delete('/api/v1/roles/5');
 
     expect(res.status).toBe(204);
   });
@@ -272,16 +272,16 @@ describe('DELETE /api/roles/:id', () => {
   test('returns 404 when the role does not exist', async () => {
     mockQuery.mockResolvedValueOnce([[]]);
 
-    const res = await request(app).delete('/api/roles/999');
+    const res = await request(app).delete('/api/v1/roles/999');
 
     expect(res.status).toBe(404);
   });
 });
 
 // ---------------------------------------------------------------------------
-// PUT /api/roles/:id/permissions — bulk replace
+// PUT /api/v1/roles/:id/permissions — bulk replace
 // ---------------------------------------------------------------------------
-describe('PUT /api/roles/:id/permissions', () => {
+describe('PUT /api/v1/roles/:id/permissions', () => {
   test('happy path replaces the set and returns the full updated list', async () => {
     // A global principal (install operator / super_admin) skips the
     // anti-amplification check entirely.
@@ -299,7 +299,7 @@ describe('PUT /api/roles/:id/permissions', () => {
       ]]); // SELECT final list
 
     const res = await request(app)
-      .put('/api/roles/5/permissions')
+      .put('/api/v1/roles/5/permissions')
       .send({ permission_ids: [1, 2] });
 
     expect(res.status).toBe(200);
@@ -327,7 +327,7 @@ describe('PUT /api/roles/:id/permissions', () => {
       .mockResolvedValueOnce([[]]);                     // SELECT requested perms — none match
 
     const res = await request(app)
-      .put('/api/roles/5/permissions')
+      .put('/api/v1/roles/5/permissions')
       .send({ permission_ids: [999] });
 
     expect(res.status).toBe(422);
@@ -339,7 +339,7 @@ describe('PUT /api/roles/:id/permissions', () => {
     delete mockUser.hasGlobalOrganizationAccess;
 
     const res = await request(app)
-      .put('/api/roles/1/permissions')
+      .put('/api/v1/roles/1/permissions')
       .send({ permission_ids: [1] });
 
     expect(res.status).toBe(403);
@@ -351,7 +351,7 @@ describe('PUT /api/roles/:id/permissions', () => {
     delete mockUser.hasGlobalOrganizationAccess;
 
     const res = await request(app)
-      .put('/api/roles/5/permissions')
+      .put('/api/v1/roles/5/permissions')
       .send({ permission_ids: [1, 2] });
 
     expect(res.status).toBe(403);
@@ -369,7 +369,7 @@ describe('PUT /api/roles/:id/permissions', () => {
       .mockResolvedValueOnce([[]]);                                     // SELECT final list — empty
 
     const res = await request(app)
-      .put('/api/roles/5/permissions')
+      .put('/api/v1/roles/5/permissions')
       .send({ permission_ids: [] });
 
     expect(res.status).toBe(200);
@@ -382,7 +382,7 @@ describe('PUT /api/roles/:id/permissions', () => {
     mockQuery.mockResolvedValueOnce([[]]);
 
     const res = await request(app)
-      .put('/api/roles/999/permissions')
+      .put('/api/v1/roles/999/permissions')
       .send({ permission_ids: [1] });
 
     expect(res.status).toBe(404);
@@ -390,7 +390,7 @@ describe('PUT /api/roles/:id/permissions', () => {
 
   test('rejects a non-array permission_ids with 422', async () => {
     const res = await request(app)
-      .put('/api/roles/5/permissions')
+      .put('/api/v1/roles/5/permissions')
       .send({ permission_ids: 'not-an-array' });
 
     expect(res.status).toBe(422);
@@ -409,8 +409,8 @@ describe('permission-list edits share one policy (SEC-18)', () => {
   const auditLog = require('../src/services/auditLog');
 
   test.each([
-    ['POST', r => r.post('/api/roles/1/permissions').send({ permission_id: 2 })],
-    ['DELETE', r => r.delete('/api/roles/1/permissions/2')],
+    ['POST', r => r.post('/api/v1/roles/1/permissions').send({ permission_id: 2 })],
+    ['DELETE', r => r.delete('/api/v1/roles/1/permissions/2')],
   ])('%s on a system group by a tenant admin is 403 and changes nothing', async (_m, send) => {
     mockUser.role = 'admin';
     delete mockUser.hasGlobalOrganizationAccess;
@@ -432,7 +432,7 @@ describe('permission-list edits share one policy (SEC-18)', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }])                     // INSERT
       .mockResolvedValueOnce([[{ id: 1, slug: 'clients.view', description: 'View clients' }]]);
 
-    const res = await request(app).put('/api/roles/1/permissions').send({ permission_ids: [1] });
+    const res = await request(app).put('/api/v1/roles/1/permissions').send({ permission_ids: [1] });
 
     expect(res.status).toBe(200);
     expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'update_permissions', recordId: 1 }));
@@ -442,16 +442,16 @@ describe('permission-list edits share one policy (SEC-18)', () => {
     mockUser.role = 'admin';
     delete mockUser.hasGlobalOrganizationAccess;
 
-    const res = await request(app).post('/api/roles/5/permissions').send({ permission_id: 9 });
+    const res = await request(app).post('/api/v1/roles/5/permissions').send({ permission_id: 9 });
 
     expect(res.status).toBe(403);
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   test.each([
-    ['POST /', r => r.post('/api/roles').send({ name: 'x', kind: 'billing' })],
-    ['PUT /:id', r => r.put('/api/roles/5').send({ description: 'x' })],
-    ['DELETE /:id', r => r.delete('/api/roles/5')],
+    ['POST /', r => r.post('/api/v1/roles').send({ name: 'x', kind: 'billing' })],
+    ['PUT /:id', r => r.put('/api/v1/roles/5').send({ description: 'x' })],
+    ['DELETE /:id', r => r.delete('/api/v1/roles/5')],
   ])('%s by a tenant admin or an API token is 403 (TNB-38)', async (_m, send) => {
     delete mockUser.hasGlobalOrganizationAccess;
     expect((await send(request(app))).status).toBe(403);
@@ -472,7 +472,7 @@ describe('permission-list edits share one policy (SEC-18)', () => {
       .mockResolvedValueOnce([[{ id: 2, slug: 'clients.create', description: 'Create' }]])    // SELECT before
       .mockResolvedValueOnce([{ affectedRows: 1 }]);                                          // DELETE
 
-    const res = await request(app).delete('/api/roles/5/permissions/2');
+    const res = await request(app).delete('/api/v1/roles/5/permissions/2');
 
     expect(res.status).toBe(204);
     expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({

@@ -67,14 +67,14 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/bulk/invoices/void
+// POST /api/v1/bulk/invoices/void
 // ---------------------------------------------------------------------------
 
-describe('POST /api/bulk/invoices/void', () => {
+describe('POST /api/v1/bulk/invoices/void', () => {
   test('rejects empty body → 400', async () => {
     mockAuthUser();
     const res = await request(app)
-      .post('/api/bulk/invoices/void')
+      .post('/api/v1/bulk/invoices/void')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
 
@@ -86,7 +86,7 @@ describe('POST /api/bulk/invoices/void', () => {
   test('rejects empty array → 400', async () => {
     mockAuthUser();
     const res = await request(app)
-      .post('/api/bulk/invoices/void')
+      .post('/api/v1/bulk/invoices/void')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ invoice_ids: [] });
 
@@ -98,7 +98,7 @@ describe('POST /api/bulk/invoices/void', () => {
     mockAuthUser();
     const ids = Array.from({ length: 501 }, (_, i) => i + 1);
     const res = await request(app)
-      .post('/api/bulk/invoices/void')
+      .post('/api/v1/bulk/invoices/void')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ invoice_ids: ids });
 
@@ -117,7 +117,7 @@ describe('POST /api/bulk/invoices/void', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }]); // zero ledger debits
 
     const res = await request(app)
-      .post('/api/bulk/invoices/void')
+      .post('/api/v1/bulk/invoices/void')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ invoice_ids: [10] });
 
@@ -144,7 +144,7 @@ describe('POST /api/bulk/invoices/void', () => {
       .mockResolvedValueOnce([[{ id: 700 }]]); // allocation guard: live allocations found
 
     const res = await request(app)
-      .post('/api/bulk/invoices/void')
+      .post('/api/v1/bulk/invoices/void')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ invoice_ids: [11] });
 
@@ -172,7 +172,7 @@ describe('POST /api/bulk/invoices/void', () => {
       .mockResolvedValueOnce([[]]); // allocation guard: no payments applied
 
     const res = await request(app)
-      .post('/api/bulk/invoices/void')
+      .post('/api/v1/bulk/invoices/void')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ invoice_ids: [12] });
 
@@ -205,7 +205,7 @@ describe('POST /api/bulk/invoices/void', () => {
       .mockResolvedValueOnce([[]]); // allocation guard for id 999
 
     const res = await request(app)
-      .post('/api/bulk/invoices/void')
+      .post('/api/v1/bulk/invoices/void')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ invoice_ids: [20, 999] });
 
@@ -243,7 +243,7 @@ describe('POST /api/bulk/invoices/void', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }]); // zero debits for 31
 
     const res = await request(app)
-      .post('/api/bulk/invoices/void')
+      .post('/api/v1/bulk/invoices/void')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ invoice_ids: [30, 31] });
 
@@ -260,7 +260,7 @@ describe('POST /api/bulk/invoices/void', () => {
 
   test('requires authentication → 401 without token', async () => {
     const res = await request(app)
-      .post('/api/bulk/invoices/void')
+      .post('/api/v1/bulk/invoices/void')
       .send({ invoice_ids: [1] });
 
     expect(res.status).toBe(401);

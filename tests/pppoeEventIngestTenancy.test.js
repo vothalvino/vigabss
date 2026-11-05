@@ -137,7 +137,7 @@ describe('scope and limiter wiring', () => {
   });
 
   test('both ingest paths use the collector limiter; the staff event list does not', () => {
-    for (const url of ['/api/v1/pppoe/events', '/api/v1/pppoe/events/tenant', '/api/pppoe/events']) {
+    for (const url of ['/api/v1/pppoe/events', '/api/v1/pppoe/events/tenant', '/api/v1/pppoe/events']) {
       expect(isCollectorPath({ method: 'POST', originalUrl: url })).toBe(true);
     }
     expect(isCollectorPath({ method: 'GET', originalUrl: '/api/v1/pppoe/events?page=2' })).toBe(false);

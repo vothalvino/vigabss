@@ -62,12 +62,12 @@ function mockUpdateSequence(oldRecord) {
     .mockResolvedValueOnce([[{ ...oldRecord }]]);  // findById (fresh)
 }
 
-describe('PUT /api/tickets/:id — resolved_at lifecycle', () => {
+describe('PUT /api/v1/tickets/:id — resolved_at lifecycle', () => {
   test('stamps resolved_at when status transitions to resolved', async () => {
     mockUpdateSequence({ id: 1, organization_id: 1, client_id: 10, subject: 'x', status: 'open', resolved_at: null });
 
     const res = await request(app)
-      .put('/api/tickets/1')
+      .put('/api/v1/tickets/1')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ status: 'resolved' });
 
@@ -82,7 +82,7 @@ describe('PUT /api/tickets/:id — resolved_at lifecycle', () => {
     mockUpdateSequence({ id: 1, organization_id: 1, client_id: 10, subject: 'x', status: 'resolved', resolved_at: new Date('2026-01-01T00:00:00Z') });
 
     const res = await request(app)
-      .put('/api/tickets/1')
+      .put('/api/v1/tickets/1')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ status: 'in_progress' });
 
@@ -97,7 +97,7 @@ describe('PUT /api/tickets/:id — resolved_at lifecycle', () => {
     mockUpdateSequence({ id: 1, organization_id: 1, client_id: 10, subject: 'x', status: 'resolved', resolved_at: new Date('2026-01-01T00:00:00Z') });
 
     const res = await request(app)
-      .put('/api/tickets/1')
+      .put('/api/v1/tickets/1')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ status: 'closed' });
 
@@ -111,7 +111,7 @@ describe('PUT /api/tickets/:id — resolved_at lifecycle', () => {
     mockUpdateSequence({ id: 1, organization_id: 1, client_id: 10, subject: 'x', status: 'open', resolved_at: null });
 
     const res = await request(app)
-      .put('/api/tickets/1')
+      .put('/api/v1/tickets/1')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ subject: 'renamed', resolved_at: '2020-01-01 00:00:00' });
 

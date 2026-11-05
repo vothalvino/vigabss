@@ -71,13 +71,13 @@ beforeEach(() => { db.query.mockReset(); });
 // ---------------------------------------------------------------------------
 // §18.1 Automation Rules
 // ---------------------------------------------------------------------------
-describe('GET /api/automation-rules', () => {
+describe('GET /api/v1/automation-rules', () => {
   it('returns list with meta', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, name: 'Test Rule', trigger_event: 'invoice.created', action_type: 'send_notification' }]))
       .mockResolvedValueOnce(mockCount(1));
 
-    const res = await request(app).get('/api/automation-rules');
+    const res = await request(app).get('/api/v1/automation-rules');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
     expect(res.body.meta.total).toBe(1);
@@ -88,20 +88,20 @@ describe('GET /api/automation-rules', () => {
       .mockResolvedValueOnce(mockRows([]))
       .mockResolvedValueOnce(mockCount(0));
 
-    const res = await request(app).get('/api/automation-rules?trigger_event=device.offline');
+    const res = await request(app).get('/api/v1/automation-rules?trigger_event=device.offline');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(0);
   });
 });
 
-describe('POST /api/automation-rules', () => {
+describe('POST /api/v1/automation-rules', () => {
   it('creates a rule', async () => {
     const newRule = { id: 2, name: 'Offline Alert', trigger_event: 'device.offline', action_type: 'send_notification' };
     db.query
       .mockResolvedValueOnce(mockInsert(2))
       .mockResolvedValueOnce(mockRows([newRule]));
 
-    const res = await request(app).post('/api/automation-rules').send({
+    const res = await request(app).post('/api/v1/automation-rules').send({
       name: 'Offline Alert', trigger_event: 'device.offline', action_type: 'send_notification',
       action_config: { channel: 'email', message: 'Your device is offline' },
     });
@@ -110,30 +110,30 @@ describe('POST /api/automation-rules', () => {
   });
 
   it('returns 422 when name is missing', async () => {
-    const res = await request(app).post('/api/automation-rules').send({ trigger_event: 'x', action_type: 'y' });
+    const res = await request(app).post('/api/v1/automation-rules').send({ trigger_event: 'x', action_type: 'y' });
     expect(res.status).toBe(422);
   });
 });
 
-describe('GET /api/automation-rules/:id', () => {
+describe('GET /api/v1/automation-rules/:id', () => {
   it('returns 404 for unknown id', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).get('/api/automation-rules/9999');
+    const res = await request(app).get('/api/v1/automation-rules/9999');
     expect(res.status).toBe(404);
   });
 
   it('returns the rule', async () => {
     db.query.mockResolvedValueOnce(mockRows([{ id: 1, name: 'R1', trigger_event: 'e', action_type: 'a' }]));
-    const res = await request(app).get('/api/automation-rules/1');
+    const res = await request(app).get('/api/v1/automation-rules/1');
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(1);
   });
 });
 
-describe('PUT /api/automation-rules/:id', () => {
+describe('PUT /api/v1/automation-rules/:id', () => {
   it('returns 404 when not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).put('/api/automation-rules/999').send({ name: 'New Name' });
+    const res = await request(app).put('/api/v1/automation-rules/999').send({ name: 'New Name' });
     expect(res.status).toBe(404);
   });
 
@@ -144,16 +144,16 @@ describe('PUT /api/automation-rules/:id', () => {
       .mockResolvedValueOnce(mockUpdate())
       .mockResolvedValueOnce(mockRows([updated]));
 
-    const res = await request(app).put('/api/automation-rules/1').send({ name: 'Updated' });
+    const res = await request(app).put('/api/v1/automation-rules/1').send({ name: 'Updated' });
     expect(res.status).toBe(200);
     expect(res.body.data.name).toBe('Updated');
   });
 });
 
-describe('DELETE /api/automation-rules/:id', () => {
+describe('DELETE /api/v1/automation-rules/:id', () => {
   it('returns 404 when not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).delete('/api/automation-rules/999');
+    const res = await request(app).delete('/api/v1/automation-rules/999');
     expect(res.status).toBe(404);
   });
 
@@ -161,7 +161,7 @@ describe('DELETE /api/automation-rules/:id', () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1 }]))
       .mockResolvedValueOnce(mockUpdate());
-    const res = await request(app).delete('/api/automation-rules/1');
+    const res = await request(app).delete('/api/v1/automation-rules/1');
     expect(res.status).toBe(204);
   });
 });
@@ -169,19 +169,19 @@ describe('DELETE /api/automation-rules/:id', () => {
 // ---------------------------------------------------------------------------
 // §18.1 Batch Jobs
 // ---------------------------------------------------------------------------
-describe('GET /api/batch-jobs', () => {
+describe('GET /api/v1/batch-jobs', () => {
   it('returns list with meta', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, name: 'Batch 1', operation: 'suspend' }]))
       .mockResolvedValueOnce(mockCount(1));
 
-    const res = await request(app).get('/api/batch-jobs');
+    const res = await request(app).get('/api/v1/batch-jobs');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 });
 
-describe('POST /api/batch-jobs', () => {
+describe('POST /api/v1/batch-jobs', () => {
   it('queues a batch job and answers 202', async () => {
     const queuedJob = { id: 1, name: 'B1', operation: 'suspend', status: 'pending', total_items: 0, success_items: 0, failed_items: 0 };
     db.query
@@ -192,7 +192,7 @@ describe('POST /api/batch-jobs', () => {
       // SELECT batch_jobs final
       .mockResolvedValueOnce(mockRows([queuedJob]));
 
-    const res = await request(app).post('/api/batch-jobs').send({
+    const res = await request(app).post('/api/v1/batch-jobs').send({
       name: 'B1', operation: 'suspend', filter_criteria: { status: 'active' },
     });
     // Queued for the background (TNA-41).
@@ -201,15 +201,15 @@ describe('POST /api/batch-jobs', () => {
   });
 
   it('returns 422 when operation is missing', async () => {
-    const res = await request(app).post('/api/batch-jobs').send({ name: 'B1', filter_criteria: {} });
+    const res = await request(app).post('/api/v1/batch-jobs').send({ name: 'B1', filter_criteria: {} });
     expect(res.status).toBe(422);
   });
 });
 
-describe('POST /api/batch-jobs/:id/cancel', () => {
+describe('POST /api/v1/batch-jobs/:id/cancel', () => {
   it('returns 404 when job not found or not cancellable', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).post('/api/batch-jobs/999/cancel');
+    const res = await request(app).post('/api/v1/batch-jobs/999/cancel');
     expect(res.status).toBe(404);
   });
 
@@ -220,7 +220,7 @@ describe('POST /api/batch-jobs/:id/cancel', () => {
       .mockResolvedValueOnce(mockUpdate())
       .mockResolvedValueOnce(mockRows([cancelled]));
 
-    const res = await request(app).post('/api/batch-jobs/1/cancel');
+    const res = await request(app).post('/api/v1/batch-jobs/1/cancel');
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('cancelled');
   });
@@ -229,19 +229,19 @@ describe('POST /api/batch-jobs/:id/cancel', () => {
 // ---------------------------------------------------------------------------
 // §18.1 Provisioning Pipelines
 // ---------------------------------------------------------------------------
-describe('GET /api/provisioning-pipelines', () => {
+describe('GET /api/v1/provisioning-pipelines', () => {
   it('returns list', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, name: 'P1', status: 'completed' }]))
       .mockResolvedValueOnce(mockCount(1));
 
-    const res = await request(app).get('/api/provisioning-pipelines');
+    const res = await request(app).get('/api/v1/provisioning-pipelines');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 });
 
-describe('POST /api/provisioning-pipelines', () => {
+describe('POST /api/v1/provisioning-pipelines', () => {
   it('creates and runs a pipeline', async () => {
     const pipelineResult = { id: 1, name: 'New Sub', status: 'completed' };
 
@@ -269,7 +269,7 @@ describe('POST /api/provisioning-pipelines', () => {
       .mockResolvedValueOnce(mockUpdate())        // UPDATE pipeline completed
       .mockResolvedValueOnce(mockRows([pipelineResult])); // SELECT final
 
-    const res = await request(app).post('/api/provisioning-pipelines').send({
+    const res = await request(app).post('/api/v1/provisioning-pipelines').send({
       name: 'New Sub',
     });
     expect(res.status).toBe(201);
@@ -277,7 +277,7 @@ describe('POST /api/provisioning-pipelines', () => {
   });
 
   it('returns 422 when name is missing', async () => {
-    const res = await request(app).post('/api/provisioning-pipelines').send({});
+    const res = await request(app).post('/api/v1/provisioning-pipelines').send({});
     expect(res.status).toBe(422);
   });
 });
@@ -285,26 +285,26 @@ describe('POST /api/provisioning-pipelines', () => {
 // ---------------------------------------------------------------------------
 // §18.1 Remediation Rules
 // ---------------------------------------------------------------------------
-describe('GET /api/remediation-rules', () => {
+describe('GET /api/v1/remediation-rules', () => {
   it('returns list', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, name: 'R1', condition_metric: 'is_offline', action_type: 'reboot_device' }]))
       .mockResolvedValueOnce(mockCount(1));
 
-    const res = await request(app).get('/api/remediation-rules');
+    const res = await request(app).get('/api/v1/remediation-rules');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 });
 
-describe('POST /api/remediation-rules', () => {
+describe('POST /api/v1/remediation-rules', () => {
   it('creates a rule', async () => {
     const newRule = { id: 3, name: 'Reboot ONU', condition_metric: 'is_offline', condition_operator: 'is_true', action_type: 'reboot_device' };
     db.query
       .mockResolvedValueOnce(mockInsert(3))
       .mockResolvedValueOnce(mockRows([newRule]));
 
-    const res = await request(app).post('/api/remediation-rules').send({
+    const res = await request(app).post('/api/v1/remediation-rules').send({
       name: 'Reboot ONU', condition_metric: 'is_offline', condition_operator: 'is_true', action_type: 'reboot_device',
     });
     expect(res.status).toBe(201);
@@ -312,15 +312,15 @@ describe('POST /api/remediation-rules', () => {
   });
 
   it('returns 422 when required fields missing', async () => {
-    const res = await request(app).post('/api/remediation-rules').send({ name: 'X' });
+    const res = await request(app).post('/api/v1/remediation-rules').send({ name: 'X' });
     expect(res.status).toBe(422);
   });
 });
 
-describe('DELETE /api/remediation-rules/:id', () => {
+describe('DELETE /api/v1/remediation-rules/:id', () => {
   it('returns 404 when not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).delete('/api/remediation-rules/999');
+    const res = await request(app).delete('/api/v1/remediation-rules/999');
     expect(res.status).toBe(404);
   });
 
@@ -328,7 +328,7 @@ describe('DELETE /api/remediation-rules/:id', () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1 }]))
       .mockResolvedValueOnce(mockUpdate());
-    const res = await request(app).delete('/api/remediation-rules/1');
+    const res = await request(app).delete('/api/v1/remediation-rules/1');
     expect(res.status).toBe(204);
   });
 });
@@ -336,26 +336,26 @@ describe('DELETE /api/remediation-rules/:id', () => {
 // ---------------------------------------------------------------------------
 // §18.2 Automation Scripts
 // ---------------------------------------------------------------------------
-describe('GET /api/automation-scripts', () => {
+describe('GET /api/v1/automation-scripts', () => {
   it('returns list', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, name: 'backup.sh', language: 'bash', is_shared: 0 }]))
       .mockResolvedValueOnce(mockCount(1));
 
-    const res = await request(app).get('/api/automation-scripts');
+    const res = await request(app).get('/api/v1/automation-scripts');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 });
 
-describe('POST /api/automation-scripts', () => {
+describe('POST /api/v1/automation-scripts', () => {
   it('creates a script', async () => {
     const newScript = { id: 5, name: 'backup.sh', language: 'bash', is_shared: 0 };
     db.query
       .mockResolvedValueOnce(mockInsert(5))
       .mockResolvedValueOnce(mockRows([newScript]));
 
-    const res = await request(app).post('/api/automation-scripts').send({
+    const res = await request(app).post('/api/v1/automation-scripts').send({
       name: 'backup.sh', language: 'bash', script_body: '#!/bin/bash\necho hello',
     });
     expect(res.status).toBe(201);
@@ -363,12 +363,12 @@ describe('POST /api/automation-scripts', () => {
   });
 
   it('returns 422 when language missing', async () => {
-    const res = await request(app).post('/api/automation-scripts').send({ name: 'x', script_body: 'y' });
+    const res = await request(app).post('/api/v1/automation-scripts').send({ name: 'x', script_body: 'y' });
     expect(res.status).toBe(422);
   });
 });
 
-describe('POST /api/automation-scripts/:id/execute', () => {
+describe('POST /api/v1/automation-scripts/:id/execute', () => {
   it('creates a queued execution when the execution engine is enabled', async () => {
     process.env.SCRIPT_EXECUTION_ENABLED = 'true';
     const script = { id: 1, name: 'test.sh', language: 'bash' };
@@ -378,7 +378,7 @@ describe('POST /api/automation-scripts/:id/execute', () => {
       .mockResolvedValueOnce(mockInsert(10))
       .mockResolvedValueOnce(mockRows([execution]));
 
-    const res = await request(app).post('/api/automation-scripts/1/execute').send({});
+    const res = await request(app).post('/api/v1/automation-scripts/1/execute').send({});
     expect(res.status).toBe(202);
     expect(res.body.data.status).toBe('queued');
     delete process.env.SCRIPT_EXECUTION_ENABLED;
@@ -388,21 +388,21 @@ describe('POST /api/automation-scripts/:id/execute', () => {
     delete process.env.SCRIPT_EXECUTION_ENABLED;
     const script = { id: 1, name: 'test.sh', language: 'bash' };
     db.query.mockResolvedValueOnce(mockRows([script]));
-    const res = await request(app).post('/api/automation-scripts/1/execute').send({});
+    const res = await request(app).post('/api/v1/automation-scripts/1/execute').send({});
     expect(res.status).toBe(501);
   });
 
   it('returns 404 for unknown script', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).post('/api/automation-scripts/999/execute').send({});
+    const res = await request(app).post('/api/v1/automation-scripts/999/execute').send({});
     expect(res.status).toBe(404);
   });
 });
 
-describe('DELETE /api/automation-scripts/:id', () => {
+describe('DELETE /api/v1/automation-scripts/:id', () => {
   it('returns 404 when not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).delete('/api/automation-scripts/999');
+    const res = await request(app).delete('/api/v1/automation-scripts/999');
     expect(res.status).toBe(404);
   });
 
@@ -410,7 +410,7 @@ describe('DELETE /api/automation-scripts/:id', () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1 }]))
       .mockResolvedValueOnce(mockUpdate());
-    const res = await request(app).delete('/api/automation-scripts/1');
+    const res = await request(app).delete('/api/v1/automation-scripts/1');
     expect(res.status).toBe(204);
   });
 });
@@ -418,13 +418,13 @@ describe('DELETE /api/automation-scripts/:id', () => {
 // ---------------------------------------------------------------------------
 // §18.3 Router Drivers
 // ---------------------------------------------------------------------------
-describe('GET /api/router-drivers', () => {
+describe('GET /api/v1/router-drivers', () => {
   it('returns list', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, vendor: 'mikrotik', host: '10.0.0.1', encrypted_password: null, api_token: null }]))
       .mockResolvedValueOnce(mockCount(1));
 
-    const res = await request(app).get('/api/router-drivers');
+    const res = await request(app).get('/api/v1/router-drivers');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
     // Encrypted fields stripped
@@ -432,28 +432,28 @@ describe('GET /api/router-drivers', () => {
   });
 });
 
-describe('POST /api/router-drivers', () => {
+describe('POST /api/v1/router-drivers', () => {
   it('creates a driver config', async () => {
     const config = { id: 7, vendor: 'mikrotik', host: '10.1.1.1', has_password: false, has_api_token: false };
     db.query
       .mockResolvedValueOnce(mockInsert(7))
       .mockResolvedValueOnce(mockRows([{ id: 7, vendor: 'mikrotik', host: '10.1.1.1', encrypted_password: null, api_token: null }]));
 
-    const res = await request(app).post('/api/router-drivers').send({ vendor: 'mikrotik' });
+    const res = await request(app).post('/api/v1/router-drivers').send({ vendor: 'mikrotik' });
     expect(res.status).toBe(201);
     expect(res.body.data.vendor).toBe('mikrotik');
   });
 
   it('returns 422 when vendor missing', async () => {
-    const res = await request(app).post('/api/router-drivers').send({ host: '1.2.3.4' });
+    const res = await request(app).post('/api/v1/router-drivers').send({ host: '1.2.3.4' });
     expect(res.status).toBe(422);
   });
 });
 
-describe('DELETE /api/router-drivers/:id', () => {
+describe('DELETE /api/v1/router-drivers/:id', () => {
   it('returns 404 when not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).delete('/api/router-drivers/999');
+    const res = await request(app).delete('/api/v1/router-drivers/999');
     expect(res.status).toBe(404);
   });
 
@@ -461,36 +461,36 @@ describe('DELETE /api/router-drivers/:id', () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1 }]))
       .mockResolvedValueOnce(mockUpdate());
-    const res = await request(app).delete('/api/router-drivers/1');
+    const res = await request(app).delete('/api/v1/router-drivers/1');
     expect(res.status).toBe(204);
   });
 });
 
-describe('POST /api/router-drivers/:id/dispatch', () => {
+describe('POST /api/v1/router-drivers/:id/dispatch', () => {
   it('returns 501 not_dispatched for non-mikrotik vendor (no fake success)', async () => {
     const config = { id: 1, vendor: 'cisco_ios', protocol: 'ssh', host: '10.0.0.1', device_id: null, encrypted_password: null };
     db.query
       .mockResolvedValueOnce(mockRows([config]))
       .mockResolvedValueOnce(mockInsert(20));
 
-    const res = await request(app).post('/api/router-drivers/1/dispatch').send({ command: 'show_version' });
+    const res = await request(app).post('/api/v1/router-drivers/1/dispatch').send({ command: 'show_version' });
     expect(res.status).toBe(501);
     expect(res.body.data.status).toBe('not_dispatched');
   });
 
   it('returns 404 when config not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).post('/api/router-drivers/999/dispatch').send({ command: 'x' });
+    const res = await request(app).post('/api/v1/router-drivers/999/dispatch').send({ command: 'x' });
     expect(res.status).toBe(404);
   });
 
   it('returns 422 when command missing', async () => {
-    const res = await request(app).post('/api/router-drivers/1/dispatch').send({});
+    const res = await request(app).post('/api/v1/router-drivers/1/dispatch').send({});
     expect(res.status).toBe(422);
   });
 
   it("rejects command 'reboot' (must go through the devices.reboot-guarded endpoint)", async () => {
-    const res = await request(app).post('/api/router-drivers/1/dispatch').send({ command: 'reboot' });
+    const res = await request(app).post('/api/v1/router-drivers/1/dispatch').send({ command: 'reboot' });
     expect(res.status).toBe(400);
     expect(res.body.error.message).toMatch(/devices\/:id\/reboot/);
     // The config was never even looked up — the block is before dispatch.
@@ -501,13 +501,13 @@ describe('POST /api/router-drivers/:id/dispatch', () => {
 // ---------------------------------------------------------------------------
 // §18.4 Analytics
 // ---------------------------------------------------------------------------
-describe('GET /api/analytics/anomalies', () => {
+describe('GET /api/v1/analytics/anomalies', () => {
   it('returns list', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, metric: 'cpu_usage', severity: 'high' }]))
       .mockResolvedValueOnce(mockCount(1));
 
-    const res = await request(app).get('/api/analytics/anomalies');
+    const res = await request(app).get('/api/v1/analytics/anomalies');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
@@ -517,27 +517,27 @@ describe('GET /api/analytics/anomalies', () => {
       .mockResolvedValueOnce(mockRows([]))
       .mockResolvedValueOnce(mockCount(0));
 
-    const res = await request(app).get('/api/analytics/anomalies?severity=critical');
+    const res = await request(app).get('/api/v1/analytics/anomalies?severity=critical');
     expect(res.status).toBe(200);
   });
 });
 
-describe('POST /api/analytics/anomalies/detect', () => {
+describe('POST /api/v1/analytics/anomalies/detect', () => {
   it('runs detection and returns counts', async () => {
     // combos query
     db.query.mockResolvedValueOnce(mockRows([]));
 
-    const res = await request(app).post('/api/analytics/anomalies/detect');
+    const res = await request(app).post('/api/v1/analytics/anomalies/detect');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('combos_checked');
     expect(res.body.data).toHaveProperty('anomalies_detected');
   });
 });
 
-describe('POST /api/analytics/anomalies/:id/acknowledge', () => {
+describe('POST /api/v1/analytics/anomalies/:id/acknowledge', () => {
   it('returns 404 when not found', async () => {
     db.query.mockResolvedValueOnce(mockEmpty());
-    const res = await request(app).post('/api/analytics/anomalies/999/acknowledge');
+    const res = await request(app).post('/api/v1/analytics/anomalies/999/acknowledge');
     expect(res.status).toBe(404);
   });
 
@@ -548,64 +548,64 @@ describe('POST /api/analytics/anomalies/:id/acknowledge', () => {
       .mockResolvedValueOnce(mockUpdate())
       .mockResolvedValueOnce(mockRows([ack]));
 
-    const res = await request(app).post('/api/analytics/anomalies/1/acknowledge');
+    const res = await request(app).post('/api/v1/analytics/anomalies/1/acknowledge');
     expect(res.status).toBe(200);
     expect(res.body.data.is_acknowledged).toBe(1);
   });
 });
 
-describe('GET /api/analytics/predictive-failure', () => {
+describe('GET /api/v1/analytics/predictive-failure', () => {
   it('returns sfp_degradation and onu_offline', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([]))  // sfpRows
       .mockResolvedValueOnce(mockRows([])); // onuRows
 
-    const res = await request(app).get('/api/analytics/predictive-failure');
+    const res = await request(app).get('/api/v1/analytics/predictive-failure');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('sfp_degradation');
     expect(res.body.data).toHaveProperty('onu_offline');
   });
 });
 
-describe('GET /api/analytics/churn-scores', () => {
+describe('GET /api/v1/analytics/churn-scores', () => {
   it('returns churn scores list', async () => {
     db.query
       .mockResolvedValueOnce(mockRows([{ id: 1, client_id: 5, score: 72.5, risk_band: 'high' }]))
       .mockResolvedValueOnce(mockCount(1));
 
-    const res = await request(app).get('/api/analytics/churn-scores');
+    const res = await request(app).get('/api/v1/analytics/churn-scores');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].risk_band).toBe('high');
   });
 });
 
-describe('POST /api/analytics/churn-scores/compute', () => {
+describe('POST /api/v1/analytics/churn-scores/compute', () => {
   it('computes churn scores', async () => {
     // clients query
     db.query.mockResolvedValueOnce(mockRows([]));
 
-    const res = await request(app).post('/api/analytics/churn-scores/compute');
+    const res = await request(app).post('/api/v1/analytics/churn-scores/compute');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('clients_scored');
     expect(res.body.data.clients_scored).toBe(0);
   });
 });
 
-describe('GET /api/analytics/alert-correlation', () => {
+describe('GET /api/v1/analytics/alert-correlation', () => {
   it('returns correlation groups', async () => {
     db.query.mockResolvedValueOnce(mockRows([]));
-    const res = await request(app).get('/api/analytics/alert-correlation');
+    const res = await request(app).get('/api/v1/analytics/alert-correlation');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('correlated_groups');
   });
 });
 
-describe('GET /api/analytics/bandwidth-forecast', () => {
+describe('GET /api/v1/analytics/bandwidth-forecast', () => {
   it('returns forecast (reuses capacityForecast)', async () => {
     // historical data query
     db.query.mockResolvedValueOnce(mockRows([]));
-    const res = await request(app).get('/api/analytics/bandwidth-forecast');
+    const res = await request(app).get('/api/v1/analytics/bandwidth-forecast');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('analytics_note');
   });

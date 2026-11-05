@@ -193,7 +193,7 @@ describe('webhookService', () => {
   // =========================================================================
   // deliver
   // =========================================================================
-  describe('deliver()', () => {
+  describe('deliverOnce() from attempt 1', () => {
     test('dead_letters immediately when max_retries=0 and delivery fails', async () => {
       const webhook = {
         id: 3, organization_id: 42, url: 'https://8.8.8.8/fail', events: '*',
@@ -203,7 +203,7 @@ describe('webhookService', () => {
       db.query.mockResolvedValue([{ insertId: 99 }]);  // delivery log insert
       mockHttpSuccess(500, 'Internal Server Error');
 
-      const result = await webhookService.deliver(webhook, 'test', { foo: 1 });
+      const result = await webhookService.deliverOnce(webhook, 'test', { foo: 1 }, 1);
       // max_retries=0 means no retries allowed — result is dead_letter after first attempt
       expect(result.status).toBe('dead_letter');
     });
@@ -217,14 +217,14 @@ describe('webhookService', () => {
     ])('unsafe delivery target %s is terminal and never opens a socket', async (url) => {
       db.query.mockResolvedValue([{ insertId: 100 }]);
 
-      const result = await webhookService.deliver({
+      const result = await webhookService.deliverOnce({
         id: 9,
         organization_id: 42,
         url,
         events: '*',
         max_retries: 5,
         timeout_seconds: 5,
-      }, 'invoice.created', { id: 1 });
+      }, 'invoice.created', { id: 1 }, 1);
 
       expect(result.status).toBe('dead_letter');
       expect(http.request).not.toHaveBeenCalled();
@@ -238,14 +238,14 @@ describe('webhookService', () => {
       db.query.mockResolvedValue([{ insertId: 101 }]);
       mockHttpSuccess(204, '');
 
-      const result = await webhookService.deliver({
+      const result = await webhookService.deliverOnce({
         id: 10,
         organization_id: 42,
         url: 'https://hooks.example/hook',
         events: '*',
         max_retries: 0,
         timeout_seconds: 5,
-      }, 'invoice.created', { id: 1 });
+      }, 'invoice.created', { id: 1 }, 1);
 
       expect(result.status).toBe('success');
       expect(lookup).toHaveBeenCalledTimes(1);
@@ -291,14 +291,14 @@ describe('webhookService', () => {
         return req;
       });
 
-      const result = await webhookService.deliver({
+      const result = await webhookService.deliverOnce({
         id: 11,
         organization_id: 42,
         url: 'https://8.8.8.8/endless',
         events: '*',
         max_retries: 0,
         timeout_seconds: 5,
-      }, 'invoice.created', { id: 1 });
+      }, 'invoice.created', { id: 1 }, 1);
 
       expect(result.status).toBe('success');
       expect(response.destroy.mock.calls.length + requestHandle.destroy.mock.calls.length)

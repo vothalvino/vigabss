@@ -75,9 +75,9 @@ function expectPaginationMeta(meta, { total, page, limit }) {
 }
 
 // =============================================================================
-// ALERTS — /api/alerts/rules
+// ALERTS — /api/v1/alerts/rules
 // =============================================================================
-describe('Pagination — GET /api/alerts/rules', () => {
+describe('Pagination — GET /api/v1/alerts/rules', () => {
   test('returns page 1 with default limit', async () => {
     mockAuthUser();
     const rows = Array.from({ length: 3 }, (_, i) => ({ id: i + 1, name: `Rule ${i + 1}` }));
@@ -86,7 +86,7 @@ describe('Pagination — GET /api/alerts/rules', () => {
       .mockResolvedValueOnce([[{ total: 3 }]]);
 
     const res = await request(app)
-      .get('/api/alerts/rules')
+      .get('/api/v1/alerts/rules')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -101,7 +101,7 @@ describe('Pagination — GET /api/alerts/rules', () => {
       .mockResolvedValueOnce([[{ total: 5 }]]);
 
     const res = await request(app)
-      .get('/api/alerts/rules?page=2&limit=2')
+      .get('/api/v1/alerts/rules?page=2&limit=2')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -116,7 +116,7 @@ describe('Pagination — GET /api/alerts/rules', () => {
       .mockResolvedValueOnce([[{ total: 0 }]]);
 
     const res = await request(app)
-      .get('/api/alerts/rules?limit=200')
+      .get('/api/v1/alerts/rules?limit=200')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -125,9 +125,9 @@ describe('Pagination — GET /api/alerts/rules', () => {
 });
 
 // =============================================================================
-// ALERTS — /api/alerts/events
+// ALERTS — /api/v1/alerts/events
 // =============================================================================
-describe('Pagination — GET /api/alerts/events', () => {
+describe('Pagination — GET /api/v1/alerts/events', () => {
   test('returns paginated alert events', async () => {
     mockAuthUser();
     alertService.getAlertHistory.mockResolvedValue({
@@ -136,7 +136,7 @@ describe('Pagination — GET /api/alerts/events', () => {
     });
 
     const res = await request(app)
-      .get('/api/alerts/events')
+      .get('/api/v1/alerts/events')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -153,7 +153,7 @@ describe('Pagination — GET /api/alerts/events', () => {
     });
 
     await request(app)
-      .get('/api/alerts/events?page=3&limit=10')
+      .get('/api/v1/alerts/events?page=3&limit=10')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(alertService.getAlertHistory).toHaveBeenCalledWith(1, { page: 3, limit: 10 });
@@ -161,9 +161,9 @@ describe('Pagination — GET /api/alerts/events', () => {
 });
 
 // =============================================================================
-// ROLES — /api/roles
+// ROLES — /api/v1/roles
 // =============================================================================
-describe('Pagination — GET /api/roles', () => {
+describe('Pagination — GET /api/v1/roles', () => {
   test('returns paginated roles', async () => {
     mockAuthUser();
     db.query
@@ -171,7 +171,7 @@ describe('Pagination — GET /api/roles', () => {
       .mockResolvedValueOnce([[{ total: 2 }]]);
 
     const res = await request(app)
-      .get('/api/roles')
+      .get('/api/v1/roles')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -186,7 +186,7 @@ describe('Pagination — GET /api/roles', () => {
       .mockResolvedValueOnce([[{ total: 5 }]]);
 
     const res = await request(app)
-      .get('/api/roles?page=2&limit=5')
+      .get('/api/v1/roles?page=2&limit=5')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -195,9 +195,9 @@ describe('Pagination — GET /api/roles', () => {
 });
 
 // =============================================================================
-// FACTURAS PÚBLICAS — /api/facturas-publicas
+// FACTURAS PÚBLICAS — /api/v1/facturas-publicas
 // =============================================================================
-describe('Pagination — GET /api/facturas-publicas', () => {
+describe('Pagination — GET /api/v1/facturas-publicas', () => {
   test('returns paginated facturas', async () => {
     mockAuthUser();
     db.query
@@ -205,7 +205,7 @@ describe('Pagination — GET /api/facturas-publicas', () => {
       .mockResolvedValueOnce([[{ total: 1 }]]);
 
     const res = await request(app)
-      .get('/api/facturas-publicas')
+      .get('/api/v1/facturas-publicas')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -220,7 +220,7 @@ describe('Pagination — GET /api/facturas-publicas', () => {
       .mockResolvedValueOnce([[{ total: 20 }]]);
 
     const res = await request(app)
-      .get('/api/facturas-publicas?page=3&limit=5')
+      .get('/api/v1/facturas-publicas?page=3&limit=5')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -229,9 +229,9 @@ describe('Pagination — GET /api/facturas-publicas', () => {
 });
 
 // =============================================================================
-// FACTURAS PÚBLICAS ITEMS — /api/facturas-publicas/:id/items
+// FACTURAS PÚBLICAS ITEMS — /api/v1/facturas-publicas/:id/items
 // =============================================================================
-describe('Pagination — GET /api/facturas-publicas/:id/items', () => {
+describe('Pagination — GET /api/v1/facturas-publicas/:id/items', () => {
   test('returns paginated items', async () => {
     mockAuthUser();
     db.query
@@ -241,7 +241,7 @@ describe('Pagination — GET /api/facturas-publicas/:id/items', () => {
       .mockResolvedValueOnce([[{ total: 1 }]]);
 
     const res = await request(app)
-      .get('/api/facturas-publicas/1/items')
+      .get('/api/v1/facturas-publicas/1/items')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);

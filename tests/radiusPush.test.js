@@ -1,7 +1,7 @@
 // =============================================================================
 // VigaBSS 5.0 — RADIUS direct-provisioning push route tests
 // =============================================================================
-// Covers POST /api/radius/:id/push:
+// Covers POST /api/v1/radius/:id/push:
 //   • success 200 (returns push result from routerProvisioningService)
 //   • missing nas_id -> 422 (NO_NAS)
 //   • router unreachable -> 502 (ROUTER_UNREACHABLE)
@@ -83,9 +83,9 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// POST /api/radius/:id/push
+// POST /api/v1/radius/:id/push
 // =============================================================================
-describe('POST /api/radius/:id/push', () => {
+describe('POST /api/v1/radius/:id/push', () => {
 
   test('pushes the subscriber to its NAS and returns 200 with the result', async () => {
     mockAuthUser();
@@ -103,7 +103,7 @@ describe('POST /api/radius/:id/push', () => {
     });
 
     const res = await request(app)
-      .post('/api/radius/7/push')
+      .post('/api/v1/radius/7/push')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -126,7 +126,7 @@ describe('POST /api/radius/:id/push', () => {
     db.query.mockResolvedValueOnce([[{ ...mockRadius, nas_id: null }]]);
 
     const res = await request(app)
-      .post('/api/radius/7/push')
+      .post('/api/v1/radius/7/push')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(422);
@@ -144,7 +144,7 @@ describe('POST /api/radius/:id/push', () => {
     routerProvisioningService.pushSubscriber.mockRejectedValue(new Error('connect ETIMEDOUT'));
 
     const res = await request(app)
-      .post('/api/radius/7/push')
+      .post('/api/v1/radius/7/push')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(502);
@@ -163,7 +163,7 @@ describe('POST /api/radius/:id/push', () => {
     });
 
     const res = await request(app)
-      .post('/api/radius/7/push')
+      .post('/api/v1/radius/7/push')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -184,7 +184,7 @@ describe('POST /api/radius/:id/push', () => {
     });
 
     const res = await request(app)
-      .post('/api/radius/7/push')
+      .post('/api/v1/radius/7/push')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -207,7 +207,7 @@ describe('POST /api/radius/:id/push', () => {
       .mockResolvedValueOnce([[mockNas]]);
 
     const res = await request(app)
-      .post('/api/radius/7/push')
+      .post('/api/v1/radius/7/push')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(422);
@@ -221,7 +221,7 @@ describe('POST /api/radius/:id/push', () => {
     db.query.mockResolvedValueOnce([[]]); // Radius.findByIdOrFail -> NotFound
 
     const res = await request(app)
-      .post('/api/radius/999/push')
+      .post('/api/v1/radius/999/push')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(404);
@@ -229,7 +229,7 @@ describe('POST /api/radius/:id/push', () => {
   });
 
   test('returns 401 without an auth header', async () => {
-    const res = await request(app).post('/api/radius/7/push');
+    const res = await request(app).post('/api/v1/radius/7/push');
     expect(res.status).toBe(401);
   });
 
@@ -250,7 +250,7 @@ describe('POST /api/radius/:id/push', () => {
     });
 
     const res = await request(app)
-      .post('/api/radius/7/push')
+      .post('/api/v1/radius/7/push')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);

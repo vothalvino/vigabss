@@ -1,5 +1,5 @@
 // =============================================================================
-// VigaBSS 5.0 — POST /api/radius/sessions/disconnect-batch route tests
+// VigaBSS 5.0 — POST /api/v1/radius/sessions/disconnect-batch route tests
 // =============================================================================
 // Pins the per-session targeting contract added by the roaming-aware CoA
 // change: the route must pass the DB-canonical session_id and the session's
@@ -54,7 +54,7 @@ beforeEach(() => {
   auditLog.log.mockResolvedValue(undefined);
 });
 
-describe('POST /api/radius/sessions/disconnect-batch', () => {
+describe('POST /api/v1/radius/sessions/disconnect-batch', () => {
   test('disconnects by session id with per-session targeting (canonical id + session NAS)', async () => {
     mockAuthUser();
     db.query.mockResolvedValueOnce([[
@@ -63,7 +63,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
     radiusService.disconnectSession.mockResolvedValue({ sent: true, response: 'Disconnect-ACK' });
 
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       // padded request value — PAD SPACE collation matches the stored 'sess-1'
       .send({ acct_session_ids: ['sess-1   '] });
@@ -88,7 +88,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
     radiusService.disconnectSession.mockResolvedValue({ sent: true, response: 'Disconnect-ACK' });
 
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ acct_session_ids: ['sess-2'] });
 
@@ -104,7 +104,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
     db.query.mockResolvedValueOnce([[]]);
 
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ acct_session_ids: ['nope'] });
 
@@ -126,7 +126,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
     });
 
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ acct_session_ids: ['sess-3'] });
 
@@ -146,7 +146,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
     radiusService.disconnectSession.mockResolvedValue({ sent: true, response: 'Disconnect-ACK' });
 
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ usernames: ['roamer@isp.net'] });
 
@@ -158,7 +158,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
   test('rejects an empty batch', async () => {
     mockAuthUser();
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       .send({});
     expect(res.status).toBe(400);
@@ -178,7 +178,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
     radiusService.disconnectSession.mockResolvedValue({ sent: true, response: 'Disconnect-ACK' });
 
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ sessions: [{ acct_session_id: 'sess-1', nas_ip_address: '10.0.0.2' }] });
 
@@ -203,7 +203,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
     ]]);
 
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ acct_session_ids: ['81f3a2c1'] });
 
@@ -223,7 +223,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
     radiusService.disconnectSession.mockResolvedValue({ sent: true, response: 'Disconnect-ACK' });
 
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ acct_session_ids: ['sess-9'] });
 
@@ -239,7 +239,7 @@ describe('POST /api/radius/sessions/disconnect-batch', () => {
   test('a malformed sessions entry is a 400, not a silent skip', async () => {
     mockAuthUser();
     const res = await request(app)
-      .post('/api/radius/sessions/disconnect-batch')
+      .post('/api/v1/radius/sessions/disconnect-batch')
       .set('Authorization', `Bearer ${authToken}`)
       .send({ sessions: [{ nas_ip_address: '10.0.0.2' }] });
     expect(res.status).toBe(400);

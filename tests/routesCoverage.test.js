@@ -144,17 +144,17 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// BULK ROUTES — /api/bulk
+// BULK ROUTES — /api/v1/bulk
 // =============================================================================
-describe('Bulk Routes — /api/bulk', () => {
-  describe('POST /api/bulk/suspend', () => {
+describe('Bulk Routes — /api/v1/bulk', () => {
+  describe('POST /api/v1/bulk/suspend', () => {
     test('queues a suspend batch job and answers 202 (TNA-41)', async () => {
       mockAuthUser();
       db.query.mockResolvedValue([[{ id: 10, status: 'pending', organization_id: 1 }]]);
       suspensionService.suspendContract.mockResolvedValue(undefined);
 
       const res = await request(app)
-        .post('/api/bulk/suspend')
+        .post('/api/v1/bulk/suspend')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ contract_ids: [10, 20], reason: 'Non-payment' });
 
@@ -168,7 +168,7 @@ describe('Bulk Routes — /api/bulk', () => {
     test('validation — rejects missing contract_ids', async () => {
       mockAuthUser();
       const res = await request(app)
-        .post('/api/bulk/suspend')
+        .post('/api/v1/bulk/suspend')
         .set('Authorization', `Bearer ${authToken}`)
         .send({});
 
@@ -179,7 +179,7 @@ describe('Bulk Routes — /api/bulk', () => {
       mockAuthUser();
       const ids = Array.from({ length: 501 }, (_, i) => i + 1);
       const res = await request(app)
-        .post('/api/bulk/suspend')
+        .post('/api/v1/bulk/suspend')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ contract_ids: ids });
 
@@ -188,7 +188,7 @@ describe('Bulk Routes — /api/bulk', () => {
 
   });
 
-  describe('POST /api/bulk/email', () => {
+  describe('POST /api/v1/bulk/email', () => {
     test('success — queues emails for clients', async () => {
       mockAuthUser();
       db.query.mockResolvedValue([[
@@ -197,7 +197,7 @@ describe('Bulk Routes — /api/bulk', () => {
       ]]);
 
       const res = await request(app)
-        .post('/api/bulk/email')
+        .post('/api/v1/bulk/email')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_ids: [1, 2], subject: 'Test', body: 'Hello' });
 
@@ -208,7 +208,7 @@ describe('Bulk Routes — /api/bulk', () => {
     test('validation — rejects missing subject', async () => {
       mockAuthUser();
       const res = await request(app)
-        .post('/api/bulk/email')
+        .post('/api/v1/bulk/email')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_ids: [1], body: 'Hello' });
 
@@ -218,7 +218,7 @@ describe('Bulk Routes — /api/bulk', () => {
     test('validation — rejects missing body', async () => {
       mockAuthUser();
       const res = await request(app)
-        .post('/api/bulk/email')
+        .post('/api/v1/bulk/email')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_ids: [1], subject: 'Test' });
 
@@ -228,7 +228,7 @@ describe('Bulk Routes — /api/bulk', () => {
     test('validation — rejects empty client_ids', async () => {
       mockAuthUser();
       const res = await request(app)
-        .post('/api/bulk/email')
+        .post('/api/v1/bulk/email')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_ids: [], subject: 'Test', body: 'Hello' });
 
@@ -239,7 +239,7 @@ describe('Bulk Routes — /api/bulk', () => {
       mockAuthUser();
       const ids = Array.from({ length: 1001 }, (_, i) => i + 1);
       const res = await request(app)
-        .post('/api/bulk/email')
+        .post('/api/v1/bulk/email')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_ids: ids, subject: 'Test', body: 'Hello' });
 
@@ -265,7 +265,7 @@ describe('Bulk Routes — /api/bulk', () => {
         User.getPermissions.mockResolvedValue(['clients.view']);
 
         const res = await request(app)
-          .post('/api/bulk/email')
+          .post('/api/v1/bulk/email')
           .set('Authorization', `Bearer ${authToken}`)
           .send({ client_ids: [1], subject: 'Test', body: 'Hello' });
 
@@ -278,7 +278,7 @@ describe('Bulk Routes — /api/bulk', () => {
         db.query.mockResolvedValue([[{ id: 1, email: 'a@test.com', first_name: 'A', last_name: 'B' }]]);
 
         const res = await request(app)
-          .post('/api/bulk/email')
+          .post('/api/v1/bulk/email')
           .set('Authorization', `Bearer ${authToken}`)
           .send({ client_ids: [1], subject: 'Test', body: 'Hello' });
 
@@ -304,10 +304,10 @@ describe('Metrics Route — /metrics', () => {
 });
 
 // =============================================================================
-// ALERT ROUTES — /api/alerts
+// ALERT ROUTES — /api/v1/alerts
 // =============================================================================
-describe('Alert Routes — /api/alerts', () => {
-  describe('GET /api/alerts/rules', () => {
+describe('Alert Routes — /api/v1/alerts', () => {
+  describe('GET /api/v1/alerts/rules', () => {
     test('success — lists alert rules', async () => {
       mockAuthUser();
       db.query
@@ -315,7 +315,7 @@ describe('Alert Routes — /api/alerts', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);
 
       const res = await request(app)
-        .get('/api/alerts/rules')
+        .get('/api/v1/alerts/rules')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -327,7 +327,7 @@ describe('Alert Routes — /api/alerts', () => {
     });
   });
 
-  describe('POST /api/alerts/rules', () => {
+  describe('POST /api/v1/alerts/rules', () => {
     test('success — creates an alert rule', async () => {
       mockAuthUser();
       db.query
@@ -335,7 +335,7 @@ describe('Alert Routes — /api/alerts', () => {
         .mockResolvedValueOnce([[{ id: 10, name: 'High CPU', metric: 'cpu_usage' }]]);
 
       const res = await request(app)
-        .post('/api/alerts/rules')
+        .post('/api/v1/alerts/rules')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'High CPU', metric: 'cpu_usage', threshold: 90 });
 
@@ -350,7 +350,7 @@ describe('Alert Routes — /api/alerts', () => {
         .mockResolvedValueOnce([[{ id: 11, name: 'Low SNR', metric: 'snr_db' }]]);
 
       const accepted = await request(app)
-        .post('/api/alerts/rules')
+        .post('/api/v1/alerts/rules')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Low SNR', metric: 'snr_db', operator: '<', threshold: 15 });
 
@@ -358,7 +358,7 @@ describe('Alert Routes — /api/alerts', () => {
 
       mockAuthUser();
       const rejected = await request(app)
-        .post('/api/alerts/rules')
+        .post('/api/v1/alerts/rules')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Old alias', metric: 'cpu', threshold: 90 });
 
@@ -366,7 +366,7 @@ describe('Alert Routes — /api/alerts', () => {
     });
   });
 
-  describe('PUT /api/alerts/rules/:id', () => {
+  describe('PUT /api/v1/alerts/rules/:id', () => {
     test('success — updates an alert rule', async () => {
       mockAuthUser();
       db.query
@@ -374,7 +374,7 @@ describe('Alert Routes — /api/alerts', () => {
         .mockResolvedValueOnce([[{ id: 1, name: 'Updated' }]]);
 
       const res = await request(app)
-        .put('/api/alerts/rules/1')
+        .put('/api/v1/alerts/rules/1')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Updated' });
 
@@ -392,7 +392,7 @@ describe('Alert Routes — /api/alerts', () => {
       db.query.mockResolvedValueOnce([{ affectedRows: 0 }]);
 
       const res = await request(app)
-        .put('/api/alerts/rules/999')
+        .put('/api/v1/alerts/rules/999')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Foreign rule' });
 
@@ -407,7 +407,7 @@ describe('Alert Routes — /api/alerts', () => {
     test('returns 400 when no fields to update', async () => {
       mockAuthUser();
       const res = await request(app)
-        .put('/api/alerts/rules/1')
+        .put('/api/v1/alerts/rules/1')
         .set('Authorization', `Bearer ${authToken}`)
         .send({});
 
@@ -415,13 +415,13 @@ describe('Alert Routes — /api/alerts', () => {
     });
   });
 
-  describe('DELETE /api/alerts/rules/:id', () => {
+  describe('DELETE /api/v1/alerts/rules/:id', () => {
     test('success — deletes an alert rule', async () => {
       mockAuthUser();
       db.query.mockResolvedValue([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .delete('/api/alerts/rules/1')
+        .delete('/api/v1/alerts/rules/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -432,14 +432,14 @@ describe('Alert Routes — /api/alerts', () => {
       db.query.mockResolvedValue([{ affectedRows: 0 }]);
 
       const res = await request(app)
-        .delete('/api/alerts/rules/999')
+        .delete('/api/v1/alerts/rules/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
     });
   });
 
-  describe('GET /api/alerts/events', () => {
+  describe('GET /api/v1/alerts/events', () => {
     test('success — returns alert history', async () => {
       mockAuthUser();
       alertService.getAlertHistory.mockResolvedValue({
@@ -448,7 +448,7 @@ describe('Alert Routes — /api/alerts', () => {
       });
 
       const res = await request(app)
-        .get('/api/alerts/events')
+        .get('/api/v1/alerts/events')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -458,13 +458,13 @@ describe('Alert Routes — /api/alerts', () => {
     });
   });
 
-  describe('POST /api/alerts/events/:id/acknowledge', () => {
+  describe('POST /api/v1/alerts/events/:id/acknowledge', () => {
     test('success — acknowledges an alert', async () => {
       mockAuthUser();
       alertService.acknowledgeAlert.mockResolvedValue(true);
 
       const res = await request(app)
-        .post('/api/alerts/events/1/acknowledge')
+        .post('/api/v1/alerts/events/1/acknowledge')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -477,20 +477,20 @@ describe('Alert Routes — /api/alerts', () => {
       alertService.acknowledgeAlert.mockResolvedValue(false);
 
       const res = await request(app)
-        .post('/api/alerts/events/999/acknowledge')
+        .post('/api/v1/alerts/events/999/acknowledge')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
     });
   });
 
-  describe('POST /api/alerts/evaluate', () => {
+  describe('POST /api/v1/alerts/evaluate', () => {
     test('success — triggers alert evaluation', async () => {
       mockAuthUser();
       alertService.evaluateAlerts.mockResolvedValue({ checked: 5, triggered: 1 });
 
       const res = await request(app)
-        .post('/api/alerts/evaluate')
+        .post('/api/v1/alerts/evaluate')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -500,10 +500,10 @@ describe('Alert Routes — /api/alerts', () => {
 });
 
 // =============================================================================
-// ROLE ROUTES — /api/roles
+// ROLE ROUTES — /api/v1/roles
 // =============================================================================
-describe('Role Routes — /api/roles', () => {
-  describe('GET /api/roles', () => {
+describe('Role Routes — /api/v1/roles', () => {
+  describe('GET /api/v1/roles', () => {
     test('success — lists roles', async () => {
       mockSuperAdminUser();
       db.query
@@ -511,7 +511,7 @@ describe('Role Routes — /api/roles', () => {
         .mockResolvedValueOnce([[{ total: 2 }]]);
 
       const res = await request(app)
-        .get('/api/roles')
+        .get('/api/v1/roles')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -522,7 +522,7 @@ describe('Role Routes — /api/roles', () => {
     });
   });
 
-  describe('GET /api/roles/permissions', () => {
+  describe('GET /api/v1/roles/permissions', () => {
     test('success — lists the permission catalogue', async () => {
       mockSuperAdminUser();
       db.query.mockResolvedValueOnce([
@@ -533,7 +533,7 @@ describe('Role Routes — /api/roles', () => {
       ]);
 
       const res = await request(app)
-        .get('/api/roles/permissions')
+        .get('/api/v1/roles/permissions')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -542,7 +542,7 @@ describe('Role Routes — /api/roles', () => {
     });
   });
 
-  describe('GET /api/roles/:id', () => {
+  describe('GET /api/v1/roles/:id', () => {
     test('success — returns role with permissions', async () => {
       mockSuperAdminUser();
       db.query
@@ -550,7 +550,7 @@ describe('Role Routes — /api/roles', () => {
         .mockResolvedValueOnce([[{ id: 1, slug: 'clients.view' }]]);
 
       const res = await request(app)
-        .get('/api/roles/1')
+        .get('/api/v1/roles/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -563,14 +563,14 @@ describe('Role Routes — /api/roles', () => {
       db.query.mockResolvedValue([[]]);
 
       const res = await request(app)
-        .get('/api/roles/999')
+        .get('/api/v1/roles/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
     });
   });
 
-  describe('POST /api/roles', () => {
+  describe('POST /api/v1/roles', () => {
     test('success — creates a role', async () => {
       mockSuperAdminUser();
       db.query
@@ -578,7 +578,7 @@ describe('Role Routes — /api/roles', () => {
         .mockResolvedValueOnce([[{ id: 5, name: 'New Role' }]]);
 
       const res = await request(app)
-        .post('/api/roles')
+        .post('/api/v1/roles')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'New Role', description: 'A new role', kind: 'support' });
 
@@ -587,7 +587,7 @@ describe('Role Routes — /api/roles', () => {
     });
   });
 
-  describe('PUT /api/roles/:id', () => {
+  describe('PUT /api/v1/roles/:id', () => {
     test('success — updates a role', async () => {
       mockSuperAdminUser();
       db.query
@@ -596,7 +596,7 @@ describe('Role Routes — /api/roles', () => {
         .mockResolvedValueOnce([[{ id: 1, name: 'Updated' }]]);
 
       const res = await request(app)
-        .put('/api/roles/1')
+        .put('/api/v1/roles/1')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Updated', description: 'Updated description' });
 
@@ -609,7 +609,7 @@ describe('Role Routes — /api/roles', () => {
         .mockResolvedValueOnce([[]]);  // pre-fetch — not found (378 guard runs first)
 
       const res = await request(app)
-        .put('/api/roles/999')
+        .put('/api/v1/roles/999')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Updated', description: 'Desc' });
 
@@ -617,7 +617,7 @@ describe('Role Routes — /api/roles', () => {
     });
   });
 
-  describe('DELETE /api/roles/:id', () => {
+  describe('DELETE /api/v1/roles/:id', () => {
     test('success — deletes a role', async () => {
       mockSuperAdminUser();
       db.query
@@ -626,7 +626,7 @@ describe('Role Routes — /api/roles', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .delete('/api/roles/1')
+        .delete('/api/v1/roles/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -637,14 +637,14 @@ describe('Role Routes — /api/roles', () => {
       db.query.mockResolvedValue([[]]);
 
       const res = await request(app)
-        .delete('/api/roles/999')
+        .delete('/api/v1/roles/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
     });
   });
 
-  describe('POST /api/roles/:id/permissions', () => {
+  describe('POST /api/v1/roles/:id/permissions', () => {
     test('success — assigns a permission', async () => {
       mockSuperAdminUser();
       // A tenant admin may add to a custom group only what they hold (SEC-18).
@@ -657,7 +657,7 @@ describe('Role Routes — /api/roles', () => {
         .mockResolvedValueOnce([[{ id: 1, slug: 'clients.view' }]]); // SELECT updated
 
       const res = await request(app)
-        .post('/api/roles/1/permissions')
+        .post('/api/v1/roles/1/permissions')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ permission_id: 1 });
 
@@ -666,7 +666,7 @@ describe('Role Routes — /api/roles', () => {
     });
   });
 
-  describe('DELETE /api/roles/:id/permissions/:permissionId', () => {
+  describe('DELETE /api/v1/roles/:id/permissions/:permissionId', () => {
     test('success — removes a permission', async () => {
       mockSuperAdminUser();
       db.query
@@ -675,7 +675,7 @@ describe('Role Routes — /api/roles', () => {
         .mockResolvedValue([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .delete('/api/roles/1/permissions/5')
+        .delete('/api/v1/roles/1/permissions/5')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -684,10 +684,10 @@ describe('Role Routes — /api/roles', () => {
 });
 
 // =============================================================================
-// FACTURAS PÚBLICAS ROUTES — /api/facturas-publicas
+// FACTURAS PÚBLICAS ROUTES — /api/v1/facturas-publicas
 // =============================================================================
-describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
-  describe('GET /api/facturas-publicas', () => {
+describe('Facturas Públicas Routes — /api/v1/facturas-publicas', () => {
+  describe('GET /api/v1/facturas-publicas', () => {
     test('success — lists facturas', async () => {
       mockAuthUser();
       db.query
@@ -695,7 +695,7 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);
 
       const res = await request(app)
-        .get('/api/facturas-publicas')
+        .get('/api/v1/facturas-publicas')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -706,13 +706,13 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
     });
   });
 
-  describe('GET /api/facturas-publicas/:id', () => {
+  describe('GET /api/v1/facturas-publicas/:id', () => {
     test('success — returns a factura', async () => {
       mockAuthUser();
       db.query.mockResolvedValue([[{ id: 1, total: '100.00' }]]);
 
       const res = await request(app)
-        .get('/api/facturas-publicas/1')
+        .get('/api/v1/facturas-publicas/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -724,14 +724,14 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
       db.query.mockResolvedValue([[]]);
 
       const res = await request(app)
-        .get('/api/facturas-publicas/999')
+        .get('/api/v1/facturas-publicas/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
     });
   });
 
-  describe('POST /api/facturas-publicas', () => {
+  describe('POST /api/v1/facturas-publicas', () => {
     test('success — creates a factura', async () => {
       mockAuthUser();
       db.query
@@ -739,7 +739,7 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
         .mockResolvedValueOnce([[{ id: 5, total: '200.00' }]]);
 
       const res = await request(app)
-        .post('/api/facturas-publicas')
+        .post('/api/v1/facturas-publicas')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ periodicidad: '01', meses: '01', anio: 2024, subtotal: 200, total: 200, total_impuestos: 0 });
 
@@ -747,7 +747,7 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
     });
   });
 
-  describe('PUT /api/facturas-publicas/:id', () => {
+  describe('PUT /api/v1/facturas-publicas/:id', () => {
     test('success — updates a factura', async () => {
       mockAuthUser();
       // Only the period is editable; totals and status come from stamping (BIL-24).
@@ -758,7 +758,7 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
         .mockResolvedValueOnce([[{ id: 1, periodicidad: '04', meses: '10', anio: 2026 }]]);
 
       const res = await request(app)
-        .put('/api/facturas-publicas/1')
+        .put('/api/v1/facturas-publicas/1')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ meses: '10' });
 
@@ -772,7 +772,7 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
         .mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .put('/api/facturas-publicas/999')
+        .put('/api/v1/facturas-publicas/999')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ total: 300 });
 
@@ -780,7 +780,7 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
     });
   });
 
-  describe('GET /api/facturas-publicas/:id/items', () => {
+  describe('GET /api/v1/facturas-publicas/:id/items', () => {
     test('success — lists items', async () => {
       mockAuthUser();
       db.query
@@ -790,7 +790,7 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);
 
       const res = await request(app)
-        .get('/api/facturas-publicas/1/items')
+        .get('/api/v1/facturas-publicas/1/items')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -800,7 +800,7 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
     });
   });
 
-  describe('POST /api/facturas-publicas/:id/items', () => {
+  describe('POST /api/v1/facturas-publicas/:id/items', () => {
     test('success — links an invoice', async () => {
       mockAuthUser();
       // Linking is transactional now: lock the org's draft factura, verify the
@@ -813,7 +813,7 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
         .mockResolvedValueOnce([[{ id: 3, invoice_id: 5 }]]);
 
       const res = await request(app)
-        .post('/api/facturas-publicas/1/items')
+        .post('/api/v1/facturas-publicas/1/items')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ invoice_id: 5 });
 
@@ -823,9 +823,9 @@ describe('Facturas Públicas Routes — /api/facturas-publicas', () => {
 });
 
 // =============================================================================
-// SAT CATALOG ROUTES — /api/sat-catalogs
+// SAT CATALOG ROUTES — /api/v1/sat-catalogs
 // =============================================================================
-describe('SAT Catalog Routes — /api/sat-catalogs', () => {
+describe('SAT Catalog Routes — /api/v1/sat-catalogs', () => {
   const catalogEndpoints = [
     'regimen-fiscal',
     'uso-cfdi',
@@ -836,12 +836,12 @@ describe('SAT Catalog Routes — /api/sat-catalogs', () => {
   ];
 
   catalogEndpoints.forEach(endpoint => {
-    test(`GET /api/sat-catalogs/${endpoint} returns data`, async () => {
+    test(`GET /api/v1/sat-catalogs/${endpoint} returns data`, async () => {
       mockAuthUser();
       db.query.mockResolvedValue([[{ id: 1, clave: '001', descripcion: 'Test' }]]);
 
       const res = await request(app)
-        .get(`/api/sat-catalogs/${endpoint}`)
+        .get(`/api/v1/sat-catalogs/${endpoint}`)
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -849,46 +849,46 @@ describe('SAT Catalog Routes — /api/sat-catalogs', () => {
     });
   });
 
-  test('GET /api/sat-catalogs/clave-prod-serv returns data', async () => {
+  test('GET /api/v1/sat-catalogs/clave-prod-serv returns data', async () => {
     mockAuthUser();
     db.query.mockResolvedValue([[{ clave: '43231500', descripcion: 'Internet' }]]);
 
     const res = await request(app)
-      .get('/api/sat-catalogs/clave-prod-serv')
+      .get('/api/v1/sat-catalogs/clave-prod-serv')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
 
-  test('GET /api/sat-catalogs/clave-prod-serv with search', async () => {
+  test('GET /api/v1/sat-catalogs/clave-prod-serv with search', async () => {
     mockAuthUser();
     db.query.mockResolvedValue([[{ clave: '43231500', descripcion: 'Servicios de Internet' }]]);
 
     const res = await request(app)
-      .get('/api/sat-catalogs/clave-prod-serv?search=Internet')
+      .get('/api/v1/sat-catalogs/clave-prod-serv?search=Internet')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
   });
 
-  test('GET /api/sat-catalogs/clave-unidad returns data', async () => {
+  test('GET /api/v1/sat-catalogs/clave-unidad returns data', async () => {
     mockAuthUser();
     db.query.mockResolvedValue([[{ clave: 'E48', nombre: 'Unidad de servicio' }]]);
 
     const res = await request(app)
-      .get('/api/sat-catalogs/clave-unidad')
+      .get('/api/v1/sat-catalogs/clave-unidad')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
   });
 
-  test('GET /api/sat-catalogs/clave-unidad with search', async () => {
+  test('GET /api/v1/sat-catalogs/clave-unidad with search', async () => {
     mockAuthUser();
     db.query.mockResolvedValue([[{ clave: 'E48', nombre: 'Unidad de servicio' }]]);
 
     const res = await request(app)
-      .get('/api/sat-catalogs/clave-unidad?search=servicio')
+      .get('/api/v1/sat-catalogs/clave-unidad?search=servicio')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -896,15 +896,15 @@ describe('SAT Catalog Routes — /api/sat-catalogs', () => {
 });
 
 // =============================================================================
-// SSE EVENTS ROUTES — /api/events
+// SSE EVENTS ROUTES — /api/v1/events
 // =============================================================================
-describe('Events Routes — /api/events', () => {
-  describe('GET /api/events/stats', () => {
+describe('Events Routes — /api/v1/events', () => {
+  describe('GET /api/v1/events/stats', () => {
     test('success — returns channel stats', async () => {
       mockAuthUser();
 
       const res = await request(app)
-        .get('/api/events/stats')
+        .get('/api/v1/events/stats')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -913,12 +913,12 @@ describe('Events Routes — /api/events', () => {
     });
   });
 
-  describe('GET /api/events/tickets/:id — validation', () => {
+  describe('GET /api/v1/events/tickets/:id — validation', () => {
     test('returns 400 for non-numeric ticket ID', async () => {
       mockAuthUser();
 
       const res = await request(app)
-        .get('/api/events/tickets/abc')
+        .get('/api/v1/events/tickets/abc')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(400);
@@ -928,7 +928,7 @@ describe('Events Routes — /api/events', () => {
       mockAuthUser();
 
       const res = await request(app)
-        .get('/api/events/tickets/-5')
+        .get('/api/v1/events/tickets/-5')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(400);
@@ -937,10 +937,10 @@ describe('Events Routes — /api/events', () => {
 });
 
 // =============================================================================
-// FIRERELAY ROUTES — /api/firerelay
+// FIRERELAY ROUTES — /api/v1/firerelay
 // =============================================================================
-describe('FireRelay Routes — /api/firerelay', () => {
-  describe('GET /api/firerelay/health', () => {
+describe('FireRelay Routes — /api/v1/firerelay', () => {
+  describe('GET /api/v1/firerelay/health', () => {
     test('returns node health with the cluster token', async () => {
       db.query
         .mockResolvedValueOnce([[{ cnt: 100 }]])
@@ -948,7 +948,7 @@ describe('FireRelay Routes — /api/firerelay', () => {
         .mockResolvedValueOnce([[{ size_mb: 25 }]]);
 
       const res = await request(app)
-        .get('/api/firerelay/health')
+        .get('/api/v1/firerelay/health')
         .set('X-Relay-Token', 'a'.repeat(64));
 
       expect(res.status).toBe(200);
@@ -962,7 +962,7 @@ describe('FireRelay Routes — /api/firerelay', () => {
       db.query.mockRejectedValue(new Error('DB down'));
 
       const res = await request(app)
-        .get('/api/firerelay/health')
+        .get('/api/v1/firerelay/health')
         .set('X-Relay-Token', 'a'.repeat(64));
 
       expect(res.status).toBe(200);
@@ -972,16 +972,16 @@ describe('FireRelay Routes — /api/firerelay', () => {
 });
 
 // =============================================================================
-// PDF ROUTES — /api/pdf
+// PDF ROUTES — /api/v1/pdf
 // =============================================================================
-describe('PDF Routes — /api/pdf', () => {
-  describe('GET /api/pdf/invoices/:id', () => {
+describe('PDF Routes — /api/v1/pdf', () => {
+  describe('GET /api/v1/pdf/invoices/:id', () => {
     test('success — returns PDF buffer', async () => {
       mockAuthUser();
       pdfService.generateInvoicePdf.mockResolvedValue(Buffer.from('PDF'));
 
       const res = await request(app)
-        .get('/api/pdf/invoices/1')
+        .get('/api/v1/pdf/invoices/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -993,7 +993,7 @@ describe('PDF Routes — /api/pdf', () => {
       pdfService.generateInvoicePdf.mockResolvedValue(Buffer.from('PDF'));
 
       await request(app)
-        .get('/api/pdf/invoices/1?locale=es')
+        .get('/api/v1/pdf/invoices/1?locale=es')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(pdfService.generateInvoicePdf).toHaveBeenCalledWith(1, { locale: 'es', orgId: 1 });
@@ -1004,20 +1004,20 @@ describe('PDF Routes — /api/pdf', () => {
       pdfService.generateInvoicePdf.mockRejectedValue(new Error('Not found'));
 
       const res = await request(app)
-        .get('/api/pdf/invoices/999')
+        .get('/api/v1/pdf/invoices/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(500);
     });
   });
 
-  describe('GET /api/pdf/credit-notes/:id', () => {
+  describe('GET /api/v1/pdf/credit-notes/:id', () => {
     test('success — returns PDF buffer', async () => {
       mockAuthUser();
       pdfService.generateCreditNotePdf.mockResolvedValue(Buffer.from('PDF'));
 
       const res = await request(app)
-        .get('/api/pdf/credit-notes/1')
+        .get('/api/v1/pdf/credit-notes/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1025,13 +1025,13 @@ describe('PDF Routes — /api/pdf', () => {
     });
   });
 
-  describe('GET /api/pdf/quotes/:id', () => {
+  describe('GET /api/v1/pdf/quotes/:id', () => {
     test('success — returns PDF buffer', async () => {
       mockAuthUser();
       pdfService.generateQuotePdf.mockResolvedValue(Buffer.from('PDF'));
 
       const res = await request(app)
-        .get('/api/pdf/quotes/1')
+        .get('/api/v1/pdf/quotes/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1039,13 +1039,13 @@ describe('PDF Routes — /api/pdf', () => {
     });
   });
 
-  describe('GET /api/pdf/cfdi/:id', () => {
+  describe('GET /api/v1/pdf/cfdi/:id', () => {
     test('success — returns PDF buffer', async () => {
       mockAuthUser();
       pdfService.generateCfdiPdf.mockResolvedValue(Buffer.from('PDF'));
 
       const res = await request(app)
-        .get('/api/pdf/cfdi/1')
+        .get('/api/v1/pdf/cfdi/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1053,13 +1053,13 @@ describe('PDF Routes — /api/pdf', () => {
     });
   });
 
-  describe('GET /api/pdf/payments/:id', () => {
+  describe('GET /api/v1/pdf/payments/:id', () => {
     test('success — returns PDF buffer', async () => {
       mockAuthUser();
       pdfService.generatePaymentReceiptPdf.mockResolvedValue(Buffer.from('PDF'));
 
       const res = await request(app)
-        .get('/api/pdf/payments/1')
+        .get('/api/v1/pdf/payments/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1071,7 +1071,7 @@ describe('PDF Routes — /api/pdf', () => {
       pdfService.generatePaymentReceiptPdf.mockResolvedValue(Buffer.from('PDF'));
 
       await request(app)
-        .get('/api/pdf/payments/1?locale=es')
+        .get('/api/v1/pdf/payments/1?locale=es')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(pdfService.generatePaymentReceiptPdf).toHaveBeenCalledWith(1, { locale: 'es', orgId: 1 });
@@ -1082,7 +1082,7 @@ describe('PDF Routes — /api/pdf', () => {
       pdfService.generatePaymentReceiptPdf.mockRejectedValue(new Error('Not found'));
 
       const res = await request(app)
-        .get('/api/pdf/payments/999')
+        .get('/api/v1/pdf/payments/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(500);
@@ -1091,9 +1091,9 @@ describe('PDF Routes — /api/pdf', () => {
 });
 
 // =============================================================================
-// QUOTE ROUTES — /api/quotes
+// QUOTE ROUTES — /api/v1/quotes
 // =============================================================================
-describe('Quote Routes — /api/quotes', () => {
+describe('Quote Routes — /api/v1/quotes', () => {
   // POST /quotes, PUT /quotes/:id and convert-to-invoice now org-verify the
   // quote's client_id (TNB-05; Client is automocked in this file, so an
   // unstubbed findById reads as "not in this org" -> 422). These happy-path
@@ -1103,7 +1103,7 @@ describe('Quote Routes — /api/quotes', () => {
     Client.findById.mockResolvedValue({ id: 5, organization_id: 1 });
   });
 
-  describe('GET /api/quotes', () => {
+  describe('GET /api/v1/quotes', () => {
     test('success — lists quotes', async () => {
       mockAuthUser();
       db.query
@@ -1111,20 +1111,20 @@ describe('Quote Routes — /api/quotes', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);
 
       const res = await request(app)
-        .get('/api/quotes')
+        .get('/api/v1/quotes')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
     });
   });
 
-  describe('GET /api/quotes/:id/items', () => {
+  describe('GET /api/v1/quotes/:id/items', () => {
     test('success — returns line items', async () => {
       mockAuthUser();
       Quote.getItems.mockResolvedValue([{ id: 1, description: 'Setup' }]);
 
       const res = await request(app)
-        .get('/api/quotes/1/items')
+        .get('/api/v1/quotes/1/items')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1132,7 +1132,7 @@ describe('Quote Routes — /api/quotes', () => {
     });
   });
 
-  describe('POST /api/quotes/:id/items', () => {
+  describe('POST /api/v1/quotes/:id/items', () => {
     test('success — adds a line item', async () => {
       mockAuthUser();
       // The route runs on a transaction now: it loads the quote (org-scoped)
@@ -1145,7 +1145,7 @@ describe('Quote Routes — /api/quotes', () => {
       Quote.addItem.mockResolvedValue({ id: 2, description: 'New Item', total: '100.00' });
 
       const res = await request(app)
-        .post('/api/quotes/1/items')
+        .post('/api/v1/quotes/1/items')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ description: 'New Item', quantity: 1, unit_price: 100, amount: 100 });
 
@@ -1154,7 +1154,7 @@ describe('Quote Routes — /api/quotes', () => {
     });
   });
 
-  describe('POST /api/quotes (auto-numbering, migration 389)', () => {
+  describe('POST /api/v1/quotes (auto-numbering, migration 389)', () => {
     // Regression: an earlier version of this handler drew the number in its
     // OWN short-lived transaction (its own db.getConnection()), committed
     // it, and only THEN called the generic ctrl.create() — which inserts
@@ -1171,7 +1171,7 @@ describe('Quote Routes — /api/quotes', () => {
       Quote.findByIdIncludingDeleted.mockResolvedValue({ id: 40, quote_number: 'QUO-000050', client_id: 5, status: 'draft' });
 
       const res = await request(app)
-        .post('/api/quotes')
+        .post('/api/v1/quotes')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5 });
 
@@ -1198,7 +1198,7 @@ describe('Quote Routes — /api/quotes', () => {
       conn.execute.mockRejectedValueOnce(new Error('insert failed')); // INSERT INTO quotes fails
 
       const res = await request(app)
-        .post('/api/quotes')
+        .post('/api/v1/quotes')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5 });
 
@@ -1215,7 +1215,7 @@ describe('Quote Routes — /api/quotes', () => {
       Quote.create.mockResolvedValue({ id: 41, quote_number: 'CUSTOM-1', client_id: 5, status: 'draft' });
 
       const res = await request(app)
-        .post('/api/quotes')
+        .post('/api/v1/quotes')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, quote_number: 'CUSTOM-1' });
 
@@ -1225,7 +1225,7 @@ describe('Quote Routes — /api/quotes', () => {
     });
   });
 
-  describe('POST /api/quotes/generate', () => {
+  describe('POST /api/v1/quotes/generate', () => {
     test('success — generates a quote from a contract item, stamps contract_id, and auto-numbers it', async () => {
       mockAuthUser();
       db.query.mockImplementation((sql) => {
@@ -1243,7 +1243,7 @@ describe('Quote Routes — /api/quotes', () => {
       });
 
       const res = await request(app)
-        .post('/api/quotes/generate')
+        .post('/api/v1/quotes/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'contract', contract_id: 7 }] });
 
@@ -1270,7 +1270,7 @@ describe('Quote Routes — /api/quotes', () => {
       });
 
       const res = await request(app)
-        .post('/api/quotes/generate')
+        .post('/api/v1/quotes/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'custom', description: 'Site survey', quantity: 1, unit_price: 150 }] });
 
@@ -1303,7 +1303,7 @@ describe('Quote Routes — /api/quotes', () => {
       });
 
       const res = await request(app)
-        .post('/api/quotes/generate')
+        .post('/api/v1/quotes/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'contract', contract_id: 7 }] });
 
@@ -1331,7 +1331,7 @@ describe('Quote Routes — /api/quotes', () => {
       });
 
       const res = await request(app)
-        .post('/api/quotes/generate')
+        .post('/api/v1/quotes/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'custom', description: 'Site survey', quantity: 1, unit_price: 150 }] });
 
@@ -1359,7 +1359,7 @@ describe('Quote Routes — /api/quotes', () => {
       });
 
       const res = await request(app)
-        .post('/api/quotes/generate')
+        .post('/api/v1/quotes/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'contract', contract_id: 7 }] });
 
@@ -1373,7 +1373,7 @@ describe('Quote Routes — /api/quotes', () => {
       db.query.mockResolvedValue([[]]);
 
       const res = await request(app)
-        .post('/api/quotes/generate')
+        .post('/api/v1/quotes/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 999, items: [{ type: 'custom', description: 'x', quantity: 1, unit_price: 10 }] });
 
@@ -1389,7 +1389,7 @@ describe('Quote Routes — /api/quotes', () => {
       });
 
       const res = await request(app)
-        .post('/api/quotes/generate')
+        .post('/api/v1/quotes/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'contract', contract_id: 999 }] });
 
@@ -1400,7 +1400,7 @@ describe('Quote Routes — /api/quotes', () => {
       mockAuthUser();
 
       const res = await request(app)
-        .post('/api/quotes/generate')
+        .post('/api/v1/quotes/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [] });
 
@@ -1408,13 +1408,13 @@ describe('Quote Routes — /api/quotes', () => {
     });
   });
 
-  describe('POST /api/quotes/:id/approve', () => {
+  describe('POST /api/v1/quotes/:id/approve', () => {
     test('success — sets status to accepted', async () => {
       mockAuthUser();
       Quote.update.mockResolvedValue({ id: 1, status: 'accepted' });
 
       const res = await request(app)
-        .post('/api/quotes/1/approve')
+        .post('/api/v1/quotes/1/approve')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1428,20 +1428,20 @@ describe('Quote Routes — /api/quotes', () => {
       Quote.update.mockRejectedValue(new NotFoundError('quotes'));
 
       const res = await request(app)
-        .post('/api/quotes/999/approve')
+        .post('/api/v1/quotes/999/approve')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
     });
   });
 
-  describe('POST /api/quotes/:id/reject', () => {
+  describe('POST /api/v1/quotes/:id/reject', () => {
     test('success — sets status to rejected', async () => {
       mockAuthUser();
       Quote.update.mockResolvedValue({ id: 1, status: 'rejected' });
 
       const res = await request(app)
-        .post('/api/quotes/1/reject')
+        .post('/api/v1/quotes/1/reject')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1454,7 +1454,7 @@ describe('Quote Routes — /api/quotes', () => {
       Quote.update.mockResolvedValue({ id: 1, status: 'rejected' });
 
       const res = await request(app)
-        .post('/api/quotes/1/reject')
+        .post('/api/v1/quotes/1/reject')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1462,7 +1462,7 @@ describe('Quote Routes — /api/quotes', () => {
     });
   });
 
-  describe('POST /api/quotes/:id/convert-to-invoice', () => {
+  describe('POST /api/v1/quotes/:id/convert-to-invoice', () => {
     test('success — converts an accepted quote to invoice', async () => {
       mockAuthUser();
       const conn = mockConnection();
@@ -1478,7 +1478,7 @@ describe('Quote Routes — /api/quotes', () => {
       Invoice.findById.mockResolvedValue({ id: 50, total: '116.00' });
 
       const res = await request(app)
-        .post('/api/quotes/1/convert-to-invoice')
+        .post('/api/v1/quotes/1/convert-to-invoice')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(201);
@@ -1500,7 +1500,7 @@ describe('Quote Routes — /api/quotes', () => {
       db.query.mockResolvedValue([[{ id: 1, client_id: 5, contract_id: 10, subtotal: '100.00', tax_amount: '16.00', total: '116.00', currency: 'MXN', tax_rate: '0.16', tax_rate_id: 1, notes: 'Test', status: 'accepted' }]]);
 
       const res = await request(app)
-        .post('/api/quotes/1/convert-to-invoice')
+        .post('/api/v1/quotes/1/convert-to-invoice')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(500);
@@ -1516,7 +1516,7 @@ describe('Quote Routes — /api/quotes', () => {
       db.query.mockResolvedValue([[]]);
 
       const res = await request(app)
-        .post('/api/quotes/999/convert-to-invoice')
+        .post('/api/v1/quotes/999/convert-to-invoice')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -1533,7 +1533,7 @@ describe('Quote Routes — /api/quotes', () => {
         db.query.mockResolvedValue([[{ id: 1, client_id: 5, contract_id: 10, subtotal: '100.00', tax_amount: '16.00', total: '116.00', currency: 'MXN', tax_rate: '0.16', tax_rate_id: 1, notes: 'Test', status }]]);
 
         const res = await request(app)
-          .post('/api/quotes/1/convert-to-invoice')
+          .post('/api/v1/quotes/1/convert-to-invoice')
           .set('Authorization', `Bearer ${authToken}`);
 
         expect(res.status).toBe(409);
@@ -1544,10 +1544,10 @@ describe('Quote Routes — /api/quotes', () => {
 });
 
 // =============================================================================
-// PAYMENT ROUTES — /api/payments
+// PAYMENT ROUTES — /api/v1/payments
 // =============================================================================
-describe('Payment Routes — /api/payments', () => {
-  describe('POST /api/payments', () => {
+describe('Payment Routes — /api/v1/payments', () => {
+  describe('POST /api/v1/payments', () => {
     test('success — creates payment and records credit', async () => {
       mockAuthUser();
       // No `currency` in the request — POST /payments now defaults it from
@@ -1557,7 +1557,7 @@ describe('Payment Routes — /api/payments', () => {
       billingService.recordPaymentCredit.mockResolvedValue(true);
 
       const res = await request(app)
-        .post('/api/payments')
+        .post('/api/v1/payments')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 10, amount: 500, payment_method: 'cash', payment_date: '2024-01-01' });
 
@@ -1577,7 +1577,7 @@ describe('Payment Routes — /api/payments', () => {
       billingService.recordPaymentCredit.mockResolvedValue(true);
 
       const res = await request(app)
-        .post('/api/payments')
+        .post('/api/v1/payments')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 10, amount: 500, payment_method, payment_date: '2024-01-01' });
 
@@ -1593,7 +1593,7 @@ describe('Payment Routes — /api/payments', () => {
       billingService.recordPaymentCredit.mockResolvedValue(true);
 
       const res = await request(app)
-        .post('/api/payments')
+        .post('/api/v1/payments')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 10, amount: 500, payment_method: 'cash', payment_date: '2024-01-01', currency: 'USD' });
 
@@ -1606,7 +1606,7 @@ describe('Payment Routes — /api/payments', () => {
     });
   });
 
-  describe('POST /api/payments/:id/allocate', () => {
+  describe('POST /api/v1/payments/:id/allocate', () => {
     const PAYMENT_ROW = { id: 1, client_id: 9, amount: '200.00', organization_id: 1, status: 'completed' };
 
     // The allocation runs on one transaction (DAL-04); its statements reach
@@ -1633,7 +1633,7 @@ describe('Payment Routes — /api/payments', () => {
       suspensionService.reconnectContract.mockResolvedValue(true);
 
       const res = await request(app)
-        .post('/api/payments/1/allocate')
+        .post('/api/v1/payments/1/allocate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ invoice_id: 5, amount: 200 });
 
@@ -1649,7 +1649,7 @@ describe('Payment Routes — /api/payments', () => {
         .mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .post('/api/payments/1/allocate')
+        .post('/api/v1/payments/1/allocate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ invoice_id: 5, amount: 200 });
 
@@ -1662,7 +1662,7 @@ describe('Payment Routes — /api/payments', () => {
       allocationReads({ id: 5, client_id: 9, status: 'issued', total: '500.00', contract_id: 10 }, '100.00');
 
       const res = await request(app)
-        .post('/api/payments/1/allocate')
+        .post('/api/v1/payments/1/allocate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ invoice_id: 5, amount: 100 });
 
@@ -1670,13 +1670,13 @@ describe('Payment Routes — /api/payments', () => {
     });
   });
 
-  describe('GET /api/payments/:id/allocations', () => {
+  describe('GET /api/v1/payments/:id/allocations', () => {
     test('success — returns allocations', async () => {
       mockAuthUser();
       Payment.getAllocations.mockResolvedValue([{ id: 1, amount: '200.00' }]);
 
       const res = await request(app)
-        .get('/api/payments/1/allocations')
+        .get('/api/v1/payments/1/allocations')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1684,7 +1684,7 @@ describe('Payment Routes — /api/payments', () => {
     });
   });
 
-  describe('POST /api/payments/:id/send-receipt', () => {
+  describe('POST /api/v1/payments/:id/send-receipt', () => {
     test('success — sends receipt email', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[{
@@ -1700,7 +1700,7 @@ describe('Payment Routes — /api/payments', () => {
       templates.paymentReceiptEmail.mockReturnValue({ subject: 'Payment Confirmed', html: '<p>receipt</p>' });
 
       const res = await request(app)
-        .post('/api/payments/1/send-receipt')
+        .post('/api/v1/payments/1/send-receipt')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1713,7 +1713,7 @@ describe('Payment Routes — /api/payments', () => {
       db.query.mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .post('/api/payments/999/send-receipt')
+        .post('/api/v1/payments/999/send-receipt')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -1729,7 +1729,7 @@ describe('Payment Routes — /api/payments', () => {
       }]]);
 
       const res = await request(app)
-        .post('/api/payments/1/send-receipt')
+        .post('/api/v1/payments/1/send-receipt')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(422);
@@ -1738,17 +1738,17 @@ describe('Payment Routes — /api/payments', () => {
 });
 
 // =============================================================================
-// INVOICE ROUTES — /api/invoices (additional coverage)
+// INVOICE ROUTES — /api/v1/invoices (additional coverage)
 // =============================================================================
-describe('Invoice Routes — /api/invoices (extended)', () => {
-  describe('GET /api/invoices/:id/items', () => {
+describe('Invoice Routes — /api/v1/invoices (extended)', () => {
+  describe('GET /api/v1/invoices/:id/items', () => {
     test('success — returns invoice items', async () => {
       mockAuthUser();
       // Route now reads through the (auto-mocked) org-scoped model helper.
       Invoice.getItems.mockResolvedValue([{ id: 1, description: 'Internet Service' }]);
 
       const res = await request(app)
-        .get('/api/invoices/1/items')
+        .get('/api/v1/invoices/1/items')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1756,7 +1756,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
     });
   });
 
-  describe('POST /api/invoices/:id/items', () => {
+  describe('POST /api/v1/invoices/:id/items', () => {
     test('success — adds an invoice item', async () => {
       mockAuthUser();
       // The plain (non-inventory) path is transactional: org-verify +
@@ -1780,7 +1780,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
       billingService.refreshInvoicePaidStatus.mockResolvedValue(undefined);
 
       const res = await request(app)
-        .post('/api/invoices/1/items')
+        .post('/api/v1/invoices/1/items')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ description: 'Setup Fee', quantity: 1, unit_price: 50, amount: 50 });
 
@@ -1789,7 +1789,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
     });
   });
 
-  describe('POST /api/invoices/generate', () => {
+  describe('POST /api/v1/invoices/generate', () => {
     test('success — generates invoice from contract', async () => {
       mockAuthUser();
       db.query
@@ -1799,7 +1799,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
       billingService.generateInvoice.mockResolvedValue({ id: 20, total: '299.00' });
 
       const res = await request(app)
-        .post('/api/invoices/generate')
+        .post('/api/v1/invoices/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ contract_id: 1 });
 
@@ -1811,7 +1811,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
       db.query.mockResolvedValue([[]]);
 
       const res = await request(app)
-        .post('/api/invoices/generate')
+        .post('/api/v1/invoices/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ contract_id: 999 });
 
@@ -1825,7 +1825,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
         .mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .post('/api/invoices/generate')
+        .post('/api/v1/invoices/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ contract_id: 1 });
 
@@ -1852,7 +1852,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
       });
 
       const res = await request(app)
-        .post('/api/invoices/generate')
+        .post('/api/v1/invoices/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'contract', contract_id: 7 }] });
 
@@ -1886,7 +1886,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
       });
 
       const res = await request(app)
-        .post('/api/invoices/generate')
+        .post('/api/v1/invoices/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'contract', contract_id: 7 }] });
 
@@ -1917,7 +1917,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
       });
 
       const res = await request(app)
-        .post('/api/invoices/generate')
+        .post('/api/v1/invoices/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'custom', description: 'Site survey', quantity: 1, unit_price: 150 }] });
 
@@ -1946,7 +1946,7 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
       });
 
       const res = await request(app)
-        .post('/api/invoices/generate')
+        .post('/api/v1/invoices/generate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ client_id: 5, items: [{ type: 'contract', contract_id: 7 }] });
 
@@ -1956,14 +1956,14 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
     });
   });
 
-  describe('GET /api/invoices/:id/payments', () => {
+  describe('GET /api/v1/invoices/:id/payments', () => {
     test('success — returns payment allocations', async () => {
       mockAuthUser();
       // Route now reads through the (auto-mocked) org-scoped model helper.
       Invoice.getAppliedPayments.mockResolvedValue([{ id: 1, amount: '500.00', payment_method: 'cash' }]);
 
       const res = await request(app)
-        .get('/api/invoices/1/payments')
+        .get('/api/v1/invoices/1/payments')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1973,16 +1973,16 @@ describe('Invoice Routes — /api/invoices (extended)', () => {
 });
 
 // =============================================================================
-// TWO-FACTOR AUTH ROUTES — /api/2fa
+// TWO-FACTOR AUTH ROUTES — /api/v1/2fa
 // =============================================================================
-describe('Two-Factor Auth Routes — /api/2fa', () => {
-  describe('GET /api/2fa/status', () => {
+describe('Two-Factor Auth Routes — /api/v1/2fa', () => {
+  describe('GET /api/v1/2fa/status', () => {
     test('success — returns 2FA status', async () => {
       mockAuthUser();
       twoFactorService.getStatus.mockResolvedValue({ enabled: false });
 
       const res = await request(app)
-        .get('/api/2fa/status')
+        .get('/api/v1/2fa/status')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -1990,7 +1990,7 @@ describe('Two-Factor Auth Routes — /api/2fa', () => {
     });
   });
 
-  describe('POST /api/2fa/setup', () => {
+  describe('POST /api/v1/2fa/setup', () => {
     test('success — generates TOTP secret', async () => {
       mockAuthUser();
       twoFactorService.generateSecret.mockResolvedValue({
@@ -1999,7 +1999,7 @@ describe('Two-Factor Auth Routes — /api/2fa', () => {
       });
 
       const res = await request(app)
-        .post('/api/2fa/setup')
+        .post('/api/v1/2fa/setup')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -2007,13 +2007,13 @@ describe('Two-Factor Auth Routes — /api/2fa', () => {
     });
   });
 
-  describe('POST /api/2fa/verify', () => {
+  describe('POST /api/v1/2fa/verify', () => {
     test('success — verifies and enables 2FA', async () => {
       mockAuthUser();
       twoFactorService.verifyAndEnable.mockResolvedValue({ enabled: true, backup_codes: ['code1'] });
 
       const res = await request(app)
-        .post('/api/2fa/verify')
+        .post('/api/v1/2fa/verify')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ code: '123456' });
 
@@ -2022,13 +2022,13 @@ describe('Two-Factor Auth Routes — /api/2fa', () => {
     });
   });
 
-  describe('POST /api/2fa/validate', () => {
+  describe('POST /api/v1/2fa/validate', () => {
     test('success — validates a 2FA code', async () => {
       mockAuthUser();
       twoFactorService.verifyCode.mockResolvedValue({ valid: true });
 
       const res = await request(app)
-        .post('/api/2fa/validate')
+        .post('/api/v1/2fa/validate')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ code: '123456' });
 
@@ -2037,14 +2037,14 @@ describe('Two-Factor Auth Routes — /api/2fa', () => {
     });
   });
 
-  describe('POST /api/2fa/disable', () => {
+  describe('POST /api/v1/2fa/disable', () => {
     test('success — disables 2FA', async () => {
       mockAuthUser();
       twoFactorService.verifyCode.mockResolvedValue({ valid: true });
       twoFactorService.disable.mockResolvedValue({ enabled: false });
 
       const res = await request(app)
-        .post('/api/2fa/disable')
+        .post('/api/v1/2fa/disable')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ code: '123456' });
 
@@ -2053,13 +2053,13 @@ describe('Two-Factor Auth Routes — /api/2fa', () => {
     });
   });
 
-  describe('POST /api/2fa/backup-codes', () => {
+  describe('POST /api/v1/2fa/backup-codes', () => {
     test('success — regenerates backup codes', async () => {
       mockAuthUser();
       twoFactorService.regenerateBackupCodes.mockResolvedValue({ codes: ['a1', 'b2', 'c3'] });
 
       const res = await request(app)
-        .post('/api/2fa/backup-codes')
+        .post('/api/v1/2fa/backup-codes')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ code: '123456' });
 
@@ -2070,16 +2070,16 @@ describe('Two-Factor Auth Routes — /api/2fa', () => {
 });
 
 // =============================================================================
-// CLIENT SUB-ROUTES — /api/clients (contacts, mx-profile, contracts, invoices, balance)
+// CLIENT SUB-ROUTES — /api/v1/clients (contacts, mx-profile, contracts, invoices, balance)
 // =============================================================================
-describe('Client Sub-Routes — /api/clients', () => {
-  describe('GET /api/clients/:id/contacts', () => {
+describe('Client Sub-Routes — /api/v1/clients', () => {
+  describe('GET /api/v1/clients/:id/contacts', () => {
     test('success — returns client contacts', async () => {
       mockAuthUser();
       Client.getContacts.mockResolvedValue([{ id: 1, name: 'John Doe' }]);
 
       const res = await request(app)
-        .get('/api/clients/1/contacts')
+        .get('/api/v1/clients/1/contacts')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -2087,7 +2087,7 @@ describe('Client Sub-Routes — /api/clients', () => {
     });
   });
 
-  describe('POST /api/clients/:id/contacts', () => {
+  describe('POST /api/v1/clients/:id/contacts', () => {
     test('success — creates a contact', async () => {
       mockAuthUser();
       db.query
@@ -2095,7 +2095,7 @@ describe('Client Sub-Routes — /api/clients', () => {
         .mockResolvedValueOnce([[{ id: 5, name: 'Jane Doe', email: 'jane@test.com' }]]);
 
       const res = await request(app)
-        .post('/api/clients/1/contacts')
+        .post('/api/v1/clients/1/contacts')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Jane Doe', email: 'jane@test.com', phone: '555-0100', role: 'billing' });
 
@@ -2103,13 +2103,13 @@ describe('Client Sub-Routes — /api/clients', () => {
     });
   });
 
-  describe('GET /api/clients/:id/mx-profile', () => {
+  describe('GET /api/v1/clients/:id/mx-profile', () => {
     test('success — returns MX profile', async () => {
       mockAuthUser();
       Client.getMxProfile.mockResolvedValue({ rfc: 'XAXX010101000', curp: null });
 
       const res = await request(app)
-        .get('/api/clients/1/mx-profile')
+        .get('/api/v1/clients/1/mx-profile')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -2117,7 +2117,7 @@ describe('Client Sub-Routes — /api/clients', () => {
     });
   });
 
-  describe('PUT /api/clients/:id/mx-profile', () => {
+  describe('PUT /api/v1/clients/:id/mx-profile', () => {
     test('success — updates existing MX profile', async () => {
       mockAuthUser();
       Client.getMxProfile
@@ -2126,7 +2126,7 @@ describe('Client Sub-Routes — /api/clients', () => {
       db.query.mockResolvedValue([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .put('/api/clients/1/mx-profile')
+        .put('/api/v1/clients/1/mx-profile')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ rfc: 'XAXX010101001', razon_social: 'Test Company SA', regimen_fiscal: '601', codigo_postal_fiscal: '06700' });
 
@@ -2141,7 +2141,7 @@ describe('Client Sub-Routes — /api/clients', () => {
       db.query.mockResolvedValue([{ insertId: 1 }]);
 
       const res = await request(app)
-        .put('/api/clients/1/mx-profile')
+        .put('/api/v1/clients/1/mx-profile')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ rfc: 'XAXX010101000', razon_social: 'Empresa SA', regimen_fiscal: '601', codigo_postal_fiscal: '06700' });
 
@@ -2149,13 +2149,13 @@ describe('Client Sub-Routes — /api/clients', () => {
     });
   });
 
-  describe('GET /api/clients/:id/contracts', () => {
+  describe('GET /api/v1/clients/:id/contracts', () => {
     test('success — returns client contracts', async () => {
       mockAuthUser();
       db.query.mockResolvedValue([[{ id: 1, status: 'active' }]]);
 
       const res = await request(app)
-        .get('/api/clients/1/contracts')
+        .get('/api/v1/clients/1/contracts')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -2163,13 +2163,13 @@ describe('Client Sub-Routes — /api/clients', () => {
     });
   });
 
-  describe('GET /api/clients/:id/invoices', () => {
+  describe('GET /api/v1/clients/:id/invoices', () => {
     test('success — returns client invoices', async () => {
       mockAuthUser();
       db.query.mockResolvedValue([[{ id: 1, total: '500.00' }]]);
 
       const res = await request(app)
-        .get('/api/clients/1/invoices')
+        .get('/api/v1/clients/1/invoices')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -2177,13 +2177,13 @@ describe('Client Sub-Routes — /api/clients', () => {
     });
   });
 
-  describe('GET /api/clients/:id/balance-ledger', () => {
+  describe('GET /api/v1/clients/:id/balance-ledger', () => {
     test('success — returns balance ledger entries', async () => {
       mockAuthUser();
       db.query.mockResolvedValue([[{ id: 1, type: 'credit', amount: '500.00' }]]);
 
       const res = await request(app)
-        .get('/api/clients/1/balance-ledger')
+        .get('/api/v1/clients/1/balance-ledger')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);

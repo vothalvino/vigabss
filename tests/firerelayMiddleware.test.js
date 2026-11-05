@@ -23,8 +23,8 @@ const relayConfig = require('../src/config/firerelay');
 const { firerelay, extractClientId, isFanOutRequest } = require('../src/middleware/firerelay');
 
 describe('extractClientId', () => {
-  test('returns id from /api/clients/123', () => {
-    expect(extractClientId('/api/clients/123')).toBe(123);
+  test('returns id from /api/v1/clients/123', () => {
+    expect(extractClientId('/api/v1/clients/123')).toBe(123);
   });
 
   test('returns id from /api/v1/clients/456', () => {
@@ -32,34 +32,34 @@ describe('extractClientId', () => {
   });
 
   test('returns null for non-client paths', () => {
-    expect(extractClientId('/api/invoices/99')).toBeNull();
+    expect(extractClientId('/api/v1/invoices/99')).toBeNull();
   });
 
   test('returns null for client list paths without id', () => {
-    expect(extractClientId('/api/clients')).toBeNull();
-    expect(extractClientId('/api/clients/')).toBeNull();
+    expect(extractClientId('/api/v1/clients')).toBeNull();
+    expect(extractClientId('/api/v1/clients/')).toBeNull();
   });
 });
 
 describe('isFanOutRequest', () => {
-  test('returns true for GET /api/clients', () => {
-    expect(isFanOutRequest('GET', '/api/clients')).toBe(true);
+  test('returns true for GET /api/v1/clients', () => {
+    expect(isFanOutRequest('GET', '/api/v1/clients')).toBe(true);
   });
 
   test('returns true for GET /api/v1/clients', () => {
     expect(isFanOutRequest('GET', '/api/v1/clients')).toBe(true);
   });
 
-  test('returns true for GET /api/clients?page=1', () => {
-    expect(isFanOutRequest('GET', '/api/clients?page=1')).toBe(true);
+  test('returns true for GET /api/v1/clients?page=1', () => {
+    expect(isFanOutRequest('GET', '/api/v1/clients?page=1')).toBe(true);
   });
 
-  test('returns false for POST /api/clients', () => {
-    expect(isFanOutRequest('POST', '/api/clients')).toBe(false);
+  test('returns false for POST /api/v1/clients', () => {
+    expect(isFanOutRequest('POST', '/api/v1/clients')).toBe(false);
   });
 
-  test('returns false for GET /api/clients/123', () => {
-    expect(isFanOutRequest('GET', '/api/clients/123')).toBe(false);
+  test('returns false for GET /api/v1/clients/123', () => {
+    expect(isFanOutRequest('GET', '/api/v1/clients/123')).toBe(false);
   });
 });
 

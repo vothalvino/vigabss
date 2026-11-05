@@ -57,14 +57,14 @@ const mockQuery = db.query;
 // ---------------------------------------------------------------------------
 
 describe('Fiber Routes API', () => {
-  describe('GET /api/fiber-plant/fiber-routes', () => {
+  describe('GET /api/v1/fiber-plant/fiber-routes', () => {
     it('returns paginated fiber routes', async () => {
       db.query
         .mockResolvedValueOnce([[{ total: 1 }]])
         .mockResolvedValueOnce([[{ id: 1, name: 'CO-1 → SPL-001', route_type: 'trunk', status: 'active' }]]);
 
       const res = await request(app)
-        .get('/api/fiber-plant/fiber-routes')
+        .get('/api/v1/fiber-plant/fiber-routes')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);
@@ -73,14 +73,14 @@ describe('Fiber Routes API', () => {
     });
   });
 
-  describe('POST /api/fiber-plant/fiber-routes', () => {
+  describe('POST /api/v1/fiber-plant/fiber-routes', () => {
     it('creates a fiber route segment', async () => {
       db.query
         .mockResolvedValueOnce([{ insertId: 10 }])
         .mockResolvedValueOnce([[{ id: 10, name: 'Drop-001', route_type: 'drop', cable_length_m: 150 }]]);
 
       const res = await request(app)
-        .post('/api/fiber-plant/fiber-routes')
+        .post('/api/v1/fiber-plant/fiber-routes')
         .set('Authorization', 'Bearer test')
         .send({ name: 'Drop-001', route_type: 'drop', cable_length_m: 150 });
 
@@ -90,14 +90,14 @@ describe('Fiber Routes API', () => {
 
     it('returns 422 when name is missing', async () => {
       const res = await request(app)
-        .post('/api/fiber-plant/fiber-routes')
+        .post('/api/v1/fiber-plant/fiber-routes')
         .set('Authorization', 'Bearer test')
         .send({ route_type: 'trunk' });
       expect(res.status).toBe(422);
     });
   });
 
-  describe('GET /api/fiber-plant/fiber-routes/port/:portId/path', () => {
+  describe('GET /api/v1/fiber-plant/fiber-routes/port/:portId/path', () => {
     it('returns fiber path segments for a PON port', async () => {
       db.query.mockResolvedValueOnce([[
         { id: 1, name: 'CO-1 → SPL-001', route_type: 'trunk' },
@@ -105,7 +105,7 @@ describe('Fiber Routes API', () => {
       ]]);
 
       const res = await request(app)
-        .get('/api/fiber-plant/fiber-routes/port/5/path')
+        .get('/api/v1/fiber-plant/fiber-routes/port/5/path')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);
@@ -113,14 +113,14 @@ describe('Fiber Routes API', () => {
     });
   });
 
-  describe('DELETE /api/fiber-plant/fiber-routes/:id', () => {
+  describe('DELETE /api/v1/fiber-plant/fiber-routes/:id', () => {
     it('soft-deletes a fiber route', async () => {
       db.query
         .mockResolvedValueOnce([[{ id: 1 }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const res = await request(app)
-        .delete('/api/fiber-plant/fiber-routes/1')
+        .delete('/api/v1/fiber-plant/fiber-routes/1')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(204);
@@ -133,7 +133,7 @@ describe('Fiber Routes API', () => {
 // ---------------------------------------------------------------------------
 
 describe('ODF Frames API', () => {
-  describe('GET /api/fiber-plant/odf/frames', () => {
+  describe('GET /api/v1/fiber-plant/odf/frames', () => {
     it('returns list of ODF frames', async () => {
       db.query
         .mockResolvedValueOnce([[{ total: 2 }]])
@@ -143,7 +143,7 @@ describe('ODF Frames API', () => {
         ]]);
 
       const res = await request(app)
-        .get('/api/fiber-plant/odf/frames')
+        .get('/api/v1/fiber-plant/odf/frames')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);
@@ -151,7 +151,7 @@ describe('ODF Frames API', () => {
     });
   });
 
-  describe('GET /api/fiber-plant/odf/frames/:id', () => {
+  describe('GET /api/v1/fiber-plant/odf/frames/:id', () => {
     it('returns frame with its ports', async () => {
       db.query
         .mockResolvedValueOnce([[{ id: 1, name: 'ODF-CO1-R01', port_count: 12 }]])
@@ -161,7 +161,7 @@ describe('ODF Frames API', () => {
         ]]);
 
       const res = await request(app)
-        .get('/api/fiber-plant/odf/frames/1')
+        .get('/api/v1/fiber-plant/odf/frames/1')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);
@@ -171,20 +171,20 @@ describe('ODF Frames API', () => {
     it('returns 404 for unknown frame', async () => {
       db.query.mockResolvedValueOnce([[]]); // frame not found
       const res = await request(app)
-        .get('/api/fiber-plant/odf/frames/9999')
+        .get('/api/v1/fiber-plant/odf/frames/9999')
         .set('Authorization', 'Bearer test');
       expect(res.status).toBe(404);
     });
   });
 
-  describe('POST /api/fiber-plant/odf/frames', () => {
+  describe('POST /api/v1/fiber-plant/odf/frames', () => {
     it('creates an ODF frame', async () => {
       db.query
         .mockResolvedValueOnce([{ insertId: 5 }])
         .mockResolvedValueOnce([[{ id: 5, name: 'ODF-SITE2-R01', port_count: 24 }]]);
 
       const res = await request(app)
-        .post('/api/fiber-plant/odf/frames')
+        .post('/api/v1/fiber-plant/odf/frames')
         .set('Authorization', 'Bearer test')
         .send({ name: 'ODF-SITE2-R01', port_count: 24 });
 
@@ -199,7 +199,7 @@ describe('ODF Frames API', () => {
 // ---------------------------------------------------------------------------
 
 describe('ODF Ports API', () => {
-  describe('POST /api/fiber-plant/odf/ports', () => {
+  describe('POST /api/v1/fiber-plant/odf/ports', () => {
     it('creates an ODF port', async () => {
       db.query
         .mockResolvedValueOnce([[{ id: 1 }]]) // ownership check (TNA-09)
@@ -207,7 +207,7 @@ describe('ODF Ports API', () => {
         .mockResolvedValueOnce([[{ id: 20, odf_frame_id: 1, port_number: 3, port_status: 'empty' }]]);
 
       const res = await request(app)
-        .post('/api/fiber-plant/odf/ports')
+        .post('/api/v1/fiber-plant/odf/ports')
         .set('Authorization', 'Bearer test')
         .send({ odf_frame_id: 1, port_number: 3 });
 
@@ -216,7 +216,7 @@ describe('ODF Ports API', () => {
     });
   });
 
-  describe('PATCH /api/fiber-plant/odf/ports/:id', () => {
+  describe('PATCH /api/v1/fiber-plant/odf/ports/:id', () => {
     it('updates port status', async () => {
       db.query
         .mockResolvedValueOnce([[{ id: 20 }]])
@@ -224,7 +224,7 @@ describe('ODF Ports API', () => {
         .mockResolvedValueOnce([[{ id: 20, port_status: 'connected', cable_label: 'C-042' }]]);
 
       const res = await request(app)
-        .patch('/api/fiber-plant/odf/ports/20')
+        .patch('/api/v1/fiber-plant/odf/ports/20')
         .set('Authorization', 'Bearer test')
         .send({ port_status: 'connected', cable_label: 'C-042' });
 
@@ -239,7 +239,7 @@ describe('ODF Ports API', () => {
 // ---------------------------------------------------------------------------
 
 describe('ODF Cross-Connects API', () => {
-  describe('POST /api/fiber-plant/odf/cross-connects', () => {
+  describe('POST /api/v1/fiber-plant/odf/cross-connects', () => {
     it('creates a cross-connect between two ODF ports', async () => {
       db.query
         .mockResolvedValueOnce([[{ id: 1 }]]) // ownership check (TNA-09)
@@ -248,7 +248,7 @@ describe('ODF Cross-Connects API', () => {
         .mockResolvedValueOnce([[{ id: 30, port_a_id: 1, port_b_id: 2, status: 'active' }]]);
 
       const res = await request(app)
-        .post('/api/fiber-plant/odf/cross-connects')
+        .post('/api/v1/fiber-plant/odf/cross-connects')
         .set('Authorization', 'Bearer test')
         .send({ port_a_id: 1, port_b_id: 2, patch_cord_label: 'yellow-01' });
 
@@ -258,7 +258,7 @@ describe('ODF Cross-Connects API', () => {
 
     it('returns 400 when port_a_id == port_b_id', async () => {
       const res = await request(app)
-        .post('/api/fiber-plant/odf/cross-connects')
+        .post('/api/v1/fiber-plant/odf/cross-connects')
         .set('Authorization', 'Bearer test')
         .send({ port_a_id: 5, port_b_id: 5 });
 
@@ -272,7 +272,7 @@ describe('ODF Cross-Connects API', () => {
 // ---------------------------------------------------------------------------
 
 describe('OTDR Tests API', () => {
-  describe('GET /api/fiber-plant/otdr/tests', () => {
+  describe('GET /api/v1/fiber-plant/otdr/tests', () => {
     it('returns OTDR test results list', async () => {
       db.query
         .mockResolvedValueOnce([[{ total: 1 }]])
@@ -282,7 +282,7 @@ describe('OTDR Tests API', () => {
         }]]);
 
       const res = await request(app)
-        .get('/api/fiber-plant/otdr/tests')
+        .get('/api/v1/fiber-plant/otdr/tests')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);
@@ -290,7 +290,7 @@ describe('OTDR Tests API', () => {
     });
   });
 
-  describe('POST /api/fiber-plant/otdr/tests', () => {
+  describe('POST /api/v1/fiber-plant/otdr/tests', () => {
     it('creates an OTDR test result record', async () => {
       db.query
         .mockResolvedValueOnce([[{ id: 1 }]]) // ownership check (TNA-09)
@@ -301,7 +301,7 @@ describe('OTDR Tests API', () => {
         }]]);
 
       const res = await request(app)
-        .post('/api/fiber-plant/otdr/tests')
+        .post('/api/v1/fiber-plant/otdr/tests')
         .set('Authorization', 'Bearer test')
         .send({
           fiber_route_id: 1,
@@ -324,7 +324,7 @@ describe('OTDR Tests API', () => {
 // ---------------------------------------------------------------------------
 
 describe('SFP Inventory API', () => {
-  describe('GET /api/fiber-plant/sfp', () => {
+  describe('GET /api/v1/fiber-plant/sfp', () => {
     it('returns SFP inventory list', async () => {
       db.query
         .mockResolvedValueOnce([[{ total: 3 }]])
@@ -335,7 +335,7 @@ describe('SFP Inventory API', () => {
         ]]);
 
       const res = await request(app)
-        .get('/api/fiber-plant/sfp')
+        .get('/api/v1/fiber-plant/sfp')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);
@@ -343,7 +343,7 @@ describe('SFP Inventory API', () => {
     });
   });
 
-  describe('POST /api/fiber-plant/sfp', () => {
+  describe('POST /api/v1/fiber-plant/sfp', () => {
     it('adds an SFP module record', async () => {
       db.query
         .mockResolvedValueOnce([{ insertId: 15 }])
@@ -353,7 +353,7 @@ describe('SFP Inventory API', () => {
         }]]);
 
       const res = await request(app)
-        .post('/api/fiber-plant/sfp')
+        .post('/api/v1/fiber-plant/sfp')
         .set('Authorization', 'Bearer test')
         .send({ serial_number: 'SFP-NEW-001', form_factor: 'sfp_plus', wavelength_nm: 1310 });
 
@@ -362,7 +362,7 @@ describe('SFP Inventory API', () => {
     });
   });
 
-  describe('PATCH /api/fiber-plant/sfp/:id', () => {
+  describe('PATCH /api/v1/fiber-plant/sfp/:id', () => {
     it('updates SFP lifecycle status to installed', async () => {
       db.query
         .mockResolvedValueOnce([[{ id: 1 }]]) // ownership check (TNA-09)
@@ -371,7 +371,7 @@ describe('SFP Inventory API', () => {
         .mockResolvedValueOnce([[{ id: 15, lifecycle_status: 'installed', installed_device_id: 42 }]]);
 
       const res = await request(app)
-        .patch('/api/fiber-plant/sfp/15')
+        .patch('/api/v1/fiber-plant/sfp/15')
         .set('Authorization', 'Bearer test')
         .send({ lifecycle_status: 'installed', installed_device_id: 42, port_name: '0/1/1' });
 
@@ -380,7 +380,7 @@ describe('SFP Inventory API', () => {
     });
   });
 
-  describe('GET /api/fiber-plant/sfp/:id/diagnostics', () => {
+  describe('GET /api/v1/fiber-plant/sfp/:id/diagnostics', () => {
     it('returns diagnostics for an installed SFP', async () => {
       db.query
         .mockResolvedValueOnce([[{ id: 15, installed_device_id: 42 }]]) // sfp lookup
@@ -388,7 +388,7 @@ describe('SFP Inventory API', () => {
         .mockResolvedValueOnce([[{ sfp_tx_power_dbm: 2.5, sfp_rx_power_dbm: -20.1, sfp_temperature_c: 35.2, polled_at: '2026-06-11T10:00:00Z' }]]);
 
       const res = await request(app)
-        .get('/api/fiber-plant/sfp/15/diagnostics')
+        .get('/api/v1/fiber-plant/sfp/15/diagnostics')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);
@@ -399,7 +399,7 @@ describe('SFP Inventory API', () => {
       db.query.mockResolvedValueOnce([[{ id: 20, installed_device_id: null }]]);
 
       const res = await request(app)
-        .get('/api/fiber-plant/sfp/20/diagnostics')
+        .get('/api/v1/fiber-plant/sfp/20/diagnostics')
         .set('Authorization', 'Bearer test');
 
       expect(res.status).toBe(200);

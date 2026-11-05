@@ -65,18 +65,18 @@ describe('Route Validation — Clients', () => {
     mockAuthUser();
   });
 
-  test('POST /api/clients without name returns 422', async () => {
+  test('POST /api/v1/clients without name returns 422', async () => {
     const res = await request(app)
-      .post('/api/clients')
+      .post('/api/v1/clients')
       .set('Authorization', `Bearer ${token}`)
       .send({ email: 'test@example.com' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  test('POST /api/clients with invalid client_type returns 422', async () => {
+  test('POST /api/v1/clients with invalid client_type returns 422', async () => {
     const res = await request(app)
-      .post('/api/clients')
+      .post('/api/v1/clients')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Test Client', client_type: 'invalid_type' });
     expect(res.status).toBe(422);
@@ -87,34 +87,34 @@ describe('Route Validation — Clients', () => {
     );
   });
 
-  test('POST /api/clients with valid data passes validation', async () => {
+  test('POST /api/v1/clients with valid data passes validation', async () => {
     const res = await request(app)
-      .post('/api/clients')
+      .post('/api/v1/clients')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Valid Client', client_type: 'residential', status: 'active' });
     // Should not be 422 (may be 201 or a DB error, but not validation)
     expect(res.status).not.toBe(422);
   });
 
-  test('PUT /api/clients/:id with invalid email returns 422', async () => {
+  test('PUT /api/v1/clients/:id with invalid email returns 422', async () => {
     const res = await request(app)
-      .put('/api/clients/1')
+      .put('/api/v1/clients/1')
       .set('Authorization', `Bearer ${token}`)
       .send({ email: 'not-an-email' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/clients/:id/contacts without name returns 422', async () => {
+  test('POST /api/v1/clients/:id/contacts without name returns 422', async () => {
     const res = await request(app)
-      .post('/api/clients/1/contacts')
+      .post('/api/v1/clients/1/contacts')
       .set('Authorization', `Bearer ${token}`)
       .send({ email: 'contact@example.com' });
     expect(res.status).toBe(422);
   });
 
-  test('PUT /api/clients/:id/mx-profile without rfc returns 422', async () => {
+  test('PUT /api/v1/clients/:id/mx-profile without rfc returns 422', async () => {
     const res = await request(app)
-      .put('/api/clients/1/mx-profile')
+      .put('/api/v1/clients/1/mx-profile')
       .set('Authorization', `Bearer ${token}`)
       .send({ razon_social: 'Test SA' });
     expect(res.status).toBe(422);
@@ -129,9 +129,9 @@ describe('Route Validation — Contracts', () => {
     mockAuthUser();
   });
 
-  test('POST /api/contracts without client_id returns 422', async () => {
+  test('POST /api/v1/contracts without client_id returns 422', async () => {
     const res = await request(app)
-      .post('/api/contracts')
+      .post('/api/v1/contracts')
       .set('Authorization', `Bearer ${token}`)
       .send({ plan_id: 1, start_date: '2026-01-01' });
     expect(res.status).toBe(422);
@@ -142,33 +142,33 @@ describe('Route Validation — Contracts', () => {
     );
   });
 
-  test('POST /api/contracts without plan_id returns 422', async () => {
+  test('POST /api/v1/contracts without plan_id returns 422', async () => {
     const res = await request(app)
-      .post('/api/contracts')
+      .post('/api/v1/contracts')
       .set('Authorization', `Bearer ${token}`)
       .send({ client_id: 1, start_date: '2026-01-01' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/contracts with invalid connection_type returns 422', async () => {
+  test('POST /api/v1/contracts with invalid connection_type returns 422', async () => {
     const res = await request(app)
-      .post('/api/contracts')
+      .post('/api/v1/contracts')
       .set('Authorization', `Bearer ${token}`)
       .send({ client_id: 1, plan_id: 1, start_date: '2026-01-01', connection_type: 'fiber' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/contracts with valid data passes validation', async () => {
+  test('POST /api/v1/contracts with valid data passes validation', async () => {
     const res = await request(app)
-      .post('/api/contracts')
+      .post('/api/v1/contracts')
       .set('Authorization', `Bearer ${token}`)
       .send({ client_id: 1, plan_id: 1, start_date: '2026-01-01', connection_type: 'pppoe' });
     expect(res.status).not.toBe(422);
   });
 
-  test('POST /api/contracts/:id/addons without plan_addon_id returns 422', async () => {
+  test('POST /api/v1/contracts/:id/addons without plan_addon_id returns 422', async () => {
     const res = await request(app)
-      .post('/api/contracts/1/addons')
+      .post('/api/v1/contracts/1/addons')
       .set('Authorization', `Bearer ${token}`)
       .send({ quantity: 2 });
     expect(res.status).toBe(422);
@@ -183,41 +183,41 @@ describe('Route Validation — Invoices', () => {
     mockAuthUser();
   });
 
-  test('POST /api/invoices without client_id returns 422', async () => {
+  test('POST /api/v1/invoices without client_id returns 422', async () => {
     const res = await request(app)
-      .post('/api/invoices')
+      .post('/api/v1/invoices')
       .set('Authorization', `Bearer ${token}`)
       .send({ subtotal: 500, total: 500, due_date: '2026-04-30' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/invoices without required fields returns 422', async () => {
+  test('POST /api/v1/invoices without required fields returns 422', async () => {
     const res = await request(app)
-      .post('/api/invoices')
+      .post('/api/v1/invoices')
       .set('Authorization', `Bearer ${token}`)
       .send({ client_id: 1 });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/invoices with invalid status returns 422', async () => {
+  test('POST /api/v1/invoices with invalid status returns 422', async () => {
     const res = await request(app)
-      .post('/api/invoices')
+      .post('/api/v1/invoices')
       .set('Authorization', `Bearer ${token}`)
       .send({ client_id: 1, subtotal: 500, total: 500, due_date: '2026-04-30', status: 'bogus' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/invoices/:id/items without description returns 422', async () => {
+  test('POST /api/v1/invoices/:id/items without description returns 422', async () => {
     const res = await request(app)
-      .post('/api/invoices/1/items')
+      .post('/api/v1/invoices/1/items')
       .set('Authorization', `Bearer ${token}`)
       .send({ quantity: 1, unit_price: 100, amount: 100 });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/invoices/generate without contract_id returns 422', async () => {
+  test('POST /api/v1/invoices/generate without contract_id returns 422', async () => {
     const res = await request(app)
-      .post('/api/invoices/generate')
+      .post('/api/v1/invoices/generate')
       .set('Authorization', `Bearer ${token}`)
       .send({});
     expect(res.status).toBe(422);
@@ -232,41 +232,41 @@ describe('Route Validation — Payments', () => {
     mockAuthUser();
   });
 
-  test('POST /api/payments without client_id returns 422', async () => {
+  test('POST /api/v1/payments without client_id returns 422', async () => {
     const res = await request(app)
-      .post('/api/payments')
+      .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
       .send({ amount: 500 });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/payments without amount returns 422', async () => {
+  test('POST /api/v1/payments without amount returns 422', async () => {
     const res = await request(app)
-      .post('/api/payments')
+      .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
       .send({ client_id: 1 });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/payments with invalid payment_method returns 422', async () => {
+  test('POST /api/v1/payments with invalid payment_method returns 422', async () => {
     const res = await request(app)
-      .post('/api/payments')
+      .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
       .send({ client_id: 1, amount: 500, payment_method: 'bitcoin' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/payments/:id/allocate without invoice_id returns 422', async () => {
+  test('POST /api/v1/payments/:id/allocate without invoice_id returns 422', async () => {
     const res = await request(app)
-      .post('/api/payments/1/allocate')
+      .post('/api/v1/payments/1/allocate')
       .set('Authorization', `Bearer ${token}`)
       .send({ amount: 500 });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/payments/:id/allocate without amount returns 422', async () => {
+  test('POST /api/v1/payments/:id/allocate without amount returns 422', async () => {
     const res = await request(app)
-      .post('/api/payments/1/allocate')
+      .post('/api/v1/payments/1/allocate')
       .set('Authorization', `Bearer ${token}`)
       .send({ invoice_id: 1 });
     expect(res.status).toBe(422);
@@ -281,41 +281,41 @@ describe('Route Validation — Devices', () => {
     mockAuthUser();
   });
 
-  test('POST /api/devices without name returns 422', async () => {
+  test('POST /api/v1/devices without name returns 422', async () => {
     const res = await request(app)
-      .post('/api/devices')
+      .post('/api/v1/devices')
       .set('Authorization', `Bearer ${token}`)
       .send({ type: 'router' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/devices without type returns 422', async () => {
+  test('POST /api/v1/devices without type returns 422', async () => {
     const res = await request(app)
-      .post('/api/devices')
+      .post('/api/v1/devices')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Router-01' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/devices with invalid type returns 422', async () => {
+  test('POST /api/v1/devices with invalid type returns 422', async () => {
     const res = await request(app)
-      .post('/api/devices')
+      .post('/api/v1/devices')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Router-01', type: 'modem' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/devices with invalid snmp_version returns 422', async () => {
+  test('POST /api/v1/devices with invalid snmp_version returns 422', async () => {
     const res = await request(app)
-      .post('/api/devices')
+      .post('/api/v1/devices')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Router-01', type: 'router', snmp_version: 'v4' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/devices with valid data passes validation', async () => {
+  test('POST /api/v1/devices with valid data passes validation', async () => {
     const res = await request(app)
-      .post('/api/devices')
+      .post('/api/v1/devices')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Router-01', type: 'router', snmp_version: 'v2c' });
     expect(res.status).not.toBe(422);
@@ -330,41 +330,41 @@ describe('Route Validation — Tickets', () => {
     mockAuthUser();
   });
 
-  test('POST /api/tickets without subject returns 422', async () => {
+  test('POST /api/v1/tickets without subject returns 422', async () => {
     const res = await request(app)
-      .post('/api/tickets')
+      .post('/api/v1/tickets')
       .set('Authorization', `Bearer ${token}`)
       .send({ priority: 'high' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/tickets with invalid priority returns 422', async () => {
+  test('POST /api/v1/tickets with invalid priority returns 422', async () => {
     const res = await request(app)
-      .post('/api/tickets')
+      .post('/api/v1/tickets')
       .set('Authorization', `Bearer ${token}`)
       .send({ subject: 'Network down', priority: 'urgent' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/tickets with valid data passes validation', async () => {
+  test('POST /api/v1/tickets with valid data passes validation', async () => {
     const res = await request(app)
-      .post('/api/tickets')
+      .post('/api/v1/tickets')
       .set('Authorization', `Bearer ${token}`)
       .send({ subject: 'Network down', priority: 'critical', category: 'technical', client_id: 10 });
     expect(res.status).not.toBe(422);
   });
 
-  test('POST /api/tickets/:id/comments without body returns 422', async () => {
+  test('POST /api/v1/tickets/:id/comments without body returns 422', async () => {
     const res = await request(app)
-      .post('/api/tickets/1/comments')
+      .post('/api/v1/tickets/1/comments')
       .set('Authorization', `Bearer ${token}`)
       .send({ is_internal: true });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/tickets/:id/comments with valid data passes', async () => {
+  test('POST /api/v1/tickets/:id/comments with valid data passes', async () => {
     const res = await request(app)
-      .post('/api/tickets/1/comments')
+      .post('/api/v1/tickets/1/comments')
       .set('Authorization', `Bearer ${token}`)
       .send({ body: 'This is a comment', is_internal: false });
     expect(res.status).not.toBe(422);
@@ -379,49 +379,49 @@ describe('Route Validation — Plans', () => {
     mockAuthUser();
   });
 
-  test('POST /api/plans without name returns 422', async () => {
+  test('POST /api/v1/plans without name returns 422', async () => {
     const res = await request(app)
-      .post('/api/plans')
+      .post('/api/v1/plans')
       .set('Authorization', `Bearer ${token}`)
       .send({ download_speed_mbps: 50, upload_speed_mbps: 10, price: 500 });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/plans without download_speed_mbps returns 422', async () => {
+  test('POST /api/v1/plans without download_speed_mbps returns 422', async () => {
     const res = await request(app)
-      .post('/api/plans')
+      .post('/api/v1/plans')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Basic', upload_speed_mbps: 10, price: 500 });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/plans with invalid billing_cycle returns 422', async () => {
+  test('POST /api/v1/plans with invalid billing_cycle returns 422', async () => {
     const res = await request(app)
-      .post('/api/plans')
+      .post('/api/v1/plans')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Basic', download_speed_mbps: 50, upload_speed_mbps: 10, price: 500, billing_cycle: 'weekly' });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/plans with valid data passes validation', async () => {
+  test('POST /api/v1/plans with valid data passes validation', async () => {
     const res = await request(app)
-      .post('/api/plans')
+      .post('/api/v1/plans')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Basic 50', download_speed_mbps: 50, upload_speed_mbps: 10, price: 500 });
     expect(res.status).not.toBe(422);
   });
 
-  test('POST /api/plans/addons without name returns 422', async () => {
+  test('POST /api/v1/plans/addons without name returns 422', async () => {
     const res = await request(app)
-      .post('/api/plans/addons')
+      .post('/api/v1/plans/addons')
       .set('Authorization', `Bearer ${token}`)
       .send({ addon_type: 'static_ip', price: 100 });
     expect(res.status).toBe(422);
   });
 
-  test('POST /api/plans/addons with invalid addon_type returns 422', async () => {
+  test('POST /api/v1/plans/addons with invalid addon_type returns 422', async () => {
     const res = await request(app)
-      .post('/api/plans/addons')
+      .post('/api/v1/plans/addons')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Static IP', addon_type: 'invalid', price: 100 });
     expect(res.status).toBe(422);

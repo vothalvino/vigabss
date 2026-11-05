@@ -131,15 +131,10 @@ router.get('/admin-ip-allowlist', requirePermission('admin_ip_allowlist.view'), 
 });
 
 // POST /admin-ip-allowlist — add entry
-// Accepts `cidr` (new schema name) or legacy `ip_address` for backward compat.
 router.post('/admin-ip-allowlist', requirePermission('admin_ip_allowlist.create'), validate(createAdminIpAllowlist, { strip: false }), async (req, res, next) => {
   try {
-    const { cidr, ip_address, description, is_active } = req.body;
-    const rawCidr = cidr ?? ip_address;
-    if (!rawCidr) {
-      throw new ValidationError('Validation failed', [{ field: 'cidr', message: 'cidr (or ip_address) is required' }]);
-    }
-    const cidrValue = validatedCidr(rawCidr);
+    const { cidr, description, is_active } = req.body;
+    const cidrValue = validatedCidr(cidr);
     const activate = is_active === true;
     if (activate) {
       const activeEntries = await listActiveEntries(req.orgId);
@@ -158,10 +153,9 @@ router.post('/admin-ip-allowlist', requirePermission('admin_ip_allowlist.create'
 });
 
 // PUT /admin-ip-allowlist/:id — update entry
-// Accepts `cidr` (new schema name) or legacy `ip_address` for backward compat.
 router.put('/admin-ip-allowlist/:id', requirePermission('admin_ip_allowlist.update'), async (req, res, next) => {
   try {
-    const { cidr, ip_address, description, is_active } = req.body;
+    const { cidr, description, is_active } = req.body;
     const [[current]] = await db.query(
       `SELECT id, organization_id, cidr, description, is_active
        FROM admin_ip_allowlist
@@ -171,8 +165,7 @@ router.put('/admin-ip-allowlist/:id', requirePermission('admin_ip_allowlist.upda
     );
     if (!current) throw new NotFoundError('Admin IP allowlist entry');
 
-    const rawCidr = cidr ?? ip_address;
-    const cidrValue = rawCidr !== undefined ? validatedCidr(rawCidr) : current.cidr;
+    const cidrValue = cidr !== undefined ? validatedCidr(cidr) : current.cidr;
     const activate = is_active !== undefined ? is_active === true : Boolean(current.is_active);
     const activeEntries = await listActiveEntries(req.orgId);
     const candidateEntries = activeEntries.filter(entry => Number(entry.id) !== Number(current.id));
@@ -243,10 +236,6 @@ const POLICY_INTEGERS = ['min_length', 'history_count', 'lockout_attempts', 'loc
 router.put('/password-policy', requirePermission('password_policy.update'), validate(updatePasswordPolicy, { strip: false }), async (req, res, next) => {
   try {
     const body = { ...req.body };
-    // Accept legacy require_symbols as alias for require_special_chars
-    if (body.require_special_chars === undefined && body.require_symbols !== undefined) {
-      body.require_special_chars = body.require_symbols;
-    }
 
     const values = {};
     for (const key of POLICY_BOOLEANS) if (body[key] !== undefined) values[key] = body[key] ? 1 : 0;

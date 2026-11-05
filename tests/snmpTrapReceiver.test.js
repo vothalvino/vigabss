@@ -69,8 +69,6 @@ const {
   MAX_VARBIND_COUNT,
   MAX_VARBIND_VALUE_BYTES,
   MAX_VARBINDS_JSON_BYTES,
-  DAILY_TRAP_ROW_LIMIT,
-  DAILY_VARBIND_BYTE_LIMIT,
   ORG_DAILY_TRAP_ROW_LIMIT,
   GLOBAL_DAILY_TRAP_ROW_LIMIT,
   ORG_DAILY_VARBIND_BYTE_LIMIT,
@@ -1025,7 +1023,7 @@ describe('handleTrap()', () => {
     const connection = {
       beginTransaction: jest.fn().mockResolvedValue(undefined),
       execute: jest.fn(async sql => {
-        const quota = quotaSqlResult(sql, { trap_count: DAILY_TRAP_ROW_LIMIT });
+        const quota = quotaSqlResult(sql, { trap_count: ORG_DAILY_TRAP_ROW_LIMIT });
         if (quota !== undefined) return quota;
         throw new Error(`Trap storage must not run after row quota exhaustion: ${sql}`);
       }),
@@ -1055,7 +1053,7 @@ describe('handleTrap()', () => {
     const connection = {
       beginTransaction: jest.fn().mockResolvedValue(undefined),
       execute: jest.fn(async (sql, params) => {
-        const quota = quotaSqlResult(sql, { varbind_bytes: DAILY_VARBIND_BYTE_LIMIT });
+        const quota = quotaSqlResult(sql, { varbind_bytes: ORG_DAILY_VARBIND_BYTE_LIMIT });
         if (quota !== undefined) return quota;
         if (/INSERT INTO snmp_traps/.test(sql)) {
           expect(params[5]).toBe(JSON.stringify([]));

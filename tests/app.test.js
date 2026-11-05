@@ -215,13 +215,13 @@ describe('Readiness Probe', () => {
 
 describe('404 Handler', () => {
   test('Unknown route returns 404', async () => {
-    const res = await request(app).get('/api/nonexistent');
+    const res = await request(app).get('/api/v1/nonexistent');
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
   test('404 response includes error message', async () => {
-    const res = await request(app).get('/api/no-such-route');
+    const res = await request(app).get('/api/v1/no-such-route');
     expect(res.body.error.message).toBe('Route not found');
   });
 });
@@ -231,7 +231,7 @@ describe('Global Error Handler', () => {
   // Instead, test via the exported app's error-handling middleware indirectly.
 
   test('handles MySQL duplicate key error (ER_DUP_ENTRY)', async () => {
-    // POST /api/auth/login reaches db.query first (the account lookup), so a
+    // POST /api/v1/auth/login reaches db.query first (the account lookup), so a
     // MySQL-shaped error thrown there exercises the global handler. (These
     // used /auth/register, which no longer exists — SEC-12.)
     const dupError = new Error('Duplicate entry');
@@ -241,7 +241,7 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(dupError); // findByEmail throws
 
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'dup@example.com', password: 'password123' });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('CONFLICT');
@@ -256,7 +256,7 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(triggerError);
 
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'trigger@example.com', password: 'password123' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('DB_RULE_VIOLATION');
@@ -270,7 +270,7 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(fkError);
 
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'fk@example.com', password: 'password123' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('FK_VIOLATION');
@@ -284,7 +284,7 @@ describe('Global Error Handler', () => {
       db.query.mockRejectedValueOnce(connError);
 
       const res = await request(app)
-        .post('/api/auth/login')
+        .post('/api/v1/auth/login')
         .send({ email: 'conn@example.com', password: 'password123' });
       expect(res.status).toBe(503);
       expect(res.body.error.code).toBe('DB_UNAVAILABLE');
@@ -298,7 +298,7 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(authError);
 
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'authfail@example.com', password: 'password123' });
     expect(res.status).toBe(503);
     expect(res.body.error.code).toBe('DB_AUTH_ERROR');
@@ -311,7 +311,7 @@ describe('Global Error Handler', () => {
     db.query.mockRejectedValueOnce(tableError);
 
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'migrate@example.com', password: 'password123' });
     expect(res.status).toBe(503);
     expect(res.body.error.code).toBe('DB_MIGRATIONS_REQUIRED');
@@ -319,23 +319,23 @@ describe('Global Error Handler', () => {
 });
 
 describe('Auth Routes', () => {
-  test('POST /api/auth/login without body returns 422', async () => {
+  test('POST /api/v1/auth/login without body returns 422', async () => {
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({});
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  test('POST /api/auth/register is not a route (SEC-12)', async () => {
+  test('POST /api/v1/auth/register is not a route (SEC-12)', async () => {
     const res = await request(app)
-      .post('/api/auth/register')
+      .post('/api/v1/auth/register')
       .send({ email: 'test@example.com' });
     expect(res.status).toBe(404);
   });
 
-  test('GET /api/auth/me without token returns 401', async () => {
-    const res = await request(app).get('/api/auth/me');
+  test('GET /api/v1/auth/me without token returns 401', async () => {
+    const res = await request(app).get('/api/v1/auth/me');
     expect(res.status).toBe(401);
   });
 });
@@ -391,12 +391,19 @@ describe('Security Headers', () => {
   });
 });
 
-describe('API Versioning and Deprecation', () => {
-  test('GET /api/* includes deprecation and sunset headers', async () => {
-    const res = await request(app).get('/api/clients');
-    expect(res.headers['deprecation']).toBe('true');
-    expect(res.headers['sunset']).toBe('2027-06-01');
-    expect(res.headers['link']).toContain('/api/v1');
+describe('API Versioning', () => {
+  // Routes live only under /api/v1; there is no unversioned copy of the tree
+  // that could miss a limiter or guard mounted on the /api/v1 paths.
+  test.each([
+    ['get', '/api/clients'],
+    ['post', '/api/auth/login'],
+    ['get', '/api/graphql'],
+  ])('%s %s is not routed', async (method, path) => {
+    db.query.mockClear();
+    const res = await request(app)[method](path).send({});
+    expect(res.status).toBe(404);
+    expect(res.headers.deprecation).toBeUndefined();
+    expect(db.query).not.toHaveBeenCalled();
   });
 });
 
@@ -417,38 +424,38 @@ describe('Webhook Endpoint Accessibility', () => {
 });
 
 describe('Protected Routes', () => {
-  test('GET /api/clients without auth returns 401', async () => {
-    const res = await request(app).get('/api/clients');
+  test('GET /api/v1/clients without auth returns 401', async () => {
+    const res = await request(app).get('/api/v1/clients');
     expect(res.status).toBe(401);
   });
 
-  test('GET /api/invoices without auth returns 401', async () => {
-    const res = await request(app).get('/api/invoices');
+  test('GET /api/v1/invoices without auth returns 401', async () => {
+    const res = await request(app).get('/api/v1/invoices');
     expect(res.status).toBe(401);
   });
 
-  test('GET /api/devices without auth returns 401', async () => {
-    const res = await request(app).get('/api/devices');
+  test('GET /api/v1/devices without auth returns 401', async () => {
+    const res = await request(app).get('/api/v1/devices');
     expect(res.status).toBe(401);
   });
 
-  test('GET /api/plans without auth returns 401', async () => {
-    const res = await request(app).get('/api/plans');
+  test('GET /api/v1/plans without auth returns 401', async () => {
+    const res = await request(app).get('/api/v1/plans');
     expect(res.status).toBe(401);
   });
 
-  test('GET /api/contracts without auth returns 401', async () => {
-    const res = await request(app).get('/api/contracts');
+  test('GET /api/v1/contracts without auth returns 401', async () => {
+    const res = await request(app).get('/api/v1/contracts');
     expect(res.status).toBe(401);
   });
 
-  test('GET /api/tickets without auth returns 401', async () => {
-    const res = await request(app).get('/api/tickets');
+  test('GET /api/v1/tickets without auth returns 401', async () => {
+    const res = await request(app).get('/api/v1/tickets');
     expect(res.status).toBe(401);
   });
 
-  test('GET /api/payments without auth returns 401', async () => {
-    const res = await request(app).get('/api/payments');
+  test('GET /api/v1/payments without auth returns 401', async () => {
+    const res = await request(app).get('/api/v1/payments');
     expect(res.status).toBe(401);
   });
 

@@ -385,8 +385,7 @@ app.use(unlessAcs(express.json({
   // WhatsApp/Meta X-Hub-Signature-256, which is an HMAC over the exact bytes).
   verify: (req, _res, buf) => {
     const u = req.originalUrl || '';
-    if (u.startsWith('/api/payment-webhooks') || u.startsWith('/api/v1/payment-webhooks')
-      || u.startsWith('/api/whatsapp/webhook') || u.startsWith('/api/v1/whatsapp/webhook')) {
+    if (u.startsWith('/api/v1/payment-webhooks') || u.startsWith('/api/v1/whatsapp/webhook')) {
       req.rawBody = buf.toString('utf8');
     }
   },
@@ -425,7 +424,6 @@ app.use('/api/', csrfOriginCheck);
 // apiLimiter (RATE_LIMIT_API, applied once above). '/password-reset' also covers
 // '/password-reset/request' by prefix.
 for (const sub of ['/login', '/password-reset', '/change-password', '/verify-email']) {
-  app.use(`/api/auth${sub}`, authLimiter);
   app.use(`/api/v1/auth${sub}`, authLimiter);
 }
 // /password-reset/request and /verify-email/resend additionally get their
@@ -435,9 +433,7 @@ for (const sub of ['/login', '/password-reset', '/change-password', '/verify-ema
 // middleware/rateLimit.js for why these two routes warrant a stricter cap
 // than the rest of the /auth surface (both send real email on every hit, so
 // both are mail-bombing vectors, not just brute-force/enumeration ones).
-app.use('/api/auth/password-reset/request', passwordResetLimiter);
 app.use('/api/v1/auth/password-reset/request', passwordResetLimiter);
-app.use('/api/auth/verify-email/resend', verifyEmailResendLimiter);
 app.use('/api/v1/auth/verify-email/resend', verifyEmailResendLimiter);
 // Session-keepalive endpoints get their own per-IP bucket (RATE_LIMIT_SESSION,
 // default 240/window, failures-only counting) and are skipped by apiLimiter
@@ -446,17 +442,12 @@ app.use('/api/v1/auth/verify-email/resend', verifyEmailResendLimiter);
 // active users out. The subscriber portal gets the same carve-out — CGNAT'd
 // residential subscribers share public IPs far more than office staff do.
 for (const sub of ['/me', '/refresh', '/logout', '/switch-organization']) {
-  app.use(`/api/auth${sub}`, sessionLimiter);
   app.use(`/api/v1/auth${sub}`, sessionLimiter);
   // The portal has its own instance of the same budget (FE-17).
-  app.use(`/api/portal/auth${sub}`, portalSessionLimiter);
   app.use(`/api/v1/portal/auth${sub}`, portalSessionLimiter);
 }
-app.use('/api/export', exportLimiter);
 app.use('/api/v1/export', exportLimiter);
-app.use('/api/pdf', exportLimiter);
 app.use('/api/v1/pdf', exportLimiter);
-app.use('/api/events', sseLimiter);
 app.use('/api/v1/events', sseLimiter);
 app.use('/api/v1/graphql', (req, res, next) => (isEventStream(req) ? sseLimiter(req, res, next) : next()));
 // nginx buffers proxied responses by default, which holds subscription events
@@ -465,9 +456,7 @@ app.use('/api/v1/graphql', (req, res, next) => {
   if (isEventStream(req)) res.setHeader('X-Accel-Buffering', 'no');
   next();
 });
-app.use('/api/payment-webhooks', webhookLimiter);
 app.use('/api/v1/payment-webhooks', webhookLimiter);
-app.use('/api/whatsapp/webhook', webhookLimiter);
 app.use('/api/v1/whatsapp/webhook', webhookLimiter);
 
 // ---------------------------------------------------------------------------
@@ -875,17 +864,7 @@ v1.use('/graphql', authenticate, orgScope, streamGuard({ when: isEventStream }),
 // Every v1 route authenticates unless it is a reviewed public route (SEC-22).
 applyDefaultDeny(v1);
 
-// Mount v1 at both /api (backward compat) and /api/v1 (versioned)
 app.use('/api/v1', v1);
-
-// Backward-compat mount: /api routes emit a Deprecation header to nudge
-// clients toward the versioned /api/v1 prefix.
-app.use('/api', (req, res, next) => {
-  res.set('Deprecation', 'true');
-  res.set('Sunset', '2027-06-01');
-  res.set('Link', `</api/v1${req.path}>; rel="successor-version"`);
-  next();
-}, v1);
 app.use('/metrics', metricsRoutes);
 
 // ---------------------------------------------------------------------------

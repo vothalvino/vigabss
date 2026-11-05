@@ -317,7 +317,7 @@ describe('firerelayService', () => {
       await firerelayService.pollNodeHealth(node);
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://node2.fireisp.com/api/firerelay/health',
+        'https://node2.fireisp.com/api/v1/firerelay/health',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ 'X-Relay-Token': 'a'.repeat(64) }),
@@ -375,7 +375,7 @@ describe('firerelayService', () => {
 
       const { results, warnings } = await firerelayService.fanOut({
         method: 'GET',
-        path: '/api/clients',
+        path: '/api/v1/clients',
       });
 
       expect(results).toHaveLength(2);
@@ -400,7 +400,7 @@ describe('firerelayService', () => {
 
       const { results, warnings } = await firerelayService.fanOut({
         method: 'GET',
-        path: '/api/clients',
+        path: '/api/v1/clients',
       });
 
       expect(results).toHaveLength(1);
@@ -419,7 +419,7 @@ describe('firerelayService', () => {
 
       const { results, warnings } = await firerelayService.fanOut({
         method: 'GET',
-        path: '/api/clients',
+        path: '/api/v1/clients',
       });
 
       expect(results).toHaveLength(0);
@@ -445,7 +445,7 @@ describe('firerelayService', () => {
 
       const { status, data } = await firerelayService.proxyToNode('node2', {
         method: 'GET',
-        path: '/api/clients/123',
+        path: '/api/v1/clients/123',
       });
 
       expect(status).toBe(200);
@@ -459,7 +459,7 @@ describe('firerelayService', () => {
       db.query.mockResolvedValueOnce([[node]]);
 
       await expect(
-        firerelayService.proxyToNode('node2', { method: 'GET', path: '/api/clients/123' }),
+        firerelayService.proxyToNode('node2', { method: 'GET', path: '/api/v1/clients/123' }),
       ).rejects.toThrow('offline');
     });
   });
@@ -476,13 +476,13 @@ describe('firerelayService', () => {
 
       const { status, data } = await firerelayService.httpRequest('https://node2.fireisp.com', {
         method: 'GET',
-        path: '/api/firerelay/health',
+        path: '/api/v1/firerelay/health',
       });
 
       expect(status).toBe(200);
       expect(data).toEqual({ ok: true });
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://node2.fireisp.com/api/firerelay/health',
+        'https://node2.fireisp.com/api/v1/firerelay/health',
         expect.objectContaining({ method: 'GET' }),
       );
 
@@ -497,12 +497,12 @@ describe('firerelayService', () => {
 
       await firerelayService.httpRequest('https://node2.fireisp.com', {
         method: 'POST',
-        path: '/api/clients',
+        path: '/api/v1/clients',
         body: { name: 'Test Client' },
       });
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://node2.fireisp.com/api/clients',
+        'https://node2.fireisp.com/api/v1/clients',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ name: 'Test Client' }),
@@ -524,7 +524,7 @@ describe('firerelayService', () => {
 
       const { status } = await firerelayService.httpWithRetry(
         'https://node2.fireisp.com',
-        { path: '/api/firerelay/health' },
+        { path: '/api/v1/firerelay/health' },
         1,
       );
 
@@ -540,7 +540,7 @@ describe('firerelayService', () => {
       await expect(
         firerelayService.httpWithRetry(
           'https://node2.fireisp.com',
-          { path: '/api/firerelay/health' },
+          { path: '/api/v1/firerelay/health' },
           0,
         ),
       ).rejects.toThrow('Connection refused');

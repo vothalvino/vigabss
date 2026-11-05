@@ -54,9 +54,9 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// 1. IP POOL ROUTES — /api/ip-pools
+// 1. IP POOL ROUTES — /api/v1/ip-pools
 // =============================================================================
-describe('IP Pool Routes — /api/ip-pools', () => {
+describe('IP Pool Routes — /api/v1/ip-pools', () => {
 
   const mockIpPool = {
     id: 1,
@@ -71,7 +71,7 @@ describe('IP Pool Routes — /api/ip-pools', () => {
   };
 
   // --- GET / ---
-  describe('GET /api/ip-pools', () => {
+  describe('GET /api/v1/ip-pools', () => {
     test('returns paginated list of IP pools', async () => {
       mockAuthUser();
       db.query
@@ -79,7 +79,7 @@ describe('IP Pool Routes — /api/ip-pools', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);  // count
 
       const res = await request(app)
-        .get('/api/ip-pools')
+        .get('/api/v1/ip-pools')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -89,19 +89,19 @@ describe('IP Pool Routes — /api/ip-pools', () => {
     });
 
     test('returns 401 without auth header', async () => {
-      const res = await request(app).get('/api/ip-pools');
+      const res = await request(app).get('/api/v1/ip-pools');
       expect(res.status).toBe(401);
     });
   });
 
   // --- GET /:id ---
-  describe('GET /api/ip-pools/:id', () => {
+  describe('GET /api/v1/ip-pools/:id', () => {
     test('returns an IP pool by id', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[mockIpPool]]);
 
       const res = await request(app)
-        .get('/api/ip-pools/1')
+        .get('/api/v1/ip-pools/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -114,7 +114,7 @@ describe('IP Pool Routes — /api/ip-pools', () => {
       db.query.mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .get('/api/ip-pools/999')
+        .get('/api/v1/ip-pools/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -122,7 +122,7 @@ describe('IP Pool Routes — /api/ip-pools', () => {
   });
 
   // --- POST / ---
-  describe('POST /api/ip-pools', () => {
+  describe('POST /api/v1/ip-pools', () => {
     test('creates an IP pool and returns 201', async () => {
       mockAuthUser();
       db.query
@@ -132,7 +132,7 @@ describe('IP Pool Routes — /api/ip-pools', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);               // auditLog
 
       const res = await request(app)
-        .post('/api/ip-pools')
+        .post('/api/v1/ip-pools')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'LAN Pool', network: '192.168.1.0', subnet_mask: '255.255.255.0', gateway: '192.168.1.1' });
 
@@ -142,7 +142,7 @@ describe('IP Pool Routes — /api/ip-pools', () => {
   });
 
   // --- PUT /:id ---
-  describe('PUT /api/ip-pools/:id', () => {
+  describe('PUT /api/v1/ip-pools/:id', () => {
     test('updates an IP pool', async () => {
       mockAuthUser();
       db.query
@@ -153,7 +153,7 @@ describe('IP Pool Routes — /api/ip-pools', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                           // auditLog
 
       const res = await request(app)
-        .put('/api/ip-pools/1')
+        .put('/api/v1/ip-pools/1')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'WAN Pool' });
 
@@ -163,13 +163,13 @@ describe('IP Pool Routes — /api/ip-pools', () => {
   });
 
   // --- PUT /:id 404 ---
-  describe('PUT /api/ip-pools/:id (not found)', () => {
+  describe('PUT /api/v1/ip-pools/:id (not found)', () => {
     test('returns 404 when updating non-existent IP pool', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .put('/api/ip-pools/999')
+        .put('/api/v1/ip-pools/999')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Ghost Pool' });
 
@@ -178,7 +178,7 @@ describe('IP Pool Routes — /api/ip-pools', () => {
   });
 
   // --- DELETE /:id ---
-  describe('DELETE /api/ip-pools/:id', () => {
+  describe('DELETE /api/v1/ip-pools/:id', () => {
     test('deletes an IP pool and returns 204', async () => {
       mockAuthUser();
       db.query
@@ -187,7 +187,7 @@ describe('IP Pool Routes — /api/ip-pools', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // auditLog
 
       const res = await request(app)
-        .delete('/api/ip-pools/1')
+        .delete('/api/v1/ip-pools/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -195,13 +195,13 @@ describe('IP Pool Routes — /api/ip-pools', () => {
   });
 
   // --- DELETE /:id 404 ---
-  describe('DELETE /api/ip-pools/:id (not found)', () => {
+  describe('DELETE /api/v1/ip-pools/:id (not found)', () => {
     test('returns 404 when deleting non-existent IP pool', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .delete('/api/ip-pools/999')
+        .delete('/api/v1/ip-pools/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -209,10 +209,10 @@ describe('IP Pool Routes — /api/ip-pools', () => {
   });
 
   // --- POST / auth ---
-  describe('POST /api/ip-pools (unauthorized)', () => {
+  describe('POST /api/v1/ip-pools (unauthorized)', () => {
     test('returns 401 without auth header', async () => {
       const res = await request(app)
-        .post('/api/ip-pools')
+        .post('/api/v1/ip-pools')
         .send({ name: 'Pool' });
       expect(res.status).toBe(401);
     });
@@ -220,9 +220,9 @@ describe('IP Pool Routes — /api/ip-pools', () => {
 });
 
 // =============================================================================
-// 2. IP ASSIGNMENT ROUTES — /api/ip-assignments
+// 2. IP ASSIGNMENT ROUTES — /api/v1/ip-assignments
 // =============================================================================
-describe('IP Assignment Routes — /api/ip-assignments', () => {
+describe('IP Assignment Routes — /api/v1/ip-assignments', () => {
 
   const mockIpAssignment = {
     id: 1,
@@ -235,7 +235,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
   };
 
   // --- GET / ---
-  describe('GET /api/ip-assignments', () => {
+  describe('GET /api/v1/ip-assignments', () => {
     test('returns paginated list of IP assignments', async () => {
       mockAuthUser();
       db.query
@@ -243,7 +243,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);      // count
 
       const res = await request(app)
-        .get('/api/ip-assignments')
+        .get('/api/v1/ip-assignments')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -253,19 +253,19 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
     });
 
     test('returns 401 without auth header', async () => {
-      const res = await request(app).get('/api/ip-assignments');
+      const res = await request(app).get('/api/v1/ip-assignments');
       expect(res.status).toBe(401);
     });
   });
 
   // --- GET /:id ---
-  describe('GET /api/ip-assignments/:id', () => {
+  describe('GET /api/v1/ip-assignments/:id', () => {
     test('returns an IP assignment by id', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[mockIpAssignment]]);
 
       const res = await request(app)
-        .get('/api/ip-assignments/1')
+        .get('/api/v1/ip-assignments/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -278,7 +278,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
       db.query.mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .get('/api/ip-assignments/999')
+        .get('/api/v1/ip-assignments/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -286,7 +286,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
   });
 
   // --- POST / ---
-  describe('POST /api/ip-assignments', () => {
+  describe('POST /api/v1/ip-assignments', () => {
     test('creates an IP assignment and returns 201', async () => {
       mockAuthUser();
       db.query
@@ -298,7 +298,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                    // auditLog
 
       const res = await request(app)
-        .post('/api/ip-assignments')
+        .post('/api/v1/ip-assignments')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ pool_id: 1, ip_address: '192.168.1.10', prefix_len: 24, type: 'static' });
 
@@ -308,7 +308,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
   });
 
   // --- PUT /:id ---
-  describe('PUT /api/ip-assignments/:id', () => {
+  describe('PUT /api/v1/ip-assignments/:id', () => {
     test('updates an IP assignment', async () => {
       mockAuthUser();
       db.query
@@ -318,7 +318,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                                      // auditLog
 
       const res = await request(app)
-        .put('/api/ip-assignments/1')
+        .put('/api/v1/ip-assignments/1')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ type: 'dynamic' });
 
@@ -328,7 +328,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
   });
 
   // --- DELETE /:id ---
-  describe('DELETE /api/ip-assignments/:id', () => {
+  describe('DELETE /api/v1/ip-assignments/:id', () => {
     test('deletes an IP assignment and returns 204', async () => {
       mockAuthUser();
       db.query
@@ -337,7 +337,7 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);     // auditLog
 
       const res = await request(app)
-        .delete('/api/ip-assignments/1')
+        .delete('/api/v1/ip-assignments/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -345,13 +345,13 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
   });
 
   // --- PUT /:id 404 ---
-  describe('PUT /api/ip-assignments/:id (not found)', () => {
+  describe('PUT /api/v1/ip-assignments/:id (not found)', () => {
     test('returns 404 when updating non-existent IP assignment', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .put('/api/ip-assignments/999')
+        .put('/api/v1/ip-assignments/999')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ status: 'expired' });
 
@@ -360,13 +360,13 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
   });
 
   // --- DELETE /:id 404 ---
-  describe('DELETE /api/ip-assignments/:id (not found)', () => {
+  describe('DELETE /api/v1/ip-assignments/:id (not found)', () => {
     test('returns 404 when deleting non-existent IP assignment', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .delete('/api/ip-assignments/999')
+        .delete('/api/v1/ip-assignments/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -375,9 +375,9 @@ describe('IP Assignment Routes — /api/ip-assignments', () => {
 });
 
 // =============================================================================
-// 3. VLAN ROUTES — /api/vlans
+// 3. VLAN ROUTES — /api/v1/vlans
 // =============================================================================
-describe('VLAN Routes — /api/vlans', () => {
+describe('VLAN Routes — /api/v1/vlans', () => {
 
   const mockVlan = {
     id: 1,
@@ -389,7 +389,7 @@ describe('VLAN Routes — /api/vlans', () => {
   };
 
   // --- GET / ---
-  describe('GET /api/vlans', () => {
+  describe('GET /api/v1/vlans', () => {
     test('returns paginated list of VLANs', async () => {
       mockAuthUser();
       db.query
@@ -397,7 +397,7 @@ describe('VLAN Routes — /api/vlans', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);   // count
 
       const res = await request(app)
-        .get('/api/vlans')
+        .get('/api/v1/vlans')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -407,19 +407,19 @@ describe('VLAN Routes — /api/vlans', () => {
     });
 
     test('returns 401 without auth header', async () => {
-      const res = await request(app).get('/api/vlans');
+      const res = await request(app).get('/api/v1/vlans');
       expect(res.status).toBe(401);
     });
   });
 
   // --- GET /:id ---
-  describe('GET /api/vlans/:id', () => {
+  describe('GET /api/v1/vlans/:id', () => {
     test('returns a VLAN by id', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[mockVlan]]);
 
       const res = await request(app)
-        .get('/api/vlans/1')
+        .get('/api/v1/vlans/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -432,7 +432,7 @@ describe('VLAN Routes — /api/vlans', () => {
       db.query.mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .get('/api/vlans/999')
+        .get('/api/v1/vlans/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -440,7 +440,7 @@ describe('VLAN Routes — /api/vlans', () => {
   });
 
   // --- POST / ---
-  describe('POST /api/vlans', () => {
+  describe('POST /api/v1/vlans', () => {
     test('creates a VLAN and returns 201', async () => {
       mockAuthUser();
       db.query
@@ -450,7 +450,7 @@ describe('VLAN Routes — /api/vlans', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);               // auditLog
 
       const res = await request(app)
-        .post('/api/vlans')
+        .post('/api/v1/vlans')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ vlan_id: 100, name: 'Management', site_id: 3, description: 'Management VLAN' });
 
@@ -460,7 +460,7 @@ describe('VLAN Routes — /api/vlans', () => {
   });
 
   // --- PUT /:id ---
-  describe('PUT /api/vlans/:id', () => {
+  describe('PUT /api/v1/vlans/:id', () => {
     test('updates a VLAN', async () => {
       mockAuthUser();
       db.query
@@ -470,7 +470,7 @@ describe('VLAN Routes — /api/vlans', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                         // auditLog
 
       const res = await request(app)
-        .put('/api/vlans/1')
+        .put('/api/v1/vlans/1')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Guest' });
 
@@ -480,7 +480,7 @@ describe('VLAN Routes — /api/vlans', () => {
   });
 
   // --- DELETE /:id ---
-  describe('DELETE /api/vlans/:id', () => {
+  describe('DELETE /api/v1/vlans/:id', () => {
     test('deletes a VLAN and returns 204', async () => {
       mockAuthUser();
       db.query
@@ -489,7 +489,7 @@ describe('VLAN Routes — /api/vlans', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // auditLog
 
       const res = await request(app)
-        .delete('/api/vlans/1')
+        .delete('/api/v1/vlans/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -497,13 +497,13 @@ describe('VLAN Routes — /api/vlans', () => {
   });
 
   // --- PUT /:id 404 ---
-  describe('PUT /api/vlans/:id (not found)', () => {
+  describe('PUT /api/v1/vlans/:id (not found)', () => {
     test('returns 404 when updating non-existent VLAN', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .put('/api/vlans/999')
+        .put('/api/v1/vlans/999')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Ghost VLAN' });
 
@@ -512,13 +512,13 @@ describe('VLAN Routes — /api/vlans', () => {
   });
 
   // --- DELETE /:id 404 ---
-  describe('DELETE /api/vlans/:id (not found)', () => {
+  describe('DELETE /api/v1/vlans/:id (not found)', () => {
     test('returns 404 when deleting non-existent VLAN', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .delete('/api/vlans/999')
+        .delete('/api/v1/vlans/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -527,9 +527,9 @@ describe('VLAN Routes — /api/vlans', () => {
 });
 
 // =============================================================================
-// 4. NAS ROUTES — /api/nas
+// 4. NAS ROUTES — /api/v1/nas
 // =============================================================================
-describe('NAS Routes — /api/nas', () => {
+describe('NAS Routes — /api/v1/nas', () => {
 
   const mockNas = {
     id: 1,
@@ -541,7 +541,7 @@ describe('NAS Routes — /api/nas', () => {
   };
 
   // --- GET / ---
-  describe('GET /api/nas', () => {
+  describe('GET /api/v1/nas', () => {
     test('returns paginated list of NAS devices', async () => {
       mockAuthUser();
       db.query
@@ -549,7 +549,7 @@ describe('NAS Routes — /api/nas', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);    // count
 
       const res = await request(app)
-        .get('/api/nas')
+        .get('/api/v1/nas')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -559,19 +559,19 @@ describe('NAS Routes — /api/nas', () => {
     });
 
     test('returns 401 without auth header', async () => {
-      const res = await request(app).get('/api/nas');
+      const res = await request(app).get('/api/v1/nas');
       expect(res.status).toBe(401);
     });
   });
 
   // --- GET /:id ---
-  describe('GET /api/nas/:id', () => {
+  describe('GET /api/v1/nas/:id', () => {
     test('returns a NAS device by id', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[mockNas]]);
 
       const res = await request(app)
-        .get('/api/nas/1')
+        .get('/api/v1/nas/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -584,7 +584,7 @@ describe('NAS Routes — /api/nas', () => {
       db.query.mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .get('/api/nas/999')
+        .get('/api/v1/nas/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -592,7 +592,7 @@ describe('NAS Routes — /api/nas', () => {
   });
 
   // --- POST / ---
-  describe('POST /api/nas', () => {
+  describe('POST /api/v1/nas', () => {
     test('creates a NAS device and returns 201', async () => {
       mockAuthUser();
       db.query
@@ -602,7 +602,7 @@ describe('NAS Routes — /api/nas', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);               // auditLog
 
       const res = await request(app)
-        .post('/api/nas')
+        .post('/api/v1/nas')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Core NAS', ip_address: '10.0.0.1', secret: 'testing123', type: 'mikrotik' });
 
@@ -612,7 +612,7 @@ describe('NAS Routes — /api/nas', () => {
   });
 
   // --- PUT /:id ---
-  describe('PUT /api/nas/:id', () => {
+  describe('PUT /api/v1/nas/:id', () => {
     test('updates a NAS device', async () => {
       mockAuthUser();
       db.query
@@ -622,7 +622,7 @@ describe('NAS Routes — /api/nas', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                         // auditLog
 
       const res = await request(app)
-        .put('/api/nas/1')
+        .put('/api/v1/nas/1')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Edge NAS' });
 
@@ -632,7 +632,7 @@ describe('NAS Routes — /api/nas', () => {
   });
 
   // --- DELETE /:id ---
-  describe('DELETE /api/nas/:id', () => {
+  describe('DELETE /api/v1/nas/:id', () => {
     test('deletes a NAS device and returns 204', async () => {
       mockAuthUser();
       db.query
@@ -641,7 +641,7 @@ describe('NAS Routes — /api/nas', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // auditLog
 
       const res = await request(app)
-        .delete('/api/nas/1')
+        .delete('/api/v1/nas/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -649,13 +649,13 @@ describe('NAS Routes — /api/nas', () => {
   });
 
   // --- PUT /:id 404 ---
-  describe('PUT /api/nas/:id (not found)', () => {
+  describe('PUT /api/v1/nas/:id (not found)', () => {
     test('returns 404 when updating non-existent NAS device', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .put('/api/nas/999')
+        .put('/api/v1/nas/999')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Ghost NAS' });
 
@@ -664,13 +664,13 @@ describe('NAS Routes — /api/nas', () => {
   });
 
   // --- DELETE /:id 404 ---
-  describe('DELETE /api/nas/:id (not found)', () => {
+  describe('DELETE /api/v1/nas/:id (not found)', () => {
     test('returns 404 when deleting non-existent NAS device', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .delete('/api/nas/999')
+        .delete('/api/v1/nas/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -678,10 +678,10 @@ describe('NAS Routes — /api/nas', () => {
   });
 
   // --- POST / auth ---
-  describe('POST /api/nas (unauthorized)', () => {
+  describe('POST /api/v1/nas (unauthorized)', () => {
     test('returns 401 without auth header', async () => {
       const res = await request(app)
-        .post('/api/nas')
+        .post('/api/v1/nas')
         .send({ name: 'NAS' });
       expect(res.status).toBe(401);
     });
@@ -689,9 +689,9 @@ describe('NAS Routes — /api/nas', () => {
 });
 
 // =============================================================================
-// 5. SNMP PROFILE ROUTES — /api/snmp-profiles
+// 5. SNMP PROFILE ROUTES — /api/v1/snmp-profiles
 // =============================================================================
-describe('SNMP Profile Routes — /api/snmp-profiles', () => {
+describe('SNMP Profile Routes — /api/v1/snmp-profiles', () => {
 
   const mockSnmpProfile = {
     id: 1,
@@ -712,7 +712,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   };
 
   // --- GET / ---
-  describe('GET /api/snmp-profiles', () => {
+  describe('GET /api/v1/snmp-profiles', () => {
     test('returns paginated list of SNMP profiles', async () => {
       mockAuthUser();
       db.query
@@ -720,7 +720,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([[{ total: 1 }]]);     // count
 
       const res = await request(app)
-        .get('/api/snmp-profiles')
+        .get('/api/v1/snmp-profiles')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -730,19 +730,19 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
     });
 
     test('returns 401 without auth header', async () => {
-      const res = await request(app).get('/api/snmp-profiles');
+      const res = await request(app).get('/api/v1/snmp-profiles');
       expect(res.status).toBe(401);
     });
   });
 
   // --- GET /:id ---
-  describe('GET /api/snmp-profiles/:id', () => {
+  describe('GET /api/v1/snmp-profiles/:id', () => {
     test('returns an SNMP profile by id', async () => {
       mockAuthUser();
       db.query.mockResolvedValueOnce([[mockSnmpProfile]]);
 
       const res = await request(app)
-        .get('/api/snmp-profiles/1')
+        .get('/api/v1/snmp-profiles/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -755,7 +755,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
       db.query.mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .get('/api/snmp-profiles/999')
+        .get('/api/v1/snmp-profiles/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -763,7 +763,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   });
 
   // --- POST / ---
-  describe('POST /api/snmp-profiles', () => {
+  describe('POST /api/v1/snmp-profiles', () => {
     test('creates an SNMP profile and returns 201', async () => {
       mockAuthUser();
       db.query
@@ -772,7 +772,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                   // auditLog
 
       const res = await request(app)
-        .post('/api/snmp-profiles')
+        .post('/api/v1/snmp-profiles')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Ubiquiti Default', manufacturer: 'Ubiquiti', device_type: 'router', snmp_version: 'v2c' });
 
@@ -782,7 +782,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   });
 
   // --- PUT /:id ---
-  describe('PUT /api/snmp-profiles/:id', () => {
+  describe('PUT /api/v1/snmp-profiles/:id', () => {
     test('updates an SNMP profile', async () => {
       mockAuthUser();
       db.query
@@ -796,7 +796,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);                                // auditLog
 
       const res = await request(app)
-        .put('/api/snmp-profiles/1')
+        .put('/api/v1/snmp-profiles/1')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'MikroTik Default' });
 
@@ -806,7 +806,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   });
 
   // --- DELETE /:id ---
-  describe('DELETE /api/snmp-profiles/:id', () => {
+  describe('DELETE /api/v1/snmp-profiles/:id', () => {
     test('deletes an SNMP profile and returns 204', async () => {
       mockAuthUser();
       db.query
@@ -819,7 +819,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // auditLog
 
       const res = await request(app)
-        .delete('/api/snmp-profiles/1')
+        .delete('/api/v1/snmp-profiles/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -827,7 +827,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   });
 
   // --- PUT /:id 404 ---
-  describe('PUT /api/snmp-profiles/:id (not found)', () => {
+  describe('PUT /api/v1/snmp-profiles/:id (not found)', () => {
     test('returns 404 when updating non-existent SNMP profile', async () => {
       mockAuthUser();
       db.query
@@ -838,7 +838,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .put('/api/snmp-profiles/999')
+        .put('/api/v1/snmp-profiles/999')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Ghost Profile' });
 
@@ -847,7 +847,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   });
 
   // --- DELETE /:id 404 ---
-  describe('DELETE /api/snmp-profiles/:id (not found)', () => {
+  describe('DELETE /api/v1/snmp-profiles/:id (not found)', () => {
     test('returns 404 when deleting non-existent SNMP profile', async () => {
       mockAuthUser();
       db.query
@@ -856,7 +856,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([[]]);  // findByIdOrFail → empty
 
       const res = await request(app)
-        .delete('/api/snmp-profiles/999')
+        .delete('/api/v1/snmp-profiles/999')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
@@ -864,17 +864,17 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   });
 
   // --- POST / auth ---
-  describe('POST /api/snmp-profiles (unauthorized)', () => {
+  describe('POST /api/v1/snmp-profiles (unauthorized)', () => {
     test('returns 401 without auth header', async () => {
       const res = await request(app)
-        .post('/api/snmp-profiles')
+        .post('/api/v1/snmp-profiles')
         .send({ name: 'Profile' });
       expect(res.status).toBe(401);
     });
   });
 
   // --- GET /:id/oids ---
-  describe('GET /api/snmp-profiles/:id/oids', () => {
+  describe('GET /api/v1/snmp-profiles/:id/oids', () => {
     test('returns OIDs for an SNMP profile', async () => {
       mockAuthUser();
       db.query
@@ -883,7 +883,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([[mockOid]]);
 
       const res = await request(app)
-        .get('/api/snmp-profiles/1/oids')
+        .get('/api/v1/snmp-profiles/1/oids')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -900,7 +900,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([[]]);
 
       const res = await request(app)
-        .get('/api/snmp-profiles/1/oids')
+        .get('/api/v1/snmp-profiles/1/oids')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
@@ -909,7 +909,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   });
 
   // --- POST /:id/oids ---
-  describe('POST /api/snmp-profiles/:id/oids', () => {
+  describe('POST /api/v1/snmp-profiles/:id/oids', () => {
     test('adds an OID to an SNMP profile and returns 201', async () => {
       mockAuthUser();
       const newOid = {
@@ -928,7 +928,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([[newOid]]);           // SELECT new OID
 
       const res = await request(app)
-        .post('/api/snmp-profiles/1/oids')
+        .post('/api/v1/snmp-profiles/1/oids')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ oid: '.1.3.6.1.2.1.1.3.0', label: 'sysUpTime', metric_column: 'uptime_ticks' });
 
@@ -951,7 +951,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         }]]);
 
       const res = await request(app)
-        .post('/api/snmp-profiles/1/oids')
+        .post('/api/v1/snmp-profiles/1/oids')
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           oid: '1.3.6.1.2.1.25.3.3.1.2', label: 'CPU', metric_column: 'cpu_usage',
@@ -970,7 +970,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   });
 
   // --- DELETE /:id/oids/:oidId ---
-  describe('DELETE /api/snmp-profiles/:id/oids/:oidId', () => {
+  describe('DELETE /api/v1/snmp-profiles/:id/oids/:oidId', () => {
     test('deletes an OID from an SNMP profile and returns 204', async () => {
       mockAuthUser();
       db.query
@@ -981,7 +981,7 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 }]);  // DELETE
 
       const res = await request(app)
-        .delete('/api/snmp-profiles/1/oids/1')
+        .delete('/api/v1/snmp-profiles/1/oids/1')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(204);
@@ -989,27 +989,27 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
   });
 
   // --- GET /:id/oids auth ---
-  describe('GET /api/snmp-profiles/:id/oids (unauthorized)', () => {
+  describe('GET /api/v1/snmp-profiles/:id/oids (unauthorized)', () => {
     test('returns 401 without auth header', async () => {
-      const res = await request(app).get('/api/snmp-profiles/1/oids');
+      const res = await request(app).get('/api/v1/snmp-profiles/1/oids');
       expect(res.status).toBe(401);
     });
   });
 
   // --- POST /:id/oids auth ---
-  describe('POST /api/snmp-profiles/:id/oids (unauthorized)', () => {
+  describe('POST /api/v1/snmp-profiles/:id/oids (unauthorized)', () => {
     test('returns 401 without auth header', async () => {
       const res = await request(app)
-        .post('/api/snmp-profiles/1/oids')
+        .post('/api/v1/snmp-profiles/1/oids')
         .send({ oid: '.1.3.6.1.2.1.1.3.0', label: 'sysUpTime' });
       expect(res.status).toBe(401);
     });
   });
 
   // --- DELETE /:id/oids/:oidId auth ---
-  describe('DELETE /api/snmp-profiles/:id/oids/:oidId (unauthorized)', () => {
+  describe('DELETE /api/v1/snmp-profiles/:id/oids/:oidId (unauthorized)', () => {
     test('returns 401 without auth header', async () => {
-      const res = await request(app).delete('/api/snmp-profiles/1/oids/1');
+      const res = await request(app).delete('/api/v1/snmp-profiles/1/oids/1');
       expect(res.status).toBe(401);
     });
   });
@@ -1019,14 +1019,14 @@ describe('SNMP Profile Routes — /api/snmp-profiles', () => {
 // CROSS-CUTTING: Pagination query params
 // =============================================================================
 describe('Pagination query params', () => {
-  test('GET /api/ip-pools with page=2&limit=10 passes pagination', async () => {
+  test('GET /api/v1/ip-pools with page=2&limit=10 passes pagination', async () => {
     mockAuthUser();
     db.query
       .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ total: 0 }]]);
 
     const res = await request(app)
-      .get('/api/ip-pools?page=2&limit=10')
+      .get('/api/v1/ip-pools?page=2&limit=10')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -1034,14 +1034,14 @@ describe('Pagination query params', () => {
     expect(res.body.meta.limit).toBe(10);
   });
 
-  test('GET /api/vlans with page=3&limit=5 passes pagination', async () => {
+  test('GET /api/v1/vlans with page=3&limit=5 passes pagination', async () => {
     mockAuthUser();
     db.query
       .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ total: 0 }]]);
 
     const res = await request(app)
-      .get('/api/vlans?page=3&limit=5')
+      .get('/api/v1/vlans?page=3&limit=5')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -1054,14 +1054,14 @@ describe('Pagination query params', () => {
 // CROSS-CUTTING: Empty list responses
 // =============================================================================
 describe('Empty list responses', () => {
-  test('GET /api/nas returns empty data and zero total', async () => {
+  test('GET /api/v1/nas returns empty data and zero total', async () => {
     mockAuthUser();
     db.query
       .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ total: 0 }]]);
 
     const res = await request(app)
-      .get('/api/nas')
+      .get('/api/v1/nas')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -1070,14 +1070,14 @@ describe('Empty list responses', () => {
     expect(res.body.meta.totalPages).toBe(0);
   });
 
-  test('GET /api/ip-assignments returns empty data and zero total', async () => {
+  test('GET /api/v1/ip-assignments returns empty data and zero total', async () => {
     mockAuthUser();
     db.query
       .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ total: 0 }]]);
 
     const res = await request(app)
-      .get('/api/ip-assignments')
+      .get('/api/v1/ip-assignments')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);
@@ -1086,14 +1086,14 @@ describe('Empty list responses', () => {
     expect(res.body.meta.totalPages).toBe(0);
   });
 
-  test('GET /api/snmp-profiles returns empty data and zero total', async () => {
+  test('GET /api/v1/snmp-profiles returns empty data and zero total', async () => {
     mockAuthUser();
     db.query
       .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ total: 0 }]]);
 
     const res = await request(app)
-      .get('/api/snmp-profiles')
+      .get('/api/v1/snmp-profiles')
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(200);

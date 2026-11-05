@@ -44,7 +44,7 @@ beforeEach(() => {
   User.hasEffectivePermission.mockResolvedValue(true);
 });
 
-describe('GET /api/sites/:id/timeline', () => {
+describe('GET /api/v1/sites/:id/timeline', () => {
   test('merges work orders, outages and maintenance windows newest-first', async () => {
     db.query
       .mockResolvedValueOnce([[{ id: 3, name: 'Tower North' }]]) // site org check
@@ -54,7 +54,7 @@ describe('GET /api/sites/:id/timeline', () => {
         { event_type: 'outage', id: 5, title: 'Planned downtime', subtype: 'planned', status: 'resolved', assigned_to: null, occurred_at: '2026-07-15' },
       ]]);
     const res = await request(app)
-      .get('/api/sites/3/timeline')
+      .get('/api/v1/sites/3/timeline')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.data.site_name).toBe('Tower North');
@@ -69,7 +69,7 @@ describe('GET /api/sites/:id/timeline', () => {
   test('404s for a site outside the org', async () => {
     db.query.mockResolvedValueOnce([[]]);
     const res = await request(app)
-      .get('/api/sites/999/timeline')
+      .get('/api/v1/sites/999/timeline')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(404);
   });
@@ -82,7 +82,7 @@ describe('work-order mutations write audit_log rows', () => {
       .mockResolvedValueOnce([{ insertId: 42 }])
       .mockResolvedValueOnce([[{ id: 42, assigned_to: null, title: 'Tower fix' }]]);
     const res = await request(app)
-      .post('/api/work-orders')
+      .post('/api/v1/work-orders')
       .set('Authorization', `Bearer ${token}`)
       .send({ title: 'Tower fix', site_id: 3, work_type: 'maintenance' });
     expect(res.status).toBe(201);
@@ -97,7 +97,7 @@ describe('work-order mutations write audit_log rows', () => {
       .mockResolvedValueOnce([{ affectedRows: 1 }])
       .mockResolvedValueOnce([[{ id: 42, assigned_to: null, status: 'in_progress' }]]);
     const res = await request(app)
-      .patch('/api/work-orders/42')
+      .patch('/api/v1/work-orders/42')
       .set('Authorization', `Bearer ${token}`)
       .send({ status: 'in_progress' });
     expect(res.status).toBe(200);
@@ -111,7 +111,7 @@ describe('work-order mutations write audit_log rows', () => {
   test('DELETE logs a delete entry', async () => {
     db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
     const res = await request(app)
-      .delete('/api/work-orders/42')
+      .delete('/api/v1/work-orders/42')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(204);
     expect(auditLog.log).toHaveBeenCalledWith(expect.objectContaining({

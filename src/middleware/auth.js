@@ -203,7 +203,7 @@ async function authenticate(req, _res, next) {
 }
 
 // Session routes a must-change-password account can still use.
-const PASSWORD_CHANGE_ALLOWED = /^\/api(?:\/v1)?\/auth\/(?:me|change-password|logout)\/?$/;
+const PASSWORD_CHANGE_ALLOWED = /^\/api\/v1\/auth\/(?:me|change-password|logout)\/?$/;
 const requestPath = req => String(req.originalUrl || req.url || '').split('?')[0];
 
 /**

@@ -148,10 +148,6 @@ function assertReadyRecord(row, {
   return registrationSnapshot(row);
 }
 
-// Backward-compatible export name retained for callers/tests written before
-// sandbox sources existed. It now validates either ready lane.
-const assertRegisteredRecord = assertReadyRecord;
-
 function snapshotMatchesRegisteredSource(row, snapshot) {
   if (!snapshot) return false;
   return Number(row.contract_template_mx_id) === snapshot.contractTemplateMxId
@@ -446,7 +442,6 @@ module.exports = {
   registrationSnapshot,
   snapshotMatchesRegisteredSource,
   assertReadyRecord,
-  assertRegisteredRecord,
   assertActiveActivationTemplate,
   assertOneRegisteredSource,
   loadLinkedRecord,
