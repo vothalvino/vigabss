@@ -1814,8 +1814,8 @@ When every connection of a pool is busy, a request waits at most
 `DB_ACQUIRE_TIMEOUT_MS` (default 10000) for one, and at most `DB_QUEUE_LIMIT`
 (default 200) requests wait at a time. Beyond either limit the request fails
 with `503 DB_POOL_EXHAUSTED` instead of hanging until the 30-second request
-timeout. `/metrics` reports each pool (`primary`, `replica`, `lock`, and
-`tenant` summed over isolated tenants):
+timeout. `/metrics` reports each pool (`primary`, `replica`, `lock`,
+`accounting`, and `tenant` summed over isolated tenants):
 
 - `db_pool_connections{pool,state}` — connections `in_use` and `idle`.
 - `db_pool_connection_limit{pool}` and `db_pool_waiting_requests{pool}`.
@@ -1825,6 +1825,18 @@ timeout. `/metrics` reports each pool (`primary`, `replica`, `lock`, and
 
 `VigaBSS_DbPoolSaturated` fires after requests have waited for 5 minutes, and
 `VigaBSS_DbPoolRefusals` on any refusal.
+
+Two more series for the background and RADIUS paths, both on the Grafana
+dashboards in `docs/grafana/`:
+
+- `job_queue_jobs{queue,state}` — background jobs per queue that are
+  `waiting`, `active`, `delayed` or `failed`, read from the queue at each
+  scrape (BullMQ or the in-process queue). A `waiting` count that only grows
+  means the workers cannot keep up or have stopped.
+- `radius_accounting_requests_total{status_type,result}` — accounting requests
+  by `Acct-Status-Type` and whether they were `accepted`, `rejected`,
+  `unauthorized` (wrong shared secret) or an `error`. A NAS whose accounting is
+  rejected bills and attributes nothing.
 
 ```sql
 -- Check current MySQL max connections

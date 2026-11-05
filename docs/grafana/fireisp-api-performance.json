@@ -244,6 +244,37 @@
           }
         }
       }
+    },
+    {
+      "title": "Background Job Queue Depth (waiting)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "targets": [
+        {
+          "expr": "sum by (queue) (job_queue_jobs{state=\"waiting\"})",
+          "legendFormat": "{{queue}}",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "title": "Background Jobs Active / Failed",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "targets": [
+        {
+          "expr": "sum by (queue) (job_queue_jobs{state=\"active\"})",
+          "legendFormat": "active: {{queue}}",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        },
+        {
+          "expr": "sum by (queue) (job_queue_jobs{state=\"failed\"})",
+          "legendFormat": "failed: {{queue}}",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
     }
   ]
 }

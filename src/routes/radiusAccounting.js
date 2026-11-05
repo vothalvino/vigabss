@@ -141,9 +141,16 @@ function normalizeAccountingBody(body = {}) {
  */
 // The whole ingest runs on the accounting pool (database.js): a burst of
 // accounting waits for its own connections, not the API's.
-router.post('/accounting', (req, res, next) => (typeof db.withAccountingPool === 'function'
-  ? db.withAccountingPool(() => ingest(req, res, next))
-  : ingest(req, res, next)));
+router.post('/accounting', (req, res, next) => {
+  // Counted once answered: radius_accounting_requests_total{status_type,result}.
+  res.on('finish', () => {
+    const statusType = String(normalizeAccountingBody(req.body || {}).acctStatusType || '').trim();
+    require('../utils/opsMetrics').noteRadiusAccounting(statusType, res.statusCode);
+  });
+  return typeof db.withAccountingPool === 'function'
+    ? db.withAccountingPool(() => ingest(req, res, next))
+    : ingest(req, res, next);
+});
 
 async function ingest(req, res, next) {
   try {

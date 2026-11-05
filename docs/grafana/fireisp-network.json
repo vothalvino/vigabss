@@ -112,6 +112,78 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
         }
       ]
+    },
+    {
+      "title": "RADIUS Accounting by Status Type",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "sum by (status_type) (rate(radius_accounting_requests_total[5m]))",
+          "legendFormat": "{{status_type}}",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "title": "RADIUS Accounting Not Accepted",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(radius_accounting_requests_total{result!=\"accepted\"}[5m]))",
+          "legendFormat": "{{result}}",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "title": "RADIUS Accounting DB Pool",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (state) (db_pool_connections{pool=\"accounting\"})",
+          "legendFormat": "{{state}}",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        },
+        {
+          "expr": "sum(db_pool_waiting_requests{pool=\"accounting\"})",
+          "legendFormat": "waiting",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        },
+        {
+          "expr": "sum(db_pool_connection_limit{pool=\"accounting\"})",
+          "legendFormat": "limit",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "title": "SNMP Traps Accepted / Dropped",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum(rate(snmp_traps_accepted_total[5m]))",
+          "legendFormat": "accepted",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        },
+        {
+          "expr": "sum by (reason) (rate(snmp_traps_dropped_total[5m]))",
+          "legendFormat": "dropped: {{reason}}",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        },
+        {
+          "expr": "sum(rate(snmp_trap_dropped_auth_total[5m]))",
+          "legendFormat": "dropped: authentication",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
     }
   ]
 }
