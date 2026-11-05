@@ -2,7 +2,8 @@
 // VigaBSS 5.0 — Device Bulk Import
 // =============================================================================
 // Standalone page at /device-import.
-// Provides a CSV file upload form that posts to POST /api/v1/import/devices/upload.
+// Provides a CSV file upload form that posts to POST /api/v1/import/devices/upload
+// and waits for the import job it starts.
 // Displays per-row import results (successes and errors) after submission.
 // §6.1 feature: "Bulk device import via CSV"
 // =============================================================================
@@ -10,22 +11,7 @@
 import { useRef, useState } from 'react';
 import { useMutation } from '@/api/useMutation';
 import { useTranslation } from 'react-i18next';
-import { apiFetch } from '@/api/apiFetch';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface ImportError {
-  row: number;
-  error: string;
-}
-
-interface ImportResult {
-  imported: number;
-  total: number;
-  errors: ImportError[];
-}
+import { uploadImport, type ImportResult } from '@/api/importJob';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,11 +31,9 @@ function downloadTemplate(): void {
   URL.revokeObjectURL(url);
 }
 
-async function uploadDeviceCsv(file: File): Promise<ImportResult> {
-  const formData = new FormData();
-  formData.append('file', file);
-  const json = await apiFetch<{ data: ImportResult }>('/import/devices/upload', { method: 'POST', body: formData });
-  return json.data;
+// The server imports in the background; this waits for the job's result.
+function uploadDeviceCsv(file: File): Promise<ImportResult> {
+  return uploadImport('devices', file);
 }
 
 // ---------------------------------------------------------------------------

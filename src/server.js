@@ -87,6 +87,10 @@ async function start() {
   require('./services/automationService').resumeBatchJobs()
     .catch(err => logger.warn({ err }, 'Could not resume unfinished batch jobs'));
 
+  // CSV imports left queued or running by the last process (migration 522).
+  require('./services/importJobService').resumeImportJobs()
+    .catch(err => logger.warn({ err }, 'Could not resume unfinished import jobs'));
+
   // Discovery scans and AP commands left unfinished by the last process (NET-26).
   require('./services/discoveryScanService').resumeDiscoveryScans()
     .catch(err => logger.warn({ err }, 'Could not resume unfinished discovery scans'));

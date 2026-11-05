@@ -31,9 +31,26 @@ function renderPage() {
   );
 }
 
-const okResponse = (data: unknown) => ({
-  ok: true, status: 200, json: () => Promise.resolve({ data }),
+const okResponse = (data: unknown, status = 200) => ({
+  ok: true, status, json: () => Promise.resolve({ data }),
 } as Response);
+
+// The server answers an upload with a queued job (202) and reports the
+// finished import at GET /import/jobs/:id (migration 522).
+type Result = { imported?: number; total?: number; errors?: { row: number; error: string }[] };
+function importServer(result: Result, { status = 'completed', error_message = null }: { status?: string; error_message?: string | null } = {}) {
+  return (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('/upload')) return Promise.resolve(okResponse({ id: 5, status: 'queued', row_errors: [] }, 202));
+    if (url.endsWith('/import/jobs/5')) {
+      return Promise.resolve(okResponse({
+        id: 5, status, error_message,
+        total_rows: result.total ?? null, imported_rows: result.imported ?? null, row_errors: result.errors ?? [],
+      }));
+    }
+    return Promise.resolve(okResponse({}));
+  };
+}
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -87,7 +104,7 @@ describe('the expected columns are shown, not left to be discovered', () => {
 describe('upload posts to the right versioned endpoint', () => {
   it('POSTs multipart to /api/v1/import/<entity>/upload', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValue(okResponse({ imported: 2, total: 2, errors: [] }));
+      .mockImplementation(importServer({ imported: 2, total: 2, errors: [] }));
     renderPage();
     fireEvent.change(screen.getByLabelText('dataImport.whatToImport'), { target: { value: 'invoices' } });
     const file = new File(['client_id\n42\n'], 'invoices.csv', { type: 'text/csv' });
@@ -114,7 +131,7 @@ describe('upload posts to the right versioned endpoint', () => {
 
 describe('per-row errors reach the operator', () => {
   it('renders each failing line with its number and message', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse({
+    vi.spyOn(globalThis, 'fetch').mockImplementation(importServer({
       imported: 498, total: 500,
       errors: [
         { row: 3, error: 'client_id is required' },
@@ -126,7 +143,7 @@ describe('per-row errors reach the operator', () => {
     fireEvent.change(screen.getByLabelText('dataImport.chooseFile'), { target: { files: [file] } });
     fireEvent.click(screen.getByText('dataImport.importBtn'));
 
-    await waitFor(() => expect(screen.getByText('dataImport.resultTitle')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('dataImport.resultTitle')).toBeInTheDocument(), { timeout: 3000 });
     expect(screen.getByText('498')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('client_id is required')).toBeInTheDocument();
@@ -137,24 +154,43 @@ describe('per-row errors reach the operator', () => {
   it('warns that successful rows are NOT rolled back', async () => {
     // The importer commits row by row. Without this an operator fixes the file
     // and re-runs the whole thing, double-importing everything that worked.
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse({
+    vi.spyOn(globalThis, 'fetch').mockImplementation(importServer({
       imported: 1, total: 2, errors: [{ row: 3, error: 'boom' }],
     }));
     renderPage();
     const file = new File(['x'], 'f.csv', { type: 'text/csv' });
     fireEvent.change(screen.getByLabelText('dataImport.chooseFile'), { target: { files: [file] } });
     fireEvent.click(screen.getByText('dataImport.importBtn'));
-    await waitFor(() => expect(screen.getByText('dataImport.partialWarning')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('dataImport.partialWarning')).toBeInTheDocument(), { timeout: 3000 });
   });
 
   it('shows no warning and no table on a clean import', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse({ imported: 5, total: 5, errors: [] }));
+    vi.spyOn(globalThis, 'fetch').mockImplementation(importServer({ imported: 5, total: 5, errors: [] }));
     renderPage();
     const file = new File(['x'], 'f.csv', { type: 'text/csv' });
     fireEvent.change(screen.getByLabelText('dataImport.chooseFile'), { target: { files: [file] } });
     fireEvent.click(screen.getByText('dataImport.importBtn'));
-    await waitFor(() => expect(screen.getByText('dataImport.allImported')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('dataImport.allImported')).toBeInTheDocument(), { timeout: 3000 });
     expect(screen.queryByText('dataImport.partialWarning')).not.toBeInTheDocument();
+  });
+
+  it('waits for the background job, then shows its result', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(importServer({ imported: 5, total: 5, errors: [] }));
+    renderPage();
+    const file = new File(['x'], 'f.csv', { type: 'text/csv' });
+    fireEvent.change(screen.getByLabelText('dataImport.chooseFile'), { target: { files: [file] } });
+    fireEvent.click(screen.getByText('dataImport.importBtn'));
+    await waitFor(() => expect(screen.getByText('dataImport.allImported')).toBeInTheDocument(), { timeout: 3000 });
+    expect(fetchSpy.mock.calls.map(([u]) => String(u))).toEqual(['/api/v1/import/clients/upload', '/api/v1/import/jobs/5']);
+  });
+
+  it("surfaces the job's reason when the import fails on the server", async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(importServer({}, { status: 'failed', error_message: 'Interrupted while importing.' }));
+    renderPage();
+    const file = new File(['x'], 'f.csv', { type: 'text/csv' });
+    fireEvent.change(screen.getByLabelText('dataImport.chooseFile'), { target: { files: [file] } });
+    fireEvent.click(screen.getByText('dataImport.importBtn'));
+    await waitFor(() => expect(screen.getByText(/Interrupted while importing\./)).toBeInTheDocument(), { timeout: 3000 });
   });
 
   it("surfaces the backend's message when the whole request fails", async () => {

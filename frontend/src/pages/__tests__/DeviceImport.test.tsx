@@ -68,17 +68,19 @@ describe('DeviceImport', () => {
   });
 
   it('renders per-row errors with their line numbers', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+    // An upload answers with a queued job; the finished import is at
+    // GET /import/jobs/:id (migration 522).
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => Promise.resolve({
       ok: true,
-      json: () => Promise.resolve({
-        data: { imported: 8, total: 10, errors: [{ row: 4, error: 'name and ip_address are required' }] },
-      }),
-    } as Response);
+      json: () => Promise.resolve(String(input).endsWith('/upload')
+        ? { data: { id: 5, status: 'queued', row_errors: [] } }
+        : { data: { id: 5, status: 'completed', imported_rows: 8, total_rows: 10, row_errors: [{ row: 4, error: 'name and ip_address are required' }] } }),
+    } as Response));
     renderPage();
     chooseFile();
     fireEvent.click(screen.getByText('device_import.import_btn'));
 
-    await waitFor(() => expect(screen.getByText('device_import.result_title')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('device_import.result_title')).toBeInTheDocument(), { timeout: 3000 });
     expect(screen.getByText('4')).toBeInTheDocument();
     expect(screen.getByText('name and ip_address are required')).toBeInTheDocument();
   });

@@ -648,9 +648,13 @@ describe('Export Routes — /api/export', () => {
 describe('Import Routes — /api/import', () => {
 
   describe('POST /api/import/clients', () => {
-    test('imports clients from CSV string', async () => {
+    // Imports run as background jobs (migration 522): the request queues the
+    // CSV and answers 202; tests/importJobs.test.js covers the worker.
+    test('queues an import of clients from a CSV string', async () => {
       mockAuthUser();
-      db.query.mockResolvedValue([{ affectedRows: 1 }]);
+      db.query.mockImplementation(async (sql) => (/FROM import_jobs/.test(sql)
+        ? [[{ id: 31, entity: 'clients', status: 'queued', row_errors: null }]]
+        : [{ affectedRows: 1, insertId: 31 }]));
 
       const csvData = 'name,email,phone\nAlice Smith,alice@test.com,555-0001\nBob Jones,bob@test.com,555-0002';
 
@@ -659,9 +663,10 @@ describe('Import Routes — /api/import', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ csv: csvData });
 
-      expect(res.status).toBe(200);
-      expect(res.body.data.imported).toBe(2);
-      expect(res.body.data.total).toBe(2);
+      expect(res.status).toBe(202);
+      const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO import_jobs/.test(sql));
+      expect(insert[1].slice(1, 3)).toEqual(['clients', csvData]);
+      expect(db.query.mock.calls.some(([sql]) => /INSERT INTO clients/.test(sql))).toBe(false);
     });
   });
 });
