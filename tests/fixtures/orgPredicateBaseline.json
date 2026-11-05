@@ -88,7 +88,7 @@
   "src/services/notificationHooks.js": 2,
   "src/services/passwordPolicyService.js": 1,
   "src/services/paymentAllocationService.js": 2,
-  "src/services/paymentGatewayService.js": 23,
+  "src/services/paymentGatewayService.js": 19,
   "src/services/paymentPlanService.js": 8,
   "src/services/paymentReminderService.js": 1,
   "src/services/paymentRetryService.js": 7,
