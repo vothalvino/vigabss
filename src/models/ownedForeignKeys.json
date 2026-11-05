@@ -216,6 +216,9 @@
   "identity_verification_records": {
     "client_id": "clients"
   },
+  "ift_statistical_reports": {
+    "concession_title_id": "concession_titles"
+  },
   "interface_qos_policies": {
     "device_id": "devices"
   },
@@ -436,6 +439,9 @@
   "recurring_payment_profiles": {
     "client_id": "clients",
     "payment_gateway_id": "payment_gateways"
+  },
+  "regulatory_filings": {
+    "concession_title_id": "concession_titles"
   },
   "reseller_commissions": {
     "client_id": "clients",

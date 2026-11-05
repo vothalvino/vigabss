@@ -131,26 +131,27 @@ router.put(
       const { channel } = req.params;
       const { isEnabled, availabilityHours, handoffBehavior, webhookUrl, configJson } = req.body;
 
+      const fields = [
+        isEnabled !== undefined ? isEnabled : null,
+        availabilityHours !== undefined ? JSON.stringify(availabilityHours) : null,
+        handoffBehavior || null,
+        webhookUrl || null,
+        configJson !== undefined ? JSON.stringify(configJson) : null,
+      ];
+      // A first save takes the column defaults for what was not sent (NULL
+      // would break NOT NULL); a later one keeps the stored values.
       await db.query(
         `INSERT INTO support_channel_configs
            (organization_id, channel, is_enabled, availability_hours, handoff_behavior, webhook_url, config_json, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+         VALUES (?, ?, COALESCE(?, 1), ?, COALESCE(?, 'queue'), ?, ?, NOW())
          ON DUPLICATE KEY UPDATE
-           is_enabled = COALESCE(VALUES(is_enabled), is_enabled),
-           availability_hours = COALESCE(VALUES(availability_hours), availability_hours),
-           handoff_behavior = COALESCE(VALUES(handoff_behavior), handoff_behavior),
-           webhook_url = COALESCE(VALUES(webhook_url), webhook_url),
-           config_json = COALESCE(VALUES(config_json), config_json),
+           is_enabled = COALESCE(?, is_enabled),
+           availability_hours = COALESCE(?, availability_hours),
+           handoff_behavior = COALESCE(?, handoff_behavior),
+           webhook_url = COALESCE(?, webhook_url),
+           config_json = COALESCE(?, config_json),
            updated_at = NOW()`,
-        [
-          req.orgId,
-          channel,
-          isEnabled !== undefined ? isEnabled : null,
-          availabilityHours !== undefined ? JSON.stringify(availabilityHours) : null,
-          handoffBehavior || null,
-          webhookUrl || null,
-          configJson !== undefined ? JSON.stringify(configJson) : null,
-        ],
+        [req.orgId, channel, ...fields, ...fields],
       );
 
       const [[row]] = await db.query(

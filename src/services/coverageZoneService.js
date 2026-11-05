@@ -36,14 +36,16 @@ const SELECT_SQL = `SELECT ${SCALAR_COLS}, ST_AsGeoJSON(boundary) AS boundary
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a row returned by MySQL — boundary is already a JSON string from
- * ST_AsGeoJSON(); parse it to an object so the response is clean JSON.
+ * Parse a row returned by MySQL. ST_AsGeoJSON() returns the JSON type, which
+ * mysql2 already decodes to an object; a string (another driver, a mock) is
+ * parsed so the response is clean JSON either way.
  */
 function parseRow(row) {
   if (!row) return null;
+  const { boundary } = row;
   return {
     ...row,
-    boundary: row.boundary ? JSON.parse(row.boundary) : null,
+    boundary: typeof boundary === 'string' ? JSON.parse(boundary) : (boundary ?? null),
   };
 }
 
