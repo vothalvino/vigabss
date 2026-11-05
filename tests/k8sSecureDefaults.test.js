@@ -41,3 +41,24 @@ test('the pod mounts no service-account token, and namespaces enforce the restri
     expect(read(f)).toContain('pod-security.kubernetes.io/enforce: restricted');
   }
 });
+
+// The image created fireisp with `useradd --system`, so its uid was whatever
+// the base image left free (999 on bookworm), while both manifests ran the pod
+// as 1000: the base image's `node` user, which does not own /app/storage. The
+// uid is now fixed in the image and the manifests run as exactly that, above
+// 10000 so it matches no base-image user and no human account on the host.
+test('the pod runs as the image user, a fixed uid above 10000', () => {
+  const dockerfile = read('Dockerfile');
+  const uid = Number((dockerfile.match(/useradd [^\n]*--uid (\d+)/) || [])[1]);
+  const gid = Number((dockerfile.match(/groupadd [^\n]*--gid (\d+)/) || [])[1]);
+  expect(uid).toBeGreaterThanOrEqual(10000);
+  expect(gid).toBe(uid);
+  expect(dockerfile).toMatch(new RegExp(`\\nUSER ${uid}:${gid}\\n`));
+  for (const [file, indent] of [['k8s/deployment.yaml', 8], ['charts/fireisp/values.yaml', 2]]) {
+    const pad = ' '.repeat(indent);
+    const text = read(file);
+    expect([file, text.match(new RegExp(`\\n${pad}runAsUser: (\\d+)`))?.[1]]).toEqual([file, String(uid)]);
+    expect([file, text.match(new RegExp(`\\n${pad}runAsGroup: (\\d+)`))?.[1]]).toEqual([file, String(gid)]);
+    expect([file, text.match(new RegExp(`\\n${pad}fsGroup: (\\d+)`))?.[1]]).toEqual([file, String(gid)]);
+  }
+});

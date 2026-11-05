@@ -41,8 +41,10 @@ podLabels: {}
 ## Pod-level security context.
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
-  fsGroup: 1000
+  # The image's fireisp user (Dockerfile).
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
   seccompProfile:
     type: RuntimeDefault
 
