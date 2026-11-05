@@ -370,6 +370,12 @@ that inevitably fail, but they never replace server-side authorization.
   undeclared ones by default (TNA-38). The routes that predate this pass
   `{ strip: false }` explicitly; `tests/validateStripRatchet.test.js` keeps
   that list from growing.
+- Every write route has a schema, and a create schema requires each NOT NULL
+  column without a default unless the handler fills it (a parent id from the
+  path, a generated number, a sealed secret). `tests/validatorSchemaParity.test.js`
+  checks this against `schema.sql`, with the server-filled columns listed and
+  reviewed there. Bad input is a 4xx: a missing row is `NotFoundError`, a
+  provider refusal `PaymentGatewayError` (502), never a plain `Error`.
 - `crudController` checks every foreign key a create or update writes against
   `req.orgId`, from the FOREIGN KEY constraints in `schema.sql`
   (`src/models/ownedForeignKeys.json`, regenerated with

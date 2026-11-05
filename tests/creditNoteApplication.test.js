@@ -250,7 +250,7 @@ describe('the credit-note routes apply and release', () => {
     });
     const app = require('../src/app');
     const res = await request(app).post('/api/v1/credit-notes')
-      .send({ client_id: 42, invoice_id: 60, reason: 'billing_error', total: 116, currency: 'MXN', status: 'issued' });
+      .send({ client_id: 42, invoice_id: 60, reason: 'billing_error', credit_note_number: 'NC-41', total: 116, currency: 'MXN', status: 'issued' });
     expect(res.status).toBe(201);
     expect(sync).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ id: 41, invoice_id: 60 }), 5);
     sync.mockRestore();

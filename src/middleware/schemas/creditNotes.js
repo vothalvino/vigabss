@@ -6,7 +6,8 @@ const createCreditNote = {
   client_id: { type: 'number', required: true, min: 1 },
   invoice_id: { type: 'number', min: 1 },
   credit_note_number: { type: 'string', max: 50 },
-  reason: { type: 'string', enum: ['billing_error', 'service_interruption', 'overpayment', 'promotional_credit', 'contract_cancellation', 'other'] },
+  // credit_notes.reason is NOT NULL with no default.
+  reason: { type: 'string', required: true, enum: ['billing_error', 'service_interruption', 'overpayment', 'promotional_credit', 'contract_cancellation', 'other'] },
   subtotal: { type: 'number', min: 0 },
   tax_rate: { type: 'number', min: 0, max: 1 },
   tax_amount: { type: 'number', min: 0 },

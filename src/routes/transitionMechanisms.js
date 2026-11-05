@@ -13,10 +13,7 @@ const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { buildInsert, buildUpdate, columnsOf } = require('../utils/sqlBuild');
-const {
-  createTransitionMechanism,
-  updateTransitionMechanism,
-} = require('../middleware/schemas/transitionMechanisms');
+const schemas = require('../middleware/schemas/transitionMechanisms');
 
 const router = Router();
 router.use(authenticate);
@@ -105,12 +102,12 @@ function getOneHandler(tableName) {
   };
 }
 
-function createHandler(tableName) {
+function createHandler(tableName, schema) {
   assertTableAllowed(tableName);
   return async (req, res, next) => {
     try {
       const fields = stripProtected(req.body);
-      const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(createTransitionMechanism, 'organization_id'));
+      const { columns, placeholders, values } = buildInsert({ organization_id: req.orgId, ...fields }, columnsOf(schema, 'organization_id'));
       const [result] = await db.query(
         `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`,
         values,
@@ -121,7 +118,7 @@ function createHandler(tableName) {
   };
 }
 
-function updateHandler(tableName) {
+function updateHandler(tableName, schema) {
   assertTableAllowed(tableName);
   return async (req, res, next) => {
     try {
@@ -131,7 +128,7 @@ function updateHandler(tableName) {
       );
       if (!check.length) return res.status(404).json({ error: 'Not found' });
       const updateData = stripProtected(req.body);
-      const { assignments, values } = buildUpdate(updateData, columnsOf(updateTransitionMechanism));
+      const { assignments, values } = buildUpdate(updateData, columnsOf(schema));
       const setClause = assignments ? `${assignments}, updated_at = NOW()` : 'updated_at = NOW()';
       await db.query(
         `UPDATE ${tableName} SET ${setClause} WHERE id = ? AND organization_id = ?`,
@@ -167,8 +164,8 @@ function deleteHandler(tableName) {
 
 router.get('/6rd', requirePermission('transition_mechanisms.view'), listHandler('tunnel_6rd_configs'));
 router.get('/6rd/:id', requirePermission('transition_mechanisms.view'), getOneHandler('tunnel_6rd_configs'));
-router.post('/6rd', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism, { strip: false }), createHandler('tunnel_6rd_configs'));
-router.put('/6rd/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism, { strip: false }), updateHandler('tunnel_6rd_configs'));
+router.post('/6rd', requirePermission('transition_mechanisms.create'), validate(schemas.createTunnel6rdConfig, { strip: false }), createHandler('tunnel_6rd_configs', schemas.createTunnel6rdConfig));
+router.put('/6rd/:id', requirePermission('transition_mechanisms.update'), validate(schemas.updateTunnel6rdConfig, { strip: false }), updateHandler('tunnel_6rd_configs', schemas.updateTunnel6rdConfig));
 router.delete('/6rd/:id', requirePermission('transition_mechanisms.delete'), deleteHandler('tunnel_6rd_configs'));
 
 // ---------------------------------------------------------------------------
@@ -177,8 +174,8 @@ router.delete('/6rd/:id', requirePermission('transition_mechanisms.delete'), del
 
 router.get('/ds-lite', requirePermission('transition_mechanisms.view'), listHandler('ds_lite_configs'));
 router.get('/ds-lite/:id', requirePermission('transition_mechanisms.view'), getOneHandler('ds_lite_configs'));
-router.post('/ds-lite', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism, { strip: false }), createHandler('ds_lite_configs'));
-router.put('/ds-lite/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism, { strip: false }), updateHandler('ds_lite_configs'));
+router.post('/ds-lite', requirePermission('transition_mechanisms.create'), validate(schemas.createDsLiteConfig, { strip: false }), createHandler('ds_lite_configs', schemas.createDsLiteConfig));
+router.put('/ds-lite/:id', requirePermission('transition_mechanisms.update'), validate(schemas.updateDsLiteConfig, { strip: false }), updateHandler('ds_lite_configs', schemas.updateDsLiteConfig));
 router.delete('/ds-lite/:id', requirePermission('transition_mechanisms.delete'), deleteHandler('ds_lite_configs'));
 
 // ---------------------------------------------------------------------------
@@ -187,8 +184,8 @@ router.delete('/ds-lite/:id', requirePermission('transition_mechanisms.delete'),
 
 router.get('/map-rules', requirePermission('transition_mechanisms.view'), listHandler('map_rules'));
 router.get('/map-rules/:id', requirePermission('transition_mechanisms.view'), getOneHandler('map_rules'));
-router.post('/map-rules', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism, { strip: false }), createHandler('map_rules'));
-router.put('/map-rules/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism, { strip: false }), updateHandler('map_rules'));
+router.post('/map-rules', requirePermission('transition_mechanisms.create'), validate(schemas.createMapRule, { strip: false }), createHandler('map_rules', schemas.createMapRule));
+router.put('/map-rules/:id', requirePermission('transition_mechanisms.update'), validate(schemas.updateMapRule, { strip: false }), updateHandler('map_rules', schemas.updateMapRule));
 router.delete('/map-rules/:id', requirePermission('transition_mechanisms.delete'), deleteHandler('map_rules'));
 
 // ---------------------------------------------------------------------------
@@ -197,8 +194,8 @@ router.delete('/map-rules/:id', requirePermission('transition_mechanisms.delete'
 
 router.get('/464xlat', requirePermission('transition_mechanisms.view'), listHandler('xlat464_configs'));
 router.get('/464xlat/:id', requirePermission('transition_mechanisms.view'), getOneHandler('xlat464_configs'));
-router.post('/464xlat', requirePermission('transition_mechanisms.create'), validate(createTransitionMechanism, { strip: false }), createHandler('xlat464_configs'));
-router.put('/464xlat/:id', requirePermission('transition_mechanisms.update'), validate(updateTransitionMechanism, { strip: false }), updateHandler('xlat464_configs'));
+router.post('/464xlat', requirePermission('transition_mechanisms.create'), validate(schemas.createXlat464Config, { strip: false }), createHandler('xlat464_configs', schemas.createXlat464Config));
+router.put('/464xlat/:id', requirePermission('transition_mechanisms.update'), validate(schemas.updateXlat464Config, { strip: false }), updateHandler('xlat464_configs', schemas.updateXlat464Config));
 router.delete('/464xlat/:id', requirePermission('transition_mechanisms.delete'), deleteHandler('xlat464_configs'));
 
 module.exports = router;

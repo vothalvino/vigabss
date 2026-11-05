@@ -6,7 +6,8 @@ const createVlan = {
   vlan_id: { type: 'number', required: true, min: 1, max: 4094 },
   name: { type: 'string', required: true, min: 1, max: 255 },
   description: { type: 'string', max: 5000 },
-  site_id: { type: 'number', min: 1 },
+  // vlans.site_id is NOT NULL: a create without it failed with a 500.
+  site_id: { type: 'number', required: true, min: 1 },
   status: { type: 'string', enum: ['active', 'reserved', 'deprecated'] },
 };
 

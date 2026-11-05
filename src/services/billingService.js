@@ -469,6 +469,21 @@ async function nextQuoteNumber(conn, orgId) {
 }
 
 /**
+ * The next credit note number for an organization, e.g. NC-000123, from
+ * organization_credit_note_sequences (migration 520). Run it on the
+ * transaction that inserts the credit note, so a failed insert does not
+ * burn a number.
+ *
+ * @param {object} conn - a connection in a transaction
+ * @param {number|null} orgId
+ * @returns {Promise<string>}
+ */
+async function nextCreditNoteNumber(conn, orgId) {
+  const next = await nextSequenceNumber(conn, 'organization_credit_note_sequences', orgId);
+  return `NC-${String(next).padStart(6, '0')}`;
+}
+
+/**
  * Check if a contract is currently within its free trial period.
  *
  * @param {object} contract - Contract row with start_date
@@ -1385,5 +1400,5 @@ module.exports = {
   normalizePostalCode, postalSpecMatch, resolveRegionRate,
   voidInvoiceById, cancelInvoiceForSat,
   isContractInTrial, calculateOverageCharges,
-  nextInvoiceNumber, nextQuoteNumber,
+  nextInvoiceNumber, nextQuoteNumber, nextCreditNoteNumber,
 };

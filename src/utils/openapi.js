@@ -1751,38 +1751,38 @@ function generateSpec() {
       // ---- Transition Mechanisms — §5.4 ----
       '/transition-mechanisms/6rd': {
         get: { tags: ['Transition Mechanisms'], summary: 'List 6rd configurations', operationId: 'list6rdConfigs', security: [{ bearerAuth: [] }], responses: r200('Tunnel6rdConfig[]') },
-        post: { tags: ['Transition Mechanisms'], summary: 'Create a 6rd configuration', operationId: 'create6rdConfig', security: [{ bearerAuth: [] }], requestBody: jsonBody('transitionMechanisms_createTransitionMechanism'), responses: r201('Tunnel6rdConfig') },
+        post: { tags: ['Transition Mechanisms'], summary: 'Create a 6rd configuration', operationId: 'create6rdConfig', security: [{ bearerAuth: [] }], requestBody: jsonBody('transitionMechanisms_createTunnel6rdConfig'), responses: r201('Tunnel6rdConfig') },
       },
       '/transition-mechanisms/6rd/{id}': {
         get: { tags: ['Transition Mechanisms'], summary: 'Get a 6rd configuration', operationId: 'get6rdConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Tunnel6rdConfig') },
-        put: { tags: ['Transition Mechanisms'], summary: 'Update a 6rd configuration', operationId: 'update6rdConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('transitionMechanisms_updateTransitionMechanism'), responses: r200('Tunnel6rdConfig') },
+        put: { tags: ['Transition Mechanisms'], summary: 'Update a 6rd configuration', operationId: 'update6rdConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('transitionMechanisms_updateTunnel6rdConfig'), responses: r200('Tunnel6rdConfig') },
         delete: { tags: ['Transition Mechanisms'], summary: 'Delete a 6rd configuration', operationId: 'delete6rdConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/transition-mechanisms/ds-lite': {
         get: { tags: ['Transition Mechanisms'], summary: 'List DS-Lite configurations', operationId: 'listDsLiteConfigs', security: [{ bearerAuth: [] }], responses: r200('DsLiteConfig[]') },
-        post: { tags: ['Transition Mechanisms'], summary: 'Create a DS-Lite configuration', operationId: 'createDsLiteConfig', security: [{ bearerAuth: [] }], requestBody: jsonBody('transitionMechanisms_createTransitionMechanism'), responses: r201('DsLiteConfig') },
+        post: { tags: ['Transition Mechanisms'], summary: 'Create a DS-Lite configuration', operationId: 'createDsLiteConfig', security: [{ bearerAuth: [] }], requestBody: jsonBody('transitionMechanisms_createDsLiteConfig'), responses: r201('DsLiteConfig') },
       },
       '/transition-mechanisms/ds-lite/{id}': {
         get: { tags: ['Transition Mechanisms'], summary: 'Get a DS-Lite configuration', operationId: 'getDsLiteConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('DsLiteConfig') },
-        put: { tags: ['Transition Mechanisms'], summary: 'Update a DS-Lite configuration', operationId: 'updateDsLiteConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('transitionMechanisms_updateTransitionMechanism'), responses: r200('DsLiteConfig') },
+        put: { tags: ['Transition Mechanisms'], summary: 'Update a DS-Lite configuration', operationId: 'updateDsLiteConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('transitionMechanisms_updateDsLiteConfig'), responses: r200('DsLiteConfig') },
         delete: { tags: ['Transition Mechanisms'], summary: 'Delete a DS-Lite configuration', operationId: 'deleteDsLiteConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/transition-mechanisms/map-rules': {
         get: { tags: ['Transition Mechanisms'], summary: 'List MAP rules', operationId: 'listMapRules', security: [{ bearerAuth: [] }], responses: r200('MapRule[]') },
-        post: { tags: ['Transition Mechanisms'], summary: 'Create a MAP rule', operationId: 'createMapRule', security: [{ bearerAuth: [] }], requestBody: jsonBody('transitionMechanisms_createTransitionMechanism'), responses: r201('MapRule') },
+        post: { tags: ['Transition Mechanisms'], summary: 'Create a MAP rule', operationId: 'createMapRule', security: [{ bearerAuth: [] }], requestBody: jsonBody('transitionMechanisms_createMapRule'), responses: r201('MapRule') },
       },
       '/transition-mechanisms/map-rules/{id}': {
         get: { tags: ['Transition Mechanisms'], summary: 'Get a MAP rule', operationId: 'getMapRule', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('MapRule') },
-        put: { tags: ['Transition Mechanisms'], summary: 'Update a MAP rule', operationId: 'updateMapRule', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('transitionMechanisms_updateTransitionMechanism'), responses: r200('MapRule') },
+        put: { tags: ['Transition Mechanisms'], summary: 'Update a MAP rule', operationId: 'updateMapRule', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('transitionMechanisms_updateMapRule'), responses: r200('MapRule') },
         delete: { tags: ['Transition Mechanisms'], summary: 'Delete a MAP rule', operationId: 'deleteMapRule', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
       '/transition-mechanisms/464xlat': {
         get: { tags: ['Transition Mechanisms'], summary: 'List 464XLAT configurations', operationId: 'list464XlatConfigs', security: [{ bearerAuth: [] }], responses: r200('Xlat464Config[]') },
-        post: { tags: ['Transition Mechanisms'], summary: 'Create a 464XLAT configuration', operationId: 'create464XlatConfig', security: [{ bearerAuth: [] }], requestBody: jsonBody('transitionMechanisms_createTransitionMechanism'), responses: r201('Xlat464Config') },
+        post: { tags: ['Transition Mechanisms'], summary: 'Create a 464XLAT configuration', operationId: 'create464XlatConfig', security: [{ bearerAuth: [] }], requestBody: jsonBody('transitionMechanisms_createXlat464Config'), responses: r201('Xlat464Config') },
       },
       '/transition-mechanisms/464xlat/{id}': {
         get: { tags: ['Transition Mechanisms'], summary: 'Get a 464XLAT configuration', operationId: 'get464XlatConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r200('Xlat464Config') },
-        put: { tags: ['Transition Mechanisms'], summary: 'Update a 464XLAT configuration', operationId: 'update464XlatConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('transitionMechanisms_updateTransitionMechanism'), responses: r200('Xlat464Config') },
+        put: { tags: ['Transition Mechanisms'], summary: 'Update a 464XLAT configuration', operationId: 'update464XlatConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], requestBody: jsonBody('transitionMechanisms_updateXlat464Config'), responses: r200('Xlat464Config') },
         delete: { tags: ['Transition Mechanisms'], summary: 'Delete a 464XLAT configuration', operationId: 'delete464XlatConfig', security: [{ bearerAuth: [] }], parameters: [idParam()], responses: r204() },
       },
 

@@ -15429,6 +15429,20 @@ CREATE TABLE IF NOT EXISTS organization_quote_sequences (
   COMMENT='Atomic per-organization quote-number counter (migration 389) — mirrors organization_invoice_sequences (migration 381)';
 
 -- ---------------------------------------------------------------------------
+-- Table: organization_credit_note_sequences (migration 520)
+-- Purpose: Atomic per-organization NC-###### counter for credit notes created
+--          without a number; advanced by billingService.nextCreditNoteNumber().
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS organization_credit_note_sequences (
+    organization_id BIGINT UNSIGNED NOT NULL COMMENT 'Owning tenant organisation; sentinel 0 = the NULL/single-tenant-deployment bucket',
+    next_number     BIGINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Next NC-###### sequence value to hand out; advanced atomically by billingService.nextCreditNoteNumber()',
+    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (organization_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Atomic per-organization credit note number counter (migration 520)';
+
+-- ---------------------------------------------------------------------------
 -- Seed: maintenance_window_expiry scheduled task (migration 400)
 -- Purpose: Completes maintenance_windows past their ends_at — see
 --          alertService.expireMaintenanceWindows(). Placed here (after all

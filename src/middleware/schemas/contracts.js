@@ -47,9 +47,10 @@ const updateContract = {
 const createContractAddon = {
   plan_addon_id: { type: 'number', required: true, min: 1 },
   quantity: { type: 'number', min: 1 },
+  // Omitted: the catalog add-on's price, and today.
   unit_price: { type: 'number', min: 0 },
-  start_date: { type: 'string' },
-  end_date: { type: 'string' },
+  start_date: { type: 'string', pattern: /^\d{4}-\d{2}-\d{2}$/ },
+  end_date: { type: 'string', pattern: /^\d{4}-\d{2}-\d{2}$/ },
 };
 
 // Changing an assignment: what it costs and until when. Start date and catalog

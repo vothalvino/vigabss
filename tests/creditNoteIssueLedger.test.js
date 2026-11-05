@@ -140,6 +140,8 @@ function signed(l) {
 }
 
 function fakeQuery(sql, params = []) {
+  // The credit note number sequence (migration 520).
+  if (/SELECT LAST_INSERT_ID\(\) AS id/.test(sql)) return [[{ id: 1 }]];
   const table = tableOf(sql);
 
   if (/COUNT\(\*\) AS total FROM users u\b/.test(sql)) {

@@ -143,7 +143,9 @@ router.post('/:id/assign-next', requirePermission('ip_pools.assign'), async (req
 // POST / — create pool with overlap detection
 router.post('/', requirePermission('ip_pools.create'), validate(createIpPool, { strip: false }), async (req, res, next) => {
   try {
-    const body = { ...req.body, organization_id: req.orgId };
+    // ip_version is optional and the column defaults to '4'; the overlap
+    // check bound it as undefined and failed with a 500.
+    const body = { ...req.body, ip_version: req.body.ip_version ?? '4', organization_id: req.orgId };
     await poolAssignmentService.assertNoOverlap(body);
     const pool = await IpPool.create(body);
     res.status(201).json({ data: pool });

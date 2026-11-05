@@ -443,7 +443,7 @@ describe('POST /api/v1/network-security/firewall-rules', () => {
       .post('/api/v1/network-security/firewall-rules')
       .set('Authorization', `Bearer ${adminToken()}`)
       .set('X-Org-Id', '1')
-      .send({ action: 'deny', protocol: 'tcp', priority: 100, dst_port: '22' });
+      .send({ name: 'Block SSH', action: 'deny', protocol: 'tcp', priority: 100, dst_port: '22' });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
   });
