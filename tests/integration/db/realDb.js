@@ -110,10 +110,13 @@ const COLUMN_VALUES = {
   'snmp_trap_forwarding_deliveries.webhook_id': () => SKIP,
   // A link joins two devices; the second is the organization's spare.
   'network_links.device_b_id': (org, spares) => spares.get('devices')?.[org],
+  // A factura global takes only paid invoices: the spare invoice is paid.
+  'factura_publica_invoice_items.invoice_id': (org, spares) => spares.get('invoices')?.[org],
 };
 
-// Tables that get a second row per organization, for a row that needs two.
-const SPARE_TABLES = new Set(['devices']);
+// Tables that get a second row per organization, for a row that needs two
+// or a row in another state: { table: { column: value } } on the spare.
+const SPARE_TABLES = { devices: {}, invoices: { status: 'paid' } };
 
 function scalarFor(col, mark, table, org) {
   const dt = col.dt.toLowerCase();
@@ -255,7 +258,7 @@ async function seedGeneric(db, tables, users, prior = null) {
           }
           if (!ids[org]) break;
         }
-        if (ids[ORG_A] && ids[ORG_B] && SPARE_TABLES.has(table.name)) {
+        if (ids[ORG_A] && ids[ORG_B] && SPARE_TABLES[table.name]) {
           const spare = {};
           for (const org of [ORG_A, ORG_B]) {
             // The same row, its text and numbers moved off any UNIQUE key.
@@ -266,7 +269,7 @@ async function seedGeneric(db, tables, users, prior = null) {
               if (typeof v === 'number' && !/tinyint\(1\)/.test(col.ct)) return [c, v + 10];
               return [c, v];
             }));
-            spare[org] = await insertRow(conn, table.name, row);
+            spare[org] = await insertRow(conn, table.name, { ...row, ...SPARE_TABLES[table.name] });
           }
           spares.set(table.name, spare);
         }

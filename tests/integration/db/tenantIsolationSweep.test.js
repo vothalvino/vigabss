@@ -115,6 +115,7 @@ const PATH_PARAMS = {
   '/snii-reporting/filing-events/:id': 'snii_filing_events',
   '/snii-reporting/profile/applicability/:elementType': { table: 'snii_element_applicability', column: 'element_type' },
   '/facturas-publicas/:id': 'factura_publica_invoices',
+  '/facturas-publicas/:id/items/:itemId': 'factura_publica_invoice_items',
   '/portal/kb/:slugOrId': 'portal_kb_articles',
   '/portal/chat/:token': { table: 'portal_chat_sessions', column: 'session_token' },
   '/olt-management/:id': 'devices',
@@ -407,6 +408,8 @@ describeDb(`tenant isolation against a real database (${SWEEP_LOCALE})`, () => {
 
   // One query: per table, the count and checksum of B's rows, and per id
   // column of A's tables, how many A rows point at B's row.
+  // Every part names its columns: a UNION takes them from its first part,
+  // and which table comes first depends on the schema.
   function snapshotSql() {
     const parts = [];
     const params = [];
@@ -420,11 +423,11 @@ describeDb(`tenant isolation against a real database (${SWEEP_LOCALE})`, () => {
         for (const [column, fk] of table.fks) {
           const target = idFor(fk.table);
           if (typeof target !== 'number' || fk.column !== 'id') continue;
-          parts.push(`SELECT ?, COUNT(*), 0 FROM ${quote(table.name)} WHERE organization_id = ? AND ${quote(column)} = ?`);
+          parts.push(`SELECT ? AS k, COUNT(*) AS n, 0 AS s FROM ${quote(table.name)} WHERE organization_id = ? AND ${quote(column)} = ?`);
           params.push(`x:${table.name}.${column}`, ORG_A, target);
         }
       } else if (ctx.seeded.get(table.name)?.[ORG_B]?.id !== undefined) {
-        parts.push(`SELECT ?, COUNT(*), COALESCE(SUM(${row}), 0) FROM ${quote(table.name)} WHERE id = ?`);
+        parts.push(`SELECT ? AS k, COUNT(*) AS n, COALESCE(SUM(${row}), 0) AS s FROM ${quote(table.name)} WHERE id = ?`);
         params.push(`b:${table.name}`, ctx.seeded.get(table.name)[ORG_B].id);
       }
     }
