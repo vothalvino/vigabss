@@ -27,6 +27,12 @@ const cashReconciliationService = require('../src/services/cashReconciliationSer
 describe('cashReconciliationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // closeSession runs on one transaction; its statements go through the
+    // same db.query mock so the sequences below answer them in order.
+    db.getConnection.mockResolvedValue({
+      beginTransaction: jest.fn(), commit: jest.fn(), rollback: jest.fn(), release: jest.fn(),
+      query: (...args) => db.query(...args),
+    });
   });
 
   // ===========================================================================
@@ -97,6 +103,7 @@ describe('cashReconciliationService', () => {
     test('computes expected_total from cash payments in the window', async () => {
       db.query
         .mockResolvedValueOnce([[openSession]])             // SELECT session
+        .mockResolvedValueOnce([{ affectedRows: 2 }])       // INSERT the window's payments into the snapshot
         .mockResolvedValueOnce([[{ expected_total: '200.00' }]]) // SUM payments
         .mockResolvedValueOnce([{ affectedRows: 1 }])       // UPDATE
         .mockResolvedValueOnce([[{ ...openSession, status: 'closed', expected_total: '200.00', counted_total: '220.00', variance: '20.00' }]]); // SELECT updated
@@ -104,7 +111,7 @@ describe('cashReconciliationService', () => {
       const result = await cashReconciliationService.closeSession(1, 1, 220);
 
       // Verify the UPDATE was called with the right values
-      const updateCall = db.query.mock.calls[2];
+      const updateCall = db.query.mock.calls[3];
       expect(updateCall[0]).toContain("status = 'closed'");
       expect(updateCall[1]).toContain(200);  // expectedTotal
       expect(updateCall[1]).toContain(220);  // countedTotal
@@ -113,13 +120,14 @@ describe('cashReconciliationService', () => {
     test('computes variance correctly as counted - expected', async () => {
       db.query
         .mockResolvedValueOnce([[openSession]])
+        .mockResolvedValueOnce([{ affectedRows: 2 }])       // INSERT the window's payments into the snapshot
         .mockResolvedValueOnce([[{ expected_total: '300.00' }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ ...openSession, status: 'closed', variance: '50.00' }]]);
 
       await cashReconciliationService.closeSession(1, 1, 350);
 
-      const updateCall = db.query.mock.calls[2];
+      const updateCall = db.query.mock.calls[3];
       // variance = 350 - 300 = 50
       expect(updateCall[1]).toContain(50);
     });
@@ -127,13 +135,14 @@ describe('cashReconciliationService', () => {
     test('computes negative variance correctly', async () => {
       db.query
         .mockResolvedValueOnce([[openSession]])
+        .mockResolvedValueOnce([{ affectedRows: 2 }])       // INSERT the window's payments into the snapshot
         .mockResolvedValueOnce([[{ expected_total: '500.00' }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ ...openSession, status: 'closed', variance: '-25.00' }]]);
 
       await cashReconciliationService.closeSession(1, 1, 475);
 
-      const updateCall = db.query.mock.calls[2];
+      const updateCall = db.query.mock.calls[3];
       // variance = 475 - 500 = -25
       expect(updateCall[1]).toContain(-25);
     });
@@ -157,14 +166,50 @@ describe('cashReconciliationService', () => {
     test('updates status to closed', async () => {
       db.query
         .mockResolvedValueOnce([[openSession]])
+        .mockResolvedValueOnce([{ affectedRows: 2 }])       // INSERT the window's payments into the snapshot
         .mockResolvedValueOnce([[{ expected_total: '100.00' }]])
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[{ ...openSession, status: 'closed' }]]);
 
       const result = await cashReconciliationService.closeSession(1, 1, 100);
 
-      const updateCall = db.query.mock.calls[2];
+      const updateCall = db.query.mock.calls[3];
       expect(updateCall[0]).toContain("'closed'");
+    });
+
+    // The total and the list a closed session shows come from one frozen set:
+    // the payments are copied first and expected_total is their sum.
+    test('freezes the window\'s payments and sums what it froze', async () => {
+      db.query
+        .mockResolvedValueOnce([[openSession]])
+        .mockResolvedValueOnce([{ affectedRows: 2 }])
+        .mockResolvedValueOnce([[{ expected_total: '200.00' }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([[{ ...openSession, status: 'closed' }]]);
+
+      await cashReconciliationService.closeSession(1, 1, 200);
+
+      const [lock, freeze, sum] = db.query.mock.calls;
+      expect(lock[0]).toMatch(/FOR UPDATE/);
+      expect(freeze[0]).toMatch(/INSERT INTO cash_reconciliation_session_payments[\s\S]*SELECT \?, id, organization_id, amount\s+FROM payments/);
+      expect(freeze[0]).toMatch(/created_at BETWEEN \? AND NOW\(\)/);
+      expect(freeze[1]).toEqual([1, 1, 10, openSession.opened_at]);
+      expect(sum[0]).toMatch(/FROM cash_reconciliation_session_payments\s+WHERE session_id = \? AND organization_id = \?/);
+      expect(sum[1]).toEqual([1, 1]);
+    });
+
+    test('rolls the freeze back when the session is not open', async () => {
+      const conn = {
+        beginTransaction: jest.fn(), commit: jest.fn(), rollback: jest.fn(), release: jest.fn(),
+        query: (...args) => db.query(...args),
+      };
+      db.getConnection.mockResolvedValueOnce(conn);
+      db.query.mockResolvedValueOnce([[{ ...openSession, status: 'closed' }]]);
+
+      await expect(cashReconciliationService.closeSession(1, 1, 100)).rejects.toMatchObject({ statusCode: 422 });
+      expect(conn.rollback).toHaveBeenCalled();
+      expect(conn.commit).not.toHaveBeenCalled();
+      expect(db.query.mock.calls.some(([sql]) => /INSERT INTO cash_reconciliation_session_payments/.test(sql))).toBe(false);
     });
   });
 
@@ -260,14 +305,14 @@ describe('cashReconciliationService', () => {
       ).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
     });
 
-    test('queries payments with correct org and agent filters', async () => {
+    test('queries an open session\'s payments with correct org and agent filters', async () => {
       const session = {
         id: 2,
         organization_id: 7,
         agent_user_id: 33,
         opened_at: '2025-01-01T08:00:00Z',
-        closed_at: '2025-01-01T17:00:00Z',
-        status: 'closed',
+        closed_at: null,
+        status: 'open',
       };
 
       db.query
@@ -280,6 +325,26 @@ describe('cashReconciliationService', () => {
       expect(paymentsCall[0]).toContain("payment_method = 'cash'");
       expect(paymentsCall[1]).toContain(7);   // orgId
       expect(paymentsCall[1]).toContain(33);  // agent_user_id
+    });
+
+    // A payment deleted, refunded or re-dated after the close used to drop
+    // out of a closed session's list while its expected_total stayed.
+    test('a closed session shows the payments its close froze, not the window', async () => {
+      const session = {
+        id: 2, organization_id: 7, agent_user_id: 33, status: 'approved',
+        opened_at: '2025-01-01T08:00:00Z', closed_at: '2025-01-01T17:00:00Z',
+      };
+      const frozen = [{ id: 11, amount: '100.00', current_amount: '100.00', status: 'refunded' }];
+      db.query.mockResolvedValueOnce([[session]]).mockResolvedValueOnce([frozen]);
+
+      const result = await cashReconciliationService.getSessionDetail(2, 7);
+
+      const [sql, params] = db.query.mock.calls[1];
+      expect(sql).toMatch(/JOIN payments p ON p\.id = sp\.payment_id AND p\.organization_id = sp\.organization_id/);
+      expect(sql).toMatch(/WHERE sp\.session_id = \? AND sp\.organization_id = \?/);
+      expect(sql).not.toMatch(/deleted_at IS NULL|status = 'completed'/);
+      expect(params).toEqual([2, 7]);
+      expect(result.payments).toEqual(frozen);
     });
 
     test('uses current time as window end when session is still open', async () => {

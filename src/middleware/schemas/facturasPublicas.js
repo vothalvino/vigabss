@@ -20,4 +20,9 @@ const addFacturaPublicaItem = {
   invoice_id: { type: 'number', required: true, min: 1 },
 };
 
-module.exports = { createFacturaPublica, updateFacturaPublica, addFacturaPublicaItem };
+// Link every eligible invoice of the period; with a currency, only that one's.
+const addEligibleFacturaPublicaItems = {
+  currency: { type: 'string', pattern: /^[A-Z]{3}$/ },
+};
+
+module.exports = { createFacturaPublica, updateFacturaPublica, addFacturaPublicaItem, addEligibleFacturaPublicaItems };

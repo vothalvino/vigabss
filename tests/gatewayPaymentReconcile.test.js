@@ -62,6 +62,7 @@ function freshState() {
     retries: [],
     events: [],
     chargebacks: [],
+    reps: [], // cfdi_documents of type P: { id, uuid, payment_id, organization_id, sat_status }
   };
 }
 
@@ -266,6 +267,10 @@ async function run(sql, params = []) {
     return [[{ id: ORG, database_scope: 'shared' }]];
   }
 
+  if (/^SELECT id, uuid, sat_status FROM cfdi_documents WHERE payment_id = \? AND organization_id <=> \? AND tipo_comprobante = 'P'/.test(s)) {
+    return [state.reps.filter((r) => r.payment_id === p[0] && r.organization_id === p[1]
+      && ['draft', 'vigente', 'cancel_pending'].includes(r.sat_status)).slice(0, 1).map(clone)];
+  }
   throw new Error(`fake db: unhandled SQL: ${s.slice(0, 140)}`);
 }
 
@@ -642,6 +647,45 @@ describe('refund reversal of a reconciled gateway payment', () => {
     expect(state.ledger.filter((l) => l.entry_type === 'credit')).toHaveLength(1);
     expect(state.invoices.map((i) => [i.id, i.status])).toEqual([[900, 'paid'], [901, 'issued']]);
     expect(state.transactions[0].settled_invoice_id).toBe(900);
+  });
+
+  // A staff refund is refused while a live REP reports the payment
+  // (PAYMENT_HAS_REP), but one made in the provider's dashboard arrives as a
+  // charge.refunded that has already happened. It used to reverse the payment
+  // silently, leaving the REP in force at SAT.
+  test('a provider refund of a payment a live REP reports flags the REP for cancellation', async () => {
+    const eventBus = require('../src/services/eventBus');
+    const emit = jest.spyOn(eventBus, 'emit');
+    const logger = require('../src/utils/logger');
+    addInvoice({ id: 77 });
+    addTx({ id: 1, invoice_id: 77 });
+    await paymentGatewayService.reconcilePayment(1);
+    const paymentId = state.payments[0].id;
+    state.reps.push({ id: 31, uuid: 'AAAA-REP', payment_id: paymentId, organization_id: ORG, sat_status: 'vigente' });
+    state.transactions[0].gateway_status = 'refunded';
+
+    await paymentGatewayService.reverseRefund(1);
+
+    expect(state.payments[0].status).toBe('refunded');
+    expect(emit).toHaveBeenCalledWith('payment.refunded_with_live_rep', expect.objectContaining({
+      organizationId: ORG,
+      payment: expect.objectContaining({ id: paymentId }),
+      rep: { id: 31, uuid: 'AAAA-REP', sat_status: 'vigente' },
+    }));
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ repId: 31 }), expect.stringMatching(/cancel the REP/));
+  });
+
+  test('a provider refund with no live REP raises no flag', async () => {
+    const emit = jest.spyOn(require('../src/services/eventBus'), 'emit');
+    addInvoice({ id: 77 });
+    addTx({ id: 1, invoice_id: 77 });
+    await paymentGatewayService.reconcilePayment(1);
+    state.reps.push({ id: 32, uuid: 'BBBB-REP', payment_id: state.payments[0].id, organization_id: ORG, sat_status: 'cancelado' });
+    state.transactions[0].gateway_status = 'refunded';
+
+    await paymentGatewayService.reverseRefund(1);
+
+    expect(emit).not.toHaveBeenCalledWith('payment.refunded_with_live_rep', expect.anything());
   });
 
   test('a refund after a reconciled event can never be resurrected by a redelivered success', async () => {

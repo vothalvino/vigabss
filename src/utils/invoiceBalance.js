@@ -19,6 +19,18 @@ function creditAppliedSql(alias = 'i') {
 }
 
 /**
+ * SQL for everything that has reduced the invoice aliased `alias`: its live
+ * payment allocations plus its live credit-note applications. Its total minus
+ * this is what is still owed.
+ * @param {string} [alias]
+ * @returns {string}
+ */
+function paidOrCreditedSql(alias = 'i') {
+  return `(COALESCE((SELECT SUM(pa.amount) FROM payment_allocations pa
+                     WHERE pa.invoice_id = ${alias}.id AND pa.deleted_at IS NULL), 0) + ${creditAppliedSql(alias)})`;
+}
+
+/**
  * SQL that is true when the invoice aliased `alias` is NOT being paid off
  * under an active payment plan (BIL-17). Suspension and late fees skip an
  * invoice the client is paying in installments.
@@ -31,4 +43,4 @@ function notUnderActivePlanSql(alias = 'i') {
                        WHERE ppi.invoice_id = ${alias}.id AND pp.status = 'active' AND pp.deleted_at IS NULL)`;
 }
 
-module.exports = { creditAppliedSql, notUnderActivePlanSql };
+module.exports = { creditAppliedSql, paidOrCreditedSql, notUnderActivePlanSql };

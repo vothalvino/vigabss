@@ -92,6 +92,10 @@ describe('the session window', () => {
   const OPEN = { id: 3, organization_id: 5, agent_user_id: 8, status: 'open', opened_at: '2026-10-30 09:00:00', closed_at: null };
 
   function wireSession() {
+    db.getConnection.mockResolvedValue({
+      beginTransaction: jest.fn(), commit: jest.fn(), rollback: jest.fn(), release: jest.fn(),
+      query: (...args) => db.query(...args),
+    });
     db.query.mockImplementation(async (sql) => {
       if (/FROM cash_reconciliation_sessions/.test(sql)) return [[OPEN]];
       if (/AS expected_total/.test(sql)) return [[{ expected_total: '5000.00' }]];
@@ -100,9 +104,11 @@ describe('the session window', () => {
     });
   }
 
-  for (const [name, run, re] of [
-    ['closeSession', () => cashReconciliationService.closeSession(3, 5, 5000), /AS expected_total/],
-    ['getSessionDetail', () => cashReconciliationService.getSessionDetail(3, 5), /SELECT \* FROM payments/],
+  // closeSession freezes the window's payments (its first parameter is the
+  // session id); an open session's detail reads the window directly.
+  for (const [name, run, re, skip] of [
+    ['closeSession', () => cashReconciliationService.closeSession(3, 5, 5000), /INSERT INTO cash_reconciliation_session_payments/, 1],
+    ['getSessionDetail', () => cashReconciliationService.getSessionDetail(3, 5), /SELECT \* FROM payments/, 0],
   ]) {
     it(`${name} matches on created_at and counts only live, completed payments`, async () => {
       wireSession();
@@ -112,7 +118,7 @@ describe('the session window', () => {
       expect(sql).not.toMatch(/payment_date BETWEEN/);
       expect(sql).toMatch(/status = 'completed'/);
       expect(sql).toMatch(/deleted_at IS NULL/);
-      expect(params.slice(0, 3)).toEqual([5, 8, OPEN.opened_at]);
+      expect(params.slice(skip, skip + 3)).toEqual([5, 8, OPEN.opened_at]);
     });
   }
 
