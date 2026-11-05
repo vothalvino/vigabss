@@ -22,7 +22,9 @@ describe('production container least privilege', () => {
     expect(app.environment.WG_SERVER_ENABLED).toBe('false');
     expect(app.volumes).not.toContain('wg_keys:/etc/wireguard');
     expect(app.volumes).toContain('wg_runtime:/run/fireisp-wireguard:ro');
-    expect(dockerfile).toMatch(/\nUSER fireisp\n/);
+    // The fireisp user, by its fixed uid (numeric so runAsNonRoot can check it).
+    expect(dockerfile).toMatch(/useradd --system --uid 10001 --gid fireisp --no-create-home fireisp\n/);
+    expect(dockerfile).toMatch(/\nUSER 10001:10001\n/);
   });
 
   test('only the isolated helper receives the one required capability', () => {
