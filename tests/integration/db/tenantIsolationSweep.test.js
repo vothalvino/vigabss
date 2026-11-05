@@ -53,8 +53,11 @@ const NOT_WRITTEN = [
 ];
 
 // Reviewed writes that answer 2xx with B's id in the path without touching
-// B's data. Each needs the reason; the list starts empty.
-const REVIEWED_ACCEPTED = {};
+// B's data. Each needs the reason.
+const REVIEWED_ACCEPTED = {
+  'PUT /api/v1/support/channels/:channel':
+    'the path names a channel, not a row: the upsert is keyed by the caller\'s organization and saves A\'s own config for it',
+};
 
 const quote = name => `\`${String(name).replace(/`/g, '``')}\``;
 const snake = s => s.replace(/-/g, '_').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
