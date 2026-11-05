@@ -148,44 +148,24 @@ describe('ordinary client edits are untouched', () => {
 });
 
 describe('the permission is seeded and granted, or it is a silent 403 for everyone', () => {
-  const fs = require('node:fs');
-  const path = require('node:path');
-  const sql = fs.readFileSync(
-    path.join(__dirname, '..', 'database/migrations/435_client_tax_exemption_permission.sql'), 'utf8',
-  );
+  const { baselineRows } = require('./helpers/baseline');
+  const permission = baselineRows('permissions').find(p => p.name === 'clients.tax_exemption');
+  const roleNames = new Map(baselineRows('roles').map(r => [r.id, r.name]));
+  const holders = baselineRows('role_permissions')
+    .filter(rp => rp.permission_id === permission?.id)
+    .map(rp => roleNames.get(rp.role_id));
 
   it('seeds the permission row', () => {
-    expect(sql).toMatch(/INSERT IGNORE INTO permissions/i);
-    expect(sql).toContain('clients.tax_exemption');
+    expect(permission).toBeDefined();
+    expect(permission.module).toBe('clients');
   });
 
   it('grants it to admin — an unseeded grant is a 403 nobody can explain', () => {
-    expect(sql).toMatch(/INSERT IGNORE INTO role_permissions/i);
-    expect(sql).toMatch(/WHERE\s+r\.name = 'admin'/i);
+    expect(holders).toContain('admin');
   });
 
   it('does NOT grant it to support — that is the whole point', () => {
-    expect(sql).not.toMatch(/r\.name = 'support'/i);
-  });
-
-  it('every column it INSERTs actually exists in schema.sql', () => {
-    // This migration first shipped with `group` instead of `module` and passed
-    // lint, jest, sql:check and schema:parity — sql:check only parses src/, and
-    // the jest suite mocks the database. Four real-MySQL CI jobs caught it.
-    // Cheap local guard for the same class.
-    const schema = fs.readFileSync(path.join(__dirname, '..', 'database/schema.sql'), 'utf8');
-    const inserts = [...sql.matchAll(/INSERT\s+(?:IGNORE\s+)?INTO\s+`?(\w+)`?\s*\(([^)]+)\)/gi)];
-    expect(inserts.length).toBeGreaterThan(0);
-
-    for (const [, table, colList] of inserts) {
-      const ddl = schema.match(new RegExp(`CREATE TABLE[^;]*?\\b${table}\\b[\\s\\S]*?\\n\\) ENGINE`, 'i'));
-      expect(ddl).not.toBeNull();
-      for (const raw of colList.split(',')) {
-        const col = raw.trim().replace(/`/g, '');
-        if (!col) continue;
-        expect(ddl[0]).toMatch(new RegExp(`^\\s*\`?${col}\`?\\s`, 'im'));
-      }
-    }
+    expect(holders).not.toContain('support');
   });
 });
 

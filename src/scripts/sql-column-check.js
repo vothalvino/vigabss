@@ -35,20 +35,14 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'database', 'schema.sql');
 const MIGRATIONS_DIR = path.join(REPO_ROOT, 'database', 'migrations');
 
-// Migrations are HISTORICAL. Migration 210 legitimately inserts into a table as
-// it existed then; schema.sql is the CURRENT shape. Checking all of them would
-// flag hundreds of files that were correct when written and cannot be changed.
-//
-// So: everything at or below this number is grandfathered, and every migration
-// written from now on is checked. That catches the case that actually bites — a
-// migration written today against a mis-remembered column — without needing to
-// replay DDL to reconstruct the schema as of each file.
-//
-// Raise it ONLY to grandfather a genuine historical statement, never to silence
-// a new one. Migration 435 shipped inserting into permissions(`group`); that
-// column is `module`, and it passed eslint, 7416 jest tests, sql:check and
-// schema:parity before four real-MySQL CI jobs caught it.
-const MIGRATION_CHECK_FROM = 436;
+// The baseline (001) creates every table its statements touch, so it is not
+// checked here (schema:parity and the baseline equivalence proof cover it).
+// Every migration after it is: that catches the case that actually bites — a
+// migration written today against a mis-remembered column. A development
+// migration once shipped inserting into permissions(`group`); that column is
+// `module`, and it passed eslint, 7416 jest tests, sql:check and schema:parity
+// before four real-MySQL CI jobs caught it.
+const MIGRATION_CHECK_FROM = 2;
 const SRC_DIR = path.join(REPO_ROOT, 'src');
 
 // Marker substituted for `${...}` template interpolations. Contains characters

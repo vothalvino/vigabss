@@ -16,12 +16,12 @@ test('the stamp write saves the stamping PAC environment', () => {
   expect(src).toMatch(/stampedProvider\?\.environment === 'production' \? 'production' : 'sandbox'/);
 });
 
-test('schema.sql and migration 500 add cfdi_documents.pac_environment', () => {
+test('schema.sql and the baseline have cfdi_documents.pac_environment', () => {
   const schema = read('database/schema.sql');
   const table = schema.slice(schema.indexOf('CREATE TABLE IF NOT EXISTS cfdi_documents'));
   expect(table.slice(0, table.indexOf(') ENGINE'))).toMatch(/pac_environment\s+ENUM\('sandbox', 'production'\) NULL/);
-  expect(read('database/migrations/500_cfdi_pac_environment.sql')).toMatch(/ADD COLUMN pac_environment ENUM\('sandbox', 'production'\)/);
-  expect(fs.existsSync(path.join(root, 'database/rollbacks/500_cfdi_pac_environment.sql'))).toBe(true);
+  expect(require('./helpers/baseline').baselineColumns('cfdi_documents').get('pac_environment'))
+    .toMatch(/^enum\('sandbox','production'\) .*DEFAULT NULL/);
 });
 
 describe('representación impresa', () => {

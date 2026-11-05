@@ -13,8 +13,6 @@ jest.mock('../src/config/database', () => ({
 jest.mock('../src/services/fupService', () => ({ checkFupThresholds: jest.fn(async () => ({ throttled: 1 })) }));
 jest.mock('../src/services/fupNotificationService', () => ({ checkAndNotifyThresholds: jest.fn(async () => ({ notified: 2 })) }));
 
-const fs = require('fs');
-const path = require('path');
 const db = require('../src/config/database');
 const fupService = require('../src/services/fupService');
 const fupNotificationService = require('../src/services/fupNotificationService');
@@ -39,10 +37,8 @@ test.each([
   expect(handler().mock.calls).toEqual([[1], [2]]);
 });
 
-test('convert_expired_trials is gone: no dispatcher case, and migration 519 removes its row', async () => {
+test('convert_expired_trials is gone: no dispatcher case, and no install seeds its row', async () => {
   expect((await taskRunner.runTask('convert_expired_trials')).message).toMatch(/^Unknown task/);
-  const migration = fs.readFileSync(path.join(__dirname, '..', 'database', 'migrations', '519_fup_throttle_state.sql'), 'utf8');
-  expect(migration).toMatch(/DELETE FROM scheduled_tasks\s+WHERE task_name = 'convert_expired_trials'/);
   const { migratedSeeds } = require('./helpers/scheduledTaskSeeds');
   const seeds = migratedSeeds();
   expect(seeds.find(r => r.task_name === 'convert_expired_trials')).toBeUndefined();

@@ -3,7 +3,8 @@
 // The scheduled_tasks rows a fresh install ends up with (ASY-35)
 // =============================================================================
 // Replays the INSERT, UPDATE and DELETE statements on scheduled_tasks from SQL text, in
-// order: every migration for a migrated install, or schema.sql. Only literal
+// order: the baseline and every later migration for a migrated install, or
+// schema.sql. Only literal
 // values and `task_name = ... / IN (...)` filters are understood; anything else
 // throws, so a new seed shape is noticed instead of silently skipped.
 // =============================================================================
@@ -110,7 +111,7 @@ function taskFilter(rawWhere) {
 }
 
 function apply(rows, statement) {
-  const insert = /^INSERT\s+(?:IGNORE\s+)?INTO\s+scheduled_tasks\s*\(([^)]*)\)\s*([\s\S]*)$/i.exec(statement);
+  const insert = /^INSERT\s+(?:IGNORE\s+)?INTO\s+`?scheduled_tasks`?\s*\(([^)]*)\)\s*([\s\S]*)$/i.exec(statement);
   if (insert) {
     const columns = insert[1].split(',').map(c => c.trim().replace(/`/g, ''));
     const rest = insert[2].trim();
@@ -133,7 +134,7 @@ function apply(rows, statement) {
     }
     return;
   }
-  const update = /^UPDATE\s+scheduled_tasks\s+SET\s+([\s\S]*?)\s+WHERE\s+([\s\S]*)$/i.exec(statement);
+  const update = /^UPDATE\s+`?scheduled_tasks`?\s+SET\s+([\s\S]*?)\s+WHERE\s+([\s\S]*)$/i.exec(statement);
   if (update) {
     const names = taskFilter(update[2]);
     if (!names) return; // a column backfill (task_type = '' etc.), not a per-task change
@@ -146,7 +147,7 @@ function apply(rows, statement) {
     }
     return;
   }
-  const remove = /^DELETE\s+FROM\s+scheduled_tasks\s+WHERE\s+([\s\S]*)$/i.exec(statement);
+  const remove = /^DELETE\s+FROM\s+`?scheduled_tasks`?\s+WHERE\s+([\s\S]*)$/i.exec(statement);
   if (remove) {
     const names = taskFilter(remove[1]);
     if (!names) throw new Error(`Unexpected scheduled_tasks DELETE: ${statement.slice(0, 120)}`);
@@ -158,7 +159,7 @@ function replay(sqlTexts) {
   const rows = new Map();
   for (const sql of sqlTexts) {
     for (const statement of splitTop(stripComments(sql), ';')) {
-      if (/^(INSERT\s+(IGNORE\s+)?INTO|UPDATE|DELETE\s+FROM)\s+scheduled_tasks\b/i.test(statement)) apply(rows, statement);
+      if (/^(INSERT\s+(IGNORE\s+)?INTO|UPDATE|DELETE\s+FROM)\s+`?scheduled_tasks`?/i.test(statement)) apply(rows, statement);
     }
   }
   return [...rows.values()];

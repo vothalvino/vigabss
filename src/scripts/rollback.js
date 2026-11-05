@@ -78,9 +78,9 @@ function createRollbackPool(connectionConfig) {
   });
 }
 
-function indexRollbackFiles() {
+function indexRollbackFiles(rollbacksDir) {
   const byPrefix = new Map();
-  for (const filename of fs.readdirSync(ROLLBACKS_DIR).filter(file => file.endsWith('.sql'))) {
+  for (const filename of fs.readdirSync(rollbacksDir).filter(file => file.endsWith('.sql'))) {
     const number = migrationNumber(filename);
     if (Number.isNaN(number)) continue;
     if (byPrefix.has(number)) {
@@ -194,7 +194,7 @@ async function inspectRollbackTarget(target, args, rollbackFilesByPrefix) {
   });
 }
 
-async function executeRollbackPlan(target, plan) {
+async function executeRollbackPlan(target, plan, rollbacksDir) {
   if (plan.targets.length === 0) return 0;
 
   return withRollbackPool(target.connectionConfig, async pool => {
@@ -207,7 +207,7 @@ async function executeRollbackPlan(target, plan) {
       );
 
       for (const migration of plan.targets) {
-        const sqlPath = path.join(ROLLBACKS_DIR, migration.rollbackFile);
+        const sqlPath = path.join(rollbacksDir, migration.rollbackFile);
         const sql = fs.readFileSync(sqlPath, 'utf8');
 
         logger.info(
@@ -255,7 +255,7 @@ async function executeRollbackPlan(target, plan) {
 // ---------------------------------------------------------------------------
 // Main rollback logic
 // ---------------------------------------------------------------------------
-async function performRollback(args, includeIsolatedTenants) {
+async function performRollback(args, includeIsolatedTenants, rollbacksDir) {
   // Resolve isolated connection details before changing the primary schema;
   // a rollback may itself remove or alter the isolation configuration table.
   const isolatedTargets = includeIsolatedTenants
@@ -279,14 +279,14 @@ async function performRollback(args, includeIsolatedTenants) {
     );
   }
 
-  return withMigrationLocks(targets, () => planAndExecute(targets, args, includeIsolatedTenants));
+  return withMigrationLocks(targets, () => planAndExecute(targets, args, includeIsolatedTenants, rollbacksDir));
 }
 
-async function planAndExecute(targets, args, includeIsolatedTenants) {
+async function planAndExecute(targets, args, includeIsolatedTenants, rollbacksDir) {
   // Preflight every database before making any destructive change. This both
   // calculates targets independently and prevents a missing rollback file or
   // unreachable tenant database from being discovered after primary DDL ran.
-  const rollbackFilesByPrefix = indexRollbackFiles();
+  const rollbackFilesByPrefix = indexRollbackFiles(rollbacksDir);
   const plans = [];
   for (const target of targets) {
     try {
@@ -329,7 +329,7 @@ async function planAndExecute(targets, args, includeIsolatedTenants) {
   for (let index = 0; index < targets.length; index++) {
     const target = targets[index];
     try {
-      completed += await executeRollbackPlan(target, plans[index]);
+      completed += await executeRollbackPlan(target, plans[index], rollbacksDir);
     } catch (err) {
       logger.error(
         { err, target: target.label, completed },
@@ -345,6 +345,7 @@ async function planAndExecute(targets, args, includeIsolatedTenants) {
   );
 }
 
+// options.rollbacksDir is for tests; installs always read database/rollbacks.
 async function runRollback(inputArgs, options = {}) {
   const args = { step: 1, to: null, dryRun: false, ...inputArgs };
   const includeIsolatedTenants = options.includeIsolatedTenants
@@ -353,7 +354,7 @@ async function runRollback(inputArgs, options = {}) {
   let result;
 
   try {
-    result = await performRollback(args, includeIsolatedTenants);
+    result = await performRollback(args, includeIsolatedTenants, options.rollbacksDir || ROLLBACKS_DIR);
   } catch (err) {
     runError = err;
   }

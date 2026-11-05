@@ -96,7 +96,15 @@ async function snapshot(conn, schema) {
       FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME`, [schema]);
   const events = await rows(conn, `
     SELECT EVENT_NAME AS \`name\`, EVENT_DEFINITION AS \`body\`, INTERVAL_VALUE AS \`intervalValue\`, INTERVAL_FIELD AS \`intervalField\`,
-           EVENT_TYPE AS \`type\`, STATUS AS \`status\`, ON_COMPLETION AS \`onCompletion\`, SQL_MODE AS \`sqlMode\`
+           EVENT_TYPE AS \`type\`, STATUS AS \`status\`, ON_COMPLETION AS \`onCompletion\`, SQL_MODE AS \`sqlMode\`,
+           -- The first run relative to creation (absolute times differ per
+           -- install): days later and time of day, or for hourly events the
+           -- hours later and minute past the hour.
+           CASE WHEN INTERVAL_FIELD = 'HOUR'
+                THEN CONCAT('+', TIMESTAMPDIFF(HOUR, DATE_FORMAT(CREATED, '%Y-%m-%d %H:00:00'),
+                                              DATE_FORMAT(STARTS, '%Y-%m-%d %H:00:00')), 'h :', DATE_FORMAT(STARTS, '%i'))
+                ELSE CONCAT('+', DATEDIFF(STARTS, CREATED), 'd ', DATE_FORMAT(STARTS, '%H:%i:%s'))
+           END AS \`startsAfterCreate\`
       FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME`, [schema]);
 
   const timeColumns = new Map();

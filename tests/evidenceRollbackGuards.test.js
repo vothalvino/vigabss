@@ -1,35 +1,52 @@
 // =============================================================================
 // DB-14 — evidence-destroying rollbacks fail closed
 // =============================================================================
-// Rollback 447 dropped signed_documents without a word, and rollback 451
-// dropped evidence hashes and consent provenance. Both now refuse, before any
-// destructive statement, while that evidence exists (as rollback 452 does).
+// A development rollback once dropped signed_documents without a word, and
+// another dropped evidence hashes and consent provenance. The baseline has no
+// rollback at all, so that history cannot be undone; every later rollback that
+// drops or deletes evidence must refuse first, before its first destructive
+// statement, while that evidence exists (SIGNAL SQLSTATE '45000').
 
 const fs = require('fs');
 const path = require('path');
 
-const read = f => fs.readFileSync(path.join(__dirname, '../database/rollbacks', f), 'utf8');
+const ROLLBACKS = path.join(__dirname, '../database/rollbacks');
 
-function preflightRunsFirst(sql, procedure) {
-  const call = sql.indexOf(`CALL ${procedure}();`);
-  const firstDestructive = sql.search(/\b(DROP TABLE|DROP COLUMN|DELETE FROM|DELETE rp|MODIFY COLUMN|UPDATE signed_documents)\b/);
-  expect(call).toBeGreaterThan(-1);
-  expect(call).toBeLessThan(firstDestructive);
+// Tables whose rows are legal or regulatory evidence.
+const EVIDENCE_TABLES = [
+  'signed_documents', 'subscriber_consents', 'audit_logs', 'connection_logs',
+  'radius_accounting_events', 'ip_attribution_case_evidence', 'preservation_holds',
+  'government_data_requests', 'cfdi_documents',
+];
+
+const DESTRUCTIVE = new RegExp(
+  `\\b(?:DROP TABLE(?: IF EXISTS)?|DELETE FROM|TRUNCATE(?: TABLE)?|ALTER TABLE)\\s+\`?(${EVIDENCE_TABLES.join('|')})\\b[^;]*`,
+  'gi',
+);
+
+function offenders(sql) {
+  const found = [];
+  for (const m of sql.matchAll(DESTRUCTIVE)) {
+    const statement = m[0];
+    if (/^ALTER TABLE/i.test(statement) && !/\bDROP\b/i.test(statement)) continue;
+    const before = sql.slice(0, m.index);
+    if (!/SIGNAL SQLSTATE '45000'/.test(before)) found.push(statement.slice(0, 80));
+  }
+  return found;
 }
 
-test('rollback 447 refuses while any signed document exists', () => {
-  const sql = read('447_legal_document_signing.sql');
-  expect(sql).toMatch(/DESTRUCTIVE/);
-  expect(sql).toMatch(/IF EXISTS \(SELECT 1 FROM signed_documents LIMIT 1\) THEN\s+SIGNAL SQLSTATE '45000'/);
-  preflightRunsFirst(sql, 'rollback_447_legal_document_signing_preflight');
+test('the rule catches an unguarded drop and accepts a guarded one', () => {
+  expect(offenders('DROP TABLE signed_documents;')).toHaveLength(1);
+  expect(offenders('ALTER TABLE subscriber_consents DROP COLUMN captured_by;')).toHaveLength(1);
+  expect(offenders('ALTER TABLE subscriber_consents ADD COLUMN x INT;')).toHaveLength(0);
+  expect(offenders(`IF EXISTS (SELECT 1 FROM signed_documents LIMIT 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'evidence exists';
+  END IF;
+  DROP TABLE signed_documents;`)).toHaveLength(0);
 });
 
-test.each([
-  ['signed_documents', 'evidence_sha256'], ['signed_documents', 'captured_by'], ['signed_documents', 'communication_choices'],
-  ['subscriber_consents', 'captured_by'], ['subscriber_consents', 'signed_document_id'], ['subscriber_consents', 'source_context'],
-])('rollback 451 refuses while %s.%s is populated', (table, column) => {
-  const sql = read('451_installation_consent_and_global_acknowledgment.sql');
-  expect(sql).toContain(`TABLE_NAME = '${table}' AND COLUMN_NAME = '${column}'`);
-  expect(sql).toContain(`SELECT 1 FROM ${table} WHERE ${column} IS NOT NULL LIMIT 1`);
-  preflightRunsFirst(sql, 'rollback_451_installation_consent_preflight');
+test('no rollback destroys evidence without refusing first', () => {
+  const bad = fs.readdirSync(ROLLBACKS).filter(f => f.endsWith('.sql'))
+    .flatMap(file => offenders(fs.readFileSync(path.join(ROLLBACKS, file), 'utf8')).map(s => `${file}: ${s}`));
+  expect(bad).toEqual([]);
 });

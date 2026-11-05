@@ -15244,37 +15244,37 @@ DROP PROCEDURE IF EXISTS baseline_ensure_snmp_partitions;
 
 DROP EVENT IF EXISTS `evt_connection_logs_partition_maintenance`;
 DELIMITER ;;
-CREATE EVENT `evt_connection_logs_partition_maintenance` ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE ENABLE COMMENT 'Materialize current/+3 connection_logs partitions; application retention owns deletion' DO CALL connection_logs_maintain_partitions() ;;
+CREATE EVENT `evt_connection_logs_partition_maintenance` ON SCHEDULE EVERY 1 DAY STARTS (CURRENT_DATE + INTERVAL 1 DAY + INTERVAL 3 HOUR + INTERVAL 30 MINUTE) ON COMPLETION PRESERVE ENABLE COMMENT 'Materialize current/+3 connection_logs partitions; application retention owns deletion' DO CALL connection_logs_maintain_partitions() ;;
 DELIMITER ;
 
 DROP EVENT IF EXISTS `evt_snmp_partition_maintenance`;
 DELIMITER ;;
-CREATE EVENT `evt_snmp_partition_maintenance` ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE ENABLE COMMENT 'Maintain snmp_metrics monthly partitions: add future, drop expired' DO CALL snmp_maintain_partitions() ;;
+CREATE EVENT `evt_snmp_partition_maintenance` ON SCHEDULE EVERY 1 DAY STARTS (CURRENT_DATE + INTERVAL 1 DAY + INTERVAL 3 HOUR) ON COMPLETION PRESERVE ENABLE COMMENT 'Maintain snmp_metrics monthly partitions: add future, drop expired' DO CALL snmp_maintain_partitions() ;;
 DELIMITER ;
 
 DROP EVENT IF EXISTS `evt_snmp_retention`;
 DELIMITER ;;
-CREATE EVENT `evt_snmp_retention` ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE ENABLE COMMENT 'Purge SNMP data: 1hr>7d, 1day>90d, 1month>3yr' DO CALL snmp_apply_retention() ;;
+CREATE EVENT `evt_snmp_retention` ON SCHEDULE EVERY 1 DAY STARTS (CURRENT_DATE + INTERVAL 1 DAY + INTERVAL 2 HOUR) ON COMPLETION PRESERVE ENABLE COMMENT 'Purge SNMP data: 1hr>7d, 1day>90d, 1month>3yr' DO CALL snmp_apply_retention() ;;
 DELIMITER ;
 
 DROP EVENT IF EXISTS `evt_snmp_rollup_1day`;
 DELIMITER ;;
-CREATE EVENT `evt_snmp_rollup_1day` ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE ENABLE COMMENT 'Aggregate hourly SNMP rows into snmp_metrics_1day once per day' DO CALL snmp_rollup_to_1day() ;;
+CREATE EVENT `evt_snmp_rollup_1day` ON SCHEDULE EVERY 1 DAY STARTS (CURRENT_DATE + INTERVAL 1 DAY + INTERVAL 30 MINUTE) ON COMPLETION PRESERVE ENABLE COMMENT 'Aggregate hourly SNMP rows into snmp_metrics_1day once per day' DO CALL snmp_rollup_to_1day() ;;
 DELIMITER ;
 
 DROP EVENT IF EXISTS `evt_snmp_rollup_1hr`;
 DELIMITER ;;
-CREATE EVENT `evt_snmp_rollup_1hr` ON SCHEDULE EVERY 1 HOUR ON COMPLETION PRESERVE ENABLE COMMENT 'Aggregate raw SNMP samples into snmp_metrics_1hr every hour' DO CALL snmp_rollup_to_1hr() ;;
+CREATE EVENT `evt_snmp_rollup_1hr` ON SCHEDULE EVERY 1 HOUR STARTS DATE_FORMAT(NOW() + INTERVAL 1 HOUR, '%Y-%m-%d %H:05:00') ON COMPLETION PRESERVE ENABLE COMMENT 'Aggregate raw SNMP samples into snmp_metrics_1hr every hour' DO CALL snmp_rollup_to_1hr() ;;
 DELIMITER ;
 
 DROP EVENT IF EXISTS `evt_snmp_rollup_1month`;
 DELIMITER ;;
-CREATE EVENT `evt_snmp_rollup_1month` ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE ENABLE COMMENT 'Aggregate daily SNMP rows into snmp_metrics_1month once per day' DO CALL snmp_rollup_to_1month() ;;
+CREATE EVENT `evt_snmp_rollup_1month` ON SCHEDULE EVERY 1 DAY STARTS (CURRENT_DATE + INTERVAL 1 DAY + INTERVAL 1 HOUR) ON COMPLETION PRESERVE ENABLE COMMENT 'Aggregate daily SNMP rows into snmp_metrics_1month once per day' DO CALL snmp_rollup_to_1month() ;;
 DELIMITER ;
 
 DROP EVENT IF EXISTS `evt_subscriber_logging_partition_maintenance`;
 DELIMITER ;;
-CREATE EVENT `evt_subscriber_logging_partition_maintenance` ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE ENABLE DO CALL subscriber_logging_maintain_partitions() ;;
+CREATE EVENT `evt_subscriber_logging_partition_maintenance` ON SCHEDULE EVERY 1 DAY STARTS (CURRENT_DATE + INTERVAL 1 DAY + INTERVAL 3 HOUR) ON COMPLETION PRESERVE ENABLE DO CALL subscriber_logging_maintain_partitions() ;;
 DELIMITER ;
 
 

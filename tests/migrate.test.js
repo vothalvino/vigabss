@@ -7,6 +7,8 @@
 // DELIMITER $$ to define stored procedures.
 // =============================================================================
 
+const fs = require('fs');
+const path = require('path');
 const { splitStatements } = require('../src/scripts/migrate');
 
 describe('splitStatements()', () => {
@@ -92,19 +94,26 @@ CREATE EVENT IF NOT EXISTS evt ON SCHEDULE EVERY 1 HOUR DO CALL p();
     expect(stmts[1]).toContain('CREATE EVENT');
   });
 
-  test('real migration 028 content is split into >1 statement', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const sql028 = fs.readFileSync(
-      path.resolve(__dirname, '../database/migrations/028_create_snmp_rollup_events.sql'),
+  // The baseline carries every routine, trigger and event between
+  // DELIMITER ;; lines, plus multi-line CREATE TABLEs with ';' in comments.
+  test('the baseline splits into one statement per object and seed row', () => {
+    const sql = fs.readFileSync(
+      path.resolve(__dirname, '../database/migrations/001_baseline.sql'),
       'utf8',
     );
-    const stmts = splitStatements(sql028);
-    // Expects at minimum: header+CREATE TABLE, INSERT IGNORE block, 4 procedures, 4 events = 10+
-    expect(stmts.length).toBeGreaterThanOrEqual(10);
-    // No statement should begin with DELIMITER
-    for (const s of stmts) {
-      expect(s.trim().toUpperCase()).not.toMatch(/^DELIMITER/);
-    }
+    // A statement may start with the section comment above it.
+    const stmts = splitStatements(sql).map(s => s.replace(/^(?:\s*--[^\n]*\n)+/, '').trim());
+    const count = re => stmts.filter(s => re.test(s)).length;
+
+    expect(count(/^CREATE TABLE `/)).toBe((sql.match(/^CREATE TABLE `/gm) || []).length);
+    expect(count(/^INSERT INTO `/)).toBe((sql.match(/^INSERT INTO `/gm) || []).length);
+    expect(count(/^CREATE (PROCEDURE|FUNCTION) `/)).toBe((sql.match(/^CREATE (PROCEDURE|FUNCTION) `/gm) || []).length);
+    expect(count(/^CREATE TRIGGER `/)).toBe((sql.match(/^CREATE TRIGGER `/gm) || []).length);
+    expect(count(/^CREATE EVENT `/)).toBe((sql.match(/^CREATE EVENT `/gm) || []).length);
+    // No statement carries a DELIMITER directive or a leftover terminator.
+    expect(stmts.some(s => /^\s*DELIMITER\b/im.test(s) || /;;\s*$/.test(s))).toBe(false);
+    // A routine stays one statement, its body semicolons included.
+    const proc = stmts.find(s => s.startsWith('CREATE PROCEDURE `connection_logs_maintain_partitions`'));
+    expect(proc).toMatch(/^CREATE PROCEDURE[\s\S]*REORGANIZE PARTITION[\s\S]*END WHILE;\s*END$/);
   });
 });

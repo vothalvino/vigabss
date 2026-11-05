@@ -119,7 +119,8 @@ async function ensureChecksumColumn(conn) {
   }
 }
 
-async function applyMigrations(migrationPool, label = 'primary') {
+// migrationsDir is for tests; installs always read database/migrations.
+async function applyMigrations(migrationPool, label = 'primary', { migrationsDir = MIGRATIONS_DIR } = {}) {
 
   let conn;
   let migrationLockName;
@@ -156,12 +157,12 @@ async function applyMigrations(migrationPool, label = 'primary') {
     const appliedChecksums = new Map(applied.map(r => [r.filename, r.checksum]));
 
     // DB-21: numeric order, so '1000_x.sql' runs after '999_x.sql'.
-    const files = listMigrationFiles(MIGRATIONS_DIR);
+    const files = listMigrationFiles(migrationsDir);
 
     let count = 0;
     const changed = [];
     for (const file of files) {
-      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
       const checksum = migrationChecksum(sql);
       if (appliedChecksums.has(file)) {
         const recorded = appliedChecksums.get(file);
