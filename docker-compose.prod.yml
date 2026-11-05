@@ -60,7 +60,7 @@ services:
 
   # ── MySQL primary (write node) ──────────────────────────────────────────────
   db-primary:
-    image: mysql:8.4.13@sha256:a0225d1ea6631c8bc2385dc4c2faba17bbf1834ecf369e1659a9a382bd8d5dd7
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     restart: unless-stopped
     networks:
       - backend
@@ -100,7 +100,7 @@ services:
 
   # ── MySQL replica (read node) ───────────────────────────────────────────────
   db-replica:
-    image: mysql:8.4.13@sha256:a0225d1ea6631c8bc2385dc4c2faba17bbf1834ecf369e1659a9a382bd8d5dd7
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     restart: unless-stopped
     networks:
       - backend
@@ -397,7 +397,7 @@ services:
 
   # ── Nginx reverse proxy ───────────────────────────────────────────────────
   nginx:
-    image: nginx:1.30.6-alpine@sha256:0e52bd054126cdc040b1276c0af347aeb02a41b9cfe305d6094767ac30e97949
+    image: nginx:1.30.6-alpine@sha256:dc06c17afbc08d6fe9fbe48159aa81459da2b56baddddc45002f1a68ef77e256
     restart: unless-stopped
     networks:
       - frontend
