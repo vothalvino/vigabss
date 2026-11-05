@@ -268,7 +268,7 @@ async function getReadiness(organizationId, { includeCgnat = true } = {}) {
   const activeContracts = Number(contractRow.total || 0);
   const lastSession = projectionRow.last_received_at || sessionRow.last_received_at;
   const sessionConfigured = Boolean(lastSession || control.session_tokens
-    || (!isolated && (config.radiusServer?.enabled || process.env.RADIUS_ACCOUNTING_SECRET)));
+    || (!isolated && config.radiusServer?.enabled));
   const sessionReceiving = isRecent(lastSession, sessionStale);
   const latestSessionTimeline = projectionRow.last_projection_at || sessionRow.latest_event_at;
   const sessionTimelineCurrent = isRecent(latestSessionTimeline, sessionStale);
@@ -400,4 +400,4 @@ async function getReadiness(organizationId, { includeCgnat = true } = {}) {
   };
 }
 
-module.exports = { getReadiness, isRecent, positiveEnv, sourceStatus };
+module.exports = { getReadiness, isRecent, positiveEnv, sourceStatus, tokenState };

@@ -2446,7 +2446,7 @@
         "accounting_embedded_not_running": "Embedded RADIUS accounting is enabled but the server is not running.",
         "accounting_waiting": "Accounting ingest is configured, but no records were received in the last 24 hours.",
         "accounting_not_configured_isolated": "No accounting records have reached this isolated database. Use a tenant-local accounting feed.",
-        "accounting_not_configured": "No accounting feed is configured. Enable embedded RADIUS or configure the shared-secret FreeRADIUS accounting endpoint."
+        "accounting_not_configured": "No accounting feed is configured. Enable embedded RADIUS or create a connection_logs:ingest API token for FreeRADIUS."
       }
     },
     "reasons": {

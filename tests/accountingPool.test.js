@@ -93,28 +93,5 @@ describe('the accounting pool', () => {
   });
 });
 
-describe('the accounting route', () => {
-  test('runs the whole ingest inside the accounting lane', async () => {
-    jest.resetModules();
-    // The pool tests above mock mysql2; the app needs the real module (it
-    // makes no connection on this path).
-    jest.dontMock('mysql2/promise');
-    jest.dontMock('../src/utils/dbMetrics');
-    const db = require('../src/config/database');
-    const lane = jest.spyOn(db, 'withAccountingPool');
-    const request = require('supertest');
-    const app = require('../src/app');
-    const previous = process.env.RADIUS_ACCOUNTING_SECRET;
-    delete process.env.RADIUS_ACCOUNTING_SECRET;
-    try {
-      // With no secret configured the handler answers 503 before any query:
-      // what matters is that it ran inside the lane.
-      const res = await request(app).post('/api/v1/radius/accounting').send({});
-      expect(res.status).toBe(503);
-      expect(lane).toHaveBeenCalledTimes(1);
-    } finally {
-      if (previous !== undefined) process.env.RADIUS_ACCOUNTING_SECRET = previous;
-      await db.close();
-    }
-  });
-});
+// The route that runs inside the lane is covered in
+// tests/radiusTenantAccounting.test.js.

@@ -8,10 +8,12 @@ jest.mock('../src/config/database', () => ({
 }));
 jest.mock('../src/services/radiusServerService', () => ({ getStatus: jest.fn() }));
 jest.mock('../src/services/routerProvisioningService', () => ({ nasToConn: jest.fn() }));
+jest.mock('../src/services/connectionLoggingReadinessService', () => ({ tokenState: jest.fn() }));
 
 const db = require('../src/config/database');
 const radiusServerService = require('../src/services/radiusServerService');
 const routerProvisioningService = require('../src/services/routerProvisioningService');
+const { tokenState } = require('../src/services/connectionLoggingReadinessService');
 const {
   buildAccountingSource,
   buildAuthenticationSource,
@@ -34,7 +36,7 @@ describe('pppoeReadinessService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    delete process.env.RADIUS_ACCOUNTING_SECRET;
+    tokenState.mockResolvedValue({ session_tokens: 0 });
     db.getTenantConnectionConfig.mockResolvedValue(null);
     radiusServerService.getStatus.mockReturnValue(stopped);
     routerProvisioningService.nasToConn.mockImplementation((nas) => {
@@ -128,7 +130,8 @@ describe('pppoeReadinessService', () => {
   });
 
   test('returns partial when only some telemetry/RouterOS coverage is ready', async () => {
-    process.env.RADIUS_ACCOUNTING_SECRET = 'configured';
+    // A FreeRADIUS collector token exists, but nothing has arrived yet.
+    tokenState.mockResolvedValue({ session_tokens: 1 });
     const recent = new Date('2026-08-14T12:00:00Z');
     mockSources({
       auth: { last_received_at: recent, events_24h: 8 },
@@ -149,6 +152,7 @@ describe('pppoeReadinessService', () => {
     expect(accountingSql).not.toContain('JOIN nas');
     expect(accountingSql).not.toContain('cl.username');
     expect(accountingParams).toEqual([4]);
+    expect(tokenState).toHaveBeenCalledWith(4, false);
   });
 
   test('returns ready when all three tenant sources have recent events and full NAS coverage', async () => {
@@ -316,7 +320,6 @@ describe('pppoeReadinessService', () => {
   });
 
   test('does not claim install-wide RADIUS feeds configure an isolated tenant', async () => {
-    process.env.RADIUS_ACCOUNTING_SECRET = 'install-wide-secret';
     db.getTenantConnectionConfig.mockResolvedValue({ database: 'tenant_44' });
     radiusServerService.getStatus.mockReturnValue({
       enabled: true, running: true, authPort: 1812, acctPort: 1813, counters: {},
@@ -335,5 +338,17 @@ describe('pppoeReadinessService', () => {
       detailCode: 'accounting_not_configured_isolated', detailParams: {},
     });
     expect(result.sources.accounting.detail).toContain('isolated database');
+  });
+
+  test('a collector token configures accounting, isolated database or not', async () => {
+    // The token fixes the organization, so POST /radius/accounting/tenant
+    // reaches an isolated tenant's own database.
+    tokenState.mockResolvedValue({ session_tokens: 1 });
+    db.getTenantConnectionConfig.mockResolvedValue({ database: 'tenant_44' });
+    mockSources();
+
+    const result = await getReadiness(44);
+
+    expect(result.sources.accounting).toMatchObject({ status: 'waiting', detailCode: 'accounting_waiting' });
   });
 });

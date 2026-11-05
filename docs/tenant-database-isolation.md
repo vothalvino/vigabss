@@ -113,8 +113,7 @@ This clears connection fields from the control-plane config and invalidates the 
   `POST /api/v1/radius/accounting/tenant` with an API token owned by that
   organization and scoped to `connection_logs:ingest`. This explicit tenant
   context remains safe when Global and isolated organizations reuse the same
-  username or RFC1918 NAS address. The install-wide shared-secret accounting
-  endpoint can only accept a NAS address that is unique across every database.
+  username or RFC1918 NAS address.
   The API token must contain exactly that one scope, and its active owner must
   have `connection_logs.ingest`; JWT, wildcard, write, or multi-scope tokens are
   not accounting collector credentials.

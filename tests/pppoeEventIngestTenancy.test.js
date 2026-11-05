@@ -4,7 +4,9 @@
 // POST /pppoe/events took an install-wide secret (or, failing that, the RADIUS
 // accounting secret) and stamped whatever organization owned the caller's
 // nas_id. The pppoe.events_ingest permission was seeded but never checked,
-// and the path shared the general API budget.
+// and the path shared the general API budget. That shared-secret path was
+// removed before the first release; POST /pppoe/events/tenant is the only
+// ingest, and an organization API token fixes the tenant.
 
 const fs = require('fs');
 const path = require('path');
@@ -51,38 +53,18 @@ const collectorToken = { id: 9, role: 'technician', organizationId: 2, apiTokenI
 
 beforeEach(() => {
   jest.clearAllMocks();
-  delete process.env.PPPOE_EVENTS_SECRET;
-  delete process.env.RADIUS_ACCOUNTING_SECRET;
   mockCurrentUser = { ...collectorToken };
   PppoeEventLog.create.mockImplementation(async data => ({ id: 1, ...data }));
 });
 
-afterAll(() => {
-  delete process.env.PPPOE_EVENTS_SECRET;
-  delete process.env.RADIUS_ACCOUNTING_SECRET;
-});
-
-describe('shared-secret ingest', () => {
-  test('the RADIUS accounting secret no longer opens POST /pppoe/events', async () => {
-    process.env.RADIUS_ACCOUNTING_SECRET = 'radius-acct-secret';
+describe('the removed shared-secret path', () => {
+  test('POST /pppoe/events is not an ingest route any more', async () => {
     const res = await request(app)
       .post('/pppoe/events')
-      .set('X-Pppoe-Secret', 'radius-acct-secret')
+      .set('X-Pppoe-Secret', 'anything')
       .send({ nas_id: 5, message: 'forged' });
 
-    expect(res.status).toBe(401);
-    expect(db.query).not.toHaveBeenCalled();
-    expect(PppoeEventLog.create).not.toHaveBeenCalled();
-  });
-
-  test('a timestamp weeks in the past is rejected', async () => {
-    process.env.PPPOE_EVENTS_SECRET = 'pppoe-secret';
-    const res = await request(app)
-      .post('/pppoe/events')
-      .set('X-Pppoe-Secret', 'pppoe-secret')
-      .send({ nas_id: 5, message: 'backdated', logged_at: new Date(Date.now() - 30 * 86400000).toISOString() });
-
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(404);
     expect(PppoeEventLog.create).not.toHaveBeenCalled();
   });
 });
@@ -101,6 +83,15 @@ describe('POST /pppoe/events/tenant', () => {
     expect(res.status).toBe(422);
     expect(db.query.mock.calls[0][0]).toMatch(/organization_id = \?/);
     expect(db.query.mock.calls[0][1]).toEqual([5, 2]);
+    expect(PppoeEventLog.create).not.toHaveBeenCalled();
+  });
+
+  test('a timestamp weeks in the past is rejected', async () => {
+    const res = await request(app)
+      .post('/pppoe/events/tenant')
+      .send({ nas_id: 5, message: 'backdated', logged_at: new Date(Date.now() - 30 * 86400000).toISOString() });
+
+    expect(res.status).toBe(422);
     expect(PppoeEventLog.create).not.toHaveBeenCalled();
   });
 
@@ -136,10 +127,9 @@ describe('scope and limiter wiring', () => {
     expect(scopeAllowsPermission(['*:write'], 'pppoe_events.ingest')).toBe(false);
   });
 
-  test('both ingest paths use the collector limiter; the staff event list does not', () => {
-    for (const url of ['/api/v1/pppoe/events', '/api/v1/pppoe/events/tenant', '/api/v1/pppoe/events']) {
-      expect(isCollectorPath({ method: 'POST', originalUrl: url })).toBe(true);
-    }
+  test('the ingest path uses the collector limiter; the staff event list does not', () => {
+    expect(isCollectorPath({ method: 'POST', originalUrl: '/api/v1/pppoe/events/tenant' })).toBe(true);
+    expect(isCollectorPath({ method: 'POST', originalUrl: '/api/v1/pppoe/events' })).toBe(false);
     expect(isCollectorPath({ method: 'GET', originalUrl: '/api/v1/pppoe/events?page=2' })).toBe(false);
   });
 
