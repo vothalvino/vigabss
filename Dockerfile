@@ -57,7 +57,12 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends wireguard-tools iproute2 nftables default-mysql-client \
   && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --system fireisp && useradd --system --gid fireisp --no-create-home fireisp
+# A fixed uid/gid the Kubernetes manifests run as (runAsUser/runAsGroup/
+# fsGroup 10001): `--system` alone took whatever id the base image left free,
+# and 10001 matches no base-image user (node is 1000) and no human account on
+# the host.
+RUN groupadd --system --gid 10001 fireisp \
+  && useradd --system --uid 10001 --gid fireisp --no-create-home fireisp
 
 WORKDIR /app
 
@@ -90,7 +95,8 @@ RUN mkdir -p /app/storage && chown -R fireisp:fireisp /app/storage
 # web/API process never mounts this directory and always retains USER fireisp.
 RUN mkdir -p /etc/wireguard && chmod 700 /etc/wireguard
 
-USER fireisp
+# Numeric, so Kubernetes' runAsNonRoot can verify the image's user itself.
+USER 10001:10001
 
 # The commit this image was built from. Nothing in the running app knew this
 # before: package.json carries a release number, not the exact source revision.

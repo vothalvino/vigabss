@@ -41,8 +41,10 @@ podLabels: {}
 ## Pod-level security context.
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
-  fsGroup: 1000
+  # The image's fireisp user (Dockerfile).
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
   seccompProfile:
     type: RuntimeDefault
 
@@ -145,6 +147,24 @@ networkPolicy:
   ## Namespaces whose pods may reach the HTTP port (kubernetes.io/metadata.name).
   ingressNamespaces: ["ingress-nginx"]
   metricsNamespaces: ["monitoring"]
+  ## Outbound traffic. Off by default: devices, NAS, payment, fiscal (PAC) and
+  ## messaging providers live anywhere, so only you know where the app must
+  ## reach. When enabled, everything not listed below is dropped.
+  egress:
+    enabled: false
+    ## DNS through kube-dns in kube-system.
+    allowDns: true
+    ## The release's own namespace (MySQL, Redis, ChromaDB in the same namespace).
+    allowReleaseNamespace: true
+    ## Other namespaces the app may reach (kubernetes.io/metadata.name).
+    namespaces: []
+    ## Address ranges outside the cluster, each with optional except and ports:
+    ##   - cidr: 10.20.0.0/16          # NAS, OLTs, CPE management network
+    ##     ports: [{port: 1812, protocol: UDP}, {port: 3799, protocol: UDP}]
+    ##   - cidr: 0.0.0.0/0             # payment, PAC and messaging APIs
+    ##     except: [10.0.0.0/8]
+    ##     ports: [{port: 443, protocol: TCP}]
+    cidrs: []
 
 ## Leave false: `helm install --create-namespace` creates the namespace. Set
 ## true only when this release should own (and on uninstall delete) it.

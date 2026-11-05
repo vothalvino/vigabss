@@ -1987,6 +1987,15 @@ Secure defaults (OPS-17):
   (default `ingress-nginx`) and `metricsNamespaces` (default `monitoring`) under
   `networkPolicy`. Adjust them to your controller's and Prometheus's namespaces,
   or the ingress returns 502/504.
+- **Egress is open unless you restrict it.** Devices, NAS, payment, fiscal
+  (PAC) and messaging providers live anywhere, so the chart cannot guess where
+  the app must reach. Set `networkPolicy.egress.enabled: true` and list them:
+  DNS (`allowDns`) and the release namespace (`allowReleaseNamespace`, for an
+  in-namespace MySQL/Redis) are allowed by default; add other `namespaces` and
+  `cidrs` (each with optional `except` and `ports`), for example your device
+  management network and `0.0.0.0/0` on TCP 443 for provider APIs. Anything
+  not listed is dropped, so check RADIUS CoA, SNMP polling, SMTP and the PAC
+  after enabling it.
 - **Pod Security.** The pod meets the `restricted` profile. A namespace created
   with `--create-namespace` carries no PSA labels; add them with
   `kubectl label ns fireisp pod-security.kubernetes.io/enforce=restricted`.
