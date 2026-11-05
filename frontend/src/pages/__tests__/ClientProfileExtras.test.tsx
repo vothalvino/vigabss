@@ -17,9 +17,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { ProfileExtrasTab } from '../ClientProfileTabs';
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (k: string, f?: string) => f ?? k, i18n: { changeLanguage: vi.fn() } }),
-}));
+// The page's text is in en.json: render it with the English catalogue.
+vi.mock('react-i18next', async () => {
+  const en = (await import('@/i18n/locales/en.json')).default as Record<string, unknown>;
+  const lookup = (k: string) => k.split('.').reduce<unknown>((o, p) => (o as Record<string, unknown> | undefined)?.[p], en);
+  return { useTranslation: () => ({ t: (k: string, f?: string) => (lookup(k) as string | undefined) ?? f ?? k, i18n: { changeLanguage: vi.fn() } }) };
+});
 
 const mockGet = vi.fn();
 vi.mock('@/api/client', () => ({

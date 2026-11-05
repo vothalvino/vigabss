@@ -219,6 +219,8 @@ describe('portalServiceRequestService.approveRequest() — plan_upgrade', () => 
     // The plan change runs in one transaction (BIL-23); the connection's
     // execute forwards to db.query, so the queue below stays in call order.
     const conn = mockTxConnection(db);
+    // Putting the plan on the network is covered by contractPlanChange.test.js.
+    jest.spyOn(require('../src/services/contractPlanChangeService'), 'pushPlanChange').mockResolvedValue({ pushed: true });
     db.query
       .mockResolvedValueOnce([[req]])  // SELECT
       .mockResolvedValueOnce([[{ id: 3, name: 'Fiber Pro', price: '599.00' }]]) // plan still available (TNB-11)

@@ -409,11 +409,11 @@ export function InventoryManagement() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setStockPage(p => Math.max(1, p - 1))} disabled={stockPage <= 1}>
-                  &laquo; {t('inventoryManagement.prev')}
+                  {t('ui.inventoryManagement.laquo')}{t('inventoryManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{stockPage} / {stockTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setStockPage(p => p + 1)} disabled={stockPage >= stockTotalPages}>
-                  {t('inventoryManagement.next')} &raquo;
+                  {t('inventoryManagement.next')} {t('ui.inventoryManagement.raquo')}
                 </button>
               </div>
             </>
@@ -477,11 +477,11 @@ export function InventoryManagement() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setAssetsPage(p => Math.max(1, p - 1))} disabled={assetsPage <= 1}>
-                  &laquo; {t('inventoryManagement.prev')}
+                  {t('ui.inventoryManagement.laquo')}{t('inventoryManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{assetsPage} / {assetsTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setAssetsPage(p => p + 1)} disabled={assetsPage >= assetsTotalPages}>
-                  {t('inventoryManagement.next')} &raquo;
+                  {t('inventoryManagement.next')} {t('ui.inventoryManagement.raquo')}
                 </button>
               </div>
             </>
@@ -535,11 +535,11 @@ export function InventoryManagement() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setVendorsPage(p => Math.max(1, p - 1))} disabled={vendorsPage <= 1}>
-                  &laquo; {t('inventoryManagement.prev')}
+                  {t('ui.inventoryManagement.laquo')}{t('inventoryManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{vendorsPage} / {vendorsTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setVendorsPage(p => p + 1)} disabled={vendorsPage >= vendorsTotalPages}>
-                  {t('inventoryManagement.next')} &raquo;
+                  {t('inventoryManagement.next')} {t('ui.inventoryManagement.raquo')}
                 </button>
               </div>
             </>
@@ -602,11 +602,11 @@ export function InventoryManagement() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPoPage(p => Math.max(1, p - 1))} disabled={poPage <= 1}>
-                  &laquo; {t('inventoryManagement.prev')}
+                  {t('ui.inventoryManagement.laquo')}{t('inventoryManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{poPage} / {poTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setPoPage(p => p + 1)} disabled={poPage >= poTotalPages}>
-                  {t('inventoryManagement.next')} &raquo;
+                  {t('inventoryManagement.next')} {t('ui.inventoryManagement.raquo')}
                 </button>
               </div>
             </>
@@ -666,11 +666,11 @@ export function InventoryManagement() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setRmaPage(p => Math.max(1, p - 1))} disabled={rmaPage <= 1}>
-                  &laquo; {t('inventoryManagement.prev')}
+                  {t('ui.inventoryManagement.laquo')}{t('inventoryManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{rmaPage} / {rmaTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setRmaPage(p => p + 1)} disabled={rmaPage >= rmaTotalPages}>
-                  {t('inventoryManagement.next')} &raquo;
+                  {t('inventoryManagement.next')} {t('ui.inventoryManagement.raquo')}
                 </button>
               </div>
             </>
@@ -762,11 +762,11 @@ export function InventoryManagement() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setMovementsPage(p => Math.max(1, p - 1))} disabled={movementsPage <= 1}>
-                  &laquo; {t('inventoryManagement.prev')}
+                  {t('ui.inventoryManagement.laquo')}{t('inventoryManagement.prev')}
                 </button>
                 <span style={styles.pageInfo}>{movementsPage} / {movementsTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setMovementsPage(p => p + 1)} disabled={movementsPage >= movementsTotalPages}>
-                  {t('inventoryManagement.next')} &raquo;
+                  {t('inventoryManagement.next')} {t('ui.inventoryManagement.raquo')}
                 </button>
               </div>
             </>

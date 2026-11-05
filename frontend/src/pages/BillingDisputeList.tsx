@@ -299,7 +299,7 @@ function EvidencePanel({ disputeId, colSpan }: { disputeId: number; colSpan: num
     <tr>
       <td colSpan={colSpan} style={{ padding: '8px 20px 14px', background: '#f8faff' }}>
         {isLoading && <p style={{ margin: 0, fontSize: '0.82rem', color: '#9ca3af' }}>{t('common.loading')}</p>}
-        {error && <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>Failed to load evidence.</p>}
+        {error && <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>{t('ui.billingDisputeList.failedToLoadEvidence')}</p>}
         {!isLoading && !error && (
           <>
             <p style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 600, color: '#374151' }}>
@@ -426,14 +426,14 @@ export function BillingDisputeList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('billingDisputes.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.billingDisputeList.total')}</span>}
 
         <select
           style={{ ...inputStyle, width: 200, marginLeft: 'auto' }}
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
         >
-          <option value="">{t('billingDisputes.columns.status')}: All</option>
+          <option value="">{t('billingDisputes.columns.status')}{t('ui.billingDisputeList.all')}</option>
           {DISPUTE_STATUSES.map(s => (
             <option key={s} value={s}>{t(`billingDisputes.status.${s}`)}</option>
           ))}
@@ -448,9 +448,9 @@ export function BillingDisputeList() {
         {isLoading ? (
           <p style={styles.msg}>{t('common.loading')}</p>
         ) : isError ? (
-          <p style={styles.msgError}>Failed to load billing disputes.</p>
+          <p style={styles.msgError}>{t('ui.billingDisputeList.failedToLoadBillingDisputes')}</p>
         ) : disputes.length === 0 ? (
-          <p style={styles.msg}>No billing disputes found.</p>
+          <p style={styles.msg}>{t('ui.billingDisputeList.noBillingDisputesFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -502,11 +502,11 @@ export function BillingDisputeList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.billingDisputeList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.billingDisputeList.page')}{page} {t('ui.billingDisputeList.of')}{totalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                  Next →
+                  {t('ui.billingDisputeList.next')}
                 </button>
               </div>
             )}

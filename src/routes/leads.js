@@ -17,7 +17,8 @@ const auditLog = require('../services/auditLog');
 const db = require('../config/database');
 
 const router = Router();
-const ctrl = crudController(Lead, { cacheResource: 'leads' });
+// The sales agent must be a user of this organization.
+const ctrl = crudController(Lead, { cacheResource: 'leads', ownedRefs: { assigned_to: 'users' } });
 
 router.use(authenticate);
 router.use(orgScope);

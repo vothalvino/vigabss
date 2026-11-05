@@ -170,7 +170,7 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
                       {p.name}
                     </button>
                     {p.organization_id === null && (
-                      <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af' }}>(global)</span>
+                      <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af' }}>{t('ui.cpeProfilesPage.global')}</span>
                     )}
                   </td>
                   <td style={styles.td}>{p.manufacturer ?? '—'}</td>
@@ -211,24 +211,24 @@ function ProfilesTab({ onSelectProfile }: { onSelectProfile: (p: CpeProfile) => 
             <label style={modalStyles.label}>{t('cpeProfiles.profiles.manufacturer')}</label>
             <input style={modalStyles.input} value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeProfiles.profiles.wifiSsid')}</label>
-            <input style={modalStyles.input} placeholder="MyNet-{{serial}}" value={form.wifi_ssid_template} onChange={e => setForm(f => ({ ...f, wifi_ssid_template: e.target.value }))} />
+            <input style={modalStyles.input} placeholder={t('ui.cpeProfilesPage.mynetSerial')} value={form.wifi_ssid_template} onChange={e => setForm(f => ({ ...f, wifi_ssid_template: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeProfiles.profiles.wifiBand')}</label>
             <select style={modalStyles.input} value={form.wifi_band} onChange={e => setForm(f => ({ ...f, wifi_band: e.target.value }))}>
               <option value="2.4GHz">2.4 GHz</option>
               <option value="5GHz">5 GHz</option>
-              <option value="dual">Dual Band</option>
+              <option value="dual">{t('ui.cpeProfilesPage.dualBand')}</option>
             </select>
             <label style={modalStyles.label}>{t('cpeProfiles.profiles.wanMode')}</label>
             <select style={modalStyles.input} value={form.wan_mode} onChange={e => setForm(f => ({ ...f, wan_mode: e.target.value }))}>
               <option value="dhcp">DHCP</option>
               <option value="pppoe">PPPoE</option>
-              <option value="static">Static</option>
+              <option value="static">{t('ui.cpeProfilesPage.static')}</option>
             </select>
             <label style={modalStyles.label}>{t('cpeProfiles.profiles.status')}</label>
             <select style={modalStyles.input} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="draft">Draft</option>
+              <option value="active">{t('ui.cpeProfilesPage.active')}</option>
+              <option value="inactive">{t('ui.cpeProfilesPage.inactive')}</option>
+              <option value="draft">{t('ui.cpeProfilesPage.draft')}</option>
             </select>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button style={styles.btnPrimary} disabled={createMut.isPending} onClick={() => createMut.mutate(form)}>
@@ -316,7 +316,7 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
       {error && <p style={{ color: '#dc2626' }}>{t('cpeProfiles.mappings.error')}</p>}
 
       {!isLoading && mappings.length === 0 && (
-        <p style={{ color: '#6b7280' }}>No mappings for this profile.</p>
+        <p style={{ color: '#6b7280' }}>{t('ui.cpeProfilesPage.noMappingsForThisProfile')}</p>
       )}
 
       {mappings.length > 0 && (
@@ -354,13 +354,13 @@ function MappingsTab({ profile }: { profile: CpeProfile | null }) {
             <h3 style={{ marginTop: 0 }}>{t('cpeProfiles.mappings.createTitle')}</h3>
             {createError && <p style={{ color: '#dc2626' }}>{createError}</p>}
             <label style={modalStyles.label}>{t('cpeProfiles.mappings.parameterPath')}<RequiredMark /></label>
-            <input style={modalStyles.input} placeholder="Device.WiFi.SSID.1.SSID" value={form.parameter_path} onChange={e => setForm(f => ({ ...f, parameter_path: e.target.value }))} />
+            <input style={modalStyles.input} placeholder={t('ui.cpeProfilesPage.deviceWifiSsid1Ssid')} value={form.parameter_path} onChange={e => setForm(f => ({ ...f, parameter_path: e.target.value }))} />
             <label style={modalStyles.label}>{t('cpeProfiles.mappings.sourceType')}<RequiredMark /></label>
             <select style={modalStyles.input} value={form.source_type} onChange={e => setForm(f => ({ ...f, source_type: e.target.value }))}>
-              <option value="static">Static</option>
-              <option value="contract_field">Contract Field</option>
-              <option value="plan_field">Plan Field</option>
-              <option value="device_field">Device Field</option>
+              <option value="static">{t('ui.cpeProfilesPage.static')}</option>
+              <option value="contract_field">{t('ui.cpeProfilesPage.contractField')}</option>
+              <option value="plan_field">{t('ui.cpeProfilesPage.planField')}</option>
+              <option value="device_field">{t('ui.cpeProfilesPage.deviceField')}</option>
             </select>
             {form.source_type === 'static' ? (
               <>

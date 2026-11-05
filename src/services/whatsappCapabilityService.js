@@ -20,15 +20,33 @@ const { computeClientBalance } = require('./clientBalanceService');
 const portalServiceRequests = require('./portalServiceRequestService');
 const logger = require('../utils/logger');
 const { requireOrgId } = require('../utils/requireOrgId');
+const { t } = require('../utils/i18n');
+
+// The replies are in the subscriber's language: the bot passes the locale it
+// resolved for the conversation (src/locales/*.json, whatsappBot.capability).
+// They were English for every subscriber.
+const tr = (locale, key, vars) => t(`whatsappBot.capability.${key}`, locale, vars);
 
 function money(n) {
   return Math.abs(Number(n) || 0).toFixed(2);
 }
 
-function ymd(d) {
+const INTL_LOCALE = { es: 'es-MX', en: 'en-US', 'pt-BR': 'pt-BR' };
+
+// A DATE column: mysql2 sends a Date at UTC midnight (String(date) printed
+// "Sun Nov 01"), the tests a 'YYYY-MM-DD' string. Formatted in UTC so the
+// calendar day never shifts.
+function calendarDate(d, locale) {
   if (!d) return '';
-  return String(d).slice(0, 10);
+  const date = d instanceof Date ? d : new Date(`${String(d).slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(INTL_LOCALE[locale] || 'es-MX', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
 }
+
+const status = (locale, kind, value) => {
+  const label = tr(locale, `${kind}.${value}`);
+  return label === `whatsappBot.capability.${kind}.${value}` ? value : label;
+};
 
 /**
  * Active contracts for a client, with a human label for the multi-service picker.
@@ -58,7 +76,7 @@ async function getActiveContracts(orgId, clientId) {
 }
 
 /** Balance + next due date. */
-async function balanceText(orgId, clientId) {
+async function balanceText(orgId, clientId, locale = 'es') {
   requireOrgId(orgId, 'whatsappCapabilityService.balanceText');
   const { balance: single, currency: singleCurrency, balances, mixedCurrency } = await computeClientBalance(orgId, clientId);
   const [[{ next_due }]] = await db.query(
@@ -69,32 +87,31 @@ async function balanceText(orgId, clientId) {
   // Amounts in different currencies are listed, never added (GQL-10).
   const owing = mixedCurrency ? balances.some(b => b.balance > 0.005) : Number(single) > 0.005;
   if (owing) {
-    const due = next_due ? ` Your next payment is due ${ymd(next_due)}.` : '';
-    const list = (items) => items.map(b => `*${money(b.balance)} ${b.currency}*`).join(' and ');
+    const due = next_due ? tr(locale, 'balanceNextDue', { date: calendarDate(next_due, locale) }) : '';
+    const list = (items) => items.map(b => `*${money(b.balance)} ${b.currency}*`).join(tr(locale, 'and'));
     let amount = `*${money(single)} ${singleCurrency}*`;
     if (mixedCurrency) {
       const credits = balances.filter(b => b.balance < -0.005);
-      amount = list(balances.filter(b => b.balance > 0.005))
-        + (credits.length ? `, with a credit of ${list(credits)}` : '');
+      const owing = list(balances.filter(b => b.balance > 0.005));
+      amount = credits.length ? tr(locale, 'balanceWithCredit', { owing, credit: list(credits) }) : owing;
     }
-    const base = `💳 Your account balance is ${amount}.${due}`;
+    const base = tr(locale, 'balanceOwing', { amount, due });
 
     // Owing money and being told only the number is a dead end. Offer the link
     // for the OLDEST unpaid invoice — the one that triggers suspension.
     const invoice = await payableInvoice(orgId, clientId);
     const url = await payNowUrl({ orgId, clientId, invoice });
     if (!url) return base;
-    return `${base}\n\n💳 Pay invoice *${invoice.invoice_number}* `
-      + `(${money(invoice.total)} ${invoice.currency}) securely here:\n${url}\n\n`
-      + '_The link is personal to you — please do not forward it._';
+    const pay = tr(locale, 'payLink', { number: invoice.invoice_number, amount: `${money(invoice.total)} ${invoice.currency}`, url });
+    return `${base}\n\n${pay}`;
   }
   if (mixedCurrency) {
-    return `✅ You're all paid up — you have a credit of ${balances.map(b => `*${money(b.balance)} ${b.currency}*`).join(' and ')}.`;
+    return tr(locale, 'paidUpCredit', { credit: balances.map(b => `*${money(b.balance)} ${b.currency}*`).join(tr(locale, 'and')) });
   }
   if (Number(single) < -0.005) {
-    return `✅ You're all paid up — you have a credit of *${money(single)} ${singleCurrency}*.`;
+    return tr(locale, 'paidUpCredit', { credit: `*${money(single)} ${singleCurrency}*` });
   }
-  return `✅ You're all paid up. Balance: *0.00 ${singleCurrency}*.`;
+  return tr(locale, 'paidUp', { amount: `0.00 ${singleCurrency}` });
 }
 
 /**
@@ -156,20 +173,18 @@ async function payNowUrl({ orgId, clientId, invoice }) {
 }
 
 /** Plan(s) + service status. */
-async function planText(orgId, clientId) {
+async function planText(orgId, clientId, locale = 'es') {
   const contracts = await getActiveContracts(orgId, clientId);
-  if (contracts.length === 0) {
-    return "You don't have an active service on file. If that's unexpected, reply 4 to report it.";
-  }
+  if (contracts.length === 0) return tr(locale, 'planNone');
   const lines = contracts.map((c) => {
     const speed = c.down ? ` — ${c.down}/${c.up} Mbps` : '';
-    return `• ${c.planName}${speed} — ${c.status}`;
+    return `• ${c.planName}${speed} — ${status(locale, 'contractStatus', c.status)}`;
   });
-  return `📶 Your service${contracts.length > 1 ? 's' : ''}:\n${lines.join('\n')}`;
+  return tr(locale, contracts.length > 1 ? 'planMany' : 'planOne', { lines: lines.join('\n') });
 }
 
 /** Recent invoices + their payment status. */
-async function invoicesText(orgId, clientId) {
+async function invoicesText(orgId, clientId, locale = 'es') {
   requireOrgId(orgId, 'whatsappCapabilityService.invoicesText');
   const [rows] = await db.query(
     `SELECT invoice_number, total, status, due_date
@@ -179,12 +194,12 @@ async function invoicesText(orgId, clientId) {
       LIMIT 3`,
     [clientId, orgId],
   );
-  if (rows.length === 0) return 'You have no invoices on file yet.';
+  if (rows.length === 0) return tr(locale, 'invoicesNone');
   const lines = rows.map((r) => {
-    const due = r.due_date ? ` (due ${ymd(r.due_date)})` : '';
-    return `• ${r.invoice_number}: ${money(r.total)} — ${r.status}${due}`;
+    const due = r.due_date ? tr(locale, 'invoiceDue', { date: calendarDate(r.due_date, locale) }) : '';
+    return `• ${r.invoice_number}: ${money(r.total)} — ${status(locale, 'invoiceStatus', r.status)}${due}`;
   });
-  return `🧾 Your recent invoices:\n${lines.join('\n')}\n\nReply 1 for your current balance.`;
+  return tr(locale, 'invoicesList', { lines: lines.join('\n') });
 }
 
 /** Open a technical ticket from a reported problem, linked to the chosen contract. */

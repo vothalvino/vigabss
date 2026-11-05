@@ -296,28 +296,28 @@ function ItemFormModal({ item, onClose, onSaved }: ItemFormModalProps) {
         <form onSubmit={handleSubmit}>
           <div style={formGrid}>
             <div>
-              <label style={labelStyle}>Name *</label>
+              <label style={labelStyle}>{t('ui.inventoryList.name')}</label>
               <input style={inputStyle} required value={form.name}
-                onChange={e => set('name', e.target.value)} placeholder="e.g. MikroTik RB750Gr3" />
+                onChange={e => set('name', e.target.value)} placeholder={t('ui.inventoryList.eGMikrotikRb750gr3')} />
             </div>
             <div>
-              <label style={labelStyle}>SKU</label>
+              <label style={labelStyle}>{t('ui.inventoryList.sku')}</label>
               <input style={inputStyle} value={form.sku}
-                onChange={e => set('sku', e.target.value)} placeholder="e.g. RB-750GR3" />
+                onChange={e => set('sku', e.target.value)} placeholder={t('ui.inventoryList.eGRb750gr3')} />
             </div>
             <div>
-              <label style={labelStyle}>Category</label>
+              <label style={labelStyle}>{t('ui.inventoryList.category')}</label>
               <select style={inputStyle} value={form.category} onChange={e => set('category', e.target.value)}>
-                <option value="">— select —</option>
+                <option value="">{t('ui.inventoryList.select')}</option>
                 {CATEGORIES.map(c => (
                   <option key={c} value={c}>{capitalize(c)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Unit</label>
+              <label style={labelStyle}>{t('ui.inventoryList.unit')}</label>
               <input style={inputStyle} value={form.unit}
-                onChange={e => set('unit', e.target.value)} placeholder="unit / m / roll" />
+                onChange={e => set('unit', e.target.value)} placeholder={t('ui.inventoryList.unitMRoll')} />
             </div>
             <div>
               <label style={labelStyle}>{t('inventoryManagement.serialRequired.label')}</label>
@@ -331,45 +331,45 @@ function ItemFormModal({ item, onClose, onSaved }: ItemFormModalProps) {
               </label>
             </div>
             <div>
-              <label style={labelStyle}>Manufacturer</label>
+              <label style={labelStyle}>{t('ui.inventoryList.manufacturer')}</label>
               <input style={inputStyle} value={form.manufacturer}
                 onChange={e => set('manufacturer', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>Model</label>
+              <label style={labelStyle}>{t('ui.inventoryList.model')}</label>
               <input style={inputStyle} value={form.model}
                 onChange={e => set('model', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>Unit Cost ({orgCurrency})</label>
+              <label style={labelStyle}>{t('ui.inventoryList.unitCost')}{orgCurrency})</label>
               <input style={inputStyle} type="number" min="0" step="0.01" value={form.unit_cost}
                 onChange={e => set('unit_cost', e.target.value)} placeholder="0.00" />
             </div>
             <div>
-              <label style={labelStyle}>Sale Price ({orgCurrency})</label>
+              <label style={labelStyle}>{t('ui.inventoryList.salePrice')}{orgCurrency})</label>
               <input style={inputStyle} type="number" min="0" step="0.01" value={form.sale_price}
                 onChange={e => set('sale_price', e.target.value)} placeholder="0.00" />
             </div>
             <div>
-              <label style={labelStyle}>Reorder Level</label>
+              <label style={labelStyle}>{t('ui.inventoryList.reorderLevel')}</label>
               <input style={inputStyle} type="number" min="0" value={form.reorder_level}
                 onChange={e => set('reorder_level', e.target.value)} placeholder="5" />
             </div>
             <div>
-              <label style={labelStyle}>Status</label>
+              <label style={labelStyle}>{t('ui.inventoryList.status')}</label>
               <select style={inputStyle} value={form.status} onChange={e => set('status', e.target.value)}>
-                <option value="active">Active</option>
-                <option value="discontinued">Discontinued</option>
+                <option value="active">{t('ui.inventoryList.active')}</option>
+                <option value="discontinued">{t('ui.inventoryList.discontinued')}</option>
               </select>
             </div>
           </div>
           <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
-            <label style={labelStyle}>Description</label>
+            <label style={labelStyle}>{t('ui.inventoryList.description')}</label>
             <textarea style={{ ...inputStyle, minHeight: 64, resize: 'vertical' }} value={form.description}
-              onChange={e => set('description', e.target.value)} placeholder="Optional description…" />
+              onChange={e => set('description', e.target.value)} placeholder={t('ui.inventoryList.optionalDescription')} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>Dismiss</button>
+            <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>{t('ui.inventoryList.dismiss')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Item'}
             </button>
@@ -391,6 +391,7 @@ interface StockModalProps {
 }
 
 function StockModal({ item, onClose, onRecord }: StockModalProps) {
+  const { t } = useTranslation();
   const { data, isLoading, isError } = useQuery({
     queryKey: ['itemStock', item.id],
     queryFn: () => fetchItemStock(item.id),
@@ -401,16 +402,16 @@ function StockModal({ item, onClose, onRecord }: StockModalProps) {
   return (
     <div style={overlay}>
       <div style={{ ...modalBox, maxWidth: 580 }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Stock Levels — {item.name}</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.inventoryList.stockLevels')}{item.name}</h3>
         <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
-          SKU: {item.sku ?? '—'} &nbsp;|&nbsp; Total in stock: <strong>{totalQty}</strong>
+          {t('ui.inventoryList.sku2')}{item.sku ?? '—'} {t('ui.inventoryList.totalInStock')}<strong>{totalQty}</strong>
         </p>
 
-        {isLoading && <p style={{ color: '#6b7280' }}>Loading…</p>}
-        {isError && <p style={{ color: '#dc2626' }}>Failed to load stock data.</p>}
+        {isLoading && <p style={{ color: '#6b7280' }}>{t('ui.inventoryList.loading')}</p>}
+        {isError && <p style={{ color: '#dc2626' }}>{t('ui.inventoryList.failedToLoadStockData')}</p>}
 
         {data && data.data.length === 0 && (
-          <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No stock records found.</p>
+          <p style={{ color: '#6b7280', fontStyle: 'italic' }}>{t('ui.inventoryList.noStockRecordsFound')}</p>
         )}
 
         {data && data.data.length > 0 && (
@@ -444,7 +445,7 @@ function StockModal({ item, onClose, onRecord }: StockModalProps) {
                       style={actionBtn}
                       onClick={() => onRecord(row.id, row.warehouse_id)}
                     >
-                      + Txn
+                      {t('ui.inventoryList.txn')}
                     </button>
                   </td>
                 </tr>
@@ -454,7 +455,7 @@ function StockModal({ item, onClose, onRecord }: StockModalProps) {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button onClick={onClose} style={cancelBtn}>Close</button>
+          <button onClick={onClose} style={cancelBtn}>{t('ui.inventoryList.close')}</button>
         </div>
       </div>
     </div>
@@ -473,6 +474,7 @@ interface TransactionModalProps {
 }
 
 function TransactionModal({ item, preselectedStockId, onClose, onRecorded }: TransactionModalProps) {
+  const { t } = useTranslation();
   const orgCurrency = useOrgCurrency();
   const { data: warehouseData } = useQuery({
     queryKey: ['warehouseList'],
@@ -555,41 +557,41 @@ function TransactionModal({ item, preselectedStockId, onClose, onRecorded }: Tra
   return (
     <div style={overlay}>
       <div style={{ ...modalBox, maxWidth: 480 }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Record Transaction</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('ui.inventoryList.recordTransaction')}</h3>
         <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.8rem' }}>
-          Item: <strong>{item.name}</strong>
+          {t('ui.inventoryList.item')}<strong>{item.name}</strong>
         </p>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
           {!preselectedStockId && (
             <>
-              <label style={labelStyle}>Warehouse</label>
+              <label style={labelStyle}>{t('ui.inventoryList.warehouse')}</label>
               <select
                 style={inputStyle}
                 value={warehouseId}
                 onChange={e => handleWarehouseChange(e.target.value)}
               >
-                <option value="">— select warehouse —</option>
+                <option value="">{t('ui.inventoryList.selectWarehouse')}</option>
                 {warehouseData?.data.filter(w => w.status === 'active').map(w => (
                   <option key={w.id} value={String(w.id)}>{w.name}</option>
                 ))}
               </select>
               {warehouseId && !stockId && (
                 <p style={{ margin: '-0.5rem 0 0.75rem', fontSize: '0.75rem', color: '#6b7280' }}>
-                  This item has no stock at this warehouse yet — a "Receive" or "Adjustment" transaction will create it.
+                  {t('ui.inventoryList.thisItemHasNoStock')}
                 </p>
               )}
             </>
           )}
 
-          <label style={labelStyle}>Transaction Type *</label>
+          <label style={labelStyle}>{t('ui.inventoryList.transactionType')}</label>
           <select style={inputStyle} value={txType} onChange={e => setTxType(e.target.value)} required>
             {TRANSACTION_TYPES.map(t => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
 
-          <label style={labelStyle}>Quantity *{txType === 'adjustment' ? ' (use negative to decrease stock)' : ''}</label>
+          <label style={labelStyle}>{t('ui.inventoryList.quantity')}{txType === 'adjustment' ? ' (use negative to decrease stock)' : ''}</label>
           <input
             style={inputStyle}
             type="number"
@@ -601,7 +603,7 @@ function TransactionModal({ item, preselectedStockId, onClose, onRecorded }: Tra
             placeholder={txType === 'adjustment' ? 'e.g. -5 or 10' : 'e.g. 10'}
           />
 
-          <label style={labelStyle}>Unit Price ({orgCurrency})</label>
+          <label style={labelStyle}>{t('ui.inventoryList.unitPrice')}{orgCurrency})</label>
           <input
             style={inputStyle}
             type="number"
@@ -612,15 +614,15 @@ function TransactionModal({ item, preselectedStockId, onClose, onRecorded }: Tra
             placeholder="0.00"
           />
 
-          <label style={labelStyle}>Reference</label>
+          <label style={labelStyle}>{t('ui.inventoryList.reference')}</label>
           <input
             style={inputStyle}
             value={reference}
             onChange={e => setReference(e.target.value)}
-            placeholder="PO number, ticket ID, etc."
+            placeholder={t('ui.inventoryList.poNumberTicketIdEtc')}
           />
 
-          <label style={labelStyle}>Notes</label>
+          <label style={labelStyle}>{t('ui.inventoryList.notes')}</label>
           <textarea
             style={{ ...inputStyle, minHeight: 52, resize: 'vertical' }}
             value={notes}
@@ -628,7 +630,7 @@ function TransactionModal({ item, preselectedStockId, onClose, onRecorded }: Tra
           />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>Dismiss</button>
+            <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>{t('ui.inventoryList.dismiss')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : 'Record Transaction'}
             </button>
@@ -691,13 +693,13 @@ export function InventoryList() {
     <div style={{ padding: '1.5rem', fontFamily: 'var(--font-sans)' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ margin: 0, fontSize: '1.4rem' }}>📦 Inventory</h1>
-        <button style={primaryBtn} onClick={() => setShowNewModal(true)}>+ New Item</button>
+        <h1 style={{ margin: 0, fontSize: '1.4rem' }}>{t('ui.inventoryList.inventory')}</h1>
+        <button style={primaryBtn} onClick={() => setShowNewModal(true)}>{t('ui.inventoryList.newItem')}</button>
       </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>Category:</span>
+        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>{t('ui.inventoryList.category2')}</span>
         {(['', ...CATEGORIES]).map(c => (
           <button
             key={c}
@@ -710,7 +712,7 @@ export function InventoryList() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>Status:</span>
+        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>{t('ui.inventoryList.status2')}</span>
         {[['', 'All'], ['active', 'Active'], ['discontinued', 'Discontinued']].map(([v, l]) => (
           <button
             key={v}
@@ -723,8 +725,8 @@ export function InventoryList() {
       </div>
 
       {/* Table */}
-      {isLoading && <p style={{ color: '#6b7280' }}>Loading inventory…</p>}
-      {isError && <p style={{ color: '#dc2626' }}>Failed to load inventory. Please try again.</p>}
+      {isLoading && <p style={{ color: '#6b7280' }}>{t('ui.inventoryList.loadingInventory')}</p>}
+      {isError && <p style={{ color: '#dc2626' }}>{t('ui.inventoryList.failedToLoadInventoryPlease')}</p>}
 
       {data && (
         <>
@@ -741,7 +743,7 @@ export function InventoryList() {
                 {data.data.length === 0 && (
                   <tr>
                     <td colSpan={8} style={{ ...td, color: '#6b7280', fontStyle: 'italic', textAlign: 'center' }}>
-                      No items found.
+                      {t('ui.inventoryList.noItemsFound')}
                     </td>
                   </tr>
                 )}
@@ -770,18 +772,18 @@ export function InventoryList() {
                     <td style={td}>{item.reorder_level ?? '—'}</td>
                     <td style={td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                      <button style={actionBtn} onClick={() => setEditItem(item)}>Edit</button>
+                      <button style={actionBtn} onClick={() => setEditItem(item)}>{t('ui.inventoryList.edit')}</button>
                       {' '}
-                      <button style={actionBtn} onClick={() => setStockItem(item)}>Stock</button>
+                      <button style={actionBtn} onClick={() => setStockItem(item)}>{t('ui.inventoryList.stock')}</button>
                       {' '}
-                      <button style={actionBtn} onClick={() => { setTxItem(item); setTxStockId(null); }}>+ Txn</button>
+                      <button style={actionBtn} onClick={() => { setTxItem(item); setTxStockId(null); }}>{t('ui.inventoryList.txn')}</button>
                       {' '}
                       <button
                         style={deleteBtn}
                         onClick={() => handleDelete(item)}
                         disabled={deleteMutation.isPending}
                       >
-                        Delete
+                        {t('ui.inventoryList.delete')}
                       </button>
                     </td>
                   </tr>

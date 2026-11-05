@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,6 +62,7 @@ const STATUS_COLORS: StatusColors = {
 // ---------------------------------------------------------------------------
 
 export function IftStatisticalReportList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
 
   const reportsQ = useQuery({
@@ -78,17 +80,17 @@ export function IftStatisticalReportList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📊 IFT Statistical Reports</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.iftStatisticalReportList.iftStatisticalReports')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.iftStatisticalReportList.total')}</span>}
       </div>
 
       <div style={styles.tableCard}>
         {reportsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.iftStatisticalReportList.loading')}</p>
         ) : reportsQ.error ? (
-          <p style={styles.msgError}>Failed to load IFT statistical reports.</p>
+          <p style={styles.msgError}>{t('ui.iftStatisticalReportList.failedToLoadIftStatistical')}</p>
         ) : reports.length === 0 ? (
-          <p style={styles.msg}>No statistical reports recorded.</p>
+          <p style={styles.msg}>{t('ui.iftStatisticalReportList.noStatisticalReportsRecorded')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -119,15 +121,15 @@ export function IftStatisticalReportList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.iftStatisticalReportList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.iftStatisticalReportList.page')}{page} {t('ui.iftStatisticalReportList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.iftStatisticalReportList.next')}
                 </button>
               </div>
             )}

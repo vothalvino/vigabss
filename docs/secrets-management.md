@@ -527,20 +527,37 @@ rm -f auth.curl new-key.json
 
 ### Rotating the ENCRYPTION_KEY
 
-If you rotate the platform-wide `ENCRYPTION_KEY` (the AES-256-GCM master key),
-**all** stored provider API keys must be re-encrypted.  Procedure:
+Every stored secret (gateway and PAC credentials, AI provider keys, router
+logins, SNMP communities, TOTP secrets, …) is sealed as
+`vb1:<key id>:<iv>:<tag>:<ciphertext>`, where the key id is the first 8 hex
+digits of the key's SHA-256. A previous key can stay configured for
+decryption only, so the platform-wide `ENCRYPTION_KEY` rotates without
+re-entering any secret (SEC-28):
 
-1. Export all provider API keys in plaintext **before** changing the key
-   (requires direct DB access + the old `ENCRYPTION_KEY`).
-2. Update the `ENCRYPTION_KEY` secret in your secrets manager and restart the
-   application (so the new key is loaded).
-3. Re-register each provider via `PUT /api/v1/ai/providers/:id` with its
-   plaintext API key — the route will encrypt using the new `ENCRYPTION_KEY`.
-4. Run `POST /providers/:id/verify` for each provider to confirm success.
+1. Generate the new key: `openssl rand -hex 32`.
+2. Set it as `ENCRYPTION_KEY`, move the old key to `ENCRYPTION_KEYS_PREVIOUS`
+   (comma-separated if there are several) and restart. Both keys now decrypt;
+   new values use the new key.
+3. Re-seal what the old key sealed, in the primary and every isolated-tenant
+   database:
+   ```bash
+   node src/scripts/rotate-encryption-key.js            # dry run: what is left
+   node src/scripts/rotate-encryption-key.js --apply    # re-encrypt
+   node src/scripts/rotate-encryption-key.js            # expect 0 values
+   ```
+   The script finds sealed values by their prefix in every text and JSON
+   column, so it needs no list of encrypted columns. It exits non-zero when a
+   value was sealed by a key that is not configured, or a row changed while it
+   ran (run it again).
+4. Remove the old key from `ENCRYPTION_KEYS_PREVIOUS` and restart.
 
-> **Tip:** Keep both the old and new `ENCRYPTION_KEY` accessible during the
-> migration window.  Do not delete the old key until all providers are
-> re-registered with the new one.
+> **Backup codes:** two-factor backup codes are hashed with a pepper derived
+> from the key and cannot be re-keyed. They keep working while the old key is
+> in `ENCRYPTION_KEYS_PREVIOUS`; ask users to regenerate them before you
+> remove it, or they fall back to their authenticator app.
+>
+> **Backups:** a database backup taken before step 3 needs the old key to
+> read its secrets. Keep the old key with those backups until they expire.
 
 ### Adding provider keys to the Required secrets table
 

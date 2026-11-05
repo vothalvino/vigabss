@@ -325,7 +325,7 @@ export function BackupSettings() {
       {/* --- Status ---------------------------------------------------------- */}
       <div style={styles.tableCard}>
         {overviewQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.backupSettings.loading')}</p>
         ) : overviewQ.error ? (
           <p style={styles.msgError}>{t('backups.loadError')}</p>
         ) : (
@@ -386,7 +386,7 @@ export function BackupSettings() {
         </select>
 
         <label style={label}>{t('backups.bucket')}</label>
-        <input style={input} value={form.bucket} onChange={e => set('bucket', e.target.value)} placeholder="vigabss-backups" />
+        <input style={input} value={form.bucket} onChange={e => set('bucket', e.target.value)} placeholder={t('ui.backupSettings.vigabssBackups')} />
 
         <label style={label}>{t('backups.region')}</label>
         <input style={input} value={form.region} onChange={e => set('region', e.target.value)} placeholder={preset.region ?? 'us-east-1'} />
@@ -399,7 +399,7 @@ export function BackupSettings() {
         )}
 
         <label style={label}>{t('backups.prefix')}</label>
-        <input style={input} value={form.prefix} onChange={e => set('prefix', e.target.value)} placeholder="db-backups/" />
+        <input style={input} value={form.prefix} onChange={e => set('prefix', e.target.value)} placeholder={t('ui.backupSettings.dbBackups')} />
 
         <label style={label}>{t('backups.accessKey')}</label>
         <input style={input} value={form.access_key} onChange={e => set('access_key', e.target.value)} autoComplete="off" />
@@ -447,7 +447,7 @@ export function BackupSettings() {
       <div style={{ ...styles.tableCard, marginTop: '1rem' }}>
         <h2 style={{ margin: '0.75rem 1.25rem 0.25rem', fontSize: '1rem' }}>📜 {t('backups.historyTitle')}</h2>
         {runsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.backupSettings.loading')}</p>
         ) : runsQ.error ? (
           <p style={styles.msgError}>{t('backups.loadError')}</p>
         ) : !runsQ.data || runsQ.data.runs.length === 0 ? (

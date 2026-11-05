@@ -322,14 +322,14 @@ export function ChargebackList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('chargebacks.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.chargebackList.total')}</span>}
 
         <select
           style={{ ...inputStyle, width: 200, marginLeft: 'auto' }}
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
         >
-          <option value="">{t('chargebacks.columns.status')}: All</option>
+          <option value="">{t('chargebacks.columns.status')}{t('ui.chargebackList.all')}</option>
           {CHARGEBACK_STATUSES.map(s => (
             <option key={s} value={s}>{t(`chargebacks.status.${s}`)}</option>
           ))}
@@ -346,9 +346,9 @@ export function ChargebackList() {
         {isLoading ? (
           <p style={styles.msg}>{t('common.loading')}</p>
         ) : isError ? (
-          <p style={styles.msgError}>Failed to load chargebacks.</p>
+          <p style={styles.msgError}>{t('ui.chargebackList.failedToLoadChargebacks')}</p>
         ) : chargebacks.length === 0 ? (
-          <p style={styles.msg}>No chargebacks found.</p>
+          <p style={styles.msg}>{t('ui.chargebackList.noChargebacksFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -395,11 +395,11 @@ export function ChargebackList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.chargebackList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.chargebackList.page')}{page} {t('ui.chargebackList.of')}{totalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                  Next →
+                  {t('ui.chargebackList.next')}
                 </button>
               </div>
             )}

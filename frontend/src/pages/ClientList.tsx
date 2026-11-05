@@ -170,13 +170,12 @@ function DeleteClientModal({ client, onClose, onDeleted }: DeleteModalProps) {
   });
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Delete Client">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.clientList.deleteClient')}>
       <div style={modalBox}>
         <h3 style={{ margin: '0 0 0.75rem' }}>{t('clientList.archive')}?</h3>
         {error && <div style={{ ...errorBox, whiteSpace: 'pre-line' }}>{error}</div>}
         <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginTop: 0 }}>
-          <strong>{client.name}</strong> will be archived (soft-deleted). You can restore it
-          later from the "Show archived" view.
+          <strong>{client.name}</strong> {t('ui.clientList.willBeArchivedSoftDeleted')}
         </p>
         <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 0 }}>
           {t('clientList.archiveRequirements')}
@@ -257,7 +256,7 @@ export function ClientList() {
       {/* Header */}
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>👥 {t('clientList.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.clientList.total')}</span>}
         <div style={{ flex: 1 }} />
         {canCreate && (
           <button type="button" style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
@@ -341,7 +340,7 @@ export function ClientList() {
                           <Link to={`/clients/${c.id}`} style={styles.nameLink}>
                             {c.name}
                           </Link>
-                          {archived && <span style={styles.archivedBadge}>archived</span>}
+                          {archived && <span style={styles.archivedBadge}>{t('ui.clientList.archived')}</span>}
                         </td>
                         <td style={styles.td}>{c.email || '—'}</td>
                         <td style={styles.td}>{c.phone || '—'}</td>

@@ -15,6 +15,7 @@ import { lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // Markdown renderer loads only on this page (own chunk), not with the app shell.
 const MarkdownView = lazy(() => import('@/components/MarkdownView'));
@@ -70,6 +71,7 @@ function ResultBadge({ status }: { status: string | null }) {
 // ---------------------------------------------------------------------------
 
 export function DrDrillStatus() {
+  const { t } = useTranslation();
   const statusQ = useQuery({
     queryKey: ['dr-drill-status'],
     queryFn: fetchStatus,
@@ -87,7 +89,7 @@ export function DrDrillStatus() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🛟 Disaster-Recovery Drill</h1>
+        <h1 style={styles.pageTitle}>{t('ui.drDrillStatus.disasterRecoveryDrill')}</h1>
         {status && (
           <span style={{ ...styles.countBadge, ...(status.overdue ? { background: '#fee2e2', color: '#991b1b' } : { background: '#d1fae5', color: '#065f46' }) }}>
             {status.overdue ? 'Overdue' : 'Up to date'}
@@ -103,41 +105,40 @@ export function DrDrillStatus() {
       </div>
 
       <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: 720 }}>
-        The automated quarterly drill takes a verified backup and runs referential-integrity and
-        financial-consistency checks against the live database. A new drill is due every 90 days.
+        {t('ui.drDrillStatus.theAutomatedQuarterlyDrillTakes')}
       </p>
 
       <div style={styles.tableCard}>
         {statusQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.drDrillStatus.loading')}</p>
         ) : statusQ.error ? (
-          <p style={styles.msgError}>Failed to load DR drill status.</p>
+          <p style={styles.msgError}>{t('ui.drDrillStatus.failedToLoadDrDrill')}</p>
         ) : !status || status.last_run_at === null ? (
-          <p style={styles.msg}>No drill has been run yet. The first automated drill will populate this view.</p>
+          <p style={styles.msg}>{t('ui.drDrillStatus.noDrillHasBeenRun')}</p>
         ) : (
           <table style={styles.table}>
             <tbody>
               <tr style={styles.tr}>
-                <td style={{ ...styles.td, fontWeight: 500, width: 220 }}>Last result</td>
+                <td style={{ ...styles.td, fontWeight: 500, width: 220 }}>{t('ui.drDrillStatus.lastResult')}</td>
                 <td style={styles.td}><ResultBadge status={status.status} /></td>
               </tr>
               <tr style={styles.tr}>
-                <td style={{ ...styles.td, fontWeight: 500 }}>Last run</td>
+                <td style={{ ...styles.td, fontWeight: 500 }}>{t('ui.drDrillStatus.lastRun')}</td>
                 <td style={styles.td}>{fmtDate(status.last_run_at)}</td>
               </tr>
               <tr style={styles.tr}>
-                <td style={{ ...styles.td, fontWeight: 500 }}>Days since drill</td>
+                <td style={{ ...styles.td, fontWeight: 500 }}>{t('ui.drDrillStatus.daysSinceDrill')}</td>
                 <td style={styles.td}>{status.days_since_drill ?? '—'}</td>
               </tr>
               <tr style={styles.tr}>
-                <td style={{ ...styles.td, fontWeight: 500 }}>Overdue</td>
+                <td style={{ ...styles.td, fontWeight: 500 }}>{t('ui.drDrillStatus.overdue')}</td>
                 <td style={{ ...styles.td, color: status.overdue ? '#991b1b' : '#065f46', fontWeight: 600 }}>
                   {status.overdue ? 'Yes' : 'No'}
                 </td>
               </tr>
               {status.last_error && (
                 <tr style={styles.tr}>
-                  <td style={{ ...styles.td, fontWeight: 500 }}>Last error</td>
+                  <td style={{ ...styles.td, fontWeight: 500 }}>{t('ui.drDrillStatus.lastError')}</td>
                   <td style={{ ...styles.td, color: '#991b1b' }}>{status.last_error}</td>
                 </tr>
               )}
@@ -148,13 +149,13 @@ export function DrDrillStatus() {
 
       {/* Full runbook document (docs/dr-drill.md served by the backend) */}
       <div style={{ ...styles.tableCard, marginTop: '1rem', padding: '1rem 1.25rem' }} id="runbook">
-        <h2 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>📖 DR Runbook</h2>
+        <h2 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>{t('ui.drDrillStatus.drRunbook')}</h2>
         {runbookQ.isLoading ? (
-          <p style={styles.msg}>Loading runbook…</p>
+          <p style={styles.msg}>{t('ui.drDrillStatus.loadingRunbook')}</p>
         ) : runbookQ.error || !runbookQ.data ? (
-          <p style={styles.msgError}>Failed to load the runbook document.</p>
+          <p style={styles.msgError}>{t('ui.drDrillStatus.failedToLoadTheRunbook')}</p>
         ) : (
-          <Suspense fallback={<p style={styles.msg}>Loading…</p>}>
+          <Suspense fallback={<p style={styles.msg}>{t('ui.drDrillStatus.loading')}</p>}>
             <MarkdownView markdown={runbookQ.data} />
           </Suspense>
         )}

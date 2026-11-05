@@ -15,6 +15,7 @@ import { useMutation } from '@/api/useMutation';
 import { api, authedFetch } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,6 +90,7 @@ function expiryNote(validTo: string | null): { label: string; color: string } | 
 // ---------------------------------------------------------------------------
 
 export function CsdCertificateList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [cerFile, setCerFile] = useState<File | null>(null);
   const [keyFile, setKeyFile] = useState<File | null>(null);
@@ -162,8 +164,8 @@ export function CsdCertificateList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📜 CSD Certificates</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.csdCertificateList.csdCertificates')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.csdCertificateList.total')}</span>}
       </div>
 
       {banner && (
@@ -174,19 +176,19 @@ export function CsdCertificateList() {
 
       {/* Upload */}
       <div style={{ ...styles.tableCard, marginBottom: 16, padding: 16 }}>
-        <h3 style={{ margin: '0 0 10px', fontSize: '0.95rem' }}>Upload a CSD (.cer + .key)</h3>
+        <h3 style={{ margin: '0 0 10px', fontSize: '0.95rem' }}>{t('ui.csdCertificateList.uploadACsdCerKey')}</h3>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <label style={{ fontSize: '0.8rem' }}>
-            .cer{' '}
+            {t('ui.csdCertificateList.cer')}{' '}
             <input type="file" accept=".cer" onChange={e => setCerFile(e.target.files?.[0] ?? null)} />
           </label>
           <label style={{ fontSize: '0.8rem' }}>
-            .key{' '}
+            {t('ui.csdCertificateList.key')}{' '}
             <input type="file" accept=".key" onChange={e => setKeyFile(e.target.files?.[0] ?? null)} />
           </label>
           <input
             type="password"
-            placeholder="Key passphrase"
+            placeholder={t('ui.csdCertificateList.keyPassphrase')}
             value={passphrase}
             onChange={e => setPassphrase(e.target.value)}
             style={{ padding: '6px 10px', border: '1px solid var(--border, #d1d5db)', borderRadius: 6, fontSize: '0.85rem' }}
@@ -200,8 +202,7 @@ export function CsdCertificateList() {
           </button>
         </div>
         <p style={{ margin: '8px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          The files are validated server-side: the pair must match, the passphrase must open the key, and the
-          RFC must equal the organization&apos;s fiscal RFC. The private key is stored encrypted.
+          {t('ui.csdCertificateList.theFilesAreValidatedServer')}
         </p>
         {formError && <p style={{ ...styles.msgError, textAlign: 'left', marginTop: 8 }}>{formError}</p>}
         {formOk && <p style={{ ...styles.msg, textAlign: 'left', marginTop: 8, color: '#065f46' }}>{formOk}</p>}
@@ -209,11 +210,11 @@ export function CsdCertificateList() {
 
       <div style={styles.tableCard}>
         {certsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.csdCertificateList.loading')}</p>
         ) : certsQ.error ? (
-          <p style={styles.msgError}>Failed to load CSD certificates.</p>
+          <p style={styles.msgError}>{t('ui.csdCertificateList.failedToLoadCsdCertificates')}</p>
         ) : certs.length === 0 ? (
-          <p style={styles.msg}>No CSD certificates registered — upload the organization&apos;s .cer/.key above.</p>
+          <p style={styles.msg}>{t('ui.csdCertificateList.noCsdCertificatesRegisteredUpload')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -252,7 +253,7 @@ export function CsdCertificateList() {
                               disabled={activateM.isPending}
                               onClick={() => activateM.mutate(c.id)}
                             >
-                              Activate
+                              {t('ui.csdCertificateList.activate')}
                             </button>
                           )}
                         </td>
@@ -266,15 +267,15 @@ export function CsdCertificateList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.csdCertificateList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.csdCertificateList.page')}{page} {t('ui.csdCertificateList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.csdCertificateList.next')}
                 </button>
               </div>
             )}

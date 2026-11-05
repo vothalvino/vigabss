@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/api/client';
 import { styles } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,6 +81,7 @@ function RiskBadge({ score }: { score: number }) {
 // ---------------------------------------------------------------------------
 
 export function ChurnAnalytics() {
+  const { t } = useTranslation();
   const churnQ = useQuery({ queryKey: ['lifecycle-churn'], queryFn: fetchChurn });
   const atRiskQ = useQuery({ queryKey: ['lifecycle-at-risk'], queryFn: fetchAtRisk });
 
@@ -90,33 +92,32 @@ export function ChurnAnalytics() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📉 Churn Analytics</h1>
+        <h1 style={styles.pageTitle}>{t('ui.churnAnalytics.churnAnalytics')}</h1>
       </div>
 
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '0 0 1.5rem' }}>
-        Monthly churn trend from contract status changes, plus predictive at-risk
-        alerts ranking active clients by suspended contracts and overdue invoices.
+        {t('ui.churnAnalytics.monthlyChurnTrendFromContract')}
       </p>
 
       {/* ---- Monthly churn trend ---- */}
-      <h2 style={{ fontSize: '1.05rem', margin: '0 0 0.75rem' }}>Monthly churn rate (last 12 months)</h2>
+      <h2 style={{ fontSize: '1.05rem', margin: '0 0 0.75rem' }}>{t('ui.churnAnalytics.monthlyChurnRateLast12')}</h2>
       <div style={styles.tableCard}>
         {churnQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.churnAnalytics.loading')}</p>
         ) : churnQ.error ? (
-          <p style={styles.msgError}>Failed to load churn report.</p>
+          <p style={styles.msgError}>{t('ui.churnAnalytics.failedToLoadChurnReport')}</p>
         ) : months.length === 0 ? (
-          <p style={styles.msg}>No churn data available yet.</p>
+          <p style={styles.msg}>{t('ui.churnAnalytics.noChurnDataAvailableYet')}</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Month</th>
-                  <th style={styles.thNum}>New Contracts</th>
-                  <th style={styles.thNum}>Churned</th>
-                  <th style={styles.thNum}>Churn Rate</th>
-                  <th style={styles.th}>Trend</th>
+                  <th style={styles.th}>{t('ui.churnAnalytics.month')}</th>
+                  <th style={styles.thNum}>{t('ui.churnAnalytics.newContracts')}</th>
+                  <th style={styles.thNum}>{t('ui.churnAnalytics.churned')}</th>
+                  <th style={styles.thNum}>{t('ui.churnAnalytics.churnRate')}</th>
+                  <th style={styles.th}>{t('ui.churnAnalytics.trend')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,25 +145,25 @@ export function ChurnAnalytics() {
       </div>
 
       {/* ---- At-risk clients ---- */}
-      <h2 style={{ fontSize: '1.05rem', margin: '1.75rem 0 0.75rem' }}>Predictive at-risk clients</h2>
+      <h2 style={{ fontSize: '1.05rem', margin: '1.75rem 0 0.75rem' }}>{t('ui.churnAnalytics.predictiveAtRiskClients')}</h2>
       <div style={styles.tableCard}>
         {atRiskQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.churnAnalytics.loading')}</p>
         ) : atRiskQ.error ? (
-          <p style={styles.msgError}>Failed to load at-risk clients.</p>
+          <p style={styles.msgError}>{t('ui.churnAnalytics.failedToLoadAtRisk')}</p>
         ) : atRisk.length === 0 ? (
-          <p style={styles.msg}>No at-risk clients detected. 🎉</p>
+          <p style={styles.msg}>{t('ui.churnAnalytics.noAtRiskClientsDetected')}</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Client</th>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.thNum}>Suspended</th>
-                  <th style={styles.thNum}>Overdue Invoices</th>
-                  <th style={styles.thNum}>Max Days Overdue</th>
-                  <th style={styles.th}>Risk</th>
+                  <th style={styles.th}>{t('ui.churnAnalytics.client')}</th>
+                  <th style={styles.th}>{t('ui.churnAnalytics.name')}</th>
+                  <th style={styles.thNum}>{t('ui.churnAnalytics.suspended')}</th>
+                  <th style={styles.thNum}>{t('ui.churnAnalytics.overdueInvoices')}</th>
+                  <th style={styles.thNum}>{t('ui.churnAnalytics.maxDaysOverdue')}</th>
+                  <th style={styles.th}>{t('ui.churnAnalytics.risk')}</th>
                 </tr>
               </thead>
               <tbody>

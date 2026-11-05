@@ -813,11 +813,11 @@ export function WirelessMetricsPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setSavedPage(p => Math.max(1, p - 1))} disabled={savedPage <= 1}>
-                  &laquo; {t('wirelessMetrics.prev')}
+                  {t('ui.wirelessMetricsPage.laquo')}{t('wirelessMetrics.prev')}
                 </button>
                 <span style={styles.pageInfo}>{savedPage} / {savedTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setSavedPage(p => p + 1)} disabled={savedPage >= savedTotalPages}>
-                  {t('wirelessMetrics.next')} &raquo;
+                  {t('wirelessMetrics.next')} {t('ui.wirelessMetricsPage.raquo')}
                 </button>
               </div>
             </>
@@ -888,11 +888,11 @@ export function WirelessMetricsPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setScanPage(p => Math.max(1, p - 1))} disabled={scanPage <= 1}>
-                  &laquo; {t('wirelessMetrics.prev')}
+                  {t('ui.wirelessMetricsPage.laquo')}{t('wirelessMetrics.prev')}
                 </button>
                 <span style={styles.pageInfo}>{scanPage} / {scanTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setScanPage(p => p + 1)} disabled={scanPage >= scanTotalPages}>
-                  {t('wirelessMetrics.next')} &raquo;
+                  {t('wirelessMetrics.next')} {t('ui.wirelessMetricsPage.raquo')}
                 </button>
               </div>
             </>

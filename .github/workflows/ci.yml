@@ -368,6 +368,7 @@ jobs:
           name: db-isolation-report
           path: |
             db-isolation-report.json
+            db-isolation-report-writes.json
             db-rbac-report.json
           if-no-files-found: ignore
           retention-days: 14

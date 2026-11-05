@@ -51,6 +51,7 @@ interface PrivateRouteProps {
 }
 
 export function PrivateRoute({ requiredRole }: PrivateRouteProps) {
+  const { t } = useTranslation();
   const { user, loading, initialized } = useAuth();
   const location = useLocation();
 
@@ -67,7 +68,7 @@ export function PrivateRoute({ requiredRole }: PrivateRouteProps) {
           color: '#555',
         }}
       >
-        Loading…
+        {t('ui.privateRoute.loading')}
       </div>
     );
   }

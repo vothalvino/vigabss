@@ -375,6 +375,12 @@ that inevitably fail, but they never replace server-side authorization.
   (`src/models/ownedForeignKeys.json`, regenerated with
   `node src/scripts/generate-owned-fks.js --write`). It runs after the route's
   own hooks; a route that checks a field itself sets `ownedRefs: { field: null }`.
+  A target in `SHARED_TABLES` (NULL-organization defaults such as system
+  message templates) is checked with `allowShared`. Hand-written writes use the
+  same map or `ownedReferences(...)` after `validate()`.
+- An action or delete on a path id answers 404 when its org-scoped statement
+  matched no row (`affectedRows === 0`), never a 2xx; the real-database write
+  sweep (`tests/integration/db/tenantIsolationSweep.test.js`) fails on either.
 - `crudController.js` centralizes common list/get/create/update/delete behavior,
   audit logging, cache invalidation, serializers, hooks, and optional locked
   transactions. Use its extension points before forking a second CRUD pattern.
@@ -393,6 +399,13 @@ that inevitably fail, but they never replace server-side authorization.
   FreeRADIUS reads it from the table, so it stays plaintext at rest, is
   redacted to `has_secret`, and only `GET /nas/:id/secret` with
   `radius.credentials.view` returns it.
+- A sealed value is `vb1:<key id>:<iv>:<tag>:<ciphertext>`
+  (`src/utils/encryption.js`). `ENCRYPTION_KEYS_PREVIOUS` keeps old keys for
+  decryption only, and `src/scripts/rotate-encryption-key.js` re-seals every
+  value an old key sealed, found by its prefix in any text or JSON column, so
+  a new secret column needs no registration for rotation. Do not store a
+  sealed value in a column the script cannot update (a generated column, a
+  table without a primary key).
 - Output encoding happens at the sink: React escapes text, the knowledge-base
   HTML sink uses DOMPurify, XML builders escape XML, and email templates escape
   interpolated HTML. Do not reintroduce blanket input-side HTML encoding.
@@ -632,6 +645,21 @@ FUP rate while the column names the current month
 speed-window transitions skip throttled contracts, and the CoA carries the
 vendor rate attributes. `convert_expired_trials` was removed: invoices price
 the trial window themselves (`billingService.isContractInTrial`).
+
+A plan change is not done when `contracts.plan_id` is written: call
+`contractPlanChangeService.pushPlanChange` after it commits. It rewrites the
+contract's FreeRADIUS rows and sends the live session a CoA at the rate now in
+force (the new plan's, with any speed window, unless a soft suspension or FUP
+throttle applies). PUT/PATCH `/contracts/:id`, an approved portal plan change
+and batch `change_plan` all call it; the batch also goes through
+`contractUpdateGuard.updateContractWithActivationGuard`, like the PUT.
+
+Each of those paths also bills the rest of an already-invoiced period at the
+new price (`planChangeProrationService.prorate`, in the change's transaction):
+a one-off invoice for an upgrade, an issued credit note for a downgrade. Staff
+and batch changes take `prorate: false` for a courtesy change or a correction;
+a contract with a `price_override` pays the same whatever its plan, so it is
+never prorated.
 
 Automation rules (`src/services/automationActions.js`, ASY-36) run on every
 business event: a `*` listener on `eventBus` evaluates the organization's

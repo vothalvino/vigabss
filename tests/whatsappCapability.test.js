@@ -128,19 +128,19 @@ describe('balanceText', () => {
   it('reports an amount owed with the next due date', async () => {
     computeClientBalance.mockResolvedValue({ balance: 150.5, currency: 'MXN' });
     wire({ nextDue: '2026-08-01' });
-    const t = await cap.balanceText(3, 7);
+    const t = await cap.balanceText(3, 7, 'en');
     expect(t).toMatch(/150\.50 MXN/);
-    expect(t).toMatch(/due 2026-08-01/);
+    expect(t).toMatch(/due Aug 1, 2026/);
   });
   it('reports a credit when the balance is negative', async () => {
     computeClientBalance.mockResolvedValue({ balance: -30, currency: 'MXN' });
     wire();
-    expect(await cap.balanceText(3, 7)).toMatch(/credit of \*30\.00 MXN\*/);
+    expect(await cap.balanceText(3, 7, 'en')).toMatch(/credit of \*30\.00 MXN\*/);
   });
   it('reports paid-up at zero', async () => {
     computeClientBalance.mockResolvedValue({ balance: 0, currency: 'MXN' });
     wire();
-    expect(await cap.balanceText(3, 7)).toMatch(/all paid up/i);
+    expect(await cap.balanceText(3, 7, 'en')).toMatch(/all paid up/i);
   });
 
   // -------------------------------------------------------------------------
@@ -151,7 +151,7 @@ describe('balanceText', () => {
     computeClientBalance.mockResolvedValue({ balance: 150.5, currency: 'MXN' });
     wire({ nextDue: '2026-08-01', invoice: INV });
     checkoutService.createCheckoutSession.mockResolvedValue({ payment_url: 'https://checkout.stripe.com/c/pay/abc123' });
-    const t = await cap.balanceText(3, 7);
+    const t = await cap.balanceText(3, 7, 'en');
     expect(t).toMatch(/INV-000005/);
     expect(t).toContain('https://checkout.stripe.com/c/pay/abc123');
     // The link is personal — say so, because WhatsApp messages get forwarded.
@@ -164,7 +164,7 @@ describe('balanceText', () => {
     computeClientBalance.mockResolvedValue({ balance: 150.5, currency: 'MXN' });
     wire({ nextDue: '2026-08-01', invoice: INV });
     checkoutService.createCheckoutSession.mockRejectedValue(new Error('No active payment gateway'));
-    const t = await cap.balanceText(3, 7);
+    const t = await cap.balanceText(3, 7, 'en');
     expect(t).toMatch(/150\.50 MXN/);
     expect(t).not.toMatch(/https?:\/\//);
     expect(t).not.toMatch(/error|sorry/i);
@@ -173,7 +173,7 @@ describe('balanceText', () => {
   it('offers no link when there is nothing payable', async () => {
     computeClientBalance.mockResolvedValue({ balance: 150.5, currency: 'MXN' });
     wire({ nextDue: '2026-08-01', invoice: null });
-    const t = await cap.balanceText(3, 7);
+    const t = await cap.balanceText(3, 7, 'en');
     expect(t).toMatch(/150\.50 MXN/);
     expect(checkoutService.createCheckoutSession).not.toHaveBeenCalled();
   });
@@ -181,7 +181,7 @@ describe('balanceText', () => {
   it('never offers a link to someone in credit', async () => {
     computeClientBalance.mockResolvedValue({ balance: -30, currency: 'MXN' });
     wire({ invoice: INV });
-    const t = await cap.balanceText(3, 7);
+    const t = await cap.balanceText(3, 7, 'en');
     expect(t).not.toMatch(/https?:\/\//);
     expect(checkoutService.createCheckoutSession).not.toHaveBeenCalled();
   });
@@ -224,14 +224,14 @@ describe('getActiveContracts / planText', () => {
   });
   it('planText lists active services with speed + status', async () => {
     db.query.mockResolvedValueOnce([[{ id: 9, status: 'active', connection_type: 'pppoe', plan_name: 'Fiber 100', down: 100, up: 20, site_name: null }]]);
-    const t = await cap.planText(3, 7);
+    const t = await cap.planText(3, 7, 'en');
     expect(t).toMatch(/Fiber 100/);
     expect(t).toMatch(/100\/20 Mbps/);
     expect(t).toMatch(/active/);
   });
   it('planText handles no active service', async () => {
     db.query.mockResolvedValueOnce([[]]);
-    expect(await cap.planText(3, 7)).toMatch(/don't have an active service/i);
+    expect(await cap.planText(3, 7, 'en')).toMatch(/don't have an active service/i);
   });
 });
 
@@ -240,14 +240,14 @@ describe('invoicesText', () => {
     db.query.mockResolvedValueOnce([[
       { invoice_number: 'INV-001', total: '116.00', status: 'issued', due_date: '2026-08-01' },
     ]]);
-    const t = await cap.invoicesText(3, 7);
+    const t = await cap.invoicesText(3, 7, 'en');
     expect(t).toMatch(/INV-001/);
     expect(t).toMatch(/116\.00/);
     expect(t).toMatch(/issued/);
   });
   it('handles no invoices', async () => {
     db.query.mockResolvedValueOnce([[]]);
-    expect(await cap.invoicesText(3, 7)).toMatch(/no invoices/i);
+    expect(await cap.invoicesText(3, 7, 'en')).toMatch(/no invoices/i);
   });
 });
 
@@ -279,5 +279,47 @@ describe('ticket creation', () => {
     const id = await cap.createHumanHandoffTicket({ orgId: 3, clientId: 7 });
     expect(id).toBe(77);
     expect(db.query.mock.calls[0][0]).toMatch(/'general'/);
+  });
+});
+
+// The balance, plan and invoice replies were English for every subscriber,
+// whatever language the bot spoke to them in, and a due date (a Date from
+// mysql2) printed as "Sun Nov 01" (ASY-40 follow-up).
+describe('replies in the subscriber\'s language', () => {
+  it('answers the balance in Spanish by default, with a calendar due date', async () => {
+    computeClientBalance.mockResolvedValue({ balance: 580, currency: 'MXN' });
+    db.query.mockImplementation(async (sql) => {
+      if (/MIN\(due_date\)/.test(sql)) return [[{ next_due: new Date('2026-11-01T00:00:00Z') }]];
+      return [[]];
+    });
+    const t = await cap.balanceText(3, 7);
+    expect(t).toBe('💳 El saldo de tu cuenta es *580.00 MXN*. Tu próximo pago vence el 1 nov 2026.');
+  });
+
+  it('says paid up and a credit in Spanish', async () => {
+    db.query.mockImplementation(async () => [[{ next_due: null }]]);
+    computeClientBalance.mockResolvedValue({ balance: 0, currency: 'MXN' });
+    expect(await cap.balanceText(3, 7, 'es')).toBe('✅ Estás al corriente. Saldo: *0.00 MXN*.');
+    computeClientBalance.mockResolvedValue({ balance: -30, currency: 'MXN' });
+    expect(await cap.balanceText(3, 7, 'es')).toMatch(/saldo a favor de \*30\.00 MXN\*/);
+  });
+
+  it('lists services and invoices with translated statuses', async () => {
+    db.query.mockResolvedValueOnce([[{ id: 9, status: 'active', connection_type: 'pppoe', plan_name: 'Fibra 100', down: 100, up: 20, site_name: null }]]);
+    expect(await cap.planText(3, 7, 'es')).toBe('📶 Tu servicio:\n• Fibra 100 — 100/20 Mbps — activo');
+    db.query.mockResolvedValueOnce([[{ invoice_number: 'F-001', total: '116.00', status: 'overdue', due_date: new Date('2026-10-05T00:00:00Z') }]]);
+    expect(await cap.invoicesText(3, 7, 'es')).toBe('🧾 Tus facturas recientes:\n• F-001: 116.00 — vencida (vence el 5 oct 2026)\n\nResponde 1 para ver tu saldo actual.');
+  });
+
+  it('answers in Portuguese for a pt-BR organization', async () => {
+    db.query.mockResolvedValueOnce([[]]);
+    expect(await cap.invoicesText(3, 7, 'pt-BR')).toBe('Você ainda não tem faturas cadastradas.');
+  });
+
+  it('every locale has every capability string', () => {
+    const keys = (o, p = '') => Object.entries(o).flatMap(([k, v]) => (typeof v === 'object' ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
+    const en = keys(require('../src/locales/en.json').whatsappBot.capability);
+    expect(keys(require('../src/locales/es.json').whatsappBot.capability)).toEqual(en);
+    expect(keys(require('../src/locales/pt-BR.json').whatsappBot.capability)).toEqual(en);
   });
 });

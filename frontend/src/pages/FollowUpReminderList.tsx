@@ -23,6 +23,7 @@ import {
   cancelBtn,
 } from '@/components/ClientFormModal';
 import { ClientPicker } from '@/components/ClientPicker';
+import { useTranslation } from 'react-i18next';
 
 interface FollowUpReminder {
   id: number;
@@ -81,6 +82,7 @@ function ReminderFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     client_id: initial?.client_id ? String(initial.client_id) : '',
     title: initial?.title ?? '',
@@ -139,30 +141,30 @@ function ReminderFormModal({
             onChange={(id) => setForm(p => ({ ...p, client_id: id ? String(id) : '' }))}
           />
 
-          <label style={labelStyle}>Title *</label>
+          <label style={labelStyle}>{t('ui.followUpReminderList.title')}</label>
           <input style={inputStyle} type="text" value={form.title}
             onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required />
 
-          <label style={labelStyle}>Due *</label>
+          <label style={labelStyle}>{t('ui.followUpReminderList.due')}</label>
           <input style={inputStyle} type="datetime-local" value={form.due_at}
             onChange={e => setForm(p => ({ ...p, due_at: e.target.value }))} required />
 
-          <label style={labelStyle}>Priority</label>
+          <label style={labelStyle}>{t('ui.followUpReminderList.priority')}</label>
           <select style={inputStyle} value={form.priority}
             onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
             {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
 
-          <label style={labelStyle}>Ticket ID</label>
+          <label style={labelStyle}>{t('ui.followUpReminderList.ticketId')}</label>
           <input style={inputStyle} type="number" min={1} value={form.ticket_id}
             onChange={e => setForm(p => ({ ...p, ticket_id: e.target.value }))} />
 
-          <label style={labelStyle}>Notes</label>
+          <label style={labelStyle}>{t('ui.followUpReminderList.notes')}</label>
           <textarea style={{ ...inputStyle, minHeight: 70 }} value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.followUpReminderList.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : mode === 'create' ? 'Create' : 'Save'}
             </button>
@@ -174,6 +176,7 @@ function ReminderFormModal({
 }
 
 export function FollowUpReminderList() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('pending');
@@ -206,25 +209,25 @@ export function FollowUpReminderList() {
   return (
     <div style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0 }}>Follow-up Reminders</h2>
+        <h2 style={{ margin: 0 }}>{t('ui.followUpReminderList.followUpReminders')}</h2>
         {canCreate && (
-          <button type="button" style={submitBtn} onClick={() => setShowCreate(true)}>+ New Follow-up</button>
+          <button type="button" style={submitBtn} onClick={() => setShowCreate(true)}>{t('ui.followUpReminderList.newFollowUp')}</button>
         )}
       </div>
 
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 0 }}>
-        Schedule follow-ups with clients. Assignees are notified automatically when a reminder comes due.
+        {t('ui.followUpReminderList.scheduleFollowUpsWithClients')}
       </p>
 
       <div style={{ margin: '0.5rem 0 1rem' }}>
         <select style={{ ...inputStyle, width: 200, marginBottom: 0 }} value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value); setPage(1); }} aria-label="Filter by status">
-          <option value="">All statuses</option>
+          onChange={e => { setStatusFilter(e.target.value); setPage(1); }} aria-label={t('ui.followUpReminderList.filterByStatus')}>
+          <option value="">{t('ui.followUpReminderList.allStatuses')}</option>
           {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t('ui.followUpReminderList.loading')}</p>}
       {error && <div style={errorBox}>{(error as Error).message}</div>}
 
       {data && (
@@ -232,17 +235,17 @@ export function FollowUpReminderList() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-strong)' }}>
-              <th style={{ padding: '8px' }}>Title</th>
-              <th style={{ padding: '8px' }}>Client</th>
-              <th style={{ padding: '8px' }}>Priority</th>
-              <th style={{ padding: '8px' }}>Status</th>
-              <th style={{ padding: '8px' }}>Due</th>
-              <th style={{ padding: '8px', textAlign: 'right' }}>Actions</th>
+              <th style={{ padding: '8px' }}>{t('ui.followUpReminderList.title2')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.followUpReminderList.client')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.followUpReminderList.priority')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.followUpReminderList.status')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.followUpReminderList.due2')}</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.followUpReminderList.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {data.data.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No follow-ups yet.</td></tr>
+              <tr><td colSpan={6} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{t('ui.followUpReminderList.noFollowUpsYet')}</td></tr>
             )}
             {data.data.map(r => {
               const overdue = r.status === 'pending' && new Date(r.due_at).getTime() < now;
@@ -259,10 +262,10 @@ export function FollowUpReminderList() {
                     {canUpdate && r.status === 'pending' && (
                       <>
                         <button type="button" style={{ ...cancelBtn, padding: '4px 10px', marginRight: 6 }}
-                          onClick={() => setEditReminder(r)}>Edit</button>
+                          onClick={() => setEditReminder(r)}>{t('ui.followUpReminderList.edit')}</button>
                         <button type="button" style={{ ...submitBtn, padding: '4px 10px' }}
                           disabled={completeMutation.isPending}
-                          onClick={() => completeMutation.mutate(r.id)}>Complete</button>
+                          onClick={() => completeMutation.mutate(r.id)}>{t('ui.followUpReminderList.complete')}</button>
                       </>
                     )}
                   </td>

@@ -12,6 +12,7 @@ const { authenticate } = require('../middleware/auth');
 const { orgScope } = require('../middleware/orgScope');
 const { requirePermission } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
+const { ownedReferences } = require('../utils/ownedReferences');
 
 const router = Router();
 
@@ -73,7 +74,7 @@ const sendSchema = {
   templateId: { type: 'number' },
 };
 
-router.post('/send', requirePermission('sms.send'), validate(sendSchema, { strip: false }), async (req, res, next) => {
+router.post('/send', requirePermission('sms.send'), validate(sendSchema, { strip: false }), ownedReferences({ clientId: 'clients' }), async (req, res, next) => {
   try {
     const { to, body, channel = 'sms', clientId, templateId = null } = req.body;
     smsTransport.assertClientSmsAttribution({ organizationId: req.orgId, clientId, messageClass: 'support_reply' });

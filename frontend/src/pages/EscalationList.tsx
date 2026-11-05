@@ -25,6 +25,7 @@ import {
   submitBtn,
   cancelBtn,
 } from '@/components/ClientFormModal';
+import { useTranslation } from 'react-i18next';
 
 interface Escalation {
   id: number;
@@ -77,6 +78,7 @@ function EscalateModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [escalatedTo, setEscalatedTo] = useState('');
   const [error, setError] = useState('');
@@ -100,21 +102,21 @@ function EscalateModal({
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Escalate Ticket">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.escalationList.escalateTicket')}>
       <div style={{ ...modalBox, width: 440 }}>
-        <h3 style={{ margin: '0 0 1rem' }}>Escalate Ticket #{ticketId}</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.escalationList.escalateTicket2')}{ticketId}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Reason *</label>
+          <label style={labelStyle}>{t('ui.escalationList.reason')}</label>
           <textarea style={{ ...inputStyle, minHeight: 70 }} value={reason} autoFocus
             onChange={e => setReason(e.target.value)} required />
 
-          <label style={labelStyle}>Escalate to (user ID)</label>
+          <label style={labelStyle}>{t('ui.escalationList.escalateToUserId')}</label>
           <input style={inputStyle} type="number" min={1} value={escalatedTo}
             onChange={e => setEscalatedTo(e.target.value)} />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.escalationList.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Escalating…' : 'Escalate'}
             </button>
@@ -126,6 +128,7 @@ function EscalateModal({
 }
 
 export function EscalationList() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [escalateTicketId, setEscalateTicketId] = useState<number | null>(null);
@@ -156,22 +159,22 @@ export function EscalationList() {
 
   return (
     <div style={{ padding: '1.5rem' }}>
-      <h2 style={{ margin: '0 0 0.25rem' }}>Escalations</h2>
+      <h2 style={{ margin: '0 0 0.25rem' }}>{t('ui.escalationList.escalations')}</h2>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 0 }}>
-        Manage escalations for unresolved tickets. Stale tickets are auto-escalated after 48 hours.
+        {t('ui.escalationList.manageEscalationsForUnresolvedTickets')}
       </p>
 
       {candidates && candidates.length > 0 && (
         <div style={{ margin: '1rem 0 1.5rem' }}>
-          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>⚠️ Needs attention ({candidates.length})</h3>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>{t('ui.escalationList.needsAttention')}{candidates.length})</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-strong)' }}>
-                <th style={{ padding: '8px' }}>Ticket</th>
-                <th style={{ padding: '8px' }}>Client</th>
-                <th style={{ padding: '8px' }}>Priority</th>
-                <th style={{ padding: '8px', textAlign: 'right' }}>Hours open</th>
-                <th style={{ padding: '8px', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '8px' }}>{t('ui.escalationList.ticket')}</th>
+                <th style={{ padding: '8px' }}>{t('ui.escalationList.client')}</th>
+                <th style={{ padding: '8px' }}>{t('ui.escalationList.priority')}</th>
+                <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.escalationList.hoursOpen')}</th>
+                <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.escalationList.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -186,7 +189,7 @@ export function EscalationList() {
                   <td style={{ padding: '8px', textAlign: 'right' }}>
                     {canCreate && (
                       <button type="button" style={{ ...submitBtn, padding: '4px 10px' }}
-                        onClick={() => setEscalateTicketId(c.id)}>Escalate</button>
+                        onClick={() => setEscalateTicketId(c.id)}>{t('ui.escalationList.escalate')}</button>
                     )}
                   </td>
                 </tr>
@@ -196,7 +199,7 @@ export function EscalationList() {
         </div>
       )}
 
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t('ui.escalationList.loading')}</p>}
       {error && <div style={errorBox}>{(error as Error).message}</div>}
 
       {data && (
@@ -204,17 +207,17 @@ export function EscalationList() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-strong)' }}>
-              <th style={{ padding: '8px' }}>Ticket</th>
-              <th style={{ padding: '8px' }}>Level</th>
-              <th style={{ padding: '8px' }}>Reason</th>
-              <th style={{ padding: '8px' }}>Status</th>
-              <th style={{ padding: '8px' }}>Escalated</th>
-              <th style={{ padding: '8px', textAlign: 'right' }}>Actions</th>
+              <th style={{ padding: '8px' }}>{t('ui.escalationList.ticket')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.escalationList.level')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.escalationList.reason2')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.escalationList.status')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.escalationList.escalated')}</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.escalationList.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {data.data.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No escalations yet.</td></tr>
+              <tr><td colSpan={6} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{t('ui.escalationList.noEscalationsYet')}</td></tr>
             )}
             {data.data.map(e => (
               <tr key={e.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -234,12 +237,12 @@ export function EscalationList() {
                   {canUpdate && e.status === 'open' && (
                     <button type="button" style={{ ...cancelBtn, padding: '4px 10px', marginRight: 6 }}
                       disabled={transitionMutation.isPending}
-                      onClick={() => transitionMutation.mutate({ id: e.id, status: 'acknowledged' })}>Acknowledge</button>
+                      onClick={() => transitionMutation.mutate({ id: e.id, status: 'acknowledged' })}>{t('ui.escalationList.acknowledge')}</button>
                   )}
                   {canUpdate && e.status !== 'resolved' && (
                     <button type="button" style={{ ...submitBtn, padding: '4px 10px' }}
                       disabled={transitionMutation.isPending}
-                      onClick={() => transitionMutation.mutate({ id: e.id, status: 'resolved' })}>Resolve</button>
+                      onClick={() => transitionMutation.mutate({ id: e.id, status: 'resolved' })}>{t('ui.escalationList.resolve')}</button>
                   )}
                 </td>
               </tr>

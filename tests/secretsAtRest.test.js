@@ -34,7 +34,7 @@ describe('TOTP secret at rest', () => {
     const { secret: base32 } = await twoFactorService.generateSecret(1);
     const stored = db.query.mock.calls[1][1][0];
 
-    expect(stored).toMatch(/^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/);
+    expect(stored).toMatch(/^vb1:[0-9a-f]{8}:[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/);
     expect(stored).not.toMatch(/^[0-9a-f]{40}$/);
     const plainHex = require('../src/utils/encryption').decryptStrict(stored);
     expect(twoFactorService.hexToBase32(plainHex)).toBe(base32);
@@ -95,6 +95,12 @@ describe('boot checks', () => {
       .toThrow(/APP_URL must be an https:\/\/ URL/);
     expect(validate({ NODE_ENV: 'production', ENCRYPTION_KEY: KEY_A, APP_URL: 'https://isp.example.com' }))
       .not.toThrow();
+  });
+
+  test('a malformed ENCRYPTION_KEYS_PREVIOUS entry stops the boot (SEC-28 rotation)', () => {
+    const base = { NODE_ENV: 'production', ENCRYPTION_KEY: KEY_A, APP_URL: 'https://isp.example.com' };
+    expect(validate({ ...base, ENCRYPTION_KEYS_PREVIOUS: 'old-key' })).toThrow(/ENCRYPTION_KEYS_PREVIOUS must list/);
+    expect(validate({ ...base, ENCRYPTION_KEYS_PREVIOUS: `${KEY_B}, ${'c'.repeat(64)}` })).not.toThrow();
   });
 
   test('development still runs without a key, with a warning', () => {

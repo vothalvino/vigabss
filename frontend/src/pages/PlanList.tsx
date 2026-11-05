@@ -23,6 +23,7 @@ import {
 } from './crudStyles';
 import { Pagination } from '@/components/Pagination';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -142,6 +143,7 @@ interface PlanModalProps {
 }
 
 function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
+  const { t } = useTranslation();
   const isEdit = plan !== null;
   const [form, setForm] = useState({
     name: plan?.name ?? '',
@@ -223,12 +225,12 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit Plan #${plan.id}` : '📶 New Plan'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.planList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.planList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
@@ -240,7 +242,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Description
+            {t('ui.planList.description')}
             <input
               style={modalStyles.input}
               type="text"
@@ -251,7 +253,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Download Speed (Mbps) <RequiredMark />
+            {t('ui.planList.downloadSpeedMbps')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="number"
@@ -263,7 +265,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Upload Speed (Mbps) <RequiredMark />
+            {t('ui.planList.uploadSpeedMbps')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="number"
@@ -275,7 +277,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Price <RequiredMark />
+            {t('ui.planList.price')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="number"
@@ -288,7 +290,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Billing Cycle
+            {t('ui.planList.billingCycle')}
             <select
               style={modalStyles.select}
               value={form.billing_cycle}
@@ -301,7 +303,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Data Cap (GB, leave blank for unlimited)
+            {t('ui.planList.dataCapGbLeaveBlank')}
             <input
               style={modalStyles.input}
               type="number"
@@ -313,7 +315,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Status
+            {t('ui.planList.status')}
             <select
               style={modalStyles.select}
               value={form.status}
@@ -324,12 +326,12 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            IP Stack Type
+            {t('ui.planList.ipStackType')}
             <select
               style={modalStyles.select}
               value={form.stack_type}
               onChange={e => setField('stack_type', e.target.value)}
-              aria-label="IP stack type"
+              aria-label={t('ui.planList.ipStackType2')}
             >
               {STACK_TYPES.map(st => (
                 <option key={st} value={st}>{st.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
@@ -338,12 +340,12 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            RADIUS Vendor
+            {t('ui.planList.radiusVendor')}
             <select
               style={modalStyles.select}
               value={form.radius_vendor}
               onChange={e => setField('radius_vendor', e.target.value)}
-              aria-label="RADIUS vendor"
+              aria-label={t('ui.planList.radiusVendor2')}
             >
               {RADIUS_VENDORS.map(v => (
                 <option key={v} value={v}>{v ? capitalize(v) : 'Generic (WISPr)'}</option>
@@ -352,19 +354,19 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            RADIUS Rate-Limit Template
+            {t('ui.planList.radiusRateLimitTemplate')}
             <input
               style={modalStyles.input}
               type="text"
               maxLength={200}
               value={form.radius_rate_limit_template}
               onChange={e => setField('radius_rate_limit_template', e.target.value)}
-              placeholder="e.g. 2M/10M (upload/download)"
+              placeholder={t('ui.planList.eG2m10mUpload')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            FUP Threshold (GB)
+            {t('ui.planList.fupThresholdGb')}
             <input
               style={modalStyles.input}
               type="number"
@@ -372,12 +374,12 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
               step="0.01"
               value={form.fup_threshold_gb}
               onChange={e => setField('fup_threshold_gb', e.target.value)}
-              aria-label="FUP threshold in GB"
+              aria-label={t('ui.planList.fupThresholdInGb')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            FUP Threshold (%)
+            {t('ui.planList.fupThreshold')}
             <input
               style={modalStyles.input}
               type="number"
@@ -385,41 +387,41 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
               max={100}
               value={form.fup_threshold_percent}
               onChange={e => setField('fup_threshold_percent', e.target.value)}
-              aria-label="FUP threshold percent"
+              aria-label={t('ui.planList.fupThresholdPercent')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            FUP Download Speed (Mbps)
+            {t('ui.planList.fupDownloadSpeedMbps')}
             <input
               style={modalStyles.input}
               type="number"
               min={0}
               value={form.fup_download_speed_mbps}
               onChange={e => setField('fup_download_speed_mbps', e.target.value)}
-              aria-label="FUP throttle download speed"
+              aria-label={t('ui.planList.fupThrottleDownloadSpeed')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            FUP Upload Speed (Mbps)
+            {t('ui.planList.fupUploadSpeedMbps')}
             <input
               style={modalStyles.input}
               type="number"
               min={0}
               value={form.fup_upload_speed_mbps}
               onChange={e => setField('fup_upload_speed_mbps', e.target.value)}
-              aria-label="FUP throttle upload speed"
+              aria-label={t('ui.planList.fupThrottleUploadSpeed')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Overage Mode
+            {t('ui.planList.overageMode')}
             <select
               style={modalStyles.select}
               value={form.overage_mode}
               onChange={e => setField('overage_mode', e.target.value)}
-              aria-label="Overage mode"
+              aria-label={t('ui.planList.overageMode2')}
             >
               {OVERAGE_MODES.map(m => (
                 <option key={m} value={m}>{capitalize(m.replace('_', ' '))}</option>
@@ -428,7 +430,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Overage Price per GB
+            {t('ui.planList.overagePricePerGb')}
             <input
               style={modalStyles.input}
               type="number"
@@ -436,24 +438,24 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
               step="0.0001"
               value={form.overage_price_per_gb}
               onChange={e => setField('overage_price_per_gb', e.target.value)}
-              aria-label="Overage price per GB"
+              aria-label={t('ui.planList.overagePricePerGb2')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Trial Days
+            {t('ui.planList.trialDays')}
             <input
               style={modalStyles.input}
               type="number"
               min={0}
               value={form.trial_days}
               onChange={e => setField('trial_days', e.target.value)}
-              aria-label="Free trial days"
+              aria-label={t('ui.planList.freeTrialDays')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Trial Price
+            {t('ui.planList.trialPrice')}
             <input
               style={modalStyles.input}
               type="number"
@@ -461,7 +463,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
               step="0.01"
               value={form.trial_price}
               onChange={e => setField('trial_price', e.target.value)}
-              aria-label="Trial period price"
+              aria-label={t('ui.planList.trialPeriodPrice')}
             />
           </label>
 
@@ -469,7 +471,7 @@ function PlanModal({ plan, onClose, onSaved }: PlanModalProps) {
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.planList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Plan'}
@@ -492,18 +494,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.planList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.planList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.planList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -515,6 +518,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function PlanList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const orgCurrency = useOrgCurrency();
   const [page, setPage] = useState(1);
@@ -549,15 +553,15 @@ export function PlanList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📶 Plans</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.planList.plans')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.planList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New Plan
+          {t('ui.planList.newPlan')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.planList.status2')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -569,24 +573,24 @@ export function PlanList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.planList.clearFilter')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.planList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {plansQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.planList.loading')}</p>
         ) : plansQ.error ? (
-          <p style={styles.msgError}>Failed to load plans.</p>
+          <p style={styles.msgError}>{t('ui.planList.failedToLoadPlans')}</p>
         ) : plans.length === 0 ? (
-          <p style={styles.msg}>No plans found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.planList.noPlansFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -611,15 +615,15 @@ export function PlanList() {
                       <td style={styles.td}>{p.data_cap_gb != null ? `${p.data_cap_gb} GB` : 'Unlimited'}</td>
                       <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <button style={styles.actionBtn} onClick={() => setEditPlan(p)} title="Edit this plan">
-                          ✏️ Edit
+                        <button style={styles.actionBtn} onClick={() => setEditPlan(p)} title={t('ui.planList.editThisPlan')}>
+                          {t('ui.planList.edit')}
                         </button>
                         <button
                           style={{ ...styles.actionBtn, color: '#991b1b' }}
                           onClick={() => setDeleteId(p.id)}
-                          title="Delete this plan"
+                          title={t('ui.planList.deleteThisPlan')}
                         >
-                          🗑 Delete
+                          {t('ui.planList.delete')}
                         </button>
                       </td>
                     </tr>

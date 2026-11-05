@@ -22,6 +22,7 @@ import {
   submitBtn,
   cancelBtn,
 } from '@/components/ClientFormModal';
+import { useTranslation } from 'react-i18next';
 
 interface TimelineEvent {
   event_type: string;
@@ -60,6 +61,7 @@ function LogInteractionModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     interaction_type: 'call',
     direction: 'inbound',
@@ -94,38 +96,38 @@ function LogInteractionModal({
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Log Interaction">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.clientActivityTab.logInteraction')}>
       <div style={{ ...modalBox, width: 440 }}>
-        <h3 style={{ margin: '0 0 1rem' }}>Log Interaction</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.clientActivityTab.logInteraction')}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Type</label>
+          <label style={labelStyle}>{t('ui.clientActivityTab.type')}</label>
           <select style={inputStyle} value={form.interaction_type}
             onChange={e => setForm(p => ({ ...p, interaction_type: e.target.value }))}>
             {INTERACTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
 
-          <label style={labelStyle}>Direction</label>
+          <label style={labelStyle}>{t('ui.clientActivityTab.direction')}</label>
           <select style={inputStyle} value={form.direction}
             onChange={e => setForm(p => ({ ...p, direction: e.target.value }))}>
-            <option value="inbound">inbound</option>
-            <option value="outbound">outbound</option>
+            <option value="inbound">{t('ui.clientActivityTab.inbound')}</option>
+            <option value="outbound">{t('ui.clientActivityTab.outbound')}</option>
           </select>
 
-          <label style={labelStyle}>Subject *</label>
+          <label style={labelStyle}>{t('ui.clientActivityTab.subject')}</label>
           <input style={inputStyle} type="text" value={form.subject} autoFocus
             onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} required />
 
-          <label style={labelStyle}>Notes</label>
+          <label style={labelStyle}>{t('ui.clientActivityTab.notes')}</label>
           <textarea style={{ ...inputStyle, minHeight: 70 }} value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
 
-          <label style={labelStyle}>Duration (minutes)</label>
+          <label style={labelStyle}>{t('ui.clientActivityTab.durationMinutes')}</label>
           <input style={inputStyle} type="number" min={0} value={form.duration_minutes}
             onChange={e => setForm(p => ({ ...p, duration_minutes: e.target.value }))} />
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.clientActivityTab.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : 'Log interaction'}
             </button>
@@ -137,6 +139,7 @@ function LogInteractionModal({
 }
 
 export function ActivityTimelineTab({ clientId }: { clientId: number }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [showLog, setShowLog] = useState(false);
@@ -154,20 +157,20 @@ export function ActivityTimelineTab({ clientId }: { clientId: number }) {
     <div style={{ padding: '0.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-          Calls, emails, tickets, payments, and visits — newest first.
+          {t('ui.clientActivityTab.callsEmailsTicketsPaymentsAnd')}
         </span>
         {canLog && (
           <button type="button" style={{ ...submitBtn, padding: '4px 12px' }} onClick={() => setShowLog(true)}>
-            + Log interaction
+            {t('ui.clientActivityTab.logInteraction2')}
           </button>
         )}
       </div>
 
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t('ui.clientActivityTab.loading')}</p>}
       {error && <div style={errorBox}>{(error as Error).message}</div>}
 
       {events && events.length === 0 && (
-        <p style={{ color: 'var(--text-secondary)' }}>No activity recorded for this client yet.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>{t('ui.clientActivityTab.noActivityRecordedForThis')}</p>
       )}
 
       {events && events.length > 0 && (

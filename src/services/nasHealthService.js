@@ -191,10 +191,17 @@ function emitEvent(event, payload) {
  *  4. Updates health_status and last_health_check_at in the nas table
  *
  * @param {number|null} [organizationId=null] - scope to a single org, or null for all
+ * @param {object} [opts]
+ * @param {number} [opts.nasId] - check only this NAS
  * @returns {Promise<{checked: number, up: number, down: number, transitions: Array<{id:number,from:string,to:string}>}>}
  */
-async function runHealthChecks(organizationId = null) {
-  const { sql: orgFilter, params } = orgScopeFilter('organization_id', organizationId);
+async function runHealthChecks(organizationId = null, { nasId } = {}) {
+  const { sql: scopeFilter, params } = orgScopeFilter('organization_id', organizationId);
+  let orgFilter = scopeFilter;
+  if (nasId !== undefined) {
+    orgFilter += ' AND id = ?';
+    params.push(nasId);
+  }
 
   const [nasDevices] = await db.query(
     `SELECT id, ip_address, coa_port, secret, health_status, organization_id

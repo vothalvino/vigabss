@@ -144,7 +144,7 @@ function PoolForm({ initial, onSave, onClose, saving, editMode }: PoolFormProps)
       <div style={{ ...modalStyles.panel, maxWidth: 600 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('nat_management.edit', 'Edit NAT Pool') : t('nat_management.new', 'New NAT Pool')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.natManagementList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -177,11 +177,11 @@ function PoolForm({ initial, onSave, onClose, saving, editMode }: PoolFormProps)
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div>
-              <label style={modalStyles.label}>Port Range Start</label>
+              <label style={modalStyles.label}>{t('ui.natManagementList.portRangeStart')}</label>
               <input style={inp} type="number" min={1} max={65535} value={portRangeStart} onChange={e => setPortRangeStart(e.target.value)} placeholder="1024" />
             </div>
             <div>
-              <label style={modalStyles.label}>Port Range End</label>
+              <label style={modalStyles.label}>{t('ui.natManagementList.portRangeEnd')}</label>
               <input style={inp} type="number" min={1} max={65535} value={portRangeEnd} onChange={e => setPortRangeEnd(e.target.value)} placeholder="65535" />
             </div>
           </div>
@@ -204,7 +204,7 @@ function PoolForm({ initial, onSave, onClose, saving, editMode }: PoolFormProps)
           </div>
 
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.natManagementList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -276,7 +276,7 @@ export function NatManagementList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('nat_management.title', 'NAT / CGNAT Management')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.natManagementList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('nat_management.new', 'New NAT Pool')}
         </button>
@@ -289,9 +289,9 @@ export function NatManagementList() {
       )}
 
       <div style={styles.filterRow}>
-        <span style={styles.filterLabel}>Status:</span>
+        <span style={styles.filterLabel}>{t('ui.natManagementList.status')}</span>
         <select style={styles.filterSelect} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">All</option>
+          <option value="">{t('ui.natManagementList.all')}</option>
           {STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
         </select>
       </div>
@@ -308,12 +308,12 @@ export function NatManagementList() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>NAT Type</th>
-                  <th style={styles.th}>External IPs</th>
-                  <th style={styles.th}>Max Ports/Sub</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.natManagementList.name')}</th>
+                  <th style={styles.th}>{t('ui.natManagementList.natType')}</th>
+                  <th style={styles.th}>{t('ui.natManagementList.externalIps')}</th>
+                  <th style={styles.th}>{t('ui.natManagementList.maxPortsSub')}</th>
+                  <th style={styles.th}>{t('ui.natManagementList.status2')}</th>
+                  <th style={styles.th}>{t('ui.natManagementList.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -325,8 +325,8 @@ export function NatManagementList() {
                     <td style={styles.td}>{p.max_ports_per_subscriber}</td>
                     <td style={styles.td}><StatusBadge status={p.status} colors={STATUS_COLORS} /></td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(p)}>Edit</button>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(p.id)}>Delete</button>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(p)}>{t('ui.natManagementList.edit')}</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(p.id)}>{t('ui.natManagementList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -338,9 +338,9 @@ export function NatManagementList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.natManagementList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.natManagementList.page')}{page} {t('ui.natManagementList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.natManagementList.next')}</button>
         </div>
       )}
 
@@ -369,8 +369,8 @@ export function NatManagementList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('nat_management.delete_confirm', 'Delete this NAT pool?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.natManagementList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.natManagementList.delete')}</button>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 'use strict';
 // =============================================================================
-// TNA-37 — every GET route, signed in to organization A, asked for B's rows
+// TNA-37 — every route, signed in to organization A, aimed at B's rows
 // =============================================================================
 // The isolation tests mocked the database, so they could only show that a
 // handler sent organization_id, not that the SQL kept B's rows out, and they
@@ -8,8 +8,14 @@
 // organizations (realDb.js). For every GET route under /api/v1 it fills each
 // path parameter with organization B's id for that resource, and calls list
 // routes both bare and filtered by B's client and contract. No response may
-// contain B's marker. Write routes (POST/PUT/DELETE with B's ids) are not
-// swept yet: deferred, see the PR.
+// contain B's marker.
+//
+// Then every POST/PUT/PATCH/DELETE route is called the same way, with B's ids
+// in the path and in every id field of a body built from the route's
+// validation schema. After each request the sweep compares a checksum of
+// every B row and counts A rows that point at B's rows: a write may neither
+// change B's data nor link A's data to it, and a write addressed to B's id
+// may not succeed.
 //
 // Runs only in CI's db-integration job (DB_INTEGRATION=1).
 // =============================================================================
@@ -33,6 +39,21 @@ const REVIEWED_FAILURES = {
   '/api/v1/firerelay/health': '503 by design when no FIRERELAY cluster token is configured',
 };
 
+// Write routes not swept: sign-in and session state (a logout or a password
+// change would end the sweep's session), collectors and webhooks that do not
+// use a staff session, and install-level operations.
+const NOT_WRITTEN = [
+  /^\/api\/v1\/(auth|portal\/auth|2fa|sso)\//,
+  /^\/api\/v1\/(security-admin|system|backup-settings|data-security|firerelay)\//,
+  /^\/api\/v1\/(radius\/accounting|pppoe\/events|connection-logs\/cgnat-attribution\/bindings\/ingest)/,
+  /^\/api\/v1\/(payment-webhooks|whatsapp\/webhook|communication\/delivery-webhook)/,
+];
+
+// Reviewed writes that answer 2xx with B's id in the path without touching
+// B's data. Each needs the reason; the list starts empty.
+const REVIEWED_ACCEPTED = {};
+
+const quote = name => `\`${String(name).replace(/`/g, '``')}\``;
 const snake = s => s.replace(/-/g, '_').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 function plurals(word) {
   const w = snake(word);
@@ -189,4 +210,156 @@ describeDb('tenant isolation against a real database', () => {
     const ok = results.filter(r => typeof r.status === 'number' && r.status < 300).length;
     expect(ok).toBeGreaterThan(results.length * 0.2);
   }, 900000);
+
+  // ---------------------------------------------------------------------------
+  // Write routes
+  // ---------------------------------------------------------------------------
+
+  // An id field names its table: client_id → clients, assigned_to → users.
+  function idField(field) {
+    if (/^(assigned_to|created_by|user_id|technician_id|owner_id)$/.test(field)) return idFor('users');
+    const base = field.replace(/(_id|Id)$/, '');
+    if (base === field) return undefined;
+    for (const table of plurals(base)) if (idFor(table) !== undefined) return idFor(table);
+    return undefined;
+  }
+
+  // Every seeded table's B id under its *_id name, for routes that read ids
+  // from the body without a declared schema.
+  function bIdFields() {
+    const out = {};
+    for (const table of ctx.seeded.keys()) {
+      const id = idFor(table);
+      if (typeof id !== 'number') continue;
+      const singular = table.endsWith('ies') ? `${table.slice(0, -3)}y` : table.replace(/s$/, '');
+      out[`${singular}_id`] = id;
+    }
+    return { ...out, client_id: idFor('clients'), contract_id: idFor('contracts'), assigned_to: idFor('users') };
+  }
+
+  function sample(rules) {
+    if (Array.isArray(rules.enum) && rules.enum.length) return rules.enum[0];
+    switch (rules.type) {
+      case 'number': return Math.max(1, Number(rules.min) || 1);
+      case 'boolean': return true;
+      case 'email': return 'zqxa.sweep@example.com';
+      case 'array': return [];
+      case 'object': return {};
+      default: {
+        if (rules.timestamp || /date|_at$/.test(rules.field)) return '2026-06-15';
+        const text = 'ZQXA sweep value';
+        const min = Number(rules.min) || 0;
+        const max = Number(rules.max) || text.length;
+        return text.padEnd(min, 'x').slice(0, Math.max(min, Math.min(max, text.length)));
+      }
+    }
+  }
+
+  // A body the route's validate() schema accepts, every id field B's.
+  function bodyFor(route) {
+    const schema = Object.assign({}, ...route.chain.filter(fn => fn && fn.schema).map(fn => fn.schema));
+    const body = bIdFields();
+    for (const [field, rules] of Object.entries(schema)) {
+      const id = idField(field);
+      if (id !== undefined) body[field] = id;
+      else if (rules.required) body[field] = sample({ ...rules, field });
+    }
+    return body;
+  }
+
+  // One query: per table, the count and checksum of B's rows, and per id
+  // column of A's tables, how many A rows point at B's row.
+  function snapshotSql() {
+    const parts = [];
+    const params = [];
+    for (const table of ctx.tables.values()) {
+      const cols = table.columns.map(c => quote(c.c));
+      const hasOrg = table.columns.some(c => c.c === 'organization_id');
+      const row = `CRC32(CONCAT_WS('#', ${cols.join(', ')}))`;
+      if (hasOrg) {
+        parts.push(`SELECT ? AS k, COUNT(*) AS n, COALESCE(SUM(${row}), 0) AS s FROM ${quote(table.name)} WHERE organization_id = ?`);
+        params.push(`b:${table.name}`, ORG_B);
+        for (const [column, fk] of table.fks) {
+          const target = idFor(fk.table);
+          if (typeof target !== 'number' || fk.column !== 'id') continue;
+          parts.push(`SELECT ?, COUNT(*), 0 FROM ${quote(table.name)} WHERE organization_id = ? AND ${quote(column)} = ?`);
+          params.push(`x:${table.name}.${column}`, ORG_A, target);
+        }
+      } else if (ctx.seeded.get(table.name)?.[ORG_B]?.id !== undefined) {
+        parts.push(`SELECT ?, COUNT(*), COALESCE(SUM(${row}), 0) FROM ${quote(table.name)} WHERE id = ?`);
+        params.push(`b:${table.name}`, ctx.seeded.get(table.name)[ORG_B].id);
+      }
+    }
+    return { sql: parts.join('\nUNION ALL\n'), params };
+  }
+
+  async function snapshot(query) {
+    const [rows] = await ctx.db.query(query.sql, query.params);
+    return new Map(rows.map(r => [r.k, `${r.n}:${r.s}`]));
+  }
+
+  async function write(method, url, token, body) {
+    try {
+      const res = await request(app)[method.toLowerCase()](url)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body)
+        .timeout({ response: 10000, deadline: 15000 });
+      return { status: res.status };
+    } catch (err) {
+      return { status: err.timeout ? 'timeout' : 'error' };
+    }
+  }
+
+  test('no write route changes organization B\'s rows or links A\'s rows to them', async () => {
+    const routes = inventory.list(app)
+      .filter(r => r.method !== 'GET' && r.path.startsWith('/api/v1/'))
+      .filter(r => !NOT_SWEPT.some(re => re.test(r.path)) && !NOT_WRITTEN.some(re => re.test(r.path)));
+    const staff = ctx.staffToken(ORG_A);
+    const portal = ctx.portalToken(ORG_A);
+    const query = snapshotSql();
+    let before = await snapshot(query);
+    const initialLinks = [...before].filter(([k, v]) => k.startsWith('x:') && !v.startsWith('0:'));
+
+    const changed = [];
+    const linked = [];
+    const accepted = [];
+    const unresolved = [];
+    const byStatus = {};
+    // Deletes last, so the other writes still find B's rows.
+    const order = { POST: 0, PUT: 1, PATCH: 1, DELETE: 2 };
+    routes.sort((a, b) => order[a.method] - order[b.method]);
+
+    // One at a time: each change is attributed to the request that made it.
+    for (const route of routes) {
+      const token = route.path.startsWith('/api/v1/portal/') ? portal : staff;
+      const resolved = route.path.includes(':') ? resolvePath(route.path) : { url: route.path };
+      if (resolved.unresolved) { unresolved.push(`${route.method} ${route.path}`); continue; }
+      const key = `${route.method} ${route.path}`;
+      const { status } = await write(route.method, resolved.url, token, bodyFor(route));
+      byStatus[status] = (byStatus[status] || 0) + 1;
+      const after = await snapshot(query);
+      for (const [k, v] of after) {
+        if (before.get(k) === v) continue;
+        if (k.startsWith('b:')) changed.push(`${key} -> ${status}: changed ${k.slice(2)}`);
+        else if (Number(v.split(':')[0]) > Number((before.get(k) || '0:').split(':')[0])) linked.push(`${key} -> ${status}: ${k.slice(2)} now points at B`);
+      }
+      if (route.path.includes(':') && typeof status === 'number' && status < 300 && !REVIEWED_ACCEPTED[key]) {
+        accepted.push(`${key} -> ${status}`);
+      }
+      before = after;
+    }
+
+    const report = { requests: routes.length - unresolved.length, byStatus, changed, linked, accepted, unresolved, initialLinks };
+    const out = process.env.DB_INTEGRATION_REPORT
+      ? process.env.DB_INTEGRATION_REPORT.replace(/\.json$/, '-writes.json')
+      : path.join(__dirname, '../../../coverage/db-isolation-writes-report.json');
+    fs.writeFileSync(out, JSON.stringify(report, null, 2));
+    console.log(`swept ${report.requests} writes ${JSON.stringify(byStatus)}; ${unresolved.length} unresolved`);
+
+    // One comparison, so a failing run reports every kind of finding.
+    expect({ initialLinks, changed, linked, accepted }).toEqual({ initialLinks: [], changed: [], linked: [], accepted: [] });
+    // The sweep must stay meaningful: the session survives to the end.
+    expect((await call('GET', '/api/v1/clients', staff)).status).toBe(200);
+    expect(byStatus[401] || 0).toBeLessThan(routes.length * 0.05);
+  }, 1800000);
 });

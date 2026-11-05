@@ -348,19 +348,19 @@ function LeadFormModal({
         <h3 style={{ margin: '0 0 1rem' }}>{title}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Name *</label>
+          <label style={labelStyle}>{t('ui.leadList.name')}</label>
           <input style={inputStyle} type="text" value={form.name} autoFocus
             onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
 
-          <label style={labelStyle}>Email</label>
+          <label style={labelStyle}>{t('ui.leadList.email')}</label>
           <input style={inputStyle} type="email" value={form.email}
             onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
 
-          <label style={labelStyle}>Phone</label>
+          <label style={labelStyle}>{t('ui.leadList.phone')}</label>
           <input style={inputStyle} type="text" value={form.phone}
             onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
 
-          <label style={labelStyle}>Company</label>
+          <label style={labelStyle}>{t('ui.leadList.company')}</label>
           <input style={inputStyle} type="text" value={form.company}
             onChange={e => setForm(p => ({ ...p, company: e.target.value }))} />
 
@@ -385,19 +385,19 @@ function LeadFormModal({
           <input style={inputStyle} type="text" value={form.zip_code}
             onChange={e => setForm(p => ({ ...p, zip_code: e.target.value }))} />
 
-          <label style={labelStyle}>Source</label>
+          <label style={labelStyle}>{t('ui.leadList.source')}</label>
           <select style={inputStyle} value={form.source}
             onChange={e => setForm(p => ({ ...p, source: e.target.value }))}>
             {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
-          <label style={labelStyle}>Pipeline stage</label>
+          <label style={labelStyle}>{t('ui.leadList.pipelineStage')}</label>
           <select style={inputStyle} value={form.status}
             onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
             {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
-          <label style={labelStyle}>Estimated value</label>
+          <label style={labelStyle}>{t('ui.leadList.estimatedValue')}</label>
           <input style={inputStyle} type="number" min={0} step="0.01" value={form.estimated_value ?? ''}
             onChange={e => setForm(p => ({ ...p, estimated_value: e.target.value ? Number(e.target.value) : undefined }))} />
 
@@ -424,24 +424,24 @@ function LeadFormModal({
 
           {isMxOrg && (
             <fieldset style={{ border: '1px solid var(--border-color, #d1d5db)', borderRadius: 8, padding: '8px 12px', margin: '10px 0 0' }}>
-              <legend style={{ fontSize: '0.8rem', padding: '0 6px', color: 'var(--text-secondary)' }}>Fiscal (SAT) — se copia al perfil fiscal del cliente al convertir</legend>
+              <legend style={{ fontSize: '0.8rem', padding: '0 6px', color: 'var(--text-secondary)' }}>{t('ui.leadList.fiscalSatSeCopiaAl')}</legend>
               <label style={labelStyle}>RFC</label>
-              <input style={inputStyle} type="text" maxLength={13} value={form.rfc ?? ''} placeholder="XAXX010101000"
+              <input style={inputStyle} type="text" maxLength={13} value={form.rfc ?? ''} placeholder={t('ui.leadList.xaxx010101000')}
                 onChange={e => setForm(p => ({ ...p, rfc: e.target.value.toUpperCase() }))} />
               <label style={labelStyle}>CURP</label>
               <input style={inputStyle} type="text" maxLength={18} value={form.curp ?? ''}
                 onChange={e => setForm(p => ({ ...p, curp: e.target.value.toUpperCase() }))} />
-              <label style={labelStyle}>Razón social</label>
+              <label style={labelStyle}>{t('ui.leadList.razonSocial')}</label>
               <input style={inputStyle} type="text" maxLength={254} value={form.razon_social ?? ''}
                 onChange={e => setForm(p => ({ ...p, razon_social: e.target.value }))} />
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Régimen fiscal</label>
+                  <label style={labelStyle}>{t('ui.leadList.regimenFiscal')}</label>
                   <input style={inputStyle} type="text" maxLength={3} value={form.regimen_fiscal ?? ''} placeholder="612"
                     onChange={e => setForm(p => ({ ...p, regimen_fiscal: e.target.value }))} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>C.P. fiscal</label>
+                  <label style={labelStyle}>{t('ui.leadList.cPFiscal')}</label>
                   <input style={inputStyle} type="text" maxLength={5} value={form.codigo_postal_fiscal ?? ''} placeholder="03100"
                     onChange={e => setForm(p => ({ ...p, codigo_postal_fiscal: e.target.value }))} />
                 </div>
@@ -457,7 +457,7 @@ function LeadFormModal({
           </select>
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.leadList.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : mode === 'create' ? 'Create' : 'Save'}
             </button>
@@ -731,14 +731,14 @@ export function LeadList() {
   return (
     <div style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0 }}>Leads</h2>
+        <h2 style={{ margin: 0 }}>{t('ui.leadList.leads')}</h2>
         {canCreate && (
-          <button type="button" style={submitBtn} onClick={() => setShowCreate(true)}>+ New Lead</button>
+          <button type="button" style={submitBtn} onClick={() => setShowCreate(true)}>{t('ui.leadList.newLead')}</button>
         )}
       </div>
 
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 0 }}>
-        Capture prospects and move them through the sales pipeline. Won leads can be converted into clients.
+        {t('ui.leadList.captureProspectsAndMoveThem')}
       </p>
 
       {pipeline && (
@@ -756,7 +756,7 @@ export function LeadList() {
       )}
 
       {actionError && <div style={errorBox}>{actionError}</div>}
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t('ui.leadList.loading')}</p>}
       {error && <div style={errorBox}>{(error as Error).message}</div>}
 
       {data && (
@@ -764,17 +764,17 @@ export function LeadList() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-strong)' }}>
-              <th style={{ padding: '8px' }}>Name</th>
-              <th style={{ padding: '8px' }}>Company</th>
-              <th style={{ padding: '8px' }}>Source</th>
-              <th style={{ padding: '8px' }}>Stage</th>
-              <th style={{ padding: '8px', textAlign: 'right' }}>Est. value</th>
-              <th style={{ padding: '8px', textAlign: 'right' }}>Actions</th>
+              <th style={{ padding: '8px' }}>{t('ui.leadList.name2')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.leadList.company')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.leadList.source')}</th>
+              <th style={{ padding: '8px' }}>{t('ui.leadList.stage')}</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.leadList.estValue')}</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>{t('ui.leadList.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {data.data.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No leads yet.</td></tr>
+              <tr><td colSpan={6} style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{t('ui.leadList.noLeadsYet')}</td></tr>
             )}
             {data.data.map(l => (
               <tr key={l.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -788,7 +788,7 @@ export function LeadList() {
                     onClick={() => setFeasibilityLead(l)}>{t('leads.feasibility.button')}</button>
                   {canUpdate && (
                     <button type="button" style={{ ...cancelBtn, padding: '4px 10px', marginRight: 6 }}
-                      onClick={() => setEditLead(l)}>Edit</button>
+                      onClick={() => setEditLead(l)}>{t('ui.leadList.edit')}</button>
                   )}
                   {canPrepareInstallation && (
                     <button

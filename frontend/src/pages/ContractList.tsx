@@ -16,7 +16,6 @@ import { useTranslation } from 'react-i18next';
 import { api, authedFetch } from '@/api/client';
 import type { ContractRow } from '@/api/rows';
 import { useAuth } from '@/auth/AuthContext';
-import { can } from '@/auth/permissions';
 import { MxRegisteredContractSourceField } from '@/components/MxRegisteredContractSourceField';
 import {
   MxContractEnvironmentBadge,
@@ -31,6 +30,8 @@ import { useClientNames } from '@/api/clientNames';
 import { queryKeys } from '@/api/queryKeys';
 import { localToday } from '@/lib/dates';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { EditContractModal, type Plan } from './contracts/EditContractModal';
+import { modalStyles, styles } from './contracts/contractListStyles';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,12 +62,6 @@ interface RadiusAccount {
 interface ContractsResponse {
   data: Contract[];
   meta: { total: number; page: number; limit: number; totalPages: number };
-}
-
-interface Plan {
-  id: number;
-  name: string;
-  price: string;
 }
 
 
@@ -221,34 +216,6 @@ async function createContract(body: CreateContractBody): Promise<number> {
   return Number((res.data as unknown as { data: { id: number } }).data.id);
 }
 
-interface UpdateContractBody {
-  plan_id?: number;
-  contract_template_mx_id?: number;
-  connection_type?: string;
-  start_date?: string;
-  end_date?: string | null;
-  billing_day?: number;
-  price_override?: number;
-  ip_address?: string;
-  facturar?: boolean;
-  escalation_enabled?: boolean;
-  escalate_on_disconnect?: boolean;
-  // Migration 388 — always sent explicitly (including `null`, never
-  // omitted) so a blank input can clear a previously-set override back to
-  // "use default"; omitting the key would leave the DB column unchanged.
-  optical_min_dbm?: number | null;
-  wireless_signal_min_dbm?: number | null;
-  wireless_link_capacity_min_mbps?: number | null;
-}
-
-async function updateContract(id: number, body: UpdateContractBody): Promise<void> {
-  const res = await api.PUT('/contracts/{id}', {
-    params: { path: { id } },
-    body: body as never,
-  }) as unknown as { error?: unknown };
-  if (res.error) throw new Error(extractApiError(res.error, 'Failed to update contract'));
-}
-
 async function deleteContract(id: number): Promise<void> {
   const res = await api.DELETE('/contracts/{id}', { params: { path: { id } } });
   if (res.error) throw new Error('Failed to delete contract');
@@ -323,6 +290,7 @@ interface NewContractModalProps {
 }
 
 function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     client_id: '',
     plan_id: '',
@@ -389,11 +357,11 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
         aria-labelledby="modal-title"
       >
         <div style={modalStyles.header}>
-          <h2 id="modal-title" style={modalStyles.title}>📄 New Contract</h2>
+          <h2 id="modal-title" style={modalStyles.title}>{t('ui.contractList.newContract')}</h2>
           <button
             style={modalStyles.closeBtn}
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('ui.contractList.close')}
           >
             ✕
           </button>
@@ -403,21 +371,21 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
           {/* Client */}
           {/* Search, not a <select>: the list returns at most 100 clients (FE-04). */}
           <ClientPicker
-            label="Client"
+            label={t('ui.contractList.client')}
             value={form.client_id ? Number(form.client_id) : ''}
             onChange={id => setField('client_id', id ? String(id) : '')}
           />
 
           {/* Plan */}
           <label style={modalStyles.label}>
-            Plan <span style={{ color: '#ef4444' }}>*</span>
+            {t('ui.contractList.plan')}<span style={{ color: '#ef4444' }}>*</span>
             <select
               style={modalStyles.select}
               value={form.plan_id}
               onChange={e => setField('plan_id', e.target.value)}
               required
             >
-              <option value="">— select plan —</option>
+              <option value="">{t('ui.contractList.selectPlan')}</option>
               {plans.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
@@ -426,22 +394,22 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* Connection type */}
           <label style={modalStyles.label}>
-            Connection Type
+            {t('ui.contractList.connectionType')}
             <select
               style={modalStyles.select}
               value={form.connection_type}
               onChange={e => setField('connection_type', e.target.value)}
             >
               <option value="pppoe">PPPoE</option>
-              <option value="pppoe_dual">PPPoE Dual</option>
-              <option value="static">Static</option>
-              <option value="dual">Dual</option>
+              <option value="pppoe_dual">{t('ui.contractList.pppoeDual')}</option>
+              <option value="static">{t('ui.contractList.static')}</option>
+              <option value="dual">{t('ui.contractList.dual')}</option>
             </select>
           </label>
 
           {/* Start date */}
           <label style={modalStyles.label}>
-            Start Date <span style={{ color: '#ef4444' }}>*</span>
+            {t('ui.contractList.startDate')}<span style={{ color: '#ef4444' }}>*</span>
             <input
               style={modalStyles.input}
               type="date"
@@ -453,7 +421,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* Billing day */}
           <label style={modalStyles.label}>
-            Billing Day (1–28)
+            {t('ui.contractList.billingDay128')}
             <input
               style={modalStyles.input}
               type="number"
@@ -467,7 +435,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* IP address */}
           <label style={modalStyles.label}>
-            IP Address
+            {t('ui.contractList.ipAddress')}
             <input
               style={modalStyles.input}
               type="text"
@@ -480,7 +448,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
 
           {/* Price override */}
           <label style={modalStyles.label}>
-            Price Override (leave blank for plan default)
+            {t('ui.contractList.priceOverrideLeaveBlankFor')}
             <input
               style={modalStyles.input}
               type="number"
@@ -510,7 +478,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
                 checked={form.facturar}
                 onChange={e => setField('facturar', e.target.checked)}
               />
-              Generate CFDI invoice automatically
+              {t('ui.contractList.generateCfdiInvoiceAutomatically')}
             </label>
           )}
 
@@ -523,7 +491,7 @@ function NewContractModal({ plans, isMxOrg, onClose, onCreated }: NewContractMod
               style={styles.btnSecondary}
               disabled={submitting}
             >
-              Cancel
+              {t('ui.contractList.cancel')}
             </button>
             <button
               type="submit"
@@ -550,6 +518,7 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
@@ -561,8 +530,8 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
           {message}
         </p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.contractList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.contractList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -581,6 +550,7 @@ interface RenewModalProps {
 }
 
 function RenewModal({ contractId, contractEnvironment, onClose, onRenewed }: RenewModalProps) {
+  const { t } = useTranslation();
   const [endDate, setEndDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -612,14 +582,14 @@ function RenewModal({ contractId, contractEnvironment, onClose, onRenewed }: Ren
         aria-labelledby="renew-title"
       >
         <div style={modalStyles.header}>
-          <h2 id="renew-title" style={modalStyles.title}>🔄 Renew Contract</h2>
+          <h2 id="renew-title" style={modalStyles.title}>{t('ui.contractList.renewContract')}</h2>
           {contractEnvironment && <MxContractEnvironmentBadge environment={contractEnvironment} />}
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.contractList.close')}>✕</button>
         </div>
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <MxSandboxDocumentBanner environment={contractEnvironment} />
           <label style={modalStyles.label}>
-            New End Date (leave blank for month-to-month)
+            {t('ui.contractList.newEndDateLeaveBlank')}
             <input
               style={modalStyles.input}
               type="date"
@@ -630,7 +600,7 @@ function RenewModal({ contractId, contractEnvironment, onClose, onRenewed }: Ren
           {error && <p style={modalStyles.error}>{error}</p>}
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={submitting}>
-              Cancel
+              {t('ui.contractList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={submitting}>
               {submitting ? 'Renewing…' : 'Renew'}
@@ -646,286 +616,6 @@ function RenewModal({ contractId, contractEnvironment, onClose, onRenewed }: Ren
 // Edit Contract Modal
 // ---------------------------------------------------------------------------
 
-interface EditContractModalProps {
-  contract: Contract;
-  plans: Plan[];
-  isMxOrg: boolean;
-  onClose: () => void;
-  onSaved: () => void;
-}
-
-function EditContractModal({ contract, plans, isMxOrg, onClose, onSaved }: EditContractModalProps) {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const mayResolveMxSource = can(user, 'document_templates.view')
-    && can(user, 'contract_templates_mx.view');
-  const connectionOptions = ['pppoe', 'pppoe_dual'].includes(contract.connection_type ?? '')
-    ? [
-      { value: 'pppoe', label: 'PPPoE' },
-      { value: 'pppoe_dual', label: 'PPPoE Dual' },
-    ]
-    : [
-      { value: 'static', label: 'Static' },
-      { value: 'dual', label: 'Dual' },
-    ];
-  const [form, setForm] = useState({
-    plan_id: String(contract.plan_id),
-    connection_type: contract.connection_type || 'pppoe',
-    start_date: contract.start_date ? contract.start_date.split('T')[0] : '',
-    end_date: contract.end_date ? contract.end_date.split('T')[0] : '',
-    billing_day: contract.billing_day != null ? String(contract.billing_day) : '',
-    ip_address: contract.ip_address || '',
-    price_override: contract.price_override != null ? String(contract.price_override) : '',
-    facturar: !!contract.facturar,
-    contract_template_mx_id: contract.contract_template_mx_id == null
-      ? '' : String(contract.contract_template_mx_id),
-    // Migration 387: default ON (matches the DB column default) unless the
-    // contract explicitly has it off; escalate_on_disconnect defaults OFF.
-    escalation_enabled: contract.escalation_enabled == null ? true : !!contract.escalation_enabled,
-    escalate_on_disconnect: !!contract.escalate_on_disconnect,
-    // Migration 388 — rare-case per-contract overrides; blank = use default.
-    optical_min_dbm: contract.optical_min_dbm != null ? String(contract.optical_min_dbm) : '',
-    wireless_signal_min_dbm: contract.wireless_signal_min_dbm != null ? String(contract.wireless_signal_min_dbm) : '',
-    wireless_link_capacity_min_mbps: contract.wireless_link_capacity_min_mbps != null ? String(contract.wireless_link_capacity_min_mbps) : '',
-  });
-  const [error, setError] = useState('');
-  const [mxSourceAvailable, setMxSourceAvailable] = useState(false);
-
-  function setField(name: string, value: unknown) {
-    setForm(prev => ({ ...prev, [name]: value }));
-  }
-
-  const mutation = useMutation({
-    mutationFn: () => {
-      const body: UpdateContractBody = {
-        plan_id: Number(form.plan_id),
-        connection_type: form.connection_type,
-        escalation_enabled: form.escalation_enabled,
-        escalate_on_disconnect: form.escalate_on_disconnect,
-        end_date: form.end_date || null,
-        // Migration 388: always send these 3 keys explicitly (never omit),
-        // converting a blank input to `null` — this is a deliberate
-        // departure from the "omit if blank" convention every other field
-        // on this form uses (e.g. price_override below). These fields exist
-        // specifically to toggle between "explicit value" and "inherit
-        // default", and omitting the key on blank would leave a
-        // previously-set override stuck forever (validate()/BaseModel.update
-        // treat undefined as "don't touch", but forward an explicit null
-        // through to SET column = NULL).
-        optical_min_dbm: form.optical_min_dbm === '' ? null : Number(form.optical_min_dbm),
-        wireless_signal_min_dbm: form.wireless_signal_min_dbm === '' ? null : Number(form.wireless_signal_min_dbm),
-        wireless_link_capacity_min_mbps: form.wireless_link_capacity_min_mbps === '' ? null : Number(form.wireless_link_capacity_min_mbps),
-      };
-      // Contract state is changed only by the dedicated lifecycle actions.
-      // The generic Edit form must never be an activation/suspension bypass.
-      if (isMxOrg) {
-        body.facturar = form.facturar;
-        if (contract.status === 'pending' && mayResolveMxSource) {
-          body.contract_template_mx_id = Number(form.contract_template_mx_id);
-        }
-      }
-      if (form.start_date) body.start_date = form.start_date;
-      if (form.billing_day) body.billing_day = Math.min(28, Math.max(1, Number(form.billing_day)));
-      if (form.ip_address) body.ip_address = form.ip_address;
-      if (form.price_override) body.price_override = Number(form.price_override);
-      return updateContract(contract.id, body);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
-      onSaved();
-      onClose();
-    },
-    onError: (cause) => setError(cause instanceof Error
-      ? cause.message
-      : 'Failed to update contract. Check all fields and try again.'),
-  });
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    if (isMxOrg && contract.status === 'pending' && mayResolveMxSource
-        && (!mxSourceAvailable || !form.contract_template_mx_id)) {
-      setError(t('mxContractSource.required'));
-      return;
-    }
-    mutation.mutate();
-  }
-
-  return (
-    <div style={modalStyles.backdrop} onClick={onClose}>
-      <div
-        style={modalStyles.panel}
-        onClick={e => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="edit-contract-title"
-      >
-        <div style={modalStyles.header}>
-          <h2 id="edit-contract-title" style={modalStyles.title}>📝 Edit Contract #{contract.id}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
-        </div>
-
-        <form onSubmit={handleSubmit} style={modalStyles.form}>
-          <label style={modalStyles.label}>
-            Plan
-            <select style={modalStyles.select} value={form.plan_id} onChange={e => setField('plan_id', e.target.value)}>
-              {/* If the contract runs on an archived plan (absent from the active
-                  list), keep it shown + selectable so the selection stays correct
-                  and the contract isn't silently moved off it. */}
-              {!plans.some(p => p.id === contract.plan_id) && (
-                <option value={contract.plan_id}>Archived plan (#{contract.plan_id})</option>
-              )}
-              {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </label>
-
-          <label style={modalStyles.label}>
-            Connection Type
-            <select style={modalStyles.select} value={form.connection_type} onChange={e => setField('connection_type', e.target.value)}>
-              {!connectionOptions.some(option => option.value === form.connection_type) && (
-                <option value={form.connection_type}>{form.connection_type}</option>
-              )}
-              {connectionOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <p style={modalStyles.hint}>{t('contractList.editModal.connectionFamilyHelp')}</p>
-
-          <label style={modalStyles.label}>
-            Start Date
-            <input style={modalStyles.input} type="date" value={form.start_date} onChange={e => setField('start_date', e.target.value)} />
-          </label>
-
-          <label style={modalStyles.label}>
-            End Date (leave blank for month-to-month)
-            <input style={modalStyles.input} type="date" value={form.end_date} onChange={e => setField('end_date', e.target.value)} />
-          </label>
-
-          <label style={modalStyles.label}>
-            Billing Day (1–28)
-            <input style={modalStyles.input} type="number" min={1} max={28} value={form.billing_day} onChange={e => setField('billing_day', e.target.value)} />
-          </label>
-
-          <label style={modalStyles.label}>
-            IP Address
-            <input style={modalStyles.input} type="text" maxLength={45} value={form.ip_address} onChange={e => setField('ip_address', e.target.value)} />
-          </label>
-
-          <label style={modalStyles.label}>
-            Price Override (leave blank for plan default)
-            <input style={modalStyles.input} type="number" min={0} step="0.01" value={form.price_override} onChange={e => setField('price_override', e.target.value)} />
-          </label>
-
-          {isMxOrg && contract.status === 'pending' && mayResolveMxSource && (
-            <MxRegisteredContractSourceField
-              value={form.contract_template_mx_id}
-              onChange={value => setField('contract_template_mx_id', value)}
-              onAvailabilityChange={setMxSourceAvailable}
-              frozenEnvironment={contract.mx_contract_environment}
-              disabled={mutation.isPending}
-              labelStyle={modalStyles.label}
-              selectStyle={modalStyles.select}
-            />
-          )}
-          {isMxOrg && contract.status === 'pending' && !mayResolveMxSource && (
-            <p style={modalStyles.hint}>{t('mxContractSource.preservedOnEditHint')}</p>
-          )}
-
-          {isMxOrg && (
-            <label style={modalStyles.checkboxLabel}>
-              <input type="checkbox" checked={form.facturar} onChange={e => setField('facturar', e.target.checked)} />
-              Generate CFDI invoice automatically
-            </label>
-          )}
-
-          <label style={modalStyles.checkboxLabel}>
-            <input
-              type="checkbox"
-              checked={form.escalation_enabled}
-              onChange={e => setField('escalation_enabled', e.target.checked)}
-            />
-            {t('contractList.editModal.escalationEnabled')}
-          </label>
-          <p style={modalStyles.hint}>{t('contractList.editModal.escalationEnabledHint')}</p>
-
-          <label style={modalStyles.checkboxLabel}>
-            <input
-              type="checkbox"
-              checked={form.escalate_on_disconnect}
-              onChange={e => setField('escalate_on_disconnect', e.target.checked)}
-            />
-            {t('contractList.editModal.escalateOnDisconnect')}
-          </label>
-          <p style={modalStyles.hint}>{t('contractList.editModal.escalateOnDisconnectHint')}</p>
-
-          {/* Migration 388 — rare-case per-client threshold overrides. Blank
-              = use the serving sector's default, else the org-wide code
-              constant (link-capacity has no org-wide default at all). */}
-          <label style={modalStyles.label}>
-            {t('contractList.editModal.opticalMinDbm')}
-            <input
-              style={modalStyles.input}
-              type="number"
-              step="1"
-              min={-100}
-              max={0}
-              placeholder="-27"
-              value={form.optical_min_dbm}
-              onChange={e => setField('optical_min_dbm', e.target.value)}
-            />
-          </label>
-          <p style={modalStyles.hint}>{t('contractList.editModal.opticalMinDbmHint')}</p>
-
-          <label style={modalStyles.label}>
-            {t('contractList.editModal.wirelessSignalMinDbm')}
-            <input
-              style={modalStyles.input}
-              type="number"
-              step="1"
-              min={-100}
-              max={0}
-              placeholder="-75"
-              value={form.wireless_signal_min_dbm}
-              onChange={e => setField('wireless_signal_min_dbm', e.target.value)}
-            />
-          </label>
-          <p style={modalStyles.hint}>{t('contractList.editModal.wirelessSignalMinDbmHint')}</p>
-
-          <label style={modalStyles.label}>
-            {t('contractList.editModal.wirelessLinkCapacityMinMbps')}
-            <input
-              style={modalStyles.input}
-              type="number"
-              step="0.1"
-              min={0.1}
-              max={10000}
-              placeholder={t('contractList.editModal.wirelessLinkCapacityPlaceholder')}
-              value={form.wireless_link_capacity_min_mbps}
-              onChange={e => setField('wireless_link_capacity_min_mbps', e.target.value)}
-            />
-          </label>
-          <p style={modalStyles.hint}>{t('contractList.editModal.wirelessLinkCapacityMinMbpsHint')}</p>
-
-          {error && <p style={modalStyles.error}>{error}</p>}
-
-          <div style={modalStyles.actions}>
-            <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>Cancel</button>
-            <button
-              type="submit"
-              style={styles.btnPrimary}
-              disabled={mutation.isPending || (isMxOrg && contract.status === 'pending' && mayResolveMxSource
-                && (!mxSourceAvailable || !form.contract_template_mx_id))}
-            >
-              {mutation.isPending ? 'Saving…' : 'Save Changes'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Contract Detail Modal — summary + PPPoE / RADIUS credentials
@@ -1072,7 +762,7 @@ function ContractDetailModal({ contract, plans, onClose }: ContractDetailModalPr
           {contract.mx_contract_environment && (
             <MxContractEnvironmentBadge environment={contract.mx_contract_environment} />
           )}
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.contractList.close')}>✕</button>
         </div>
 
         <MxSandboxDocumentBanner environment={contract.mx_contract_environment} />
@@ -1227,7 +917,7 @@ export function ContractList() {
       {/* Header */}
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>📄 {t('contractList.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.contractList.total')}</span>}
         <button
           style={{ ...styles.btnPrimary, marginLeft: 'auto' }}
           onClick={() => setShowNew(true)}
@@ -1481,9 +1171,9 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
         <button
           style={styles.actionBtn}
           onClick={onEdit}
-          title="Edit this contract"
+          title={t('ui.contractList.editThisContract')}
         >
-          ✏️ Edit
+          {t('ui.contractList.edit')}
         </button>
         {c.status === 'pending' && (
           <Link
@@ -1498,45 +1188,45 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
           <button
             style={styles.actionBtn}
             onClick={onRenew}
-            title="Reactivate this contract"
+            title={t('ui.contractList.reactivateThisContract')}
           >
-            🔄 Renew
+            {t('ui.contractList.renew')}
           </button>
         )}
         {canSuspend && (
           <button
             style={{ ...styles.actionBtn, color: '#92400e' }}
             onClick={onSuspend}
-            title="Suspend this contract"
+            title={t('ui.contractList.suspendThisContract')}
           >
-            ⏸ Suspend
+            {t('ui.contractList.suspend')}
           </button>
         )}
         {canTerminate && (
           <button
             style={{ ...styles.actionBtn, color: '#991b1b' }}
             onClick={onTerminate}
-            title="Permanently terminate this contract"
+            title={t('ui.contractList.permanentlyTerminateThisContract')}
           >
-            🚫 Terminate
+            {t('ui.contractList.terminate')}
           </button>
         )}
         {canCancel && (
           <button
             style={{ ...styles.actionBtn, color: '#991b1b' }}
             onClick={onCancel}
-            title="Cancel this contract"
+            title={t('ui.contractList.cancelThisContract')}
           >
-            ✕ Cancel
+            {t('ui.contractList.cancel2')}
           </button>
         )}
         {canDelete && (
           <button
             style={{ ...styles.actionBtn, color: '#991b1b' }}
             onClick={onDelete}
-            title="Delete this contract"
+            title={t('ui.contractList.deleteThisContract')}
           >
-            🗑 Delete
+            {t('ui.contractList.delete')}
           </button>
         )}
       </td>
@@ -1544,233 +1234,6 @@ function ContractRow({ contract: c, plans, clientName, onSuspend, onTerminate, o
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const styles = {
-  page: {
-    padding: '2rem',
-    fontFamily: 'var(--font-sans)',
-    maxWidth: 1280,
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    marginBottom: '1.25rem',
-    flexWrap: 'wrap' as const,
-  },
-  pageTitle: { margin: 0, color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: 700 },
-  countBadge: {
-    background: 'var(--accent-soft)',
-    color: 'var(--accent)',
-    padding: '2px 10px',
-    borderRadius: 12,
-    fontSize: '0.78rem',
-    fontWeight: 600,
-  },
-  filterRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    marginBottom: '1rem',
-  },
-  filterLabel: { fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 },
-  filterSelect: {
-    padding: '0.4rem 0.65rem',
-    border: '1px solid var(--input-border)',
-    borderRadius: 6,
-    fontSize: '0.85rem',
-    color: 'var(--text-secondary)',
-    background: 'var(--input-bg)',
-    cursor: 'pointer',
-  },
-  btnPrimary: {
-    padding: '0.5rem 1rem',
-    background: 'var(--accent)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    fontWeight: 600,
-  },
-  btnSecondary: {
-    padding: '0.5rem 1rem',
-    background: 'transparent',
-    color: 'var(--text-muted)',
-    border: '1px solid var(--border-strong)',
-    borderRadius: 6,
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-  },
-  btnDanger: {
-    padding: '0.5rem 1rem',
-    background: '#ef4444',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    fontWeight: 600,
-  },
-  tableCard: {
-    background: 'var(--bg-card)',
-    borderRadius: 8,
-    boxShadow: '0 0 0 1px var(--border)',
-    padding: '0.5rem 0',
-  },
-  table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '0.85rem' },
-  th: {
-    padding: '0.6rem 0.75rem',
-    textAlign: 'left' as const,
-    color: 'var(--text-muted)',
-    fontSize: '0.75rem',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.04em',
-    borderBottom: '2px solid var(--border-subtle)',
-    whiteSpace: 'nowrap' as const,
-  },
-  tr: { borderBottom: '1px solid var(--border-subtle)' },
-  td: { padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', verticalAlign: 'middle' as const },
-  actionBtn: {
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '0.78rem',
-    fontWeight: 600,
-    color: 'var(--link)',
-    padding: '2px 4px',
-    marginRight: 4,
-    borderRadius: 3,
-  },
-  idLink: {
-    color: 'var(--link)',
-    fontWeight: 600,
-    fontSize: '0.85rem',
-    textDecoration: 'underline',
-  },
-  msg: { padding: '2rem 1.5rem', color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: 0 },
-  msgError: { padding: '2rem 1.5rem', color: '#ef4444', margin: 0 },
-  pagination: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.75rem 1rem',
-    borderTop: '1px solid var(--border-subtle)',
-    marginTop: 4,
-  },
-  pageBtn: {
-    padding: '0.35rem 0.85rem',
-    border: '1px solid var(--border-strong)',
-    borderRadius: 5,
-    background: 'var(--bg-card)',
-    cursor: 'pointer',
-    fontSize: '0.82rem',
-    color: 'var(--text-secondary)',
-  },
-  pageInfo: { color: 'var(--text-muted)', fontSize: '0.82rem' },
-};
-
-const modalStyles = {
-  backdrop: {
-    position: 'fixed' as const,
-    inset: 0,
-    background: 'rgba(0,0,0,0.45)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '1rem',
-  },
-  panel: {
-    background: 'var(--bg-card)',
-    borderRadius: 10,
-    boxShadow: '0 20px 60px rgba(0,0,0,.2)',
-    padding: '1.5rem',
-    width: '100%',
-    maxWidth: 520,
-    maxHeight: '90vh',
-    overflowY: 'auto' as const,
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '1.25rem',
-  },
-  title: { margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' },
-  closeBtn: {
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    color: 'var(--text-muted)',
-    padding: '2px 6px',
-    borderRadius: 4,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '0.9rem',
-  },
-  label: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '0.3rem',
-    fontSize: '0.82rem',
-    fontWeight: 600,
-    color: 'var(--text-secondary)',
-  },
-  input: {
-    padding: '0.45rem 0.65rem',
-    border: '1px solid var(--input-border)',
-    borderRadius: 6,
-    fontSize: '0.85rem',
-    color: 'var(--text-primary)',
-    fontFamily: 'var(--font-sans)',
-  },
-  select: {
-    padding: '0.45rem 0.65rem',
-    border: '1px solid var(--input-border)',
-    borderRadius: 6,
-    fontSize: '0.85rem',
-    color: 'var(--text-primary)',
-    background: 'var(--input-bg)',
-    cursor: 'pointer',
-  },
-  actions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '0.5rem',
-    marginTop: '0.5rem',
-  },
-  error: {
-    color: '#ef4444',
-    fontSize: '0.82rem',
-    margin: 0,
-    padding: '0.4rem 0.75rem',
-    background: '#fef2f2',
-    borderRadius: 4,
-    border: '1px solid #fecaca',
-  },
-  checkboxLabel: {
-    display: 'flex',
-    flexDirection: 'row' as const,
-    alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.82rem',
-    fontWeight: 600,
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-  },
-  hint: {
-    margin: '-0.55rem 0 0',
-    fontSize: '0.74rem',
-    color: 'var(--text-muted)',
-  },
-};
 
 // Styles specific to the Contract Detail / credentials modal.
 const detailStyles = {

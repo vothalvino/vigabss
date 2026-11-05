@@ -16,6 +16,7 @@ import {
   overlay, modalBox, errorBox, labelStyle, inputStyle, submitBtn, cancelBtn,
   extractApiError,
 } from '@/components/ClientFormModal';
+import { useTranslation } from 'react-i18next';
 
 interface Plan { id: number; name: string; }
 
@@ -51,6 +52,7 @@ export interface NewContractModalProps {
 }
 
 export function NewContractModal({ lockedClientId, lockedClientName, onClose, onCreated }: NewContractModalProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const isMxOrg = user?.organization_locale === 'MX';
   const TODAY = localToday();
@@ -105,17 +107,17 @@ export function NewContractModal({ lockedClientId, lockedClientName, onClose, on
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="New Contract">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.newContractModal.newContract')}>
       <div style={{ ...modalBox, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 1rem' }}>New Contract</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.newContractModal.newContract')}</h3>
         {error && <div style={errorBox}>{error}</div>}
-        {plansError && <div style={errorBox}>Failed to load plans — reopen or check your permissions.</div>}
+        {plansError && <div style={errorBox}>{t('ui.newContractModal.failedToLoadPlansReopen')}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Client</label>
+          <label style={labelStyle}>{t('ui.newContractModal.client')}</label>
           <input style={{ ...inputStyle, background: 'var(--bg-body)', color: 'var(--text-muted)' }}
             value={lockedClientName ?? `Client #${lockedClientId}`} disabled />
 
-          <label style={labelStyle}>Plan *</label>
+          <label style={labelStyle}>{t('ui.newContractModal.plan')}</label>
           <select style={inputStyle} value={form.plan_id} onChange={e => setField('plan_id', e.target.value)} required>
             <option value="">{plans.length ? '— select plan —' : '— no plans available —'}</option>
             {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -123,31 +125,31 @@ export function NewContractModal({ lockedClientId, lockedClientName, onClose, on
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             <div>
-              <label style={labelStyle}>Connection Type</label>
+              <label style={labelStyle}>{t('ui.newContractModal.connectionType')}</label>
               <select style={inputStyle} value={form.connection_type} onChange={e => setField('connection_type', e.target.value)}>
                 <option value="pppoe">PPPoE</option>
-                <option value="pppoe_dual">PPPoE Dual</option>
-                <option value="static">Static</option>
-                <option value="dual">Dual</option>
+                <option value="pppoe_dual">{t('ui.newContractModal.pppoeDual')}</option>
+                <option value="static">{t('ui.newContractModal.static')}</option>
+                <option value="dual">{t('ui.newContractModal.dual')}</option>
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Start Date *</label>
+              <label style={labelStyle}>{t('ui.newContractModal.startDate')}</label>
               <input type="date" style={inputStyle} value={form.start_date} onChange={e => setField('start_date', e.target.value)} required />
             </div>
             <div>
-              <label style={labelStyle}>Billing Day (1–28)</label>
+              <label style={labelStyle}>{t('ui.newContractModal.billingDay128')}</label>
               <input type="number" min={1} max={28} style={inputStyle} value={form.billing_day}
                 onChange={e => setField('billing_day', e.target.value)} placeholder="e.g. 1" />
             </div>
             <div>
-              <label style={labelStyle}>IP Address</label>
+              <label style={labelStyle}>{t('ui.newContractModal.ipAddress')}</label>
               <input type="text" maxLength={45} style={inputStyle} value={form.ip_address}
                 onChange={e => setField('ip_address', e.target.value)} placeholder="e.g. 192.168.1.100" />
             </div>
           </div>
 
-          <label style={labelStyle}>Price Override (blank = plan default)</label>
+          <label style={labelStyle}>{t('ui.newContractModal.priceOverrideBlankPlanDefault')}</label>
           <input type="number" min={0} step="0.01" style={inputStyle} value={form.price_override}
             onChange={e => setField('price_override', e.target.value)} placeholder="e.g. 350.00" />
 
@@ -164,12 +166,12 @@ export function NewContractModal({ lockedClientId, lockedClientName, onClose, on
           {isMxOrg && (
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
               <input type="checkbox" checked={form.facturar} onChange={e => setField('facturar', e.target.checked)} />
-              Generate CFDI invoice automatically
+              {t('ui.newContractModal.generateCfdiInvoiceAutomatically')}
             </label>
           )}
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1.25rem' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.newContractModal.cancel')}</button>
             <button
               type="submit"
               style={submitBtn}

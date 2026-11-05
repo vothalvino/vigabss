@@ -15,6 +15,9 @@ const { createMplsVlanRule, updateMplsVlanRule } = require('../middleware/schema
 const { createDscpMarkingPolicy, updateDscpMarkingPolicy } = require('../middleware/schemas/dscpMarkingPolicies');
 const { exportDscpConfig } = require('../services/qosService');
 const db = require('../config/database');
+const { assertOwnedReferences } = require('../utils/ownedReferences');
+const { NotFoundError } = require('../utils/errors');
+const OWNED_FOREIGN_KEYS = require('../models/ownedForeignKeys.json');
 
 const router = Router();
 
@@ -76,6 +79,9 @@ function filterBody(tableName, rawBody) {
 // ---------------------------------------------------------------------------
 
 function teController(tableName) {
+  // A device or other row the body links to must be the organization's own
+  // (TNA-37): the insert stored any id it was given.
+  const ownedRefs = OWNED_FOREIGN_KEYS[tableName] || {};
   return {
     async list(req, res, next) {
       try {
@@ -118,6 +124,7 @@ function teController(tableName) {
     async create(req, res, next) {
       try {
         const { filteredBody } = filterBody(tableName, req.body);
+        await assertOwnedReferences(filteredBody, req.orgId, ownedRefs);
         const body = { ...filteredBody, organization_id: req.orgId };
         const cols = Object.keys(body).join(', ');
         const placeholders = Object.keys(body).map(() => '?').join(', ');
@@ -147,6 +154,7 @@ function teController(tableName) {
           res.json({ data: existing });
           return;
         }
+        await assertOwnedReferences(filteredBody, req.orgId, ownedRefs);
         const sets = Object.keys(filteredBody).map(k => `${k} = ?`).join(', ');
         await db.query(
           `UPDATE ${tableName} SET ${sets} WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`,
@@ -161,11 +169,13 @@ function teController(tableName) {
 
     async destroy(req, res, next) {
       try {
-        await db.query(
+        const [result] = await db.query(
           `UPDATE ${tableName} SET deleted_at = NOW()
            WHERE id = ? AND organization_id = ? AND deleted_at IS NULL`,
           [req.params.id, req.orgId],
         );
+        // Another organization's id, or one already deleted, is not found.
+        if (!result.affectedRows) return next(new NotFoundError('Record'));
         res.status(204).end();
       } catch (err) {
         next(err);

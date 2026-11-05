@@ -613,6 +613,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     mockAdminUser();
 
     db.query
+      .mockResolvedValueOnce([[{ user_id: 42 }]])                 // target is a member of the org
       .mockResolvedValueOnce([[{ id: 7 }]])                       // validate nas:7 in org
       .mockResolvedValueOnce([[{ id: 3 }]])                       // validate site:3 in org
       .mockResolvedValueOnce([{ affectedRows: 2 }])               // soft-delete existing
@@ -645,6 +646,7 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     mockAdminUser();
 
     db.query
+      .mockResolvedValueOnce([[{ user_id: 42 }]])   // target is a member of the org
       .mockResolvedValueOnce([{ affectedRows: 3 }]) // soft-delete
       .mockResolvedValueOnce([[]]); // SELECT new assignments (empty)
 
@@ -658,6 +660,23 @@ describe('PUT /api/wg-peers/admin/assignments/:userId', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
     expect(userTunnelService.refreshUserPeers).toHaveBeenCalledWith('42');
+  });
+
+  // TNA-37 write sweep: an admin of one organization replaced another
+  // organization's user's assignments and re-scoped their live tunnels.
+  test('404 for a user who is not a member of the organization; nothing changes', async () => {
+    mockAdminUser();
+    db.query.mockResolvedValueOnce([[]]); // membership lookup: not a member
+
+    const res = await request(app)
+      .put('/api/wg-peers/admin/assignments/99')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ scopes: [] });
+
+    expect(res.status).toBe(404);
+    const writes = db.query.mock.calls.filter(([sql]) => /^\s*(UPDATE|INSERT)/.test(sql));
+    expect(writes).toEqual([]);
+    expect(userTunnelService.refreshUserPeers).not.toHaveBeenCalled();
   });
 
   test('422 when scopes field is absent from request body', async () => {

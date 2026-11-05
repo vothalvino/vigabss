@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { styles, fmtDate } from './crudStyles';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -90,6 +91,7 @@ function UptimeBadge({ value }: { value: number | string | null }) {
 // ---------------------------------------------------------------------------
 
 export function NetworkHealthList() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
 
   const snapshotsQ = useQuery({
@@ -104,17 +106,17 @@ export function NetworkHealthList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>💓 Network Health</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.networkHealthList.networkHealth')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.networkHealthList.total')}</span>}
       </div>
 
       <div style={styles.tableCard}>
         {snapshotsQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.networkHealthList.loading')}</p>
         ) : snapshotsQ.error ? (
-          <p style={styles.msgError}>Failed to load network health snapshots.</p>
+          <p style={styles.msgError}>{t('ui.networkHealthList.failedToLoadNetworkHealth')}</p>
         ) : snapshots.length === 0 ? (
-          <p style={styles.msg}>No network health snapshots found.</p>
+          <p style={styles.msg}>{t('ui.networkHealthList.noNetworkHealthSnapshotsFound')}</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -153,15 +155,15 @@ export function NetworkHealthList() {
             {totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.networkHealthList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.networkHealthList.page')}{page} {t('ui.networkHealthList.of')}{totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
-                  Next →
+                  {t('ui.networkHealthList.next')}
                 </button>
               </div>
             )}

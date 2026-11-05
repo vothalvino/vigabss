@@ -147,7 +147,7 @@ function TemplateForm({ initial, onSave, onClose, saving, editMode }: TemplateFo
       <div style={{ ...modalStyles.panel, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('config_templates.edit') : t('config_templates.new')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.configTemplateList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -161,11 +161,11 @@ function TemplateForm({ initial, onSave, onClose, saving, editMode }: TemplateFo
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div>
               <label style={modalStyles.label}>{t('config_templates.device_type')}</label>
-              <input style={inp} value={deviceType} onChange={e => setDeviceType(e.target.value)} placeholder="e.g. router" />
+              <input style={inp} value={deviceType} onChange={e => setDeviceType(e.target.value)} placeholder={t('ui.configTemplateList.eGRouter')} />
             </div>
             <div>
               <label style={modalStyles.label}>{t('config_templates.manufacturer')}</label>
-              <input style={inp} value={manufacturer} onChange={e => setManufacturer(e.target.value)} placeholder="e.g. MikroTik" />
+              <input style={inp} value={manufacturer} onChange={e => setManufacturer(e.target.value)} placeholder={t('ui.configTemplateList.eGMikrotik')} />
             </div>
           </div>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -179,7 +179,7 @@ function TemplateForm({ initial, onSave, onClose, saving, editMode }: TemplateFo
             </select>
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.configTemplateList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -196,6 +196,7 @@ interface DeployDialogProps {
 }
 
 function DeployDialog({ templateId: _templateId, onDeploy, onClose, deploying }: DeployDialogProps) {
+  const { t } = useTranslation();
   const [deviceId, setDeviceId] = useState('');
   const [variablesJson, setVariablesJson] = useState('');
 
@@ -214,20 +215,20 @@ function DeployDialog({ templateId: _templateId, onDeploy, onClose, deploying }:
     <div style={modalStyles.backdrop} onClick={onClose}>
       <div style={{ ...modalStyles.panel, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
-          <h3 style={modalStyles.title}>Deploy Template</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <h3 style={modalStyles.title}>{t('ui.configTemplateList.deployTemplate')}</h3>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.configTemplateList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
-            <label style={modalStyles.label}>Device ID<RequiredMark /></label>
+            <label style={modalStyles.label}>{t('ui.configTemplateList.deviceId')}<RequiredMark /></label>
             <input style={inp} type="number" min="1" value={deviceId} onChange={e => setDeviceId(e.target.value)} required />
           </div>
           <div style={{ marginBottom: '1rem' }}>
-            <label style={modalStyles.label}>Variables (JSON, optional)</label>
-            <textarea style={{ ...inp, minHeight: 80, fontFamily: 'monospace', resize: 'vertical' as const }} value={variablesJson} onChange={e => setVariablesJson(e.target.value)} placeholder='{"hostname": "Router1"}' />
+            <label style={modalStyles.label}>{t('ui.configTemplateList.variablesJsonOptional')}</label>
+            <textarea style={{ ...inp, minHeight: 80, fontFamily: 'monospace', resize: 'vertical' as const }} value={variablesJson} onChange={e => setVariablesJson(e.target.value)} placeholder={t('ui.configTemplateList.hostnameRouter1')} />
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.configTemplateList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={deploying}>{deploying ? 'Deploying...' : 'Deploy'}</button>
           </div>
         </form>
@@ -291,7 +292,7 @@ export function ConfigTemplateList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('config_templates.title')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.configTemplateList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('config_templates.new')}
         </button>
@@ -326,9 +327,9 @@ export function ConfigTemplateList() {
                     <td style={styles.td}>{tmpl.manufacturer ?? '—'}</td>
                     <td style={styles.td}>{capitalize(tmpl.status)}</td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(tmpl)}>Edit</button>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(tmpl)}>{t('ui.configTemplateList.edit')}</button>
                       <button style={{ ...styles.btnPrimary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setDeployTarget(tmpl)}>{t('config_templates.deploy')}</button>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(tmpl.id)}>Delete</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(tmpl.id)}>{t('ui.configTemplateList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -340,9 +341,9 @@ export function ConfigTemplateList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.configTemplateList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.configTemplateList.page')}{page} {t('ui.configTemplateList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.configTemplateList.next')}</button>
         </div>
       )}
 
@@ -354,8 +355,8 @@ export function ConfigTemplateList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('config_templates.delete_confirm')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.configTemplateList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.configTemplateList.delete')}</button>
             </div>
           </div>
         </div>

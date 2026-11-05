@@ -34,7 +34,7 @@
   "pages/ConfigComplianceRuleList.tsx": 1,
   "pages/ConfigTemplateList.tsx": 1,
   "pages/ContractDetail.tsx": 7,
-  "pages/ContractList.tsx": 8,
+  "pages/ContractList.tsx": 7,
   "pages/CpeDiagnosticsPage.tsx": 4,
   "pages/CpeInventoryPage.tsx": 9,
   "pages/CpeManagementPage.tsx": 3,

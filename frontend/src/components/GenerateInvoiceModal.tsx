@@ -25,6 +25,7 @@ import {
 } from '@/components/ClientFormModal';
 import { fetchAddonCatalog, fetchSellableInventoryItems, buildProductPickerEntries } from '@/api/addonCatalog';
 import { ClientPicker } from '@/components/ClientPicker';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,6 +99,7 @@ export interface GenerateInvoiceModalProps {
 }
 
 export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose, onGenerated }: GenerateInvoiceModalProps) {
+  const { t } = useTranslation();
   const fieldId = useId();
   const [clientId, setClientId] = useState(lockedClientId ? String(lockedClientId) : '');
   // Start with no line — the user picks the type (product / contract charge /
@@ -201,17 +203,17 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Generate Invoice">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('ui.generateInvoiceModal.generateInvoice')}>
       <div style={{ ...modalBox, width: 520, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 1rem' }}>Generate Invoice</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('ui.generateInvoiceModal.generateInvoice')}</h3>
         {error && <div style={errorBox}>{error}</div>}
         {loadError && (
-          <div style={errorBox}>Some data failed to load (check your permissions or try reopening).</div>
+          <div style={errorBox}>{t('ui.generateInvoiceModal.someDataFailedToLoad')}</div>
         )}
         <form onSubmit={handleSubmit}>
           {/* Client selector — hidden/locked when opened from a client's page */}
           <ClientPicker
-            label="Client"
+            label={t('ui.generateInvoiceModal.client')}
             value={clientId ? Number(clientId) : ''}
             initialName={clientName || (clientId ? `Client #${clientId}` : undefined)}
             disabled={!!lockedClientId}
@@ -221,7 +223,7 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
           {/* Line items */}
           <div style={{ marginTop: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Invoice Items</span>
+              <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('ui.generateInvoiceModal.invoiceItems')}</span>
               <div style={{ display: 'flex', gap: 6 }}>
                 {(['contract', 'product', 'custom'] as ItemType[]).map(type => (
                   <button key={type} type="button" onClick={() => addItem(type)} style={addItemBtn} title={`Add ${ITEM_TYPE_LABELS[type]}`}>
@@ -233,7 +235,7 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
 
             {items.length === 0 && (
               <p style={{ fontSize: '0.82rem', color: '#9ca3af', textAlign: 'center', padding: '0.75rem 0' }}>
-                Use the buttons above to add items.
+                {t('ui.generateInvoiceModal.useTheButtonsAboveTo')}
               </p>
             )}
 
@@ -259,14 +261,14 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
                     type="button"
                     onClick={() => removeItem(item.localId)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '1rem', lineHeight: 1 }}
-                    aria-label="Remove item"
+                    aria-label={t('ui.generateInvoiceModal.removeItem')}
                   >×</button>
                 </div>
 
                 {item.type === 'contract' && (
                   /* Contract charge: the only type that asks for a contract */
                   <>
-                    <label htmlFor={`${fieldId}-1`} style={{ ...labelStyle, marginTop: 0 }}>Contract</label>
+                    <label htmlFor={`${fieldId}-1`} style={{ ...labelStyle, marginTop: 0 }}>{t('ui.generateInvoiceModal.contract')}</label>
                     <select id={`${fieldId}-1`}
                       style={inputStyle}
                       value={item.contractId}
@@ -274,8 +276,8 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
                       disabled={!clientId}
                       required
                     >
-                      <option value="">— select contract —</option>
-                      {clientContracts.map(c => <option key={c.id} value={c.id}>Contract #{c.id}</option>)}
+                      <option value="">{t('ui.generateInvoiceModal.selectContract')}</option>
+                      {clientContracts.map(c => <option key={c.id} value={c.id}>{t('ui.generateInvoiceModal.contract2')}{c.id}</option>)}
                     </select>
                   </>
                 )}
@@ -283,7 +285,7 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
                 {item.type === 'product' && (
                   /* Product: choose from the add-on catalog; price auto-fills (editable) */
                   <>
-                    <label htmlFor={`${fieldId}-2`} style={{ ...labelStyle, marginTop: 0 }}>Product</label>
+                    <label htmlFor={`${fieldId}-2`} style={{ ...labelStyle, marginTop: 0 }}>{t('ui.generateInvoiceModal.product')}</label>
                     <select id={`${fieldId}-2`}
                       style={inputStyle}
                       value={item.productAddonId}
@@ -301,17 +303,17 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
                     </select>
                     {addons.length === 0 && !addonsError && (
                       <p style={{ fontSize: '0.74rem', color: '#9ca3af', margin: '4px 0 0' }}>
-                        Add products under Plans → Add-ons, or use a Custom item.
+                        {t('ui.generateInvoiceModal.addProductsUnderPlansAdd')}
                       </p>
                     )}
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <div style={{ flex: 1 }}>
-                        <label htmlFor={`${fieldId}-3`} style={labelStyle}>Quantity</label>
+                        <label htmlFor={`${fieldId}-3`} style={labelStyle}>{t('ui.generateInvoiceModal.quantity')}</label>
                         <input id={`${fieldId}-3`} style={inputStyle} type="number" min={isInventoryLinked ? '1' : '0.01'} step={isInventoryLinked ? '1' : 'any'} value={item.quantity}
                           onChange={e => updateItem(item.localId, { quantity: e.target.value })} />
                       </div>
                       <div style={{ flex: 2 }}>
-                        <label htmlFor={`${fieldId}-4`} style={labelStyle}>Unit Price</label>
+                        <label htmlFor={`${fieldId}-4`} style={labelStyle}>{t('ui.generateInvoiceModal.unitPrice')}</label>
                         <input id={`${fieldId}-4`} style={inputStyle} type="number" min="0.01" step="0.01" placeholder="0.00" value={item.unitPrice}
                           onChange={e => updateItem(item.localId, { unitPrice: e.target.value })} required />
                       </div>
@@ -322,17 +324,17 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
                 {item.type === 'custom' && (
                   /* Custom: free-text one-off charge */
                   <>
-                    <label htmlFor={`${fieldId}-5`} style={{ ...labelStyle, marginTop: 0 }}>Description</label>
-                    <input id={`${fieldId}-5`} style={inputStyle} type="text" placeholder="e.g. Installation fee" value={item.description}
+                    <label htmlFor={`${fieldId}-5`} style={{ ...labelStyle, marginTop: 0 }}>{t('ui.generateInvoiceModal.description')}</label>
+                    <input id={`${fieldId}-5`} style={inputStyle} type="text" placeholder={t('ui.generateInvoiceModal.eGInstallationFee')} value={item.description}
                       onChange={e => updateItem(item.localId, { description: e.target.value })} required />
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <div style={{ flex: 1 }}>
-                        <label htmlFor={`${fieldId}-6`} style={labelStyle}>Quantity</label>
+                        <label htmlFor={`${fieldId}-6`} style={labelStyle}>{t('ui.generateInvoiceModal.quantity')}</label>
                         <input id={`${fieldId}-6`} style={inputStyle} type="number" min="0.01" step="any" value={item.quantity}
                           onChange={e => updateItem(item.localId, { quantity: e.target.value })} />
                       </div>
                       <div style={{ flex: 2 }}>
-                        <label htmlFor={`${fieldId}-7`} style={labelStyle}>Unit Price</label>
+                        <label htmlFor={`${fieldId}-7`} style={labelStyle}>{t('ui.generateInvoiceModal.unitPrice')}</label>
                         <input id={`${fieldId}-7`} style={inputStyle} type="number" min="0.01" step="0.01" placeholder="0.00" value={item.unitPrice}
                           onChange={e => updateItem(item.localId, { unitPrice: e.target.value })} required />
                       </div>
@@ -345,7 +347,7 @@ export function GenerateInvoiceModal({ lockedClientId, lockedClientName, onClose
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn}>{t('ui.generateInvoiceModal.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={submitting}>
               {submitting ? 'Generating…' : 'Generate'}
             </button>

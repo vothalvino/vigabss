@@ -542,3 +542,50 @@ test('the activation-field guard rejects a stale write atomically when prepare r
   expect(res.body.error.message).toMatch(/activation fields: plan_id/i);
   expect(contractReads).toBe(2);
 });
+
+// ASY-15: a plan change reached neither FreeRADIUS nor the live session.
+test('PATCH moving an active contract to another plan pushes the plan to the network', async () => {
+  const contractPlanChangeService = require('../src/services/contractPlanChangeService');
+  const planChangeProrationService = require('../src/services/planChangeProrationService');
+  const businessEvents = require('../src/services/businessEvents');
+  const push = jest.spyOn(contractPlanChangeService, 'pushPlanChange').mockResolvedValue({ pushed: true, coa_sent: true });
+  const prorate = jest.spyOn(planChangeProrationService, 'prorate').mockResolvedValue({ net: 40, invoice: { id: 77 } });
+  const emitted = jest.spyOn(businessEvents, 'emitInvoiceCreated').mockResolvedValue(undefined);
+  const conn = require('./fixtures/mockTxConnection').mockTxConnection(db);
+  const active = {
+    id: 33, organization_id: 42, client_id: 9, plan_id: 2, connection_type: 'pppoe', status: 'active',
+    start_date: '2026-08-10', end_date: null, billing_day: 1, price_override: null, ip_address: null, facturar: 0,
+  };
+  let planId = 2;
+  db.query.mockImplementation(async (sql) => {
+    const s = String(sql).replace(/\s+/g, ' ');
+    if (/`users`/.test(s)) return [[{ id: 1, email: 'admin@example.com', role: 'admin', status: 'active', organization_id: 42 }]];
+    if (/FROM `?plans`?/.test(s)) return [[{ id: 5, organization_id: 42, status: 'active', is_active: 1, deleted_at: null }]];
+    if (/SELECT \* FROM `?contracts`? WHERE `?id`? = \?/.test(s)) return [[{ ...active, plan_id: planId }]];
+    if (/UPDATE `contracts`/.test(s)) { planId = 5; return [{ affectedRows: 1 }]; }
+    return [[]];
+  });
+
+  const res = await request(app).patch('/api/v1/contracts/33').set('Authorization', `Bearer ${TOKEN}`).send({ plan_id: 5 });
+  expect(res.status).toBe(200);
+  expect(push).toHaveBeenCalledWith(33, 42);
+  // The rest of the invoiced period is billed in the change's transaction.
+  expect(prorate).toHaveBeenCalledWith(conn, expect.objectContaining({ newPlanId: 5, organizationId: 42, actorId: 1 }));
+  expect(conn.commit).toHaveBeenCalled();
+  expect(res.body.proration).toEqual({ net: 40, invoice_id: 77, credit_note_id: null });
+  expect(emitted).toHaveBeenCalledWith(42, { id: 77 });
+
+  push.mockClear();
+  prorate.mockClear();
+  await request(app).patch('/api/v1/contracts/33').set('Authorization', `Bearer ${TOKEN}`).send({ notes: 'same plan' });
+  expect(push).not.toHaveBeenCalled();
+  expect(prorate).not.toHaveBeenCalled();
+
+  planId = 2;
+  const courtesy = await request(app).patch('/api/v1/contracts/33').set('Authorization', `Bearer ${TOKEN}`).send({ plan_id: 5, prorate: false });
+  expect(courtesy.status).toBe(200);
+  expect(prorate).not.toHaveBeenCalled();
+  expect(courtesy.body.proration).toBeUndefined();
+  expect(push).toHaveBeenCalledWith(33, 42);
+});
+

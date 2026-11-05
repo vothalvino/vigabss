@@ -87,7 +87,7 @@ function RuleForm({ initial, onSave, onClose, saving, editMode }: RuleFormProps)
       <div style={{ ...modalStyles.panel, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('alert_suppression.edit', 'Edit Suppression Rule') : t('alert_suppression.new', 'New Suppression Rule')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.alertSuppressionList.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -115,7 +115,7 @@ function RuleForm({ initial, onSave, onClose, saving, editMode }: RuleFormProps)
             </label>
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.alertSuppressionList.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -170,7 +170,7 @@ export function AlertSuppressionList() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.pageTitle}>{t('alert_suppression.title', 'Alert Suppression Rules')}</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.alertSuppressionList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('alert_suppression.new', 'New Suppression Rule')}
         </button>
@@ -194,12 +194,12 @@ export function AlertSuppressionList() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>Upstream Device</th>
-                  <th style={styles.th}>Downstream Device</th>
-                  <th style={styles.th}>Duration (min)</th>
-                  <th style={styles.th}>Enabled</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.alertSuppressionList.name')}</th>
+                  <th style={styles.th}>{t('ui.alertSuppressionList.upstreamDevice')}</th>
+                  <th style={styles.th}>{t('ui.alertSuppressionList.downstreamDevice')}</th>
+                  <th style={styles.th}>{t('ui.alertSuppressionList.durationMin')}</th>
+                  <th style={styles.th}>{t('ui.alertSuppressionList.enabled')}</th>
+                  <th style={styles.th}>{t('ui.alertSuppressionList.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -211,8 +211,8 @@ export function AlertSuppressionList() {
                     <td style={styles.td}>{r.suppress_duration_minutes}</td>
                     <td style={styles.td}>{r.is_enabled ? 'Yes' : 'No'}</td>
                     <td style={styles.td}>
-                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(r)}>Edit</button>
-                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(r.id)}>Delete</button>
+                      <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(r)}>{t('ui.alertSuppressionList.edit')}</button>
+                      <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(r.id)}>{t('ui.alertSuppressionList.delete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -224,9 +224,9 @@ export function AlertSuppressionList() {
 
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.alertSuppressionList.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.alertSuppressionList.page')}{page} {t('ui.alertSuppressionList.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.alertSuppressionList.next')}</button>
         </div>
       )}
 
@@ -241,8 +241,8 @@ export function AlertSuppressionList() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('alert_suppression.delete_confirm', 'Delete this suppression rule?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.alertSuppressionList.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.alertSuppressionList.delete')}</button>
             </div>
           </div>
         </div>

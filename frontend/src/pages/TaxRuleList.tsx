@@ -13,6 +13,7 @@ import { useMutation } from '@/api/useMutation';
 import { api } from '@/api/client';
 import { styles, modalStyles, RequiredMark, capitalize } from './crudStyles';
 import { StatusBadge, type StatusColors } from '@/components/ui/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -104,6 +105,7 @@ interface TaxRuleModalProps {
 }
 
 function TaxRuleModal({ taxRule, onClose, onSaved }: TaxRuleModalProps) {
+  const { t } = useTranslation();
   const isEdit = taxRule !== null;
   const [form, setForm] = useState({
     name: taxRule?.name ?? '',
@@ -166,37 +168,37 @@ function TaxRuleModal({ taxRule, onClose, onSaved }: TaxRuleModalProps) {
       >
         <div style={modalStyles.header}>
           <h2 style={modalStyles.title}>{isEdit ? `📝 Edit Tax Rule #${taxRule.id}` : '🧾 New Tax Rule'}</h2>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.taxRuleList.close')}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={modalStyles.form}>
           <label style={modalStyles.label}>
-            Name <RequiredMark />
+            {t('ui.taxRuleList.name')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="text"
               maxLength={255}
               value={form.name}
               onChange={e => setField('name', e.target.value)}
-              placeholder='e.g. "Standard rate", "IVA Frontera"'
+              placeholder={t('ui.taxRuleList.eGStandardRateIva')}
               required
             />
           </label>
 
           <label style={modalStyles.label}>
-            Region
+            {t('ui.taxRuleList.region')}
             <input
               style={modalStyles.input}
               type="text"
               maxLength={100}
               value={form.region}
               onChange={e => setField('region', e.target.value)}
-              placeholder="State, province, or country"
+              placeholder={t('ui.taxRuleList.stateProvinceOrCountry')}
             />
           </label>
 
           <label style={modalStyles.label}>
-            Postal codes
+            {t('ui.taxRuleList.postalCodes')}
             <input
               style={modalStyles.input}
               type="text"
@@ -206,17 +208,12 @@ function TaxRuleModal({ taxRule, onClose, onSaved }: TaxRuleModalProps) {
               placeholder="21000-22999,32000-32699,88000"
             />
             <span style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, display: 'block' }}>
-              Codes, ranges and prefixes, comma separated — e.g. 21000-22999 (MX),
-              0801-0899 (PA), 3000-3999 (AU), K1A* (CA). A client whose service
-              address falls in one of these gets this rate instead of the org
-              default. Ranges compare codes of the same length only; use a
-              trailing * for alphanumeric systems. Leave blank for a rule that is
-              not postal-code based.
+              {t('ui.taxRuleList.codesRangesAndPrefixesComma')}
             </span>
           </label>
 
           <label style={modalStyles.label}>
-            Tax type
+            {t('ui.taxRuleList.taxType')}
             <select
               style={modalStyles.select}
               value={form.tax_type}
@@ -227,7 +224,7 @@ function TaxRuleModal({ taxRule, onClose, onSaved }: TaxRuleModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Rate (decimal, e.g. 0.16 = 16%) <RequiredMark />
+            {t('ui.taxRuleList.rateDecimalEG0')}<RequiredMark />
             <input
               style={modalStyles.input}
               type="number"
@@ -241,7 +238,7 @@ function TaxRuleModal({ taxRule, onClose, onSaved }: TaxRuleModalProps) {
           </label>
 
           <label style={modalStyles.label}>
-            Status
+            {t('ui.taxRuleList.status')}
             <select
               style={modalStyles.select}
               value={form.status}
@@ -257,14 +254,14 @@ function TaxRuleModal({ taxRule, onClose, onSaved }: TaxRuleModalProps) {
               checked={form.is_default}
               onChange={e => setField('is_default', e.target.checked)}
             />
-            Default rule (applied when no region matches)
+            {t('ui.taxRuleList.defaultRuleAppliedWhenNo')}
           </label>
 
           {error && <p style={modalStyles.error}>{error}</p>}
 
           <div style={modalStyles.actions}>
             <button type="button" onClick={onClose} style={styles.btnSecondary} disabled={mutation.isPending}>
-              Cancel
+              {t('ui.taxRuleList.cancel')}
             </button>
             <button type="submit" style={styles.btnPrimary} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Tax Rule'}
@@ -287,18 +284,19 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <div style={modalStyles.backdrop} onClick={onCancel}>
       <div
         style={{ ...modalStyles.panel, maxWidth: 380 }}
         onClick={e => e.stopPropagation()}
         role="alertdialog"
-        aria-label="Confirm action"
+        aria-label={t('ui.taxRuleList.confirmAction')}
       >
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{message}</p>
         <div style={modalStyles.actions}>
-          <button onClick={onCancel} style={styles.btnSecondary}>No, go back</button>
-          <button onClick={onConfirm} style={styles.btnDanger}>Yes, confirm</button>
+          <button onClick={onCancel} style={styles.btnSecondary}>{t('ui.taxRuleList.noGoBack')}</button>
+          <button onClick={onConfirm} style={styles.btnDanger}>{t('ui.taxRuleList.yesConfirm')}</button>
         </div>
       </div>
     </div>
@@ -310,6 +308,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
 // ---------------------------------------------------------------------------
 
 export function TaxRuleList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -342,15 +341,15 @@ export function TaxRuleList() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>🧾 Tax Rules</h1>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        <h1 style={styles.pageTitle}>{t('ui.taxRuleList.taxRules')}</h1>
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.taxRuleList.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowNew(true)}>
-          + New Tax Rule
+          {t('ui.taxRuleList.newTaxRule')}
         </button>
       </div>
 
       <div style={styles.filterRow}>
-        <label style={styles.filterLabel}>Status:</label>
+        <label style={styles.filterLabel}>{t('ui.taxRuleList.status2')}</label>
         <select
           style={styles.filterSelect}
           value={statusFilter}
@@ -362,24 +361,24 @@ export function TaxRuleList() {
         </select>
         {statusFilter && (
           <button type="button" style={styles.btnSecondary} onClick={() => handleFilterChange('')}>
-            Clear filter
+            {t('ui.taxRuleList.clearFilter')}
           </button>
         )}
       </div>
 
       {deleteMutation.isError && (
         <p style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-          Action failed. Please try again.
+          {t('ui.taxRuleList.actionFailedPleaseTryAgain')}
         </p>
       )}
 
       <div style={styles.tableCard}>
         {taxRulesQ.isLoading ? (
-          <p style={styles.msg}>Loading…</p>
+          <p style={styles.msg}>{t('ui.taxRuleList.loading')}</p>
         ) : taxRulesQ.error ? (
-          <p style={styles.msgError}>Failed to load tax rules.</p>
+          <p style={styles.msgError}>{t('ui.taxRuleList.failedToLoadTaxRules')}</p>
         ) : taxRules.length === 0 ? (
-          <p style={styles.msg}>No tax rules found{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
+          <p style={styles.msg}>{t('ui.taxRuleList.noTaxRulesFound')}{statusFilter ? ` with status "${statusFilter}"` : ''}.</p>
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
@@ -392,31 +391,31 @@ export function TaxRuleList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {taxRules.map(t => (
-                    <tr key={t.id} style={styles.tr}>
-                      <td style={styles.td}>#{t.id}</td>
-                      <td style={{ ...styles.td, fontWeight: 500 }}>{t.name}</td>
-                      <td style={styles.td}>{t.region ?? '—'}</td>
+                  {taxRules.map(rule => (
+                    <tr key={rule.id} style={styles.tr}>
+                      <td style={styles.td}>#{rule.id}</td>
+                      <td style={{ ...styles.td, fontWeight: 500 }}>{rule.name}</td>
+                      <td style={styles.td}>{rule.region ?? '—'}</td>
                       <td style={{ ...styles.td, fontFamily: 'var(--mono, monospace)', fontSize: 12 }}
-                          title={t.postal_codes ?? ''}>
-                        {t.postal_codes
-                          ? (t.postal_codes.length > 28 ? `${t.postal_codes.slice(0, 28)}…` : t.postal_codes)
+                          title={rule.postal_codes ?? ''}>
+                        {rule.postal_codes
+                          ? (rule.postal_codes.length > 28 ? `${rule.postal_codes.slice(0, 28)}…` : rule.postal_codes)
                           : '—'}
                       </td>
-                      <td style={{ ...styles.td, textTransform: 'uppercase' }}>{t.tax_type?.replace(/_/g, ' ')}</td>
-                      <td style={styles.td}>{formatRate(t.rate)}</td>
-                      <td style={styles.td}>{t.is_default ? '⭐' : '—'}</td>
-                      <td style={styles.td}><StatusBadge status={t.status} colors={STATUS_COLORS} /></td>
+                      <td style={{ ...styles.td, textTransform: 'uppercase' }}>{rule.tax_type?.replace(/_/g, ' ')}</td>
+                      <td style={styles.td}>{formatRate(rule.rate)}</td>
+                      <td style={styles.td}>{rule.is_default ? '⭐' : '—'}</td>
+                      <td style={styles.td}><StatusBadge status={rule.status} colors={STATUS_COLORS} /></td>
                       <td style={{ ...styles.td, whiteSpace: 'nowrap' }}>
-                        <button style={styles.actionBtn} onClick={() => setEditTaxRule(t)} title="Edit this tax rule">
-                          ✏️ Edit
+                        <button style={styles.actionBtn} onClick={() => setEditTaxRule(rule)} title={t('ui.taxRuleList.editThisTaxRule')}>
+                          {t('ui.taxRuleList.edit')}
                         </button>
                         <button
                           style={{ ...styles.actionBtn, color: '#991b1b' }}
-                          onClick={() => setDeleteId(t.id)}
-                          title="Delete this tax rule"
+                          onClick={() => setDeleteId(rule.id)}
+                          title={t('ui.taxRuleList.deleteThisTaxRule')}
                         >
-                          🗑 Delete
+                          {t('ui.taxRuleList.delete')}
                         </button>
                       </td>
                     </tr>
@@ -428,15 +427,15 @@ export function TaxRuleList() {
             {meta && meta.totalPages > 1 && (
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                  ← Prev
+                  {t('ui.taxRuleList.prev')}
                 </button>
-                <span style={styles.pageInfo}>Page {page} of {meta.totalPages}</span>
+                <span style={styles.pageInfo}>{t('ui.taxRuleList.page')}{page} {t('ui.taxRuleList.of')}{meta.totalPages}</span>
                 <button
                   style={styles.pageBtn}
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                 >
-                  Next →
+                  {t('ui.taxRuleList.next')}
                 </button>
               </div>
             )}

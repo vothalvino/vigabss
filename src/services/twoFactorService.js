@@ -114,7 +114,7 @@ async function verifyAndEnable(userId, code) {
 
   // Generate backup codes
   const backupCodes = generateBackupCodes();
-  const hashedCodes = backupCodes.map(hashBackupCode);
+  const hashedCodes = backupCodes.map(code => hashBackupCode(code));
 
   await db.query(
     // Record the enrolment step so the same code cannot be replayed at login.
@@ -158,15 +158,18 @@ function normalizeBackupCode(code) {
 
 // Keyed with a pepper derived from ENCRYPTION_KEY, so the stored hashes cannot
 // be tested offline without the key (SEC-28). Development and test installs
-// without a key use a fixed pepper.
-function backupCodePepper() {
-  const key = encryption.getKey();
-  if (!key) return Buffer.from('vigabss-development-backup-code-pepper');
-  return Buffer.from(crypto.hkdfSync('sha256', key, Buffer.alloc(0), 'vigabss:totp-backup-codes', 32));
+// without a key use a fixed pepper. New codes use the current key; a code
+// issued under a key since rotated into ENCRYPTION_KEYS_PREVIOUS still
+// verifies, so rotation does not lock anyone out (users who regenerate their
+// codes move to the current key).
+function backupCodePeppers() {
+  const ring = encryption.keyRing();
+  if (!ring.length) return [Buffer.from('vigabss-development-backup-code-pepper')];
+  return ring.map(({ key }) => Buffer.from(crypto.hkdfSync('sha256', key, Buffer.alloc(0), 'vigabss:totp-backup-codes', 32)));
 }
 
-function hashBackupCode(code) {
-  return crypto.createHmac('sha256', backupCodePepper()).update(code).digest('hex');
+function hashBackupCode(code, pepper = backupCodePeppers()[0]) {
+  return crypto.createHmac('sha256', pepper).update(code).digest('hex');
 }
 
 /**
@@ -217,8 +220,8 @@ async function verifyCode(userId, code) {
   const normalized = normalizeBackupCode(trimmed);
   if (normalized) {
     const backupCodes = parseBackupCodes(user.totp_backup_codes);
-    const codeHash = hashBackupCode(normalized);
-    if (backupCodes.includes(codeHash)) {
+    const codeHash = backupCodePeppers().map(p => hashBackupCode(normalized, p)).find(h => backupCodes.includes(h));
+    if (codeHash) {
       // One statement removes exactly this hash, so concurrent redemptions of
       // the same code cannot both succeed and two different codes redeemed
       // at once cannot resurrect each other.
@@ -271,7 +274,7 @@ async function regenerateBackupCodes(userId, code) {
   await verifyCode(userId, code);
 
   const backupCodes = generateBackupCodes();
-  const hashedCodes = backupCodes.map(hashBackupCode);
+  const hashedCodes = backupCodes.map(code => hashBackupCode(code));
 
   await db.query(
     'UPDATE users SET totp_backup_codes = ? WHERE id = ?',

@@ -28,6 +28,7 @@ import {
 import { KpiRow, ThroughputChart, LiveEvents, SitesStrip, DeviceTable, type DeviceFilter } from './operations-console/consoleWidgets';
 import { canOpenConsoleRoute } from './operations-console/consoleAccess';
 import './operations-console/console.css';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Fetch helpers — typed api client (auth + silent-refresh middleware)
@@ -126,6 +127,7 @@ async function fetchNetworkDevices(): Promise<DeviceRow[]> {
 // ---------------------------------------------------------------------------
 
 export function OperationsConsole() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -218,16 +220,16 @@ export function OperationsConsole() {
       {/* Header */}
       <div className="fi-main-head">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <h1 className="fi-main-title">Operations Overview</h1>
-          <span className="fi-main-sub">Network operations · auto-refresh 30s</span>
+          <h1 className="fi-main-title">{t('ui.operationsConsole.operationsOverview')}</h1>
+          <span className="fi-main-sub">{t('ui.operationsConsole.networkOperationsAutoRefresh30s')}</span>
         </div>
         {model.isDemo && (
           <Badge tone="warning" style={{ alignSelf: 'center' }}>
-            <span title="Sample data — the console switches to live figures once your first client is added.">Demo data</span>
+            <span title={t('ui.operationsConsole.sampleDataTheConsoleSwitches')}>{t('ui.operationsConsole.demoData')}</span>
           </Badge>
         )}
         <div className="fi-spacer" />
-        {canCreateTicket && <Button onClick={onNewTicket}>New ticket</Button>}
+        {canCreateTicket && <Button onClick={onNewTicket}>{t('ui.operationsConsole.newTicket')}</Button>}
       </div>
 
       {/* KPI row */}
@@ -248,10 +250,10 @@ export function OperationsConsole() {
             reserved for the application command palette. */}
         <div style={{ marginBottom: 'var(--sp-3)' }}>
           <Field
-            label="Search devices"
+            label={t('ui.operationsConsole.searchDevices')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by name, IP, or type…"
+            placeholder={t('ui.operationsConsole.filterByNameIpOr')}
             id="fi-device-search"
             style={{ maxWidth: 360 }}
           />

@@ -71,7 +71,7 @@ describe('payment gateways', () => {
     expect(res.status).toBe(201);
     const stored = PaymentGateway.create.mock.calls[0][0];
     expect(stored.secret_key_encrypted).not.toBe('sk_live_1');
-    expect(stored.secret_key_encrypted.split(':')).toHaveLength(3);
+    expect(stored.secret_key_encrypted).toMatch(/^vb1:[0-9a-f]{8}:[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/);
     expect(decrypt(stored.secret_key_encrypted)).toBe('sk_live_1');
     expect(decrypt(stored.webhook_secret_encrypted)).toBe('whsec_1');
   });

@@ -1175,11 +1175,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setQcPage(p => Math.max(1, p - 1))} disabled={qcPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{qcPage} / {qcTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setQcPage(p => p + 1)} disabled={qcPage >= qcTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -1265,11 +1265,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setQtPage(p => Math.max(1, p - 1))} disabled={qtPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{qtPage} / {qtTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setQtPage(p => p + 1)} disabled={qtPage >= qtTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -1350,11 +1350,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setRltPage(p => Math.max(1, p - 1))} disabled={rltPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{rltPage} / {rltTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setRltPage(p => p + 1)} disabled={rltPage >= rltTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -1436,11 +1436,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setPsrPage(p => Math.max(1, p - 1))} disabled={psrPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{psrPage} / {psrTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setPsrPage(p => p + 1)} disabled={psrPage >= psrTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -1483,7 +1483,7 @@ export function QosBandwidthPage() {
               </label>
               <label style={modalStyles.label}>
                 {t('qosBandwidth.qualityClasses.dscpMark')}
-                <input style={modalStyles.input} placeholder="EF, AF41, CS3, BE" value={qcForm.dscp_mark ?? ''} onChange={e => setQcForm(f => ({ ...f, dscp_mark: e.target.value || undefined }))} />
+                <input style={modalStyles.input} placeholder={t('ui.qosBandwidthPage.efAf41Cs3Be')} value={qcForm.dscp_mark ?? ''} onChange={e => setQcForm(f => ({ ...f, dscp_mark: e.target.value || undefined }))} />
               </label>
               <label style={modalStyles.label}>
                 {t('qosBandwidth.qualityClasses.queueKind')}
@@ -1534,7 +1534,7 @@ export function QosBandwidthPage() {
               </label>
               <label style={modalStyles.label}>
                 {t('qosBandwidth.queueTree.interface')}
-                <input style={modalStyles.input} placeholder="ether1, pppoe-out1" value={qtForm.interface ?? ''} onChange={e => setQtForm(f => ({ ...f, interface: e.target.value || undefined }))} />
+                <input style={modalStyles.input} placeholder={t('ui.qosBandwidthPage.ether1PppoeOut1')} value={qtForm.interface ?? ''} onChange={e => setQtForm(f => ({ ...f, interface: e.target.value || undefined }))} />
               </label>
               <label style={modalStyles.label}>
                 {t('qosBandwidth.queueTree.maxLimit')} (Mbps)
@@ -1694,7 +1694,7 @@ export function QosBandwidthPage() {
               </label>
               <label style={modalStyles.label}>
                 {t('qosBandwidth.shapingRules.dstPort')}
-                <input style={modalStyles.input} placeholder="80,443 or 6881-6889" value={psrForm.dst_port_range ?? ''} onChange={e => setPsrForm(f => ({ ...f, dst_port_range: e.target.value || undefined }))} />
+                <input style={modalStyles.input} placeholder={t('ui.qosBandwidthPage.t80443Or68816889')} value={psrForm.dst_port_range ?? ''} onChange={e => setPsrForm(f => ({ ...f, dst_port_range: e.target.value || undefined }))} />
               </label>
               <label style={modalStyles.label}>
                 {t('qosBandwidth.shapingRules.srcPort')}
@@ -1716,7 +1716,7 @@ export function QosBandwidthPage() {
               </label>
               <label style={modalStyles.label}>
                 {t('qosBandwidth.shapingRules.dscpMark')}
-                <input style={modalStyles.input} placeholder="EF, AF41, AF21, BE" value={psrForm.dscp_mark ?? ''} onChange={e => setPsrForm(f => ({ ...f, dscp_mark: e.target.value || undefined }))} />
+                <input style={modalStyles.input} placeholder={t('ui.qosBandwidthPage.efAf41Af21Be')} value={psrForm.dscp_mark ?? ''} onChange={e => setPsrForm(f => ({ ...f, dscp_mark: e.target.value || undefined }))} />
               </label>
               <label style={modalStyles.label}>
                 {t('qosBandwidth.shapingRules.priority')}
@@ -1809,11 +1809,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setDpPage(p => Math.max(1, p - 1))} disabled={dpPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{dpPage} / {dpTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setDpPage(p => p + 1)} disabled={dpPage >= dpTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -1864,11 +1864,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setFupNotifPage(p => Math.max(1, p - 1))} disabled={fupNotifPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{fupNotifPage} / {fupNotifTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setFupNotifPage(p => p + 1)} disabled={fupNotifPage >= fupNotifTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -1991,11 +1991,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setIqpPage(p => Math.max(1, p - 1))} disabled={iqpPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{iqpPage} / {iqpTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setIqpPage(p => p + 1)} disabled={iqpPage >= iqpTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -2070,11 +2070,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setDscpPage(p => Math.max(1, p - 1))} disabled={dscpPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{dscpPage} / {dscpTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setDscpPage(p => p + 1)} disabled={dscpPage >= dscpTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -2142,11 +2142,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setMvPage(p => Math.max(1, p - 1))} disabled={mvPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{mvPage} / {mvTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setMvPage(p => p + 1)} disabled={mvPage >= mvTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -2214,11 +2214,11 @@ export function QosBandwidthPage() {
               </div>
               <div style={styles.pagination}>
                 <button style={styles.pageBtn} onClick={() => setBwtPage(p => Math.max(1, p - 1))} disabled={bwtPage <= 1}>
-                  &laquo; {t('qosBandwidth.prev')}
+                  {t('ui.qosBandwidthPage.laquo')}{t('qosBandwidth.prev')}
                 </button>
                 <span style={styles.pageInfo}>{bwtPage} / {bwtTotalPages}</span>
                 <button style={styles.pageBtn} onClick={() => setBwtPage(p => p + 1)} disabled={bwtPage >= bwtTotalPages}>
-                  {t('qosBandwidth.next')} &raquo;
+                  {t('qosBandwidth.next')} {t('ui.qosBandwidthPage.raquo')}
                 </button>
               </div>
             </>
@@ -2241,7 +2241,7 @@ export function QosBandwidthPage() {
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.interface')}
-                    <input style={modalStyles.input} placeholder="ether1" value={iqpForm.interface_name ?? ''} onChange={e => setIqpForm(f => ({ ...f, interface_name: e.target.value || undefined }))} />
+                    <input style={modalStyles.input} placeholder={t('ui.qosBandwidthPage.ether1')} value={iqpForm.interface_name ?? ''} onChange={e => setIqpForm(f => ({ ...f, interface_name: e.target.value || undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.policyType')}
@@ -2318,7 +2318,7 @@ export function QosBandwidthPage() {
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.dscpName')}
-                    <input style={modalStyles.input} placeholder="EF, AF41, CS3, BE" value={dscpForm.dscp_name ?? ''} onChange={e => setDscpForm(f => ({ ...f, dscp_name: e.target.value || undefined }))} />
+                    <input style={modalStyles.input} placeholder={t('ui.qosBandwidthPage.efAf41Cs3Be')} value={dscpForm.dscp_name ?? ''} onChange={e => setDscpForm(f => ({ ...f, dscp_name: e.target.value || undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.matchProtocol')}
@@ -2427,7 +2427,7 @@ export function QosBandwidthPage() {
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.host')} <RequiredMark />
-                    <input style={modalStyles.input} placeholder="192.168.1.100 or speedtest.example.com" value={bwtForm.host ?? ''} onChange={e => setBwtForm(f => ({ ...f, host: e.target.value }))} />
+                    <input style={modalStyles.input} placeholder={t('ui.qosBandwidthPage.t1921681100Or')} value={bwtForm.host ?? ''} onChange={e => setBwtForm(f => ({ ...f, host: e.target.value }))} />
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.port')}
@@ -2441,7 +2441,7 @@ export function QosBandwidthPage() {
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.region')}
-                    <input style={modalStyles.input} placeholder="us-west, mx-central" value={bwtForm.region ?? ''} onChange={e => setBwtForm(f => ({ ...f, region: e.target.value || undefined }))} />
+                    <input style={modalStyles.input} placeholder={t('ui.qosBandwidthPage.usWestMxCentral')} value={bwtForm.region ?? ''} onChange={e => setBwtForm(f => ({ ...f, region: e.target.value || undefined }))} />
                   </label>
                   <label style={modalStyles.label}>
                     {t('qosBandwidth.trafficEngineering.status')}

@@ -386,6 +386,7 @@ interface EditInvoiceModalProps {
 }
 
 function EditInvoiceModal({ invoice, onClose, onSaved }: EditInvoiceModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     invoice_number: invoice.invoice_number ?? '',
     currency: invoice.currency || 'MXN',
@@ -426,48 +427,48 @@ function EditInvoiceModal({ invoice, onClose, onSaved }: EditInvoiceModalProps) 
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Edit Invoice">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('invoiceDetail.ui.editInvoice')}>
       <div style={modalBox}>
-        <h3 style={{ margin: '0 0 1rem' }}>Edit Invoice</h3>
+        <h3 style={{ margin: '0 0 1rem' }}>{t('invoiceDetail.ui.editInvoice')}</h3>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Invoice Number</label>
+          <label style={labelStyle}>{t('invoiceDetail.ui.invoiceNumber')}</label>
           <input style={inputStyle} value={form.invoice_number} onChange={e => setField('invoice_number', e.target.value)} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
             <div>
-              <label style={labelStyle}>Status</label>
+              <label style={labelStyle}>{t('invoiceDetail.ui.status')}</label>
               <select style={inputStyle} value={form.status} onChange={e => setField('status', e.target.value)}>
                 {!INVOICE_STATUSES.includes(invoice.status) && <option value={invoice.status} disabled>{invoice.status}</option>}
                 {INVOICE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Currency</label>
+              <label style={labelStyle}>{t('invoiceDetail.ui.currency')}</label>
               <input style={inputStyle} maxLength={3} value={form.currency} onChange={e => setField('currency', e.target.value.toUpperCase())} />
             </div>
           </div>
 
-          <label style={labelStyle}>Due Date</label>
+          <label style={labelStyle}>{t('invoiceDetail.ui.dueDate')}</label>
           <input type="date" style={inputStyle} value={form.due_date} onChange={e => setField('due_date', e.target.value)} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
             <div>
-              <label style={labelStyle}>Subtotal</label>
+              <label style={labelStyle}>{t('invoiceDetail.ui.subtotal')}</label>
               <input type="number" step="0.01" min="0" style={inputStyle} value={form.subtotal} onChange={e => setField('subtotal', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>Tax</label>
+              <label style={labelStyle}>{t('invoiceDetail.ui.tax')}</label>
               <input type="number" step="0.01" min="0" style={inputStyle} value={form.tax_amount} onChange={e => setField('tax_amount', e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>Total</label>
+              <label style={labelStyle}>{t('invoiceDetail.ui.total')}</label>
               <input type="number" step="0.01" min="0" style={inputStyle} value={form.total} onChange={e => setField('total', e.target.value)} />
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn} disabled={mutation.isPending}>{t('invoiceDetail.ui.cancel')}</button>
             <button type="submit" style={submitBtn} disabled={mutation.isPending}>
               {mutation.isPending ? 'Saving…' : 'Save Changes'}
             </button>
@@ -508,6 +509,7 @@ interface StampCfdiModalProps {
 }
 
 function StampCfdiModal({ invoice, onClose, onStamped }: StampCfdiModalProps) {
+  const { t } = useTranslation();
   const [usoCfdi, setUsoCfdi] = useState('G03');
   const [formaPago, setFormaPago] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -553,34 +555,32 @@ function StampCfdiModal({ invoice, onClose, onStamped }: StampCfdiModalProps) {
 
   const profile = profileQ.data;
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Stamp invoice (SAT)">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('invoiceDetail.ui.stampInvoiceSat')}>
       <div style={modalBox}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Stamp invoice (SAT)</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('invoiceDetail.ui.stampInvoiceSat')}</h3>
         <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.8rem' }}>
           {invoice.invoice_number || `#${invoice.id}`} — {formatMoney(invoice.total, invoice.currency)}
         </p>
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: '#374151' }}>
-          This converts the invoice into a formal CFDI 4.0 and submits it to SAT
-          through your PAC. Once stamped, amounts freeze and the invoice can only
-          be cancelled through SAT (with a motivo), never voided.
+          {t('invoiceDetail.ui.thisConvertsTheInvoiceInto')}
         </p>
         {!profileQ.isLoading && (profile?.rfc ? (
           <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: '#065f46' }}>
-            Receptor: <span style={{ fontFamily: 'monospace' }}>{profile.rfc}</span> — {profile.razon_social}
+            {t('invoiceDetail.ui.receptor')}<span style={{ fontFamily: 'monospace' }}>{profile.rfc}</span> — {profile.razon_social}
           </p>
         ) : (
           <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: '#991b1b' }}>
-            ⚠ The client has no MX fiscal profile (RFC).{' '}
-            <Link to={`/clients/${invoice.client_id}`} style={{ color: 'var(--accent)' }}>Complete it on the client page</Link>{' '}
-            before stamping.
+            {t('invoiceDetail.ui.theClientHasNoMx')}{' '}
+            <Link to={`/clients/${invoice.client_id}`} style={{ color: 'var(--accent)' }}>{t('invoiceDetail.ui.completeItOnTheClient')}</Link>{' '}
+            {t('invoiceDetail.ui.beforeStamping')}
           </p>
         ))}
         <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#6b7280' }}>
-          Método de pago: <strong>{isPaid ? 'PUE (paid in full)' : 'PPD (payment pending — forma 99)'}</strong>
+          {t('invoiceDetail.ui.metodoDePago')}<strong>{isPaid ? 'PUE (paid in full)' : 'PPD (payment pending — forma 99)'}</strong>
         </p>
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle} htmlFor="stamp-uso-cfdi">Uso CFDI</label>
+          <label style={labelStyle} htmlFor="stamp-uso-cfdi">{t('invoiceDetail.ui.usoCfdi')}</label>
           <select id="stamp-uso-cfdi" style={inputStyle} value={usoCfdi} onChange={e => setUsoCfdi(e.target.value)}>
             {/* keep a client-default code visible even if not in the short list */}
             {usoCfdi && !USO_CFDI_OPTIONS.some(o => o.code === usoCfdi) && (
@@ -591,16 +591,16 @@ function StampCfdiModal({ invoice, onClose, onStamped }: StampCfdiModalProps) {
 
           {isPaid && (
             <>
-              <label style={labelStyle} htmlFor="stamp-forma-pago">Forma de pago</label>
+              <label style={labelStyle} htmlFor="stamp-forma-pago">{t('invoiceDetail.ui.formaDePago')}</label>
               <select id="stamp-forma-pago" style={inputStyle} value={formaPago} onChange={e => setFormaPago(e.target.value)}>
-                <option value="">— from the settling payment —</option>
+                <option value="">{t('invoiceDetail.ui.fromTheSettlingPayment')}</option>
                 {FORMA_PAGO_OPTIONS.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}
               </select>
             </>
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn} disabled={submitting}>Cancel</button>
+            <button type="button" onClick={onClose} style={cancelBtn} disabled={submitting}>{t('invoiceDetail.ui.cancel')}</button>
             <button type="submit" style={actionBtn('#047857')} disabled={submitting || profileQ.isLoading || !profile?.rfc}>
               {submitting ? 'Stamping…' : 'Stamp now'}
             </button>
@@ -637,6 +637,7 @@ interface CancelCfdiModalProps {
 }
 
 function CancelCfdiModal({ cfdi, invoiceNumber, appliedTotal, currency, onClose, onCancelled }: CancelCfdiModalProps) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('02');
   const [replacementUuid, setReplacementUuid] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -663,27 +664,23 @@ function CancelCfdiModal({ cfdi, invoiceNumber, appliedTotal, currency, onClose,
   }
 
   return (
-    <div style={overlay} role="dialog" aria-modal="true" aria-label="Cancel CFDI at SAT">
+    <div style={overlay} role="dialog" aria-modal="true" aria-label={t('invoiceDetail.ui.cancelCfdiAtSat')}>
       <div style={modalBox}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>Cancel CFDI at SAT</h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>{t('invoiceDetail.ui.cancelCfdiAtSat')}</h3>
         <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.8rem' }}>
-          Invoice {invoiceNumber} — UUID: <span style={{ fontFamily: 'monospace' }}>{cfdi.uuid ?? `#${cfdi.id}`}</span>
+          {t('invoiceDetail.ui.invoice')}{invoiceNumber} {t('invoiceDetail.ui.uuid')}<span style={{ fontFamily: 'monospace' }}>{cfdi.uuid ?? `#${cfdi.id}`}</span>
         </p>
         <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: '#374151' }}>
-          This CFDI is registered with SAT, so it stays fiscally valid until SAT
-          accepts a cancellation. Once accepted, the invoice is marked cancelled
-          automatically.
+          {t('invoiceDetail.ui.thisCfdiIsRegisteredWith')}
         </p>
         {appliedTotal > 0 && (
           <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: '#92400e', background: '#fef3c7', padding: '8px 10px', borderRadius: 6 }}>
-            ⚠ This invoice has <strong>{formatMoney(String(appliedTotal), currency)}</strong> in
-            applied payments — SAT acceptance will release them as client credit
-            (reallocate to a substitute invoice or refund afterwards).
+            {t('invoiceDetail.ui.thisInvoiceHas')}<strong>{formatMoney(String(appliedTotal), currency)}</strong> {t('invoiceDetail.ui.inAppliedPaymentsSatAcceptance')}
           </p>
         )}
         {error && <div style={errorBox}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle} htmlFor="cfdi-cancel-reason">Cancellation reason (SAT)</label>
+          <label style={labelStyle} htmlFor="cfdi-cancel-reason">{t('invoiceDetail.ui.cancellationReasonSat')}</label>
           <select id="cfdi-cancel-reason" style={inputStyle} value={reason} onChange={e => setReason(e.target.value)} required>
             {SAT_CANCEL_REASONS.map(r => (
               <option key={r.code} value={r.code}>{r.label}</option>
@@ -692,12 +689,12 @@ function CancelCfdiModal({ cfdi, invoiceNumber, appliedTotal, currency, onClose,
 
           {reason === '01' && (
             <>
-              <label style={labelStyle} htmlFor="cfdi-cancel-replacement-uuid">Replacement UUID (required for reason 01)</label>
+              <label style={labelStyle} htmlFor="cfdi-cancel-replacement-uuid">{t('invoiceDetail.ui.replacementUuidRequiredForReason')}</label>
               <input
                 id="cfdi-cancel-replacement-uuid"
                 style={inputStyle}
                 type="text"
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                placeholder={t('invoiceDetail.ui.xxxxxxxxXxxxXxxxXxxxXxxxxxxxxxxx')}
                 value={replacementUuid}
                 onChange={e => setReplacementUuid(e.target.value)}
                 required
@@ -706,7 +703,7 @@ function CancelCfdiModal({ cfdi, invoiceNumber, appliedTotal, currency, onClose,
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={cancelBtn} disabled={submitting}>Dismiss</button>
+            <button type="button" onClick={onClose} style={cancelBtn} disabled={submitting}>{t('invoiceDetail.ui.dismiss')}</button>
             <button type="submit" style={actionBtn('#b91c1c')} disabled={submitting}>
               {submitting ? 'Cancelling…' : 'Cancel CFDI'}
             </button>
@@ -942,12 +939,12 @@ export function InvoiceDetail() {
     <div style={{ padding: '1.5rem', maxWidth: 860 }}>
       {/* Breadcrumb */}
       <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '0.75rem' }}>
-        <Link to="/invoices" style={{ color: '#6b7280', textDecoration: 'none' }}>🧾 Invoices</Link>
+        <Link to="/invoices" style={{ color: '#6b7280', textDecoration: 'none' }}>{t('invoiceDetail.ui.invoices')}</Link>
         {invoice && <> / {invoice.invoice_number || `#${invoice.id}`}</>}
       </div>
 
-      {invoiceQ.isLoading && <p style={{ color: '#888' }}>Loading…</p>}
-      {invoiceQ.isError && <p style={{ color: 'var(--accent)' }}>Invoice not found.</p>}
+      {invoiceQ.isLoading && <p style={{ color: '#888' }}>{t('invoiceDetail.ui.loading')}</p>}
+      {invoiceQ.isError && <p style={{ color: 'var(--accent)' }}>{t('invoiceDetail.ui.invoiceNotFound')}</p>}
 
       {invoice && (
         <>
@@ -959,7 +956,7 @@ export function InvoiceDetail() {
               </h1>
               {client && (
                 <div style={{ marginTop: 4, fontSize: '0.875rem', color: '#6b7280' }}>
-                  Client:{' '}
+                  {t('invoiceDetail.ui.client')}{' '}
                   <Link to={`/clients/${client.id}`} style={{ color: 'var(--accent)', textDecoration: 'none' }}>
                     {client.name}
                   </Link>
@@ -980,7 +977,7 @@ export function InvoiceDetail() {
                 </button>
               )}
               <button onClick={handleDownloadPdf} style={actionBtn('#059669')}>
-                ⬇ Download PDF
+                {t('invoiceDetail.ui.downloadPdf')}
               </button>
               {canUpdate && <button
                 onClick={() => setShowEdit(true)}
@@ -990,7 +987,7 @@ export function InvoiceDetail() {
                   : invoice.status === 'cancelled' ? 'SAT-cancelled invoices cannot be edited'
                   : undefined}
               >
-                ✏️ Edit
+                {t('invoiceDetail.ui.edit')}
               </button>}
               {canRecordPayment && <button
                 onClick={() => setShowPayment(true)}
@@ -1001,15 +998,15 @@ export function InvoiceDetail() {
                 title={!['issued', 'sent', 'overdue'].includes(invoice.status) ? 'Only issued, sent, or overdue invoices can receive payments' : undefined}
                 style={actionBtn('var(--accent)')}
               >
-                💳 Record Payment
+                {t('invoiceDetail.ui.recordPayment')}
               </button>}
               {canStamp && isMxOrg && cfdiQ.isSuccess && (cfdiQ.data ?? []).length === 0 && ['issued', 'sent', 'overdue', 'paid'].includes(invoice.status) && (
                 <button
                   onClick={() => setShowStamp(true)}
                   style={actionBtn('#047857')}
-                  title="Convert this invoice into a formal CFDI 4.0 and stamp it with SAT via your PAC"
+                  title={t('invoiceDetail.ui.convertThisInvoiceIntoA')}
                 >
-                  📜 Stamp (SAT)
+                  {t('invoiceDetail.ui.stampSat')}
                 </button>
               )}
               {canStamp && isMxOrg && draftCfdi && !liveCfdi && (
@@ -1030,7 +1027,7 @@ export function InvoiceDetail() {
                     onClick={() => rebuildDraftMutation.mutate(draftCfdi.id)}
                     disabled={rebuildDraftMutation.isPending}
                     style={actionBtn('#047857')}
-                    title="Build the CFDI again from the invoice and the client's current fiscal data (new date), then stamp it"
+                    title={t('invoiceDetail.ui.buildTheCfdiAgainFrom')}
                   >
                     {rebuildDraftMutation.isPending ? 'Rebuilding…' : '🛠 Rebuild CFDI'}
                   </button>
@@ -1042,9 +1039,9 @@ export function InvoiceDetail() {
                     }}
                     disabled={discardDraftMutation.isPending}
                     style={actionBtn('#991b1b')}
-                    title="Delete the unstamped draft CFDI"
+                    title={t('invoiceDetail.ui.deleteTheUnstampedDraftCfdi')}
                   >
-                    🗑 Discard draft
+                    {t('invoiceDetail.ui.discardDraft')}
                   </button>
                 </>
               )}
@@ -1089,10 +1086,10 @@ export function InvoiceDetail() {
           {/* Invoice metadata card */}
           <div style={card}>
             <div style={metaGrid}>
-              <MetaRow label="Status" value={<StatusBadge status={invoice.status} colors={STATUS_COLORS} size="md" />} />
+              <MetaRow label={t('invoiceDetail.ui.status')} value={<StatusBadge status={invoice.status} colors={STATUS_COLORS} size="md" />} />
               {displayCfdi && (
                 <MetaRow
-                  label="CFDI (SAT)"
+                  label={t('invoiceDetail.ui.cfdiSat')}
                   value={
                     <span title={displayCfdi.uuid ?? undefined}>
                       <CfdiSatBadge satStatus={displayCfdi.sat_status} />
@@ -1106,29 +1103,29 @@ export function InvoiceDetail() {
                   }
                 />
               )}
-              <MetaRow label="Total" value={<strong style={{ fontSize: '1.05rem' }}>{formatMoney(invoice.total, invoice.currency)}</strong>} />
-              <MetaRow label="Subtotal" value={formatMoney(invoice.subtotal, invoice.currency)} />
-              <MetaRow label="Tax" value={formatMoney(invoice.tax_amount, invoice.currency)} />
-              <MetaRow label="Currency" value={invoice.currency} />
-              <MetaRow label="Due Date" value={fmt(invoice.due_date)} />
-              <MetaRow label="Paid At" value={fmt(invoice.paid_at)} />
-              {invoice.period_start && <MetaRow label="Period" value={`${fmt(invoice.period_start)} – ${fmt(invoice.period_end)}`} />}
-              <MetaRow label="Created" value={fmt(invoice.created_at)} />
-              {invoice.contract_id && <MetaRow label="Contract" value={`#${invoice.contract_id}`} />}
+              <MetaRow label={t('invoiceDetail.ui.total')} value={<strong style={{ fontSize: '1.05rem' }}>{formatMoney(invoice.total, invoice.currency)}</strong>} />
+              <MetaRow label={t('invoiceDetail.ui.subtotal')} value={formatMoney(invoice.subtotal, invoice.currency)} />
+              <MetaRow label={t('invoiceDetail.ui.tax')} value={formatMoney(invoice.tax_amount, invoice.currency)} />
+              <MetaRow label={t('invoiceDetail.ui.currency')} value={invoice.currency} />
+              <MetaRow label={t('invoiceDetail.ui.dueDate')} value={fmt(invoice.due_date)} />
+              <MetaRow label={t('invoiceDetail.ui.paidAt')} value={fmt(invoice.paid_at)} />
+              {invoice.period_start && <MetaRow label={t('invoiceDetail.ui.period')} value={`${fmt(invoice.period_start)} – ${fmt(invoice.period_end)}`} />}
+              <MetaRow label={t('invoiceDetail.ui.created')} value={fmt(invoice.created_at)} />
+              {invoice.contract_id && <MetaRow label={t('invoiceDetail.ui.contract')} value={`#${invoice.contract_id}`} />}
             </div>
             {invoice.notes && (
               <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#6b7280', borderTop: '1px solid #f3f4f6', paddingTop: '0.75rem' }}>
-                <strong>Notes:</strong> {invoice.notes}
+                <strong>{t('invoiceDetail.ui.notes')}</strong> {invoice.notes}
               </p>
             )}
           </div>
 
           {/* Line Items */}
-          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '1rem' }}>Line Items</h3>
+          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('invoiceDetail.ui.lineItems')}</h3>
           <div style={card}>
-            {itemsQ.isLoading && <p style={{ color: '#888', margin: 0 }}>Loading items…</p>}
+            {itemsQ.isLoading && <p style={{ color: '#888', margin: 0 }}>{t('invoiceDetail.ui.loadingItems')}</p>}
             {!itemsQ.isLoading && (itemsQ.data ?? []).length === 0 && (
-              <p style={{ color: '#9ca3af', margin: 0, fontSize: '0.85rem' }}>No line items.</p>
+              <p style={{ color: '#9ca3af', margin: 0, fontSize: '0.85rem' }}>{t('invoiceDetail.ui.noLineItems')}</p>
             )}
             {(itemsQ.data ?? []).length > 0 && (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
@@ -1167,11 +1164,11 @@ export function InvoiceDetail() {
           </div>
 
           {/* Applied Payments */}
-          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '1rem' }}>Applied Payments</h3>
+          <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('invoiceDetail.ui.appliedPayments')}</h3>
           <div style={card}>
-            {paymentsQ.isLoading && <p style={{ color: '#888', margin: 0 }}>Loading payments…</p>}
+            {paymentsQ.isLoading && <p style={{ color: '#888', margin: 0 }}>{t('invoiceDetail.ui.loadingPayments')}</p>}
             {!paymentsQ.isLoading && (paymentsQ.data ?? []).length === 0 && (
-              <p style={{ color: '#9ca3af', margin: 0, fontSize: '0.85rem' }}>No payments applied yet.</p>
+              <p style={{ color: '#9ca3af', margin: 0, fontSize: '0.85rem' }}>{t('invoiceDetail.ui.noPaymentsAppliedYet')}</p>
             )}
             {(paymentsQ.data ?? []).length > 0 && (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>

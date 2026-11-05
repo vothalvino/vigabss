@@ -159,7 +159,7 @@ function SixRdForm({ initial, onSave, onClose, saving, editMode }: SixRdFormProp
       <div style={{ ...modalStyles.panel, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('transition_mechanisms.edit_6rd', 'Edit 6rd Config') : t('transition_mechanisms.new_6rd', 'New 6rd Config')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.transitionMechanismsPage.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -195,7 +195,7 @@ function SixRdForm({ initial, onSave, onClose, saving, editMode }: SixRdFormProp
             <textarea style={{ ...inp, minHeight: 64, resize: 'vertical' as const }} value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.transitionMechanismsPage.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -257,7 +257,7 @@ function SixRdTab() {
   return (
     <div>
       <div style={styles.header}>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.transitionMechanismsPage.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('transition_mechanisms.new_6rd', 'New 6rd Config')}
         </button>
@@ -271,11 +271,11 @@ function SixRdTab() {
             <div style={{ overflowX: 'auto' }}>
               <table style={styles.table}>
                 <thead><tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>Border Relay IP</th>
-                  <th style={styles.th}>IPv6 Prefix</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.name')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.borderRelayIp')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.ipv6Prefix')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.status')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.actions')}</th>
                 </tr></thead>
                 <tbody>
                   {items.map(item => (
@@ -285,8 +285,8 @@ function SixRdTab() {
                       <td style={styles.tdMono}>{item.ipv6_prefix}</td>
                       <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
-                        <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
-                        <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
+                        <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>{t('ui.transitionMechanismsPage.edit')}</button>
+                        <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>{t('ui.transitionMechanismsPage.delete')}</button>
                       </td>
                     </tr>
                   ))}
@@ -297,9 +297,9 @@ function SixRdTab() {
       </div>
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.transitionMechanismsPage.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.transitionMechanismsPage.page')}{page} {t('ui.transitionMechanismsPage.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.transitionMechanismsPage.next')}</button>
         </div>
       )}
       {showForm && <SixRdForm initial={{}} onSave={body => createMut.mutate(body)} onClose={() => setShowForm(false)} saving={createMut.isPending} editMode={false} />}
@@ -309,8 +309,8 @@ function SixRdTab() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('transition_mechanisms.delete_confirm', 'Delete this configuration?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.transitionMechanismsPage.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.transitionMechanismsPage.delete')}</button>
             </div>
           </div>
         </div>
@@ -365,7 +365,7 @@ function DsLiteForm({ initial, onSave, onClose, saving, editMode }: DsLiteFormPr
       <div style={{ ...modalStyles.panel, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('transition_mechanisms.edit_dslite', 'Edit DS-Lite Config') : t('transition_mechanisms.new_dslite', 'New DS-Lite Config')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.transitionMechanismsPage.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -395,7 +395,7 @@ function DsLiteForm({ initial, onSave, onClose, saving, editMode }: DsLiteFormPr
             <textarea style={{ ...inp, minHeight: 64, resize: 'vertical' as const }} value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.transitionMechanismsPage.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -457,7 +457,7 @@ function DsLiteTab() {
   return (
     <div>
       <div style={styles.header}>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.transitionMechanismsPage.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('transition_mechanisms.new_dslite', 'New DS-Lite Config')}
         </button>
@@ -471,11 +471,11 @@ function DsLiteTab() {
             <div style={{ overflowX: 'auto' }}>
               <table style={styles.table}>
                 <thead><tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>AFTR Address</th>
-                  <th style={styles.th}>B4 Range</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.name')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.aftrAddress')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.b4Range')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.status')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.actions')}</th>
                 </tr></thead>
                 <tbody>
                   {items.map(item => (
@@ -485,8 +485,8 @@ function DsLiteTab() {
                       <td style={styles.tdMono}>{item.b4_address_range ?? '—'}</td>
                       <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
-                        <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
-                        <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
+                        <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>{t('ui.transitionMechanismsPage.edit')}</button>
+                        <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>{t('ui.transitionMechanismsPage.delete')}</button>
                       </td>
                     </tr>
                   ))}
@@ -497,9 +497,9 @@ function DsLiteTab() {
       </div>
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.transitionMechanismsPage.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.transitionMechanismsPage.page')}{page} {t('ui.transitionMechanismsPage.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.transitionMechanismsPage.next')}</button>
         </div>
       )}
       {showForm && <DsLiteForm initial={{}} onSave={body => createMut.mutate(body)} onClose={() => setShowForm(false)} saving={createMut.isPending} editMode={false} />}
@@ -509,8 +509,8 @@ function DsLiteTab() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('transition_mechanisms.delete_confirm', 'Delete this configuration?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.transitionMechanismsPage.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.transitionMechanismsPage.delete')}</button>
             </div>
           </div>
         </div>
@@ -569,7 +569,7 @@ function MapRuleForm({ initial, onSave, onClose, saving, editMode }: MapRuleForm
       <div style={{ ...modalStyles.panel, maxWidth: 580 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('transition_mechanisms.edit_map', 'Edit MAP Rule') : t('transition_mechanisms.new_map', 'New MAP Rule')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.transitionMechanismsPage.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -613,7 +613,7 @@ function MapRuleForm({ initial, onSave, onClose, saving, editMode }: MapRuleForm
             <textarea style={{ ...inp, minHeight: 64, resize: 'vertical' as const }} value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.transitionMechanismsPage.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -675,7 +675,7 @@ function MapRulesTab() {
   return (
     <div>
       <div style={styles.header}>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.transitionMechanismsPage.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('transition_mechanisms.new_map', 'New MAP Rule')}
         </button>
@@ -689,13 +689,13 @@ function MapRulesTab() {
             <div style={{ overflowX: 'auto' }}>
               <table style={styles.table}>
                 <thead><tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>Rule Type</th>
-                  <th style={styles.th}>IPv6 Prefix</th>
-                  <th style={styles.th}>IPv4 Prefix</th>
-                  <th style={styles.th}>BR Address</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.name')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.ruleType')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.ipv6Prefix')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.ipv4Prefix')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.brAddress')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.status')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.actions')}</th>
                 </tr></thead>
                 <tbody>
                   {items.map(item => (
@@ -707,8 +707,8 @@ function MapRulesTab() {
                       <td style={styles.tdMono}>{item.br_address}</td>
                       <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
-                        <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
-                        <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
+                        <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>{t('ui.transitionMechanismsPage.edit')}</button>
+                        <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>{t('ui.transitionMechanismsPage.delete')}</button>
                       </td>
                     </tr>
                   ))}
@@ -719,9 +719,9 @@ function MapRulesTab() {
       </div>
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.transitionMechanismsPage.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.transitionMechanismsPage.page')}{page} {t('ui.transitionMechanismsPage.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.transitionMechanismsPage.next')}</button>
         </div>
       )}
       {showForm && <MapRuleForm initial={{}} onSave={body => createMut.mutate(body)} onClose={() => setShowForm(false)} saving={createMut.isPending} editMode={false} />}
@@ -731,8 +731,8 @@ function MapRulesTab() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('transition_mechanisms.delete_confirm', 'Delete this configuration?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.transitionMechanismsPage.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.transitionMechanismsPage.delete')}</button>
             </div>
           </div>
         </div>
@@ -787,7 +787,7 @@ function XlatForm({ initial, onSave, onClose, saving, editMode }: XlatFormProps)
       <div style={{ ...modalStyles.panel, maxWidth: 560 }} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
           <h3 style={modalStyles.title}>{editMode ? t('transition_mechanisms.edit_464xlat', 'Edit 464XLAT Config') : t('transition_mechanisms.new_464xlat', 'New 464XLAT Config')}</h3>
-          <button style={modalStyles.closeBtn} onClick={onClose} aria-label="Close">x</button>
+          <button style={modalStyles.closeBtn} onClick={onClose} aria-label={t('ui.transitionMechanismsPage.close')}>x</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -817,7 +817,7 @@ function XlatForm({ initial, onSave, onClose, saving, editMode }: XlatFormProps)
             <textarea style={{ ...inp, minHeight: 64, resize: 'vertical' as const }} value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
           <div style={modalStyles.actions}>
-            <button type="button" style={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" style={styles.btnSecondary} onClick={onClose}>{t('ui.transitionMechanismsPage.cancel')}</button>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
@@ -879,7 +879,7 @@ function XlatTab() {
   return (
     <div>
       <div style={styles.header}>
-        {meta && <span style={styles.countBadge}>{meta.total} total</span>}
+        {meta && <span style={styles.countBadge}>{meta.total} {t('ui.transitionMechanismsPage.total')}</span>}
         <button style={{ ...styles.btnPrimary, marginLeft: 'auto' }} onClick={() => setShowForm(true)}>
           + {t('transition_mechanisms.new_464xlat', 'New 464XLAT Config')}
         </button>
@@ -893,12 +893,12 @@ function XlatTab() {
             <div style={{ overflowX: 'auto' }}>
               <table style={styles.table}>
                 <thead><tr>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>PLAT Prefix</th>
-                  <th style={styles.th}>CLAT Prefix</th>
-                  <th style={styles.th}>DNS64 Prefix</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Actions</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.name')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.platPrefix')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.clatPrefix')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.dns64Prefix')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.status')}</th>
+                  <th style={styles.th}>{t('ui.transitionMechanismsPage.actions')}</th>
                 </tr></thead>
                 <tbody>
                   {items.map(item => (
@@ -909,8 +909,8 @@ function XlatTab() {
                       <td style={styles.tdMono}>{item.dns64_prefix ?? '—'}</td>
                       <td style={styles.td}><StatusBadge status={item.status} colors={STATUS_COLORS} /></td>
                       <td style={styles.td}>
-                        <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>Edit</button>
-                        <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>Delete</button>
+                        <button style={{ ...styles.btnSecondary, fontSize: '0.78rem', padding: '0.25rem 0.6rem', marginRight: 4 }} onClick={() => setEditing(item)}>{t('ui.transitionMechanismsPage.edit')}</button>
+                        <button style={{ ...styles.btnDanger, fontSize: '0.78rem', padding: '0.25rem 0.6rem' }} onClick={() => setDeleteConfirm(item.id)}>{t('ui.transitionMechanismsPage.delete')}</button>
                       </td>
                     </tr>
                   ))}
@@ -921,9 +921,9 @@ function XlatTab() {
       </div>
       {totalPages > 1 && (
         <div style={styles.pagination}>
-          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>&larr; Prev</button>
-          <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next &rarr;</button>
+          <button style={styles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('ui.transitionMechanismsPage.prev')}</button>
+          <span style={styles.pageInfo}>{t('ui.transitionMechanismsPage.page')}{page} {t('ui.transitionMechanismsPage.of')}{totalPages}</span>
+          <button style={styles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('ui.transitionMechanismsPage.next')}</button>
         </div>
       )}
       {showForm && <XlatForm initial={{}} onSave={body => createMut.mutate(body)} onClose={() => setShowForm(false)} saving={createMut.isPending} editMode={false} />}
@@ -933,8 +933,8 @@ function XlatTab() {
           <div style={{ ...modalStyles.panel, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ marginBottom: '1.5rem' }}>{t('transition_mechanisms.delete_confirm', 'Delete this configuration?')}</p>
             <div style={modalStyles.actions}>
-              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>Cancel</button>
-              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>Delete</button>
+              <button style={styles.btnSecondary} onClick={() => setDeleteConfirm(null)}>{t('ui.transitionMechanismsPage.cancel')}</button>
+              <button style={styles.btnDanger} onClick={() => deleteMut.mutate(deleteConfirm)} disabled={deleteMut.isPending}>{t('ui.transitionMechanismsPage.delete')}</button>
             </div>
           </div>
         </div>
