@@ -2,7 +2,8 @@
 // =============================================================================
 // VigaBSS — Postman Collection Generator
 // =============================================================================
-// Reads docs/openapi.json and produces docs/postman-collection.json in Postman
+// Reads docs/openapi.json and produces docs/postman-collection.json (not
+// committed; regenerate whenever you need it) in Postman
 // Collection v2.1 format. Run with: node src/scripts/postman.js
 // =============================================================================
 
